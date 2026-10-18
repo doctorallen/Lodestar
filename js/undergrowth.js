@@ -481,7 +481,7 @@ function placeUndergrowth(f, set) {
       const [wk, wp] = kindAt(wallKinds, tx, ty, 1), [ck, cp] = kindAt(ceilKinds, tx, ty, 2);
       if (wk && rng.chance(F.wallP * dens * wp * s * 0.5 + F.outlier * 0.5)) {
         const x = (tx + 0.5) * TILE + rng.f(-4, 4);
-        put(wk.p, x, ty * TILE + wk.p.h - 2, (ty - 1) * W + tx);
+        footing(put(wk.p, x, ty * TILE + wk.p.h - 2, (ty - 1) * W + tx), x, ty * TILE + wk.p.h - 2, 1, false, items[items.length - 1]);
         bed(x, g + 3, wk.p.w / 2 + F.bed.reach, 5);
       } else if (ck && rng.chance(F.ceilP * dens * cp * s * 0.5 + F.outlier * 0.4)) {
         put(ck.p, (tx + 0.5) * TILE + rng.f(-4, 4), ty * TILE - 1, (ty - 1) * W + tx);
