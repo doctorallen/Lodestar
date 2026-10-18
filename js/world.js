@@ -108,7 +108,10 @@ function worldLayout(seed) {
     const R = W.rings[t.ring];
     if (t.ring === 0) { Object.assign(t, { home: true, region: null, biome: 0, depth: 0, name: 'The Outpost', clime: null, goal: null, deep: 0 }); continue; }
     t.region = R.region; t.biome = R.region;
-    t.depth = clamp(1 + Math.round(t.out * 3), 1, 4) + (t.edge ? W.edgeDepth : 0);
+    // its depth by its rank out from the star among its ring, so every
+    // ring runs evenly from gentle to hard
+    const ring = terrs.filter((x) => x.ring === t.ring).sort((a, b) => a.out - b.out || a.id - b.id);
+    t.depth = 1 + Math.floor((ring.indexOf(t) * 4) / ring.length) + (t.edge ? W.edgeDepth : 0);
     const region = T.biomes[t.biome].id;
     t.clime = rng.weighted(surf.map((id) => { const c = T.climes[id]; return [c.weight * ((c.lean && c.lean[t.edge ? 'underforge' : region]) || 1), id]; }));
     t.name = (t.edge ? names.edge.pop() : names[t.clime].pop()) || spare();

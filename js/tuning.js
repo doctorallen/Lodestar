@@ -76,8 +76,9 @@ const T = {
   //     outpost; edge: the Edge (unknown on the map until walked).
   //   warp: how far (px) a border wanders; border: the px of shared border
   //     that make two territories neighbours.
-  //   depth: a territory's danger within its region, 1 to 4, from how far
-  //     out it stands in its ring (the Edge adds edgeDepth, levels 13+).
+  //   depth: a territory's danger within its region, 1 to 4, by how far out
+  //     it stands among its ring, spread evenly (the Edge adds edgeDepth,
+  //     levels 13+).
   //   light: seconds of fresh light in dark land before the Hollow comes.
   //   goals: each heart goal's weight, plus perRing for each ring out.
   //   deep: the chance a territory has a portal down into a Deep, of
