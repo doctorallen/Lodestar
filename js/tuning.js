@@ -434,7 +434,8 @@ const T = {
   //     width), squash (its depth for its width), fray (how ragged its edge),
   //     deep (where it turns its darker tone); outer, inner: how far the
   //     ground there is drawn to the bed's colour, at its edge and within
-  //     deep; litter (how much of it is
+  //     deep; drift: how strongly a thick drift's tiles are bedded, so its
+  //     plants' beds run together; litter (how much of it is
   //     strewn with leaves, ash or petals). shadow: a piece's contact
   //     shadow: w, its half width for the piece's; core, rim: what's left
   //     of the ground's colour in its middle and at its edge.
@@ -455,7 +456,7 @@ const T = {
     floorP: 0.55, wallP: 0.5, ceilP: 0.4, hub: 0.4, space: 0.9, sameKind: 0.8, gather: [1, 3],
     stand: { cut: 0.5, minSuit: 0.45, rows: 3, gap: 5 },
     cover: { round: [2, 4], foot: 0.7, scree: [1, 3], open: 0.03 },
-    bed: { reach: 5, squash: 0.62, fray: 0.6, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6 },
+    bed: { reach: 5, squash: 0.62, fray: 0.6, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6, drift: 0.6 },
     shadow: { w: 0.36, core: 0.68, rim: 0.84 },
     faceMoss: 0.7, strands: { cut: 0.3, past: 3 }, lip: 3,
     wind: { s: 0.55, swell: [0.55, 0.45, 0.7], gust: [1.3, 0.45], amp: 2.2, stir: [1.5, 0.8, 9] },

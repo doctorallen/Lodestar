@@ -39,7 +39,7 @@ const UG_LOOKS = {
   rim: { bed: '#2c4424', litter: ['#5a6a34', '#3a4624'], moss: ['#3e5a2a', '#24381c'], strand: ['#4e3e2e', '#2b231c'], blade: 'moss', tall: 'stem', head: 'cap', pad: 'moss', root: 'root' },
   choir: { bed: '#3a2a52', litter: ['#6a5080', '#45345a'], moss: ['#4a3a66', '#2c2244'], strand: ['#6a5a7e', '#3a2e46'], blade: 'moss', tall: 'stem', head: 'flesh', pad: 'moss', root: 'root' },
   underforge: { bed: '#1c1210', litter: ['#5e5858', '#2e2a2a'], moss: ['#3e4430', '#24281c'], strand: ['#4a3024', '#26180f'], blade: 'ash', tall: 'stem', head: 'ash', pad: 'moss', root: 'root' },
-  surface: { bed: '#3a2416', litter: ['#c8b888', '#8a7650'], lip: ['#d8c890', '#a89660', '#6a5a38'], blade: 'grass', tall: 'grass', head: 'reed', pad: 'cactus', root: 'bark' },
+  surface: { bed: '#3a2416', litter: ['#c8b888', '#8a7650'], lip: ['#d8c890', '#a89660', '#6a5a38'], blade: 'reed', tall: 'grass', head: 'stem', pad: 'cactus', root: 'bark' },
   frost: { bed: '#5a6078', litter: ['#f2f8ff', '#8a92ac'], lip: ['#f6faff', '#c8d4e6', '#8a96b4'], strand: ['#eef4ff', '#a8c4e6'], icicle: true, blade: 'stem', tall: 'stem', head: 'snow', pad: 'leaf', root: 'root' },
   cinder: { bed: '#6a6066', litter: ['#8a8086', '#140e10'], lip: ['#5a5054', '#2a2224', '#141012'], blade: 'stem', tall: 'stem', head: 'ash', pad: 'ash', root: 'root' },
   bloomfen: { bed: '#34501e', litter: ['#c890b0', '#2a4220'], lip: ['#6a9a46', '#3c5c2c', '#22381a'], moss: ['#527a3a', '#2a4220'], strand: ['#4a7a36', '#22401c'], blade: 'leaf', tall: 'leaf', head: 'bark', pad: 'moss', root: 'bark' },
@@ -366,6 +366,8 @@ function placeUndergrowth(f, set) {
         const x = (tx + 0.5) * TILE + rng.f(-5, 5), y = ty * TILE + (wallAbove(tx, ty) ? rng.f(9, 14) : rng.f(5, 14));
         if (!footClear(x, y, half * 0.6) || !room(x, y, half, p.name, cls === 0)) continue;
         plant(p, x, y, cls);
+        // where a drift is thick, its beds run together
+        if (pres > 0.5) U.grid[i] = Math.max(U.grid[i], F.bed.drift * pres);
         // small ones gather round a big one
         if (cls === 2 && floorKinds[0].length) {
           const [sk] = kindAt(floorKinds[0], tx, ty, 3);
