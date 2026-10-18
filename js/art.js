@@ -64,7 +64,7 @@ const ART = {
   },
   // what each rarity's drops and names glow with
   rarity: { common: '#b8b0a0', magic: '#6fa8ff', rare: '#ffd34d', legendary: '#ff8a3d', set: '#5fe08a', relic: '#c9a2ff' },
-  exotics: { voltaic: '#7fe8ff', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890', riftglass: '#c060ff', emberglass: '#ff8a3a', blightcap: '#9ad04a' },
+  exotics: { voltaic: '#ffe45c', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890', riftglass: '#c060ff', emberglass: '#ff8a3a', blightcap: '#9ad04a' },
   // creature parts, until they have their own art: a colour a kind
   parts: { chitin: '#8a6a7a', ether: '#9fd8ff', cog: '#b89a58', fiber: '#8ab86a', spore: '#c87ab0', heart: '#ff6a4a' },
   // a Form's colour (when it has no Element), and each Glyph's; a Glyph's

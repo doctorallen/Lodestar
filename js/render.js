@@ -681,6 +681,8 @@ function renderFrame() {
   }
   for (const pu of d.puddles) {
     const k = Math.min(1, pu.t / 0.6), cx = vx(pu.x), cy = vy(pu.y), col = pu.mine ? pu.col || ELEMENT_COLS.ember : PLANT_GLOW;
+    // fire on the ground (Kindling Arc, Wildfire, Scatter): flames
+    if (pu.fire) { drawFirePatch(pu, cx, cy, tick, lights); continue; }
     for (let n = 0; n < 20; n++) {
       const a = n * 2.4 + pu.max, r = (n % 5) / 5 * pu.r * AP;
       dot(Math.round(cx + Math.cos(a + Game.realT * 0.6) * r), Math.round(cy + Math.sin(a) * r * 0.7 - (pu.mine ? (Game.realT * 8 + n) % ap(4) : 0)), n % 3 ? mix(col, '#000000', 0.4) : col, true, 0.55 * k);
@@ -696,6 +698,7 @@ function renderFrame() {
   for (const au of d.auras) {
     const cx = vx(au.x), cy = vy(au.y - (au.follow ? 6 : 0)), k = Math.min(1, au.t / 0.4), R = au.r * AP;
     if (au.kind === 'glaive') drawCastGlaive(au, ox, oy, tick, lights);
+    else if (au.kind === 'cloud') drawThunderhead(au, ox, oy, tick, lights);
     else {
       // a gravity well: a dark spiral drawing in, lit in its element
       const col = au.col || ART.forms.well;
@@ -708,6 +711,7 @@ function renderFrame() {
   }
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
   drawCastAir(d, ox, oy, tick, lights);
+  drawResonanceAir(d, ox, oy, tick, lights);
   if (d.hub) drawHubOver(d, ox, oy, lights);
   for (const s of Sparks) dot(vx(s.x), vy(s.y), s.col, true);
   if (!d.hub) drawHazardsAir(d, ox, oy, lights);
@@ -741,10 +745,15 @@ function renderFrame() {
   // through it the pick is
   const o = View.overCtx;
   for (const e of d.enemies) {
-    if (e.dead || e.boss || (e.hp >= e.maxHp && !e.elite)) continue;
-    const w = ap(e.r * 2 + 4), bx = Math.round(vx(e.x) - w / 2), by = vy(e.y) - ap(e.type === 'wisp' ? 22 : e.type === 'construct' ? 20 : 16);
+    if (e.dead) continue;
+    // over each awake foe: what it fears and shrugs off, as Wick knows it
+    // (natures.js), over its health
+    const head = e.boss ? vy(e.y) - Math.round(enemySprite(d, e.type).ay) - 4 : vy(e.y) - ap(e.type === 'wisp' ? 22 : e.type === 'construct' ? 20 : 16);
+    if (e.aggro && e.type !== 'dummy') { const ex = vx(e.x); if (ex > -20 && ex < View.w + 20 && head > -10 && head < View.h + 10) drawNaturePips(o, e, ex, head - 5); }
+    if (e.boss || (e.hp >= e.maxHp && !e.elite)) continue;
+    const w = ap(e.r * 2 + 4), bx = Math.round(vx(e.x) - w / 2), by = head;
     o.fillStyle = '#000'; o.fillRect(bx - 1, by - 1, w + 2, 4);
-    o.fillStyle = e.elite ? ELITE_COLS[e.elite] : '#d04848'; o.fillRect(bx, by, Math.max(1, Math.round((w * e.hp) / e.maxHp)), 2);
+    o.fillStyle = e.elite ? eliteCol(e) : '#d04848'; o.fillRect(bx, by, Math.max(1, Math.round((w * e.hp) / e.maxHp)), 2);
   }
   const boss = d.enemies.find((e) => e.boss && !e.dead && e.aggro);
   if (boss) {
@@ -754,6 +763,10 @@ function renderFrame() {
   }
   for (const n of d.nums) {
     const col = n.col || (n.hurt ? '#ff6a5a' : n.elem ? ELEMENT_COLS[n.elem] : n.crit ? '#ffd34d' : '#f4ecd8'), nx = vx(n.x), ny = vy(n.y);
+    // a reaction's name, or a resonance's, in the pixel hand
+    if (n.word) { drawPixelText(o, n.word, nx, ny, n.col, Math.min(1, n.t * 3)); continue; }
+    // a weak hit's number, or a resisted one's (natures.js)
+    if (n.verdict && drawVerdictNumber(o, n, nx, ny)) continue;
     drawNumber(n.v, nx + (n.plus ? 2 : 0), ny, col, Math.min(1, n.t * 3));
     // a pickup: a + before it
     if (n.plus) {
@@ -782,8 +795,12 @@ function renderFrame() {
 // ---------------------------------------------------------------------------
 // The people in it
 // ---------------------------------------------------------------------------
-const ELITE_COLS = { fast: '#7fe8ff', tough: '#ffd34d', volatile: '#ff5a3a' };
-const ELEMENT_COLS = { force: '#e4dcf4', shock: '#7fe8ff', frost: '#c8f0ff', ember: '#ff8a3a', blight: '#9ad04a' };
+const ELITE_COLS = { fast: '#7fe8ff', tough: '#ffd34d', volatile: '#ff5a3a', insulated: '#8f9ac4', fireproof: '#c8402a', warded: '#e4dcf4', shifting: '#ff7ad8' };
+// (Shock is the yellow of its stone, never cyan: cyan is the Glyphs' teal
+// and the diver's circuits)
+const ELEMENT_COLS = { force: '#e4dcf4', shock: '#ffe45c', frost: '#c8f0ff', ember: '#ff8a3a', blight: '#9ad04a' };
+// An elite's colour: its affix's (a shifting one's, its weakness's).
+const eliteCol = (e) => (e.elite === 'shifting' && e.shiftEl ? ELEMENT_COLS[e.shiftEl] : ELITE_COLS[e.elite]);
 // Which flora piece each biome's fighting plants look like.
 const PLANT_LOOKS = {
   rim: { snapjaw: 'Pitcher', spitter: 'Puffballs' },
@@ -1038,10 +1055,12 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
     const a = norm(e.aimX - e.x, e.aimY - e.y), col = e.type === 'crawler' ? ART.pal.eyeglow[0] : pal.rune[0];
     for (let r = 6; r < reach; r += 4) dot(Math.round(fx + a.x * r * AP), Math.round(fy + a.y * r * AP), col, true, (tick % 2 ? 0.8 : 0.45) * (1 - r / reach / 1.5));
   }
-  if (e.state === 'dazed' || e.state === 'stagger')
+  if (e.state === 'dazed' || e.state === 'stagger' || (e.stunT > 0 && !(e.frozenT > 0)))
     for (let k = 0; k < 3; k++) { const a = Game.realT * 6 + (k * Math.PI * 2) / 3; dot(Math.round(fx + Math.cos(a) * 6 * AP), Math.round(sy - ap(2) + Math.sin(a) * 2 * AP), '#fff2c8', true); }
+  // its statuses and its elite affix (natures.js, reactions.js)
+  drawEnemyStatus(d, e, spr, sx, sy, fx, fy, tick, lights);
   // an elite wears a pip of its affix's colour; a chilled one, a pale one
-  if (e.elite) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(fx + i - 1, sy - ap(3) + j - 1, ELITE_COLS[e.elite], true);
+  if (e.elite) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(fx + i - 1, sy - ap(3) + j - 1, eliteCol(e), true);
   // through a tear: violet and cyan motes drift off it
   if (e.riftTouched) for (let k = 0; k < 3; k++) { const ph = (Game.realT * 0.8 + k / 3) % 1; dot(Math.round(fx + Math.sin(k * 2.1 + Game.realT * 2) * 6 * AP), Math.round(fy - (4 + ph * 14) * AP), k % 2 ? RIFT_PAL.riftcyan[0] : RIFT_PAL.riftedge[0], true, 1 - ph); }
   // a raging Keeper burns
@@ -1059,6 +1078,7 @@ function drawDrop(dr, ox, oy, lights) {
   else if (dr.blueprint) col = ART.rarity.legendary;
   else if (dr.shard !== undefined) col = ART.pal.star[3];
   else if (dr.echo) col = '#9fc4ff';
+  else if (dr.resStone) col = '#ffd34d';
   else if (dr.exotic) col = ART.exotics[dr.exotic];
   else col = ART.rarity[dr.item.rarity] || '#ffffff';
   if (dr.mote) { for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, fy + j, col, true); }
@@ -1071,7 +1091,7 @@ function drawDrop(dr, ox, oy, lights) {
     for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) if (Math.abs(i) + Math.abs(j) <= 3) dot(fx + i, fy + j, (Math.abs(i) + Math.abs(j) <= 1 && i <= 0 && j <= 0) ? '#ffffff' : col, true);
     // the best of it stands up in a beam, so it's seen from across a room
     const it = dr.item;
-    if (dr.blueprint || dr.shard !== undefined || dr.echo || (it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'relic')))
+    if (dr.blueprint || dr.shard !== undefined || dr.echo || dr.resStone || (it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'relic')))
       for (let k = ap(3), n = ap(18); k < n; k++) dot(fx, fy - k, col, true, 0.7 * (1 - k / n));
   }
   lights.push({ x: fx, y: fy, r: TILE, i: 0.5, c: rgb01(col) });
@@ -1113,6 +1133,8 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     }
   } else if (fx.kind === 'shatter') {
     for (let n = 0; n < 8; n++) { const a2 = n * 0.8, r = (1 - k) * 12 * AP; dot(Math.round(cx + Math.cos(a2) * r), Math.round(cy + Math.sin(a2) * r), '#e8f8ff', true, k); }
+  } else if (fx.kind === 'iceBurst' || fx.kind === 'steam' || fx.kind === 'flare' || fx.kind === 'overload' || fx.kind === 'wardBreak') {
+    drawReactFx(fx, cx, cy, k, tick, lights);
   } else if (fx.kind === 'mote') {
     // ore fed to the star, rising from the altar into it
     const t = 1 - k, sx = STAR_AT.x * ATILE + ox, sy = STAR_AT.y * ATILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * AP * (1 - t);

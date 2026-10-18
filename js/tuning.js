@@ -80,19 +80,21 @@ const T = {
   // bigger caverns, which would mean more enemies at once). light: a
   // surface's day, dusk and tint, or underground the ambient and tint.
   // hazard: its one quirk (T.hazards), with `haz` overriding how much of it
-  // there is. Looks are in climes.js.
+  // there is. Looks are in climes.js. resist: the nature its creatures pick
+  // up: a step more resistant to one element (more: W to neither, neither
+  // to R, R to I) and a step weaker to another (less: the other way).
   climes: {
     badlands: { zones: ['surface'], name: 'Badlands', weight: 2 },
-    frost: { zones: ['surface'], name: 'Frost Steppe', weight: 2, lean: { choir: 2.5 }, hazard: 'slick', gen: { pillar: 0.4 }, light: { day: 1.0, dusk: 0.55, tint: [0.9, 0.97, 1.1] } },
-    cinder: { zones: ['surface'], name: 'Cinder Waste', weight: 2, lean: { underforge: 2.5 }, hazard: 'vent', gen: { pillar: 1 }, light: { day: 0.95, dusk: 0.5, tint: [1.06, 0.86, 0.76] } },
-    bloomfen: { zones: ['surface'], name: 'Bloomfen', weight: 2, lean: { rim: 2.5 }, hazard: 'spores', gen: { meander: 0.45, tunnelR: [1.6, 2.4] }, light: { day: 1.0, dusk: 0.58, tint: [0.98, 1.0, 0.86] } },
+    frost: { zones: ['surface'], name: 'Frost Steppe', weight: 2, lean: { choir: 2.5 }, hazard: 'slick', gen: { pillar: 0.4 }, light: { day: 1.0, dusk: 0.55, tint: [0.9, 0.97, 1.1] }, resist: { more: 'frost', less: 'ember' } },
+    cinder: { zones: ['surface'], name: 'Cinder Waste', weight: 2, lean: { underforge: 2.5 }, hazard: 'vent', gen: { pillar: 1 }, light: { day: 0.95, dusk: 0.5, tint: [1.06, 0.86, 0.76] }, resist: { more: 'ember', less: 'frost' } },
+    bloomfen: { zones: ['surface'], name: 'Bloomfen', weight: 2, lean: { rim: 2.5 }, hazard: 'spores', gen: { meander: 0.45, tunnelR: [1.6, 2.4] }, light: { day: 1.0, dusk: 0.58, tint: [0.98, 1.0, 0.86] }, resist: { more: 'blight', less: 'ember' } },
     caverns: { zones: ['cave', 'deep'], name: 'Caverns', weight: 2 },
-    grotto: { zones: ['cave', 'deep'], name: 'Flooded Grotto', weight: 2, lean: { choir: 2.5 }, hazard: 'pool', light: { ambient: 0.5, tint: [0.72, 0.8, 1.0] } },
-    magma: { zones: ['cave', 'deep'], name: 'Magma Tubes', weight: 2, lean: { underforge: 2.5 }, hazard: 'burn', gen: { meander: 0.25 }, light: { ambient: 0.4, tint: [1.0, 0.62, 0.5] } },
-    rootdeep: { zones: ['cave', 'deep'], name: 'Rootdeep', weight: 2, lean: { rim: 2.5 }, hazard: 'spores', haz: { n: [6, 9] }, gen: { meander: 0.5, pillar: 0.8 }, light: { ambient: 0.44, tint: [0.84, 0.86, 0.66] } },
+    grotto: { zones: ['cave', 'deep'], name: 'Flooded Grotto', weight: 2, lean: { choir: 2.5 }, hazard: 'pool', light: { ambient: 0.5, tint: [0.72, 0.8, 1.0] }, resist: { more: 'ember', less: 'shock' } },
+    magma: { zones: ['cave', 'deep'], name: 'Magma Tubes', weight: 2, lean: { underforge: 2.5 }, hazard: 'burn', gen: { meander: 0.25 }, light: { ambient: 0.4, tint: [1.0, 0.62, 0.5] }, resist: { more: 'ember', less: 'frost' } },
+    rootdeep: { zones: ['cave', 'deep'], name: 'Rootdeep', weight: 2, lean: { rim: 2.5 }, hazard: 'spores', haz: { n: [6, 9] }, gen: { meander: 0.5, pillar: 0.8 }, light: { ambient: 0.44, tint: [0.84, 0.86, 0.66] }, resist: { more: 'blight', less: 'ember' } },
     archive: { zones: ['ruin'], name: 'Archive', weight: 2 },
     temple: { zones: ['ruin'], name: 'Overgrown Temple', weight: 2, lean: { rim: 2 }, hazard: 'pool', haz: { blobs: [3, 4], r: [1.4, 2.2] }, light: { ambient: 0.52, tint: [0.8, 0.92, 0.72] } },
-    vault: { zones: ['ruin'], name: 'Clockwork Vault', weight: 2, lean: { underforge: 2, choir: 1.5 }, hazard: 'vent', light: { ambient: 0.46, tint: [1.0, 0.84, 0.66] } },
+    vault: { zones: ['ruin'], name: 'Clockwork Vault', weight: 2, lean: { underforge: 2, choir: 1.5 }, hazard: 'vent', light: { ambient: 0.46, tint: [1.0, 0.84, 0.66] }, resist: { more: 'force', less: 'shock' } },
   },
   // Hazards: mild, readable, and never in the entry's cavern or on a way,
   // the lodeline or beside them. A dash crosses any of them unharmed.
@@ -281,6 +283,104 @@ const T = {
     },
     force: { knock: 1.3 },
     stones: { form: { ore: 6, parts: 2 }, element: { ore: 4, exotic: 1 }, glyph: { ore: 5, parts: 3 } },
+    // Weak and resistant (natures.js): a hit of an element is multiplied by
+    // resist[verdict]: W weak, R resistant, I very resistant. Nothing is
+    // ever immune. Each enemy's own verdicts are T.enemies.resist; a clime
+    // moves them a step (T.climes[id].resist); an elite's affix adds its own
+    // (T.enemies.eliteResist).
+    resist: { W: 1.5, R: 0.5, I: 0.25 },
+    // Reactions between statuses (reactions.js). Every element a hit
+    // carries leaves its status on a foe for `status` s; a second element on
+    // a carrier reacts, in either order, and two on one Form react on their
+    // own. A reaction can't fire again on the same foe for cd s; its name
+    // shows over it for word s.
+    //   shatter: × the hit on the chilled; a frozen foe bursts, hurting
+    //     what's within burst px for burstMult × the hit.
+    //   conduct: the shock leaps to every chilled foe within range px, at
+    //     mult × its share of the hit.
+    //   steam: a cloud r px across where foes lose the diver for lost s.
+    //   brittle: × everything the chilled and poisoned take, for `status` s.
+    //   pyre: the poison left bursts at once, at mult × what it would do.
+    //   flare: foes within r px are blinded for blind s, and wind-ups broken.
+    //   scatter: n patches of burning ground flung step px apart along the
+    //     knock, burning dps × the hit a second for time s.
+    //   jolt: the overload stacks a stagger adds.
+    //   Self stacks: overload (stacks of shock stun for stun s); freeze
+    //   (chills that freeze solid for time s); inferno (burns that stack to
+    //   most, then spread within r px); plague (poison spreads within r px
+    //   on a hit); stun (a second heavy Force hit within `status` s stuns).
+    //   control: the share of a stun, freeze, blind or loss a boss takes
+    //   (the Hollow takes none).
+    react: {
+      status: 3, cd: 0.6, word: 0.9, control: 0.3,
+      shatter: { mult: 1.6, burst: 26, burstMult: 0.5 },
+      conduct: { range: 80, mult: 0.6 },
+      steam: { r: 24, lost: 2, cloud: 2 },
+      brittle: { mult: 1.25 },
+      pyre: { mult: 1 },
+      flare: { r: 26, blind: 1.5 },
+      scatter: { n: 3, step: 12, r: 7, time: 2.5, dps: 0.3 },
+      jolt: { stacks: 2 },
+      overload: { stacks: 5, stun: 1 },
+      freeze: { stacks: 3, time: 1.6 },
+      inferno: { most: 3, r: 32 },
+      plague: { r: 40 },
+      stun: { time: 1 },
+    },
+    // Ore affinity: a caster's ore (the one it's named for) favours an
+    // element. A spell of it is attuned: attuned.dmg more damage (by its
+    // share of the spell's elements) and its status attuned.status × as
+    // long. And each ore's own way: ferrite takes glaive charge off a
+    // Glaive; lumenite casts `cast` faster; resonite makes its resonances
+    // `resonance` stronger; aetherglass sends a Lance `lance` × as far;
+    // sigilite makes its glyphs `glyphs` stronger; starmetal has `slots`
+    // more than its base.
+    attuned: { dmg: 0.25, status: 1.5 },
+    ores: {
+      ferrite: { el: 'force', glaive: 1 },
+      lumenite: { el: 'shock', cast: 0.1 },
+      resonite: { resonance: 0.25 },
+      aetherglass: { el: 'frost', lance: 1.35 },
+      sigilite: { el: 'ember', glyphs: 0.1 },
+      starmetal: { slots: 1 },
+    },
+    // Linked slots: a masterwork caster's chance of a linked pair of slots;
+    // a Glyph in either counts twice.
+    links: { chance: 0.5 },
+    // Resonances (resonance.js): a circuit that fills its caster exactly
+    // with one of them hits mult × as hard. Resonance stones, which show
+    // parts of them in the Codex, drop from elites (elite), lie by an
+    // ancient forge (forge), and pay contracts (contract: its weight among
+    // the rewards).
+    //   thunderhead: the orb flies `fly` s to a point `ahead` px out (or the
+    //     foe in aim) and becomes a cloud `height` px up for `time` s,
+    //     striking the nearest foe within r px every `every` s for mult × the
+    //     group's damage, drifting at drift px/s to stand over it.
+    //   shatterglass: the echo's lance hits the chilled for mult ×, and
+    //     flings `shards` shards out to either side, each shardMult × the
+    //     hit, at shardSpeed px/s for shardLife s.
+    //   kindling: every third Arc sets `flames` patches of fire (size px)
+    //     alight in a crescent in front, half rad either side of the aim, at
+    //     r × its reach, for time s, dps × the hit a second.
+    //   wildfire: each orb drops a patch of fire (r px) every `every` px for
+    //     time s, dps × the hit a second (at most `most` at once); flora
+    //     within ignite px catches (cosmetic) and passes it on within spread
+    //     px every spreadEvery s, burning burn s (at most flora at once).
+    //   stormglaive: every `every` s the blades arc to every foe within
+    //     reach px of the diver, for mult × a blade's cut.
+    //   starfall: three bolts rise for rise s and meet over the target, the
+    //     star falls for fall s; it strikes within r px for the nova's and
+    //     the bolts' damage, stunning for stun s. ahead: px out with nothing
+    //     in aim.
+    resonance: {
+      mult: 1.5, elite: 0.04, forge: 0.35, contract: 1,
+      thunderhead: { fly: 0.3, ahead: 56, height: 30, time: 4, r: 64, every: 0.4, mult: 1, drift: 30 },
+      shatterglass: { mult: 2, shards: 2, shardMult: 0.4, shardSpeed: 170, shardLife: 0.3 },
+      kindling: { flames: 5, half: 0.9, r: 1, time: 3, dps: 0.3, size: 7 },
+      wildfire: { every: 10, r: 7, time: 2.5, dps: 0.15, most: 60, ignite: 12, spread: 20, spreadEvery: 0.35, burn: 3, flora: 40 },
+      stormglaive: { every: 0.45, reach: 64, mult: 0.5 },
+      starfall: { rise: 0.5, fall: 0.16, r: 40, stun: 1, ahead: 70 },
+    },
   },
   // How a cast looks (castfx.js; cosmetic only: the spell still fires on the
   // tap, and nothing here changes what it does). Sizes are world px, times
@@ -381,9 +481,36 @@ const T = {
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },
     // a room's enemies: perRoom + perDepth × depth, give or take one
     perRoom: 1.4, perDepth: 0.55, maxPerRoom: 6,
-    // elites: chance eliteBase + eliteDepth × depth, to eliteMax
+    // elites: chance eliteBase + eliteDepth × depth, to eliteMax; elites:
+    // how often each affix comes up
     eliteBase: 0.06, eliteDepth: 0.035, eliteMax: 0.35, eliteHp: 2.5, eliteDmg: 1.3,
+    elites: { fast: 3, tough: 3, volatile: 3, insulated: 2, fireproof: 2, warded: 1.5, shifting: 1.5 },
     fast: 1.5, tough: 1.6, volatileRadius: 26, volatileDmg: 1.5, volatileFuse: 0.6,
+    // a warded elite resists everything until wardHits Force hits (a heavy
+    // one counts two) break its shell; a shifting one's weakness moves to
+    // the next element every shiftEvery s
+    wardHits: 3, shiftEvery: 6,
+    // What each kind is weak to (W), resists (R) or all but shrugs off (I),
+    // by element (missing: neither). natures.js reads it: elementMultFor.
+    resist: {
+      crawler: { force: 'R', ember: 'W' }, // a chitin shell, dry inside
+      wisp: { force: 'R', shock: 'R', blight: 'I' }, // no body, all ether
+      construct: { force: 'R', shock: 'W', blight: 'I' }, // an armoured machine
+      snapjaw: { frost: 'R', ember: 'W', blight: 'R' }, // living plants
+      spitter: { frost: 'R', ember: 'W', blight: 'R' },
+      hollow: { force: 'R', shock: 'R', frost: 'R', ember: 'R', blight: 'R' }, // the living dark
+    },
+    // the warden and the Keepers: one weakness and one resistance, by region
+    regionResist: {
+      rim: { ember: 'W', blight: 'R' }, // fungal, and full of spores
+      choir: { force: 'W', frost: 'R' }, // crystal that cracks, and is cold
+      underforge: { frost: 'W', ember: 'R' }, // slag that's brittle in the cold
+    },
+    // what an elite's affix adds: it replaces the kind's own
+    eliteResist: { insulated: { shock: 'I' }, fireproof: { ember: 'I' } },
+    // the Hollow loses every resistance within hollowLight px of a lit
+    // lodeline (for now; kindled light, later)
+    hollowLight: 40,
     // the warden appears from bossDepth, in a side room, by chance
     bossDepth: 3, bossChance: 0.25,
   },

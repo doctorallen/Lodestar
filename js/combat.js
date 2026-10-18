@@ -109,35 +109,42 @@ function healPlayer(n) {
   p.hp = Math.min(Game.dive.stats.maxHp, p.hp + n);
 }
 
-// opts: { crit, spell, noProc (an arc of lightning doesn't arc again),
-// knock: { x, y } px/s, heavy (staggers), els (its elements, one or two:
-// each brings its status, on its share of the damage), or element (one) }
+// opts: { crit, spell, noProc (an arc of lightning doesn't arc again, and
+// sets off no reaction), knock: { x, y } px/s, heavy (staggers), els (its
+// elements, one or two: each brings its status, on its share of the
+// damage), or element (one); att: the elements its caster's ore is attuned
+// to (their statuses last longer) }
 function hurtEnemy(e, dmg, opts = {}) {
-  const d = Game.dive, st = d.stats, O = T.onHit, El = T.elements;
+  const d = Game.dive, st = d.stats, O = T.onHit;
   if (e.dead) return;
   const els = opts.els || (opts.element ? [opts.element] : null);
   if (e.state === 'dazed') dmg *= 1.5;
-  if (els) dmg *= elementMult(e, els);
-  // a heavy blow to the frozen shatters them
-  if (opts.heavy && e.slowT > 0 && els && els.includes('frost')) { dmg *= El.shatter; d.fx.push({ kind: 'shatter', x: e.x, y: e.y - 6, t: 0.3, max: 0.3 }); }
-  if (els && !opts.noProc) {
-    const share = dmg / els.length;
-    circuitReact(e, els);
-    for (const el of els) {
-      if (el === 'shock' && d.rng.chance(El.shockChance)) {
-        const o = nearestEnemy(d, O.shockRange, e, e);
-        if (o) { d.fx.push({ kind: 'arc', x: e.x, y: e.y - 5, x2: o.x, y2: o.y - 5, t: 0.15, max: 0.15 }); hurtEnemy(o, share * O.shockMult, { noProc: true }); }
-      }
-      if (el === 'frost') e.slowT = O.chillTime;
-      if (el === 'ember') e.burn = { t: El.burnTime, dps: share * El.burn };
-      if (el === 'blight') e.blight = { t: El.blightTime, dps: share * El.blight };
-    }
+  // its nature: weak, resistant, or neither (natures.js)
+  let verdict = null;
+  if (els) {
+    const m = elementMult(e, els);
+    dmg *= m;
+    verdict = m > 1.01 ? 'W' : m < 0.99 ? 'R' : null;
+    if (opts.spell) learnNature(e, els, verdict);
   }
+  if (e.brittleT > 0) dmg *= T.circuits.react.brittle.mult;
+  // what it sets off with the statuses it carries (reactions.js), then its own
+  if (els && !opts.noProc) {
+    const o = { dmg, heavy: !!opts.heavy, knock: opts.knock, att: opts.att, extra: 0 };
+    dmg = dmg * circuitReact(e, els, o) + o.extra;
+    if (e.dead) return;
+    circuitStatuses(e, els, dmg, o);
+  }
+  // Force cracks a warded shell
+  if (els && els.includes('force') && e.ward > 0) crackWard(e, opts.heavy);
   e.hp -= dmg;
   e.flash = T.enemies.hurtFlash;
   // the struck enemy's rim takes the hit's element (Force's is white)
   e.flashCol = els && els[0] !== 'force' ? ELEMENT_COLS[els[0]] : null;
-  d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit });
+  // (WEAK or RESIST under a number only once at a time over a foe, so a
+  // flurry's words don't pile up)
+  const said = verdict && d.nums.some((n) => n.foe === e && n.verdict && n.t > 0.35);
+  d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit, verdict, foe: e, quiet: said });
   if (opts.knock) { const k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
   if (opts.heavy && !e.boss && e.type !== 'hollow' && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
   if (e.type === 'dummy') { if (e.hp <= 0) e.hp = e.maxHp; e.kvx = e.kvy = 0; return; }
@@ -147,7 +154,7 @@ function hurtEnemy(e, dmg, opts = {}) {
     if (st.chill && d.rng.f(100) < st.chill) e.slowT = O.chillTime;
     if (st.shock && d.rng.f(100) < st.shock) {
       const o = nearestEnemy(d, O.shockRange, e, e);
-      if (o) { d.fx.push({ kind: 'arc', x: e.x, y: e.y - 5, x2: o.x, y2: o.y - 5, t: 0.15, max: 0.15 }); hurtEnemy(o, dmg * O.shockMult, { noProc: true }); }
+      if (o) { d.fx.push({ kind: 'arc', x: e.x, y: e.y - 5, x2: o.x, y2: o.y - 5, t: 0.15, max: 0.15, col: ELEMENT_COLS.shock }); hurtEnemy(o, dmg * O.shockMult, { els: ['shock'], noProc: true }); }
     }
   }
   if (e.hp <= 0) killEnemy(e);
@@ -204,6 +211,7 @@ function killEnemy(e) {
     if (rng.chance(L.eliteBlueprint)) dropBlueprint(d, drop);
     if (rng.chance(L.eliteRelic)) drop({ item: makeRelic(tier) });
     if (rng.chance(T.story.echoElite)) drop({ echo: true });
+    if (rng.chance(T.circuits.resonance.elite) && !codexAllWhole()) drop({ resStone: true });
   } else {
     if (rng.chance(L.part)) parts(rng.chance(L.partTwo) ? 2 : 1);
     if (rng.chance(L.exotic)) drop({ exotic: randomExotic(rng) });
@@ -274,6 +282,7 @@ function updatePickups(dt) {
     }
     // a heart-shard binds to the diver: safe whatever happens now
     if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard of the star\'s heart', 'legendary'); dr.gone = true; continue; }
+    if (dr.resStone) { resonanceStoneFound(d.rng); dr.gone = true; buzz(12); continue; }
     if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); } dr.gone = true; continue; }
     if (dr.blueprint) {
       if (room < 1) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } continue; }

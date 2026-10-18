@@ -83,6 +83,16 @@ function installBot() {
     return bd < 40 ? best : null;
   }
 
+  // How well a hand's circuit does against a foe: its first group's
+  // elements against the foe's nature (as Wick would show it, or the truth
+  // once hit), twice as good for Force against a warded shell.
+  function handScore(it, foe) {
+    const P = it ? parseCircuit(it.slots, it.links) : null, g = P && P.groups[0], els = g && g.els.length ? g.els : ['force'];
+    let k = elementMult(foe, els);
+    if (foe.ward > 0 && els.includes('force')) k *= 2;
+    return k;
+  }
+
   function dive({ biome = 0, depth = 3, maxTime = 900, greed = false } = {}) {
     UI.close();
     startDive(biome);
@@ -118,10 +128,15 @@ function installBot() {
         const m = dist(foe.x, foe.y, p.x, p.y);
         aim = { foe };
         if (m > 14) goTile(d, steps, Math.floor(foe.x / TILE), Math.floor(foe.y / TILE));
-        // tap, don't hold: alternate presses make combos; dash out of a tell
+        // tap, don't hold: alternate presses make combos; dash out of a tell.
+        // With the choice, the hand whose elements the foe is weak to (and
+        // Force for a warded shell): both presses go to it
         const tap = (iter++ & 1) === 0, mf = firstForm(Save.data.equip.main), mainClose = !Save.data.equip.main || mf === 'arc' || mf === 'glaive';
-        Input.bot.main = tap && (mainClose ? m < 30 : m < 120);
-        Input.bot.off = !tap && m < 120 && !!Save.data.equip.off;
+        const inMain = mainClose ? m < 30 : m < 120, inOff = m < 120 && !!Save.data.equip.off;
+        const sm = handScore(Save.data.equip.main, foe), so = handScore(Save.data.equip.off, foe);
+        const pick = inMain && inOff ? (sm > so * 1.2 ? 'main' : so > sm * 1.2 ? 'off' : null) : null;
+        Input.bot.main = inMain && (pick ? pick === 'main' : tap);
+        Input.bot.off = inOff && (pick ? pick === 'off' : !tap);
         if (d.enemies.some((e) => !e.dead && e.state === 'windup' && dist(e.x, e.y, p.x, p.y) < 50) && p.dashCd <= 0) { const a = norm(p.x - foe.x, p.y - foe.y); Input.bot.x = -a.y; Input.bot.y = a.x; Input.bot.dash = true; }
       } else if (leave) goTile(d, steps, d.floor.pad.x, d.floor.pad.y);
       else {

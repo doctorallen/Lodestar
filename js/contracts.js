@@ -29,7 +29,7 @@ function newContract(rng, without = []) {
   else { c.zone = rng.pick(['surface', 'cave', 'ruin']); }
   // what it pays: the star, and a thing
   c.star = C.star * mag;
-  c.reward = rng.weighted([[3, 'exotic'], [2, 'parts'], [1, 'riftglass']]);
+  c.reward = rng.weighted([[codexAllWhole() ? 0 : T.circuits.resonance.contract, 'resonance'], [3, 'exotic'], [2, 'parts'], [1, 'riftglass']]);
   if (c.reward === 'exotic') c.exotic = randomExotic(rng);
   if (c.reward === 'parts') { c.part = partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), (rng.pick(open) || 0) + 1); c.parts = 3; }
   return c;
@@ -73,7 +73,7 @@ function contractText(c) {
   return `Ride a lodeline home from ${c.zone === 'surface' ? 'the surface' : 'a ' + T.zones[c.zone].name.toLowerCase()}`;
 }
 function contractRewardText(c) {
-  const thing = c.reward === 'exotic' ? stuffName(c.exotic) : c.reward === 'parts' ? `${c.parts} ${partName(c.part).toLowerCase()}` : 'riftglass';
+  const thing = c.reward === 'exotic' ? stuffName(c.exotic) : c.reward === 'parts' ? `${c.parts} ${partName(c.part).toLowerCase()}` : c.reward === 'resonance' ? 'a resonance stone (the Codex)' : 'riftglass';
   return `+${c.star} to the star, and ${thing}`;
 }
 
@@ -111,6 +111,7 @@ function settleContracts(d, banked, how) {
     if (!ok) continue;
     done.push(c);
     s.star += c.star;
+    if (c.reward === 'resonance') { revealResonancePart(Save.rng()); continue; }
     const key = c.reward === 'exotic' ? c.exotic : c.reward === 'parts' ? c.part : 'riftglass';
     s.stash[key] = (s.stash[key] || 0) + (c.reward === 'parts' ? c.parts : 1);
   }

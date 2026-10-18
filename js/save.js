@@ -21,7 +21,10 @@ function cleanSaveItem(it) {
   if (!KIND_SLOT[it.kind] && it.kind !== 'relic') return null;
   if (it.bp && !BLUEPRINTS[it.bp]) delete it.bp;
   if (Array.isArray(it.affixes)) it.affixes = it.affixes.filter((a) => a && AFFIXES[a.id]);
-  if (it.kind === 'caster') it.slots = (Array.isArray(it.slots) ? it.slots : [null, null, null]).map((c) => (c && c.kind === 'stone' && stoneKind(c.stone) ? c : null));
+  if (it.kind === 'caster') {
+    it.slots = (Array.isArray(it.slots) ? it.slots : [null, null, null]).map((c) => (c && c.kind === 'stone' && stoneKind(c.stone) ? c : null));
+    if (it.links) it.links = Array.isArray(it.links) ? it.links.filter((a) => Number.isInteger(a) && a >= 0 && a < it.slots.length - 1) : [];
+  }
   return it;
 }
 function cleanSave(s) {
@@ -33,6 +36,10 @@ function cleanSave(s) {
   if (!s.tools.includes('compass')) s.tools.unshift('compass');
   if (!s.tools.includes(s.tool)) s.tool = 'compass';
   s.codex = (s.codex || []).filter((k) => LEGENDARIES[k]);
+  // what Wick knows of each kind's nature, and the resonances' Codex
+  if (!s.natures || typeof s.natures !== 'object') s.natures = {};
+  if (!s.resCodex || typeof s.resCodex !== 'object') s.resCodex = { kindling: [0, 1, 2] };
+  for (const id of Object.keys(s.resCodex)) { const r = RESONANCES.find((x) => x.id === id); if (!r || !Array.isArray(s.resCodex[id])) delete s.resCodex[id]; else s.resCodex[id] = s.resCodex[id].filter((i) => Number.isInteger(i) && i >= 0 && i < r.seq.length); }
 }
 
 const Save = {
@@ -44,7 +51,7 @@ const Save = {
       stash: {}, items: [], equip: startingGear(rng),
       attune: {}, deepest: {}, tips: {}, settings: { haptics: true },
       blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start),
-      tools: ['compass'], tool: 'compass', codex: [],
+      tools: ['compass'], tool: 'compass', codex: [], natures: {}, resCodex: { kindling: [0, 1, 2] },
     };
   },
   load() {

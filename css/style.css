@@ -434,6 +434,29 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .readout { padding: 6px 8px; border-left: 2px solid var(--gold); background: var(--panel2); font-size: 12px; }
 .readout p { margin: 3px 0; }
 .readout .warn { color: #ffb0a0; }
+.readout .ore { color: #9fe0c8; }
+.readout .linked { color: var(--gold); }
+/* a linked pair: a gold chain between its tiles, and gold corners on them */
+.circuit .link.linked { height: 8px; min-width: 8px; max-width: 12px; background: repeating-linear-gradient(90deg, var(--gold) 0 3px, transparent 3px 5px); border-top: 1px solid #8a6a20; border-bottom: 1px solid #8a6a20; }
+.tile.linked { box-shadow: inset 0 -4px 0 var(--gold), 0 0 0 1px #8a6a20; }
+.tile.mini.linked { box-shadow: inset 0 -2px 0 var(--gold); }
+/* a long circuit (six or seven slots) on a phone: narrower tiles */
+.circuit.long .tile { width: 44px; min-width: 40px; flex: 0 1 44px; }
+.circuit.long .tile img { width: 32px; height: 32px; }
+/* a resonance: gold when it's live, a dim stir when it's a stone away */
+.res-banner { margin: 6px 0 2px; padding: 5px 8px; font-size: 12px; letter-spacing: 0.12em; border: 1px solid var(--line); color: var(--dim); }
+.res-banner.on { color: #1a1206; background: linear-gradient(90deg, #f0c050, #ffe08a 60%, #f0c050); border-color: #ffe08a; font-weight: bold; }
+.res-banner.stir { color: #d8c48a; border-style: dashed; border-color: #6a5a30; font-style: italic; letter-spacing: 0.06em; }
+.res-text { font-size: 12px; margin: 2px 0 6px; color: #f0dca0; }
+/* the Codex at the forge */
+.codex { display: grid; gap: 6px; }
+.rcard { padding: 7px 8px; border: 1px solid var(--line); background: var(--panel2); }
+.rcard.whole { border-color: #6a5a30; }
+.rc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; letter-spacing: 0.1em; }
+.rcard.whole .rc-head b { color: var(--gold); }
+.rc-head span { font-size: 10px; color: var(--dim); }
+.rcard .note { margin: 5px 0 0; }
+.tile.t-unknown { --c: #5a5040; border-style: dotted; color: #8a7a58; }
 /* the drawer of stones to socket, grouped by kind */
 .drawer { margin: 10px 0 4px; padding: 8px; border: 1px solid var(--line); background: #0b0c10; }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11px; letter-spacing: 0.12em; color: var(--gold); }

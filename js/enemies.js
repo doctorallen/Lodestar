@@ -20,8 +20,12 @@
 // them run on world time (dt × Game.timeScale).
 // ---------------------------------------------------------------------------
 
-const ELITE_AFFIXES = ['fast', 'tough', 'volatile'];
-const ELITE_NAMES = { fast: 'Fast', tough: 'Tough', volatile: 'Volatile' };
+// Elites' affixes (T.enemies.elites: how often each). Insulated and
+// Fireproof shrug off Shock and Ember, a Warded one resists everything until
+// Force cracks its shell, a Shifting one's weakness moves on (natures.js).
+const ELITE_AFFIXES = Object.keys(T.enemies.elites);
+const ELITE_NAMES = { fast: 'Fast', tough: 'Tough', volatile: 'Volatile', insulated: 'Insulated', fireproof: 'Fireproof', warded: 'Warded', shifting: 'Shifting' };
+function rollEliteAffix(rng) { return rng.weighted(ELITE_AFFIXES.map((id) => [T.enemies.elites[id], id])); }
 
 function floorLevel(d) { return d.biome * T.levelPerBiome + d.depth + (d.zone === 'lair' ? 1 : 0); }
 
@@ -29,13 +33,15 @@ function makeEnemy(type, x, y, level, elite) {
   const E = T.enemies, def = E[type];
   const hpMul = Math.pow(E.hpGrowth, level - 1) * (elite ? E.eliteHp * (elite === 'tough' ? E.tough : 1) : 1);
   const hp = Math.round(def.hp * hpMul);
-  return {
+  const e = {
     type, x, y, hp, maxHp: hp, r: def.radius, level, elite, boss: type === 'warden' || type === 'keeper',
     dmg: def.dmg * Math.pow(E.dmgGrowth, level - 1) * (elite ? E.eliteDmg : 1),
     speed: def.speed * (elite === 'fast' ? E.fast : 1),
     state: 'idle', t: 0, cd: 0, aggro: false, flash: 0, slowT: 0, stunT: 0, kx: 0, ky: 0, kvx: 0, kvy: 0, hitDone: false, bob: 0,
     burst: false, dead: false, orbit: (Math.floor(x + y) & 1) * 2 - 1,
   };
+  natureAffixStart(e);
+  return e;
 }
 
 function spawnEnemies(d) {
@@ -73,7 +79,7 @@ function spawnEnemies(d) {
     const n = clamp(Math.round(E.perRoom + E.perDepth * d.depth) + rng.i(-1, 1), 0, E.maxPerRoom);
     for (let k = 0; k < n; k++) {
       const type = rng.weighted(types.map((t) => [E[t].weight * (zoneWeight[t] || 1), t]));
-      const elite = rng.chance(eliteChance) ? rng.pick(ELITE_AFFIXES) : null;
+      const elite = rng.chance(eliteChance) ? rollEliteAffix(rng) : null;
       const e = makeEnemy(type, 0, 0, level, elite);
       // on clear ground, not half in a wall
       for (let tries = 0; tries < 8; tries++) { const at = inRoom(r); e.x = at.x; e.y = at.y; if (!bodyHits(f, e.x, e.y, e.r) && !hazardNear(f, Math.floor(at.x / TILE), Math.floor(at.y / TILE), 0)) break; }
@@ -140,6 +146,9 @@ function updateEnemies(dt) {
     if (e.dead) continue;
     e.flash = Math.max(0, e.flash - dt);
     e.slowT = Math.max(0, e.slowT - dt);
+    // statuses wearing off (reactions.js), a shifting weakness (natures.js)
+    reactTick(e, dt);
+    natureAffixTick(e, dt);
     // burning and blight eat at them, a number now and then
     for (const k of ['burn', 'blight']) {
       const dot = e[k];
@@ -166,6 +175,12 @@ function updateEnemies(dt) {
       continue;
     }
     if (!e.aggro || d.dying || e.type === 'dummy') continue;
+    // lost in steam, or blinded: it wanders, and doesn't attack
+    if (e.lostT > 0) {
+      e.lostT -= dt;
+      if (!T.enemies[e.type].rooted) moveBody(f, e, Math.cos(e.bob * 1.7 + e.orbit) * e.speed * 0.35 * dt, Math.sin(e.bob * 1.3) * e.speed * 0.35 * dt, e.r);
+      continue;
+    }
     if (e.state === 'stagger' || e.state === 'dazed') { if ((e.t -= dt) <= 0) { e.state = 'chase'; e.cd = Math.max(e.cd, 0.3); } continue; }
     const slow = (e.slowT > 0 ? 1 - T.onHit.chillSlow : 1) * hazardSlow(f, e);
     const sp = e.speed * slow * dt, free = attackers < E.attackers + Math.floor(E.attackersPerDepth * d.depth) || ATTACKING.has(e.state);
@@ -199,6 +214,7 @@ function updateEnemies(dt) {
 function wake(d, e) {
   if (e.aggro) return;
   e.aggro = true;
+  if (e.elite === 'warded' || e.elite === 'shifting') Story.say(e.elite);
   e.cd = Math.max(e.cd, 0.3);
   for (const o of d.enemies) if (!o.aggro && !o.dead && dist(o.x, o.y, e.x, e.y) < 3 * TILE) { o.aggro = true; o.cd = Math.max(o.cd, 0.5); }
 }
