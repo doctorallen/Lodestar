@@ -71,7 +71,7 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
   - **Keeper's Lair:** at the last site, while the biome's heart-shard is still missing. An arena; the Keeper holds the shard, and the lodeline only lights when it falls.
 - **The chain has 4 sites.** The player decides how far to go along it, not how deep. A site's lodeline is certain at the first and a coin toss after that (more as the star's reach grows), so pushing on is a real gamble.
 - **Danger rises with each site.** A site's enemy level is 4 × the biome's index plus the site (one more in a lair). Each level raises enemy health by 16% and damage by 8%. Deeper floors also have more enemies, more elites, and more of the biome's better ore and loot.
-- **Cargo is limited** (30 units, more from attunements and affixes). Ore and exotics weigh 1, gear and relics 3. You can drop gear mid-dive to make room.
+- **Cargo is limited** (40 units, more from attunements and affixes). Ore and exotics weigh 1, gear and relics 3. You can drop gear mid-dive to make room.
 - **The pocket.** A few cargo slots whose contents survive a fall: 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
 - **The star's pull on each floor.** A gold meter under the health bar, full on arrival, fades over about 75 seconds (a little less at each site).
   - **Half gone:** your lamp dims, and more enemies stir in the dark every so often.

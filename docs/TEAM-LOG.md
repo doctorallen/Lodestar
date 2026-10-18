@@ -39,3 +39,52 @@ An overnight run of a small development team of agents. Each round, reviewers in
 - **Adopted, later in the night if there's time:** attunement pairs, save between sites, contracts, the Daily Trace, survivors, weather.
 - **Overturned decisions:** "the player decides how deep to go" becomes "the player decides how far to go along a 4-site chain". "Danger rises with depth" becomes "danger rises with each site". Both are logged in DECISIONS.md.
 
+
+### The reviews (QA, engineer, balance, mobile UX)
+
+Four reviewers looked at the game at the start of the night (before the expedition chain landed). Their reports are summarised here with what the producer did about each.
+
+**QA** found no script errors, and these bugs, all fixed:
+- DROP did nothing: what you dropped was picked straight back up. Now it stays down until you walk away.
+- Swings missed an enemy standing on top of the diver (so the Hollow could never be meleed). The arc is now measured from where the swing began, and point-blank always hits.
+- Esc or P during the anvil lost the materials and the piece. Esc now leaves the anvil, the reveal and the story alone, and closes a report properly.
+- The warden dropped 5 hearts (its "parts" were hearts). Bosses now leave one heart and ordinary parts. Keepers now leave parts too.
+- A shard taken mid-dive wasn't saved until the dive ended. Shards and echoes are now written to the save the moment they're taken.
+- The Rim Keeper's brood had no cap (16 crawlers after a minute). Capped at 4.
+- The wreck mislabelled shards taken out of order; jumps of two magnitudes skipped the star's lines and announced nothing. Every magnitude passed now gets its line, what opened, and the attunement to spend.
+- The extract report left out the pocket; recall rounding made a single exotic always lost or always kept (now a fair coin); salvaging a modifier core gave 1 ore; the Hollow could be stunned by Pull and the whip's drag.
+
+**Engineer** confirmed several of those, and also:
+- A save that failed to load was silently replaced by a fresh game. Now it's kept aside under its own key, unknown ids are cleaned out on load, and the game says when it can't save.
+- Bodies wedged in rock could walk through walls. A wedged body may now only work its way out, and enemies spawn on clear ground.
+- Hitstop froze 17–23% of fight time. Bolts only freeze on big hits, and only a heavy hit can freeze again within 0.15 s.
+- The star's pulse and the drone ran per drawn frame (twice as fast on 120 Hz screens). Moved to real time.
+- **Deferred:** the performance work (bloom on the GPU, lighting in one pass, fewer dot calls, a faster floor paint). A busy fight costs about 23 ms a frame on a 4× slowed CPU, over budget for 60 fps on a mid-range phone. This is the biggest remaining technical item.
+
+**Mobile UX**, fixed:
+- Wick's lines and toasts sat over every screen. Lines now wait until screens close; toasts move to the foot of the screen, and hide during the anvil, a reveal and the story.
+- Sideways, Wick's box sat over the diver; the anvil was clipped. Both fixed.
+- On a 320 px phone the controls overlapped. The action button now floats above the right thumb, over the view's corner, and the cluster tightens on small screens.
+- Touch targets raised to 44 px; the pull meter doubled in height.
+- **Deferred:** the forge's layout (blueprints first, numbered steps), station labels in the outpost, the item card's button grid and confirmations, pickup toasts as floating numbers, and report layout. Logged for the next round.
+
+**Balance** (measured on the old one-zone dives) found that 99% of dives ended on floor 1, because a floor held more ore than the cargo; that pure casters starved for charge; and that the Choir and Underforge Keepers were near-unwinnable because diver health didn't keep up with enemy damage. **Adopted, nearly as proposed:**
+
+| Key | Before → after |
+|---|---|
+| ore per vein tile | 1–2 → 1 |
+| cargo | 30 → 40 |
+| charge / regen | 50 / 5 → 60 / 9 |
+| gauntlet cost, Ember Burst | 0.75 → 0.9, 1.2 → 1.0 |
+| staff, hammer slam, whip drag | 0.9 → 1.0, 2.6 → 2.2, 1.6 → 2.2 |
+| armor health, its growth | 10 → 16, 1.35 → 1.5 |
+| enemy damage growth | 1.08 → 1.07 |
+| Keeper health, magma | 760 → 650, 0.6 → 0.35 of its damage |
+| crawlers | damage 11 → 14, faster tell and lunge |
+| constructs and spitters | from site 1 (so melee and mining bindings drop early) |
+| parts | 0.6 / 0.25 → 0.45 / 0.15 |
+| part grade bonus | 0.12 → 0.2 |
+| shell and drill ore | 14 → 12 |
+| pull per site | 80 s (−4) → 100 s (−5), at least 80 |
+
+The analyst warned that an 80 s pull is about the bot's own rush time, so humans would meet the Hollow on almost every site; hence 100 s. After the change, bot dives reach sites 2–3 in 100–160 bot-seconds (about 3–5 minutes for a person), with 1 death in 6.

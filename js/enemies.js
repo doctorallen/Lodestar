@@ -320,7 +320,7 @@ function updateKeeper(d, e, pd, sp, dt, free) {
   const was = e.state;
   updateCharger(d, e, pd, sp, dt, true);
   if (e.home === 'underforge' && was === 'charge' && e.state !== 'charge')
-    d.puddles.push({ x: e.x, y: e.y, r: 18, t: 4, max: 4, dps: e.dmg * 0.6 });
+    d.puddles.push({ x: e.x, y: e.y, r: def.magmaR, t: def.magmaTime, max: def.magmaTime, dps: e.dmg * def.magma });
 }
 
 // The Hollow comes straight on, through anything that stands in the way,

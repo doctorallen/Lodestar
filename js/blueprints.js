@@ -24,18 +24,18 @@ const BLUEPRINTS = {
   whip: { name: 'Chain-whip', kind: 'blade', style: 'whip', ore: 9, parts: 3, mult: 0.8, text: 'Quick, wide sweeps at reach. Hold to drag enemies in.' },
   // casting
   wand: { name: 'Focus', kind: 'focus', style: 'wand', ore: 8, parts: 2, mult: 1, sockets: [1, 2], start: true, text: 'Casts the cores socketed in it.' },
-  staff: { name: 'Staff', kind: 'focus', style: 'staff', ore: 10, parts: 3, mult: 0.9, sockets: [2, 3], text: 'More sockets. A charged cast fires three times.' },
+  staff: { name: 'Staff', kind: 'focus', style: 'staff', ore: 10, parts: 3, mult: 1, sockets: [2, 3], text: 'More sockets. A charged cast fires three times.' },
   gauntlet: { name: 'Gauntlet', kind: 'focus', style: 'gauntlet', ore: 9, parts: 2, mult: 1.35, sockets: [1, 1], text: 'One socket, cast hard and cheap, but only at close range.' },
   // armor
   plate: { name: 'Plate', kind: 'armor', style: 'plate', ore: 10, parts: 2, mult: 1, start: true, text: 'Armor and health.' },
   weave: { name: 'Weave', kind: 'armor', style: 'weave', ore: 7, parts: 3, mult: 0.55, implicit: { dashCd: -30, moveSpeed: 5 }, text: 'Light. Dash 30% more often, and move a little faster.' },
-  shell: { name: 'Shell', kind: 'armor', style: 'shell', ore: 14, parts: 3, mult: 1.6, implicit: { moveSpeed: -8 }, text: 'Heavy. Much more armor, a little slower.' },
+  shell: { name: 'Shell', kind: 'armor', style: 'shell', ore: 12, parts: 3, mult: 1.6, implicit: { moveSpeed: -8 }, text: 'Heavy. Much more armor, a little slower.' },
   // charms
   charm: { name: 'Charm', kind: 'charm', style: 'charm', ore: 6, parts: 2, start: true, text: 'Affixes of any kind.' },
   lantern: { name: 'Lantern', kind: 'charm', style: 'lantern', ore: 6, parts: 3, implicit: { lamp: 30, pullSlow: 20 }, text: "A brighter lamp, and the star's pull fades 20% slower." },
   // picks
   pick: { name: 'Pick', kind: 'pick', style: 'pick', ore: 12, parts: 1, mult: 1, start: true, text: 'Breaks the ore above its own.' },
-  drill: { name: 'Drill', kind: 'pick', style: 'drill', ore: 14, parts: 2, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },
+  drill: { name: 'Drill', kind: 'pick', style: 'drill', ore: 12, parts: 2, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },
   // spell cores: bound with ether (or a heart)
   core_bolt: { name: 'Arc Bolt', kind: 'core', core: 'bolt', ore: 6, parts: 2, partKinds: ['ether', 'heart'], start: true },
   core_nova: { name: 'Nova', kind: 'core', core: 'nova', ore: 6, parts: 2, partKinds: ['ether', 'heart'] },

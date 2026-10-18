@@ -87,7 +87,7 @@ function installBot() {
       else if (t - progressT > 20 && aim) { (aim.ore !== undefined ? skipOre.add(aim.ore) : skipFoe.add(aim.foe)); aim = null; progressT = t; }
       const foe = d.enemies.filter((e) => !e.dead && !skipFoe.has(e) && (e.aggro || dist(e.x, e.y, p.x, p.y) < 70) && steps[Math.floor(e.y / TILE) * d.floor.w + Math.floor(e.x / TILE)] >= 0)
         .sort((a, b) => dist(a.x, a.y, p.x, p.y) - dist(b.x, b.y, p.x, p.y))[0];
-      const full = !greed && cargoUsed(d) >= st.cargo * 0.85, hurt = !greed && p.hp < st.maxHp * 0.35;
+      const full = cargoUsed(d) >= st.cargo * (greed ? 1 : 0.85), hurt = !greed && p.hp < st.maxHp * 0.35;
       const leave = (full || hurt || d.depth >= depth || !(d.floor.ways || []).length) && d.floor.pad && !d.padDark;
       const action = actionHere();
       Bot.why = [action, !!foe, full, hurt, leave, d.depth, depth, !!d.floor.pad].join(',');

@@ -12,7 +12,7 @@ const T = {
   // diver for restAfter seconds.
   player: {
     hp: 100, speed: 56, radius: 4, hurtInvuln: 0.5, restAfter: 4, restRegen: 3,
-    charge: 50, chargeRegen: 5, chargeOnHit: 3, magnet: 14,
+    charge: 60, chargeRegen: 9, chargeOnHit: 3, magnet: 14,
   },
 
   // Mining: the ore tile's nearest edge must be within `reach` of the feet
@@ -20,18 +20,18 @@ const T = {
   // point `ahead` px in front of the diver is the target. A hardness-1
   // ore breaks after 1 / speed seconds of holding MINE, times the pick's
   // speed.
-  mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 2], drillNoise: 90 }, // a drill wakes what's within drillNoise px
+  mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 1], drillNoise: 90 }, // a drill wakes what's within drillNoise px
 
   // Cargo is counted in units: ore and exotics weigh 1, gear and relics
   // itemWeight. The pocket: slots (by magnitude, 1 to 8) whose contents
   // survive a fall; an ore stack in one holds at most pocketStack.
-  cargo: { capacity: 30, itemWeight: 3, pocket: [1, 1, 2, 2, 3, 3, 3, 3], pocketStack: 10 },
+  cargo: { capacity: 40, itemWeight: 3, pocket: [1, 1, 2, 2, 3, 3, 3, 3], pocketStack: 10 },
 
   // The star's pull on each floor: full on arrival, it fades over `time`
   // seconds (less by perDepth a floor, to min). Below dimAt the lamp dims
   // (to lampMin) and every waveEvery seconds `wave` more enemies stir in the
   // dark; when it's gone the floor's lodeline goes dark and the Hollow comes.
-  pull: { time: 80, perDepth: -4, min: 64, dimAt: 0.5, lampMin: 0.6, waveEvery: 16, wave: 2 },
+  pull: { time: 100, perDepth: -5, min: 80, dimAt: 0.5, lampMin: 0.6, waveEvery: 16, wave: 2 },
 
   // Leaving takes a moment: standing in a lodeline, EXTRACT takes `extract`
   // seconds; an emergency recall works anywhere but takes `recall` seconds
@@ -120,8 +120,8 @@ const T = {
     styles: {
       blade: { range: 22, combo: [[1, 0.24, 0.3, 70, 4, 0.12], [1, 0.24, 0.3, 70, 4, 0.12], [1.7, 0.45, -0.1, 160, 9, 0.18]], charged: { move: 'spin', mult: 2.4, knock: 180, radius: 28, time: 0.25 } },
       spear: { range: 36, combo: [[1, 0.27, 0.8, 90, 6, 0.12], [1, 0.27, 0.8, 90, 6, 0.12], [1.6, 0.42, 0.75, 180, 12, 0.16]], charged: { move: 'lunge', mult: 2.3, knock: 160, reach: 64, time: 0.2 } },
-      hammer: { range: 25, heavy: true, combo: [[1, 0.62, -0.2, 160, 3, 0.2], [1, 0.62, -0.2, 160, 3, 0.2], [1.5, 0.85, -0.5, 240, 6, 0.26]], charged: { move: 'slam', mult: 2.6, knock: 260, radius: 44, time: 0.3 } },
-      whip: { range: 34, combo: [[1, 0.28, -0.3, 40, 0, 0.14], [1, 0.28, -0.3, 40, 0, 0.14], [1.5, 0.42, -0.55, 70, 0, 0.18]], charged: { move: 'drag', mult: 1.6, knock: 0, radius: 52, time: 0.22 } },
+      hammer: { range: 25, heavy: true, combo: [[1, 0.62, -0.2, 160, 3, 0.2], [1, 0.62, -0.2, 160, 3, 0.2], [1.5, 0.85, -0.5, 240, 6, 0.26]], charged: { move: 'slam', mult: 2.2, knock: 260, radius: 44, time: 0.3 } },
+      whip: { range: 34, combo: [[1, 0.28, -0.3, 40, 0, 0.14], [1, 0.28, -0.3, 40, 0, 0.14], [1.5, 0.42, -0.55, 70, 0, 0.18]], charged: { move: 'drag', mult: 2.2, knock: 0, radius: 52, time: 0.22 } },
     },
   },
   // A dash: a burst of speed with a moment of untouchability. A flick of
@@ -142,14 +142,14 @@ const T = {
     // a gauntlet casts at gauntletCost the charge, but only within gauntletRange;
     // a staff reaches staffRange, and its charged cast (three of everything)
     // costs staffChargedCost
-    gauntletCost: 0.75, gauntletRange: 70, staffRange: 180, staffChargedCost: 2.4,
+    gauntletCost: 0.9, gauntletRange: 70, staffRange: 180, staffChargedCost: 2.4,
     spark: { cost: 5, mult: 0.6, speed: 170 },
     bolt: { cost: 8, mult: 1.0, speed: 170 },
     nova: { cost: 18, mult: 1.3, radius: 34 },
     pull: { cost: 14, mult: 0.5, radius: 72, stun: 0.7, speed: 160 },
     ward: { cost: 20, mult: 2.5, time: 5 },
     frost: { cost: 12, mult: 1.1, speed: 210, pierce: 4 },
-    ember: { cost: 16, mult: 1.2, speed: 120, radius: 26, burnTime: 2.5, burn: 0.35 },
+    ember: { cost: 16, mult: 1.0, speed: 120, radius: 26, burnTime: 2.5, burn: 0.35 },
     chain: { cost: 14, mult: 0.85, range: 120, jumps: 4, jumpRange: 54, falloff: 0.85 },
     thorns: { cost: 18, mult: 0.45, radius: 24, time: 3, every: 0.5 },
     blink: { cost: 10, mult: 0, reach: 60, invuln: 0.25 },
@@ -177,20 +177,20 @@ const T = {
   // wind up at once; the rest circle.
   // A heavy hit staggers anything but the warden for staggerTime.
   enemies: {
-    hpGrowth: 1.16, dmgGrowth: 1.08, aggro: 96, hurtFlash: 0.08, attackers: 2, attackersPerDepth: 0.34, staggerTime: 0.35,
+    hpGrowth: 1.16, dmgGrowth: 1.07, aggro: 96, hurtFlash: 0.08, attackers: 2, attackersPerDepth: 0.34, staggerTime: 0.35,
     // crawlers close to `circle` px, circle for a moment, wind up, lunge,
     // then recover (open to a counter)
-    crawler: { hp: 26, dmg: 11, speed: 36, radius: 5, circle: 28, windup: 0.45, lungeSpeed: 125, lungeTime: 0.28, recover: 0.55, weight: 5 },
+    crawler: { hp: 26, dmg: 14, speed: 36, radius: 5, circle: 28, windup: 0.38, lungeSpeed: 145, lungeTime: 0.28, recover: 0.55, weight: 5 },
     // wisps keep `keep` px away and strafe; from fanDepth they fire three
     wisp: { hp: 17, dmg: 9, speed: 28, radius: 4, keep: 60, range: 115, windup: 0.55, cooldown: 1.9, shotSpeed: 72, fanDepth: 3, weight: 3 },
     // constructs show where they'll charge; one that hits a wall is dazed
-    construct: { hp: 52, dmg: 16, speed: 20, radius: 6, range: 80, windup: 0.7, cooldown: 2.2, chargeSpeed: 135, chargeTime: 0.5, dazed: 1.3, weight: 2, minDepth: 2 },
+    construct: { hp: 52, dmg: 16, speed: 20, radius: 6, range: 80, windup: 0.7, cooldown: 2.2, chargeSpeed: 135, chargeTime: 0.5, dazed: 1.3, weight: 2 },
     // flora that fights: rooted, hidden among the harmless kind until it
     // wakes. A snapjaw snaps at anything within `reach`; a spitter lobs a
     // glob that leaves spores on the ground (`puddle` px across, hurting
     // puddleDps a second for puddleTime)
     snapjaw: { hp: 30, dmg: 13, speed: 0, radius: 6, reach: 24, windup: 0.5, cooldown: 1.5, weight: 2, rooted: true },
-    spitter: { hp: 20, dmg: 6, speed: 0, radius: 5, range: 110, windup: 0.6, cooldown: 2.4, shotSpeed: 60, puddle: 14, puddleDps: 9, puddleTime: 2.6, weight: 2, minDepth: 2, rooted: true },
+    spitter: { hp: 20, dmg: 6, speed: 0, radius: 5, range: 110, windup: 0.6, cooldown: 2.4, shotSpeed: 60, puddle: 14, puddleDps: 9, puddleTime: 2.6, weight: 2, rooted: true },
     // the Hollow: what comes when the star's pull is gone. It can't be
     // staggered, and it doesn't stop
     hollow: { hp: 900, dmg: 22, speed: 44, radius: 7, contact: 12, cooldown: 0.9 },
@@ -199,7 +199,7 @@ const T = {
     // the Shard Keepers: a great charger that rings the room with orbs,
     // calls its brood (the Rim's), and leaves magma where it charges (the
     // Underforge's)
-    keeper: { hp: 760, dmg: 18, speed: 22, radius: 12, range: 100, windup: 0.75, cooldown: 1.8, chargeSpeed: 130, chargeTime: 0.6, dazed: 1.5, shotSpeed: 70, shots: 12, summonEvery: 7, broodMax: 4, summon: 2 },
+    keeper: { hp: 650, dmg: 18, speed: 22, radius: 12, range: 100, windup: 0.75, cooldown: 1.8, chargeSpeed: 130, chargeTime: 0.6, dazed: 1.5, shotSpeed: 70, shots: 12, summonEvery: 7, broodMax: 4, magma: 0.35, magmaR: 18, magmaTime: 4, summon: 2 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },
     // a room's enemies: perRoom + perDepth × depth, give or take one
     perRoom: 1.4, perDepth: 0.55, maxPerRoom: 6,
@@ -215,7 +215,7 @@ const T = {
   // exotic, a blueprint or a sealed relic. Finished gear comes from the
   // forge. motes heal. rarity: [base, per depth] weights (for relics).
   loot: {
-    part: 0.6, partTwo: 0.25, eliteParts: [2, 3], bossParts: 4,
+    part: 0.45, partTwo: 0.15, eliteParts: [2, 3], bossParts: 4,
     exotic: 0.03, eliteExotic: 0.5, eliteBlueprint: 0.22,
     relic: 0.008, eliteRelic: 0.1, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
     rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [1, 0.35], set: [0.8, 0.25] },
@@ -225,9 +225,9 @@ const T = {
   // affixGrowth a tier). Each kind's crafting cost is in ore of its tier
   // (a pick is made from the ore it's named for, and breaks the next one).
   items: {
-    tierGrowth: 1.45, affixGrowth: 0.3, gradeBoost: 0.12, // a part's grade over 1 strengthens what it binds
+    tierGrowth: 1.45, affixGrowth: 0.3, gradeBoost: 0.2, // a part's grade over 1 strengthens what it binds
     blade: { dmg: 6, cost: 8 }, focus: { power: 6, cost: 8 },
-    armor: { armor: 4, armorGrowth: 0.75, hp: 10, hpGrowth: 1.35, cost: 10 },
+    armor: { armor: 4, armorGrowth: 0.75, hp: 16, hpGrowth: 1.5, cost: 10 },
     charm: { cost: 6 }, pick: { speedGrowth: 0.12, cost: 12 }, core: { cost: 10, growth: 0.25 },
     affixes: { common: 1, magic: 2, rare: 3, legendary: 3, set: 2 },
     socket: { blade: 0.35, focus: 1, secondFocus: 0.5 },
