@@ -256,7 +256,7 @@ function updateCharger(d, e, pd, sp, dt, free) {
     moveBody(f, e, e.vx * dt, e.vy * dt, e.r);
     const blocked = Math.abs(e.x - ox) + Math.abs(e.y - oy) < Math.hypot(e.vx, e.vy) * dt * 0.3;
     if (!e.hitDone && dist(e.x, e.y, p.x, p.y) < e.r + T.player.radius + 3) { e.hitDone = true; hurtPlayer(e.dmg, e); }
-    if (blocked) { e.state = 'dazed'; e.t = def.dazed; e.cd = def.cooldown; shakeView(T.impact.heavyShake * 0.6); }
+    if (blocked) { e.state = 'dazed'; e.t = def.dazed; e.cd = def.cooldown; shakeView(T.impact.heavyShake); }
     else if (e.t <= 0) { e.state = 'chase'; e.cd = def.cooldown; }
     return;
   }

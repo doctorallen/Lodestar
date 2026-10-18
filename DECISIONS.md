@@ -55,3 +55,8 @@ The major gameplay decisions, newest last, and why each was made. Read this befo
 - **Hands are tapped, not held.** Holding now charges instead of repeating, which makes room for the charged attack.
 - **Ore can be dropped like gear.** In the cargo screen it shows as rows you can drop by 1, 5 or all, and it lies as a heap to pick back up.
 - **The character is the circuit diver**, chosen from seven concepts. Its suit's circuits and violet dome give its own light, and its drone is a separate sprite so it can follow.
+
+## 2026-10-17: what the first phone sessions showed
+
+- **Only ore may look like ore.** Glowing flora in ore colours was mistaken for ore. Now flora is dim and coloured unlike any ore, ground specks are gone, rock veins are faint, and ore twinkles.
+- **No screen shake.** The designer disliked it. Hit-stop, knockback and numbers carry the impact.

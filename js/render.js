@@ -285,6 +285,18 @@ function renderFrame() {
   ex.drawImage(View.floorEm, ox, oy);
   const lights = [];
 
+  // ore twinkles, so it's the one thing in the rock that catches the eye
+  const tx0 = Math.max(0, Math.floor(camX / TILE)), ty0 = Math.max(0, Math.floor(camY / TILE));
+  for (let ty = ty0; ty <= Math.min(f.h - 1, ty0 + Math.ceil(View.h / TILE) + 1); ty++)
+    for (let tx = tx0; tx <= Math.min(f.w - 1, tx0 + Math.ceil(View.w / TILE) + 1); tx++) {
+      if (f.tiles[ty * f.w + tx] !== TILE_ORE) continue;
+      const h = hashInts(tx, ty, 0x7a1), ph = (Game.realT * 1.6 + (h & 255) / 255) % 1;
+      if (ph > 0.22) continue;
+      const k = ph < 0.11 ? ph / 0.11 : (0.22 - ph) / 0.11, cx = tx * TILE + ox + 3 + (h >> 8) % 10, cy = ty * TILE + oy + 3 + (h >> 12) % 6;
+      dot(cx, cy, '#ffffff', true, k);
+      if (k > 0.5) for (const [i, j] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) dot(cx + i, cy + j, ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][3], true, k * 0.7);
+    }
+
   // the lodeline: a shimmering beam from the anchor straight up
   if (f.pad) {
     const bx = (f.pad.x + 0.5) * TILE + ox, bot = (f.pad.y + 0.5) * TILE + oy, half = 3;

@@ -127,7 +127,7 @@ Only two enemies can wind up at once, plus one more every three floors down. The
 - **You start with a Scrap Blade and a Cracked Focus**, so the first fight has both melee and range.
 - **The dash** is a quick burst that nothing can touch, from DASH or a flick of the move thumb. It's how you get out of a lunge or a charge.
 - **Impact:**
-  - a hit stops the world for an instant and shakes the view;
+  - a hit stops the world for an instant (the view doesn't shake: the designer found it unpleasant);
   - damage numbers pop off;
   - the weapon is drawn in hand: the blade sweeps its arc with a slash of light, and the focus floats glowing over the hand.
 - **Spell cores** socket into blades and foci. They're a second layer of loot, found or forged.
@@ -194,7 +194,8 @@ Only two enemies can wind up at once, plus one more every three floors down. The
   - **the Rim:** fungus caps, curling stalks with hanging bulbs, clusters of pods;
   - **the Choir:** singing crystals, chime spires, rings of shards;
   - **the Underforge:** magma cracks, ember vents, cinder pods.
-- **Alien light.** Faint veins glow in the rock, and specks glow in the ground: this world's light lives in its stone.
+- **Alien light.** Faint veins glow in the rock. Flora glows dimly, in colours that clash with no ore: yellow-green on the Rim, pink in the Choir, ember in the Underforge.
+- **Ore twinkles**, so it's the one thing in the rock that catches the eye.
 - **Loot glows in its rarity's colour.** Rare and better stands up in a beam, so it's seen from across a room.
 - **(proposed) Lamp radius as a dial.** The lamp's radius could shrink as danger rises with depth.
 - **(proposed) Brightness setting.** Dark scenes lose contrast in bright sunlight.

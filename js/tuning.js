@@ -88,9 +88,11 @@ const T = {
   // A dash: a burst of speed with a moment of untouchability. A flick of
   // the move thumb (flickPx in flickMs) dashes too.
   dash: { speed: 230, time: 0.13, invuln: 0.22, cooldown: 0.55, flickPx: 26, flickMs: 90 },
-  // How hits land: the world freezes for hitstop (heavy: heavyStop) and the
-  // view shakes; knockback fades at knockDecay a second.
-  impact: { hitstop: 0.045, heavyStop: 0.09, shake: 1.5, heavyShake: 3.5, hurtShake: 3, knockDecay: 9 },
+  // How hits land: the world freezes for hitstop (heavy: heavyStop);
+  // knockback fades at knockDecay a second. The view doesn't shake (the
+  // designer found it unpleasant), but the shake values are kept at 0 so it
+  // can be tried again.
+  impact: { hitstop: 0.045, heavyStop: 0.09, shake: 0, heavyShake: 0, hurtShake: 0, knockDecay: 9 },
 
   // Spells: an empty focus casts spark; socketed cores cast their own.
   // power is the focus's power; damage = power × mult. Holding to charge
@@ -178,7 +180,7 @@ const T = {
   // glow. The lamp's radius may become a dial that shrinks with depth.
   light: {
     ambient: 0.45, tint: [0.72, 0.76, 0.95], bands: 4, max: 1.9,
-    lamp: [5, 1.35], ore: [1.7, 0.75], deco: [1.4, 0.55], decoWall: 0.14, decoOpen: 0.03,
+    lamp: [5, 1.35], ore: [1.7, 0.75], deco: [1.2, 0.35], decoWall: 0.14, decoOpen: 0.03,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]],
   },
 

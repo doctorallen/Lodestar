@@ -45,8 +45,8 @@ const ART = {
   // each biome: the same materials with its own floor, rock and light.
   // deco: what grows on the floor and glows (fungus, crystals, magma cracks)
   biomes: {
-    rim: { deco: 'fungus', floor: ['#22303a', '#2c3e4a', '#3a4e5c'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#5ce8c8', stem: '#3c5058' },
-    choir: { deco: 'crystal', floor: ['#282242', '#342c56', '#42386a'], rock: ['#06050e', '#0b0918', '#110e22', '#9a84d0'], front: ['#30285a', '#3e3470', '#504488'], glow: '#c08cff', stem: '#3a3460' },
+    rim: { deco: 'fungus', floor: ['#22303a', '#2c3e4a', '#3a4e5c'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#9ccf4a', stem: '#3c4a38' },
+    choir: { deco: 'crystal', floor: ['#282242', '#342c56', '#42386a'], rock: ['#06050e', '#0b0918', '#110e22', '#9a84d0'], front: ['#30285a', '#3e3470', '#504488'], glow: '#e070b0', stem: '#43304a' },
     underforge: { deco: 'magma', floor: ['#33252a', '#402e34', '#503a40'], rock: ['#080506', '#0f090b', '#160d10', '#b07060'], front: ['#46282a', '#5a3436', '#704244'], glow: '#ff7a2a', stem: '#5a2a18' },
   },
 };
@@ -154,7 +154,7 @@ function flippedSprite(s) {
 // singing crystals, a tall chime spire, or a ring of shards; in the
 // Underforge, a magma crack, an ember vent, or cinder pods.
 function paintDeco(P, ox, oy, b, rnd, kind = 0) {
-  const c = b.glow, dark = mix(c, '#000000', 0.45), pale = mix(c, '#ffffff', 0.6), stem = b.stem;
+  const c = mix(b.glow, '#000000', 0.3), dark = mix(c, '#000000', 0.45), pale = mix(c, '#ffffff', 0.6), stem = b.stem;
   if (b.deco === 'crystal') {
     const r = [mix(c, '#000000', 0.6), mix(c, '#000000', 0.3), c, pale];
     if (kind === 1) { paintShard(P, ox + 7, oy + 13, 10, 2, r, true, true); paintShard(P, ox + 10, oy + 13, 5, 2, r, true, true); }
@@ -231,11 +231,10 @@ function paintShard(P, x, y, h, w, r, glow, glintGlow) {
 // is that floor pixel rock (from the floor's field). Ground is dithered and
 // darkened just under a wall; rock is a dark top, a lit rim where it meets
 // the ground above or beside it, and a lit face where the ground is below
-// it. Here and there the rock carries a faint glowing vein, and the ground a
-// glowing speck: this world's light lives in its stone.
+// it.
 const FACE_H = 6;
 function paintCaveTile(P, rock, ox, oy, b, rnd, seedH) {
-  const f = b.floor, r = b.rock, fr = b.front, vein = mix(b.glow, '#000000', 0.55);
+  const f = b.floor, r = b.rock, fr = b.front;
   for (let y = oy; y < oy + TILE; y++)
     for (let x = ox; x < ox + TILE; x++) {
       const t = bayerAt(x, y), q = rnd();
@@ -243,7 +242,6 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH) {
         let shade = clamp(Math.floor((0.5 + (q - 0.5) * 0.7) * 3 + t - 0.5), 0, 2);
         if (rock(x, y - 1) || rock(x, y - 2) || (rock(x, y - 3) && t < 0.5)) shade = 0;
         putPx(P, x, y, f[shade]);
-        if ((hashInts(x, y, seedH) & 1023) < 3) putPx(P, x, y, vein, true);
         continue;
       }
       let below = 0;
@@ -256,9 +254,10 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH) {
     }
 }
 
-// A thin glowing crack wandering across a rock top
+// A thin, faintly glowing crack wandering across a rock top (dim, so it
+// never passes for ore)
 function paintRockVein(P, rock, ox, oy, b, rnd) {
-  const col = mix(b.glow, '#000000', 0.4);
+  const col = mix(b.glow, '#000000', 0.7);
   let x = ox + 3 + Math.floor(rnd() * 10), y = oy + 2 + Math.floor(rnd() * 8);
   for (let k = 0; k < 9; k++) {
     if (!rock(x, y) || !rock(x, y + FACE_H)) break;
