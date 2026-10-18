@@ -14,7 +14,7 @@
 //   CLIME_FLORA: each clime's plants in the FLORA format, built with
 //     buildArtSprite(rows, pal, CLIME_LETTERS, CLIME_GLOWS). sky: they
 //     don't glow under the sun. looks: which pieces the fighting flora wear.
-//     density: how much more of it grows than usual.
+//     How much of it grows, and where, is undergrowth.js's (T.flora.sets).
 //   CLIME_LIFE: its critters' colours (LIFE_PAL's shape), how many of each
 //     (LIFE_MIX's), and its weather.
 // The numbers (how often each turns up, its light, its hazard) are in
@@ -303,7 +303,7 @@ const CLIME_FLORA = {
     ],
   },
   bloomfen: {
-    sky: true, density: 1.2, looks: { snapjaw: 'Bladder pods', spitter: 'Toadstools' },
+    sky: true, looks: { snapjaw: 'Bladder pods', spitter: 'Toadstools' },
     pal: climePal({
       cap: ['#3a2440', '#6a4878', '#9a74ac', '#c8a4d8'], flesh: ['#3a2030', '#6a3c58', '#9a6284', '#c890b0'], stem: ['#4a4636', '#7a7458', '#a8a07c', '#d4ccaa'],
       bone: ['#4a3c48', '#8a7488', '#c4aac0', '#ecd8ec'], leaf: ['#142412', '#22401c', '#345c28', '#4a7a36'], bark: ['#1c120a', '#3a2412', '#5a381c', '#7a4e28'],
@@ -589,7 +589,7 @@ const CLIME_FLORA = {
     ],
   },
   rootdeep: {
-    density: 1.6, looks: { snapjaw: 'Glowcaps', spitter: 'Fern' },
+    looks: { snapjaw: 'Glowcaps', spitter: 'Fern' },
     pal: climePal({
       root: ['#120d08', '#2a2014', '#44341f', '#5e4a2c'], vine: ['#0a140a', '#162a14', '#24401e', '#34582a'], leaf: ['#0c1a0a', '#183014', '#24481e', '#346228'],
       cap: ['#2a2410', '#4a4020', '#6e6030', '#988a48'], stem: ['#2a261c', '#4e4836', '#746a50', '#9a906c'], glow: ['#c8e85a'], glow2: ['#eef8a0'],
@@ -681,7 +681,7 @@ const CLIME_FLORA = {
     ],
   },
   temple: {
-    density: 1.4, looks: { snapjaw: 'Flower bush', spitter: 'Lilies' },
+    looks: { snapjaw: 'Flower bush', spitter: 'Lilies' },
     pal: climePal({
       rock: ['#1c241e', '#3a463c', '#58665a', '#7a8a7c'], vine: ['#0a160c', '#14281a', '#203c28', '#2e5236'], leaf: ['#0e1c0e', '#1a3218', '#284a24', '#386630'],
       petal: ['#4a2a40', '#8a5478', '#c488b0', '#f0c8e0'], moss: ['#121c10', '#22341c', '#344c2a', '#486638'], glow: ['#b8e070'], glow2: ['#f0f8c0'],
@@ -941,7 +941,7 @@ function climeLight(f) { return (!f.hub && f.clime && T.climes[f.clime] && T.cli
 function floraKit(set) {
   if (set === 'surface') return { pieces: SURFACE_FLORA, pal: SURFACE_PAL, letters: SURFACE_LETTERS, glows: SURFACE_GLOWS, sky: true };
   const c = CLIME_FLORA[set];
-  if (c) return { pieces: c.pieces, pal: c.pal, letters: CLIME_LETTERS, glows: CLIME_GLOWS, sky: !!c.sky, looks: c.looks, density: c.density || 1 };
+  if (c) return { pieces: c.pieces, pal: c.pal, letters: CLIME_LETTERS, glows: CLIME_GLOWS, sky: !!c.sky, looks: c.looks };
   return { pieces: FLORA[set], pal: FLORA_PAL[set], letters: FLORA_LETTERS, glows: FLORA_GLOWS, sky: false, looks: PLANT_LOOKS[set] };
 }
 

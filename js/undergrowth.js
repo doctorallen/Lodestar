@@ -411,7 +411,7 @@ function placeUndergrowth(f, set) {
   if (S.tall > 0) {
     const C = F.stand, gapY = TILE / C.rows;
     for (let ty = 1; ty < H - 1; ty++) {
-      for (let tx = 1; tx < W - 1; tx++) if (stand[ty * W + tx]) U.grid[ty * W + tx] = 1;
+      for (let tx = 1; tx < W - 1; tx++) if (stand[ty * W + tx]) U.grid[ty * W + tx] = rng.f(0.75, 1);
       for (let r = 0; r < C.rows; r++) {
         let tx = 1;
         while (tx < W - 1) {
@@ -610,9 +610,10 @@ function paintUndergrowth(P, f, tx, ty, ox, oy, b) {
             // shadow falls)
             const sh = C32[k] === dark;
             let c = sh ? ugMix(C32[k], Q.deep, B.outer * 0.6) : v > B.deep ? ugMix(C32[k], Q.deep, B.inner) : ugMix(C32[k], Q.tint, B.outer);
-            // (litter in little clusters: blocks of two by two, staggered)
-            const l = artHash((x + ((y >> 1) & 1)) >> 1, y >> 1, seedH + 67);
-            if (l < B.litter * (0.06 + 0.14 * Math.min(1, v))) c = sh ? ugDarken(Q.litter[1], 0.8) : Q.litter[l < B.litter * 0.05 ? 0 : 1];
+            // (litter in little clusters: a leaf, a needle or a fleck of ash
+            // two or three pixels long, lying on its side)
+            const l = artHash(((x + (y & 1) * 2) / 3) | 0, y, seedH + 67);
+            if (l < B.litter * (0.04 + 0.1 * Math.min(1, v))) c = sh ? ugDarken(Q.litter[1], 0.8) : Q.litter[l < B.litter * 0.035 ? 0 : 1];
             C32[k] = c; E[k * 4 + 3] = 0;
           }
         }
