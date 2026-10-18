@@ -7,11 +7,14 @@
 // always had, so these only add.
 //   CLIME_ART: a palette in the shape of ART.biomes (sun: under the sky;
 //     paving: ruin flagstones), plus haz (the hazard's own ramp: deep, mid,
-//     light, edge), decor (what's painted over the ground here and there),
-//     vent ('fire' or 'steam') and sign (the colour of the motes round a portal that leads to it).
+//     light, edge; rimGlow: the edge glows), rockDecor (over the rock),
+//     decor (what's painted over the ground here and there),
+//     vent ('fire' or 'steam') and sign (the colour of the motes round a portal that leads to it: like
+//     the portals, never violet, magenta or cyan, which are a rift's).
 //   CLIME_FLORA: each clime's plants in the FLORA format, built with
 //     buildArtSprite(rows, pal, CLIME_LETTERS, CLIME_GLOWS). sky: they
 //     don't glow under the sun. looks: which pieces the fighting flora wear.
+//     density: how much more of it grows than usual.
 //   CLIME_LIFE: its critters' colours (LIFE_PAL's shape), how many of each
 //     (LIFE_MIX's), and its weather.
 // The numbers (how often each turns up, its light, its hazard) are in
@@ -20,32 +23,32 @@
 
 const CLIME_ART = {
   frost: {
-    sun: true, floor: ['#a3b1c4', '#b4c1d3', '#c4d0e0'], rock: ['#38465f', '#404f69', '#485873', '#d4e8fc'], front: ['#1c2436', '#28334c', '#364462'], glow: '#bfe4ff',
-    haz: ['#6f90ba', '#86a7cf', '#a2c0e2', '#eef8ff'], decor: 'drifts', sign: '#bfe4ff',
+    sun: true, floor: ['#9fa6c4', '#b5bcd4', '#cbd0e2'], rock: ['#2c2e4e', '#34385a', '#3c4264', '#e4dccc'], front: ['#1a1832', '#28284a', '#383c60'], glow: '#c4dcff',
+    haz: ['#6a7cb8', '#86a0d2', '#a8c4e6', '#f6f0dc'], decor: 'drifts', sign: '#eef2ff',
   },
   cinder: {
-    sun: true, floor: ['#363030', '#403938', '#4a4240'], rock: ['#120e0e', '#181312', '#1e1816', '#7c5646'], front: ['#2c1a16', '#3c241e', '#4c2e28'], glow: '#ff6a2a',
+    sun: true, floor: ['#2e2832', '#38313a', '#443c42'], rock: ['#0f0b13', '#151019', '#1b151f', '#a06a48'], front: ['#261824', '#36202a', '#482a2e'], glow: '#ff6a2a',
     decor: 'fissures', vent: 'fire', sign: '#ff7a3a',
   },
   bloomfen: {
-    sun: true, floor: ['#3e4e2a', '#485a30', '#536838'], rock: ['#161e0e', '#1c2612', '#222e16', '#7a9a50'], front: ['#28331a', '#34421f', '#405026'], glow: '#e0a8ec',
-    decor: 'moss', sign: '#d8a0ff',
+    sun: true, floor: ['#3c4430', '#475036', '#545e3c'], rock: ['#1a1422', '#20182a', '#271d31', '#b4b878'], front: ['#2a1f30', '#3a2c3a', '#4c3c46'], glow: '#e0a8ec',
+    decor: 'moss', sign: '#f0b8a0',
   },
   grotto: {
-    floor: ['#182a33', '#1f3641', '#26434f'], rock: ['#03070a', '#060c11', '#091218', '#5a90a8'], front: ['#162e3c', '#1e3e4d', '#284e60'], glow: '#5a7cff',
-    haz: ['#0a2232', '#103248', '#18465f', '#6aa6c8'], decor: 'algae', sign: '#7a96ff',
+    floor: ['#29273a', '#322f44', '#3c384f'], rock: ['#06050c', '#0a0912', '#0f0d18', '#8098c0'], front: ['#1c2038', '#262e4a', '#323e62'], glow: '#5a7cff',
+    haz: ['#0a1636', '#112654', '#1a3a74', '#6a94ff'], rimGlow: true, decor: 'algae', sign: '#6aa0ff',
   },
   magma: {
-    floor: ['#1f1a19', '#272120', '#302927'], rock: ['#050303', '#0a0606', '#0f0909', '#9a4a34'], front: ['#301a16', '#40221c', '#522c24'], glow: '#ff5a1a',
-    haz: ['#801808', '#d4420c', '#ff8c20', '#ffd860'], decor: 'cracks', sign: '#ff6a2a',
+    floor: ['#221c22', '#2a2228', '#342a2e'], rock: ['#07040a', '#0c070e', '#110a12', '#b0603c'], front: ['#2e1820', '#3e2026', '#50282c'], glow: '#ff5a1a',
+    haz: ['#5a1208', '#b4360c', '#ec7418', '#ffcc58'], decor: 'cracks', sign: '#ff6a2a',
   },
   rootdeep: {
-    floor: ['#211c14', '#29231a', '#322a1f'], rock: ['#050403', '#090806', '#0e0c08', '#8a7a52'], front: ['#2c2418', '#382e20', '#463a28'], glow: '#c8e85a',
-    decor: 'roots', sign: '#c8e85a',
+    floor: ['#28211a', '#312a1e', '#3c3324'], rock: ['#08060a', '#0d0a0e', '#130f12', '#a89462'], front: ['#2c2024', '#3a2c28', '#4a3a30'], glow: '#c8e85a',
+    decor: 'roots', rockDecor: 'roots', sign: '#c8e85a',
   },
   temple: {
-    paving: true, floor: ['#273027', '#313b31', '#3b473b'], rock: ['#040605', '#080c09', '#0c110d', '#78987c'], front: ['#26342a', '#324436', '#3e5442'], glow: '#9ccf4a',
-    haz: ['#0c2018', '#133024', '#1c4232', '#5a8a6a'], decor: 'overgrowth', sign: '#8ad06a',
+    paving: true, floor: ['#3e3a3a', '#4a4642', '#58544c'], rock: ['#08070c', '#0d0c10', '#121116', '#b0a888'], front: ['#2e2a34', '#3c3840', '#4c4a4c'], glow: '#9ccf4a',
+    haz: ['#0c1c24', '#122e30', '#1a4038', '#7aae8a'], decor: 'overgrowth', sign: '#8ad06a',
   },
   vault: {
     floor: ['#29231f', '#332b25', '#3d342c'], rock: ['#060504', '#0b0907', '#100d0a', '#a08050'], front: ['#382a1a', '#483620', '#5a4428'], glow: '#ff9a50',
@@ -300,14 +303,14 @@ const CLIME_FLORA = {
     ],
   },
   bloomfen: {
-    sky: true, looks: { snapjaw: 'Bladder pods', spitter: 'Toadstools' },
+    sky: true, density: 1.2, looks: { snapjaw: 'Bladder pods', spitter: 'Toadstools' },
     pal: climePal({
       cap: ['#3a2440', '#6a4878', '#9a74ac', '#c8a4d8'], flesh: ['#3a2030', '#6a3c58', '#9a6284', '#c890b0'], stem: ['#4a4636', '#7a7458', '#a8a07c', '#d4ccaa'],
       bone: ['#4a3c48', '#8a7488', '#c4aac0', '#ecd8ec'], leaf: ['#142412', '#22401c', '#345c28', '#4a7a36'], bark: ['#1c120a', '#3a2412', '#5a381c', '#7a4e28'],
       moss: ['#1a2a12', '#2a4220', '#3c5c2c', '#527a3a'], glow: ['#e8b0f0'], glow2: ['#f8d8ff'],
     }),
     pieces: [
-      { name: 'Mushroom tree', anchor: 'floor', weight: 1, frames: [[
+      { name: 'Mushroom tree', anchor: 'floor', weight: 3, frames: [[
         '.......CCCCCCCCC.......',
         '....CCCCCCCCCCCCCCC....',
         '..CCCCCBCCCCCCCBCCCCC..',
@@ -586,27 +589,23 @@ const CLIME_FLORA = {
     ],
   },
   rootdeep: {
-    looks: { snapjaw: 'Glowcaps', spitter: 'Fern' },
+    density: 1.6, looks: { snapjaw: 'Glowcaps', spitter: 'Fern' },
     pal: climePal({
       root: ['#120d08', '#2a2014', '#44341f', '#5e4a2c'], vine: ['#0a140a', '#162a14', '#24401e', '#34582a'], leaf: ['#0c1a0a', '#183014', '#24481e', '#346228'],
       cap: ['#2a2410', '#4a4020', '#6e6030', '#988a48'], stem: ['#2a261c', '#4e4836', '#746a50', '#9a906c'], glow: ['#c8e85a'], glow2: ['#eef8a0'],
     }),
     pieces: [
-      { name: 'Root arch', anchor: 'floor', weight: 1, frames: [[
-        '........TTTTTTTTT.........',
-        '.....TTTTtTTTTTtTTTTT.....',
-        '...TTTtTT.......TTtTTTT...',
-        '..TTtTT............TTtTT..',
-        '.TTtT................TtTT.',
-        '.TtT..................TtT.',
-        'TTt....................tTT',
-        'TT......................TT',
-        'TT......................TT',
-        'TtT....................TtT',
-        'TTT....................TTT',
-        'TtTT..................TTtT',
-        'tTTTt................tTTTt',
-        'ttTTTt..............tTTTtt',
+      { name: 'Great root', anchor: 'floor', weight: 2, frames: [[
+        '.....TTTTT..................',
+        '...TTTtttTTT................',
+        '..TTtTTTTTtTT........TTTT...',
+        '.TTtTTTTTTTtTTT....TTTttTT..',
+        '.TtTT.....TTtTTTTTTTtTTTtTT.',
+        'TTtT.......TTTtttttTTT.TTtTT',
+        'TtT..........TTTTTTT....TTtT',
+        'TtT......................TtT',
+        'tTt......................tTt',
+        'ttt......................ttt',
       ]] },
       { name: 'Hanging vines', anchor: 'ceiling', weight: 3, frames: [[
         'VVVVVVVVV',
@@ -682,7 +681,7 @@ const CLIME_FLORA = {
     ],
   },
   temple: {
-    looks: { snapjaw: 'Flower bush', spitter: 'Lilies' },
+    density: 1.4, looks: { snapjaw: 'Flower bush', spitter: 'Lilies' },
     pal: climePal({
       rock: ['#1c241e', '#3a463c', '#58665a', '#7a8a7c'], vine: ['#0a160c', '#14281a', '#203c28', '#2e5236'], leaf: ['#0e1c0e', '#1a3218', '#284a24', '#386630'],
       petal: ['#4a2a40', '#8a5478', '#c488b0', '#f0c8e0'], moss: ['#121c10', '#22341c', '#344c2a', '#486638'], glow: ['#b8e070'], glow2: ['#f0f8c0'],
@@ -942,7 +941,7 @@ function climeLight(f) { return (!f.hub && f.clime && T.climes[f.clime] && T.cli
 function floraKit(set) {
   if (set === 'surface') return { pieces: SURFACE_FLORA, pal: SURFACE_PAL, letters: SURFACE_LETTERS, glows: SURFACE_GLOWS, sky: true };
   const c = CLIME_FLORA[set];
-  if (c) return { pieces: c.pieces, pal: c.pal, letters: CLIME_LETTERS, glows: CLIME_GLOWS, sky: !!c.sky, looks: c.looks };
+  if (c) return { pieces: c.pieces, pal: c.pal, letters: CLIME_LETTERS, glows: CLIME_GLOWS, sky: !!c.sky, looks: c.looks, density: c.density || 1 };
   return { pieces: FLORA[set], pal: FLORA_PAL[set], letters: FLORA_LETTERS, glows: FLORA_GLOWS, sky: false, looks: PLANT_LOOKS[set] };
 }
 
@@ -952,7 +951,7 @@ function climeLights(f) {
   if (f.clime !== 'temple') return [];
   const out = [], rooms = f.rooms.slice(1).filter((r) => r.cells && r.cells.length > 12);
   for (const r of rooms) {
-    if ((hashInts(f.seed, r.cx, r.cy, 0x5b3a) & 3) !== 0) continue;
+    if ((hashInts(f.seed, r.cx, r.cy, 0x5b3a) & 3) === 0) continue;
     out.push({ x: (r.cx + 0.5) * TILE, y: (r.cy + 0.5) * TILE, r: TILE * 2.6, i: 0.75, c: [1.0, 0.92, 0.7] });
   }
   return out;

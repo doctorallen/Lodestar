@@ -127,6 +127,7 @@ function paintClimeTile(P, f, tx, ty, ox, oy, b) {
   if (f.haz) for (let y = ty - 1; y <= ty + 1 && !near; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h && f.haz[y * f.w + x]) { near = true; break; }
   if (near) paintHazardPixels(P, f, ox, oy, b, shaded);
   const t = floorTile(f, tx, ty);
+  if (t === TILE_ROCK && b.rockDecor === 'roots') paintRootRock(P, ox, oy);
   if (t !== TILE_FLOOR) return;
   const pt = f.hazPts && f.hazPts.find((v) => v.x === tx && v.y === ty);
   if (pt && f.hazKind === 'vent') paintVent(P, ox + 8, oy + 8, b);
@@ -141,27 +142,28 @@ function paintHazardPixels(P, f, ox, oy, b, shaded) {
     for (let x = ox; x < ox + TILE; x++) {
       if (R[y * W + x] || !at(x, y)) continue;
       const edge = !at(x - 1, y) || !at(x + 1, y) || !at(x, y - 1) || !at(x, y + 1);
-      const deep = at(x - 3, y) && at(x + 3, y) && at(x, y - 3) && at(x, y + 3);
-      const t = bayerAt(x, y), h = (hashInts(x, y, 0x4a2) & 255) / 255, dark = shaded(x, y);
+      const inner = !edge && (!at(x - 2, y) || !at(x + 2, y) || !at(x, y - 2) || !at(x, y + 2));
+      const deep = at(x - 4, y) && at(x + 4, y) && at(x, y - 4) && at(x, y + 4);
+      // tone comes in clusters (smooth noise), never pixel by pixel
+      const n = wallNoise(x * 1.3 + 17, y * 2 + 5, 6), dark = shaded(x, y);
       let c, glow = false;
       if (lava) {
-        // a dark crust at the edge, then molten; cooler skin drifts on it
-        const skin = wallNoise(x + 17, y * 1.6, 5);
-        if (edge) c = '#2a0a06';
-        else if (skin > 0.35) c = r[0];
-        else { c = r[deep ? (skin < -0.3 ? 3 : 2) : 1]; glow = true; }
-        if (!edge && skin <= 0.35 && h < 0.04) c = r[3];
-        glow = glow || (!edge && skin > 0.35 && t < 0.5);
+        // a dark crust at the edge, then molten: mostly orange, cooler skin
+        // drifting on it, the hottest yellow only in the deepest middle
+        if (edge) c = '#2a0a10';
+        else if (n > 0.3) c = r[0];
+        else { c = r[deep && n < -0.25 ? 3 : deep || n < -0.1 ? 2 : 1]; glow = c !== r[1]; }
       } else if (ice) {
-        // glassy, with streaks of light running across it
-        c = edge ? r[0] : dark ? r[0] : r[(t + h * 0.6 > 0.9) ? 2 : 1];
-        if (!edge && !dark && ((x * 2 + y) % 11 === 0) && h < 0.7) c = r[3];
+        // glassy, a little lighter in patches, streaked where light runs on it
+        c = edge || dark ? r[0] : r[n > 0.15 ? 2 : 1];
+        if (!edge && !dark && (x * 2 + y) % 13 < 2 && n > -0.3) c = r[3];
       } else {
-        // still water: a wet rim, darker where it's deep, ripples of light
-        if (edge) c = t < 0.6 ? r[3] : r[2];
+        // still water: a wet rim, a band of shallows, darker where it's deep,
+        // the odd line of ripple
+        if (edge) { c = r[3]; glow = !!b.rimGlow; }
         else if (dark) c = r[0];
-        else c = deep ? r[t < 0.75 ? 0 : 1] : r[t < 0.5 ? 1 : 2];
-        if (!edge && !dark && (y % 5 === 0) && ((x + (y * 3)) % 9) < 3 && h < 0.5) c = r[2];
+        else c = inner ? r[2] : deep ? r[0] : r[1];
+        if (!edge && !inner && !dark && y % 6 === 0 && n > 0.25) c = r[2];
       }
       putPx(P, x, y, c, glow);
     }
@@ -188,45 +190,64 @@ function paintPodBed(P, cx, cy, b) {
   for (let j = -3; j <= 3; j++) for (let i = -6; i <= 6; i++) if ((i * i) / 36 + (j * j) / 9 <= 1) putPx(P, cx + i, cy + j, (i + j) % 3 ? b.front[0] : b.rock[2]);
 }
 
-// A clime's marks on its open ground, here and there.
+// Rock woven of old roots (Rootdeep): strands wandering over the rock's
+// top and down its face, lighter than the rock and darker than the floor,
+// so walls still read as walls.
+function paintRootRock(P, ox, oy) {
+  const R = View.rockPx, W = P.w;
+  for (let y = oy; y < oy + TILE; y++)
+    for (let x = ox; x < ox + TILE; x++) {
+      if (!R[y * W + x]) continue;
+      const top = R[(y + FACE_H) * W + x] && R[(y - 1) * W + x] && R[y * W + x - 1] && R[y * W + x + 1];
+      const a = Math.abs(wallNoise(x * 0.7, y * 1.4, 9)), c = Math.abs(wallNoise(x * 1.4 + 70, y * 0.6, 8));
+      if (top) { if (a < 0.07) putPx(P, x, y, a < 0.035 ? '#2a2016' : '#1c140e'); else if (c < 0.05) putPx(P, x, y, '#1a120c'); }
+      else if (!R[(y + 1) * W + x] || !R[(y + 2) * W + x] || !R[(y + 3) * W + x] || !R[(y + 4) * W + x] || !R[(y + 5) * W + x]) { if (Math.abs(wallNoise(x * 1.8, y * 0.3, 6)) < 0.09) putPx(P, x, y, '#5a4430'); }
+    }
+}
+
+// A clime's marks on its open ground, here and there: always in small
+// clusters, never lone pixels.
 function paintDecor(P, f, tx, ty, ox, oy, b, shaded) {
   const R = View.rockPx, W = P.w, rnd = (k) => (hashInts(f.seed, tx, ty, k) & 1023) / 1023;
   const put = (x, y, c, glow) => { if (x >= ox && y >= oy && x < ox + TILE && y < oy + TILE && !R[y * W + x] && !shaded(x, y)) putPx(P, x, y, c, glow); };
-  const walk = (k, len, c, glow, thick) => {
-    let x = ox + 2 + Math.floor(rnd(k) * 12), y = oy + 2 + Math.floor(rnd(k + 1) * 12);
+  // a little clump: pixels round x, y (offsets), each in one of the colours
+  const clump = (x, y, pts, cols, glow) => pts.forEach(([i, j], n) => put(x + i, y + j, cols[n % cols.length], glow));
+  const at = (k, lo, span) => lo + Math.floor(rnd(k) * span);
+  const walk = (k, len, c, glow, under) => {
+    let x = ox + at(k, 2, 12), y = oy + at(k + 1, 2, 12);
     for (let n = 0; n < len; n++) {
-      put(x, y, c, glow); if (thick) put(x, y + 1, thick);
-      const r = rnd(k + 2 + n);
-      if (r < 0.45) x++; else if (r < 0.9) x--;
-      if (rnd(k + 40 + n) < 0.5) y += rnd(k + 80 + n) < 0.5 ? 1 : -1;
+      put(x, y, c, glow); if (under) put(x, y + 1, under);
+      x += rnd(k + 2 + n) < 0.5 ? 1 : -1;
+      if (rnd(k + 40 + n) < 0.4) y += rnd(k + 80 + n) < 0.5 ? 1 : -1;
     }
   };
+  const BLOB = [[0, 0], [1, 0], [-1, 0], [0, -1], [1, -1], [0, 1], [2, 0]], TRI = [[0, 0], [1, 0], [0, 1]], FLOWER = [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]];
   const d = b.decor;
   if (d === 'drifts') {
-    // wind-carved ripples in the snow, and a dark pebble now and then
-    for (let k = 0; k < 3; k++) if (rnd(k) < 0.45) { const x = ox + Math.floor(rnd(k + 5) * 12), y = oy + Math.floor(rnd(k + 9) * 15), n = 3 + Math.floor(rnd(k + 13) * 4); for (let i = 0; i < n; i++) put(x + i, y, '#e4ecf6'); for (let i = 1; i < n - 1; i++) put(x + i, y + 1, b.floor[0]); }
-    if (rnd(30) < 0.1) { const x = ox + 4 + Math.floor(rnd(31) * 8), y = oy + 4 + Math.floor(rnd(32) * 8); put(x, y, '#3a4458'); put(x + 1, y, '#2a3244'); }
+    // wind-carved ripples in the snow, each with its shadowed lee
+    for (let k = 0; k < 2; k++) if (rnd(k) < 0.5) { const x = ox + at(k + 5, 0, 11), y = oy + at(k + 9, 1, 13), n = 4 + at(k + 13, 0, 4); for (let i = 0; i < n; i++) put(x + i, y, '#e8e4e0'); for (let i = 1; i < n; i++) put(x + i, y + 1, b.floor[0]); }
+    if (rnd(30) < 0.08) clump(ox + at(31, 4, 8), oy + at(32, 4, 8), [[0, 0], [1, 0], [0, 1], [1, 1], [2, 1]], ['#3a3c58', '#2a2a44', '#2a2a44', '#1e1e36', '#1e1e36']);
   } else if (d === 'fissures') {
     // cracks in the ash with fire under them (dim: never ore-bright)
-    if (rnd(0) < 0.16) walk(10, 6 + Math.floor(rnd(1) * 5), '#a8381a', true);
-    if (rnd(2) < 0.3) put(ox + Math.floor(rnd(3) * 16), oy + Math.floor(rnd(4) * 16), '#5a2a1a');
+    if (rnd(0) < 0.16) walk(10, 6 + at(1, 0, 5), '#9a3418', true, '#1a1014');
+    if (rnd(2) < 0.2) clump(ox + at(3, 2, 12), oy + at(4, 2, 12), TRI, ['#58483e', '#241c22', '#241c22']);
   } else if (d === 'moss') {
-    for (let k = 0; k < 2; k++) if (rnd(k) < 0.45) { const x = ox + 2 + Math.floor(rnd(k + 5) * 11), y = oy + 2 + Math.floor(rnd(k + 9) * 11); for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, -1], [1, 1], [2, 0]]) put(x + i, y + j, rnd(k + 20 + i) < 0.5 ? '#5e7e3a' : '#3a5226'); }
-    if (rnd(30) < 0.12) put(ox + Math.floor(rnd(31) * 16), oy + Math.floor(rnd(32) * 16), rnd(33) < 0.5 ? '#f0ecc8' : '#e8b8f0');
-    if (rnd(34) < 0.06) { const x = ox + 4 + Math.floor(rnd(35) * 6), y = oy + 5 + Math.floor(rnd(36) * 6); for (let j = 0; j < 2; j++) for (let i = 0; i < 5 - j * 2; i++) put(x + i + j, y + j, '#222a16'); }
+    for (let k = 0; k < 2; k++) if (rnd(k) < 0.45) clump(ox + at(k + 5, 2, 11), oy + at(k + 9, 2, 11), BLOB, ['#64803c', '#4c6630', '#4c6630', '#64803c', '#34442a', '#34442a', '#4c6630']);
+    if (rnd(30) < 0.12) clump(ox + at(31, 3, 10), oy + at(32, 3, 10), FLOWER, [rnd(33) < 0.5 ? '#f4e8a8' : '#ecb8f0', '#d8c0e8', '#d8c0e8', '#d8c0e8', '#3a4a28']);
+    if (rnd(34) < 0.07) { const x = ox + at(35, 3, 7), y = oy + at(36, 4, 7); for (let j = 0; j < 2; j++) for (let i = 0; i < 5 - j * 2; i++) put(x + i + j, y + j, '#26202c'); }
   } else if (d === 'algae') {
-    if (rnd(0) < 0.18) for (let k = 0; k < 3; k++) put(ox + 3 + Math.floor(rnd(k + 1) * 10), oy + 3 + Math.floor(rnd(k + 7) * 10), '#2a3c8a', true);
-    if (rnd(20) < 0.25) { const x = ox + Math.floor(rnd(21) * 12), y = oy + Math.floor(rnd(22) * 15); for (let i = 0; i < 3; i++) put(x + i, y, '#355e70'); }
+    if (rnd(0) < 0.2) clump(ox + at(1, 3, 10), oy + at(7, 3, 10), [[0, 0], [1, 0], [1, 1], [3, 1], [4, 1]], ['#3a52c8', '#2a3c98'], true);
+    if (rnd(20) < 0.25) { const x = ox + at(21, 0, 12), y = oy + at(22, 0, 15); for (let i = 0; i < 4; i++) put(x + i, y, '#4a5070'); }
   } else if (d === 'cracks') {
-    if (rnd(0) < 0.12) walk(10, 5 + Math.floor(rnd(1) * 5), '#5a1406', true);
-    if (rnd(2) < 0.25) { const x = ox + Math.floor(rnd(3) * 14), y = oy + Math.floor(rnd(4) * 14); put(x, y, '#3a322e'); put(x + 1, y, '#3a322e'); }
+    if (rnd(0) < 0.12) walk(10, 5 + at(1, 0, 5), '#5a1406', true, '#0e080c');
+    if (rnd(2) < 0.18) clump(ox + at(3, 2, 12), oy + at(4, 2, 12), TRI, ['#3e3236', '#1a1218', '#1a1218']);
   } else if (d === 'roots') {
-    if (rnd(0) < 0.22) walk(10, 8 + Math.floor(rnd(1) * 6), '#54402a', false, '#2a1e12');
-    if (rnd(2) < 0.2) put(ox + Math.floor(rnd(3) * 16), oy + Math.floor(rnd(4) * 16), '#3e4a24');
+    if (rnd(0) < 0.3) walk(10, 9 + at(1, 0, 6), '#5e4a30', false, '#22180e');
+    if (rnd(2) < 0.18) clump(ox + at(3, 2, 12), oy + at(4, 2, 12), BLOB, ['#4a5a28', '#34401e']);
   } else if (d === 'overgrowth') {
-    // moss in the flagstones' seams, and leaf litter
-    for (let y = oy; y < oy + TILE; y++) for (let x = ox; x < ox + TILE; x++) if ((y % 9 === 0 || (x + ((y / 9) | 0) * 5) % 11 === 0) && (hashInts(x, y, 0x3055) & 7) < 3) put(x, y, (hashInts(x, y, 0x3056) & 1) ? '#2e4a26' : '#3e5e30');
-    if (rnd(10) < 0.2) for (let k = 0; k < 4; k++) put(ox + 3 + Math.floor(rnd(k + 11) * 10), oy + 3 + Math.floor(rnd(k + 17) * 10), k % 2 ? '#4a5a28' : '#6a6a30');
+    // moss creeping along the flagstones' seams in runs, and leaf litter
+    for (let y = oy; y < oy + TILE; y++) for (let x = ox; x < ox + TILE; x++) if ((y % 9 === 0 || (x + ((y / 9) | 0) * 5) % 11 === 0) && wallNoise(x + 3, y + 9, 5) > 0.15) put(x, y, wallNoise(x, y, 3) > 0.3 ? '#4a6a34' : '#2e4a26');
+    if (rnd(10) < 0.2) clump(ox + at(11, 3, 10), oy + at(17, 3, 10), BLOB, ['#6a6a30', '#4a5a28', '#4a5a28', '#6a6a30', '#2e3a1e']);
   } else if (d === 'plates') {
     // floor plates: dark seams on the tile lines, a rivet in each corner,
     // and now and then a gear set into the floor
@@ -240,7 +261,7 @@ function paintDecor(P, f, tx, ty, ox, oy, b, shaded) {
 // pods' faint ones.
 function hazardLights(f) {
   const out = [];
-  if (f.hazKind === 'burn' && f.haz) for (let i = 0; i < f.haz.length; i++) if (f.haz[i]) out.push({ x: (i % f.w + 0.5) * TILE, y: (Math.floor(i / f.w) + 0.5) * TILE, r: TILE * 1.5, i: 0.42, c: [1, 0.45, 0.15] });
+  if (f.hazKind === 'burn' && f.haz) for (let i = 0; i < f.haz.length; i++) if (f.haz[i]) out.push({ x: (i % f.w + 0.5) * TILE, y: (Math.floor(i / f.w) + 0.5) * TILE, r: TILE * 1.4, i: 0.3, c: [1, 0.45, 0.15] });
   if (f.hazPts) {
     const b = artBiome(f), col = f.hazKind === 'vent' ? (b.vent === 'steam' ? [0.8, 0.85, 0.9] : [1, 0.4, 0.15]) : rgb01((SPORE_COLS[f.clime] || SPORE_COLS.bloomfen)[0]);
     for (const v of f.hazPts) out.push({ x: (v.x + 0.5) * TILE, y: (v.y + 0.5) * TILE, r: TILE * 0.9, i: 0.25, c: col });
@@ -315,14 +336,16 @@ function drawHazardsUnder(d, ox, oy, tick, lights) {
     } else if (kind === 'spores') {
       // a pod on a stalk, swelling and glowing as it gets ready to let go
       const S = Object.assign({}, T.hazards.spores, T.climes[f.clime].haz), s = (d.hazT / S.every + v.ph) % 1;
-      const col = SPORE_COLS[f.clime] || SPORE_COLS.bloomfen, sw = s > 0.75 ? (s - 0.75) / 0.25 : 0, rr = 2.5 + sw * 1.5, x = Math.round(cx), y = Math.round(cy - 5);
-      for (let j = 1; j <= 3; j++) dot(x, y + 2 + j, b.front[2]);
-      for (let j = -4; j <= 4; j++) for (let i = -4; i <= 4; i++) {
-        const e = (i * i + j * j * 1.2) / (rr * rr);
-        if (e > 1) continue;
-        dot(x + i, y + j, e > 0.6 ? col[1] : i + j < -1 ? '#ffffff' : col[0], e <= 0.6 && sw > 0, e > 0.6 ? 1 : 0.85);
+      const col = SPORE_COLS[f.clime] || SPORE_COLS.bloomfen, sw = s > 0.7 ? (s - 0.7) / 0.3 : 0, rr = 3.6 + sw * 1.6, x = Math.round(cx), y = Math.round(cy - 7);
+      for (let j = 2; j <= 6; j++) { dot(x, y + j, '#3a3020'); dot(x + 1, y + j, '#1e1810'); }
+      for (let j = -6; j <= 6; j++) for (let i = -6; i <= 6; i++) {
+        const e = (i * i + j * j * 1.15) / (rr * rr);
+        if (e > 1.35) continue;
+        // an outline, a dim rim, the bright body, a highlight up and left
+        const c = e > 1 ? '#140e18' : e > 0.62 ? col[1] : (i < 0 && j < 0 && e < 0.3) ? '#fff8f0' : col[0];
+        dot(x + i, y + j, c, sw > 0.5 && e <= 0.62 && e > 0.3, 1);
       }
-      if (sw > 0) lights.push({ x, y, r: TILE * (0.8 + sw), i: 0.35 * sw, c: rgb01(col[0]) });
+      if (sw > 0) lights.push({ x, y, r: TILE * (0.8 + sw), i: 0.3 * sw, c: rgb01(col[0]) });
     }
   }
 }

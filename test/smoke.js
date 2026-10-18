@@ -164,7 +164,8 @@ async function phone(browser) {
   check(await page.evaluate(() => window._siteToasts === 2), 'phone: the second site was not named once on arriving');
   check(await page.evaluate(() => cargoUsed(Game.dive)) === cargo, 'phone: the cargo did not come along');
   // the clime is saved with the run, and a resumed site rebuilds in it
-  check(await page.evaluate(() => { const d = Game.dive, r = JSON.parse(JSON.stringify(Save.data.run)); Save.data.run = r; resumeRun(); const ok = Game.dive.clime === d.clime && floorHash(Game.dive.floor) === floorHash(d.floor); return ok && r.clime === d.clime; }), 'phone: the clime did not survive a resume');
+  // (with the lodeline made sure again, as it was when the site was made)
+  check(await page.evaluate(() => { const d = Game.dive, r = JSON.parse(JSON.stringify(Save.data.run)), odds = [T.floor.padOdds, T.floor.padCap]; T.floor.padOdds = T.floor.padCap = [1, 1, 1, 1]; Save.data.run = r; resumeRun(); [T.floor.padOdds, T.floor.padCap] = odds; const ok = Game.dive.clime === d.clime && floorHash(Game.dive.floor) === floorHash(d.floor); return ok && r.clime === d.clime; }), 'phone: the clime did not survive a resume');
   await page.evaluate(calm);
 
   // pausing stops the world; CARGO shows what's carried; gear salvaged in

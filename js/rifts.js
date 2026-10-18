@@ -4,8 +4,8 @@
 // ground. A site may hold one, likelier further along an expedition, above
 // ground or below, and each changes the site round it:
 //   graft      another place has bled through: a patch of another biome's
-//              ground (a cave's under the sky, sunlit ground in a cave)
-//              with that biome's ore in it;
+//              ground (a cave's under the sky, sunlit ground in a cave),
+//              in one of its climes, with that biome's ore in it;
 //   bloom      the rock round the tear has woken into ore, richer than the
 //              site's own;
 //   gate       two tears, one place: step into one and out of the other;
@@ -89,6 +89,8 @@ function graftRift(d, rift, rng) {
   const ores = T.biomes[other].ores.map((id) => ORE_INDEX[id] + 1);
   for (let i = 0; i < f.tiles.length; i++) if (f.tiles[i] === TILE_ORE && inGraft(f, i % f.w, Math.floor(i / f.w))) f.ore[i] = rng.pick(ores);
   for (const i of riftWalls(f, rift.x, rift.y, R.graftR - 1).slice(0, R.graftOre)) { f.tiles[i] = TILE_ORE; f.ore[i] = rng.pick(ores); }
+  // and the country it came from: one of that side's climes (climes.js)
+  f.graft.clime = rng.pick(climesOf(f.graft.sky ? 'surface' : 'cave'));
 }
 
 function bloomRift(d, rift, rng) {
@@ -109,7 +111,7 @@ function graftAt(f, x, y) {
 function tileArt(f, tx, ty) {
   if (f.graft && f.paintingGraft) {
     const id = T.biomes[f.graft.biome].id;
-    return f.graft.sky ? ART.surface[id] : ART.biomes[id];
+    return CLIME_ART[f.graft.clime] || (f.graft.sky ? ART.surface[id] : ART.biomes[id]);
   }
   return artBiome(f);
 }

@@ -145,3 +145,16 @@ The designer found that holes down to the next site didn't make sense now that a
 - **The outpost sets out through a portal too,** where the sinkhole's ledge was. Every expedition starts on the sunlit surface, so jumping into the pit and landing under the sky made no sense. The pit stays: the star hangs over it, and its lodelines still run down into it and bring you home.
 - **Generation is untouched.** A portal stands on the tile the shaft did (renamed TILE_PORTAL, the same value), so the golden hashes didn't change.
 
+
+## 2026-10-18: climes
+
+The designer asked for more variety in the environment, "completely different biomes", and chose climes per site.
+- **The region sets the ore and the danger; the clime sets the place.** Each site rolls one of 11 climes for its zone (4 on the surface, 4 for caves and Deep Veins, 3 for ruins): its own ground, rock and light, flora, critters, weather and one hazard. Keepers' Lairs keep their own look, so the finale stays a clean fight.
+- **Today's looks are each zone's first clime** (Badlands, Caverns, Archive), with no hazard, so nothing is lost and their floors generate exactly as before (the golden hashes held).
+- **Every clime can turn up in every region; regions only lean** (2–2.5×): ice towards the Choir, ash and magma towards the Underforge, fen and roots towards the Rim. With equal weights, an expedition of four sites nearly always meets something new.
+- **Rolled with the way, not on arrival,** from the expedition's seed, so the portal's button names the place (STEP THROUGH: FROST STEPPE) and the route is a choice of country. It's saved with the run, and a resumed site rebuilds in the same clime.
+- **A small shared set of hazards, not one-offs:** pools that slow, ice that slides, lava that burns, vents that burst, spore clouds that sting. Climes share them in their own colours (the Grotto's water and the Temple's pools; the Cinder Waste's fire vents and the Vault's steam). Each is mild, shown before it bites, crossed unharmed by a dash, kept out of the entry's cavern and away from portals and lodelines, and lava never cuts any ground off. Walking enemies wade and burn too, so it's fair both ways. The goal is variety, not difficulty: over 288 bot dives each, deaths went from 31.9% to 30.6% (noise), with the bot taught to walk round lava and vents.
+- **Hazards are laid after the layout from their own generator,** like rifts, so a clime changes the tiles only where it means to (a more open steppe, more pillars in the waste).
+- **Flora never looks like ore, and walls always read as walls:** no crystal shapes among the new plants (the geode idea was dropped for that reason), rock tops always darker than the floor, glows in colours no ore uses, and portal motes in a clime's colour but never violet, magenta or cyan, which belong to rifts.
+- **Grafts bring a clime too:** a rift's graft is a patch of another region's ground in one of its climes, such as a patch of steppe snow in a cave.
+- **Drawn for the A+ move:** few tones a material, hue-shifted ramps (violet shadows, warm lights), clusters rather than speckle, no dither on props. The art stays at 16 px until the migration.

@@ -83,6 +83,30 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room from depth 4. It charges and fires rings of orbs. It's never needed for progression, and it drops three rare-or-better pieces and often a relic.
 
+## Climes
+
+Every site is also a **clime**: the kind of country it is. The region still sets the ore and how strong the enemies are; the clime sets how the place looks and feels. It's rolled when the way to a site is made, so a portal's button already names it (STEP THROUGH: FROST STEPPE), the arrival toast names it, and the route becomes a choice of country as well as zone. Each zone's first clime is the look it always had, without a hazard.
+
+| Clime | Zone | Look | Its quirk | Leans to |
+|---|---|---|---|---|
+| Badlands | surface | today's sunlit mesas | none | |
+| Frost Steppe | surface | lavender snow, indigo ice rock, a pale sun, snowfall; pines, snow shrubs, tusk arches | slick ice: a step carries on | the Choir |
+| Cinder Waste | surface | black ash under a dim red sun, glowing fissures, falling embers; charred snags, fire lilies | vents that glow, then burst | the Underforge |
+| Bloomfen | surface | olive moss over violet peat, pollen on the air; mushroom trees, cattails, toadstools | spore pods that swell and let go a drifting cloud | the Rim |
+| Caverns | cave, deep | today's caves | none | |
+| Flooded Grotto | cave, deep | violet stone, blue algae, still water with a glowing rim, more drips; kelp, anemones, barnacles | pools that slow you | the Choir |
+| Magma Tubes | cave, deep | basalt and lava channels in a red glow, sparks rising; basalt columns, fire fungus | lava that burns (it never cuts ground off) | the Underforge |
+| Rootdeep | cave, deep | walls woven of old roots, great roots across the floor, fireflies, hanging vines | spore pods | the Rim |
+| Archive | ruin | today's ruins | none | |
+| Overgrown Temple | ruin | pale flagstones with moss in the seams, shafts of daylight through the roof; broken columns, vines, flowers | reflecting pools that slow you | the Rim |
+| Clockwork Vault | ruin | brass floor plates and gears set in the floor; clocks, pipes, chains | steam vents | the Underforge, the Choir |
+
+- **Every clime can turn up in every region.** A region only leans (2–2.5×) towards the climes that suit it.
+- **Hazards are mild, readable and fair.** Each shows before it bites (vents glow and ring their reach, pods swell and glow, lava and water are plain to see), a dash crosses any of them unharmed, and none is ever in the entry's cavern or beside a portal or a lodeline. Pools also slow walking enemies, and lava and vents burn them too. Each has a one-time tip.
+- **Climes change generation a little:** the Frost Steppe is more open, the Cinder Waste keeps more pillars, the Bloomfen and Rootdeep wander more. The hazards are laid over the ground afterwards from a generator of their own, so the tiles don't change.
+- **A rift's graft** brings another clime's ground with it: a patch of Frost Steppe snow in a cave, or Magma Tubes basalt under the sky.
+- The fighting flora dress as the clime's own plants, glow gone red.
+
 ## The weather
 
 About a third of expeditions set out under a **Lodestorm**. On the surface, every 20 s a strike falls within 6 tiles of the diver, marked by a tightening, flickering ring a second before. It hurts whatever stands in it (diver and enemies alike, the enemies with shock), and when it finds an ore vein it charges it into the biome's better ore. A storm is a hazard to dodge and a reason to stand near a vein when the ring appears.
@@ -343,12 +367,12 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
   - Darkness, where only magitech gives off light: the helmet lamp, ore glints, runes, glowing fungus, singing crystals, magma, enemies' eyes and cores, the lodelines and the Lodestar.
   - Light comes in a few dithered bands, and glowing things bloom.
 - **Readability rule.** Rock tops are always darker than the floor, with lit rims and front faces where they meet it.
-- **Biome looks.** Each biome changes its floor, rock and light colours and its enemies' colours. Each also has its own strange flora (flora.js), as sprites that stand on the floor, grow at the foot of walls, or hang from wall faces. Some sway or pulse:
+- **Biome looks.** Each biome changes its enemies' colours, and in its own climes (Badlands, Caverns, Archive) its floor, rock and light colours; the other climes bring their own (see Climes). Each also has its own strange flora (flora.js), as sprites that stand on the floor, grow at the foot of walls, or hang from wall faces. Some sway or pulse:
   - **the Rim:** jelly caps trailing beads of light, frilled stalks, shelf fungus, split puffballs, blinking eye stalks, a lit pitcher, hanging roots, dripstone;
   - **the Choir:** bone tube worms, reed pipes, ribbed fans, bell flowers, spore sacs, weeping stone, ribbon fronds, chime cones;
   - **the Underforge:** ash caps, fungus on broken pipes, charred roots, a breathing vent flower, slag drips, a half-buried cog, a rust totem, cinder pods.
 - **Alien light.** Faint veins glow in the rock. Flora glows dimly, in colours no ore uses, and never in crystal shapes: chartreuse on the Rim, dusky pink in the Choir, low ember in the Underforge.
-- **Ambient life** (life.js), cosmetic only: a few small harmless creatures a site, unoutlined so they read as part of the ground, never as enemies or loot. Lizards and flocks of birds under the sky, glowing moths drawn to the lamp underground, scurriers along the foot of ruin walls. They bolt from the diver and from fights, then settle again. On the surface, cloud shadows drift on the wind and dust gusts by now and then; underground, drips and dust in the lamp.
+- **Ambient life** (life.js), cosmetic only: a few small harmless creatures a site, unoutlined so they read as part of the ground, never as enemies or loot. Lizards and flocks of birds under the sky, glowing moths drawn to the lamp underground, scurriers along the foot of ruin walls. They bolt from the diver and from fights, then settle again. On the surface, cloud shadows drift on the wind and dust gusts by now and then; underground, drips and dust in the lamp. Each clime has its own critters' colours and weather: snow, embers, pollen, fireflies, rising sparks.
 - **Ore twinkles**, so it's the one thing in the rock that catches the eye.
 - **Loot glows in its rarity's colour.** Rare and better stands up in a beam, so it's seen from across a room.
 - **(proposed) Lamp radius as a dial.** The lamp's radius could shrink as danger rises with depth.

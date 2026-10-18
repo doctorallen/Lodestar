@@ -25,7 +25,7 @@ const T_BIOMES = ['rim', 'choir', 'forge'];
       const extracted = runs.filter((r) => r.ended === 'extracted').length, recalled = runs.filter((r) => r.ended === 'recalled').length, died = runs.filter((r) => r.ended === 'died').length;
       const last = runs[runs.length - 1];
       console.log(`career ${c + 1}: ${extracted} extracted, ${recalled} recalled, ${died} died, ${runs.length - extracted - recalled - died} timed out; magnitude ${last.mag}, pick ${last.pick}, ${last.blade}, ${last.maxHp} hp`);
-      for (const r of runs) console.log(`  ${T_BIOMES[r.biome]} d${r.depth} ${r.ended.padEnd(9)} kills ${String(r.kills).padStart(3)} cargo ${String(r.cargo).padStart(2)} items ${r.items} t ${r.time}s | mag ${r.mag} pick ${r.pick} ${r.blade} | ${r.why || r.home.join('; ')}`);
+      for (const r of runs) console.log(`  ${T_BIOMES[r.biome]} d${r.depth} ${(r.clime || '').padEnd(8)} ${r.ended.padEnd(9)} kills ${String(r.kills).padStart(3)} cargo ${String(r.cargo).padStart(2)} items ${r.items} t ${r.time}s | mag ${r.mag} pick ${r.pick} ${r.blade} | ${r.why || r.home.join('; ')}`);
       if (!runs.slice(0, 4).some((r) => r.ended === 'extracted' || r.ended === 'recalled')) failures.push(`career ${c + 1}: none of the first four dives came home`);
       if (last.pick < 2) failures.push(`career ${c + 1}: the pick never improved`);
       if (last.mag < 2) failures.push(`career ${c + 1}: the star never grew`);

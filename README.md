@@ -46,6 +46,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
+| `js/climes.js` | Climes: each one's palette, flora, critters and weather; rolling and naming them |
 | `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards and the beacon |
 | `js/hub.js` | The outpost: stations, the star over the pit, lanterns, feeding the star |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
@@ -62,6 +63,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
 | `js/contracts.js` | The three posted contracts, their tallies and rewards |
 | `js/tools.js` | The carried tools: compass, ore sense, radar, map, satchel, beacon |
+| `js/hazards.js` | Each clime's hazard at play (pools, ice, lava, vents, spores), and painting a clime's ground |
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |
 | `js/render.js` | The pixel view, the floor canvas, lighting and bloom, sparks |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |

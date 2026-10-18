@@ -15,10 +15,19 @@
 function installBot() {
   const STEP = 1 / 60;
 
-  // steps on foot from the diver to every tile
+  // steps on foot from the diver to every tile, round a clime's lava and
+  // vents (the generator never lets them cut anything off)
   function stepsFromMe(d) {
     const f = d.floor;
-    return floorDistances(f.tiles, f.w, f.h, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
+    if (f.botAvoid === undefined) {
+      f.botAvoid = null;
+      if (f.hazKind === 'burn' || f.hazKind === 'vent') {
+        f.botAvoid = new Uint8Array(f.w * f.h);
+        if (f.haz) for (let i = 0; i < f.haz.length; i++) if (f.haz[i]) f.botAvoid[i] = 1;
+        for (const v of f.hazPts || []) f.botAvoid[v.y * f.w + v.x] = 1;
+      }
+    }
+    return floorDistances(f.tiles, f.w, f.h, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE), f.botAvoid);
   }
   // the next tile on the way to (tx, ty): walk back down the distances from it
   function towards(d, steps, tx, ty) {
@@ -76,7 +85,7 @@ function installBot() {
     // on whatever it was after
     const skipOre = new Set(), skipFoe = new Set();
     let progressT = 0, progress = '', aim = null, iter = 0;
-    const result = () => ({ biome, depth: d.depth, kills: d.kills, cargo: cargoUsed(d), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t) });
+    const result = () => ({ biome, depth: d.depth, clime: d.clime, kills: d.kills, cargo: cargoUsed(d), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t) });
     while (t < maxTime) {
       if (Game.dive !== d) { ended = UI.report && UI.report.recalled ? 'recalled' : UI.report && UI.report.banked ? 'extracted' : 'died'; break; }
       if (Game.modal) UI.close();
