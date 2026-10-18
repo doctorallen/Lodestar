@@ -135,6 +135,8 @@ function hurtEnemy(e, dmg, opts = {}) {
   }
   e.hp -= dmg;
   e.flash = T.enemies.hurtFlash;
+  // the struck enemy's rim takes the hit's element (Force's is white)
+  e.flashCol = els && els[0] !== 'force' ? ELEMENT_COLS[els[0]] : null;
   d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit });
   if (opts.knock) { const k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
   if (opts.heavy && !e.boss && e.type !== 'hollow' && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }

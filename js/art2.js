@@ -495,8 +495,10 @@ const KEEPER_PAL = {"rim":{"shell":["#0c0a0c","#1a161a","#2c242c","#443844"],"le
 // The stones a circuit is built from. Each is drawn at the art's size, 18 px
 // square (20 with its sel-out, shown at 2× on the screens): its shape says
 // its kind, its rune which it is (7 px square, carved: a dark step under and
-// right of every stroke), its body is its ore's ramp and its rune glows in
-// its own colour (stoneCol).
+// right of every stroke), and its colours what it is (ART.stones: plain
+// stone with a gold rune for a Form, its own colours for an Element, teal for
+// a Glyph), never its ore's, so none looks like ore or loot. The tier is
+// said beside it, not in its colour.
 // ---------------------------------------------------------------------------
 const STONE_RUNES = {
   arc: ['.......', '..###..', '.#...#.', '#.....#', '#.....#', '.......', '.......'],
@@ -545,11 +547,12 @@ function stoneRows(stone) {
   _stoneRows.set(stone, rows);
   return rows;
 }
-function stoneIconUrl(stone, tier = 1) {
-  const key = 'stone/' + stone + '/' + tier;
+function stoneIconUrl(stone) {
+  const key = 'stone/' + stone;
   let url = _iconCache.get(key);
   if (!url) {
-    url = buildArtSprite(stoneRows(stone), { steel: ART.ores[oreOfTier(tier).id], rune: [stoneCol(stone)] }, undefined, undefined, { scale: 1 }).c.toDataURL();
+    const k = stoneKind(stone), S = ART.stones[k === 'element' ? stone : k] || ART.stones.form;
+    url = buildArtSprite(stoneRows(stone), { steel: S.body, rune: [S.rune] }, undefined, undefined, { scale: 1 }).c.toDataURL();
     _iconCache.set(key, url);
   }
   return url;

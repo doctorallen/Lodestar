@@ -81,7 +81,12 @@ function stoneLine(id) {
   return '';
 }
 
-// A stone's colour: an Element's own, a Form's, or a Glyph's teal.
+// A stone's colour on the screens (its tile's rim): its own (ART.stones).
+function stoneTint(id) {
+  const k = stoneKind(id), S = ART.stones[k === 'element' ? id : k];
+  return S ? (k === 'form' ? ART.stones.formRim : S.body[3]) : ART.glyphTeal;
+}
+// A stone's colour in play: an Element's own, a Form's, or a Glyph's teal.
 function stoneCol(id) {
   const k = stoneKind(id);
   if (k === 'element') return id === 'force' ? ELEMENT_COLS.force : ELEMENT_COLS[id];

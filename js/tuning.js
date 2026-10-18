@@ -205,7 +205,9 @@ const T = {
   // knockback fades at knockDecay a second. The view doesn't shake (the
   // designer found it unpleasant), but the shake values are kept at 0 so it
   // can be tried again.
-  impact: { hitstop: 0.045, heavyStop: 0.09, stopGap: 0.15, shake: 0, heavyShake: 0, hurtShake: 0, knockDecay: 9 },
+  // A struck enemy wears a rim a pixel wide (render.js) for hurtFlash s;
+  // no more than flashMost at once.
+  impact: { flashMost: 4, hitstop: 0.045, heavyStop: 0.09, stopGap: 0.15, shake: 0, heavyShake: 0, hurtShake: 0, knockDecay: 9 },
 
   // Circuits (circuits.js): a caster's row of slots, read left to right.
   // A Form starts a spell, Elements after it set its damage type, Glyphs

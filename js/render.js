@@ -593,6 +593,7 @@ function renderFrame() {
   x.fillStyle = '#000';
   x.fillRect(0, 0, View.w, View.h);
   View.overCtx.clearRect(0, 0, View.w, View.h);
+  View.rimN = 0;
   LateDots.on = false; LateDots.q.length = 0;
   const d = Game.dive;
   if (!d) { View.emCtx.clearRect(0, 0, View.w, View.h); View.bloomCtx.clearRect(0, 0, View.w, View.h); return; }
@@ -984,6 +985,28 @@ function drawFocusHeld(d, it, hand, lights, slot, tick) {
   cfxLight(lights, x, y, TILE * (0.9 + flare + lv * 1.2), 0.5 + flare + lv * 0.8, rgb01(col));
 }
 
+// A sprite's rim: the pixels just outside its silhouette (a pixel's four
+// neighbours), in a colour, a pixel wider than it all round. Kept.
+const _spriteRims = new WeakMap();
+function spriteRim(spr, col) {
+  let m = _spriteRims.get(spr.c);
+  if (!m) _spriteRims.set(spr.c, (m = new Map()));
+  let c = m.get(col);
+  if (c) return c;
+  const w = spr.c.width, h = spr.c.height, src = spr.c.getContext('2d').getImageData(0, 0, w, h).data;
+  const W = w + 2, H = h + 2, [cv, cx] = makeCanvas(W, H), img = cx.createImageData(W, H), D = img.data, rgb = rgbOf(col);
+  const solid = (x, y) => x >= 0 && y >= 0 && x < w && y < h && src[(y * w + x) * 4 + 3] > 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const ix = x - 1, iy = y - 1;
+    if (solid(ix, iy) || !(solid(ix - 1, iy) || solid(ix + 1, iy) || solid(ix, iy - 1) || solid(ix, iy + 1))) continue;
+    const k = (y * W + x) * 4;
+    D[k] = rgb[0]; D[k + 1] = rgb[1]; D[k + 2] = rgb[2]; D[k + 3] = 255;
+  }
+  cx.putImageData(img, 0, 0);
+  m.set(col, cv);
+  return cv;
+}
+
 function drawEnemy(d, e, ox, oy, tick, lights) {
   // (the fighting flora's feet melt into the ground as a plant's do)
   const rooted = T.enemies[e.type].rooted, spr = rooted ? ugMelted(enemySprite(d, e.type)) : enemySprite(d, e.type), x = View.ctx;
@@ -997,12 +1020,11 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   if (fx < -60 || fy < -15 || fx > View.w + 60 || fy > View.h + 75) return;
   if (!rooted) drawShadow(fx, fy, Math.max(3, e.r));
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
-  if (e.flash > 0) {
-    x.drawImage(spr.flash, sx, sy);
-    const ex = View.emCtx;
-    ex.globalCompositeOperation = 'destination-out'; ex.drawImage(spr.c, sx, sy);
-    ex.globalCompositeOperation = 'source-over'; ex.drawImage(spr.flash, sx, sy);
-  } else drawArtSprite(spr, sx, sy);
+  drawArtSprite(spr, sx, sy);
+  // struck: a rim a pixel wide round it, white or in the hit's element, on
+  // the unlit layer over the view, so it's never a light and never blooms,
+  // and the enemy stays in sight inside it; a few at most at once
+  if (e.flash > 0 && (View.rimN = (View.rimN || 0) + 1) <= T.impact.flashMost) View.overCtx.drawImage(spriteRim(spr, e.flashCol || '#ffffff'), sx - 1, sy - 1);
   const pal = ENEMY_PAL[T.biomes[d.biome].id];
   // their eyes and cores light the floor round them, brighter as they wind up
   const glow = e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : e.type === 'hollow' ? '#ff2a6a' : e.type === 'keeper' ? ART.pal.star[3] : T.enemies[e.type].rooted ? PLANT_GLOW : pal.rune[0];

@@ -45,9 +45,9 @@ function stoneTile(st, opts = {}) {
   const attrs = opts.act ? ` data-act="${opts.act}" data-arg="${opts.arg}"` : '';
   if (!st) return `<${tag} class="tile t-empty${cls}"${attrs} aria-label="Empty slot"><b>·</b>${opts.mini ? '' : '<small>EMPTY</small>'}</${tag}>`;
   const W = stoneWords(st.stone), k = stoneKind(st.stone);
-  const img = opts.mini ? '' : `<img src="${stoneIconUrl(st.stone, st.tier)}" alt="">`;
+  const img = opts.mini ? '' : `<img src="${stoneIconUrl(st.stone)}" alt="">`;
   const sub = opts.mini ? '' : `<small>${opts.count ? '×' + opts.count + ' · ' : ''}T${st.tier}</small>`;
-  return `<${tag} class="tile t-${k}${cls}" style="--c:${stoneCol(st.stone)}"${attrs} aria-label="${esc(W.name)}, tier ${st.tier}">${img}<b>${W.abbr}</b>${sub}</${tag}>`;
+  return `<${tag} class="tile t-${k}${cls}" style="--c:${stoneTint(st.stone)}"${attrs} aria-label="${esc(W.name)}, tier ${st.tier}">${img}<b>${W.abbr}</b>${sub}</${tag}>`;
 }
 function miniCircuit(it) { return `<span class="mini-circuit">${it.slots.map((s) => stoneTile(s, { mini: true })).join('')}</span>`; }
 // The stones in a list, one entry for each kind and tier: { stone, tier, n }.
@@ -127,6 +127,8 @@ const UI = {
   },
 
   show(id) {
+    // a hint showing goes away with the world, and comes back after
+    for (const t of [...$('toasts').children]) if (t.classList.contains('r-tip')) { UI.heldTips.push(t.textContent); t.remove(); }
     for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id;
     UI.screen = id;
     Game.modal = id;
@@ -218,7 +220,10 @@ const UI = {
     UI.toast(msg, 'tip');
   },
 
+  // hints wait while a screen is open (heldTips), so none lies over a panel
+  heldTips: [],
   toast(msg, kind) {
+    if (kind === 'tip' && Game.modal) { if (!UI.heldTips.includes(msg)) UI.heldTips.push(msg); return; }
     const box = $('toasts');
     // the same words twice at once read as a stutter: the newer one only
     for (const o of box.children) if (o.textContent === msg) o.remove();
@@ -239,6 +244,7 @@ const UI = {
     document.body.classList.toggle('diving', !!d);
     document.body.classList.toggle('home', !!(d && d.hub));
     if (Game.modal === 'screen-reveal' && Reveal.item && Game.realT - Reveal.shownAt > 2.2) Reveal.done();
+    if (!Game.modal && UI.heldTips.length) UI.toast(UI.heldTips.shift(), 'tip');
     if (!d) return;
     if (d.hub) {
       setTextIfChanged('hud-depth', `THE LODESTAR · MAGNITUDE ${magnitudeOf(Save.data.star)}`);
@@ -265,7 +271,7 @@ const UI = {
       const form = it ? (g ? g.form : null) : 'arc', tier = g ? g.tier : 1, btn = $('btn-' + slot), key = `${it ? it.uid : 'fist'}:${form}:${tier}`;
       if (btn.dataset.key !== key) {
         btn.dataset.key = key;
-        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt', tier)}" alt=""><span>${!it ? 'FIST' : form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
+        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt')}" alt=""><span>${!it ? 'FIST' : form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
       }
       const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
       btn.classList.toggle('charging', lv > 0 && lv < 1);

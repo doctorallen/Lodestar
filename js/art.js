@@ -72,6 +72,18 @@ const ART = {
   forms: { arc: '#fff0c0', glaive: '#e8e0ff', bolt: '#62f0ff', lance: '#d8e8ff', orb: '#c9a2ff', nova: '#ffb347', well: '#8a5ad0', ward: '#8fb4ff' },
   glyphs: { split: '#ffd34d', amplify: '#ff8a3d', quicken: '#7fe8ff', chain: '#62f0ff', echo: '#c9a2ff', pierce: '#e8e0ff', linger: '#9ad04a', trigger: '#ffd890' },
   glyphTeal: '#5ff2d0',
+  // a stone's own colours, for its icon and tile (never an ore's, never a
+  // rarity's): body, a ramp dark to light; rune, what glows in it. A Form's
+  // is plain stone with a gold rune, a Glyph's teal, an Element's its own
+  stones: {
+    form: { body: ['#24212a', '#433e4c', '#6c6676', '#9c95a6'], rune: '#ffd34d' }, formRim: '#e8dcc0',
+    glyph: { body: ['#0c3530', '#18635a', '#2c9a88', '#68d6c0'], rune: '#d8fff4' },
+    force: { body: ['#3a3450', '#6a6290', '#a69ccc', '#dcd2f4'], rune: '#7a5cff' },
+    shock: { body: ['#3a2c06', '#7a6210', '#c8a828', '#ffe45c'], rune: '#fffbe0' },
+    frost: { body: ['#16304a', '#2e5c84', '#5c9ccc', '#a8dcff'], rune: '#f4fcff' },
+    ember: { body: ['#3a1408', '#7a3214', '#c85a26', '#ff8a4a'], rune: '#fff0c8' },
+    blight: { body: ['#1c2c0c', '#3e5c1a', '#6c9a30', '#a6d64e'], rune: '#f0ffd0' },
+  },
   ores: {
     ferrite: ['#3b170d', '#743828', '#c46444', '#ffb08a'],
     lumenite: ['#0a302c', '#2a6e64', '#4ec9b1', '#c2fff2'],
@@ -922,7 +934,7 @@ function art2Sprite(rows, pal, opts) {
 }
 
 function itemIconUrl(item) {
-  if (item.kind === 'stone') return stoneIconUrl(item.stone, item.tier);
+  if (item.kind === 'stone') return stoneIconUrl(item.stone);
   const style = item.kind === 'relic' ? item.kind : ((typeof bpOf === 'function' && bpOf(item)) || {}).style;
   const own = ICON_ROWS2[style] && !ICON_ROWS[style];
   const rows = own ? ICON_ROWS2[style] : ICON_ROWS[item.kind];
