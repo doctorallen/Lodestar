@@ -31,7 +31,8 @@ function newWorld(fields) {
   return Object.assign({
     seed: 0, biome: 0, depth: 0, floor: null, target: null, time: 0, kills: 0, dying: 0,
     rng: new Rng(1), stats, reach: lodelineReach(),
-    cargo: {}, items: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], flow: null, flowAt: -1,
+    cargo: {}, items: [], pocket: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], flow: null, flowAt: -1,
+    pull: 1, pullTime: 1, waveT: 0, channel: null, padDark: false,
     p: {
       x: 0, y: 0, fx: 0, fy: 1, walkT: 0, mine: null,
       hp: stats.maxHp, charge: stats.maxCharge, ward: 0, wardT: 0, invuln: 0, hurtT: 0, restT: 0, lowCharge: 0,
@@ -75,6 +76,8 @@ function enterFloor(depth) {
   d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.globs = []; d.puddles = []; d.flowAt = -1;
   spawnEnemies(d);
   placeFieldForge(d);
+  const P = T.pull;
+  d.pull = 1; d.pullTime = Math.max(P.min, P.time + P.perDepth * (depth - 1)); d.waveT = P.waveEvery; d.padDark = false; d.channel = null;
   if (d.floor.pad) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
   UI.toast(`${T.biomes[d.biome].name}, depth ${depth}${d.floor.pad ? '' : ': no lodeline reaches this deep'}`);
 }
@@ -133,6 +136,7 @@ function updateDive(dtReal, dt) {
   }
   updateHands(dtReal);
   updateMining(dtReal);
+  if (!d.hub) { updatePull(dt); updateChannel(dtReal); }
   updateEnemies(dt);
   updateBolts(dt);
   updateCombatFx(dt);
@@ -141,7 +145,7 @@ function updateDive(dtReal, dt) {
     const a = actionHere();
     if (d.hub) { if (a) UI.useStation(a); }
     else if (a === 'descend') enterFloor(d.depth + 1);
-    else if (a === 'extract') extractDive();
+    else if (a === 'extract') startChannel('extract');
     else if (a === 'forge') UI.useStation('fieldForge');
   }
 }
@@ -162,8 +166,82 @@ function actionHere() {
   if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && near(s.x, s.y, 20)); return s ? s.id : null; }
   if (d.fieldForge && near(d.fieldForge.x, d.fieldForge.y, 20)) return 'forge';
   const t = floorTile(d.floor, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
-  return t === TILE_SHAFT ? 'descend' : t === TILE_PAD ? 'extract' : null;
+  return t === TILE_SHAFT ? 'descend' : t === TILE_PAD && !d.padDark && !d.channel ? 'extract' : null;
 }
+
+// ---------------------------------------------------------------------------
+// The star's pull on a floor, fading
+// ---------------------------------------------------------------------------
+function updatePull(dt) {
+  const d = Game.dive, P = T.pull;
+  if (d.pull <= 0) return;
+  const was = d.pull;
+  d.pull = Math.max(0, d.pull - dt / d.pullTime);
+  if (was > P.dimAt && d.pull <= P.dimAt) UI.toast("The star's pull is fading", 'legendary');
+  if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { d.waveT = P.waveEvery; stirTheDark(d, P.wave); }
+  if (d.pull <= 0) {
+    // the lodeline goes dark, and the Hollow comes
+    d.padDark = true;
+    if (d.channel && d.channel.kind === 'extract') breakChannel('The lodeline went dark');
+    UI.toast('The lodeline has gone dark. Something is coming.', 'legendary');
+    const at = darkSpot(d);
+    if (at) { const h = makeEnemy('hollow', at.x, at.y, floorLevel(d), null); h.aggro = true; d.enemies.push(h); }
+  }
+}
+
+// Somewhere out of sight but on foot from the diver.
+function darkSpot(d) {
+  const f = d.floor, steps = floorDistances(f.tiles, f.w, f.h, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
+  const far = [];
+  for (let i = 0; i < f.w * f.h; i++) if (steps[i] > 9 && steps[i] < 26) far.push(i);
+  if (!far.length) return null;
+  const i = d.rng.pick(far);
+  return { x: ((i % f.w) + 0.5) * TILE, y: (Math.floor(i / f.w) + 0.5) * TILE };
+}
+
+function stirTheDark(d, n) {
+  const types = ['crawler', 'wisp', 'construct'];
+  for (let k = 0; k < n; k++) {
+    const at = darkSpot(d);
+    if (!at) return;
+    const e = makeEnemy(d.rng.pick(types), at.x, at.y, floorLevel(d), null);
+    e.aggro = true;
+    d.enemies.push(e);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Leaving takes a moment: extracting in a lodeline, or an emergency recall
+// from anywhere. Moving or being hit breaks it.
+// ---------------------------------------------------------------------------
+function startChannel(kind) {
+  const d = Game.dive, L = T.leave;
+  if (!d || d.hub || d.dying || d.channel) return;
+  d.channel = { kind, t: 0, max: kind === 'recall' ? L.recall : L.extract, x: d.p.x, y: d.p.y };
+  // the light draws attention
+  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, d.p.x, d.p.y) < L.noise) wake(d, e);
+}
+
+function breakChannel(why) {
+  const d = Game.dive;
+  if (!d.channel) return;
+  d.channel = null;
+  UI.toast(why);
+}
+
+function updateChannel(dt) {
+  const d = Game.dive, c = d.channel;
+  if (!c) return;
+  if (dist(d.p.x, d.p.y, c.x, c.y) > 3) { breakChannel('You moved: the pull let go'); return; }
+  if ((c.t += dt) >= c.max) {
+    d.channel = null;
+    if (c.kind === 'extract') extractDive();
+    else recallDive();
+  }
+}
+
+// The share of the cargo an emergency recall costs here.
+function recallCost(d) { const L = T.leave; return Math.min(L.recallMax, L.recallLoss + L.recallPerDepth * d.depth); }
 
 // ---------------------------------------------------------------------------
 // Walking: a circle against the floor's smooth wall line (rockAt), felt at
@@ -272,8 +350,20 @@ function noteDeepest(d) {
 
 // Riding a lodeline home banks the cargo, and the star drinks a little of
 // the depth: extractStar × depth² points.
+// Everything in the pocket goes home, whatever happens.
+function bankPocket(d) {
+  const s = Save.data.stash, kept = { stuff: {}, items: [] };
+  for (const e of d.pocket) {
+    if (e.item) { Save.data.items.push(e.item); kept.items.push(e.item); }
+    else { s[e.stuff] = (s[e.stuff] || 0) + e.n; kept.stuff[e.stuff] = (kept.stuff[e.stuff] || 0) + e.n; }
+  }
+  d.pocket = [];
+  return kept;
+}
+
 function extractDive() {
   const d = Game.dive, s = Save.data.stash;
+  bankPocket(d);
   for (const k in d.cargo) s[k] = (s[k] || 0) + d.cargo[k];
   Save.data.items.push(...d.items);
   const fed = T.star.extractStar * d.depth * d.depth, before = magnitudeOf(Save.data.star);
@@ -283,12 +373,33 @@ function extractDive() {
   enterHub({ banked: d.cargo, items: d.items, depth: d.depth, biome: d.biome, fed, grew: magnitudeOf(Save.data.star) > before ? magnitudeOf(Save.data.star) : 0 });
 }
 
-// Dying, or giving up: the cargo is lost, what's worn is kept.
+// Dying, or giving up: the cargo is lost, what's worn and what's in the
+// pocket are kept.
 function loseDive(died) {
-  const d = Game.dive;
+  const d = Game.dive, kept = bankPocket(d);
   noteDeepest(d);
   Save.save();
-  enterHub({ lost: d.cargo, items: d.items, depth: d.depth, biome: d.biome, died });
+  enterHub({ lost: d.cargo, items: d.items, depth: d.depth, biome: d.biome, died, kept });
+}
+
+// An emergency recall: home, but the dark keeps a share of the cargo (the
+// pocket is safe).
+function recallDive() {
+  const d = Game.dive, s = Save.data.stash, cost = recallCost(d), lost = {};
+  let lostItems = 0;
+  bankPocket(d);
+  for (const k in d.cargo) {
+    const gone = Math.round(d.cargo[k] * cost);
+    if (gone) lost[k] = gone;
+    const keep = d.cargo[k] - gone;
+    if (keep > 0) s[k] = (s[k] || 0) + keep;
+    d.cargo[k] = keep;
+  }
+  const kept = d.items.filter(() => { if (d.rng.chance(cost)) { lostItems++; return false; } return true; });
+  Save.data.items.push(...kept);
+  noteDeepest(d);
+  Save.save();
+  enterHub({ banked: d.cargo, items: kept, depth: d.depth, biome: d.biome, recalled: { lost, lostItems, cost } });
 }
 
 function abandonDive() { loseDive(false); }

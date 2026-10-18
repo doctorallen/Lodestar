@@ -22,7 +22,9 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 The loop:
 1. Descend into a biome the Lodestar reaches.
 2. Mine ore and fight what finds you.
-3. Stand in a lodeline's gold beam and EXTRACT to bank your cargo. Fall, and the cargo is lost, but what you wear is safe.
+3. Watch the gold meter: the star's pull on each floor fades, and when it's gone the lodeline goes dark and something hunts you.
+4. Stand still in a lodeline's gold beam and EXTRACT to bank your cargo, or use an emergency recall from anywhere and lose part of it.
+5. If you fall, the cargo is lost, but what you wear and what's in your pocket are safe.
 
 At home, walk the outpost's stations:
 - the forge: strike the anvil well for better odds;

@@ -23,8 +23,22 @@ const T = {
   mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 2] },
 
   // Cargo is counted in units: ore and exotics weigh 1, gear and relics
-  // itemWeight.
-  cargo: { capacity: 30, itemWeight: 3 },
+  // itemWeight. The pocket: slots (by magnitude, 1 to 8) whose contents
+  // survive a fall; an ore stack in one holds at most pocketStack.
+  cargo: { capacity: 30, itemWeight: 3, pocket: [1, 1, 2, 2, 3, 3, 3, 3], pocketStack: 10 },
+
+  // The star's pull on each floor: full on arrival, it fades over `time`
+  // seconds (less by perDepth a floor, to min). Below dimAt the lamp dims
+  // (to lampMin) and every waveEvery seconds `wave` more enemies stir in the
+  // dark; when it's gone the floor's lodeline goes dark and the Hollow comes.
+  pull: { time: 130, perDepth: -6, min: 70, dimAt: 0.5, lampMin: 0.6, waveEvery: 18, wave: 2 },
+
+  // Leaving takes a moment: standing in a lodeline, EXTRACT takes `extract`
+  // seconds; an emergency recall works anywhere but takes `recall` seconds
+  // and loses a share of the cargo, recallLoss + recallPerDepth a floor (to
+  // recallMax). Moving or being hit breaks either. Starting one wakes
+  // anything within `noise` px.
+  leave: { extract: 1.5, recall: 4, recallLoss: 0.15, recallPerDepth: 0.06, recallMax: 0.7, noise: 160 },
 
   // Floors: a w × h tile grid of lumpy caverns (radius roomR tiles, at least
   // roomGap apart) joined by tunnels that wander (meander: how hard the
@@ -130,6 +144,9 @@ const T = {
     // puddleDps a second for puddleTime)
     snapjaw: { hp: 30, dmg: 13, speed: 0, radius: 6, reach: 24, windup: 0.5, cooldown: 1.5, weight: 2, rooted: true },
     spitter: { hp: 20, dmg: 6, speed: 0, radius: 5, range: 110, windup: 0.6, cooldown: 2.4, shotSpeed: 60, puddle: 14, puddleDps: 9, puddleTime: 2.6, weight: 2, minDepth: 2, rooted: true },
+    // the Hollow: what comes when the star's pull is gone. It can't be
+    // staggered, and it doesn't stop
+    hollow: { hp: 900, dmg: 22, speed: 44, radius: 7, contact: 12, cooldown: 0.9 },
     // the practice target at the outpost: it never fights back or falls
     dummy: { hp: 400, dmg: 0, speed: 0, radius: 6 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },

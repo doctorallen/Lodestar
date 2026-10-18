@@ -356,6 +356,7 @@ function buildEnemySprites(biomeId) {
   const pal = ENEMY_PAL[biomeId], out = {};
   for (const type of Object.keys(ENEMY_ROWS)) out[type] = buildArtSprite(ENEMY_ROWS[type], pal);
   out.dummy = buildArtSprite(ENEMY_ROWS.construct, Object.assign({}, pal, { plate: ['#1c1810', '#3a3020', '#5e4c30', '#8a7048'], rune: [ART.pal.star[2]] }));
+  out.hollow = buildArtSprite(scale2xRows(ENEMY_ROWS.wisp), { shell: ['#000000', '#030205', '#07050c', '#0e0a16'], crystal: ['#2a0838'], coreglow: ['#ff2a6a'] });
   out.warden = buildArtSprite(scale2xRows(ENEMY_ROWS.construct), Object.assign({}, pal, { plate: ['#0c0a0e', '#1e1a22', '#34303c', '#565064'] }));
   for (const type in out) { const s = out[type]; s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - 1.5; }
   return out;

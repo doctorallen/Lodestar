@@ -23,7 +23,7 @@ const stuffName = (id) => (ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].n
 
 function iconImg(item, cls = 'icon') { return `<img class="${cls}" src="${itemIconUrl(item)}" alt="">`; }
 function itemRow(item, act, arg, tag = '') {
-  return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name r-${item.rarity}">${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span></span>${tag}</button>`;
+  return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name r-${item.rarity}">${item.fav ? '★ ' : ''}${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span></span>${tag}</button>`;
 }
 // ▲ or ▼ against what's worn in the slot it would go in
 function compareTag(item, equip) {
@@ -98,7 +98,8 @@ const UI = {
   },
   openPause() {
     const home = !!(Game.dive && Game.dive.hub);
-    $('pause-cargo').hidden = home; $('pause-abandon').hidden = home; $('pause-note').hidden = home;
+    $('pause-cargo').hidden = home; $('pause-abandon').hidden = home; $('pause-note').hidden = home; $('pause-recall').hidden = home;
+    if (!home) $('pause-recall').textContent = `EMERGENCY RECALL · LOSE ${Math.round(recallCost(Game.dive) * 100)}%`;
     UI.show('screen-pause');
   },
   openCargo() { UI.show('screen-cargo'); },
@@ -143,6 +144,10 @@ const UI = {
     const hpW = Math.round(hp * 100) + '%', chW = Math.round(ch * 100) + '%';
     if ($('hp-fill').style.width !== hpW) $('hp-fill').style.width = hpW;
     if ($('ch-fill').style.width !== chW) $('ch-fill').style.width = chW;
+    const pW = Math.round(d.pull * 100) + '%';
+    if ($('pull-fill').style.width !== pW) $('pull-fill').style.width = pW;
+    $('hud-pull').classList.toggle('fading', d.pull < T.pull.dimAt);
+    $('hud-pull').classList.toggle('dark', !!d.padDark);
     setTextIfChanged('hp-text', String(Math.ceil(p.hp)));
     $('hud-hp').classList.toggle('warded', p.ward > 0);
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
@@ -164,6 +169,7 @@ const UI = {
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     setTextIfChanged('btn-act', { descend: 'DESCEND', extract: 'EXTRACT', forge: 'FORGE', runes: 'RUNES', locker: 'GEAR', altar: 'THE STAR' }[a] || '');
+    if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
   },
 };
@@ -182,6 +188,12 @@ function drawReport() {
   if (r.banked) { title = 'PULLED HOME'; text = got ? `From ${where}. Banked ${got}.` : `From ${where}, empty-handed.`; }
   else if (r.died) { title = 'YOU FELL'; text = got ? `In ${where}. Lost ${got}.` : `In ${where}.`; }
   else { title = 'YOU GAVE UP'; text = got ? `In ${where}. Lost ${got}.` : `In ${where}.`; }
+  if (r.recalled) {
+    title = 'RECALLED';
+    const lost = [stuffLines(r.recalled.lost), r.recalled.lostItems ? `${r.recalled.lostItems} piece${r.recalled.lostItems > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(' and ');
+    text = `From ${where}. ${got ? `Banked ${got}.` : ''}${lost ? ` The dark kept ${lost}.` : ''}`;
+  }
+  if (r.kept && (r.kept.items.length || Object.keys(r.kept.stuff).length)) text += ` Your pocket kept ${[stuffLines(r.kept.stuff), r.kept.items.map((i) => i.name).join(', ')].filter(Boolean).join(' and ')}.`;
   if (r.fed) text += ` The lodeline fed the star ${r.fed}.`;
   if (r.grew) text += ` It grew to magnitude ${r.grew}.`;
   $('report-title').textContent = title;
@@ -246,6 +258,7 @@ function drawGear() {
     <div class="stats">${statLine(st)}</div>
     <h3>WORN</h3>${slots}
     <h3>STASH</h3>${stash || '<p class="note">Nothing banked. Gear you bring home lands here.</p>'}
+    ${downgrades().length ? `<div class="menu"><button class="btn danger" data-act="salvageAll">${UI.salvageAllArmed ? `TAP AGAIN: SALVAGE ${downgrades().length}` : `SALVAGE ALL ▼ (${downgrades().length})`}</button></div><p class="note">Breaks down every piece marked ▼ that isn't kept (★). Cores and relics are left alone.</p>` : ''}
     <h3>MATERIALS</h3><p class="note">${esc(stuffLines(s.stash)) || 'None.'}</p>`;
 }
 function statLine(st) {
@@ -280,12 +293,16 @@ function drawCargo() {
   const items = d.items.map((it) => itemRow(it, 'cardCargo', it.uid, compareTag(it, Save.data.equip))).join('');
   const worn = SLOTS.filter((k) => Save.data.equip[k]).map((k) => itemRow(Save.data.equip[k], 'cardWorn', k, `<span class="slot">${SLOT_NAMES[k]}</span>`)).join('');
   const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${ORE_INDEX[id] !== undefined ? 'Ore' : 'Exotic material'} · weighs ${d.cargo[id]}</span></span></button>`).join('');
+  const slots = pocketSlots(), pocket = d.pocket.map((e, i) => `<div class="row static">${e.item ? iconImg(e.item) : `<img class="icon" src="${stuffIconUrl(e.stuff)}" alt="">`}<span class="row-text"><span class="row-name ${e.item ? 'r-' + e.item.rarity : ''}">${esc(e.item ? e.item.name : `${stuffName(e.stuff)} × ${e.n}`)}</span><span class="row-sub">In the pocket</span></span><button class="mini" data-act="unpocket" data-arg="${i}">TAKE OUT</button></div>`).join('');
   $('cargo-body').innerHTML = `
     <div class="mag">CARGO ${cargoUsed(d)}/${d.stats.cargo}</div>
+    <h3>POCKET · ${d.pocket.length}/${slots}</h3>
+    ${pocket || '<p class="note">Empty. Whatever you pocket comes home even if you fall: tap something below to pocket it.</p>'}
     <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">No ore yet.</p>'}
     <h3>FOUND</h3>${items || '<p class="note">No gear yet.</p>'}
     <h3>WORN</h3>${worn}
-    <p class="note">What you wear is safe. Everything in the cargo is lost if you fall.</p>`;
+    <p class="note">What you wear and what's in your pocket are safe. The rest of the cargo is lost if you fall.</p>
+    <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL · LOSE ${Math.round(recallCost(d) * 100)}%</button></div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -300,7 +317,8 @@ function drawCard() {
   const it = c.item, home = c.where === 'stash' || c.where === 'equip';
   const s = Save.data, oreId = runeOre(it), oreHave = s.stash[oreId] || 0, R = T.runes;
   const runes = home && it.kind !== 'core' && it.kind !== 'relic' && !(it.kind === 'pick' && it.tier === 0);
-  const affixes = it.affixes.map((a, i) => `<li><span>${esc(fmtAffix(a))}</span>${runes ? `<span class="rune">
+  const rollBar = (a) => { const r = affixRoll(a, it.tier); return `<span class="roll" title="How well it rolled"><span style="width:${Math.round(clamp(r, 0.04, 1) * 100)}%" class="${r > 1 ? 'over' : r > 0.8 ? 'high' : ''}"></span></span>`; };
+  const affixes = it.affixes.map((a, i) => `<li><span class="aff">${esc(fmtAffix(a))}${rollBar(a)}</span>${runes ? `<span class="rune">
       <button class="mini" data-act="reroll" data-arg="${i}" ${oreHave >= R.reroll ? '' : 'disabled'}>↻ ${R.reroll}</button>
       <button class="mini" data-act="upgrade" data-arg="${i}" ${oreHave >= R.upgrade && a.up < 2 ? '' : 'disabled'}>▲ ${R.upgrade}</button></span>` : ''}</li>`).join('');
   let extra = '';
@@ -325,19 +343,28 @@ function drawCard() {
     if (it.kind === 'relic') acts.push('<button class="btn primary" data-act="unseal">UNSEAL</button>');
     else if (slotOf === 'hand') acts.push(...handBtns('equip'));
     else if (slotOf) acts.push(`<button class="btn primary" data-act="equip" data-arg="${slotOf}">EQUIP</button>`);
-    if (it.kind !== 'relic') acts.push('<button class="btn danger" data-act="salvage">SALVAGE</button>');
+    if (it.kind !== 'relic' && !it.fav) acts.push('<button class="btn danger" data-act="salvage">SALVAGE</button>');
   } else if (c.where === 'equip') acts.push('<button class="btn" data-act="unequip">UNEQUIP</button>');
   else if (c.where === 'cargo') {
     if (slotOf === 'hand') acts.push(...handBtns('equip'));
     else if (slotOf) acts.push(`<button class="btn primary" data-act="equip" data-arg="${slotOf}">EQUIP</button>`);
+    if (Game.dive.pocket.length < pocketSlots()) acts.push('<button class="btn" data-act="pocket">POCKET (SAFE IF YOU FALL)</button>');
     if (it.kind !== 'relic') acts.push('<button class="btn danger" data-act="salvage">SALVAGE</button>');
     acts.push('<button class="btn danger" data-act="drop">DROP</button>');
   }
   if (runes && canAddAffix(it)) acts.push(`<button class="btn" data-act="addAffix" ${oreHave >= R.add ? '' : 'disabled'}>ADD AFFIX · ${R.add}</button>`);
   const runeNote = runes ? `<p class="note">Rune work costs ${esc(oreOfTier(it.tier).name)} (you have ${oreHave}).</p>` : '';
   const cmp = (c.where === 'stash' || c.where === 'cargo') ? compareTag(it, s.equip) : '';
+  // stat by stat against what's worn in its slot
+  const slot = (c.where === 'stash' || c.where === 'cargo') && compareSlot(s.equip, it);
+  if (slot) {
+    const cur = s.equip[slot], lines = compareLines(it, cur);
+    extra += `<div class="compare"><div class="row-sub">${cur ? `AGAINST ${esc(cur.name.toUpperCase())} (${SLOT_NAMES[slot].toUpperCase()})` : `${SLOT_NAMES[slot].toUpperCase()} IS EMPTY`}</div>${lines.map((l) => `<div class="${l.up ? 'up' : 'down'}">${l.up ? '▲' : '▼'} ${esc(l.text)}</div>`).join('') || '<div class="dim">No change</div>'}</div>`;
+  }
+  const canFav = it.kind !== 'relic' && (c.where === 'stash' || c.where === 'equip');
+  const favBtn = canFav ? `<button class="mini fav ${it.fav ? 'on' : ''}" data-act="fav" title="Keep: never salvaged">${it.fav ? '★' : '☆'}</button>` : '';
   $('card-body').innerHTML = `
-    <div class="card-head">${iconImg(it, 'icon big')}<div><div class="card-name r-${it.rarity}">${esc(it.name)} ${cmp}</div><div class="row-sub">${esc(itemKindLine(it))}</div></div></div>
+    <div class="card-head">${iconImg(it, 'icon big')}<div class="grow"><div class="card-name r-${it.rarity}">${esc(it.name)} ${cmp}</div><div class="row-sub">${esc(itemKindLine(it))}</div></div>${favBtn}</div>
     <p class="base">${esc(itemBaseLine(it))}</p>
     ${affixes ? `<ul class="affixes">${affixes}</ul>` : ''}
     ${extra}${runeNote}
@@ -353,11 +380,18 @@ function drawStuffCard(id) {
     <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${x ? 'Exotic material' : 'Ore'} · in your cargo</div></div></div>
     <p class="base">${esc(what)}</p>
     <div class="menu">
+      ${n && Game.dive.pocket.length < pocketSlots() ? `<button class="btn" data-act="pocket" data-arg="${T.cargo.pocketStack}">POCKET ${Math.min(n, T.cargo.pocketStack)} (SAFE IF YOU FALL)</button>` : ''}
       ${n ? `<button class="btn danger" data-act="dropStuff" data-arg="1">DROP 1</button>` : ''}
       ${n > 5 ? `<button class="btn danger" data-act="dropStuff" data-arg="5">DROP 5</button>` : ''}
       ${n > 1 ? `<button class="btn danger" data-act="dropStuff" data-arg="all">DROP ALL</button>` : ''}
       <button class="btn" data-act="closeCard">BACK</button>
     </div>`;
+}
+
+// Pieces in the stash worse than what's worn, not kept, not cores or relics.
+function downgrades() {
+  const s = Save.data;
+  return s.items.filter((it) => !it.fav && it.kind !== 'core' && it.kind !== 'relic' && /down/.test(compareTag(it, s.equip)));
 }
 
 // ---------------------------------------------------------------------------
@@ -375,6 +409,26 @@ UI.acts = {
   abandon: () => abandonDive(),
   dive: (i) => { UI.close(); startDive(Number(i)); },
   closeReport: () => { UI.report = null; UI.close(); },
+  recall: () => { UI.close(); startChannel('recall'); UI.toast('Hold still: recalling'); },
+  // the pocket: what's in it comes home whatever happens
+  pocket: (n) => {
+    const d = Game.dive, c = UI.card;
+    if (d.pocket.length >= pocketSlots()) return;
+    if (c.stuff) {
+      const k = Math.min(Number(n) || T.cargo.pocketStack, d.cargo[c.stuff] || 0);
+      if (!k) return;
+      d.cargo[c.stuff] -= k; if (!d.cargo[c.stuff]) delete d.cargo[c.stuff];
+      d.pocket.push({ stuff: c.stuff, n: k });
+    } else { removeFrom(d.items, c.item); d.pocket.push({ item: c.item }); }
+    UI.closeCard(); UI.redraw();
+  },
+  unpocket: (i) => {
+    const d = Game.dive, e = d.pocket[Number(i)];
+    if (!e) return;
+    d.pocket.splice(Number(i), 1);
+    if (e.item) d.items.push(e.item); else d.cargo[e.stuff] = (d.cargo[e.stuff] || 0) + e.n;
+    UI.redraw();
+  },
   closeCard: () => { UI.closeCard(); UI.redraw(); },
   cardEquip: (slot) => UI.openCard(Save.data.equip[slot], 'equip', slot),
   cardStash: (uid) => UI.openCard(findStash(uid), 'stash', uid),
@@ -457,6 +511,21 @@ UI.acts = {
   upgrade: (i) => { const it = UI.card.item; if (it.affixes[i].up < 2 && spendOre(runeOre(it), T.runes.upgrade)) { upgradeAffix(it, Number(i)); afterChange(); } },
   addAffix: () => { const it = UI.card.item; if (canAddAffix(it) && spendOre(runeOre(it), T.runes.add)) { addAffix(Save.rng(), it); afterChange(); } },
   pickCore: (i) => { UI.card.picking = Number(i); UI.redraw(); },
+  fav: () => { const it = UI.card.item; it.fav = !it.fav; afterChange(); },
+  salvageAll: () => {
+    if (!UI.salvageAllArmed) { UI.salvageAllArmed = true; UI.redraw(); setTimeout(() => { UI.salvageAllArmed = false; UI.redraw(); }, 3000); return; }
+    UI.salvageAllArmed = false;
+    const rng = Save.rng(), s = Save.data.stash, got = {};
+    for (const it of downgrades()) {
+      const y = salvageYield(rng, it);
+      for (const core of it.sockets || []) if (core) Save.data.items.push(core);
+      removeFrom(Save.data.items, it);
+      s[y.ore] = (s[y.ore] || 0) + y.n; got[y.ore] = (got[y.ore] || 0) + y.n;
+      if (y.exotic) { s[y.exotic] = (s[y.exotic] || 0) + 1; got[y.exotic] = (got[y.exotic] || 0) + 1; }
+    }
+    UI.toast('Salvaged for ' + stuffLines(got));
+    afterChange();
+  },
   socket: (uid) => {
     const c = UI.card, core = findStash(uid);
     if (!core || c.picking === null) return;

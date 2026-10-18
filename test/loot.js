@@ -4,8 +4,9 @@
 // affixes for their rarity, no affix twice, affixes only from families the
 // kind can roll (or an exotic's), legendary powers that fit their kind, set
 // pieces in set slots, sockets on foci, positive numbers and a name on
-// everything; outfits that add up within the caps; and the star's
-// magnitudes and the biomes they open.
+// everything; rolls within their range and comparisons that read; outfits
+// that add up within the caps; and the star's magnitudes and the biomes they
+// open.
 const { sandbox } = require('./sandbox');
 const { finish } = require('./lib-node');
 
@@ -63,6 +64,9 @@ for (let seed = 1; seed <= 3000; seed++) {
     G.addAffix(rng, made);
     if (made.affixes.length !== was + 1) fail(`added ${seed}: ${was} → ${made.affixes.length}`);
   }
+  for (const a of made.affixes) { const r = G.affixRoll(a, made.tier); if (!(r >= -0.05 && r <= 1.6)) fail(`roll ${seed}: ${a.id} ${a.v} at tier ${made.tier} rolled ${r}`); }
+  for (const l of G.compareLines(made, it)) if (/NaN|undefined/.test(l.text)) fail(`compare ${seed}: "${l.text}"`);
+  if (G.compareLines(made, made).length) fail(`compare ${seed}: an item differs from itself`);
   const y = G.salvageYield(rng, made);
   if (!(y.n > 0) || !G.T.ores.some((o) => o.id === y.ore)) fail(`salvage ${seed}: ${JSON.stringify(y)}`);
 }

@@ -259,6 +259,40 @@ function itemWorth(it) {
   return w;
 }
 
+// What an item adds, stat by stat, for comparing two pieces.
+const STAT_WORDS = { dmg: ['damage', ''], power: ['spell power', ''], armor: ['armor', ''], hp: ['max health', ''], speed: ['mining speed', '×'] };
+function itemStatMap(it) {
+  const m = {};
+  if (!it) return m;
+  const b = it.base || {};
+  for (const k of ['dmg', 'armor', 'hp']) if (b[k]) m[k] = b[k];
+  if (it.kind === 'focus') m.power = b.power;
+  if (it.kind === 'pick') m.speed = b.speed;
+  for (const a of it.affixes) m['a:' + a.id] = (m['a:' + a.id] || 0) + a.v;
+  return m;
+}
+// Lines like "+3 armor" / "−5% melee damage": what wearing `it` instead of
+// `cur` would change.
+function compareLines(it, cur) {
+  const a = itemStatMap(it), b = itemStatMap(cur), out = [];
+  for (const k of new Set(Object.keys(a).concat(Object.keys(b)))) {
+    const d = Math.round(((a[k] || 0) - (b[k] || 0)) * 10) / 10;
+    if (!d) continue;
+    let text;
+    if (k.startsWith('a:')) text = AFFIXES[k.slice(2)].text.replace('+{v}', '{v}').replace('{v}', (d > 0 ? '+' : '−') + Math.abs(d));
+    else text = `${d > 0 ? '+' : '−'}${Math.abs(d)}${STAT_WORDS[k][1]} ${STAT_WORDS[k][0]}`;
+    out.push({ text, up: d > 0 });
+  }
+  if (it.power && (!cur || cur.power !== it.power)) out.push({ text: LEGENDARIES[it.power].text, up: true });
+  if (cur && cur.power && cur.power !== it.power) out.push({ text: 'Loses: ' + LEGENDARIES[cur.power].text, up: false });
+  return out;
+}
+// Where an affix rolled in its range at its tier, 0–1 (above 1 once raised).
+function affixRoll(a, tier) {
+  const A = AFFIXES[a.id], lo = affixValue(a.id, tier, 0), hi = affixValue(a.id, tier, 1);
+  return hi > lo ? (a.v - lo) / (hi - lo) : 1;
+}
+
 // The slot an item would replace: hands compare with a hand of the same kind.
 function compareSlot(equip, it) {
   const s = KIND_SLOT[it.kind];

@@ -91,7 +91,8 @@ function installBot() {
       const leave = (full || hurt || d.depth >= depth) && d.floor.pad;
       const action = actionHere();
       Bot.why = [action, !!foe, full, hurt, leave, d.depth, depth, !!d.floor.pad].join(',');
-      if (action === 'extract' && leave) { Input.bot.act = true; }
+      if (d.channel) { /* hold still while the lodeline lifts */ }
+      else if (action === 'extract' && leave) { Input.bot.act = true; }
       else if (action === 'descend' && !leave && (!d.floor.pad || d.depth < depth || full || hurt)) { Input.bot.act = true; }
       else if (foe && !(hurt && d.floor.pad)) {
         const m = dist(foe.x, foe.y, p.x, p.y);

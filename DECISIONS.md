@@ -69,3 +69,11 @@ The major gameplay decisions, newest last, and why each was made. Read this befo
 - **Fewer trips home:** salvage in the field, ancient forges deep down, and every ride home feeds the star.
 - **Real flora.** The lumps are replaced by designed sprites (mushrooms, stalactites, tube worms, roots…) that sway, sort in depth with the actors, and never look like ore.
 - **Some flora fights back.** Snapjaws and spitters hide in the undergrowth, rooted, red where the harmless kind is green, pink or ember.
+
+## 2026-10-17: from the research into similar games
+
+The designer asked to build the top recommendations from a survey of about 35 comparable games:
+- **The star's pull, per floor** (Spelunky's ghost, Dredge's panic). Visible pressure to keep moving, felt rather than read: the lamp dims, the dark stirs, and when the pull's gone the Hollow hunts and the lodeline goes dark.
+- **A pocket** (Tarkov's secure container, Moonlighter). A fall loses the cargo but never everything. It grows with the star and is never sold.
+- **Leaving takes a moment** (Dark and Darker). Extracting is a short channel that a hit or a step breaks, so you have to clear the way first. An emergency recall from anywhere costs more the deeper you are, so there's always a way home, at a price.
+- **A phone-sized item card** (Diablo Immortal, Death Must Die): per-stat comparison, roll bars, a keep star, and salvage-all for downgrades.

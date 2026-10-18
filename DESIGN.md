@@ -48,6 +48,12 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
 - **No fixed length.** The player decides how deep to go.
 - **Danger rises with depth.** A floor's enemy level is 4 × the biome's index plus the depth. Each level raises enemy health by 16% and damage by 8%. Deeper floors also have more enemies, more elites, and more of the biome's better ore and loot.
 - **Cargo is limited** (30 units, more from attunements and affixes). Ore and exotics weigh 1, gear and relics 3. You can drop gear mid-dive to make room.
+- **The pocket.** A few cargo slots whose contents survive a fall: 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
+- **The star's pull on each floor.** A gold meter under the health bar, full on arrival, fades over about two minutes (less deeper down).
+  - **Half gone:** your lamp dims, and more enemies stir in the dark every so often.
+  - **Gone:** the floor's lodeline goes dark and the Hollow comes, a shadow that hunts you and can't be staggered. The way out is down the shaft.
+- **Leaving takes a moment.** EXTRACT in a lodeline is 1.5 s of standing still. Moving or being hit breaks it, and its light wakes anything nearby.
+- **Emergency recall** (pause or cargo screen) works anywhere: 4 s standing still. The dark keeps a share of the cargo, 15% plus 6% a floor down to 70% at most, but the pocket is safe.
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room from depth 4. It charges and fires rings of orbs. It's never needed for progression, and it drops three rare-or-better pieces and often a relic.
 
@@ -118,6 +124,11 @@ Only two enemies can wind up at once, plus one more every three floors down. The
 - **Sealed relics** are unidentified items that only drop at rare or better, so each one is worth taking home. One takes up gear weight in the cargo, so it competes with ore. The Lodestar's light unseals it at home.
 - **Picks are loot too**, rolling mining affixes (mining speed, double ore) and utility ones.
 - **UPGRADE / DOWNGRADE at a glance:** a ▲ or ▼ beside anything found, against what's worn in that slot.
+- **The item card:**
+  - a bar under each affix shows how well it rolled in its range, and turns orange once raised past it;
+  - a stat-by-stat comparison against what's worn in that slot, legendary powers included;
+  - a ★ keeps a piece, so it can't be salvaged.
+- **Salvage all ▼** in the locker breaks down every downgrade that isn't kept, after a second tap to confirm.
 - **(proposed)** Pick affixes for gem chance and vein sense (seeing veins through walls).
 
 ## Combat and builds

@@ -250,6 +250,7 @@ function hurtPlayer(dmg, from) {
   p.invuln = T.player.hurtInvuln;
   p.hurtT = 0.25;
   p.restT = 0;
+  if (d.channel) breakChannel('Hit: the pull let go');
   buzz(30);
   if (p.hp <= 0) { p.hp = 0; startDying(); }
 }
@@ -268,8 +269,8 @@ function hurtEnemy(e, dmg, opts = {}) {
   e.hp -= dmg;
   e.flash = T.enemies.hurtFlash;
   d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit });
-  if (opts.knock) { const k = e.boss ? 0.2 : e.type === 'construct' ? 0.5 : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
-  if (opts.heavy && !e.boss && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
+  if (opts.knock) { const k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
+  if (opts.heavy && !e.boss && e.type !== 'hollow' && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
   if (e.type === 'dummy') { if (e.hp <= 0) e.hp = e.maxHp; e.kvx = e.kvy = 0; return; }
   wake(d, e);
   if (st.leech) healPlayer((dmg * st.leech) / 100);
@@ -373,5 +374,7 @@ function updatePickups(dt) {
 function cargoUsed(d) {
   let n = 0;
   for (const k in d.cargo) n += d.cargo[k];
+  for (const e of d.pocket || []) n += e.item ? T.cargo.itemWeight : e.n;
   return n + d.items.length * T.cargo.itemWeight;
 }
+function pocketSlots() { return T.cargo.pocket[Math.min(T.cargo.pocket.length, magnitudeOf(Save.data.star)) - 1]; }

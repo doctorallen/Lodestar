@@ -14,6 +14,7 @@
 //   warden: a great construct that charges and bursts orbs in a ring.
 //   snapjaw: a rooted plant that glows red and snaps at what comes close.
 //   spitter: a rooted plant that lobs globs, leaving spores on the ground.
+//   hollow: what comes when the star's pull on a floor is gone; it hunts.
 // Only a couple wind up at once; the rest circle, waiting their turn. Hits
 // knock them back, and heavy ones stagger them out of an attack. All of
 // them run on world time (dt × Game.timeScale).
@@ -145,6 +146,7 @@ function updateEnemies(dt) {
     if (e.type === 'crawler') updateCrawler(d, e, pd, sp, dt, free);
     else if (e.type === 'wisp') updateWisp(d, e, pd, sp, dt, free);
     else if (e.type === 'snapjaw' || e.type === 'spitter') updatePlant(d, e, pd, dt);
+    else if (e.type === 'hollow') updateHollow(d, e, pd, sp);
     else updateCharger(d, e, pd, sp, dt, free);
     if (!was && ATTACKING.has(e.state)) attackers++;
   }
@@ -271,6 +273,16 @@ function updateCharger(d, e, pd, sp, dt, free) {
     return;
   }
   if (pd > e.r + 6) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
+}
+
+// The Hollow comes straight on, through anything that stands in the way,
+// and touches.
+function updateHollow(d, e, pd, sp) {
+  const def = T.enemies.hollow;
+  e.state = 'chase';
+  const w = wayToPlayer(d, e);
+  moveBody(d.floor, e, w.x * sp, w.y * sp, e.r);
+  if (pd < def.contact + T.player.radius && e.cd <= 0) { hurtPlayer(e.dmg, e); e.cd = def.cooldown; }
 }
 
 // Rooted flora: it doesn't move or take turns; it waits to be close enough.

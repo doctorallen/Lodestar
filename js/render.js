@@ -341,8 +341,8 @@ function renderFrame() {
     }
 
   // the lodeline: a shimmering beam from the anchor straight up
-  if (f.pad) {
-    const bx = (f.pad.x + 0.5) * TILE + ox, bot = (f.pad.y + 0.5) * TILE + oy, half = 3;
+  if (f.pad && !d.padDark) {
+    const bx = (f.pad.x + 0.5) * TILE + ox, bot = (f.pad.y + 0.5) * TILE + oy, half = d.hub ? 3 : Math.max(1, Math.round(3 * Math.min(1, d.pull * 2)));
     if (bot > 0 && bx > -TILE && bx < View.w + TILE) {
       for (let y = 0; y < bot; y++)
         for (let i = -half; i < half; i++) {
@@ -419,8 +419,16 @@ function renderFrame() {
     if (s.beam) addBeamLight(lx, s.x, s.y0, s.y1, s.r, s.i, s.c);
     else addLight(lx, s.x, s.y, s.r, s.i, s.c);
   }
-  // the lamp gutters out as the diver dies
-  const lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
+  // the lamp gutters out as the diver dies, and dims as the star's pull fades
+  let lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
+  if (!d.hub && d.pull < T.pull.dimAt) lamp *= lerp(T.pull.lampMin, 1, d.pull / T.pull.dimAt);
+  // a channel home: a ring filling round the diver, the light swelling
+  if (d.channel) {
+    const k = d.channel.t / d.channel.max, col = d.channel.kind === 'recall' ? '#c9a2ff' : ART.pal.star[3];
+    const n = 28;
+    for (let i = 0; i < n * k; i++) { const a = -Math.PI / 2 + (i / n) * Math.PI * 2; dot(Math.round(fx + Math.cos(a) * 12), Math.round(fy - 8 + Math.sin(a) * 9), col, true); }
+    lights.push({ x: fx, y: fy - 8, r: TILE * (1.5 + k * 2), i: 0.6 + k, c: rgb01(col) });
+  }
   addLight(lx, fx, fy - 17, Lt.lamp[0] * TILE * lamp, Lt.lamp[1] * lamp, rgb01(ART.pal.lamp[0]));
   lightScene(camX, camY);
   bloomScene();
@@ -610,7 +618,7 @@ function drawFocusHeld(d, it, hand, lights) {
 function drawEnemy(d, e, ox, oy, tick, lights) {
   const spr = enemySprite(d, e.type), x = View.ctx;
   let lift = 0;
-  if (e.type === 'wisp') lift = 5 + Math.round(Math.sin(e.bob * 3) * 1.5);
+  if (e.type === 'wisp' || e.type === 'hollow') lift = 5 + Math.round(Math.sin(e.bob * 3) * 1.5);
   else if (T.enemies[e.type].rooted) lift = e.state === 'windup' ? 1 : 0;
   else if ((e.state === 'chase' || e.state === 'circle') && Math.floor(e.bob * 8) % 2) lift = 1;
   else if (e.state === 'lunge') lift = 2;
@@ -627,7 +635,7 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   } else drawArtSprite(spr, sx, sy);
   const pal = ENEMY_PAL[T.biomes[d.biome].id];
   // their eyes and cores light the floor round them, brighter as they wind up
-  const glow = e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : T.enemies[e.type].rooted ? PLANT_GLOW : pal.rune[0];
+  const glow = e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : e.type === 'hollow' ? '#ff2a6a' : T.enemies[e.type].rooted ? PLANT_GLOW : pal.rune[0];
   lights.push({ x: fx, y: fy - spr.h / 2, r: (e.boss ? 2.4 : e.type === 'wisp' ? 1.5 : 0.9) * TILE, i: e.state === 'windup' ? 1.2 : 0.5, c: rgb01(glow) });
   // tells: a crawler's line before it lunges, a construct's charge line,
   // stars round anything dazed

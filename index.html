@@ -18,6 +18,7 @@
     <div class="bars">
       <div id="hud-hp" class="bar hp"><div id="hp-fill" class="fill"></div><span id="hp-text" class="bar-text"></span></div>
       <div id="hud-ch" class="bar ch"><div id="ch-fill" class="fill"></div></div>
+      <div id="hud-pull" class="bar pull" title="The star's pull"><div id="pull-fill" class="fill"></div></div>
     </div>
     <span id="hud-depth" class="hud-depth"></span>
     <button id="btn-cargo" class="icon-btn cargo" aria-label="Cargo"></button>
@@ -83,9 +84,10 @@
     <div class="menu">
       <button id="pause-resume" class="btn primary" data-act="resume">RESUME</button>
       <button id="pause-cargo" class="btn" data-act="go" data-arg="screen-cargo">CARGO</button>
+      <button id="pause-recall" class="btn" data-act="recall">EMERGENCY RECALL</button>
       <button id="pause-abandon" class="btn danger" data-act="abandon">ABANDON DIVE</button>
     </div>
-    <p id="pause-note" class="note">Abandoning loses everything in your cargo. What you wear is safe.</p>
+    <p id="pause-note" class="note">Recalling takes a few seconds standing still and costs part of the cargo. Abandoning loses all of it. What you wear and your pocket are safe either way.</p>
     <div class="build" id="build"></div>
   </section>
 

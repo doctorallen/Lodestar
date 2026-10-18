@@ -13,6 +13,7 @@ const { launch, openGame, shot, finish, PHONE, DESKTOP } = require('./lib');
 // anvil, the rune bench, the star's altar.
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const T_RECALL = 4; // seconds; T.leave.recall
 const failures = [];
 const check = (ok, msg) => { if (!ok) failures.push(msg); };
 
@@ -187,8 +188,19 @@ async function phone(browser) {
   await run(page, 0.1);
   await shot(page, 'smoke-lodeline');
   check(await page.evaluate(() => $('btn-act').textContent === 'EXTRACT'), 'phone: no EXTRACT on the lodeline');
+  // moving breaks the channel; standing still sees it through
   await tap(page, '#btn-act');
+  await run(page, 0.5);
+  check(await page.evaluate(() => !!Game.dive.channel), 'phone: EXTRACT did not start rising');
+  await page.evaluate(() => { Game.dive.p.x += 6; });
   await run(page, 0.1);
+  check(await page.evaluate(() => !Game.dive.channel && !Game.dive.hub), 'phone: moving did not break the channel');
+  await page.evaluate(standOn, 'pad');
+  await run(page, 0.1);
+  await tap(page, '#btn-act');
+  await run(page, 0.6);
+  await shot(page, 'smoke-rising');
+  await run(page, 1.2);
   check(await visible(page, '#screen-report'), 'phone: EXTRACT did not report the dive');
   check(/Banked/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the haul');
   const banked = await page.evaluate(() => [Object.values(Save.data.stash).reduce((a, b) => a + b, 0) + Save.data.items.length * T.cargo.itemWeight, JSON.parse(localStorage.getItem('lodestar.save.v2')), Save.data.star]);
@@ -249,16 +261,42 @@ async function phone(browser) {
   await run(page, 0.4);
   await shot(page, 'smoke-feed');
 
-  // dying loses the cargo, keeps what's worn
+  // the star's pull fades: the lodeline goes dark and the Hollow comes
+  await page.evaluate(() => UI.acts.dive('0'));
+  const pulled = await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) e.dead = true; d.p.hp = 1e9; d.stats.maxHp = 1e9; d.pull = 0.001; for (let i = 0; i < 30; i++) Game.step(1 / 60); return [d.padDark, d.enemies.some((e) => e.type === 'hollow' && !e.dead), d.floor.pad ? (d.p.x = (d.floor.pad.x + 0.5) * TILE, d.p.y = (d.floor.pad.y + 0.5) * TILE, actionHere()) : null]; });
+  check(pulled[0] && pulled[1], `phone: a drained pull did not darken the lodeline and bring the Hollow (${pulled})`);
+  check(pulled[2] !== 'extract', 'phone: a dark lodeline still extracts');
+  await run(page, 0.3);
+  await shot(page, 'smoke-hollow');
+  // an emergency recall brings most of it home
+  await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) e.dead = true; d.cargo = { ferrite: 20 }; d.items = []; Save.data.stash.ferrite = 0; });
+  await tap(page, '#btn-pause');
+  await tap(page, '#pause-recall');
+  await run(page, T_RECALL + 0.3);
+  check(await visible(page, '#screen-report'), 'phone: the recall did not come home');
+  const recalled = await page.evaluate(() => [Save.data.stash.ferrite, Math.round(20 * (1 - recallCost({ depth: 1 })))]);
+  check(recalled[0] === recalled[1], `phone: the recall banked ${recalled[0]} Ferrite, not ${recalled[1]}`);
+  await tap(page, '#screen-report [data-act=closeReport]');
+
+  // dying loses the cargo, keeps what's worn and what's pocketed
   const kept = await page.evaluate(() => [Save.data.equip.main.uid, Save.data.stash.ferrite]);
   await page.evaluate(() => UI.acts.dive('0'));
-  await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 9; d.items.push(makeRelic(1)); d.p.invuln = 0; hurtPlayer(9999, null); });
+  await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 9; d.items.push(makeRelic(1)); d.items.push(makeItem(new Rng(9), 'charm', 1, { rarity: 'rare' })); });
+  await tap(page, '#btn-cargo');
+  const charm = await page.evaluate(() => Game.dive.items.find((i) => i.kind === 'charm').uid);
+  await tap(page, `#cargo-body [data-act=cardCargo][data-arg="${charm}"]`);
+  await tap(page, '#card [data-act=pocket]');
+  check(await page.evaluate(() => Game.dive.pocket.length === 1), 'phone: POCKET did not pocket the charm');
+  await tap(page, '#screen-cargo [data-act=resume]');
+  await page.evaluate(() => { const d = Game.dive; d.p.invuln = 0; hurtPlayer(9999, null); });
   await run(page, 1);
   await shot(page, 'smoke-dying');
   await run(page, 1);
   check(await visible(page, '#screen-report'), 'phone: dying did not report');
   check(/YOU FELL/.test(await page.evaluate(() => $('report-title').textContent)), 'phone: the report does not say you fell');
   check(await page.evaluate(([w, fe]) => Save.data.equip.main.uid === w && Save.data.stash.ferrite === fe && !Save.data.items.some((i) => i.kind === 'relic'), kept), 'phone: dying kept the cargo or lost the gear');
+  check(await page.evaluate(() => Save.data.items.some((i) => i.kind === 'charm')), 'phone: the pocketed charm did not survive the fall');
+  check(/pocket kept/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the pocket');
 
   // every hole a mined vein leaves can be walked into, from the side or the corner
   const holes = await page.evaluate(() => {
