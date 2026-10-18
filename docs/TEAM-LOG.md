@@ -2,6 +2,46 @@
 
 An overnight run of a small development team of agents. Each round, reviewers in different roles (QA, game design, engineering, balance, mobile UX) look at the game and report. The producer (the main Claude session) decides what to change, builds it, tests it, and commits. This log records what each round found, what was decided and why, and what shipped, so the designer can review it all in the morning. Major gameplay decisions also go in `DECISIONS.md`.
 
+## For the morning (summary)
+
+Three review rounds overnight, with QA, a game designer, an engineer, a balance analyst, a mobile UX reviewer and an artist, plus two builders on branches. Everything below is on `main`, tested and deployed.
+
+**What's new to play:**
+- **Expeditions** of 4 sites instead of delving one zone. Each site is a different zone (the sunlit surface, caves, ruins), with two signposted ways on, and a Keeper's Lair or Deep Vein at the end. Lodelines get rarer the further you go.
+- **The sunlit surface,** where the daylight is the star's pull: it sets to dusk, then night and the Hollow. Mesas, plants, lizards, flocks of birds, drifting cloud shadows. Some expeditions run under a Lodestorm, whose marked strikes can charge a vein.
+- **Rifts,** above and below ground: grafts of another biome's ground, ore wakes, paired gates, daylight in a cave. Seal one for riftglass, which forges a tier higher; an open tear sends out rift-touched elites until it's sealed.
+- **Tools:** carry one, chosen at the ledge. The Compass points to the nearest lodeline. Ore Sense, Threat Radar, the Lode Beacon (call a lodeline down where you stand), a Surveyor's Map and a Deep Satchel are made as the star grows.
+- **Contracts:** three goals always posted, paid on coming home.
+- **Imprinting:** legendaries you salvage teach the forge their power, and you can strike it into new pieces.
+- **A fair Keeper finale** (the fight no longer races the pull).
+- **Expeditions survive the tab closing.**
+- **The outpost** has its stations labelled.
+
+**Polish:**
+- About 40 bugs fixed across three QA passes, and two crashes.
+- Rendering is about 35% cheaper per frame, and floors paint 2–2.5× faster.
+- Phone layout fixes, for 320 px wide and held sideways.
+- The forge, the item card and the reports were redone for clarity.
+
+**Balance:** a 5-minute session is one expedition: 2–3 sites, about one contract and one craft, and visible progress on the star.
+
+**Decisions for you to review** (each is in DECISIONS.md with its reasons):
+1. Expeditions replace "delve as deep as you like" (`f12ae85`).
+2. The pull is ~100 s a site; the lodeline odds are 100/80/60/40% by site.
+3. The Keepers live in lairs at site 4, with the pull held during the fight.
+4. One tool slot, with tools made once from the stash.
+5. Contracts with no timers or daily resets.
+6. Imprinting, and relics from elites halved.
+7. Balance: 40 cargo, 1 ore a vein, more charge for casters, more armor health.
+
+**Not done** (candidates for next time):
+- Grazers and a stranded diver to escort on the surface.
+- More rift kinds (phase seams, gravity wells, time slips).
+- Attunement pairs with free respec.
+- A Daily Trace.
+- A lodeline mark on signposts for map carriers.
+- Whether imprinting should make a piece legendary.
+
 ## The brief (from the designer, 2026-10-18)
 
 - Polished and balanced.
