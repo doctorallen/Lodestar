@@ -538,12 +538,13 @@ function foeLook(d, e) {
   else if (t === 'crab') { frame = s === 'windup' || s === 'lunge' ? 'windup' : (s === 'chase' || s === 'circle') && walk ? 'move' : 'idle'; variant = e.cracked > 0 ? 'cracked' : e.slowT > 0 ? 'frozen' : null; }
   else if (t === 'weaver') frame = s === 'windup' || s === 'weave' ? 'windup' : walk ? 'move' : 'idle';
   else if (t === 'sentinel') { frame = s === 'windup' ? 'windup' : s === 'sweep' ? 'sweep' : (e.bob % 2.6) < 0.6 ? 'look' : 'idle'; lift = 7 + Math.round(Math.sin(e.bob * 2.4) * 1.5); }
-  else if (t === 'idol') frame = s === 'windup' ? 'windup' : s === 'lunge' ? 'lunge' : s === 'creep' ? 'creep' : 'still';
+  else if (t === 'idol') frame = s === 'windup' ? 'windup' : s === 'lunge' ? 'lunge' : s === 'creep' ? (walk ? 'creep2' : 'creep') : 'still';
   else if (t === 'hound') frame = s === 'windup' ? (Math.floor(e.t * 10) % 2 ? 'wind' : 'wind2') : s === 'charge' ? 'dash' : s === 'spent' ? 'spent' : walk ? 'move' : 'idle';
-  // the tusker and the hound are drawn side on: they face their way
-  if (t === 'tusker' || t === 'hound') {
-    const dx = s === 'charge' || s === 'slide' ? e.vx : s === 'windup' ? e.aimX - e.x : d.p.x - e.x;
-    if (Math.abs(dx) > 3) e.face = dx < 0 ? -1 : 1;
+  // the tusker, the hound and the idol are drawn side on: they face their
+  // way (an idol in the light is stone, and keeps the way it faced)
+  if (t === 'tusker' || t === 'hound' || t === 'idol') {
+    const dx = s === 'charge' || s === 'slide' || s === 'lunge' ? e.vx : s === 'windup' ? e.aimX - e.x : d.p.x - e.x;
+    if (Math.abs(dx) > 3 && !(t === 'idol' && (s === 'still' || s === 'recover'))) e.face = dx < 0 ? -1 : 1;
     if (e.face < 0) variant = 'flip';
   }
   // the idol in the light, and anything spent, is dark-eyed
