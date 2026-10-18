@@ -4,7 +4,7 @@
 // tap; everything here wraps round that instant: the diver's arm thrusts the
 // focus at the aim (the pose frames are in diver.js, drawn in render.js), a
 // burst flashes at the fist, a rune circle flashes under the feet, motes
-// rise and a ring pulses round the body; the big spells sweep a ring over
+// rise round the body; the big spells sweep a ring over
 // the ground, push dust away and stir the flora. Bolts leave from the fist,
 // trail and shed motes by their element, and burst where they land, leaving
 // a mark on the ground that fades. A held charge gathers motes into the
@@ -20,14 +20,16 @@
 const CFX = {
   dive: null,
   parts: [], // motes, streaks, sparks, cinders, smoke, ice, dust
-  rings: [], // glyphs, sweeps, pulses, flashes, bursts
+  rings: [], // glyphs, sweeps, flashes, bursts
   decals: [], // marks on the ground
   ghosts: [], // afterimages of the diver
   flares: [], // lights that flare and die
   waves: [], // rings that stir the flora as they pass
   origin: null, // where the last cast's fist was, for the bolts it fired
   last: null, // the last cast's aim and hand, for an Echo
-  focusAt: { main: null, off: null }, // each focus, in world px, as drawn
+  focusAt: { main: null, off: null }, // each focus, from the feet, world px, as drawn
+  day: false, // under the sky in daylight, this frame (cfxLight)
+  dayLights: [], // the cast's lights this frame, in daylight
 };
 
 // Kinds of mote.
@@ -137,7 +139,7 @@ function castFxStart(d, item, slot, style, charged, kinds) {
 }
 
 // The flash at the fist, the motes it kicks out, the circle under the feet,
-// the motes rising round the body, the ring pulsing out from it.
+// the motes rising round the body.
 function cfxCastBurst(p, a, hand, col, big, charged, style, ghost) {
   const C = T.castFx, ca = Math.cos(a), sa = Math.sin(a), n = charged ? 2 : 1;
   CFX.rings.push({ kind: 'flash', x: hand.x, y: hand.y, a, col, t: C.flash[0] * n, max: C.flash[0] * n, f: true, big: charged || style === 'gauntlet' });
@@ -153,7 +155,6 @@ function cfxCastBurst(p, a, hand, col, big, charged, style, ghost) {
     const q = cfxPart(CFX_MOTE, 0, 0, 0, 0, C.moteTime * FX_R.f(0.7, 1.2), k % 2 ? col : mix(col, '#ffffff', 0.5), col, true);
     if (q) { q.a = (k / (C.motes * n)) * Math.PI * 2 + FX_R.f(0.4); q.r = FX_R.f(5, 9); q.h = FX_R.f(0, 4); }
   }
-  CFX.rings.push({ kind: 'pulse', x: 0, y: -8, r0: C.pulse[0], r1: C.pulse[1] * (big ? 1.4 : 1), col, t: C.pulse[2], max: C.pulse[2], f: true });
   // a gauntlet's punch: a knuckle-ring knocked off the fist
   if (style === 'gauntlet') CFX.rings.push({ kind: 'burst', x: hand.x + ca * 2, y: hand.y + sa * 2, r0: 1, r1: 6, col, t: 0.12, max: 0.12, f: true });
 }
@@ -414,6 +415,31 @@ function cfxPic(key, w, h, paint) {
   return pic;
 }
 
+// A cast's light (x, y on the view, r world px, i, c as for lights). In
+// the dark, as it is. Under the sky in daylight a light would only wash the
+// ground and the diver out, so it's small and tight (T.castFx.day: a share
+// of its radius), and kept to one band at most: lights that overlap are
+// merged into one, and none is brighter than a band (cfxDayLights). The
+// pixels carry the cast there, not the light.
+function cfxLight(lights, x, y, r, i, c) {
+  if (!CFX.day) { lights.push({ x, y, r, i, c }); return; }
+  CFX.dayLights.push({ x, y, r: r * T.castFx.day, i: Math.min(i, 1 / T.art.lightSteps), c });
+}
+
+// The day's cast lights, those that overlap merged (the brightest's place
+// and colour, the widest reach), into the frame's.
+function cfxDayLights(lights) {
+  const out = [];
+  for (const l of CFX.dayLights) {
+    const m = out.find((o) => Math.hypot(o.x - l.x, o.y - l.y) < (o.r + l.r) * AP);
+    if (!m) { out.push(Object.assign({}, l)); continue; }
+    if (l.i > m.i) { m.x = l.x; m.y = l.y; m.c = l.c; m.i = l.i; }
+    m.r = Math.max(m.r, l.r);
+  }
+  for (const o of out) lights.push(o);
+  CFX.dayLights.length = 0;
+}
+
 // A ring's radius in art px, in steps of 2 past 16, so the pictures kept
 // for the rings on the ground are fewer.
 const cfxQuant = (r) => (r <= 16 ? Math.round(r) : Math.round(r / 2) * 2);
@@ -522,6 +548,9 @@ function cfxDecal(x, y, kind, big) {
 // Under everyone: marks, glyphs, swept rings, a charging circle and the
 // afterimages. ox, oy: the floor's offset on the view.
 function drawCastGround(d, ox, oy, tick, lights) {
+  const zl = !d.hub && T.zones[d.zone] && T.zones[d.zone].light;
+  CFX.day = !!(zl && d.pull > zl.lampAt);
+  CFX.dayLights.length = 0;
   if (CFX.dive !== d) return;
   const p = d.p, c = View.ctx, e = View.emCtx;
   for (const m of CFX.decals) {
@@ -625,7 +654,6 @@ function drawCastAir(d, ox, oy, tick, lights) {
   for (const r of CFX.rings) {
     const k = r.t / r.max, u = 1 - k, x = r.f ? fx + Math.round(r.x * AP) : vx(r.x), y = r.f ? fy + Math.round(r.y * AP) : vy(r.y);
     if (r.kind === 'flash') cfxDrawFlash(x, y, r.a, r.col, k, r.big);
-    else if (r.kind === 'pulse') cfxRingDots(x, y, Math.round(lerp(r.r0, r.r1, u) * AP), r.col, cfxBand(k));
     else if (r.kind === 'sweep' && r.air) {
       const rx = Math.round(lerp(r.r0, r.r1, u) * AP), a = cfxBand(Math.min(1, k * 1.6));
       cfxRingDots(x, y, rx, mix(r.col, '#ffffff', 0.4), a); cfxRingDots(x, y, rx - 1, r.col, a);
@@ -636,13 +664,11 @@ function drawCastAir(d, ox, oy, tick, lights) {
       if (r.pillar) { const L = Math.round(ap(14) * k); for (let j = -L; j <= L; j++) dot(x, y + j, Math.abs(j) < 3 ? '#ffffff' : r.col, true, cfxBand(k * (1 - Math.abs(j) / (L + 1)))); }
     }
   }
-  // (in daylight a flare would only wash the ground out, so it's dimmed, as
-  // the lamp is)
-  const zl = !d.hub && T.zones[d.zone] && T.zones[d.zone].light, dim = zl && d.pull > zl.lampAt ? T.castFx.dayFlare : 1;
   for (const l of CFX.flares) {
     const k = l.t / l.max;
-    lights.push({ x: l.f ? fx + Math.round(l.x * AP) : vx(l.x), y: l.f ? fy + Math.round(l.y * AP) : vy(l.y), r: l.r * (0.6 + 0.4 * k), i: l.i * k * dim, c: l.c });
+    cfxLight(lights, l.f ? fx + Math.round(l.x * AP) : vx(l.x), l.f ? fy + Math.round(l.y * AP) : vy(l.y), l.r * (0.6 + 0.4 * k), l.i * k, l.c);
   }
+  cfxDayLights(lights);
 }
 
 // The flash at the fist: a white heart, rays out along the aim and across
@@ -674,7 +700,7 @@ function drawCastBolt(b, ox, oy, tick, lights) {
     for (let k = 0; k < n; k++) dot(Math.round(x - ux * k), Math.round(y - uy * k), k === glint || k < ap(2) ? '#ffffff' : col, true, 1 - (k / AP) * 0.12);
     // its sides, a pixel either way at the middle: a shard, not a line
     for (const s of [-1, 1]) dot(Math.round(x - ux * ap(2) - uy * s), Math.round(y - uy * ap(2) + ux * s), mix(col, '#5a8aa8', 0.4), true, 0.75);
-    lights.push({ x, y, r: TILE, i: 0.6, c: rgb01(col) });
+    cfxLight(lights, x, y, TILE, 0.6, rgb01(col));
     return;
   }
   // the trail: dots behind, dimmer and darker with each
@@ -697,7 +723,7 @@ function drawCastBolt(b, ox, oy, tick, lights) {
   }
   // shock crackles about its head
   if (el === 'shock') for (let k = 0; k < 2; k++) dot(x + FX_R.i(-3, 3), y + FX_R.i(-3, 3), k ? '#ffffff' : col, true);
-  lights.push({ x, y, r: TILE * (b.big ? 1.4 : 1), i: 0.6 + (tick % 2) * 0.15, c: rgb01(col) });
+  cfxLight(lights, x, y, TILE * (b.big ? 1.4 : 1), 0.6 + (tick % 2) * 0.15, rgb01(col));
 }
 
 // The diver's ember glob in flight: a lump that turns, burning.
@@ -706,7 +732,7 @@ function drawCastGlob(g, ox, oy, tick, lights) {
   const x = Math.round((g.x + (c ? c.ox * o : 0)) * AP) + ox, y = Math.round((g.y + (c ? c.oy * o : 0)) * AP) + oy, col = CFX_ELEMENTS.ember.col;
   const shapes = [[[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]], [[0, 0], [1, 0], [0, 1], [1, 1], [2, 1], [1, 2]], [[0, 0], [1, 0], [0, 1], [1, 1], [1, -1], [-1, 1]]];
   shapes[(tick >> 1) % 3].forEach(([i, j], k) => dot(x + i, y + j, k === 0 ? '#ffd0a0' : k > 3 ? mix(col, '#000000', 0.3) : col, true));
-  lights.push({ x, y, r: TILE * 1.1, i: 0.7, c: rgb01(col) });
+  cfxLight(lights, x, y, TILE * 1.1, 0.7, rgb01(col));
 }
 
 // A chain's arc: a jagged white line with the colour round it and a fork,
@@ -723,7 +749,7 @@ function drawCastArc(fx, ox, oy, lights) {
     px = tx; py = ty;
   }
   for (const [x, y] of [[x0, y0], [x1, y1]]) for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) dot(x + i, y + j, i || j ? col : '#ffffff', true, a);
-  lights.push({ x: (x0 + x1) >> 1, y: (y0 + y1) >> 1, r: TILE * 1.4, i: 0.8 * k, c: rgb01(col) });
+  cfxLight(lights, (x0 + x1) >> 1, (y0 + y1) >> 1, TILE * 1.4, 0.8 * k, rgb01(col));
 }
 
 function cfxLine(x0, y0, x1, y1, col, alpha) {

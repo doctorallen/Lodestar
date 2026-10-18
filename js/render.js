@@ -663,7 +663,8 @@ function renderFrame() {
       const a = n * 2.4 + pu.max, r = (n % 5) / 5 * pu.r * AP;
       dot(Math.round(cx + Math.cos(a + Game.realT * 0.6) * r), Math.round(cy + Math.sin(a) * r * 0.7 - (pu.mine ? (Game.realT * 8 + n) % ap(4) : 0)), n % 3 ? mix(col, '#000000', 0.4) : col, true, 0.55 * k);
     }
-    lights.push({ x: cx, y: cy, r: TILE * 1.1, i: 0.4 * k, c: rgb01(col) });
+    if (pu.mine) cfxLight(lights, cx, cy, TILE * 1.1, 0.4 * k, rgb01(col));
+    else lights.push({ x: cx, y: cy, r: TILE * 1.1, i: 0.4 * k, c: rgb01(col) });
   }
   for (const g of d.globs) {
     if (g.mine) { drawCastGlob(g, ox, oy, tick, lights); continue; }
@@ -680,14 +681,14 @@ function renderFrame() {
         dot(x, y, spike ? ELEMENT_COLS.blight : '#4a5a30', spike, k);
         if (spike) dot(Math.round(x + Math.cos(a) * ap(2)), Math.round(y + Math.sin(a) * ap(1.5)), '#d8f0a0', true, k);
       }
-      lights.push({ x: cx, y: cy, r: au.r * 1.2, i: 0.35 * k, c: rgb01(ELEMENT_COLS.blight) });
+      cfxLight(lights, cx, cy, au.r * 1.2, 0.35 * k, rgb01(ELEMENT_COLS.blight));
     } else {
       // a gravity well: a dark spiral drawing in
       for (let n = 0, N = Math.round(24 * AP); n < N; n++) {
         const a = n * 0.7 - Game.realT * 5, r = ((n * 3 + Game.realT * 30 * AP) % R);
         dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.75), n % 3 ? '#2a1848' : ART.cores.well, true, k * (1 - r / R));
       }
-      lights.push({ x: cx, y: cy, r: au.r, i: 0.5 * k, c: rgb01(ART.cores.well) });
+      cfxLight(lights, cx, cy, au.r, 0.5 * k, rgb01(ART.cores.well));
     }
   }
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
@@ -861,7 +862,8 @@ function drawProspector(d, ox, oy, tick, lights) {
     if (lv <= 0) continue;
     const focus = handKind(it) === 'focus', col = focus ? castFxCol(it) : '#fff2c8';
     if (!focus) ringDots(fx, fy - ap(10), (15 - lv * 5) * AP, col, lv >= 1 ? (tick % 2 ? 1 : 0.5) : 0.25 + lv * 0.5, true);
-    lights.push({ x: fx, y: fy - ap(10), r: TILE * (0.8 + lv), i: 0.3 + lv * 0.6, c: rgb01(col) });
+    if (focus) cfxLight(lights, fx, fy - ap(10), TILE * (0.8 + lv), 0.3 + lv * 0.6, rgb01(col));
+    else lights.push({ x: fx, y: fy - ap(10), r: TILE * (0.8 + lv), i: 0.3 + lv * 0.6, c: rgb01(col) });
   }
   if (p.mine && !p.mine.refused && d.target) {
     const phase = tick % 4, striking = phase >= 2, hand = handOf(p, spr, sx, sy, 'main');
@@ -1029,7 +1031,7 @@ function drawFocusHeld(d, it, hand, lights, slot, tick) {
   }
   // a charge: a ring of light round it, closing as it fills
   if (lv > 0.3) ringDots(x, y, (6 - lv * 3) * AP, col, full ? 1 : 0.5, true);
-  lights.push({ x, y, r: TILE * (0.9 + flare + lv * 1.2), i: 0.5 + flare + lv * 0.8, c: rgb01(col) });
+  cfxLight(lights, x, y, TILE * (0.9 + flare + lv * 1.2), 0.5 + flare + lv * 0.8, rgb01(col));
 }
 
 function drawEnemy(d, e, ox, oy, tick, lights) {
@@ -1145,7 +1147,7 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     dot(Math.round(lerp(cx, sx, t * t) + wob), Math.round(lerp(cy, sy, t)), ART.pal.star[t > 0.8 ? 3 : 2], true);
   } else if (fx.kind === 'nova') {
     // (its ring is swept over the ground: castFxBig)
-    lights.push({ x: cx, y: cy, r: fx.r * 1.3, i: k, c: rgb01(ART.cores.nova) });
+    cfxLight(lights, cx, cy, fx.r * 1.3, k, rgb01(ART.cores.nova));
   } else if (fx.kind === 'arc') drawCastArc(fx, ox, oy, lights); else if (fx.kind === 'blast') {
     ringDots(cx, cy, fx.r * (1 - k * 0.6) * AP, '#ff7a3a', k, true);
     lights.push({ x: cx, y: cy, r: fx.r * 1.5, i: 1.2 * k, c: [1, 0.5, 0.25] });

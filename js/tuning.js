@@ -257,8 +257,7 @@ const T = {
   //     how many motes it kicks out, [least, most] speed.
   //   glyph: the rune circle under the feet, [radius from, radius to,
   //     seconds]; glyphBig: the same for the big spells; motes: how many
-  //     rise round the diver, and for how long; pulse: [radius from, to,
-  //     seconds] of the aura's ring.
+  //     rise round the diver, and for how long.
   //   shapes: what a spell does about the diver, by its shape (castFxFor),
   //     so a new spell takes its shape's look: projectile (drawn from the
   //     bolts themselves); sweep (a close ring in front), burst (a ring swept
@@ -280,13 +279,14 @@ const T = {
   //     radius [empty, full].
   //   echo: how long the ghost of a recast pose lasts.
   //   cap: the most motes alive at once (past it, new ones are skipped); flares: the
-  //     most lights flaring at once (the oldest make way); dayFlare: how
-  //     bright they are in daylight.
+  //     most lights flaring at once (the oldest make way); day: under the
+  //     sky in daylight, the share of its radius a cast's light keeps (and
+  //     it's never brighter than one band of light: cfxLight).
   castFx: {
     pose: 0.2, thrust: 0.45,
     lean: { wand: [1, 1], gauntlet: [2, 1], staff: [1, 0] }, reach: { wand: 3, gauntlet: 1, staff: 4 }, lift: 4,
     flash: [0.12, 1.5, 1.0], streaks: 5, streakSpeed: [50, 110],
-    glyph: [6, 10, 0.32], glyphBig: [9, 16, 0.5], motes: 6, moteTime: 0.55, pulse: [4, 9, 0.14],
+    glyph: [6, 10, 0.32], glyphBig: [9, 16, 0.5], motes: 6, moteTime: 0.55,
     shapes: {
       projectile: {},
       sweep: { from: 3, time: 0.2, dust: 6, bloom: [1, 0.8, 0.2] },
@@ -299,7 +299,7 @@ const T = {
     bolt: { originT: 0.07, trail: 5, every: 0.035 }, impact: [7, 1.1, 1.1, 0.16], decal: [1.6, 16],
     charge: { motes: 40, glyph: [5, 13] },
     echo: 0.3,
-    cap: 180, flares: 10, dayFlare: 0.3,
+    cap: 180, flares: 10, day: 0.33,
   },
   // Elements a weapon or focus carries. shock: this share of hits arcs on;
   // frost: hits chill, and a heavy hit on the chilled shatters for `shatter`
