@@ -34,9 +34,13 @@ const FOE_PAL = {
   wraith: { hide: ['#2a2224', '#5a4a48', '#8a7670', '#b8a498'], maw: ['#0a0406'], eye: ['#ffb040'], core: ['#ff6a1a'], flame: ['#ffd060'], white: ['#fff4d0'] },
   // peat-violet, mossy spots, a pale throat, chartreuse eyes
   lurker: { hide: ['#160c16', '#342034', '#56385a', '#7c5a7e'], moss: ['#1c220e', '#3c4a1c', '#62762e', '#8ea044'], belly: ['#4a3a2c', '#8a7058', '#b89a78', '#dcc4a0'], maw: ['#100408'], eye: ['#d8ff5a'], core: ['#ff6a8a'] },
+  // a grey-green carapace, a pale cave-flesh belly, a row of red eyes
+  dropper: { hide: ['#0e120e', '#263024', '#42503a', '#6a7a58'], belly: ['#3a2e34', '#7a6670', '#a8949a', '#d4c4c4'], eye: ['#ff5a2a'], white: ['#ffd8b0'] },
+  // deep teal, a pale belly, blue fins, glowing spots
+  eel: { hide: ['#081420', '#163248', '#245678', '#3c82a8'], belly: ['#2a3440', '#5a7884', '#8ab0b4', '#c4e4e0'], horn: ['#1a2a48', '#3a5a8a', '#6a90c4', '#a8c8f0'], maw: ['#04060a'], eye: ['#e8ff8a'], core: ['#8ae8ff'] },
 };
 // what each one's eyes or core light the floor with
-const FOE_GLOW = { skink: '#ffb02a', tusker: '#8fe4ff', wraith: '#ff6a1a', lurker: '#d8ff5a' };
+const FOE_GLOW = { skink: '#ffb02a', tusker: '#8fe4ff', wraith: '#ff6a1a', lurker: '#d8ff5a', dropper: '#ff5a2a', eel: '#8ae8ff' };
 
 // A frame that's another with some of its rows redrawn: { row: 'pixels' }.
 function foeRowsFrom(base, rows) { return base.map((r, i) => (rows[i] !== undefined ? rows[i] : r)); }
@@ -377,6 +381,128 @@ const FOE_ROWS = {
     attack: foeRowsFrom(FOE_LURKER_UP, {
       7: 'HDDDDDDDDDDDDDDDDDH', 8: 'HDDDDDDDCCCDDDDDDDH', 9: 'HDDDDDDDDCDDDDDDDDH', 10: 'HHDDDDDDDDDDDDDDDHH', 11: '.HHBBBBBBBBBBBBBHH.',
     }),
+  },
+  // the Ceiling Dropper: a squat, round thing on hooked legs, a pale belly
+  // and a row of red eyes; legs flung wide as it lands
+  dropper: {
+    idle: [
+      '.........................',
+      '...........HHH...........',
+      '....jjj..HHHHHHH..jjj....',
+      '...j...jHHHHHHHHHj...j...',
+      '...j...HHHhHHHhHHH...j...',
+      '..j....HHHHHHHHHHH....j..',
+      '....jjjHHhHHHHHhHHjjj....',
+      '...j...BBBBBBBBBBB...j...',
+      '...j...BBEBEBEBEBB...j...',
+      '..j....jBBBBBBBBBj....j..',
+      '.....jj...BBBBB...jj.....',
+      '....j...............j....',
+      '....j...............j....',
+      '...j.................j...',
+    ],
+    move: [
+      '.........................',
+      '...........HHH...........',
+      '.........HHHHHHH.........',
+      '....jjjjHHHHHHHHHjjjj....',
+      '...j...HHHhHHHhHHH...j...',
+      '...jjj.HHHHHHHHHHH.jjj...',
+      '..jj..jHHhHHHHHhHHj..jj..',
+      '...j...BBBBBBBBBBB...j...',
+      '..j....BBEBEBEBEBB....j..',
+      '.......jBBBBBBBBBj.......',
+      '......j...BBBBB...j......',
+      '.....j.............j.....',
+      '.....j.............j.....',
+      '....j...............j....',
+    ],
+    windup: [
+      '.........................',
+      '.........................',
+      '...........HHH...........',
+      '.........HHHHHHH.........',
+      '...jjjjjHHHHHHHHHjjjjj...',
+      '..j....HHHhHHHhHHH....j..',
+      '..j....HHHHHHHHHHH....j..',
+      '...jjjjHHhHHHHHhHHjjjj...',
+      '..j....BBBBBBBBBBB....j..',
+      '..j....BBWBWBWBWBB....j..',
+      '......jjBBBBBBBBBjj......',
+      '....jj....BBBBB....jj....',
+      '...j.................j...',
+      '...j.................j...',
+    ],
+    drop: [
+      '.........................',
+      '...........HHH...........',
+      '.........HHHHHHH.........',
+      '..jjjjj.HHHHHHHHH.jjjjj..',
+      '.j.....HHHhHHHhHHH.....j.',
+      '.......HHHHHHHHHHH.......',
+      '..jjjjjHHhHHHHHhHHjjjjj..',
+      '.j.....BBBBBBBBBBB.....j.',
+      '.......BBEBEBEBEBB.......',
+      '.......jBBBBBBBBBj.......',
+      '...jjjj...BBBBB...jjjj...',
+      '..j...................j..',
+      '.........................',
+      '.........................',
+    ],
+  },
+  // the Pool Eel: a fin cutting the water; reared up, mouth open, its
+  // spots glowing; the lunge, head on; stranded on its side, flopping
+  eel: {
+    fin: [
+      '...T.....',
+      '..TTT....',
+      '..TTTT...',
+      '.TTTTTT..',
+    ],
+    rear: [
+      '....HHHHH....',
+      '...HHHHHHH...',
+      '..HEHHHHHEH..',
+      '..HHHHHHHHH..',
+      '..HHDDDDDHH..',
+      '...HDTDTDH...',
+      '....HHHHH....',
+      '...THHBHHT...',
+      '..TTHBCBHTT..',
+      '...THBBBHT...',
+      '....HBCBH....',
+      '...HHBBBHH...',
+    ],
+    lunge: [
+      '...HHHHHHH...',
+      '..HHHHHHHHH..',
+      '.HEHHHHHHHEH.',
+      '.HHDDDDDDDHH.',
+      '.HDTDDDDDTDH.',
+      '..HDDDDDDDH..',
+      '...HHHHHHH...',
+      '..TTHBCBHTT..',
+      '....HBBBH....',
+      '....HHCHH....',
+      '.....HHH.....',
+      '......H......',
+    ],
+    stranded: [
+      '....HHHH..........HH',
+      '..HHEHHHH.......HHHH',
+      '.HHDHHBBHHH...HHHHT.',
+      '..HHHBBCBBHHHHHHTT..',
+      '....HHHHHBBBBHH.....',
+      '......HHHHHH........',
+    ],
+    stranded2: [
+      '....HHHH............',
+      '..HHEHHHH.......HH..',
+      '.HHDHHBBHHH...HHHHT.',
+      '..HHHBBCBBHHHHHHHTT.',
+      '....HHHHHBBBBHHH....',
+      '......HHHHHH........',
+    ],
   },
 };
 for (const k in FOE_ROWS) for (const f in FOE_ROWS[k]) artNative(FOE_ROWS[k][f]);

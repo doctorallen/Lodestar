@@ -379,7 +379,7 @@ const T = {
     // creature part it leaves. knock: how far hits push it (1 a crawler).
     // barY: how high its health bar sits (world px over its feet).
     signatureShare: 0.3, graftFoes: [1, 2], exposed: 1.5,
-    signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker' },
+    signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker', caverns: 'dropper', grotto: 'eel' },
     // the Dune Skink (Badlands) swims under the sand (its speed), shows a
     // ring where it will burst up once within `strike` px, and bursts there
     // after windup s, biting within `burst` px; it stays up for `up` s,
@@ -401,11 +401,23 @@ const T = {
     // (`width` px either side), dragging what it catches `drag` px towards
     // itself over dragTime s
     lurker: { hp: 40, dmg: 12, speed: 0, radius: 6, range: 74, width: 5, windup: 0.75, cooldown: 2.2, drag: 16, dragTime: 0.18, anchored: true, part: 'spore', barY: 12 },
+    // the Ceiling Dropper (Caverns) clings to the roof until the diver is
+    // within `notice` px; its shadow grows on the floor for `fall` s,
+    // following the diver for the first `track` s, then it drops, hurting
+    // within `drop` px, lies `landed` s, and fights like a squat crawler
+    // (windup, lunge and recover as a crawler's)
+    dropper: { hp: 30, dmg: 13, speed: 30, radius: 6, notice: 46, fall: 1.0, track: 0.45, windup: 0.45, drop: 11, landed: 0.6, circle: 24, lungeSpeed: 120, lungeTime: 0.25, recover: 0.6, side: 0.8, noGraft: true, part: 'chitin', barY: 14 },
+    // the Pool Eel (Flooded Grotto) swims in the pools at `speed`; within
+    // `range` px it rears up for windup s showing its line, lunges, and if
+    // it lands on dry ground without biting, lies stranded for `stranded`
+    // s, then crawls back at crawlSpeed; back in the water it stays up for
+    // `surface` s before it dives
+    eel: { hp: 30, dmg: 13, speed: 46, radius: 5, range: 54, windup: 0.75, lungeSpeed: 190, lungeTime: 0.28, stranded: 1.6, crawlSpeed: 26, surface: 0.9, cooldown: 2.2, swims: true, noGraft: true, part: 'fiber', barY: 14 },
     // their natures (the resistance and weakness system reads these):
     // W weak, R resists, I immune
     resist: {
       skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', frost: 'R' }, wraith: { frost: 'W', ember: 'R' }, lurker: { ember: 'W', blight: 'R' },
-     
+      dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', ember: 'R' },
      
     },
     // the Hollow: what comes when the star's pull is gone. It can't be

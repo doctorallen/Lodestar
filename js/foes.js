@@ -16,6 +16,10 @@
 //             spent cinder for a moment.
 //   lurker    Bloomfen: sunk to its eyes in its mire; its tongue lashes
 //             along a marked line and drags you a tile in.
+//   dropper   Caverns: on the roof; its shadow grows on the floor, then it
+//             drops, and fights like a squat crawler.
+//   eel       Flooded Grotto: swims in the pools, rears and lunges along a
+//             shown line; on dry ground without a bite, it's stranded.
 // While under the sand or the water or on the roof (e.hid) nothing can
 // strike it or aim at it. Numbers in T.enemies; looks in foesart.js.
 // ---------------------------------------------------------------------------
@@ -23,6 +27,7 @@
 // [name, plural] for the screens and contracts
 const FOE_NAMES = {
   skink: ['Dune Skink', 'dune skinks'], tusker: ['Tusker', 'tuskers'], wraith: ['Ash Wraith', 'ash wraiths'], lurker: ['Bog Lurker', 'bog lurkers'],
+  dropper: ['Ceiling Dropper', 'ceiling droppers'], eel: ['Pool Eel', 'pool eels'],
 };
 // The states in which one is open to a counter (T.enemies.exposed).
 const FOE_EXPOSED = new Set(['stranded', 'spent', 'landed']);
@@ -254,7 +259,75 @@ function updateLurker(d, e, pd, sp, dt, free) {
   }
 }
 
-const FOE_UPDATE = { skink: updateSkink, tusker: updateTusker, wraith: updateWraith, lurker: updateLurker };
+// The Ceiling Dropper: on the roof until the diver passes under; its
+// shadow follows the diver a moment, then holds, and it drops there. After
+// that, a squat crawler.
+function updateDropper(d, e, pd, sp, dt, free) {
+  const def = T.enemies.dropper, p = d.p, f = d.floor;
+  if (e.hid) {
+    e.t -= dt;
+    if (e.state === 'windup') {
+      if (e.t > def.fall - def.track) { e.aimX = p.x; e.aimY = p.y; }
+      if (e.t <= 0) {
+        if (!bodyHits(f, e.aimX, e.aimY, e.r)) { e.x = e.aimX; e.y = e.aimY; }
+        e.hid = false;
+        if (dist(e.aimX, e.aimY, p.x, p.y) < def.drop + T.player.radius) hurtPlayer(e.dmg, e);
+        d.fx.push({ kind: 'foeBurst', x: e.x, y: e.y, r: def.drop, t: 0.3, max: 0.3, col: FOE_PAL.dropper.belly[3] });
+        e.state = 'landed'; e.t = def.landed;
+      }
+      return;
+    }
+    e.state = 'roof';
+    if (e.aggro && free && pd < def.notice && clearLine(f, e.x, e.y, p.x, p.y)) { e.state = 'windup'; e.t = def.fall; e.aimX = p.x; e.aimY = p.y; }
+    return;
+  }
+  if (e.state === 'landed') { if ((e.t -= dt) <= 0) { e.state = 'chase'; e.cd = Math.max(e.cd, 0.3); } return; }
+  updateCrawler(d, e, pd, sp, dt, free, def);
+}
+
+// The Pool Eel: swims about its pool towards the diver; rears, showing its
+// line, and lunges. Ending on dry ground without a bite, it lies stranded,
+// then crawls back to the water.
+function updateEel(d, e, pd, sp, dt, free) {
+  const def = T.enemies.eel, p = d.p, f = d.floor, wet = (x, y) => hazardAt(f, x, y) === HAZ_CODES.pool;
+  e.t -= dt;
+  if (e.state === 'windup') {
+    if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.lungeSpeed; e.vy = a.y * def.lungeSpeed; e.state = 'lunge'; e.t = def.lungeTime; e.hitDone = false; }
+    return;
+  }
+  if (e.state === 'lunge') {
+    const ox = e.x, oy = e.y;
+    moveBody(f, e, e.vx * dt, e.vy * dt, e.r);
+    if (!e.hitDone && dist(e.x, e.y, p.x, p.y) < e.r + T.player.radius + 3) { e.hitDone = true; hurtPlayer(e.dmg, e); }
+    const blocked = Math.abs(e.x - ox) + Math.abs(e.y - oy) < def.lungeSpeed * dt * 0.3;
+    if (e.t <= 0 || blocked) {
+      if (wet(e.x, e.y)) { e.state = 'surface'; e.t = def.surface; }
+      else if (e.hitDone) e.state = 'crawl';
+      else { e.state = 'stranded'; e.t = def.stranded; }
+    }
+    return;
+  }
+  if (e.state === 'stranded') { if (e.t <= 0) e.state = 'crawl'; return; }
+  // back in the water, it takes a moment to dive
+  if (e.state === 'surface') { if (e.t <= 0) { e.state = 'swim'; e.hid = true; e.cd = def.cooldown; } return; }
+  if (!wet(e.x, e.y)) {
+    // on dry ground: back to the water it came from
+    e.hid = false; e.state = 'crawl';
+    const a = norm(e.homeX - e.x, e.homeY - e.y), s = def.crawlSpeed * dt;
+    moveBody(f, e, a.x * s, a.y * s, e.r);
+    return;
+  }
+  if (!e.hid) { e.state = 'surface'; e.t = def.surface; return; }
+  e.state = 'swim';
+  e.homeX = e.x; e.homeY = e.y;
+  if (!e.aggro) return;
+  if (pd < def.range && free && e.cd <= 0 && clearLine(f, e.x, e.y, p.x, p.y)) { e.hid = false; e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; return; }
+  // round its pool towards the diver, never out of it
+  const a = norm(p.x - e.x, p.y - e.y), dx = a.x * sp, dy = a.y * sp;
+  for (const [mx, my] of [[dx, dy], [dx, 0], [0, dy]]) if ((mx || my) && wet(e.x + mx, e.y + my)) { moveBody(f, e, mx, my, e.r); break; }
+}
+
+const FOE_UPDATE = { skink: updateSkink, tusker: updateTusker, wraith: updateWraith, lurker: updateLurker, dropper: updateDropper, eel: updateEel };
 
 // ---------------------------------------------------------------------------
 // How they look (render.js drawEnemy asks foeLook, then draws the tells)
