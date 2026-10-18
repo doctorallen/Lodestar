@@ -29,6 +29,7 @@
     <canvas id="view"></canvas>
   </main>
   <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="speech" class="speech" hidden aria-live="polite"></div>
 
   <div id="deck-left" class="deck">
     <span class="deck-hint">MOVE</span>
@@ -43,6 +44,18 @@
   <div id="stick-base" class="stick-base" hidden><div id="stick-knob" class="stick-knob"></div></div>
 
   <!-- the screens; only one shows at a time -->
+  <section id="screen-story" class="screen story" hidden>
+    <p id="story-text" class="story-text"></p>
+    <div class="menu"><button class="btn primary" data-act="storyNext">CONTINUE</button></div>
+    <p id="story-step" class="note center"></p>
+  </section>
+
+  <section id="screen-wreck" class="screen panel" hidden>
+    <h2>THE MERIDIAN</h2>
+    <div id="wreck-body" class="list"></div>
+    <div class="menu"><button class="btn" data-act="back">BACK</button></div>
+  </section>
+
   <section id="screen-report" class="screen" hidden>
     <h2 id="report-title"></h2>
     <p id="report-body" class="report"></p>
@@ -121,6 +134,7 @@
 <script src="js/combat.js"></script>
 <script src="js/render.js"></script>
 <script src="js/hub.js"></script>
+<script src="js/story.js"></script>
 <script src="js/input.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/anvil.js"></script>

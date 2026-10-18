@@ -30,7 +30,7 @@ function makeEnemy(type, x, y, level, elite) {
   const hpMul = Math.pow(E.hpGrowth, level - 1) * (elite ? E.eliteHp * (elite === 'tough' ? E.tough : 1) : 1);
   const hp = Math.round(def.hp * hpMul);
   return {
-    type, x, y, hp, maxHp: hp, r: def.radius, level, elite, boss: type === 'warden',
+    type, x, y, hp, maxHp: hp, r: def.radius, level, elite, boss: type === 'warden' || type === 'keeper',
     dmg: def.dmg * Math.pow(E.dmgGrowth, level - 1) * (elite ? E.eliteDmg : 1),
     speed: def.speed * (elite === 'fast' ? E.fast : 1),
     state: 'idle', t: 0, cd: 0, aggro: false, flash: 0, slowT: 0, stunT: 0, kx: 0, ky: 0, kvx: 0, kvy: 0, hitDone: false, bob: 0,
@@ -50,6 +50,15 @@ function spawnEnemies(d) {
   if (d.depth >= E.bossDepth && rng.chance(E.bossChance)) {
     const side = f.rooms.slice(1).filter((r) => !roomHas(r, f.shaft) && !(f.pad && roomHas(r, f.pad)) && r.w >= 5 && r.h >= 5);
     if (side.length) bossRoom = rng.pick(side);
+  }
+  // the biome's Keeper, at its depth, until its shard is taken: it guards
+  // the shaft
+  const id = T.biomes[d.biome].id;
+  if (!d.hub && d.depth === T.story.keeperDepth[d.biome] && !(Save.data.shards || []).includes(d.biome)) {
+    const k = makeEnemy('keeper', (f.shaft.x + 0.5) * TILE, (f.shaft.y - 0.5) * TILE, level + 2, null);
+    k.home = id;
+    d.enemies.push(k);
+    d.keeper = k;
   }
   for (const r of f.rooms.slice(1)) {
     if (r === bossRoom) {
@@ -158,6 +167,7 @@ function updateEnemies(dt) {
     else if (e.type === 'wisp') updateWisp(d, e, pd, sp, dt, free);
     else if (e.type === 'snapjaw' || e.type === 'spitter') updatePlant(d, e, pd, dt);
     else if (e.type === 'hollow') updateHollow(d, e, pd, sp);
+    else if (e.type === 'keeper') updateKeeper(d, e, pd, sp, dt, free);
     else updateCharger(d, e, pd, sp, dt, free);
     if (!was && ATTACKING.has(e.state)) attackers++;
   }
@@ -284,6 +294,21 @@ function updateCharger(d, e, pd, sp, dt, free) {
     return;
   }
   if (pd > e.r + 6) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
+}
+
+// A Keeper: charges and rings of orbs like the warden; the Rim's calls its
+// brood, the Underforge's leaves magma where it charges.
+function updateKeeper(d, e, pd, sp, dt, free) {
+  const def = T.enemies.keeper;
+  if (!e.met) { e.met = true; Story.say('keeper'); }
+  if (e.home === 'rim' && (e.summonT = (e.summonT || def.summonEvery) - dt) <= 0) {
+    e.summonT = def.summonEvery;
+    for (let k = 0; k < def.summon; k++) { const c = makeEnemy('crawler', e.x + d.rng.f(-16, 16), e.y + d.rng.f(-10, 10), e.level - 2, null); c.aggro = true; d.enemies.push(c); }
+  }
+  const was = e.state;
+  updateCharger(d, e, pd, sp, dt, true);
+  if (e.home === 'underforge' && was === 'charge' && e.state !== 'charge')
+    d.puddles.push({ x: e.x, y: e.y, r: 18, t: 4, max: 4, dps: e.dmg * 0.6 });
 }
 
 // The Hollow comes straight on, through anything that stands in the way,

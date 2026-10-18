@@ -368,9 +368,11 @@ function renderFrame() {
 
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) drawDrop(dr, ox, oy, lights);
-  const actors = d.enemies.filter((e) => !e.dead).concat([p], View.flora || []).sort((a, b) => a.y - b.y);
+  const props = d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : [];
+  const actors = d.enemies.filter((e) => !e.dead).concat([p], View.flora || [], props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
     if (a === p) drawProspector(d, ox, oy, tick, lights);
+    else if (a.wreck) drawWreck(d, ox, oy, lights);
     else if (a.piece) drawFlora(d, a, ox, oy, lights);
     else drawEnemy(d, a, ox, oy, tick, lights);
   }
@@ -500,6 +502,11 @@ const PLANT_GLOW = '#ff4a3a';
 const _enemySprites = {};
 function enemySprite(d, type) {
   const id = d.hub ? 'rim' : T.biomes[d.biome].id;
+  if (type === 'keeper') {
+    const key = 'keeper/' + id;
+    if (!_enemySprites[key]) { const s = art2Sprite(KEEPER_ROWS[id], KEEPER_PAL[id]); s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - 2; _enemySprites[key] = s; }
+    return _enemySprites[key];
+  }
   if (!_enemySprites[id]) {
     const out = (_enemySprites[id] = buildEnemySprites(id));
     // the fighting flora: a harmless piece's shape, its glow gone red
@@ -685,8 +692,8 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   } else drawArtSprite(spr, sx, sy);
   const pal = ENEMY_PAL[T.biomes[d.biome].id];
   // their eyes and cores light the floor round them, brighter as they wind up
-  const glow = e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : e.type === 'hollow' ? '#ff2a6a' : T.enemies[e.type].rooted ? PLANT_GLOW : pal.rune[0];
-  lights.push({ x: fx, y: fy - spr.h / 2, r: (e.boss ? 2.4 : e.type === 'wisp' ? 1.5 : 0.9) * TILE, i: e.state === 'windup' ? 1.2 : 0.5, c: rgb01(glow) });
+  const glow = e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : e.type === 'hollow' ? '#ff2a6a' : e.type === 'keeper' ? ART.pal.star[3] : T.enemies[e.type].rooted ? PLANT_GLOW : pal.rune[0];
+  lights.push({ x: fx, y: fy - spr.h / 2, r: (e.type === 'keeper' ? 3.5 : e.boss ? 2.4 : e.type === 'wisp' ? 1.5 : 0.9) * TILE, i: e.state === 'windup' ? 1.2 : 0.5, c: rgb01(glow) });
   // tells: a crawler's line before it lunges, a construct's charge line,
   // stars round anything dazed
   if (e.state === 'windup' && e.type === 'snapjaw') ringDots(fx, fy - 4, T.enemies.snapjaw.reach, PLANT_GLOW, tick % 2 ? 0.7 : 0.35, true);
@@ -711,6 +718,8 @@ function drawDrop(dr, ox, oy, lights) {
   if (dr.mote) col = '#c8ffd8';
   else if (dr.stuff) { const pk = parsePart(dr.stuff); col = ART.ores[dr.stuff] ? ART.ores[dr.stuff][2] : pk ? ART.parts[pk.kind] : ART.exotics[dr.stuff]; }
   else if (dr.blueprint) col = ART.rarity.legendary;
+  else if (dr.shard !== undefined) col = ART.pal.star[3];
+  else if (dr.echo) col = '#9fc4ff';
   else if (dr.exotic) col = ART.exotics[dr.exotic];
   else col = ART.rarity[dr.item.rarity] || '#ffffff';
   if (dr.mote) { for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, fy + j, col, true); }
@@ -722,7 +731,7 @@ function drawDrop(dr, ox, oy, lights) {
     for (const [i, j] of [[0, -2], [-1, -1], [0, -1], [1, -1], [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [0, 2]]) dot(fx + i, fy + j, (i || j) ? col : '#ffffff', true);
     // the best of it stands up in a beam, so it's seen from across a room
     const it = dr.item;
-    if (dr.blueprint || (it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'relic')))
+    if (dr.blueprint || dr.shard !== undefined || dr.echo || (it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'relic')))
       for (let k = 3; k < 18; k++) dot(fx, fy - k, col, true, 0.7 * (1 - k / 18));
   }
   lights.push({ x: fx, y: fy, r: TILE, i: 0.5, c: rgb01(col) });

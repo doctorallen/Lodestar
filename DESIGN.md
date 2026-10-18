@@ -13,6 +13,24 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 3. **Push your luck.** The deeper you go, the better the loot and the higher the risk of losing it.
 4. **Built for a thumb.** It plays well upright with one or two thumbs, in short or long sessions.
 
+## The story
+
+**Stranded.** The *Meridian* was dragged out of the sky by the pull of a fallen star and broke on the rim of the sinkhole beneath it.
+- **The way home:** the ship's beacon still works, but it needs power, and the only power here is the Lodestar.
+- **The problem:** the star is dying. Its heart was shattered, and the Hollow carried the shards into the dark.
+- **The goal:** a **Shard Keeper** guards one shard at the bottom of each biome:
+  - the Rim's at depth 5, a fungal crawler-queen that calls its brood;
+  - the Choir's at depth 6, a towering tube-worm;
+  - the Underforge's at depth 7, a slag colossus that leaves magma where it charges.
+- **Bringing them back:** a taken shard is bound to you and safe from any fall. Set it in the star at the altar, which feeds the star 400.
+- **The end:** with all three set, the beacon can be lit at the wreck. The ending plays, and the game goes on after.
+
+How it's told:
+- **An opening** of five panels on a new game.
+- **Wick**, your drone, says a line or two the first time things happen: the first dive, parts, a blueprint, the anvil, the pull fading, a new biome, a Keeper, a shard.
+- **The star speaks** as it grows, and as its heart comes back.
+- **Eight echoes:** logs of the crews it pulled down before. They're found by ancient forges, from elites now and then, and from every Keeper, and read at the wreck.
+
 ## The Lodestar (the base)
 
 The Lodestar is a huge magnetic crystal that fell from the sky and now hangs over a sinkhole, held up by its own magnetic field. Your outpost is built on and around it.
@@ -210,7 +228,7 @@ Bloodresin guarantees a leech affix, and a Lodestone shard raises the rarity.
 
 ## The base: the outpost
 
-Home is a place you walk, not a menu. It's a plateau on the sinkhole's rim:
+Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's rim, every station a few steps apart:
 - **The Lodestar** hangs over the pit, bobbing. Its lodelines run down into the dark, one more for every magnitude, and it grows bigger as it grows stronger.
 - **Lanterns** round the plaza light up, one for every magnitude.
 - **The stations:** walk up to one and the contextual button names it.
@@ -223,6 +241,7 @@ Home is a place you walk, not a menu. It's a plateau on the sinkhole's rim:
 | The locker (GEAR) | What's worn, the stash, stats; equip, socket cores, salvage, unseal relics |
 | The star's altar (THE STAR) | Feed it ore, and spend attunements. Feeding sends you back out to watch the ore stream up into the star as it pulses and grows |
 | The practice target | A construct that takes every hit and never falls, for trying combos |
+| The *Meridian* (wreck) | The star's heart (shards found and set), the echoes, and lighting the beacon |
 
 - **The anvil.** Each forge is three hammer strikes: a marker sweeps a bar, faster each time, and you tap as it crosses the glowing zone.
   - A strike in the zone is good, and one dead in its middle is perfect.

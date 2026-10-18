@@ -163,11 +163,11 @@ const T = {
     hpGrowth: 1.16, dmgGrowth: 1.08, aggro: 96, hurtFlash: 0.08, attackers: 2, attackersPerDepth: 0.34, staggerTime: 0.35,
     // crawlers close to `circle` px, circle for a moment, wind up, lunge,
     // then recover (open to a counter)
-    crawler: { hp: 22, dmg: 10, speed: 36, radius: 5, circle: 28, windup: 0.45, lungeSpeed: 125, lungeTime: 0.28, recover: 0.55, weight: 5 },
+    crawler: { hp: 26, dmg: 11, speed: 36, radius: 5, circle: 28, windup: 0.45, lungeSpeed: 125, lungeTime: 0.28, recover: 0.55, weight: 5 },
     // wisps keep `keep` px away and strafe; from fanDepth they fire three
-    wisp: { hp: 14, dmg: 8, speed: 28, radius: 4, keep: 60, range: 115, windup: 0.55, cooldown: 1.9, shotSpeed: 72, fanDepth: 3, weight: 3 },
+    wisp: { hp: 17, dmg: 9, speed: 28, radius: 4, keep: 60, range: 115, windup: 0.55, cooldown: 1.9, shotSpeed: 72, fanDepth: 3, weight: 3 },
     // constructs show where they'll charge; one that hits a wall is dazed
-    construct: { hp: 45, dmg: 15, speed: 20, radius: 6, range: 80, windup: 0.7, cooldown: 2.2, chargeSpeed: 135, chargeTime: 0.5, dazed: 1.3, weight: 2, minDepth: 2 },
+    construct: { hp: 52, dmg: 16, speed: 20, radius: 6, range: 80, windup: 0.7, cooldown: 2.2, chargeSpeed: 135, chargeTime: 0.5, dazed: 1.3, weight: 2, minDepth: 2 },
     // flora that fights: rooted, hidden among the harmless kind until it
     // wakes. A snapjaw snaps at anything within `reach`; a spitter lobs a
     // glob that leaves spores on the ground (`puddle` px across, hurting
@@ -179,11 +179,15 @@ const T = {
     hollow: { hp: 900, dmg: 22, speed: 44, radius: 7, contact: 12, cooldown: 0.9 },
     // the practice target at the outpost: it never fights back or falls
     dummy: { hp: 400, dmg: 0, speed: 0, radius: 6 },
+    // the Shard Keepers: a great charger that rings the room with orbs,
+    // calls its brood (the Rim's), and leaves magma where it charges (the
+    // Underforge's)
+    keeper: { hp: 760, dmg: 18, speed: 22, radius: 12, range: 100, windup: 0.75, cooldown: 1.8, chargeSpeed: 130, chargeTime: 0.6, dazed: 1.5, shotSpeed: 70, shots: 12, summonEvery: 7, summon: 2 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },
     // a room's enemies: perRoom + perDepth × depth, give or take one
-    perRoom: 1.2, perDepth: 0.35, maxPerRoom: 6,
+    perRoom: 1.4, perDepth: 0.4, maxPerRoom: 6,
     // elites: chance eliteBase + eliteDepth × depth, to eliteMax
-    eliteBase: 0.04, eliteDepth: 0.03, eliteMax: 0.35, eliteHp: 2.5, eliteDmg: 1.3,
+    eliteBase: 0.06, eliteDepth: 0.035, eliteMax: 0.35, eliteHp: 2.5, eliteDmg: 1.3,
     fast: 1.5, tough: 1.6, volatileRadius: 26, volatileDmg: 1.5, volatileFuse: 0.6,
     // the warden appears from bossDepth, in a side room, by chance
     bossDepth: 4, bossChance: 0.3,
@@ -225,6 +229,11 @@ const T = {
   // magnitude each biome opens at.
   // extractStar: what a ride home feeds the star, times the depth squared.
   star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], biomeAt: [1, 3, 5], extractStar: 3 },
+  // The story: each biome's Keeper waits at keeperDepth, holding a shard
+  // of the star's heart; each shard set in the star adds shardStar points.
+  // An echo (a log of the crews before) turns up by an ancient forge, from
+  // an elite now and then, and from every Keeper.
+  story: { keeperDepth: [5, 6, 7], shardStar: 400, echoForge: 0.5, echoElite: 0.05 },
   // An ancient forge stands on a floor this deep or deeper, by chance.
   fieldForge: { depth: 3, chance: 0.3, blueprint: 0.6 }, // blueprint: the chance a schematic lies by it
   // The anvil: three strikes, each a marker sweeping a bar at `speeds`

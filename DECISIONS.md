@@ -86,3 +86,11 @@ The designer found that so much loot made forging pointless, and that forged ite
 - **Elements from exotics:** shock, frost (which shatters), ember (which burns) and blight (which spreads).
 - **Blueprints must be carried home** to be learned. Finding one is a push-your-luck moment.
 - **More spells, and modifiers to combine them**: elemental (Frost Lance, Ember Burst, Chain Lightning, Thorn Ring), movement (Blink, Gravity Well, Phase Step), and modifier cores (Split, Amplify, Quicken, Chain, Echo) that share sockets with the spells, so a piece's sockets are a choice between more spells and better ones.
+
+## 2026-10-18: a story, and a tighter outpost
+
+- **Stranded.** The designer chose this story: the *Meridian* wrecked on the rim, a dying star whose shattered heart powers the way home, and three Shard Keepers at fixed depths. It gives the dives a purpose and an end.
+- **Told lightly.** A five-panel opening, one-off lines from Wick, the star speaking as it grows, and eight echoes. Phone sessions are short, so there are no long cutscenes.
+- **Shards are safe once taken.** Losing a story piece to a fall would be more frustrating than tense.
+- **The outpost is compact,** with every station a few steps apart and the wreck at the south edge. The designer found things too far apart.
+- **Enemies a little tougher:** more health and damage, more per room, more elites.

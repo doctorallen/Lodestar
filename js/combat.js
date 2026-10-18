@@ -459,6 +459,16 @@ function killEnemy(e) {
   const grade = d.biome + 1, part = Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
   const parts = (n) => { if (part) for (let k = 0; k < n; k++) drop({ stuff: partId(part, grade), n: 1 }); };
   const tier = dropTier(d);
+  if (e.type === 'keeper') {
+    // its heart-shard, and what it had gathered
+    drop({ shard: d.biome });
+    drop({ echo: true });
+    dropBlueprint(d, drop, true);
+    parts(L.bossParts);
+    for (let k = 0; k < 2; k++) drop({ exotic: rng.pick(T.exotics).id });
+    if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
+    return;
+  }
   if (e.boss) {
     parts(L.bossParts);
     drop({ stuff: partId('heart', grade), n: 1 });
@@ -472,6 +482,7 @@ function killEnemy(e) {
     if (rng.chance(L.eliteExotic)) drop({ exotic: rng.pick(T.exotics).id });
     if (rng.chance(L.eliteBlueprint)) dropBlueprint(d, drop);
     if (rng.chance(L.eliteRelic)) drop({ item: makeRelic(tier) });
+    if (rng.chance(T.story.echoElite)) drop({ echo: true });
   } else {
     if (rng.chance(L.part)) parts(rng.chance(L.partTwo) ? 2 : 1);
     if (rng.chance(L.exotic)) drop({ exotic: rng.pick(T.exotics).id });
@@ -530,6 +541,9 @@ function updatePickups(dt) {
       if (dr.n > 0) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } } else dr.gone = true;
       continue;
     }
+    // a heart-shard binds to the diver: safe whatever happens now
+    if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard of the star\'s heart', 'legendary'); dr.gone = true; continue; }
+    if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); } dr.gone = true; continue; }
     if (dr.blueprint) {
       if (room < 1) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } continue; }
       d.blueprints.push({ id: dr.blueprint });

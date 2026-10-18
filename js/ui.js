@@ -76,7 +76,7 @@ const UI = {
   },
 
   redraw() {
-    const r = { 'screen-report': drawReport, 'screen-descend': drawDescend, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
+    const r = { 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawWreck_, 'screen-descend': drawDescend, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
     if (r) r();
     if (UI.card) drawCard();
   },
@@ -90,10 +90,14 @@ const UI = {
   // Walking up to a station in the outpost (or an ancient forge in a dive).
   useStation(id) {
     if (id === 'forge' || id === 'fieldForge') { UI.forge.field = id === 'fieldForge'; UI.show('screen-forge'); }
-    else if (id === 'altar') UI.show('screen-star');
+    else if (id === 'altar') {
+      if (Story.setShards()) { feedStarFx(Game.dive, 40, 0); return; }
+      UI.show('screen-star');
+    }
     else if (id === 'locker') { UI.gearRunes = false; UI.show('screen-gear'); }
     else if (id === 'runes') { UI.gearRunes = true; UI.show('screen-gear'); }
     else if (id === 'descend') UI.show('screen-descend');
+    else if (id === 'wreck') UI.show('screen-wreck');
   },
   openPause() {
     const home = !!(Game.dive && Game.dive.hub);
@@ -110,6 +114,27 @@ const UI = {
     drawCard();
   },
   closeCard() { UI.card = null; $('card').hidden = true; },
+
+  // Someone speaking: Wick, or the star. Lines wait their turn.
+  speak(who, text, style = 'wick') {
+    UI.lines = UI.lines || [];
+    UI.lines.push({ who, text, style });
+    if (UI.lines.length === 1) UI.nextLine();
+  },
+  nextLine() {
+    const l = UI.lines && UI.lines[0], box = $('speech');
+    if (!l) { box.hidden = true; return; }
+    box.hidden = false;
+    box.className = 'speech ' + l.style;
+    box.innerHTML = `<b>${esc(l.who)}</b> ${esc(l.text)}`;
+    setTimeout(() => { UI.lines.shift(); UI.nextLine(); }, 2600 + l.text.length * 45);
+  },
+
+  // A story told in panels, a tap each; then `done`.
+  openStory(lines, done) {
+    UI.story = { lines, i: 0, done };
+    UI.show('screen-story');
+  },
 
   // a hint shown once ever
   tip(id, msg) {
@@ -167,7 +192,7 @@ const UI = {
     if ($('btn-off').hidden !== !eq.off) $('btn-off').hidden = !eq.off;
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
-    setTextIfChanged('btn-act', { descend: 'DESCEND', extract: 'EXTRACT', forge: 'FORGE', runes: 'RUNES', locker: 'GEAR', altar: 'THE STAR' }[a] || '');
+    setTextIfChanged('btn-act', { descend: 'DESCEND', extract: 'EXTRACT', forge: 'FORGE', runes: 'RUNES', locker: 'GEAR', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'THE STAR', wreck: 'THE MERIDIAN' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
   },
@@ -176,6 +201,29 @@ const UI = {
 // ---------------------------------------------------------------------------
 // The Lodestar's rooms
 // ---------------------------------------------------------------------------
+
+// The story, a panel at a time.
+function drawStory() {
+  const st = UI.story;
+  if (!st) return;
+  $('story-text').textContent = st.lines[st.i];
+  $('story-step').textContent = `${st.i + 1} / ${st.lines.length}`;
+}
+
+// The Meridian: what's needed to call home, and the echoes found.
+function drawWreck_() {
+  const s = Save.data, held = Story.shardsHeld(), set = Story.shardsSet();
+  const shardRow = (b, i) => {
+    const has = (s.shards || []).includes(i);
+    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? (i < set || set >= held ? 'Set in the star' : 'Take it to the altar') : `At depth ${T.story.keeperDepth[i]}${biomeOpen(s, i) ? '' : ', beyond the star\'s reach for now'}`}</span></span></div>`;
+  };
+  const echoes = (s.echoes || []).map((i) => `<div class="echo"><b>${esc(ECHOES[i].title)}</b><p>${esc(ECHOES[i].text)}</p></div>`).join('');
+  $('wreck-body').innerHTML = `
+    <p class="note">The Meridian's beacon will call for home, if it has the power. The star could give it, if its heart were whole.</p>
+    <h3>THE STAR'S HEART · ${set}/3</h3>${T.biomes.map(shardRow).join('')}
+    ${s.beaconLit ? '<p class="note">The beacon is lit. Home is coming. Until then, the deep is yours.</p>' : Story.canLight() ? '<div class="menu"><button class="btn primary" data-act="lightBeacon">LIGHT THE BEACON</button></div>' : ''}
+    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The crews before you left logs in the deep.</p>'}`;
+}
 
 // How the last dive ended, over the outpost.
 function drawReport() {
@@ -193,6 +241,8 @@ function drawReport() {
     text = `From ${where}. ${got ? `Banked ${got}.` : ''}${lost ? ` The dark kept ${lost}.` : ''}`;
   }
   if (r.kept && (r.kept.items.length || Object.keys(r.kept.stuff).length)) text += ` Your pocket kept ${[stuffLines(r.kept.stuff), r.kept.items.map((i) => i.name).join(', ')].filter(Boolean).join(' and ')}.`;
+  if (r.shard) text += ' You carried a heart-shard home. Set it in the star at the altar.';
+  if (r.echoes) text += ` Found ${r.echoes} echo${r.echoes > 1 ? 'es' : ''}: read ${r.echoes > 1 ? 'them' : 'it'} at the wreck.`;
   const learned = (r.learned || []).concat((r.kept && r.kept.blueprints) || []);
   if (learned.length) text += ` Learned: ${learned.map((id) => BLUEPRINTS[id].name).join(', ')}.`;
   if (r.lostBlueprints) text += ` ${r.lostBlueprints} blueprint${r.lostBlueprints > 1 ? 's were' : ' was'} lost with the cargo.`;
@@ -208,7 +258,7 @@ function drawDescend() {
     const open = biomeOpen(s, i), deep = s.deepest[b.id] || 0;
     const ores = b.ores.map((id) => T.ores[ORE_INDEX[id]].name).join(' and ');
     return `<button class="row biome" data-act="dive" data-arg="${i}" ${open ? '' : 'disabled'}>
-      <span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${open ? `${ores}${deep ? ` · deepest ${deep}` : ''}` : `The star's lines reach here at magnitude ${T.star.biomeAt[i]}`}</span></span></button>`;
+      <span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${open ? `${ores}${deep ? ` · deepest ${deep}` : ''} · ${(s.shards || []).includes(i) ? 'shard recovered' : `its Keeper waits at depth ${T.story.keeperDepth[i]}`}` : `The star's lines reach here at magnitude ${T.star.biomeAt[i]}`}</span></span></button>`;
   }).join('') + `<p class="note">Lodelines are sure on every floor down to depth ${lodelineReach()}. Below that, not every floor has one.</p>`;
 }
 
@@ -444,7 +494,22 @@ UI.acts = {
   resume: () => UI.close(),
   abandon: () => abandonDive(),
   dive: (i) => { UI.close(); startDive(Number(i)); },
-  closeReport: () => { UI.report = null; UI.close(); },
+  closeReport: () => {
+    const r = UI.report;
+    UI.report = null; UI.close();
+    if (r && r.grew) Story.starGrew(r.grew);
+  },
+  storyNext: () => {
+    const st = UI.story;
+    if (!st) return;
+    if (++st.i < st.lines.length) { UI.openedAt = Game.realT; UI.redraw(); return; }
+    UI.story = null; UI.close();
+    if (st.done) st.done();
+  },
+  lightBeacon: () => {
+    Save.data.beaconLit = true; Save.save();
+    UI.openStory(STORY_END, () => UI.useStation('wreck'));
+  },
   recall: () => { UI.close(); startChannel('recall'); UI.toast('Hold still: recalling'); },
   // the pocket: what's in it comes home whatever happens
   pocket: (n) => {
@@ -597,7 +662,7 @@ UI.acts = {
     const after = magnitudeOf(s.star);
     Save.save();
     // out to the outpost, to watch the star drink it
-    if (Game.dive && Game.dive.hub) { UI.close(); feedStarFx(Game.dive, k, after > before ? after : 0); }
+    if (Game.dive && Game.dive.hub) { UI.close(); feedStarFx(Game.dive, k, after > before ? after : 0); if (after > before) Story.starGrew(after); }
     else UI.redraw();
   },
   attune: (id) => {

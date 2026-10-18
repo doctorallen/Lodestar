@@ -46,6 +46,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, shaft, lodeline |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
+| `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards and the beacon |
 | `js/hub.js` | The outpost: stations, the star over the pit, lanterns, feeding the star |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
 | `js/diver.js` | The player's sprite: the circuit diver's five facings, walk frames and hand points |

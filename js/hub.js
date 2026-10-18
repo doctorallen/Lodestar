@@ -102,8 +102,8 @@ function stationSprite(id) {
   return _stationSprites[id];
 }
 
-const LANTERNS = [[3, 15], [23, 15], [3, 20], [23, 20], [6, 26], [20, 26], [10, 28], [16, 28]];
-const STAR_AT = { x: 13.5, y: 8.5 }; // tiles: over the middle of the pit
+const LANTERNS = [[3, 12], [19, 12], [3, 17], [19, 17], [7, 21], [15, 21], [8, 13], [14, 13]];
+const STAR_AT = { x: 11.5, y: 5.6 }; // tiles: over the middle of the pit
 
 // Under everything that walks: the lodelines in the pit, the stations, the
 // lanterns.
@@ -119,7 +119,7 @@ function drawHubUnder(d, ox, oy, tick, lights) {
     }
   }
   for (const s of HUB_STATIONS) {
-    if (s.id === 'dummy') continue;
+    if (s.id === 'dummy' || s.id === 'wreck') continue;
     const spr = stationSprite(s.id), x = Math.round((s.x + 0.5) * TILE + ox - spr.ax), y = Math.round((s.y + 0.5) * TILE + oy - spr.ay + (s.id === 'descend' ? 4 : 6));
     drawArtSprite(spr, x, y);
     const glow = { forge: [ART.pal.glass[0], 1.8, 0.9], runes: [ART.pal.arcane[0], 1.2, 0.5], locker: [DIVER_PAL.tip[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
@@ -158,4 +158,21 @@ function feedStarFx(d, n, grew) {
   for (let i = 0; i < Math.min(40, 6 + n); i++) d.fx.push({ kind: 'mote', x: (alt.x + 0.5) * TILE, y: (alt.y + 0.5) * TILE - 6, t: 1 + i * 0.03, max: 1 + i * 0.03, seed: i });
   d.feedT = 1;
   if (grew) UI.toast(`The Lodestar grows: magnitude ${grew}`, 'legendary');
+}
+
+// The Meridian: a prop the diver walks in front of and behind, its beacon
+// dark until the star is whole and the beacon lit.
+const _wreck = {};
+function wreckSprite() {
+  const lit = !!Save.data.beaconLit;
+  if (!_wreck[lit]) { const s = art2Sprite(WRECK_ROWS[lit ? 'lit' : 'dark']); s.ax = s.w / 2; s.ay = s.h - 3; _wreck[lit] = s; }
+  return _wreck[lit];
+}
+function drawWreck(d, ox, oy, lights) {
+  const s = HUB_STATIONS.find((x) => x.id === 'wreck'), spr = wreckSprite();
+  const x = Math.round((s.x + 0.5) * TILE + ox - spr.ax), y = Math.round((s.y + 0.5) * TILE + oy - spr.ay);
+  drawArtSprite(spr, x, y);
+  // the beacon: a cold spark until it's lit, then a great warm light
+  if (Save.data.beaconLit) lights.push({ x: x + 25, y: y + 1, r: TILE * 6, i: 1.4, c: rgb01(ART.pal.star[3]) });
+  else lights.push({ x: x + 25, y: y + 1, r: TILE, i: 0.25 + 0.15 * Math.sin(Game.realT * 2), c: [0.5, 0.6, 0.8] });
 }

@@ -66,8 +66,12 @@ function atStation(id) { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id 
 
 async function phone(browser) {
   const { page, errors } = await openGame(browser, PHONE);
+  // a fresh game opens on the story, a panel a tap
+  check(await visible(page, '#screen-story'), 'phone: a fresh game did not open on the story');
+  await shot(page, 'smoke-intro');
+  for (let k = 0; k < 5; k++) await tap(page, '#screen-story [data-act=storyNext]');
   // home: the outpost, the star over the pit
-  check(await page.evaluate(() => Game.dive && Game.dive.hub && !Game.modal), 'phone: the game did not open at the outpost');
+  check(await page.evaluate(() => Game.dive && Game.dive.hub && !Game.modal && Save.data.introSeen), 'phone: the story did not end at the outpost');
   await run(page, 0.2);
   await shot(page, 'smoke-outpost');
   // the walk works at home too
@@ -281,6 +285,26 @@ async function phone(browser) {
   const recalled = await page.evaluate(() => [Save.data.stash.ferrite, Math.round(20 * (1 - recallCost({ depth: 1 })))]);
   check(recalled[0] === recalled[1], `phone: the recall banked ${recalled[0]} Ferrite, not ${recalled[1]}`);
   await tap(page, '#screen-report [data-act=closeReport]');
+
+  // a Keeper holds a heart-shard; once taken it's safe, and set at the altar
+  await page.evaluate(() => UI.acts.dive('0'));
+  const keeper = await page.evaluate(() => { enterFloor(T.story.keeperDepth[0]); const d = Game.dive, k = d.keeper; if (!k) return false; hurtEnemy(k, 1e7, {}); for (let i = 0; i < 5; i++) Game.step(1 / 60); const sh = d.drops.find((x) => x.shard !== undefined); d.p.x = sh.x; d.p.y = sh.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); d.p.invuln = 0; hurtPlayer(1e9, null); return true; });
+  check(keeper, 'phone: no Keeper at its depth');
+  await run(page, 2);
+  check(await page.evaluate(() => (Save.data.shards || []).includes(0)), 'phone: the heart-shard was lost in the fall');
+  await tap(page, '#screen-report [data-act=closeReport]');
+  const star0 = await page.evaluate(() => Save.data.star);
+  await page.evaluate(atStation, 'altar');
+  await run(page, 0.1);
+  check(await page.evaluate(() => $('btn-act').textContent === 'SET THE SHARD'), 'phone: the altar does not offer to set the shard');
+  await tap(page, '#btn-act');
+  check(await page.evaluate((s0) => Save.data.shardsSet === 1 && Save.data.star === s0 + T.story.shardStar, star0), 'phone: setting the shard did not feed the star');
+  await page.evaluate(atStation, 'wreck');
+  await run(page, 0.1);
+  await tap(page, '#btn-act');
+  check(await visible(page, '#screen-wreck'), 'phone: the wreck did not open');
+  check(/1\/3/.test(await page.evaluate(() => $('wreck-body').textContent)), 'phone: the wreck does not show one shard of three');
+  await tap(page, '#screen-wreck [data-act=back]');
 
   // dying loses the cargo, keeps what's worn and what's pocketed
   const kept = await page.evaluate(() => [Save.data.equip.main.uid, Save.data.stash.ferrite]);
