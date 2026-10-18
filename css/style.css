@@ -170,6 +170,12 @@ body.home #btn-mine { display: none; }
   text-align: center;
 }
 .screen.panel { justify-content: flex-start; overflow-y: auto; touch-action: pan-y; }
+/* the report can run long: it scrolls, and centres when it doesn't */
+#screen-report { justify-content: flex-start; overflow-y: auto; touch-action: pan-y; }
+#screen-report > :first-child { margin-top: auto; }
+#screen-report > :last-child { margin-bottom: auto; }
+.chip-icon { width: 20px; height: 20px; image-rendering: pixelated; vertical-align: middle; margin-right: 6px; }
+@media (max-height: 500px) { .forge-go { padding: 4px 0; } .forge-go .btn { min-height: 40px; padding-top: 4px; padding-bottom: 4px; } }
 .screen[hidden] { display: none; }
 .screen h2 { letter-spacing: 0.2em; margin: 4px 0 12px; }
 .screen h3 { font-size: 11px; letter-spacing: 0.2em; color: var(--dim); margin: 16px 0 6px; text-align: left; }

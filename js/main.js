@@ -79,7 +79,12 @@ function boot() {
   if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
   // leaving the tab pauses a dive
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && Game.dive && !Game.dive.hub) { saveRun(Game.dive); if (!Game.modal) UI.openPause(); }
+    if (document.hidden && Game.dive && !Game.dive.hub) {
+      // the materials are already spent: make the piece before the page can die
+      if (Game.modal === 'screen-anvil' && Anvil.job && Anvil.job.field) Anvil.finish();
+      saveRun(Game.dive);
+      if (!Game.modal) UI.openPause();
+    }
   });
   Game.step = step;
   Game.render = renderFrame;

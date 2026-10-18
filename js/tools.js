@@ -69,7 +69,9 @@ function compassTarget(d, tx, ty) {
   const far = (t) => { const s = steps[t.y * f.w + t.x]; return s < 0 ? 1e9 : s; };
   if (f.pad && !d.padDark) return { x: f.pad.x, y: f.pad.y, col: ART.pal.star[3], home: true };
   const ways = (f.ways || []).map((w, i) => ({ x: w.x, y: w.y, col: ZONE_SIGNS[d.ways[i]] || '#ffffff' })).sort((a, b) => far(a) - far(b));
-  return ways[0] || null;
+  if (ways[0]) return ways[0];
+  // nowhere to go on: point at the dark lodeline anyway
+  return f.pad ? { x: f.pad.x, y: f.pad.y, col: '#6a6458' } : null;
 }
 
 // The nearest unmined vein the pick can break.
@@ -89,23 +91,26 @@ function nearestOre(d, tx, ty) {
 // Plants the beacon: it lands after a few seconds, and lights a lodeline.
 function plantBeacon() {
   const d = Game.dive, p = d.p, f = d.floor, tx = Math.floor(p.x / TILE), ty = Math.floor(p.y / TILE);
-  if (d.tool !== 'beacon' || d.beaconUsed || d.hub) return false;
-  if (d.zone === 'lair' && d.padDark) { UI.toast("The Keeper's hold is too strong here"); return false; }
+  if (d.tool !== 'beacon' || d.beaconUsed || d.beacon || d.hub) return false;
+  if (d.zone === 'lair' && d.keeper && !d.keeper.dead) { UI.toast("The Keeper's hold is too strong here"); return false; }
+  if (f.pad && !d.padDark) { UI.toast('A lodeline already reaches here'); return false; }
+  if ((d.fieldForge && Math.hypot(d.fieldForge.x - tx, d.fieldForge.y - ty) < 2) || (d.rift && d.rift.open && [d.rift, d.rift.pair].some((r) => r && Math.hypot(r.x - tx, r.y - ty) < 2))) { UI.toast('Not so close to that'); return false; }
   if (floorTile(f, tx, ty) !== TILE_FLOOR) { UI.toast('The beacon needs open ground'); return false; }
-  d.beaconUsed = true;
   d.beacon = { x: tx, y: ty, t: 0, landed: false };
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.tools.beacon.noise) wake(d, e);
   UI.toast('The beacon is calling a lodeline down', 'legendary');
   return true;
 }
-function landBeacon(d) {
+function landBeacon(d, quiet) {
   const f = d.floor, b = d.beacon;
   b.landed = true;
+  d.beaconUsed = true;
   if (f.pad) { f.tiles[f.pad.y * f.w + f.pad.x] = TILE_FLOOR; repaintAround(f, f.pad.x, f.pad.y); }
   f.tiles[b.y * f.w + b.x] = TILE_PAD;
   f.pad = { x: b.x, y: b.y };
   d.padDark = false;
   repaintAround(f, b.x, b.y);
+  if (quiet) return;
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, (b.x + 0.5) * TILE, (b.y + 0.5) * TILE) < T.tools.beacon.noise) wake(d, e);
   UI.toast('A lodeline lands', 'legendary');
   buzz(40);
@@ -184,20 +189,26 @@ function drawToolHud(d, ox, oy) {
   if (d.tool === 'map' && d.seen) drawSiteMap(d);
 }
 
-// The map: what's been seen of the site, a pixel a tile, in the view's corner.
+// The map: what's been seen of the site, a pixel for each 2×2 tiles, in the
+// view's top-right corner.
 function drawSiteMap(d) {
-  const f = d.floor, c = View.ctx, s = d.seen, x0 = View.w - f.w - 3, y0 = 12;
-  c.globalAlpha = 0.55; c.fillStyle = '#000'; c.fillRect(x0 - 1, y0 - 1, f.w + 2, f.h + 2); c.globalAlpha = 1;
-  c.fillStyle = '#6a6458';
-  for (let y = 0; y < f.h; y++)
-    for (let x = 0; x < f.w; x++) {
-      const i = y * f.w + x;
-      if (s[i] && !TILE_SOLID[f.tiles[i]]) c.fillRect(x0 + x, y0 + y, 1, 1);
+  const f = d.floor, c = View.ctx, s = d.seen, mw = Math.ceil(f.w / 2), mh = Math.ceil(f.h / 2), x0 = View.w - mw - 3, y0 = 3;
+  c.globalAlpha = 0.8; c.fillStyle = '#000'; c.fillRect(x0 - 1, y0 - 1, mw + 2, mh + 2); c.globalAlpha = 1;
+  c.fillStyle = '#3a3630'; c.fillRect(x0 - 1, y0 - 1, mw + 2, 1); c.fillRect(x0 - 1, y0 + mh, mw + 2, 1);
+  c.fillStyle = '#8a8478';
+  for (let y = 0; y < mh; y++)
+    for (let x = 0; x < mw; x++) {
+      let open = false;
+      for (let j = 0; j < 2 && !open; j++) for (let i = 0; i < 2 && !open; i++) {
+        const tx = x * 2 + i, ty = y * 2 + j, k = ty * f.w + tx;
+        if (tx < f.w && ty < f.h && s[k] && !TILE_SOLID[f.tiles[k]]) open = true;
+      }
+      if (open) c.fillRect(x0 + x, y0 + y, 1, 1);
     }
-  const mark = (t, col) => { if (t && s[t.y * f.w + t.x]) { c.fillStyle = col; c.fillRect(x0 + t.x - 1, y0 + t.y - 1, 3, 3); } };
+  const mark = (t, col) => { if (t && s[t.y * f.w + t.x]) { c.fillStyle = col; c.fillRect(x0 + (t.x >> 1) - 1, y0 + (t.y >> 1) - 1, 2, 2); } };
   (f.ways || []).forEach((w, i) => mark(w, ZONE_SIGNS[d.ways[i]] || '#fff'));
   if (f.pad && !d.padDark) mark(f.pad, ART.pal.star[3]);
   if (d.fieldForge) mark(d.fieldForge, '#ff8a3a');
   if (d.rift && d.rift.open) { mark(d.rift, RIFT_PAL.riftedge[0]); if (d.rift.pair) mark(d.rift.pair, RIFT_PAL.riftedge[0]); }
-  if (Math.sin(Game.realT * 8) > -0.3) { c.fillStyle = '#ffffff'; c.fillRect(x0 + Math.floor(d.p.x / TILE), y0 + Math.floor(d.p.y / TILE), 1, 1); }
+  if (Math.sin(Game.realT * 8) > -0.3) { c.fillStyle = '#ffffff'; c.fillRect(x0 + (Math.floor(d.p.x / TILE) >> 1), y0 + (Math.floor(d.p.y / TILE) >> 1), 1, 1); }
 }

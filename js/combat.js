@@ -475,7 +475,8 @@ function killEnemy(e) {
   const hoard = (n) => { for (let k = 0; k < n; k++) drop({ stuff: partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), grade), n: 1 }); };
   const tier = dropTier(d);
   if (e.type === 'keeper') {
-    if (d.padDark && d.zone === 'lair') { d.padDark = false; UI.toast('The lodeline lights', 'legendary'); }
+    // its lodeline lights, and the dark starts to come back: a short pull
+    if (d.zone === 'lair') { d.padDark = false; d.pull = 1; d.pullTime = T.enemies.keeper.afterPull; UI.toast('The lodeline lights. Go, before the dark comes back', 'legendary'); }
     // its heart-shard, and what it had gathered
     drop({ shard: d.biome });
     drop({ echo: true });

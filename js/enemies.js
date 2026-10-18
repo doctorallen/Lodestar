@@ -272,8 +272,9 @@ function updateCharger(d, e, pd, sp, dt, free) {
     if (e.t <= 0) {
       if (e.boss && e.burst) {
         // the warden's other attack: a ring of orbs
-        for (let k = 0; k < def.shots; k++) {
-          const a = (k / def.shots) * Math.PI * 2 + e.bob;
+        const ring = def.shots * (e.enraged ? 2 : 1);
+        for (let k = 0; k < ring; k++) {
+          const a = (k / ring) * Math.PI * 2 + e.bob;
           fireEnemyShot(d, e.x, e.y - 10, Math.cos(a) * def.shotSpeed, Math.sin(a) * def.shotSpeed, e.dmg * 0.7);
         }
         e.state = 'chase'; e.cd = def.cooldown;
@@ -318,7 +319,7 @@ function updateKeeper(d, e, pd, sp, dt, free) {
     }
   }
   const was = e.state;
-  updateCharger(d, e, pd, sp, dt, true);
+  updateCharger(d, e, pd, sp * (e.enraged ? def.enrageSpeed : 1), dt, true);
   if (e.home === 'underforge' && was === 'charge' && e.state !== 'charge')
     d.puddles.push({ x: e.x, y: e.y, r: def.magmaR, t: def.magmaTime, max: def.magmaTime, dps: e.dmg * def.magma });
 }

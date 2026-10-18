@@ -56,6 +56,8 @@ const UI = {
     if (!el || el.disabled || Game.realT - UI.openedAt < T.ui.tapGuard) return;
     // a destructive button asks once: the first tap arms it
     if (el.dataset.confirm && !el.classList.contains('armed')) {
+      for (const o of document.querySelectorAll('.armed')) { o.classList.remove('armed'); o.textContent = o.dataset.label; }
+      el.dataset.label = el.textContent;
       el.classList.add('armed'); el.textContent = el.dataset.confirm;
       UI.openedAt = Game.realT - T.ui.tapGuard + 0.25;
       return;
@@ -109,7 +111,7 @@ const UI = {
   openPause() {
     const home = !!(Game.dive && Game.dive.hub);
     $('pause-cargo').hidden = home; $('pause-abandon').hidden = home; $('pause-note').hidden = home; $('pause-recall').hidden = home;
-    $('pause-beacon').hidden = home || Game.dive.tool !== 'beacon' || !!Game.dive.beaconUsed;
+    $('pause-beacon').hidden = home || Game.dive.tool !== 'beacon' || !!Game.dive.beaconUsed || !!Game.dive.beacon;
     if (!home) $('pause-recall').textContent = `EMERGENCY RECALL · LOSE ${Math.round(recallCost(Game.dive) * 100)}%`;
     UI.show('screen-pause');
   },
@@ -186,7 +188,7 @@ const UI = {
     const pW = Math.round(d.pull * 100) + '%';
     if ($('pull-fill').style.width !== pW) $('pull-fill').style.width = pW;
     $('hud-pull').classList.toggle('fading', d.pull < T.pull.dimAt);
-    $('hud-pull').classList.toggle('dark', !!d.padDark);
+    $('hud-pull').classList.toggle('dark', d.pull <= 0);
     setTextIfChanged('hp-text', String(Math.ceil(p.hp)));
     $('hud-hp').classList.toggle('warded', p.ward > 0);
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
@@ -210,7 +212,7 @@ const UI = {
     const way = a === 'way' ? d.ways[wayHere(d)] : null;
     const rh = a === 'rift' && riftHere(d);
     setTextIfChanged('btn-act', rh ? (rh.gate ? 'STEP THROUGH' : 'SEAL THE TEAR') : way ? 'ON: ' + T.zones[way].name.toUpperCase() : { descend: 'SET OUT', extract: 'EXTRACT', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'BOARD THE MERIDIAN' }[a] || '');
-    if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : 'RISING…');
+    if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : d.channel.kind === 'seal' ? 'SEALING…' : 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
   },
 };
@@ -275,10 +277,11 @@ function drawReport() {
   // the star: what this ride fed it, and how far to the next magnitude
   const s = Save.data, mag = magnitudeOf(s.star), lo = T.star.levels[mag - 1], hi = T.star.levels[mag];
   let star = '';
-  if (r.fed) {
+  const paid = (r.contracts || []).reduce((n, c) => n + c.star, 0), gain = (r.fed || 0) + paid;
+  if (gain) {
     const grew = s.magSeen !== undefined && mag > s.magSeen;
     const k = hi ? Math.min(1, (s.star - lo) / (hi - lo)) : 1;
-    star = `<div class="rep-star"><div class="rep-row"><span class="rep-label gold">THE STAR</span><span class="rep-text">+${r.fed}${grew ? ` · grew to magnitude ${mag}` : hi ? ` · ${Math.max(0, hi - s.star)} to magnitude ${mag + 1}` : ''}</span></div><div class="bar rep-bar"><div class="fill" style="width:${Math.round(k * 100)}%"></div></div></div>`;
+    star = `<div class="rep-star"><div class="rep-row"><span class="rep-label gold">THE STAR</span><span class="rep-text">+${gain}${grew ? ` · grew to magnitude ${mag}` : hi ? ` · ${Math.max(0, hi - s.star)} to magnitude ${mag + 1}` : ''}</span></div><div class="bar rep-bar"><div class="fill" style="width:${Math.round(k * 100)}%"></div></div></div>`;
   }
   $('report-title').textContent = title;
   $('report-body').innerHTML = `<p class="rep-where">${esc(where)}</p>${rows.join('')}${star}`;
@@ -286,7 +289,9 @@ function drawReport() {
 
 function drawDescend() {
   const s = Save.data;
-  $('descend-body').innerHTML = T.biomes.map((b, i) => {
+  const owned = TOOL_IDS.filter(toolOwned);
+  const carry = `<h3>CARRYING</h3><div class="chips">${owned.map((id) => `<button class="chip ${s.tool === id ? 'on' : ''}" data-act="carryTool" data-arg="${id}"><img class="chip-icon" src="${toolIconUrl(id)}" alt="">${esc(TOOLS[id].name)}</button>`).join('')}</div><h3>WHERE</h3>`;
+  $('descend-body').innerHTML = carry + T.biomes.map((b, i) => {
     const open = biomeOpen(s, i), deep = s.deepest[b.id] || 0;
     const ores = b.ores.map((id) => T.ores[ORE_INDEX[id]].name).join(' and ');
     return `<button class="row biome" data-act="dive" data-arg="${i}" ${open ? '' : 'disabled'}>
@@ -297,7 +302,7 @@ function drawDescend() {
 // The tools, under the biomes: the one carried, the others to carry or make.
 function drawToolRows() {
   const s = Save.data;
-  return `<h3>TOOL · CARRY ONE</h3>` + TOOL_IDS.map((id) => {
+  return `<h3>TOOLS · CARRY ONE</h3>` + TOOL_IDS.map((id) => {
     const t = TOOLS[id], own = toolOwned(id), open = toolOpen(id), on = s.tool === id;
     const sub = own ? t.text : open ? `Make it from ${toolCostText(id)}. ${t.text}` : `The star must reach magnitude ${T.tools[id].mag}.`;
     const btn = own ? (on ? '<span class="row-tag r-legendary">CARRIED</span>' : '') : open ? `<button class="mini" data-act="makeTool" data-arg="${id}" ${toolAffordable(id) ? '' : 'disabled'}>MAKE</button>` : '';
@@ -345,8 +350,9 @@ function drawForge() {
   const lines = [];
   if (bp.kind === 'core') lines.push(`A tier ${ore.tier} ${esc(bp.name)} core (tier ${Math.min(6, ore.tier + 1)} from a fine forge). ${esc(CORES[bp.core].text)}.`);
   else {
-    const b = baseStats(bp.kind, ore.tier, bp), base = itemBaseLine({ kind: bp.kind, base: b, tier: ore.tier });
-    lines.push(`A tier ${ore.tier} ${esc(bp.name.toLowerCase())}: ${esc(base)}.`);
+    const tier = Math.min(T.ores.length, ore.tier + (ex && ex.tierUp ? 1 : 0));
+    const b = baseStats(bp.kind, tier, bp), base = itemBaseLine({ kind: bp.kind, base: b, tier });
+    lines.push(`A tier ${tier} ${esc(bp.name.toLowerCase())}: ${esc(base)}.`);
     if (bp.text) lines.push(esc(bp.text));
     if (pk && PARTS[pk.kind].family) lines.push(`Bound with ${esc(partName(F.part).toLowerCase())}: ${pk.grade} ${PARTS[pk.kind].family} affix${pk.grade > 1 ? 'es' : ''} for sure${pk.grade > 1 ? `, ${Math.round(T.items.gradeBoost * (pk.grade - 1) * 100)}% stronger` : ''}.`);
     if (pk && pk.kind === 'heart') lines.push('A heart: a fine forge or better comes out legendary.');
@@ -552,7 +558,13 @@ UI.acts = {
     Story.starGrew();
   },
   resumeRun: () => { UI.close(); resumeRun(); },
-  dropRun: () => { UI.close(); resumeRun(); abandonDive(); },
+  dropRun: () => {
+    UI.close();
+    const r = Save.data.run;
+    if (!r) return;
+    Game.dive = newWorld({ seed: r.seed, biome: r.biome, depth: r.depth, zone: r.zone, cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], gotShard: r.gotShard, echoes: r.echoes });
+    abandonDive();
+  },
   storyNext: () => {
     const st = UI.story;
     if (!st) return;
@@ -564,7 +576,12 @@ UI.acts = {
     Save.data.beaconLit = true; Save.save();
     UI.openStory(STORY_END, () => UI.useStation('wreck'));
   },
-  recall: () => { UI.close(); startChannel('recall'); UI.toast('Hold still: recalling'); },
+  recall: () => {
+    UI.close();
+    const d = Game.dive;
+    if (d.channel && d.channel.kind !== 'recall') d.channel = null;
+    startChannel('recall'); UI.toast('Hold still: recalling');
+  },
   beacon: () => { UI.close(); plantBeacon(); },
   carryTool: (id) => { if (toolOwned(id)) { Save.data.tool = id; Save.save(); UI.redraw(); } },
   makeTool: (id) => { if (makeTool(id)) { UI.toast(`Made: ${TOOLS[id].name}`, 'legendary'); UI.redraw(); } },

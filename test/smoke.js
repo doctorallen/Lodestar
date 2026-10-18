@@ -313,7 +313,10 @@ async function phone(browser) {
     s.tool = 'beacon'; startDive(0); d = Game.dive;
     for (const e of d.enemies) e.dead = true;
     d.p.x = (d.floor.entry.x + 0.5) * TILE; d.p.y = (d.floor.entry.y + 0.5) * TILE;
-    const planted = plantBeacon(), again = plantBeacon();
+    const refused = !plantBeacon();
+    // a site no lodeline reaches
+    const f = d.floor; f.tiles[f.pad.y * f.w + f.pad.x] = TILE_FLOOR; f.pad = null;
+    const planted = refused && plantBeacon(), again = plantBeacon();
     for (let i = 0; i < 60 * (T.tools.beacon.land + 0.5); i++) Game.step(1 / 60);
     const lands = actionHere() === 'extract';
     UI.close(); abandonDive(); UI.close();

@@ -121,8 +121,8 @@ function saveRun(d) {
     seed: d.seed, biome: d.biome, depth: d.depth, zone: d.zone, tool: d.tool,
     cargo: d.cargo, items: d.items, blueprints: d.blueprints, pocket: d.pocket,
     hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, kills: d.kills, time: d.time, mined: d.mined || [],
-    gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b && b.landed ? { x: b.x, y: b.y } : null,
-    sealed: !!(d.rift && !d.rift.open), tally: d.tally || {},
+    gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b ? { x: b.x, y: b.y, t: b.t, landed: b.landed } : null,
+    sealed: !!(d.rift && !d.rift.open), tally: d.tally || {}, keeperDown: !!(d.zone === 'lair' && d.keeper && d.keeper.dead), pullTime: d.pullTime,
   };
   // only what a dive changes: the run, what's worn, the craft counter
   Save.saveField('run'); Save.saveField('equip'); Save.saveField('crafts');
@@ -139,8 +139,16 @@ function resumeRun() {
   d.mined = (r.mined || []).slice();
   Object.assign(d, { cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], kills: r.kills || 0, tally: r.tally || {}, time: r.time || 0, gotShard: r.gotShard, echoes: r.echoes, beaconUsed: r.beaconUsed });
   d.p.hp = Math.min(d.stats.maxHp, r.hp || d.stats.maxHp);
-  d.pull = Math.max(0.05, r.pull === undefined ? 1 : r.pull);
-  if (r.beacon) { if (f.pad) f.tiles[f.pad.y * f.w + f.pad.x] = TILE_FLOOR; f.tiles[r.beacon.y * f.w + r.beacon.x] = TILE_PAD; f.pad = { x: r.beacon.x, y: r.beacon.y }; d.padDark = false; d.beacon = { x: r.beacon.x, y: r.beacon.y, landed: true, t: 0 }; }
+  d.pull = r.pull === undefined ? 1 : r.pull;
+  if (r.pullTime) d.pullTime = r.pullTime;
+  // a lair whose Keeper had fallen: still fallen, its shard still there
+  if (r.keeperDown && d.keeper) {
+    d.keeper.dead = true; d.padDark = false;
+    if (!r.gotShard) d.drops.push({ x: d.keeper.x, y: d.keeper.y, t: 0, shard: d.biome });
+  }
+  if (r.beacon && r.beacon.landed) { d.beacon = { x: r.beacon.x, y: r.beacon.y, t: 0 }; landBeacon(d, true); }
+  else if (r.beacon) d.beacon = { x: r.beacon.x, y: r.beacon.y, t: r.beacon.t || 0, landed: false };
+  if (d.pull <= 0) { d.pull = 0; theDarkComes(d); }
   if (r.sealed && d.rift) { d.rift.open = false; f.riftShift = null; }
   saveRun(d);
 }
@@ -228,6 +236,8 @@ function updateDive(dtReal, dt) {
 function startDying() {
   const d = Game.dive;
   d.dying = 1.4;
+  // a fall is final, even if the page closes before it's over
+  Save.data.run = null; Save.saveField('run');
   d.p.mine = null;
   d.fx.push({ kind: 'death', x: d.p.x, y: d.p.y - 6, t: 1.4, max: 1.4 });
 }
@@ -239,11 +249,12 @@ function actionHere() {
   if (!d || d.dying) return null;
   const near = (tx, ty, r) => dist(d.p.x, d.p.y, (tx + 0.5) * TILE, (ty + 0.5) * TILE) < r;
   if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && near(s.x, s.y, s.id === 'wreck' ? 30 : 20)); return s ? s.id : null; }
-  if (d.fieldForge && near(d.fieldForge.x, d.fieldForge.y, 20)) return 'forge';
   const t = floorTile(d.floor, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
+  if (t === TILE_PAD && !d.padDark && !d.channel) return 'extract';
+  if (d.fieldForge && near(d.fieldForge.x, d.fieldForge.y, 20)) return 'forge';
   if (t === TILE_SHAFT && wayHere(d) >= 0) return 'way';
   if (!d.channel && riftHere(d)) return 'rift';
-  return t === TILE_PAD && !d.padDark && !d.channel ? 'extract' : null;
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -252,18 +263,25 @@ function actionHere() {
 function updatePull(dt) {
   const d = Game.dive, P = T.pull;
   if (d.pull <= 0) return;
+  // in a lair the Keeper holds the dark off while it lives, but its rage grows
+  if (d.zone === 'lair' && d.keeper && !d.keeper.dead) {
+    if (!d.keeper.enraged && (d.lairT = (d.lairT || 0) + dt) >= T.enemies.keeper.enrageAt) { d.keeper.enraged = true; UI.toast('The Keeper rages', 'legendary'); }
+    return;
+  }
   const was = d.pull;
   d.pull = Math.max(0, d.pull - (dt / d.pullTime) * (1 - d.stats.pullSlow / 100));
   if (was > P.dimAt && d.pull <= P.dimAt) { UI.toast("The star's pull is fading", 'legendary'); Story.say('pullFading'); }
   if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { d.waveT = P.waveEvery; stirTheDark(d, P.wave); }
-  if (d.pull <= 0) {
-    // the lodeline goes dark, and the Hollow comes
-    d.padDark = true;
-    if (d.channel && d.channel.kind === 'extract') breakChannel('The lodeline went dark');
-    UI.toast('The lodeline has gone dark. Something is coming.', 'legendary');
-    const at = darkSpot(d);
-    if (at) { const h = makeEnemy('hollow', at.x, at.y, floorLevel(d), null); h.aggro = true; d.enemies.push(h); }
-  }
+  if (d.pull <= 0) theDarkComes(d);
+}
+
+// The pull is gone: the lodeline goes dark, and the Hollow comes.
+function theDarkComes(d) {
+  d.padDark = true;
+  if (d.channel && d.channel.kind === 'extract') breakChannel('The lodeline went dark');
+  UI.toast('The lodeline has gone dark. Something is coming.', 'legendary');
+  const at = darkSpot(d);
+  if (at) { const h = makeEnemy('hollow', at.x, at.y, floorLevel(d), null); h.aggro = true; d.enemies.push(h); }
 }
 
 // Somewhere out of sight but on foot from the diver.

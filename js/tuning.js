@@ -225,7 +225,7 @@ const T = {
     // the Shard Keepers: a great charger that rings the room with orbs,
     // calls its brood (the Rim's), and leaves magma where it charges (the
     // Underforge's)
-    keeper: { hp: 650, dmg: 18, speed: 22, radius: 12, range: 100, windup: 0.75, cooldown: 1.8, chargeSpeed: 130, chargeTime: 0.6, dazed: 1.5, shotSpeed: 70, shots: 12, summonEvery: 7, broodMax: 4, magma: 0.35, magmaR: 18, magmaTime: 4, summon: 2 },
+    keeper: { hp: 455, enrageAt: 90, enrageSpeed: 1.3, afterPull: 30, dmg: 18, speed: 22, radius: 12, range: 100, windup: 0.75, cooldown: 1.8, chargeSpeed: 130, chargeTime: 0.6, dazed: 1.5, shotSpeed: 70, shots: 12, summonEvery: 7, broodMax: 4, magma: 0.35, magmaR: 18, magmaTime: 4, summon: 2 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },
     // a room's enemies: perRoom + perDepth × depth, give or take one
     perRoom: 1.4, perDepth: 0.55, maxPerRoom: 6,
