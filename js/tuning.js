@@ -365,8 +365,11 @@ const T = {
   },
 
   // The art's look, "A+" (art.js; DECISIONS.md, 2026-10-18). Visual only.
-  //   px: art pixels to one design pixel: 1 at today's 16 px tiles, 1.5 at
-  //     24 px. Every distance below in px is multiplied by it.
+  //   px: art pixels to a world pixel. The world (TILE, every body, reach
+  //     and speed) is in world px; the art is drawn at px art px to each,
+  //     so 1.5 is 24 art px to a 16 px tile. Sprites' letter grids are
+  //     enlarged by it before they're shaded, floors are painted at it, and
+  //     every distance below in px is multiplied by it.
   //   tones: the most tones of one material on one sprite, chosen by form
   //     (light from the top left), never spread as a gradient.
   //   hueShift: [shadows, lights, richer]: how far a ramp's darkest tone
@@ -390,15 +393,18 @@ const T = {
   //     and grain (px across), and cut (how far the noise must swing from
   //     the middle before a clump takes the light or dark tone; higher
   //     means fewer, smaller clumps). rockCut: the same on rock tops.
+  //   sunGround: the ground under the sky, kept calm so what stands on it
+  //     stands out: soften, how far its dark and light clumps are drawn
+  //     towards its middle tone (0-1), and cut, as cluster.cut.
   //   groundDither: ordered dithering at the edges of the ground's large
   //     gradients (wall shadows, the rift's wash, the sinkhole's faces).
   //   lightSteps: the light's bands for each 1.0 of light; lightDither: how
   //     much of each step's edge is dithered (0 hard, 1 the whole step).
   art: {
-    px: 1, tones: 4, hueShift: [0.2, 0.3, 0.05], violet: 255, gold: 50, groundHue: [0.1, 0.1, 0],
+    px: 1.5, tones: 4, hueShift: [0.2, 0.3, 0.05], violet: 255, gold: 50, groundHue: [0.1, 0.1, 0],
     form: { edge: 1.5, body: 0.3, part: 2, depth: 1.6, light: 0.5, shade: 0.32, fall: 0.1, crease: 0.24 },
     dither: false, outline: { creature: 'black', prop: 'selout' }, selout: 0.42,
-    cluster: { patch: 9, grain: 3, cut: 0.32 }, rockCut: 0.34, groundDither: true,
+    cluster: { patch: 9, grain: 3, cut: 0.32 }, rockCut: 0.34, sunGround: { soften: 0.55, cut: 0.4 }, groundDither: true,
     lightSteps: 5, lightDither: 0.3,
   },
 

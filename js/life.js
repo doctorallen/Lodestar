@@ -82,8 +82,9 @@ function critSprite(kind, L, frame, dir) {
     for (let x = 0; x < w; x++) { let r = ''; for (let y = 0; y < h; y++) r += dir === 'n' ? rows[h - 1 - y][w - 1 - x] : rows[y][x]; out.push(r); }
     rows = out;
   }
-  // a creature: outlined like the rest (T.art.outline.creature), a pixel
-  // all round
+  // at the art's size (AP), and a creature: outlined like the rest
+  // (T.art.outline.creature), a pixel all round
+  rows = artScaleRows(rows, AP);
   const mode = T.art.outline.creature, pad = (src) => { const [p, x] = makeCanvas(src.width + 2, src.height + 2); x.drawImage(src, 1, 1); return p; };
   let c = spriteFrom(rows, lifePal(kind, L));
   c = mode === 'none' ? pad(c) : outlined(c, mode === 'black' ? ART.outline : mix(lifePal(kind, L).D || '#000000', '#000000', 0.6));
@@ -372,7 +373,8 @@ function updateMoth(d, m, th, dt) {
 // ---------------------------------------------------------------------------
 const _lifeClouds = [];
 // A soft cloud shadow: a few overlapping blobs, dithered out at the edges
-// (drawn a little wider than cloudSize, as the soft rim barely shows).
+// (drawn a little wider than cloudSize, as the soft rim barely shows), w × h
+// art px.
 function lifeCloudCanvas(seed, w, h) {
   const rng = new Rng(seed), blobs = [];
   for (let k = rng.i(4, 6); k > 0; k--) blobs.push({ x: w * rng.f(0.3, 0.7), y: h * rng.f(0.35, 0.65), r: Math.min(w, h * 1.6) * rng.f(0.22, 0.36) });
@@ -382,7 +384,7 @@ function lifeCloudCanvas(seed, w, h) {
       let v = 0;
       for (const b of blobs) { const dx = (i - b.x) / b.r, dy = ((y - b.y) * 1.5) / b.r; v = Math.max(v, 1 - Math.hypot(dx, dy)); }
       // ragged with noise, soft at the rim
-      v = clamp(v * 1.5 + wallNoise(i + seed % 97, y, 11) * 0.3, 0, 1);
+      v = clamp(v * 1.5 + wallNoise(i / AP + seed % 97, y / AP, 11) * 0.3, 0, 1);
       if (v > bayerAt(i, y)) D[(y * w + i) * 4 + 3] = 255;
     }
   x.putImageData(img, 0, 0);
@@ -391,7 +393,7 @@ function lifeCloudCanvas(seed, w, h) {
 
 function placeClouds(d, rng) {
   const L = d.life, S = SURFACE_LIGHT, f = d.floor;
-  if (!_lifeClouds.length) for (let k = 0; k < 3; k++) { const w = Math.round(1.4 * TILE * (S.cloudSize[0] + (k * (S.cloudSize[1] - S.cloudSize[0])) / 2)); _lifeClouds.push(lifeCloudCanvas(0xc10d + k, w, Math.round(w * 0.6))); }
+  if (!_lifeClouds.length) for (let k = 0; k < 3; k++) { const w = Math.round(1.4 * ATILE * (S.cloudSize[0] + (k * (S.cloudSize[1] - S.cloudSize[0])) / 2)); _lifeClouds.push(lifeCloudCanvas(0xc10d + k, w, Math.round(w * 0.6))); }
   const a = rng.f(-0.5, 0.5) + (rng.chance(0.5) ? 0 : Math.PI);
   L.wind = { x: Math.cos(a), y: Math.sin(a) * 0.5 };
   L.clouds = [];
@@ -399,7 +401,7 @@ function placeClouds(d, rng) {
 }
 
 function updateWeather(d, dt) {
-  const L = d.life, f = d.floor, p = d.p, vw = View.w || 192, vh = View.h || 300;
+  const L = d.life, f = d.floor, p = d.p, vw = View.ww || 192, vh = View.wh || 300;
   if (L.clouds) {
     const W = f.w * TILE + 300, H = f.h * TILE + 300, S = SURFACE_LIGHT.cloudSpeed;
     for (const c of L.clouds) {
@@ -471,31 +473,33 @@ function lifeActors(d) {
 }
 
 function drawCritter(d, c, ox, oy) {
-  const fx = Math.round(c.x + ox), fy = Math.round(c.y + oy);
-  if (fx < -20 || fy < -60 || fx > View.w + 20 || fy > View.h + 60) return;
+  const fx = Math.round(c.x * AP) + ox, fy = Math.round(c.y * AP) + oy;
+  if (fx < -30 || fy < -90 || fx > View.w + 30 || fy > View.h + 90) return;
   const x = View.ctx;
   if (c.crit === 'bird') {
     // in the air it's drawn with what flies; here only its shadow
     x.fillStyle = 'rgba(0,0,0,0.3)';
-    if (c.z > 3) { x.fillRect(fx - 1 + Math.round(c.z * 0.15), fy, 3, 1); return; }
-    x.fillRect(fx - 2, fy, 4, 1);
+    if (c.z > 3) { x.fillRect(fx - 2 + Math.round(c.z * 0.15 * AP), fy, ap(3), 1); return; }
+    x.fillRect(fx - ap(2), fy, ap(4), 1);
     const s = critSprite('bird', d.life, c.peck > 0 ? 1 : 0, c.dir);
-    drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + 2 - Math.round(c.z));
+    drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + Math.round(footOff(2)) - Math.round(c.z * AP));
     return;
   }
   const moving = c.state === 'flee' || c.state === 'dart' || c.state === 'run';
   const s = critSprite(c.crit, d.life, moving ? Math.floor(Game.realT * 14) % 2 : 0, c.dir);
+  const sx = fx - Math.round(s.w / 2), sy = fy - s.h + Math.round(footOff(3));
   if (c.state === 'hiding') {
-    // into a crack: drawn shrinking into the wall's foot
-    const k = 1 - c.hide;
-    x.drawImage(s.c, 0, 0, s.w, s.h, fx - Math.round(s.w / 2), fy - Math.round(s.h * k) + 1 - 4 * c.hide, s.w, Math.max(1, Math.round(s.h * k)));
+    // into a crack: sinking into the wall's foot, cut off at the ground
+    const k = 1 - c.hide, hk = Math.max(1, Math.round(s.h * k)), y0 = Math.round(ap(4) * c.hide);
+    x.drawImage(s.c, 0, 0, s.w, hk, sx, sy + s.h - hk - y0, s.w, hk);
     return;
   }
   if (d.zone === 'surface') { x.fillStyle = 'rgba(0,0,0,0.28)'; x.fillRect(fx - Math.floor(s.w / 2) + 1, fy + 1, s.w - 2, 1); }
-  drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + 3);
+  drawArtSprite(s, sx, sy);
 }
 
 // Before the light: flying birds, moths, dust, drips.
+const LIFE_WINGS = [[[-3, -1], [-2, -1], [-1, 0], [0, 0], [1, 0], [2, -1], [3, -1], [0, 1]], [[-3, 0], [-2, 1], [-1, 1], [0, 0], [1, 1], [2, 1], [3, 0], [0, 1]]];
 function drawLifeAir(d, ox, oy, lights) {
   const L = d.life;
   if (!L) return;
@@ -504,16 +508,15 @@ function drawLifeAir(d, ox, oy, lights) {
     const col = lifePal('bird', L).D;
     for (const b of fl.birds) {
       if (b.z <= 3) continue;
-      const bx = Math.round(b.x + ox), by = Math.round(b.y + oy - b.z);
-      if (bx < -4 || by < -4 || bx > View.w + 4 || by > View.h + 4) continue;
-      const up = Math.floor(b.wing) % 2 === 0;
-      dot(bx, by, col); dot(bx - 1, by + (up ? -1 : 1), col); dot(bx + 1, by + (up ? -1 : 1), col); dot(bx - 2, by + (up ? -1 : 0), col); dot(bx + 2, by + (up ? -1 : 0), col);
+      const bx = Math.round(b.x * AP) + ox, by = Math.round((b.y - b.z) * AP) + oy;
+      if (bx < -6 || by < -6 || bx > View.w + 6 || by > View.h + 6) continue;
+      for (const [i, j] of LIFE_WINGS[Math.floor(b.wing) % 2]) dot(bx + i, by + j, col);
     }
   }
   if (L.moths.length) {
     const col = L.moth || LIFE_MOTH[L.biome], dim = mix(col, '#000000', 0.45);
     for (const m of L.moths) {
-      const mx = Math.round(m.x + ox), my = Math.round(m.y + oy);
+      const mx = Math.round(m.x * AP) + ox, my = Math.round(m.y * AP) + oy;
       if (mx < -4 || my < -4 || mx > View.w + 4 || my > View.h + 4) continue;
       // a firefly: only its light, blinking slowly
       if (L.firefly) {
@@ -534,7 +537,7 @@ function drawLifeAir(d, ox, oy, lights) {
   if (L.flakes.length) {
     const W = L.weather;
     for (const k of L.flakes) {
-      const fx = Math.round(k.x + ox), fy = Math.round(k.y + oy);
+      const fx = Math.round(k.x * AP) + ox, fy = Math.round(k.y * AP) + oy;
       if (fx < 0 || fy < 0 || fx >= View.w || fy >= View.h) continue;
       if (W === 'snow') { dot(fx, fy, '#f4f8ff', false, 0.85); if (k.s > 1.15) dot(fx + 1, fy, '#dce6f4', false, 0.6); }
       else if (W === 'pollen') dot(fx, fy, '#f0f0a8', true, 0.35 + 0.25 * Math.sin(k.t * 3 + k.ph));
@@ -546,21 +549,21 @@ function drawLifeAir(d, ox, oy, lights) {
     const g = L.gust, k = Math.min(1, g.t * 2, (g.max - g.t) * 2);
     x.fillStyle = L.gustCol || '#e8cc98';
     for (const b of g.bits) {
-      const bx = Math.round(b.x + ox), by = Math.round(b.y + oy + Math.sin(g.t * 5 + b.ph) * 2);
-      if (bx < -4 || bx > View.w + 4 || by < 0 || by > View.h) continue;
+      const bx = Math.round(b.x * AP) + ox, by = Math.round((b.y + Math.sin(g.t * 5 + b.ph) * 2) * AP) + oy, len = ap(b.len);
+      if (bx < -6 || bx > View.w + 6 || by < 0 || by > View.h) continue;
       x.globalAlpha = b.a * k;
-      x.fillRect(bx - (g.dir > 0 ? b.len : 0), by, b.len, 1);
+      x.fillRect(bx - (g.dir > 0 ? len : 0), by, len, 1);
     }
     x.globalAlpha = 1;
   }
   for (const k of L.drips) {
-    const dx = Math.round(k.x + ox);
-    if (k.t < k.fall) { const u = k.t / k.fall; x.fillStyle = 'rgba(190,210,235,0.8)'; x.fillRect(dx, Math.round(lerp(k.y0, k.y1, u * u) + oy), 1, 2); }
-    else { const u = (k.t - k.fall) / 0.3, sy = Math.round(k.y1 + oy) + 1, r = 1 + Math.round(u * 2); x.fillStyle = `rgba(190,210,235,${0.6 * (1 - u)})`; x.fillRect(dx - r, sy, 1, 1); x.fillRect(dx + r, sy, 1, 1); x.fillRect(dx, sy - 1, 1, 1); }
+    const dx = Math.round(k.x * AP) + ox;
+    if (k.t < k.fall) { const u = k.t / k.fall; x.fillStyle = 'rgba(190,210,235,0.8)'; x.fillRect(dx, Math.round(lerp(k.y0, k.y1, u * u) * AP) + oy, 1, ap(2)); }
+    else { const u = (k.t - k.fall) / 0.3, sy = Math.round(k.y1 * AP) + oy + 1, r = 1 + Math.round(u * 3); x.fillStyle = `rgba(190,210,235,${0.6 * (1 - u)})`; x.fillRect(dx - r, sy, 1, 1); x.fillRect(dx + r, sy, 1, 1); x.fillRect(dx, sy - 1, 1, 1); }
   }
   if (L.motes.length) {
     x.fillStyle = '#c8c4b8';
-    for (const m of L.motes) { x.globalAlpha = 0.25 + 0.2 * Math.sin(Game.realT * 2 + m.ph); x.fillRect(Math.round(m.x + ox), Math.round(m.y + oy), 1, 1); }
+    for (const m of L.motes) { x.globalAlpha = 0.25 + 0.2 * Math.sin(Game.realT * 2 + m.ph); x.fillRect(Math.round(m.x * AP) + ox, Math.round(m.y * AP) + oy, 1, 1); }
     x.globalAlpha = 1;
   }
 }
@@ -574,7 +577,7 @@ function drawLifeShade(d, ox, oy) {
   const x = View.ctx;
   x.globalAlpha = a;
   for (const c of L.clouds) {
-    const cx = Math.round(c.x + ox), cy = Math.round(c.y + oy);
+    const cx = Math.round(c.x * AP) + ox, cy = Math.round(c.y * AP) + oy;
     if (cx > View.w || cy > View.h || cx + c.img.width < 0 || cy + c.img.height < 0) continue;
     x.drawImage(c.img, cx, cy);
   }

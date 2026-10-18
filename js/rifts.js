@@ -129,37 +129,37 @@ function paintGraft(f, tx0, ty0, tx1, ty1) {
   View.floorBuf = Q; f.paintingGraft = true;
   try { for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) paintTileArt(f, x, y); }
   finally { View.floorBuf = P; f.paintingGraft = false; }
-  for (let y = ty0 * TILE; y < (ty1 + 1) * TILE; y++)
-    for (let x = tx0 * TILE; x < (tx1 + 1) * TILE; x++) {
-      if (!graftAt(f, x, y)) continue;
+  for (let y = ty0 * ATILE; y < (ty1 + 1) * ATILE; y++)
+    for (let x = tx0 * ATILE, wy = (y + 0.5) / AP - 0.5; x < (tx1 + 1) * ATILE; x++) {
+      if (!graftAt(f, (x + 0.5) / AP - 0.5, wy)) continue;
       const k = (y * P.w + x) * 4;
       for (let i = 0; i < 4; i++) { P.col[k + i] = Q.col[k + i]; P.em[k + i] = Q.em[k + i]; }
     }
 }
 
-// After painting (px x0..x1, y0..y1): the ground round an open tear washes
+// After painting (art px x0..x1, y0..y1): the ground round an open tear washes
 // violet in steps, with small clumps of the rift's colours here and there, and a graft's
 // edge glows where the two places are stitched together.
 function tintRift(f, x0, y0, x1, y1) {
   const P = View.floorBuf, S = RIFT_SHIFT;
   if (!P || (!f.riftShift && !f.graft)) return;
-  const to = rgbOf(S.floorToward), edge = rgbOf(S.fringe[1]), fr = S.fringe.map(rgbOf), reach = T.rifts.tintR * TILE, dz = T.art.groundDither, fs = 2 * T.art.px;
+  const to = rgbOf(S.floorToward), edge = rgbOf(S.fringe[1]), fr = S.fringe.map(rgbOf), reach = T.rifts.tintR * ATILE, dz = T.art.groundDither, fs = 2 * T.art.px;
   x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(P.w, x1); y1 = Math.min(P.h, y1);
   const gf = f.graft;
   // the graft's outline stays within its radius and a tile and a half of
   // wobble, so it's worked out once a pixel in a box round it; the tint
   // reaches only so far from a tear
-  const gx = gf ? (gf.x + 0.5) * TILE : 0, gy = gf ? (gf.y + 0.5) * TILE : 0, gr = gf ? (gf.r + 2) * TILE : 0;
+  const gx = gf ? (gf.x + 0.5) * ATILE : 0, gy = gf ? (gf.y + 0.5) * ATILE : 0, gr = gf ? (gf.r + 2) * ATILE : 0;
   const mx0 = Math.max(x0, Math.floor(gx - gr)), my0 = Math.max(y0, Math.floor(gy - gr));
   const mw = Math.max(0, Math.min(x1, Math.ceil(gx + gr)) + 2 - mx0), mh = Math.max(0, Math.min(y1, Math.ceil(gy + gr)) + 2 - my0);
   const inG = gf ? new Uint8Array(mw * mh) : null;
-  if (gf) for (let j = 0; j < mh; j++) for (let i = 0; i < mw; i++) inG[j * mw + i] = graftAt(f, mx0 + i, my0 + j) ? 1 : 0;
+  if (gf) for (let j = 0; j < mh; j++) for (let i = 0; i < mw; i++) inG[j * mw + i] = graftAt(f, (mx0 + i + 0.5) / AP - 0.5, (my0 + j + 0.5) / AP - 0.5) ? 1 : 0;
   const gm = (x, y) => inG[(y - my0) * mw + x - mx0] === 1;
   for (let y = y0; y < y1; y++)
     for (let x = x0; x < x1; x++) {
       const k = (y * P.w + x) * 4, c = P.col, e = P.em;
       let t = 0;
-      if (f.riftShift) for (const s of f.riftShift) { const dx = x - (s.x + 0.5) * TILE, dy = y - (s.y + 0.5) * TILE; if (dx < reach && dx > -reach && dy < reach && dy > -reach) t = Math.max(t, 1 - Math.hypot(dx, dy) / reach); }
+      if (f.riftShift) for (const s of f.riftShift) { const dx = x - (s.x + 0.5) * ATILE, dy = y - (s.y + 0.5) * ATILE; if (dx < reach && dx > -reach && dy < reach && dy > -reach) t = Math.max(t, 1 - Math.hypot(dx, dy) / reach); }
       if (t > 0) {
         // the wash, in three hard steps, dithered only at their edges
         const a = Math.min(3, Math.floor(Math.min(1, t * 1.4) * 3 + 0.5 + (dz ? (bayerAt(x, y) - 0.5) * 0.5 : 0))) / 3 * S.amount;
@@ -213,7 +213,7 @@ function sealRift() {
   r.open = false;
   d.floor.riftShift = null;
   tallySeal(d);
-  if (View.floorFor === d.floor) { const x0 = (r.x - 6) * TILE, y0 = (r.y - 6) * TILE; for (let y = r.y - 6; y <= r.y + 6; y++) for (let x = r.x - 6; x <= r.x + 6; x++) if (x >= 0 && y >= 0 && x < d.floor.w && y < d.floor.h) paintTileArt(d.floor, x, y); paintGraft(d.floor, r.x - 6, r.y - 6, r.x + 6, r.y + 6); tintRift(d.floor, x0, y0, x0 + 13 * TILE, y0 + 13 * TILE); View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0); View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0); }
+  if (View.floorFor === d.floor) { const x0 = (r.x - 6) * ATILE, y0 = (r.y - 6) * ATILE; for (let y = r.y - 6; y <= r.y + 6; y++) for (let x = r.x - 6; x <= r.x + 6; x++) if (x >= 0 && y >= 0 && x < d.floor.w && y < d.floor.h) paintTileArt(d.floor, x, y); paintGraft(d.floor, r.x - 6, r.y - 6, r.x + 6, r.y + 6); tintRift(d.floor, x0, y0, x0 + 13 * ATILE, y0 + 13 * ATILE); View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0); View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0); }
   const cx = (r.x + 0.5) * TILE, cy = (r.y + 0.5) * TILE, n = d.rng.i(T.rifts.glass[0], T.rifts.glass[1]) + riftTouchedAlive(d);
   for (let k = 0; k < n; k++) d.drops.push({ x: cx + d.rng.f(-6, 6), y: cy + d.rng.f(-4, 4), t: 0, exotic: 'riftglass', home: true });
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, cx, cy) < T.leave.noise) wake(d, e);
@@ -248,13 +248,13 @@ function riftProps(d) {
 
 function drawRift(d, a, ox, oy, lights) {
   const r = a.tear, t = a.at, k = Math.floor(Game.realT * 6 + r.phase) % RIFT_ROWS.length, spr = riftSprite(k);
-  const x = Math.round((t.x + 0.5) * TILE + ox - spr.w / 2), y = Math.round((t.y + 0.5) * TILE + oy - spr.h + 4 + Math.sin(Game.realT * 2 + r.phase) * 1.5);
+  const x = Math.round((t.x + 0.5) * ATILE + ox - spr.w / 2), y = Math.round((t.y + 0.5) * ATILE + oy - spr.h + footOff(4) + Math.sin(Game.realT * 2 + r.phase) * 1.5 * AP);
   drawArtSprite(spr, x, y);
   const cx = x + spr.w / 2, cy = y + spr.h / 2, pulse = 0.8 + 0.2 * Math.sin(Game.realT * 3 + r.phase);
   // motes drifting out of it
   for (let i = 0; i < 6; i++) {
     const ph = (Game.realT * 0.7 + i / 6 + r.phase) % 1, ang = i * 2.1 + r.phase;
-    dot(Math.round(cx + Math.cos(ang) * ph * 16), Math.round(cy + Math.sin(ang) * ph * 10 - ph * 6), i % 2 ? RIFT_PAL.riftcyan[0] : RIFT_PAL.riftedge[0], true, 1 - ph);
+    dot(Math.round(cx + Math.cos(ang) * ph * 16 * AP), Math.round(cy + (Math.sin(ang) * ph * 10 - ph * 6) * AP), i % 2 ? RIFT_PAL.riftcyan[0] : RIFT_PAL.riftedge[0], true, 1 - ph);
   }
   const surf = d.zone === 'surface';
   lights.push({ x: cx, y: cy, r: TILE * 3, i: (surf ? 0.6 : 1.3) * pulse, c: rgb01(RIFT_SHIFT.light) });
@@ -264,5 +264,5 @@ function drawRift(d, a, ox, oy, lights) {
 // A graft from under the sky lets its daylight down with it.
 function graftLight(d, ox, oy, lights) {
   const g = d.floor.graft;
-  if (g && g.sky) lights.push({ x: (g.x + 0.5) * TILE + ox, y: (g.y + 0.5) * TILE + oy, r: TILE * (g.r + 1), i: 1.3, c: [1.0, 0.92, 0.8] });
+  if (g && g.sky) lights.push({ x: (g.x + 0.5) * ATILE + ox, y: (g.y + 0.5) * ATILE + oy, r: TILE * (g.r + 1), i: 1.3, c: [1.0, 0.92, 0.8] });
 }

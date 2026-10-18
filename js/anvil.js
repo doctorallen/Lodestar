@@ -10,6 +10,7 @@
 // card opens. The ingot glows hotter with every strike.
 // ---------------------------------------------------------------------------
 
+// The anvil's scene, laid out in px (it's drawn at AP art px to each).
 const ANVIL_W = 120, ANVIL_H = 84;
 const ANVIL_ROWS = [
   '..WWWWWWWWWWWWWWWWWWWW....',
@@ -101,44 +102,49 @@ const Anvil = {
   draw() {
     const j = this.job, c = $('anvil-canvas');
     if (!j || !c) return;
-    if (c.width !== ANVIL_W) { c.width = ANVIL_W; c.height = ANVIL_H; }
+    // laid out in ANVIL_W × ANVIL_H, drawn at the art's size (AP art px to
+    // each), a rectangle at a time in whole art px
+    const W = ap(ANVIL_W), H = ap(ANVIL_H);
+    if (c.width !== W) { c.width = W; c.height = H; }
     const x = c.getContext('2d');
     x.imageSmoothingEnabled = false;
+    const rect = (rx, ry, rw, rh) => { const x0 = ap(rx), y0 = ap(ry); x.fillRect(x0, y0, Math.max(1, ap(rx + rw) - x0), Math.max(1, ap(ry + rh) - y0)); };
     // the forge's dark, the furnace's glow behind
-    x.fillStyle = '#07080a'; x.fillRect(0, 0, ANVIL_W, ANVIL_H);
-    const g = x.createRadialGradient(60, 44, 4, 60, 44, 70);
+    x.fillStyle = '#07080a'; x.fillRect(0, 0, W, H);
+    const g = x.createRadialGradient(ap(60), ap(44), ap(4), ap(60), ap(44), ap(70));
     g.addColorStop(0, 'rgba(255,140,60,' + (0.22 + j.flash * 0.25) + ')'); g.addColorStop(1, 'rgba(0,0,0,0)');
-    x.fillStyle = g; x.fillRect(0, 0, ANVIL_W, ANVIL_H);
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
     if (!this.sprite) this.sprite = buildArtSprite(ANVIL_ROWS);
-    x.drawImage(this.sprite.c, 60 - this.sprite.w / 2, 50);
+    x.drawImage(this.sprite.c, Math.round(ap(60) - this.sprite.w / 2), ap(50) - 1);
     // the ingot, hotter with each strike
     const ramp = ART.ores[j.ore], heat = j.strikes.length / 3;
-    x.fillStyle = mix(ramp[2], '#fff4d8', heat * 0.6 + j.flash * 0.3); x.fillRect(50, 46, 20, 4);
-    x.fillStyle = mix(ramp[3], '#ffffff', heat * 0.7); x.fillRect(51, 46, 18, 1);
-    x.fillStyle = ramp[0]; x.fillRect(50, 49, 20, 1);
+    x.fillStyle = mix(ramp[2], '#fff4d8', heat * 0.6 + j.flash * 0.3); rect(50, 46, 20, 4);
+    x.fillStyle = mix(ramp[3], '#ffffff', heat * 0.7); x.fillRect(ap(51), ap(46), ap(18), 1);
+    x.fillStyle = ramp[0]; x.fillRect(ap(50), ap(50) - 1, ap(20), 1);
     // the hammer, falling on a strike
-    const hy = 14 + Math.round((1 - j.hammer) * 0 + j.hammer * 22);
-    x.fillStyle = ART.pal.wood[2]; x.fillRect(78, hy - 2, 2, 18);
-    x.fillStyle = ART.pal.steel[2]; x.fillRect(70, hy + 14, 16, 7);
-    x.fillStyle = ART.pal.steel[3]; x.fillRect(70, hy + 14, 16, 1);
-    for (const s of j.sparks) { x.fillStyle = s.t > 0.4 ? '#ffffff' : '#ffb347'; x.fillRect(Math.round(s.x), Math.round(s.y), 1, 1); }
+    const hy = 14 + Math.round(j.hammer * 22);
+    x.fillStyle = ART.pal.wood[2]; rect(78, hy - 2, 2, 18);
+    x.fillStyle = ART.pal.steel[2]; rect(70, hy + 14, 16, 7);
+    x.fillStyle = ART.pal.steel[3]; x.fillRect(ap(70), ap(hy + 14), ap(16), 1);
+    x.fillStyle = ART.pal.steel[0]; x.fillRect(ap(70), ap(hy + 21) - 1, ap(16), 1);
+    for (const s of j.sparks) { x.fillStyle = s.t > 0.4 ? '#ffffff' : '#ffb347'; x.fillRect(ap(s.x), ap(s.y), 1, 1); }
     // the bar: the zone (brighter while the marker's in it), its middle
     // marked above and below, the marker
     const bx = 10, by = 70, bw = 100, half = this.zoneHalf();
-    x.fillStyle = '#1a1c24'; x.fillRect(bx, by, bw, 6);
+    x.fillStyle = '#1a1c24'; rect(bx, by, bw, 6);
     if (j.doneT < 0 && j.strikes.length < 3) {
-      const z0 = Math.round(bx + (j.zone - half) * bw), z1 = Math.round(bx + (j.zone + half) * bw);
-      const p0 = Math.round(bx + (j.zone - half * T.anvil.perfect) * bw), p1 = Math.max(p0 + 1, Math.round(bx + (j.zone + half * T.anvil.perfect) * bw));
-      x.fillStyle = this.inZone() ? '#a8823c' : '#7a6234'; x.fillRect(z0, by, z1 - z0, 6);
-      x.fillStyle = '#ffd890'; x.fillRect(p0, by, p1 - p0, 6);
-      x.fillStyle = '#ffd34d'; x.fillRect(p0, by - 3, p1 - p0, 1); x.fillRect(p0, by + 8, p1 - p0, 1);
-      x.fillStyle = '#ffffff'; x.fillRect(Math.round(bx + this.marker() * bw), by - 2, 1, 10);
+      const z0 = bx + (j.zone - half) * bw, z1 = bx + (j.zone + half) * bw;
+      const p0 = bx + (j.zone - half * T.anvil.perfect) * bw, p1 = Math.max(p0 + 1, bx + (j.zone + half * T.anvil.perfect) * bw);
+      x.fillStyle = this.inZone() ? '#a8823c' : '#7a6234'; rect(z0, by, z1 - z0, 6);
+      x.fillStyle = '#ffd890'; rect(p0, by, p1 - p0, 6);
+      x.fillStyle = '#ffd34d'; x.fillRect(ap(p0), ap(by - 3), ap(p1) - ap(p0), 1); x.fillRect(ap(p0), ap(by + 8), ap(p1) - ap(p0), 1);
+      x.fillStyle = '#ffffff'; x.fillRect(ap(bx + this.marker() * bw), ap(by - 2), 1, ap(10));
     }
     // three pips: how each strike went
     for (let k = 0; k < 3; k++) {
       const gr = j.strikes[k];
       x.fillStyle = gr === 'perfect' ? '#ffd34d' : gr === 'good' ? '#c8d2dc' : gr === 'miss' ? '#4a2420' : '#22252e';
-      x.fillRect(48 + k * 9, 4, 6, 6);
+      rect(48 + k * 9, 4, 6, 6);
     }
   },
 };

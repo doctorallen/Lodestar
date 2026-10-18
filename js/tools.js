@@ -141,7 +141,7 @@ function toolArrow(x, y, a, col, size = 3) {
 
 // A pip at the edge of the view in the direction of a world point.
 function edgePip(px, py, wx, wy, ox, oy, col, size) {
-  const sx = wx + ox, sy = wy + oy, m = 4;
+  const sx = wx * AP + ox, sy = wy * AP + oy, m = 5;
   if (sx >= m && sy >= m && sx < View.w - m && sy < View.h - m) return false;
   const a = Math.atan2(sy - py, sx - px), cx = clamp(sx, m, View.w - 1 - m), cy = clamp(sy, m, View.h - 1 - m);
   toolArrow(cx - Math.cos(a) * size, cy - Math.sin(a) * size, a, col, size);
@@ -150,15 +150,15 @@ function edgePip(px, py, wx, wy, ox, oy, col, size) {
 
 function drawToolHud(d, ox, oy) {
   if (d.hub || d.dying) return;
-  const p = d.p, px = Math.round(p.x + ox), py = Math.round(p.y + oy) - 8, c = View.ctx, blink = Math.sin(Game.realT * 6) > 0;
+  const p = d.p, px = Math.round(p.x * AP) + ox, py = Math.round(p.y * AP) + oy - ap(8), c = View.ctx, blink = Math.sin(Game.realT * 6) > 0;
   // a beacon falling: a column of light narrowing on its spot
   if (d.beacon && !d.beacon.landed) {
-    const b = d.beacon, k = b.t / T.tools.beacon.land, bx = Math.round((b.x + 0.5) * TILE + ox), by = Math.round((b.y + 0.5) * TILE + oy);
+    const b = d.beacon, k = b.t / T.tools.beacon.land, bx = Math.round((b.x + 0.5) * ATILE) + ox, by = Math.round((b.y + 0.5) * ATILE) + oy;
     c.fillStyle = ART.pal.star[3];
-    for (let y = by - 60; y < by; y += 2) if ((y + Math.floor(Game.realT * 30)) % 4 < 2) c.fillRect(bx, y, 1, 1);
+    for (let y = by - ap(60); y < by; y += 2) if ((y + Math.floor(Game.realT * 45)) % 4 < 2) c.fillRect(bx, y, 1, 1);
     c.globalAlpha = 0.6;
-    const r = Math.round(10 * (1 - k)) + 2;
-    for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; c.fillRect(Math.round(bx + Math.cos(a) * r), Math.round(by + Math.sin(a) * r * 0.6), 1, 1); }
+    const r = Math.round((10 * (1 - k) + 2) * AP), n = Math.round(16 * AP);
+    for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; c.fillRect(Math.round(bx + Math.cos(a) * r), Math.round(by + Math.sin(a) * r * 0.6), 1, 1); }
     c.globalAlpha = 1;
   }
   if (d.tool === 'compass' && d.compass) {
@@ -166,7 +166,7 @@ function drawToolHud(d, ox, oy) {
     if (m > TILE * 2.5) {
       const a = Math.atan2(wy - p.y, wx - p.x);
       c.globalAlpha = t.home ? 1 : 0.85;
-      toolArrow(px + Math.cos(a) * 14, py + Math.sin(a) * 11, a, t.col, 3);
+      toolArrow(px + Math.cos(a) * 14 * AP, py + Math.sin(a) * 11 * AP, a, t.col, 4);
       c.globalAlpha = 1;
     }
   }
@@ -181,11 +181,11 @@ function drawToolHud(d, ox, oy) {
         const o = T.ores[f.ore[i] - 1], ramp = ART.ores[o ? o.id : 'ferrite'], h = (x * 7 + y * 13) % 5;
         if (((Game.realT * 2 + h) | 0) % 3 === 0) continue;
         c.fillStyle = ramp[3];
-        c.fillRect(Math.round(x * TILE + ox + 3 + h), Math.round(y * TILE + oy + 4 + ((h * 3) % 6)), 1, 1);
-        c.fillRect(Math.round(x * TILE + ox + 9 - h), Math.round(y * TILE + oy + 10 - h), 1, 1);
+        c.fillRect(x * ATILE + ox + ap(3 + h), y * ATILE + oy + ap(4 + ((h * 3) % 6)), 1, 1);
+        c.fillRect(x * ATILE + ox + ap(9 - h), y * ATILE + oy + ap(10 - h), 1, 1);
       }
     const o = d.oreNear;
-    if (o) edgePip(px, py, (o.x + 0.5) * TILE, (o.y + 0.5) * TILE, ox, oy, ART.ores[o.ore][3], 2);
+    if (o) edgePip(px, py, (o.x + 0.5) * TILE, (o.y + 0.5) * TILE, ox, oy, ART.ores[o.ore][3], 3);
   }
   if (d.tool === 'radar') {
     const R = T.tools.radar.reach * TILE;
@@ -193,7 +193,7 @@ function drawToolHud(d, ox, oy) {
       if (e.dead || e.type === 'dummy' || T.enemies[e.type].rooted || dist(e.x, e.y, p.x, p.y) > R) continue;
       const col = e.type === 'hollow' ? '#b070ff' : e.boss ? '#ff3a2a' : e.elite ? ELITE_COLS[e.elite] : e.aggro ? '#ff7a5a' : '#a05a4a';
       if (e.type === 'hollow' && !blink) continue;
-      edgePip(px, py, e.x, e.y, ox, oy, col, e.boss || e.type === 'hollow' ? 3 : 2);
+      edgePip(px, py, e.x, e.y, ox, oy, col, e.boss || e.type === 'hollow' ? 4 : 3);
     }
   }
   if (d.tool === 'map' && d.seen) drawSiteMap(d);
@@ -202,7 +202,7 @@ function drawToolHud(d, ox, oy) {
 // The map: what's been seen of the site, a pixel for each 2×2 tiles, in the
 // view's top-right corner.
 function drawSiteMap(d) {
-  const f = d.floor, c = View.ctx, s = d.seen, mw = Math.ceil(f.w / 2), mh = Math.ceil(f.h / 2), x0 = View.w - mw - 3, y0 = 3;
+  const f = d.floor, c = View.ctx, s = d.seen, mw = Math.ceil(f.w / 2), mh = Math.ceil(f.h / 2), x0 = View.w - mw - 4, y0 = 4;
   c.globalAlpha = 0.8; c.fillStyle = '#000'; c.fillRect(x0 - 1, y0 - 1, mw + 2, mh + 2); c.globalAlpha = 1;
   c.fillStyle = '#3a3630'; c.fillRect(x0 - 1, y0 - 1, mw + 2, 1); c.fillRect(x0 - 1, y0 + mh, mw + 2, 1);
   c.fillStyle = '#8a8478';

@@ -62,16 +62,16 @@ function updateStorm(d, dt) {
 // The mark before a strike, and the strike itself, drawn among the lit scene.
 function drawStorm(d, ox, oy, lights) {
   const s = d.strike;
-  if (s) lights.push({ x: Math.round(s.x + ox), y: Math.round(s.y + oy), r: TILE * 1.5, i: 0.3 + (1 - s.t / T.storm.warn) * 0.6, c: [1, 0.95, 0.7] });
+  if (s) lights.push({ x: Math.round(s.x * AP) + ox, y: Math.round(s.y * AP) + oy, r: TILE * 1.5, i: 0.3 + (1 - s.t / T.storm.warn) * 0.6, c: [1, 0.95, 0.7] });
   for (const fx of d.fx) {
     if (fx.kind !== 'strike') continue;
-    const k = fx.t / fx.max, x = Math.round(fx.x + ox), y = Math.round(fx.y + oy);
+    const k = fx.t / fx.max, x = Math.round(fx.x * AP) + ox, y = Math.round(fx.y * AP) + oy;
     // a jagged bolt from the top of the view
     let bx = x;
-    for (let yy = Math.max(0, y - 140); yy < y; yy++) {
-      if (yy % 3 === 0) bx += Math.round((hashInts(yy, x) % 3) - 1);
-      dot(bx - 1, yy, '#1a0c06', false, k); dot(bx + 2, yy, '#1a0c06', false, k);
-      dot(bx, yy, '#ffffff', true, k); dot(bx + 1, yy, '#cfe8ff', true, k);
+    for (let yy = Math.max(0, y - ap(140)); yy < y; yy++) {
+      if (yy % 4 === 0) bx += Math.round((hashInts(yy, x) % 3) - 1);
+      dot(bx - 1, yy, '#1a0c06', false, k); dot(bx + 3, yy, '#1a0c06', false, k);
+      dot(bx, yy, '#cfe8ff', true, k); dot(bx + 1, yy, '#ffffff', true, k); dot(bx + 2, yy, '#cfe8ff', true, k);
     }
     lights.push({ x, y, r: TILE * 5, i: 2 * k, c: [0.8, 0.9, 1] });
   }
@@ -82,10 +82,10 @@ function drawStorm(d, ox, oy, lights) {
 function drawStormMark(d, ox, oy) {
   const s = d.strike;
   if (!s) return;
-  const c = View.ctx, k = 1 - s.t / T.storm.warn, x = Math.round(s.x + ox), y = Math.round(s.y + oy), r = T.storm.radius * (1.15 - k * 0.35);
-  const on = Math.floor(Game.realT * (6 + k * 18)) % 2 === 0;
-  for (let i = 0; i < 32; i++) {
-    const a = (i / 32) * Math.PI * 2, cx = Math.cos(a), cy = Math.sin(a) * 0.6;
+  const c = View.ctx, k = 1 - s.t / T.storm.warn, x = Math.round(s.x * AP) + ox, y = Math.round(s.y * AP) + oy, r = T.storm.radius * (1.15 - k * 0.35) * AP;
+  const on = Math.floor(Game.realT * (6 + k * 18)) % 2 === 0, n = Math.round(32 * AP);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2, cx = Math.cos(a), cy = Math.sin(a) * 0.6;
     c.fillStyle = '#2a1208'; c.fillRect(Math.round(x + cx * (r + 1)), Math.round(y + cy * (r + 1)), 1, 1); c.fillRect(Math.round(x + cx * (r - 2)), Math.round(y + cy * (r - 2)), 1, 1);
     if (on || i % 2) { c.fillStyle = k > 0.6 ? '#ffffff' : '#ffe060'; c.fillRect(Math.round(x + cx * r), Math.round(y + cy * r), 1, 1); c.fillRect(Math.round(x + cx * (r - 1)), Math.round(y + cy * (r - 1)), 1, 1); }
   }

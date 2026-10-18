@@ -29,36 +29,46 @@ const ZONE_SIGNS = Object.fromEntries(Object.entries(PORTAL_LOOKS).map(([z, l]) 
 
 // The lodestone: dark iron, with veins of the star's metal.
 const LODESTONE = ['#111316', '#22262c', '#3a4048', '#5e6670'];
-// The sprite's size, and its ring: centre, outer and inner (face) radii.
+// The sprite's size, and its ring: centre, outer and inner (face) radii,
+// in world px (it's painted at AP art px to each).
 const PORTAL_W = 25, PORTAL_H = 32, PORTAL_C = { x: 12, y: 15 }, PORTAL_OUT = [11.6, 13.4], PORTAL_IN = [7.4, 9.2];
 const PORTAL_FRAMES = 24, PORTAL_SPIN = 3; // face frames, seconds a turn
+// The ring's middle in the sprite, in art px.
+const PORTAL_AC = { x: Math.round((PORTAL_C.x + 0.5) * AP - 0.5), y: Math.round((PORTAL_C.y + 0.5) * AP - 0.5) };
 
 const _portalSprites = {};
 // The ring, plinth and keystone for one destination (its runes and glyph
-// glow in its colour). Feet (ax, ay) at the plinth's front.
+// glow in its colour), painted art pixel by art pixel: each asks where it
+// is in world px (u, v) and takes the shape's tone there. Feet (ax, ay) at
+// the plinth's front.
 function portalSprite(zone) {
   if (_portalSprites[zone]) return _portalSprites[zone];
-  const L = PORTAL_LOOKS[zone] || PORTAL_LOOKS.cave, P = pixBuf(PORTAL_W, PORTAL_H), S = LODESTONE, C = PORTAL_C;
-  const solid = new Uint8Array(PORTAL_W * PORTAL_H);
-  const put = (x, y, col, glow) => { putPx(P, x, y, col, glow); solid[y * PORTAL_W + x] = 1; };
+  const L = PORTAL_LOOKS[zone] || PORTAL_LOOKS.cave, W = Math.ceil(PORTAL_W * AP), H = Math.ceil(PORTAL_H * AP), P = pixBuf(W, H), S = LODESTONE, C = PORTAL_C;
+  const solid = new Uint8Array(W * H);
+  const put = (x, y, col, glow) => { if (x < 0 || y < 0 || x >= W || y >= H) return; putPx(P, x, y, col, glow); solid[y * W + x] = 1; };
+  // the art px of one world px (x, y), filled
+  const blk = (x, y, col, glow) => { for (let j = Math.round(y * AP); j < Math.round((y + 1) * AP); j++) for (let i = Math.round(x * AP); i < Math.round((x + 1) * AP); i++) put(i, j, col, glow); };
+  const at = (n) => (n + 0.5) / AP - 0.5;
   // a tone by form, cut hard (no dither on a prop)
   const step = (v) => S[clamp(Math.floor(v * 4), 0, 3)];
   // the plinth: a slab, lit along its top
-  for (let y = 27; y < 32; y++)
-    for (let x = 1; x < 24; x++) {
-      if (y === 27 && (x < 3 || x > 21)) continue;
-      put(x, y, y === 27 ? S[3] : y === 28 ? step(0.62) : step(0.3 - (y - 29) * 0.06));
+  const py0 = Math.round(26.5 * AP + 0.5);
+  for (let y = py0; y < Math.round(31.5 * AP + 0.5); y++)
+    for (let x = 0; x < W; x++) {
+      const u = at(x), v = at(y);
+      if (u < 0.5 || u >= 23.5 || (y === py0 && (u < 2.5 || u >= 21.5))) continue;
+      put(x, y, y === py0 ? S[3] : y === py0 + 1 ? step(0.62) : step(0.3 - (v - 29) * 0.06));
     }
   // the ring: lit from the top left on its outer side, from the bottom
   // right inside, flat across its face
-  for (let y = 0; y < 30; y++)
-    for (let x = 0; x < PORTAL_W; x++) {
-      const dx = x - C.x, dy = y - C.y, eo = (dx / PORTAL_OUT[0]) ** 2 + (dy / PORTAL_OUT[1]) ** 2, ei = (dx / PORTAL_IN[0]) ** 2 + (dy / PORTAL_IN[1]) ** 2;
+  for (let y = 0; y < Math.round(29.5 * AP + 0.5); y++)
+    for (let x = 0; x < W; x++) {
+      const dx = at(x) - C.x, dy = at(y) - C.y, eo = (dx / PORTAL_OUT[0]) ** 2 + (dy / PORTAL_OUT[1]) ** 2, ei = (dx / PORTAL_IN[0]) ** 2 + (dy / PORTAL_IN[1]) ** 2;
       if (eo > 1 || ei <= 1) continue;
       const m = Math.hypot(dx, dy) || 1, nx = dx / m, ny = dy / m;
       let v;
-      if (eo > 0.8) v = 0.55 - 0.42 * (nx * 0.6 + ny * 0.8);
-      else if (ei < 1.3) v = 0.4 + 0.4 * (nx * 0.6 + ny * 0.8);
+      if (eo > 0.82) v = 0.55 - 0.42 * (nx * 0.6 + ny * 0.8);
+      else if (ei < 1.25) v = 0.4 + 0.4 * (nx * 0.6 + ny * 0.8);
       else v = 0.62 - 0.12 * ny;
       let col = step(v);
       // veins of star metal in the stone, in short runs
@@ -68,18 +78,24 @@ function portalSprite(zone) {
   // runes round the ring, in the destination's colour
   for (const a of [-2.5, -0.64, 0.5, 2.64]) {
     const r = (PORTAL_OUT[0] + PORTAL_IN[0]) / 2, x = Math.round(C.x + Math.cos(a) * r), y = Math.round(C.y + Math.sin(a) * ((PORTAL_OUT[1] + PORTAL_IN[1]) / 2));
-    put(x, y, L.face[3], true);
-    put(x, y + 1, L.face[2], true);
+    blk(x, y, L.face[3], true);
+    blk(x, y + 1, L.face[2], true);
   }
-  // the keystone, with the destination's glyph
-  for (let y = 0; y < 7; y++) for (let x = C.x - 3; x <= C.x + 3; x++) put(x, y, y === 0 || x === C.x - 3 ? S[3] : x === C.x + 3 || y === 6 ? S[1] : S[2]);
-  for (let y = 2; y <= 4; y++) for (let x = C.x - 1; x <= C.x + 1; x++) put(x, y, S[0]);
-  for (const [i, j] of L.glyph) put(C.x + i, 3 + j, L.face[3], true);
+  // the keystone, lit on its top and left, with the destination's glyph
+  // in a dark hollow
+  const kx = PORTAL_AC.x, kw = Math.round(3.5 * AP), kh = Math.round(7 * AP), hw = Math.round(1.5 * AP);
+  for (let y = 0; y < kh; y++) for (let x = kx - kw; x <= kx + kw; x++) put(x, y, y === 0 || x === kx - kw ? S[3] : x === kx + kw || y === kh - 1 ? S[1] : S[2]);
+  const hy = Math.round(kh / 2);
+  for (let y = hy - hw; y <= hy + hw; y++) for (let x = kx - hw; x <= kx + hw; x++) put(x, y, S[0]);
+  const glyph = [0, 1, 2].map(() => ['.', '.', '.']);
+  for (const [i, j] of L.glyph) glyph[j + 1][i + 1] = 'G';
+  const g = artScaleRows(glyph.map((r) => r.join('')), AP), gw = g[0].length, gh = g.length;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) if (g[j][i] === 'G') put(kx - (gw >> 1) + i, hy - (gh >> 1) + j, L.face[3], true);
   // an outline round everything solid but the open face: a sel-out, or as
   // T.art.outline.prop says
-  outlineBuf(P, solid, T.art.outline.prop, (x, y) => ((x - C.x) / PORTAL_IN[0]) ** 2 + ((y - C.y) / PORTAL_IN[1]) ** 2 <= 1);
+  outlineBuf(P, solid, T.art.outline.prop, (x, y) => ((at(x) - C.x) / PORTAL_IN[0]) ** 2 + ((at(y) - C.y) / PORTAL_IN[1]) ** 2 <= 1);
   const s = spriteFromBuf(P);
-  s.ax = C.x + 0.5; s.ay = PORTAL_H - 2;
+  s.ax = (C.x + 0.5) * AP; s.ay = (PORTAL_H - 2) * AP; s.k = AP;
   return (_portalSprites[zone] = s);
 }
 
@@ -89,7 +105,7 @@ const _portalFaces = {};
 function portalFace(zone, k) {
   const key = zone + k;
   if (_portalFaces[key]) return _portalFaces[key];
-  const L = PORTAL_LOOKS[zone] || PORTAL_LOOKS.cave, rx = PORTAL_IN[0], ry = PORTAL_IN[1];
+  const L = PORTAL_LOOKS[zone] || PORTAL_LOOKS.cave, rx = PORTAL_IN[0] * AP, ry = PORTAL_IN[1] * AP;
   const cx = Math.ceil(rx), cy = Math.ceil(ry), w = cx * 2 + 1, h = cy * 2 + 1, P = pixBuf(w, h), ph = (k / PORTAL_FRAMES) * Math.PI * 2;
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
@@ -102,7 +118,7 @@ function portalFace(zone, k) {
   return (_portalFaces[key] = spriteFromBuf(P));
 }
 
-// The middle of a portal's face, in floor px, for one standing at tile t.
+// The middle of a portal's face, in world px, for one standing at tile t.
 function portalFaceAt(t) {
   return { x: (t.x + 0.5) * TILE, y: (t.y + 0.5) * TILE + 1 - (PORTAL_H - 2 - PORTAL_C.y) };
 }
@@ -116,19 +132,19 @@ function portalProps(d) {
 
 function drawPortal(d, a, ox, oy, lights) {
   const spr = portalSprite(a.portal), L = PORTAL_LOOKS[a.portal] || PORTAL_LOOKS.cave;
-  const fx = Math.round((a.at.x + 0.5) * TILE + ox), fy = Math.round((a.at.y + 0.5) * TILE + oy) + 1;
+  const fx = Math.round((a.at.x + 0.5) * ATILE) + ox, fy = Math.round(((a.at.y + 0.5) * TILE + 1) * AP) + oy;
   const x = Math.round(fx - spr.ax), y = Math.round(fy - spr.ay);
   drawShadow(fx, fy, 11);
   drawArtSprite(spr, x, y);
   const k = Math.floor(((Game.realT + a.at.x * 0.37) / PORTAL_SPIN) * PORTAL_FRAMES) % PORTAL_FRAMES, face = portalFace(a.portal, k);
-  const cx = x + PORTAL_C.x, cy = y + PORTAL_C.y;
+  const cx = x + PORTAL_AC.x, cy = y + PORTAL_AC.y;
   drawArtSprite(face, cx - (face.w >> 1), cy - (face.h >> 1));
   // motes drawn in from round it, slowly, some in the colour of the clime
   // beyond (climes.js)
   const sign = (a.clime && CLIME_ART[a.clime] && CLIME_ART[a.clime].sign) || L.face[3];
   const warp = d.warp && d.warp.at === a.at ? Math.min(1, d.warp.t / T.portal.enter) : 0;
-  for (let i = 0; i < 5; i++) {
-    const ph = (Game.realT * (0.35 + warp * 1.5) + i / 5 + a.at.y * 0.13) % 1, ang = i * 1.9 + ph * 2.4, r = (1 - ph) * 15;
+  for (let i = 0; i < 7; i++) {
+    const ph = (Game.realT * (0.35 + warp * 1.5) + i / 7 + a.at.y * 0.13) % 1, ang = i * 1.9 + ph * 2.4, r = (1 - ph) * 15 * AP;
     dot(Math.round(cx + Math.cos(ang) * r), Math.round(cy + Math.sin(ang) * r * 1.15), i % 2 ? sign : L.face[2], true, Math.min(1, ph * 3) * 0.9);
   }
   const P = T.portal, pulse = 0.85 + 0.15 * Math.sin(Game.realT * 2 + a.at.x), sun = d.hub || d.zone === 'surface' ? P.sunLight : 1;
@@ -170,23 +186,38 @@ function drawPortalIris(d, ox, oy) {
   let k, zone, cx, cy;
   if (d.warp) {
     const f = portalFaceAt(d.warp.at);
-    k = 1 - easeInQuad(Math.min(1, d.warp.t / T.portal.enter)); zone = d.warp.zone; cx = f.x + ox; cy = f.y + oy;
+    k = 1 - easeInQuad(Math.min(1, d.warp.t / T.portal.enter)); zone = d.warp.zone; cx = f.x * AP + ox; cy = f.y * AP + oy;
   } else if (d.arrive && d.arrive.t < T.portal.arrive) {
-    k = easeOutQuad(d.arrive.t / T.portal.arrive); zone = d.arrive.zone; cx = d.p.x + ox; cy = d.p.y - 10 + oy;
+    k = easeOutQuad(d.arrive.t / T.portal.arrive); zone = d.arrive.zone; cx = d.p.x * AP + ox; cy = (d.p.y - 10) * AP + oy;
   } else return;
   const w = View.w, h = View.h, L = PORTAL_LOOKS[zone] || PORTAL_LOOKS.cave;
   if (!PortalIris.img || PortalIris.img.width !== w || PortalIris.img.height !== h) { PortalIris.img = new ImageData(w, h); [PortalIris.canvas] = makeCanvas(w, h); }
-  const px = PortalIris.img.data, ramp = L.face.map(rgbOf), R = k * Math.hypot(Math.max(cx, w - cx), Math.max(cy, h - cy)) * 1.05, ph = Game.realT * 5;
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++) {
-      const dx = x - cx, dy = (y - cy) * 1.15, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx), n = (y * w + x) * 4;
-      const e = r - R + 3 * Math.sin(3 * a - r * 0.08 + ph);
-      if (e < 0) { px[n + 3] = 0; continue; }
-      // three arms winding in
-      const band = Math.sin(3 * a + 4 * Math.log(r + 1) - ph) > 0.4 ? 1 : 0;
-      const i = e < 2 ? 3 : e < 5 ? 2 : clamp(Math.floor(band + (e < 9 ? 1 : 0) + bayerAt(x, y) - 0.3), 0, 1);
-      const c = ramp[i];
-      px[n] = c[0]; px[n + 1] = c[1]; px[n + 2] = c[2]; px[n + 3] = 255;
+  // (worked out in world px, so its bands are as wide as they were)
+  const px = PortalIris.img.data, ramp = L.face.map(rgbOf), R = (k * Math.hypot(Math.max(cx, w - cx), Math.max(cy, h - cy)) * 1.05) / AP, ph = Game.realT * 5;
+  // the swirl's angles are worked out a 2 × 2 block at a time (they turn
+  // slowly), its distance a pixel at a time; well inside the ring there's
+  // nothing to work out
+  for (let by = 0; by < h; by += 2)
+    for (let bx = 0; bx < w; bx += 2) {
+      const ddx = (bx + 0.5 - cx) / AP, ddy = ((by + 0.5 - cy) * 1.15) / AP, rb = Math.hypot(ddx, ddy);
+      let wave = 0, band = 0;
+      const deep = rb < R - 4.5;
+      if (!deep) {
+        const a = Math.atan2(ddy, ddx);
+        wave = 3 * Math.sin(3 * a - rb * 0.08 + ph);
+        band = Math.sin(3 * a + 4 * Math.log(rb + 1) - ph) > 0.4 ? 1 : 0;
+      }
+      for (let y = by; y < by + 2 && y < h; y++)
+        for (let x = bx; x < bx + 2 && x < w; x++) {
+          const n = (y * w + x) * 4;
+          if (deep) { px[n + 3] = 0; continue; }
+          const dx = (x - cx) / AP, dy = ((y - cy) * 1.15) / AP, e = Math.hypot(dx, dy) - R + wave;
+          if (e < 0) { px[n + 3] = 0; continue; }
+          // three arms winding in
+          const i = e < 2 ? 3 : e < 5 ? 2 : clamp(Math.floor(band + (e < 9 ? 1 : 0) + bayerAt(x, y) - 0.3), 0, 1);
+          const c = ramp[i];
+          px[n] = c[0]; px[n + 1] = c[1]; px[n + 2] = c[2]; px[n + 3] = 255;
+        }
     }
   PortalIris.canvas.getContext('2d').putImageData(PortalIris.img, 0, 0);
   View.overCtx.drawImage(PortalIris.canvas, 0, 0);
