@@ -60,6 +60,7 @@ function startDive(biome = 0) {
 
 // Home: the outpost on the sinkhole's rim. report: how the dive ended.
 function enterHub(report) {
+  if (report) Save.data.swapped = false;
   const f = makeHubFloor();
   const d = (Game.dive = newWorld({ hub: true, floor: f }));
   d.p.x = (f.entry.x + 0.5) * TILE; d.p.y = (f.entry.y + 0.5) * TILE; d.p.fy = -1;
@@ -506,6 +507,7 @@ function extractDive() {
 // pocket are kept.
 function loseDive(died) {
   const d = Game.dive, kept = bankPocket(d);
+  ageContracts();
   noteDeepest(d);
   Save.save();
   enterHub({ lost: d.cargo, items: d.items, depth: d.depth, biome: d.biome, died, kept, lostBlueprints: d.blueprints.length, shard: d.gotShard, echoes: d.echoes });

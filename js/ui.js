@@ -273,11 +273,12 @@ function drawReport() {
   if (r.lostBlueprints) row('BLUEPRINTS LOST', 'bad', `${r.lostBlueprints}, with the cargo`);
   if (r.shard) row('HEART-SHARD', 'gold', 'Carried home. Set it in the star at the altar.');
   for (const c of r.contracts || []) row('CONTRACT DONE', 'good', `${contractText(c)}: ${contractRewardText(c)}`);
+  if (r.contracts && r.contracts.bonus) row('THE WHOLE BOARD', 'gold', `+${r.contracts.bonus} more to the star`);
   if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the wreck`);
   // the star: what this ride fed it, and how far to the next magnitude
   const s = Save.data, mag = magnitudeOf(s.star), lo = T.star.levels[mag - 1], hi = T.star.levels[mag];
   let star = '';
-  const paid = (r.contracts || []).reduce((n, c) => n + c.star, 0), gain = (r.fed || 0) + paid;
+  const paid = (r.contracts || []).reduce((n, c) => n + c.star, 0) + ((r.contracts && r.contracts.bonus) || 0), gain = (r.fed || 0) + paid;
   if (gain) {
     const grew = s.magSeen !== undefined && mag > s.magSeen;
     const k = hi ? Math.min(1, (s.star - lo) / (hi - lo)) : 1;
@@ -584,6 +585,7 @@ UI.acts = {
   },
   beacon: () => { UI.close(); plantBeacon(); },
   carryTool: (id) => { if (toolOwned(id)) { Save.data.tool = id; Save.save(); UI.redraw(); } },
+  swapContract: (id) => { if (swapContract(id)) UI.redraw(); },
   makeTool: (id) => { if (makeTool(id)) { UI.toast(`Made: ${TOOLS[id].name}`, 'legendary'); UI.redraw(); } },
   // the pocket: what's in it comes home whatever happens
   pocket: (n) => {

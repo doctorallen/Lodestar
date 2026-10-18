@@ -93,6 +93,8 @@ Three small goals are always posted at the ledge, so every expedition, even a sh
 
 Each pays the star (25 × magnitude) and leaves an exotic, three parts or a riftglass, and a new one takes its place. Progress shows in the cargo screen mid-dive.
 
+The board keeps moving: never two of a kind; 70% of hauls and reaches are set in the newest biome open; one that has stood for 3 expeditions is replaced; one may be swapped for free each time home; and meeting all three in one expedition pays the star twice.
+
 ## Tools
 
 The diver carries one tool, chosen at the ledge before setting out. Each changes what you can see or do down there, so the choice shapes the expedition. The Compass is carried from the start; the rest are made once, from the stash, as the star grows.

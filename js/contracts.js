@@ -5,21 +5,26 @@
 // settled when the diver comes home (a lodeline or a recall, not a fall):
 // bring home some ore, bring down some creature, reach a site, seal a rift,
 // ride a lodeline home from a certain zone. Each pays the star and leaves
-// something useful, and a new one takes its place.
+// something useful, and a new one takes its place. The board keeps moving:
+// never two of a kind, hauls mostly from the newest biome open, one left
+// standing for `stale` expeditions is replaced, and one may be swapped for
+// free each time home. All three in one expedition pays the star twice.
 // ---------------------------------------------------------------------------
 
 const CONTRACT_HUNTS = ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'];
 
-function newContract(rng) {
+function newContract(rng, without = []) {
   const s = Save.data, mag = magnitudeOf(s.star), open = T.biomes.map((b, i) => i).filter((i) => biomeOpen(s, i));
-  const C = T.contracts, kind = rng.weighted(Object.keys(C.kinds).map((k) => [C.kinds[k], k]));
-  const c = { id: (s.contractN = (s.contractN || 0) + 1), kind };
+  const C = T.contracts, kinds = Object.keys(C.kinds).filter((k) => !without.includes(k));
+  const kind = rng.weighted(kinds.map((k) => [C.kinds[k], k]));
+  const c = { id: (s.contractN = (s.contractN || 0) + 1), kind, age: 0 };
+  const newest = open[open.length - 1];
   if (kind === 'haul') {
-    const b = rng.pick(open), ores = T.biomes[b].ores;
+    const b = rng.chance(C.newest) ? newest : rng.pick(open), ores = T.biomes[b].ores;
     c.ore = rng.chance(0.4) ? ores[ores.length - 1] : ores[0];
     c.n = c.ore === ores[0] ? rng.i(12, 20) : rng.i(4, 8);
   } else if (kind === 'hunt') { c.type = rng.pick(CONTRACT_HUNTS); c.n = rng.i(5, 10); }
-  else if (kind === 'reach') { c.biome = rng.pick(open); c.site = Math.min(T.expedition.sites, rng.i(2, 2 + Math.min(2, mag))); }
+  else if (kind === 'reach') { c.biome = rng.chance(C.newest) ? newest : rng.pick(open); c.site = Math.min(T.expedition.sites, rng.i(2, 2 + Math.min(2, mag))); }
   else if (kind === 'seal') c.n = 1;
   else { c.zone = rng.pick(['surface', 'cave', 'ruin']); }
   // what it pays: the star, and a thing
@@ -30,12 +35,34 @@ function newContract(rng) {
   return c;
 }
 
-// Three on the board, always.
+// Three on the board, always, no two of a kind.
 function fillContracts() {
   const s = Save.data;
-  s.contracts = (s.contracts || []).filter((c) => c && c.kind);
+  s.contracts = (s.contracts || []).filter((c) => c && c.kind && T.contracts.kinds[c.kind]);
   const rng = Save.rng();
-  while (s.contracts.length < T.contracts.posted) s.contracts.push(newContract(rng));
+  while (s.contracts.length < T.contracts.posted) s.contracts.push(newContract(rng, s.contracts.map((c) => c.kind)));
+}
+
+// An expedition over, however it ended: what's stood too long is replaced.
+function ageContracts() {
+  const s = Save.data;
+  fillContracts();
+  for (const c of s.contracts) c.age = (c.age || 0) + 1;
+  s.contracts = s.contracts.filter((c) => c.age < T.contracts.stale);
+  fillContracts();
+}
+
+// The free swap, once each time home.
+function swapContract(id) {
+  const s = Save.data;
+  if (s.swapped) return false;
+  const i = s.contracts.findIndex((c) => c.id === Number(id));
+  if (i < 0) return false;
+  s.contracts.splice(i, 1);
+  fillContracts();
+  s.swapped = true;
+  Save.save();
+  return true;
 }
 
 function contractText(c) {
@@ -87,8 +114,10 @@ function settleContracts(d, banked, how) {
     const key = c.reward === 'exotic' ? c.exotic : c.reward === 'parts' ? c.part : 'riftglass';
     s.stash[key] = (s.stash[key] || 0) + (c.reward === 'parts' ? c.parts : 1);
   }
+  // the whole board at once: the star again
+  if (done.length >= T.contracts.posted) { const bonus = done.reduce((n, c) => n + c.star, 0); s.star += bonus; done.bonus = bonus; }
   s.contracts = s.contracts.filter((c) => !done.includes(c));
-  fillContracts();
+  ageContracts();
   return done;
 }
 
@@ -97,6 +126,7 @@ function contractRows(d) {
   fillContracts();
   return Save.data.contracts.map((c) => {
     const prog = d && !d.hub && c.kind !== 'ride' ? ` · ${contractProgress(c, d)}/${contractGoal(c)}` : '';
-    return `<div class="row static"><span class="row-text"><span class="row-name">${esc(contractText(c))}${prog}</span><span class="row-sub">${esc(contractRewardText(c))}</span></span></div>`;
+    const left = T.contracts.stale - (c.age || 0), swap = !d && !Save.data.swapped ? `<button class="mini" data-act="swapContract" data-arg="${c.id}">SWAP</button>` : '';
+    return `<div class="row static"><span class="row-text"><span class="row-name">${esc(contractText(c))}${prog}</span><span class="row-sub">${esc(contractRewardText(c))}${left <= 1 ? ' · last expedition' : ''}</span></span>${swap}</div>`;
   }).join('');
 }
