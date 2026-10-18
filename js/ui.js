@@ -116,18 +116,22 @@ const UI = {
   closeCard() { UI.card = null; $('card').hidden = true; },
 
   // Someone speaking: Wick, or the star. Lines wait their turn.
+  // A line spoken, queued behind any still being said. Lines wait while a
+  // screen is open, so none is lost under a menu.
   speak(who, text, style = 'wick') {
     UI.lines = UI.lines || [];
-    UI.lines.push({ who, text, style });
-    if (UI.lines.length === 1) UI.nextLine();
+    UI.lines.push({ who, text, style, t: 2.6 + text.length * 0.045 });
   },
-  nextLine() {
+  updateSpeech(dt) {
     const l = UI.lines && UI.lines[0], box = $('speech');
-    if (!l) { box.hidden = true; return; }
-    box.hidden = false;
-    box.className = 'speech ' + l.style;
-    box.innerHTML = `<b>${esc(l.who)}</b> ${esc(l.text)}`;
-    setTimeout(() => { UI.lines.shift(); UI.nextLine(); }, 2600 + l.text.length * 45);
+    if (!l || Game.modal) { if (!box.hidden) box.hidden = true; return; }
+    if (box.hidden || box.dataset.line !== l.text) {
+      box.hidden = false;
+      box.className = 'speech ' + l.style;
+      box.innerHTML = `<b>${esc(l.who)}</b> ${esc(l.text)}`;
+      box.dataset.line = l.text;
+    }
+    if ((l.t -= dt) <= 0) UI.lines.shift();
   },
 
   // A story told in panels, a tap each; then `done`.
@@ -154,8 +158,11 @@ const UI = {
   },
 
   // the top bar and the deck, every step
-  frame() {
+  frame(dt) {
     const d = Game.dive;
+    UI.updateSpeech(dt || 0);
+    document.body.classList.toggle('modal', !!Game.modal);
+    document.body.classList.toggle('rapt', Game.modal === 'screen-anvil' || Game.modal === 'screen-reveal' || Game.modal === 'screen-story');
     document.body.classList.toggle('diving', !!d);
     document.body.classList.toggle('home', !!(d && d.hub));
     if (Game.modal === 'screen-reveal' && Reveal.item && Game.realT - Reveal.shownAt > 2.2) Reveal.done();

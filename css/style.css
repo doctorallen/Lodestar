@@ -52,7 +52,7 @@ html, body {
 .bar.ch { height: 5px; background: #0c1420; border-color: #20324a; }
 .bar .fill { height: 100%; width: 100%; background: #c8463c; transition: width 0.12s; }
 .bar.ch .fill { background: #62b8ff; }
-.bar.pull { height: 3px; background: #1a1408; border-color: #3a2c10; }
+.bar.pull { height: 6px; background: #1a1408; border-color: #3a2c10; }
 .bar.pull .fill { background: var(--gold); }
 .bar.pull.fading .fill { background: #e0904a; }
 .bar.pull.dark .fill { width: 0 !important; }
@@ -62,7 +62,7 @@ html, body {
 .bar.ch.low { border-color: var(--danger); }
 .bar-text { position: absolute; right: 3px; top: -2px; font-size: 10px; line-height: 12px; color: #fff; text-shadow: 0 1px 0 #000; }
 .hud-depth { color: var(--dim); white-space: nowrap; }
-.icon-btn {
+.icon-btn { min-height: 44px; min-width: 44px;
   min-width: 40px; min-height: 32px;
   background: none; color: var(--ink); border: 1px solid var(--line);
   font: inherit; font-weight: bold;
@@ -113,7 +113,15 @@ body.home #btn-mine { display: none; }
 .deck-btn.charging { box-shadow: 0 0 10px rgba(255, 240, 200, 0.5); }
 .deck-btn.charged { box-shadow: 0 0 18px rgba(255, 240, 200, 0.95); background: rgba(255, 240, 200, 0.3); }
 .deck-btn.cooling { opacity: 0.45; }
-.deck-btn.act { left: 10px; top: 10px; width: auto; height: 40px; padding: 0 16px; border-radius: 20px; color: #111; background: var(--gold); }
+.deck-btn.act { left: auto; top: auto; right: 10px; bottom: calc(100% + 8px); width: auto; height: 44px; padding: 0 16px; border-radius: 22px; color: #111; background: var(--gold); white-space: nowrap; z-index: 5; }
+#app.wide .deck-btn.act { bottom: calc(166px + env(safe-area-inset-bottom)); right: 8px; }
+/* the smallest phones: the cluster tightens so nothing overlaps */
+@media (max-width: 360px) {
+  #app:not(.wide) .deck-btn.main { width: 80px; height: 80px; right: 10px; bottom: calc(14px + env(safe-area-inset-bottom)); }
+  #app:not(.wide) .deck-btn.off { width: 52px; height: 52px; right: 96px; bottom: calc(18px + env(safe-area-inset-bottom)); }
+  #app:not(.wide) .deck-btn.dash { width: 46px; height: 46px; right: 86px; bottom: calc(80px + env(safe-area-inset-bottom)); }
+  #app:not(.wide) .deck-btn.mine { width: 46px; height: 46px; right: 22px; bottom: calc(100px + env(safe-area-inset-bottom)); }
+}
 .deck-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
 .btn-icon { width: 30px; height: 30px; image-rendering: pixelated; pointer-events: none; }
 .deck-btn.off .btn-icon { width: 22px; height: 22px; }
@@ -223,9 +231,9 @@ body.home #btn-mine { display: none; }
 .tag { font-size: 14px; }
 .tag.up { color: #6fe08a; } .tag.down { color: var(--danger); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { padding: 8px 10px; min-height: 36px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 12px; }
+.chip { padding: 8px 10px; min-height: 44px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 12px; }
 .chip.on { border-color: var(--gold); color: var(--gold); }
-.mini { min-height: 34px; min-width: 44px; padding: 4px 8px; margin-left: 4px; background: var(--panel2); border: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 12px; }
+.mini { min-height: 44px; min-width: 44px; padding: 4px 8px; margin-left: 4px; background: var(--panel2); border: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 12px; }
 .mini.wide { width: 100%; margin: 4px 0 0; text-align: left; }
 .stats { font-size: 12px; color: var(--ink); line-height: 1.6; }
 
@@ -261,7 +269,7 @@ body.home #btn-mine { display: none; }
 
 /* the anvil */
 .screen.anvil { justify-content: center; }
-#anvil-canvas { width: min(92vw, 420px); aspect-ratio: 120 / 84; image-rendering: pixelated; border: 1px solid var(--line); }
+#anvil-canvas { width: min(92vw, 420px, calc((100dvh - 150px) * 120 / 84)); aspect-ratio: 120 / 84; image-rendering: pixelated; border: 1px solid var(--line); }
 .anvil-call { font-size: 20px; letter-spacing: 0.2em; color: var(--gold); min-height: 1.5em; margin: 14px 0 0; text-align: center; }
 .note.center { text-align: center; }
 
@@ -299,12 +307,18 @@ body.home #btn-mine { display: none; }
 .preview p { margin: 3px 0; }
 
 /* someone speaking: Wick, or the star */
-.speech { position: fixed; left: 12px; right: 12px; bottom: calc(var(--deck-h) + 12px + env(safe-area-inset-bottom)); z-index: 25;
+.speech { position: fixed; left: 12px; right: 12px; bottom: calc(var(--deck-h) + 62px + env(safe-area-inset-bottom)); z-index: 25;
   max-width: 420px; margin: 0 auto; padding: 8px 12px; background: rgba(8, 10, 16, 0.92); border: 1px solid #2a3a48; font-size: 13px; line-height: 1.45; pointer-events: none; }
 .speech b { color: #7dffd8; letter-spacing: 0.1em; font-size: 11px; margin-right: 6px; }
 .speech.star { border-color: #5a4a20; font-style: italic; color: #ffe9b0; }
 .speech.star b { color: var(--gold); font-style: normal; }
-#app.wide ~ .speech, .speech { }
+/* sideways there's no bottom deck: speak over the foot of the view */
+#app.wide .speech { bottom: calc(12px + env(safe-area-inset-bottom)); left: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); right: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); }
+/* over a screen, toasts move to the foot, out of the way of titles */
+body.modal .toasts { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); }
+.toasts .toast:nth-last-child(n + 4) { display: none; }
+/* nothing talks over the anvil, a reveal or the story */
+body.rapt .toasts { display: none; }
 /* the story, a panel at a time */
 .screen.story { justify-content: center; }
 .story-text { max-width: 360px; font-size: 17px; line-height: 1.6; text-align: center; min-height: 6em; }
