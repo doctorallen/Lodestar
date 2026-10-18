@@ -520,7 +520,7 @@ function drawCodex() {
     return `<div class="rcard${all ? ' whole' : ''}"><div class="rc-head"><b>${esc(r.name.toUpperCase())}</b><span>${r.seq.length} SLOTS</span></div><div class="mini-circuit">${seq}</div>
       <p class="note">${all ? esc(capFirst(r.text)) + '.' : `${shown.length} of ${r.seq.length} parts known. Resonance stones show the rest.`}</p></div>`;
   }).join('');
-  $('forge-body').innerHTML = `<h3>THE CODEX <span class="dim">· ${whole} OF ${RESONANCES.length} WHOLE</span></h3>${tabs}
+  $('forge-body').innerHTML = `<h3>THE CODEX · RESONANCES <span class="dim">· ${whole} OF ${RESONANCES.length} WHOLE</span></h3>${tabs}
     <p class="note">A resonance is an exact circuit that wakes into one spell. It must fill its caster exactly: a ${RESONANCES[0].seq.length}-part one needs a ${RESONANCES[0].seq.length}-slot caster. Resonance stones show their parts: elites drop them now and then, they lie by ancient forges, and contracts pay them.</p>
     <div class="codex">${cards}</div>`;
 }

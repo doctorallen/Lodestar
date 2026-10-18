@@ -524,9 +524,63 @@ async function desktop(browser) {
   await page.close();
 }
 
+// Natures, reactions and resonances, in a fresh game: what each kind
+// fears and shrugs off (a clime and an affix shift it), Wick learning it, a
+// reaction firing, and a resonance found at the locker.
+async function spellcraft(browser) {
+  const { page, errors } = await openGame(browser);
+  const r = await page.evaluate(() => {
+    UI.close(); startDive(0); enterFloor(2, 'cave', 'caverns');
+    const d = Game.dive, out = {};
+    d.p.hp = d.stats.maxHp = 1e6;
+    const foe = (type, elite, dx = 30) => { const e = makeEnemy(type, d.p.x + dx, d.p.y, 3, elite); e.aggro = true; e.cd = 99; d.enemies.push(e); return e; };
+    const c = foe('crawler');
+    out.crawler = [elementMultFor(c, 'force'), elementMultFor(c, 'ember'), elementMultFor(c, 'shock')];
+    d.clime = 'magma';
+    out.magma = [elementMultFor(c, 'ember'), elementMultFor(c, 'frost')];
+    d.clime = 'caverns';
+    out.insulated = elementMultFor(foe('construct', 'insulated'), 'shock');
+    const w = foe('wisp', 'warded');
+    out.warded = elementMultFor(w, 'ember');
+    for (let k = 0; k < T.enemies.wardHits; k++) hurtEnemy(w, 0.01, { els: ['force'], spell: true });
+    out.unwarded = elementMultFor(w, 'ember');
+    out.known0 = natureKnown(c, 'ember');
+    hurtEnemy(c, 1, { els: ['ember'], spell: true });
+    out.known1 = natureKnown(c, 'ember') && d.nums.some((n) => n.verdict === 'W');
+    // a chilled foe struck by Force shatters
+    const t = foe('construct', null, -30), hp = t.hp;
+    hurtEnemy(t, 1, { els: ['frost'], spell: true });
+    hurtEnemy(t, 10, { els: ['force'], spell: true });
+    out.shatter = d.nums.some((n) => n.word === 'SHATTER') && hp - t.hp > 1 + 10 * 0.5 * 1.5;
+    // every element's status, and the reactions between them, fire on the dummy-free floor without errors
+    for (const a of CORE_ELEMENTS) for (const b of CORE_ELEMENTS) { const e = foe('construct', null, 20); e.hp = e.maxHp = 1e6; hurtEnemy(e, 5, { els: [a], spell: true }); hurtEnemy(e, 5, { els: [b], spell: true, heavy: true }); hurtEnemy(e, 5, { els: [a, b].filter((x, i, l) => l.indexOf(x) === i), spell: true }); }
+    for (let i = 0; i < 120; i++) Game.step(1 / 60);
+    // a resonance at the locker fills the Codex
+    UI.close(); enterHub(); UI.close();
+    const it = makeItem(new Rng(1), 'caster', 2, { bp: 'wand', q: 0 }); it.slots = [makeStone('lance', 2), makeStone('frost', 2), null];
+    Save.data.items.push(it, makeStone('echo', 2));
+    out.codex0 = codexWhole(resonanceById('kindling')) && !codexWhole(resonanceById('shatterglass'));
+    out.stirs = !!(resonanceNear(it) || {}).stir;
+    UI.show('screen-gear'); UI.openCard(it, 'stash', it.uid); UI.card.slot = 2; UI.acts.slotPut('echo:2');
+    out.live = !!document.querySelector('.res-banner.on') && codexWhole(resonanceById('shatterglass'));
+    return out;
+  });
+  check(r.crawler.join() === '0.5,1.5,1', `natures: a crawler is ${r.crawler} to force, ember, shock`);
+  check(r.magma.join() === '1,1.5', `natures: the Magma Tubes don't shift a crawler (${r.magma})`);
+  check(r.insulated === 0.25, 'natures: Insulated does not shrug off Shock');
+  check(r.warded === 0.5 && r.unwarded === 1, `natures: a ward isn't ${r.warded} until Force breaks it (${r.unwarded})`);
+  check(!r.known0 && r.known1, 'natures: Wick did not learn a weakness from a hit');
+  check(r.shatter, 'reactions: Force on the chilled did not shatter');
+  check(r.codex0 && r.stirs && r.live, `resonances: the Codex or the locker is wrong ${JSON.stringify(r)}`);
+  check(!errors.length, 'spellcraft: ' + errors.join(' | '));
+  check(!(await page.evaluate(() => Errors.length)), 'spellcraft: ' + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
+  await page.close();
+}
+
 (async () => {
   const browser = await launch();
   try {
+    await spellcraft(browser);
     await phone(browser);
     await sideways(browser);
     await desktop(browser);

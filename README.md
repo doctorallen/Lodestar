@@ -27,7 +27,7 @@ The loop:
 5. If you fall, the cargo is lost, but what you wear and what's in your pocket are safe.
 
 At home, walk the outpost's stations:
-- the forge: strike the anvil well for better odds;
+- the forge: strike the anvil well for better odds; its Codex shows the resonances found;
 - the rune bench: rework affixes;
 - the locker: your gear, and each caster's circuit, built from stones for free;
 - the star's altar: feed it ore to grow it and open deeper biomes;
@@ -51,7 +51,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/hub.js` | The outpost: stations, the star over the pit, lanterns, feeding the star |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
 | `js/diver.js` | The player's sprite: the circuit diver's five facings, walk frames and hand points |
-| `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots, its charge and its words; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
+| `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
 | `js/blueprints.js` | What can be forged: blueprints (casters, gear, stones), creature parts |
 | `js/art2.js` | Art for crafting and the story: new item icons, parts, stones, the wreck, the Shard Keepers |
 | `js/art3.js` | The sunlit surface's palette and plants, the rift, tool icons |
@@ -70,6 +70,9 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/shadow.js` | Shadows from the light: the rock stops the diver's lamp (and the floor's fixed lights), and big things cast a short shadow away from it |
 | `js/render.js` | The pixel view (art px, 1.5 to a world px), the floor canvas, lighting and bloom, sparks |
 | `js/castfx.js` | How a cast looks (cosmetic): the flash at the fist, the rune circle, motes, swept rings, an Arc's crescent, a Glaive's blades, an Orb, bolts' trails, bursts and marks on the ground |
+| `js/natures.js` | What each enemy is weak to and resists (`elementMultFor`), by kind, clime and elite affix; what Wick has learned; the marks over a foe and the WEAK and RESIST numbers |
+| `js/reactions.js` | Elements' statuses on enemies and the reactions between them (Shatter, Conduct, Steam…), the self stacks (Overload, Freeze…), and how they look |
+| `js/resonance.js` | The six resonances as spells (Thunderhead, Shatterglass, Kindling Arc, Wildfire, Stormglaive, Starfall) and how they look; the Codex and resonance stones |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
 | `js/ui.js` | The Lodestar, set out, forge, gear, star, cargo and pause screens, the item card (with a caster's circuit and the drawer of stones), the top bar |
 | `js/main.js` | Boot, the fixed-step loop, the upright and sideways layouts |
