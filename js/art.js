@@ -306,7 +306,7 @@ const SPRITE_CHARS = {
   C: ['coat'], c: ['coat', 0], B: ['leather'], P: ['pants'], K: ['boots'], G: ['plate'],
   R: ['rune'], A: ['arcane'], M: ['metal'], W: ['steel'], T: ['tool'], D: ['wood'], O: ['glass'],
   w: ['steel', 0], t: ['tool', 0],
-  X: ['shell'], x: ['shell', 0], Y: ['eyeglow'], V: ['crystal'], Q: ['coreglow'], l: ['legs'],
+  X: ['shell'], x: ['shell', 0], j: ['shell', 2], Y: ['eyeglow'], V: ['crystal'], Q: ['coreglow'], l: ['legs'],
 };
 const SPRITE_GLOWS = new Set(['lamp', 'rune', 'arcane', 'glass', 'eyeglow', 'crystal', 'coreglow']);
 // What a creature is built with: black outlines (everything else gets
@@ -734,51 +734,78 @@ function scale2xRows(rows) {
 // ---------------------------------------------------------------------------
 // Enemies. Each biome recolours their shells and what glows on them.
 // ---------------------------------------------------------------------------
+// Drawn by hand at the art's size (artNative), each the size its old
+// grid was enlarged to, centred, its feet on the bottom row.
+// Drawn by hand at the art's size (artNative), each the size its old
+// grid was enlarged to, centred, its feet on the bottom row.
 const ENEMY_ROWS = {
-  crawler: [
-    '........VV........',
-    '....V...VV...V....',
-    '....VV.VVVV.VV....',
-    '...XXXXXXXXXXXX...',
-    '..XXXXXXXXXXXXXX..',
-    '.XXXXXXXXXXXXXXXX.',
-    '.XXYYXXXXXXXXYYXX.',
-    '.XXYYXXXXXXXXYYXX.',
-    '.xXXXXXXXXXXXXXXx.',
-    'l.xxXXXXXXXXXXxx.l',
-    '.l..xxMM..MMxx..l.',
-    'l.l...M....M...l.l',
-  ],
-  wisp: [
-    '....XX....',
-    '..XXVVXX..',
-    '.XVVVVVVX.',
-    '.XVVQQVVX.',
-    'XVVQQQQVVX',
-    'XVVQQQQVVX',
-    '.XVVQQVVX.',
-    '.XVVVVVVX.',
-    '..XXVVXX..',
-    '....XX....',
-    '....x.....',
-    '.....x....',
-  ],
-  construct: [
-    '....MMMMMM....',
-    '...MGGGGGGM...',
-    '...MGYYGYYM...',
-    '...MGGGGGGM...',
-    '..MMMMMMMMMM..',
-    '.GGGGGRRGGGGG.',
-    'GGGGGRRRRGGGGG',
-    'GGMGGGRRGGGMGG',
-    'GGMGGGGGGGGMGG',
-    '.M.GGGGGGGG.M.',
-    '.M.GGMMMMGG.M.',
-    '...GG....GG...',
-    '...GG....GG...',
-    '..MMM....MMM..',
-  ],
+  // a crystal-backed beetle, three legs a side (j: a pixel wide, in a
+  // mid shell tone so its black outline frames them), mandibles
+  crawler: artNative([
+    '.............V.............',
+    '.........V..QVV..V.........',
+    '........QV..QVV..QV........',
+    '........QVVQVVVVQVV........',
+    '........XXXXXXXXXXX........',
+    '......XXXXXXXxXXXXXXX......',
+    '..j..XXXXXXXXxXXXXXXXX..j..',
+    '.j.jXXXXXXXXXxXXXXXXXXXj.j.',
+    '.j..XXXXXXXXXxXXXXXXXXX..j.',
+    'j...XXXYYYXXXXXXXYYYXXX...j',
+    'j...XXXYYYXXXXXXXYYYXXX...j',
+    '...j.XXXXXXXXXXXXXXXXX.j...',
+    '..j...XXXXXXXXXXXXXXX...j..',
+    '.j....j.XXMMXXXMMXX.j....j.',
+    '.j...j...M.......M...j...j.',
+    'j....j...M.......M...j....j',
+    '....j.....M.....M.....j....',
+    '....j.................j....',
+  ]),
+  // a ball of light in a dark shell, cracked, trailing a wisp
+  wisp: artNative([
+    '.....XXVXX.....',
+    '...XXXXXXXXX...',
+    '..XXXXVVVXXXX..',
+    '.XXXVVVVVVVXXX.',
+    '.XXVVVVVVVVVXX.',
+    'XXXVVVQQQVVVXXX',
+    'XXVVVQQQQQVVVXX',
+    'VXVVVQQQQQVVVXV',
+    'XXVVVQQQQQVVVXX',
+    'XXXVVVQQQVVVXXX',
+    '.XXVVVVVVVVVXX.',
+    '.XXXVVVVVVVXXX.',
+    '..XXXXVVVXXXX..',
+    '...XXXXXXXXX...',
+    '.....XXXXX.....',
+    '.......X.......',
+    '......X........',
+    '......X........',
+  ]),
+  // a golem of plates on metal rods, its rune lit
+  construct: artNative([
+    '.......MMMMMMM.......',
+    '......MGGGGGGGM......',
+    '......MGYYGYYGM......',
+    '......MGYYGYYGM......',
+    '......MGGGGGGGM......',
+    '......MMMMMMMMM......',
+    '.GGGGGGGGGGGGGGGGGGG.',
+    '.GGGGGGGGGGGGGGGGGGG.',
+    '..MM.GGGGGRGGGGG.MM..',
+    '..MM.GGGGRRRGGGG.MM..',
+    '..MM.GGGGRRRGGGG.MM..',
+    '..MM.GGGGGRGGGGG.MM..',
+    '..MM.GGGGGGGGGGG.MM..',
+    '..MM.MMMMMMMMMMM.MM..',
+    '.GGG..GGG...GGG..GGG.',
+    '.GGG..GGG...GGG..GGG.',
+    '......GGG...GGG......',
+    '......GGG...GGG......',
+    '......GGG...GGG......',
+    '.....MMMM...MMMM.....',
+    '.....MMMM...MMMM.....',
+  ]),
 };
 // each biome's enemy colours: shell ramp, what glows, the constructs' plates
 const ENEMY_PAL = {
