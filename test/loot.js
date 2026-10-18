@@ -61,7 +61,8 @@ for (let seed = 1; seed <= 3000; seed++) {
   if (made.bp !== bpId) fail(`forged ${bpId} ${seed}: came out a ${made.bp}`);
   const fam = G.PARTS[pk.kind].family;
   const famCount = made.affixes.filter((a) => G.AFFIXES[a.id].family === fam).length;
-  if (fam && famCount < Math.min(pk.grade, G.T.items.affixes[made.rarity])) fail(`forged ${bpId} ${seed}: bound with ${part} but only ${famCount} ${fam} affixes`);
+  const famSize = Object.keys(G.AFFIXES).filter((id) => G.AFFIXES[id].family === fam).length;
+  if (fam && famCount < Math.min(pk.grade, G.T.items.affixes[made.rarity], famSize)) fail(`forged ${bpId} ${seed}: bound with ${part} but only ${famCount} ${fam} affixes`);
   if (pk.kind === 'heart' && q >= 2 && made.rarity !== 'legendary') fail(`forged ${bpId} ${seed}: a heart at quality ${q} came out ${made.rarity}`);
   if (ex && ex.element && (bp.kind === 'blade' || bp.kind === 'focus') && made.element !== ex.element) fail(`forged ${bpId} ${seed}: ${ex.id} gave no ${ex.element}`);
   if (ex && ex.family && !made.affixes.some((a) => G.AFFIXES[a.id].family === ex.family)) fail(`forged ${seed}: ${ex.id} gave no ${ex.family} affix`);
