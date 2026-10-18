@@ -194,9 +194,10 @@ function warpArrive(d, w) {
 }
 
 // --- banking, travel, home -----------------------------------------------------
-// The cargo and the pocket into the stash; the star drinks from the
-// deepest dark land walked since the last time.
-function bankHaul(d) {
+// The cargo and the pocket into the stash. Coming home (feed), the star
+// drinks from the deepest dark land walked this sortie, as the old ride home
+// did: once a sortie, however often it banked on the way.
+function bankHaul(d, feed) {
   const s = Save.data.stash, b = d.banked, got = {};
   const add = (k, n) => { s[k] = (s[k] || 0) + n; b.stuff[k] = (b.stuff[k] || 0) + n; got[k] = (got[k] || 0) + n; };
   const run = Save.data.run, kept = bankPocket(d);
@@ -206,8 +207,9 @@ function bankHaul(d) {
   for (const k in d.cargo) if (d.cargo[k] > 0) add(k, d.cargo[k]);
   Save.data.items.push(...d.items); b.items.push(...d.items);
   b.learned.push(...bankBlueprints(d));
-  const fed = d.far ? T.star.extractStar * d.far * d.far : 0;
-  Save.data.star += fed; b.fed += fed; d.far = 0;
+  const fed = feed && d.far ? T.star.extractStar * d.far * d.far : 0;
+  Save.data.star += fed; b.fed += fed;
+  if (feed) d.far = 0;
   const n = d.items.length;
   d.cargo = {}; d.items = [];
   return { got, n, fed };
@@ -220,8 +222,7 @@ function bankAtSpire(d, quiet) {
   saveRun(d);
   if (quiet) return;
   const what = [stuffLines(r.got), r.n ? `${r.n} piece${r.n > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(', ');
-  UI.toast(what ? `Banked: ${what}${r.fed ? ` · the star drinks ${r.fed}` : ''}` : 'Nothing to bank', what ? 'legendary' : undefined);
-  Story.starGrew();
+  UI.toast(what ? `Banked: ${what}` : 'Nothing to bank', what ? 'legendary' : undefined);
 }
 
 // TRAVEL: the world map, from a spire. Choosing a spire (or home) is a
@@ -239,7 +240,7 @@ function travelDone(d, to) {
 // Home: everything carried is banked, contracts settle, and the report.
 function goHome(how) {
   const d = Game.dive;
-  bankHaul(d);
+  bankHaul(d, true);
   Save.data.run = null;
   Save.data.lastSpire = 0;
   const b = d.banked, contracts = settleContracts(d, b.stuff);
@@ -505,8 +506,12 @@ function drawExitMarks(d, ox, oy) {
     if (m > 10) continue;
     const lit = isKindled(e.to), col = lit ? '#ffe7a0' : '#c8c0dc', x = Math.round(wx * AP) + ox, y = Math.round(wy * AP) + oy;
     const name = e.to === 0 ? 'HOME' : terrOf(e.to).name.toUpperCase();
-    // the name beside the opening, on the side away from where it's walked from
-    drawLabel(name, x + (e.nx ? e.nx * ap(18) : 0), y + (e.ny > 0 ? ap(10) : e.ny < 0 ? -ap(16) : -ap(22)), col, clamp(1.2 - (m - 3) / 6, 0.4, 1));
+    // the name beside the opening, on the side away from where it's walked
+    // from (drawn once into a picture, as the hub's labels are drawn)
+    const lab = exitLabel(name, col), lx = clamp(Math.round(x + (e.nx ? e.nx * ap(6) : 0) - lab.width / 2), 1, View.w - lab.width - 1);
+    View.ctx.globalAlpha = clamp(1.2 - (m - 3) / 6, 0.4, 1);
+    View.ctx.drawImage(lab, lx, y + (e.ny > 0 ? ap(10) : e.ny < 0 ? -ap(16) : -ap(40)));
+    View.ctx.globalAlpha = 1;
     // chevrons pointing out
     const c = View.ctx, ux = -e.nx, uy = -e.ny;
     c.fillStyle = col;
@@ -516,6 +521,22 @@ function drawExitMarks(d, ox, oy) {
       for (let s = -2; s <= 2; s++) c.fillRect(Math.round(bx + uy * s - ux * Math.abs(s)), Math.round(by - ux * s - uy * Math.abs(s)), 1, 1);
     }
   }
+}
+
+// A label in the outpost's pixel hand, with its shadow, as a picture.
+const _exitLabels = new Map();
+function exitLabel(text, col) {
+  const key = text + col;
+  if (_exitLabels.has(key)) return _exitLabels.get(key);
+  const glyphs = [...text].map((ch) => (LABEL_FONT[ch] || LABEL_FONT[' ']).split('/')), w = glyphs.reduce((n, g) => n + g[0].length + 1, -1);
+  const [c, x] = makeCanvas(w + 1, 6);
+  for (const [ink, o] of [['#000000', 1], [col, 0]]) {
+    x.fillStyle = ink;
+    let gx = 0;
+    for (const g of glyphs) { for (let j = 0; j < 5; j++) for (let i = 0; i < g[j].length; i++) if (g[j][i] === '1') x.fillRect(gx + i + o, j + o, 1, 1); gx += g[0].length + 1; }
+  }
+  _exitLabels.set(key, c);
+  return c;
 }
 
 // The goal, in a few words, at the top of the view (#hud-goal).

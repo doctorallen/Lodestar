@@ -86,7 +86,7 @@ async function phone(browser) {
   await shot(page, 'smoke-intro');
   for (let k = 0; k < 5; k++) await tap(page, '#screen-story [data-act=storyNext]');
   // contracts that can't be met by accident, so they don't pay into the checks below
-  await page.evaluate(() => { Save.data.contracts = [0, 1, 2].map((i) => ({ id: 900 + i, kind: 'reach', biome: 2, site: 4, star: 0, reward: 'riftglass' })); });
+  await page.evaluate(() => { Save.data.contracts = [0, 1, 2].map((i) => ({ id: 900 + i, kind: 'reach', ring: 4, star: 0, reward: 'riftglass' })); });
   // home: the outpost, the star over the pit
   check(await page.evaluate(() => Game.dive && Game.dive.hub && !Game.modal && Save.data.introSeen), 'phone: the story did not end at the outpost');
   await run(page, 0.2);
@@ -272,7 +272,7 @@ async function phone(browser) {
   const banked = await page.evaluate(() => [Object.values(Save.data.stash).reduce((a, b) => a + b, 0) + Save.data.items.length * T.cargo.itemWeight, JSON.parse(localStorage.getItem('lodestar.save.v4')), Save.data.star, cargoUsed(Game.dive), Game.dive.hub]);
   check(banked[0] === carriedNow && banked[3] === 0 && !banked[4], `phone: banked ${banked[0]} of ${carriedNow}, ${banked[3]} left, still out: ${!banked[4]}`);
   check(banked[1].items.length === 2, 'phone: the found gear was not banked and saved');
-  check(banked[2] === T_EXTRACT_STAR * far * far && far >= 1, `phone: banking fed the star ${banked[2]}, not 8 × ${far}²`);
+  check(banked[2] === 0 && far >= 1, `phone: banking fed the star ${banked[2]} before coming home`);
   // TRAVEL: the map, a spire or home; home banks and reports
   await tap(page, '#btn-act2');
   check(await visible(page, '#screen-setout') && await page.evaluate(() => $('setout-title').textContent === 'TRAVEL'), 'phone: TRAVEL did not open the map');
@@ -282,6 +282,8 @@ async function phone(browser) {
   await run(page, 2.5);
   check(await visible(page, '#screen-report') && /HOME/.test(await page.evaluate(() => $('report-title').textContent)), 'phone: travelling home did not report');
   check(/BANKED/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the haul');
+  const fedHome = await page.evaluate(() => Save.data.star);
+  check(fedHome === T_EXTRACT_STAR * far * far, `phone: coming home fed the star ${fedHome}, not 8 × ${far}²`);
   await shot(page, 'smoke-report');
   await tap(page, '#screen-report [data-act=closeReport]');
   check(await page.evaluate(() => Game.dive.hub && !Game.modal), 'phone: CONTINUE did not come back to the outpost');
@@ -392,6 +394,7 @@ async function phone(browser) {
     const points = !!d.compass && d.compass.home && d.compass.x === d.floor.pad.x;
     enterTerritory(dark, { from: 0 }); sturdy();
     for (let i = 0; i < 30; i++) Game.step(1 / 60);
+    if (!d.compass) return { why: JSON.stringify({ modal: Game.modal, hit: Game.hitstop, warp: !!d.warp, tool: d.tool, terr: d.terr, dark, game: Game.dive === d, exits: d.floor.exits.length, t: d.toolT }) };
     const e = d.floor.exits.find((x) => x.x === d.compass.x && x.y === d.compass.y), out = !!e && (isKindled(e.to) || worldMap().terrs[e.to].nb.some(isKindled));
     UI.close(); abandonDive(); UI.close();
     s.tool = 'beacon'; startSortie({ terr: lit, spire: true }); d = Game.dive;
@@ -405,6 +408,7 @@ async function phone(browser) {
     s.star = was; s.tool = 'compass';
     return { made, points, out, planted, again, lands };
   });
+  check(!tools.why, 'phone: no compass in dark land ' + tools.why);
   check(tools.made, 'phone: the tools could not be made');
   check(tools.points, 'phone: the compass did not point to the spire');
   check(tools.out, 'phone: in dark land the compass did not point towards lit land');

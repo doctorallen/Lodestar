@@ -107,8 +107,8 @@ const T = {
     edgeDepth: 4, light: 75,
     goals: { waystones: { weight: 3, perRing: 0 }, rift: { weight: 1, perRing: 0.5 } },
     deep: { chance: 0.35, sites: [1, 3] },
-    exits: { apart: 9, tunnelR: 1.6, reach: 9, inward: 3 },
-    veins: [1, 2], regrow: 3, straggler: 0.4, clear: 7,
+    exits: { apart: 9, tunnelR: 1.2, reach: 9, inward: 3 },
+    veins: [0, 2], regrow: 3, straggler: 0.4, clear: 7,
     waystone: { channel: 2.5, touch: 18, hold: 20, holdR: 40, waveEvery: 8, wave: 1 },
     plant: 6,
     sun: { dark: -0.35, kindled: 1, edge: -0.6 },
@@ -463,8 +463,8 @@ const T = {
   // levels[n - 1] points in all. Each level past the first is an
   // attunement point, a Deep's lodelines a little likelier, a pocket slot
   // now and then (T.cargo.pocket) and a gentler recall.
-  // extractStar: what banking at a spire feeds the star, times the square of
-  // the deepest dark land walked (its depth, 1 to 4) since the last bank.
+  // extractStar: what coming home feeds the star, once a sortie, times the
+  // square of the deepest dark land walked (its depth, 1 to 4).
   star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], extractStar: 8 },
   // The story: each region's Keeper waits in its lair, at the end of an
   // expedition, holding a shard of the star's heart; each shard set in the star adds shardStar points.
