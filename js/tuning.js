@@ -72,6 +72,9 @@ const T = {
   // exit two ways lead on to other zones. At the last exit, one way leads to
   // the Keeper's Lair (if its shard is still held there) or a Deep Vein.
   expedition: { sites: 4, ways: 2 },
+  // Contracts: how many are posted, how often each kind comes up, and the
+  // star points each pays per magnitude.
+  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, ride: 2 }, star: 25 },
   // Rifts: the chance of one at each site; how often each kind; a graft's
   // radius and the veins it brings; an ore wake's radius, veins and share of
   // the better ore; how near a tear you must stand (px), how long sealing

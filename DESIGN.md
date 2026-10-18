@@ -82,6 +82,17 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room from depth 4. It charges and fires rings of orbs. It's never needed for progression, and it drops three rare-or-better pieces and often a relic.
 
+## Contracts
+
+Three small goals are always posted at the ledge, so every expedition, even a short one, works towards something. Each is settled when you come home by a lodeline or a recall, never after a fall:
+- bring home some ore (a common amount of the lower ore, a few of the better);
+- bring down some creatures of a kind;
+- reach a site in a biome;
+- seal a rift;
+- ride a lodeline home from a given zone.
+
+Each pays the star (25 × magnitude) and leaves an exotic, three parts or a riftglass, and a new one takes its place. Progress shows in the cargo screen mid-dive.
+
 ## Tools
 
 The diver carries one tool, chosen at the ledge before setting out. Each changes what you can see or do down there, so the choice shapes the expedition. The Compass is carried from the start; the rest are made once, from the stash, as the star grows.

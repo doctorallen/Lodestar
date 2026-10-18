@@ -122,3 +122,7 @@ The designer asked for dimensional shifts and rifts that cause strange changes a
 ## 2026-10-18: an expedition survives the tab closing (overnight team, round 1)
 
 Phones drop background tabs often. The run is now saved on arriving at each site and whenever the page is hidden, and offered back at the outpost on the next load: CARRY ON (from that site's entry, with the cargo, health and pull it had, and mined veins still gone) or GIVE IT UP (the cargo is lost, the pocket comes home). Enemies and drops on the site come back fresh. Since health and pull are saved too, closing the tab mid-fight doesn't buy much.
+
+## 2026-10-18: contracts (overnight team, round 1)
+
+To make a 5-minute session feel like progress beyond the haul, three contracts are always posted at the ledge and settled on coming home. They pay the star and a useful material, and steer expeditions (a biome, a zone, a creature, a rift) without forcing them. Falling settles nothing, so they add to the push-your-luck. No timers and no daily resets, so a short session never wastes one.

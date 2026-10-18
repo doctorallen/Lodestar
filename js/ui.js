@@ -270,6 +270,7 @@ function drawReport() {
   if (learned.length) row('LEARNED', 'gold', learned.map((id) => BLUEPRINTS[id].name).join(', '));
   if (r.lostBlueprints) row('BLUEPRINTS LOST', 'bad', `${r.lostBlueprints}, with the cargo`);
   if (r.shard) row('HEART-SHARD', 'gold', 'Carried home. Set it in the star at the altar.');
+  for (const c of r.contracts || []) row('CONTRACT DONE', 'good', `${contractText(c)}: ${contractRewardText(c)}`);
   if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the wreck`);
   // the star: what this ride fed it, and how far to the next magnitude
   const s = Save.data, mag = magnitudeOf(s.star), lo = T.star.levels[mag - 1], hi = T.star.levels[mag];
@@ -290,7 +291,7 @@ function drawDescend() {
     const ores = b.ores.map((id) => T.ores[ORE_INDEX[id]].name).join(' and ');
     return `<button class="row biome" data-act="dive" data-arg="${i}" ${open ? '' : 'disabled'}>
       <span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${open ? `${ores}${deep ? ` · furthest: site ${deep}` : ''} · ${(s.shards || []).includes(i) ? 'shard recovered' : 'its Keeper waits at the last site'}` : `The star's lines reach here at magnitude ${T.star.biomeAt[i]}`}</span></span></button>`;
-  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it starts on the surface, and at every exit two ways lead on to somewhere else. ${lodelineReach() >= T.expedition.sites ? 'The star now reaches a lodeline to every site.' : `Lodelines are sure up to site ${lodelineReach()}; past that, not every site has one.`}</p>` + drawToolRows();
+  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it starts on the surface, and at every exit two ways lead on to somewhere else. ${lodelineReach() >= T.expedition.sites ? 'The star now reaches a lodeline to every site.' : `Lodelines are sure up to site ${lodelineReach()}; past that, not every site has one.`}</p>` + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME</h3>${contractRows(null)}` + drawToolRows();
 }
 
 // The tools, under the biomes: the one carried, the others to carry or make.
@@ -432,6 +433,7 @@ function drawCargo() {
     <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">No ore yet.</p>'}
     ${d.blueprints.length ? `<h3>BLUEPRINTS · LEARNED WHEN YOU GET HOME</h3>${d.blueprints.map((b, i) => `<div class="row static"><img class="icon" src="${itemIconUrl(bpSample(b.id))}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint · weighs 1</span></span>${d.pocket.length < pocketSlots() ? `<button class="mini" data-act="pocketBp" data-arg="${i}">POCKET</button>` : ''}</div>`).join('')}` : ''}
     <h3>FOUND</h3>${items || '<p class="note">Nothing forged or found yet.</p>'}
+    <h3>CONTRACTS</h3>${contractRows(d)}
     <h3>WORN</h3>${worn}
     <p class="note">What you wear and what's in your pocket are safe. The rest of the cargo is lost if you fall.</p>
     <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL · LOSE ${Math.round(recallCost(d) * 100)}%</button></div>`;

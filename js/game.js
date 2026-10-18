@@ -121,7 +121,7 @@ function saveRun(d) {
     cargo: d.cargo, items: d.items, blueprints: d.blueprints, pocket: d.pocket,
     hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, kills: d.kills, time: d.time, mined: d.mined || [],
     gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b && b.landed ? { x: b.x, y: b.y } : null,
-    sealed: !!(d.rift && !d.rift.open),
+    sealed: !!(d.rift && !d.rift.open), tally: d.tally || {},
   };
   // only what a dive changes: the run, what's worn, the craft counter
   Save.saveField('run'); Save.saveField('equip'); Save.saveField('crafts');
@@ -136,7 +136,7 @@ function resumeRun() {
   const f = d.floor;
   for (const i of r.mined || []) if (f.tiles[i] === TILE_ORE) { f.tiles[i] = TILE_FLOOR; f.ore[i] = 0; }
   d.mined = (r.mined || []).slice();
-  Object.assign(d, { cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], kills: r.kills || 0, time: r.time || 0, gotShard: r.gotShard, echoes: r.echoes, beaconUsed: r.beaconUsed });
+  Object.assign(d, { cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], kills: r.kills || 0, tally: r.tally || {}, time: r.time || 0, gotShard: r.gotShard, echoes: r.echoes, beaconUsed: r.beaconUsed });
   d.p.hp = Math.min(d.stats.maxHp, r.hp || d.stats.maxHp);
   d.pull = Math.max(0.05, r.pull === undefined ? 1 : r.pull);
   if (r.beacon) { if (f.pad) f.tiles[f.pad.y * f.w + f.pad.x] = TILE_FLOOR; f.tiles[r.beacon.y * f.w + r.beacon.x] = TILE_PAD; f.pad = { x: r.beacon.x, y: r.beacon.y }; d.padDark = false; d.beacon = { x: r.beacon.x, y: r.beacon.y, landed: true, t: 0 }; }
@@ -468,13 +468,14 @@ function extractDive() {
   const d = Game.dive, s = Save.data.stash;
   const kept = bankPocket(d);
   for (const k in d.cargo) s[k] = (s[k] || 0) + d.cargo[k];
+  const contracts = settleContracts(d, sumStuff(d.cargo, kept.stuff), 'extract');
   Save.data.items.push(...d.items);
   const learned = bankBlueprints(d);
   const fed = T.star.extractStar * d.depth * d.depth;
   Save.data.star += fed;
   noteDeepest(d);
   Save.save();
-  enterHub({ banked: d.cargo, items: d.items, depth: d.depth, biome: d.biome, fed, learned, kept, shard: d.gotShard, echoes: d.echoes });
+  enterHub({ banked: d.cargo, items: d.items, depth: d.depth, biome: d.biome, fed, learned, kept, contracts, shard: d.gotShard, echoes: d.echoes });
 }
 
 // Dying, or giving up: the cargo is lost, what's worn and what's in the
@@ -505,8 +506,9 @@ function recallDive() {
   Save.data.items.push(...safe);
   const learned = bankBlueprints(d);
   noteDeepest(d);
+  const contracts = settleContracts(d, sumStuff(d.cargo, kept.stuff), 'recall');
   Save.save();
-  enterHub({ banked: d.cargo, items: safe, depth: d.depth, biome: d.biome, learned, shard: d.gotShard, echoes: d.echoes, kept, recalled: { lost, lostItems, cost } });
+  enterHub({ banked: d.cargo, items: safe, depth: d.depth, biome: d.biome, learned, shard: d.gotShard, echoes: d.echoes, kept, contracts, recalled: { lost, lostItems, cost } });
 }
 
 function abandonDive() { loseDive(false); }

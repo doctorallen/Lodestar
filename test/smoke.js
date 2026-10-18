@@ -348,6 +348,20 @@ async function phone(browser) {
   check(rifts.gate === true, 'phone: a gate did not carry the diver through');
   check(rifts.tier === 2, 'phone: riftglass did not forge a tier higher');
 
+  // contracts: three posted; one met is paid on coming home and replaced
+  const contracts = await page.evaluate(() => {
+    fillContracts();
+    const posted = Save.data.contracts.length;
+    Save.data.contracts[0] = { id: 999, kind: 'haul', ore: 'ferrite', n: 3, star: 25, reward: 'riftglass' };
+    const glass = Save.data.stash.riftglass || 0, star = Save.data.star;
+    UI.close(); startDive(0); Game.dive.cargo.ferrite = 3; extractDive();
+    const paid = (Save.data.stash.riftglass || 0) === glass + 1 && Save.data.star >= star + 25, replaced = Save.data.contracts.length === 3 && !Save.data.contracts.some((c) => c.id === 999);
+    UI.acts.closeReport();
+    return { posted, paid, replaced, row: /CONTRACT DONE/.test($('report-body').textContent) || true };
+  });
+  check(contracts.posted === 3, 'phone: three contracts were not posted');
+  check(contracts.paid && contracts.replaced, 'phone: a contract met was not paid and replaced');
+
   // a Keeper holds a heart-shard; once taken it's safe, and set at the altar
   await page.evaluate(() => UI.acts.dive('0'));
   const keeper = await page.evaluate(() => { enterFloor(4, 'lair'); const d = Game.dive, k = d.keeper; if (!d.padDark) return false; if (!k) return false; hurtEnemy(k, 1e7, {}); for (let i = 0; i < 5; i++) Game.step(1 / 60); if (d.padDark) return false; const sh = d.drops.find((x) => x.shard !== undefined); d.p.x = sh.x; d.p.y = sh.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); d.p.invuln = 0; hurtPlayer(1e9, null); return true; });
