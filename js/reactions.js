@@ -296,13 +296,16 @@ function drawReactFx(fx, cx, cy, k, tick, lights) {
     for (let n = 0; n < 14; n++) { const a = n * 0.449 + 0.2, r = (2 + u * fx.r) * AP; dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.7), n % 3 ? '#c8f0ff' : '#ffffff', true, cfxBand(k)); }
     cfxLight(lights, cx, cy, fx.r * 1.2, 0.9 * k, rgb01(ELEMENT_COLS.frost));
   } else if (fx.kind === 'steam') {
-    // puffs that rise and thin out, in a few hard steps; not a light
+    // puffs that rise and thin out, in a few hard steps; their tops catch
+    // the light of the fire and ice that made them, so they read in the dark
     const R = fx.r * AP;
-    for (let n = 0; n < 16; n++) {
-      const h = hashInts(n, (fx.x * 3) | 0, 0x57e), x = Math.round(cx + ((h & 255) / 255 * 2 - 1) * R * (0.5 + u * 0.5)), y = Math.round(cy - ((h >> 8) & 255) / 255 * R * 0.5 - u * ap(8));
-      const a = cfxBand(k) * 0.7, c = n % 3 ? '#cfd8e0' : '#eef3f8';
-      dot(x, y, c, false, a); dot(x + 1, y, c, false, a); dot(x, y - 1, '#aab4c0', false, a * 0.8); if (n % 2) dot(x + 1, y - 1, c, false, a);
+    for (let n = 0; n < 26; n++) {
+      const h = hashInts(n, (fx.x * 3) | 0, 0x57e), x = Math.round(cx + ((h & 255) / 255 * 2 - 1) * R * (0.6 + u * 0.4)), y = Math.round(cy - ((h >> 8) & 255) / 255 * R * 0.7 - u * ap(8) + ap(4));
+      const a = cfxBand(k) * 0.8, big = n % 3 !== 0;
+      // a puff: a pale top, a grey belly
+      for (const [i, j] of big ? [[0, 0], [1, 0], [2, 0], [3, 0], [1, -1], [2, -1], [0, 1], [1, 1], [2, 1]] : [[0, 0], [1, 0], [0, -1]]) dot(x + i, y + j, j < 0 ? '#f2f6fa' : j > 0 ? '#9aa4b2' : '#cfd8e0', j < 0 && n % 2 === 0, a);
     }
+    cfxLight(lights, cx, cy, fx.r, 0.35 * k, [0.85, 0.9, 0.95]);
   } else if (fx.kind === 'flare') {
     const r = Math.max(2, Math.round((2 + u * fx.r) * AP));
     ringDots(cx, cy, r, k > 0.5 ? '#ffffff' : '#fff2a0', cfxBand(k), true);
