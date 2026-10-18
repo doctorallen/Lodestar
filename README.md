@@ -60,6 +60,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/rifts.js` | Rifts: grafts, ore wakes, gates, inversions; sealing for riftglass |
 | `js/contracts.js` | The three posted contracts, their tallies and rewards |
 | `js/tools.js` | The carried tools: compass, ore sense, radar, map, satchel, beacon |
+| `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |
 | `js/render.js` | The pixel view, the floor canvas, lighting and bloom, sparks |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
 | `js/ui.js` | The Lodestar, descend, forge, gear, star, cargo and pause screens, the item card, the top bar |

@@ -70,6 +70,8 @@ async function phone(browser) {
   check(await visible(page, '#screen-story'), 'phone: a fresh game did not open on the story');
   await shot(page, 'smoke-intro');
   for (let k = 0; k < 5; k++) await tap(page, '#screen-story [data-act=storyNext]');
+  // contracts that can't be met by accident, so they don't pay into the checks below
+  await page.evaluate(() => { Save.data.contracts = [0, 1, 2].map((i) => ({ id: 900 + i, kind: 'reach', biome: 2, site: 4, star: 0, reward: 'riftglass' })); });
   // home: the outpost, the star over the pit
   check(await page.evaluate(() => Game.dive && Game.dive.hub && !Game.modal && Save.data.introSeen), 'phone: the story did not end at the outpost');
   await run(page, 0.2);
