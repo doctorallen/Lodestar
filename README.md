@@ -1,6 +1,6 @@
 # Lodestar
 
-A top-down pixel-art mining and looting game for the phone browser, upright or sideways. A fallen star hangs over a sinkhole on an alien world. Dive beneath it, mine arcane ore, and get out along one of its lodelines before the dark takes your haul.
+A top-down pixel-art mining and looting game for the phone browser, upright or sideways. A fallen star hangs over a sinkhole on an alien world, and the world round it is dark. Carry its light out, mine arcane ore, kindle the land a territory at a time, and get back to a spire before the dark takes your haul.
 
 `DESIGN.md` is the plan; `DECISIONS.md` says why things are the way they are.
 
@@ -15,23 +15,26 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Off hand | The blue button | K |
 | Dash | DASH, or flick the move thumb | Shift / U |
 | Mine | MINE, held | Space / L |
-| Set out / step through / extract | The button that appears at a portal or in a lodeline | E / Enter |
+| Set out / step through / bank / light / plant | The button that appears at a portal, a spire, a waystone or a heart | E / Enter |
+| Travel | TRAVEL, over BANK at a spire | |
 | Cargo | CARGO in the top bar | I |
 | Pause | II | Esc / P |
 
 The loop:
-1. Set out through the outpost's portal into a biome the Lodestar reaches; at each site's exit, step through one of two portals to the next.
-2. Mine ore and fight what finds you.
-3. Watch the gold meter: the star's pull on each floor fades, and when it's gone the lodeline goes dark and something hunts you.
-4. Stand still in a lodeline's gold beam and EXTRACT to bank your cargo, or use an emergency recall from anywhere and lose part of it.
-5. If you fall, the cargo is lost, but what you wear and what's in your pocket are safe.
+1. The outpost's portal opens the world map: walk out into a territory next to the outpost, or set out to a spire.
+2. Cross from territory to territory by the openings at their edges. Mine ore and fight what finds you.
+3. Watch the gold meter, your light: it drains in dark land and fills in kindled land. When it's gone, something hunts you.
+4. Light a territory's waystones or seal the tear at its heart, then plant a spire there, and it's kindled for good.
+5. At a spire, BANK your cargo, or TRAVEL to another spire or home. An emergency recall works anywhere and loses part of the cargo.
+6. If you fall, the cargo is lost and you wake at the last spire you touched, but what you wear and what's in your pocket are safe.
+7. Some territories have a portal down into a Deep: a short dungeon of richer ore.
 
 At home, walk the outpost's stations:
 - the forge: strike the anvil well for better odds;
 - the rune bench: rework affixes;
 - the locker: your gear, and each caster's circuit, built from stones for free;
-- the star's altar: feed it ore to grow it and open deeper biomes;
-- the portal: set out again.
+- the star's altar: feed it ore to grow it;
+- the portal: the world map, to set out again.
 
 ## Files
 
@@ -44,6 +47,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/tuning.js` | Every gameplay number, the ores, exotics and biomes |
 | `js/save.js` | The save in localStorage |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline |
+| `js/world.js` | The world: its rings of territories laid out from the save's seed, their neighbours, climes, names and goals; each territory's map (`generateTerritory`) with its openings, heart and waystones |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
 | `js/climes.js` | Climes: each one's palette, flora, critters and weather; rolling and naming them |
@@ -56,11 +60,12 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/art2.js` | Art for crafting and the story: new item icons, parts, stones, the wreck, the Shard Keepers |
 | `js/art3.js` | The sunlit surface's palette and plants, the rift, tool icons |
 | `js/items.js` | Affixes, rarities, legendaries, the set, casters and stones, relics; the forge, rune bench, salvage; stats |
-| `js/game.js` | Game state, the dive, walking, mining, leaving |
+| `js/game.js` | Game state, a sortie's play: walking, mining, your light, channels, and how it ends |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
 | `js/combat.js` | The hands' buttons, the dash, damage, kills and drops, pickups, cargo |
 | `js/rifts.js` | Rifts: grafts, ore wakes, gates, inversions; sealing for riftglass |
-| `js/portals.js` | The portals: each way on and the outpost's, drawn in their destination's colour; stepping through |
+| `js/portals.js` | The portals: a Deep's, its ways on and the outpost's, drawn in their destination's colour; stepping through, and the same moment crossing an edge or travelling |
+| `js/frontier.js` | Playing the world: sorties, entering territories, your light, spires (banking and travel), waystones and kindling, the Deeps, a fall waking at a spire; the spire and waystones drawn |
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
 | `js/contracts.js` | The three posted contracts, their tallies and rewards |
 | `js/tools.js` | The carried tools: compass, ore sense, radar, map, satchel, beacon |
@@ -71,9 +76,10 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/render.js` | The pixel view (art px, 1.5 to a world px), the floor canvas, lighting and bloom, sparks |
 | `js/castfx.js` | How a cast looks (cosmetic): the flash at the fist, the rune circle, motes, swept rings, an Arc's crescent, a Glaive's blades, an Orb, bolts' trails, bursts and marks on the ground |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
-| `js/ui.js` | The Lodestar, set out, forge, gear, star, cargo and pause screens, the item card (with a caster's circuit and the drawer of stones), the top bar |
+| `js/ui.js` | The Lodestar, forge, gear, star, cargo and pause screens, the report, the item card (with a caster's circuit and the drawer of stones), the top bar |
+| `js/worldmap.js` | The world map (SET OUT at the portal, TRAVEL at a spire) in pixel art, a territory's card, and the heart goal over the view |
 | `js/main.js` | Boot, the fixed-step loop, the upright and sideways layouts |
-| `test/` | Static checks, floor generation with golden hashes, the loot tables, a headless smoke run, and the autopilot (`botlib.js`) playing careers |
+| `test/` | Static checks, floor and world generation with golden hashes, the loot tables, a headless smoke run, and the autopilot (`botlib.js`) playing careers |
 
 ## Tests
 

@@ -169,7 +169,6 @@ for (const r of G.RESONANCES) {
 const S = G.T.star;
 if (G.magnitudeOf(0) !== 1) fail('a fresh star is not magnitude 1');
 S.levels.forEach((need, i) => { if (G.magnitudeOf(need) !== i + 1) fail(`${need} points is not magnitude ${i + 1}`); });
-if (G.biomeOpen({ star: 0 }, 1) || !G.biomeOpen({ star: S.levels[S.biomeAt[1] - 1] }, 1)) fail('the Choir opens at the wrong magnitude');
 if (G.attunePointsLeft({ star: S.levels[3], attune: { vitality: 1 } }) !== 2) fail('attunement points are miscounted');
 
 finish('loot', failures);

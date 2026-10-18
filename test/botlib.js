@@ -2,17 +2,22 @@
 // The autopilot. installBot runs in the page and adds Bot, which plays
 // through the same controls a thumb does (Input.bot) and the same actions
 // the screens' buttons run (UI.acts):
-//   Bot.dive({ biome, depth }) plays one dive: it fights what it meets,
-//   mines what its pick can break, goes down the shaft until `depth`, and
-//   heads for a lodeline when it's there, when the cargo is nearly full, or
-//   when it's hurt. Returns how it ended.
+//   Bot.sortie() plays one sortie: it picks the dark territory beside lit
+//   land with the lowest enemy level (Bot.plan), sets out to it (walking
+//   out of the outpost, or from a spire beside it), fights what it meets,
+//   works the heart goal while it has the light and health for it (the
+//   waystones, the tear, planting the spire), mines what its pick can
+//   break, now and then goes down into a Deep, and turns back towards lit
+//   land when the cargo is nearly full, it's hurt, or the light is low;
+//   then it banks at a spire and travels home, or walks home. Returns how
+//   it ended.
 //   Bot.home() spends the haul like a player might: equips anything better,
 //   forges a better pick, casters, plate and a charm when it can (striking
 //   the anvil fairly), forges the stones its circuits want and sockets them
 //   (an Arc in the gauntlet, a Bolt or Lance in the other hand, with an
 //   element and glyphs as it finds them), salvages the rest, unseals relics,
 //   feeds spare ore to the star and spends attunements.
-//   Bot.career({ dives }) does both over and over from a fresh save.
+//   Bot.career({ sorties }) does both over and over from a fresh save.
 
 function installBot() {
   const STEP = 1 / 60;
@@ -83,82 +88,177 @@ function installBot() {
     return bd < 40 ? best : null;
   }
 
-  function dive({ biome = 0, depth = 3, maxTime = 900, greed = false } = {}) {
+  // The world's next step out: the dark territory next to lit land (the
+  // outpost or a kindled territory) with the lowest enemy level, and where
+  // to set out from to reach it: walking out of the outpost, or a spire
+  // beside it.
+  function plan(deepOdds = 0) {
+    const L = worldMap(), lit = (id) => isKindled(id);
+    // now and then, a Deep under lit land, for its ore
+    const deeps = L.terrs.filter((t) => !t.home && t.deep && lit(t.id) && (hasSpire(t.id) || t.ring === 1) && deepZone(t, t.deep) !== 'lair');
+    if (deeps.length && Math.random() < deepOdds) {
+      const t = deeps.sort((a, b) => terrLevel(b) - terrLevel(a))[0];
+      return hasSpire(t.id) ? { target: t.id, spire: t.id, deep: true } : { target: t.id, walk: t.id, deep: true };
+    }
+    // at its edge, as a player pushes: the hardest it's ready for (a level
+    // more each time it comes home twice from its edge), else the gentlest
+    const best = Save.data.botBest || 1, front = L.terrs.filter((t) => !t.home && !lit(t.id) && t.nb.some(lit)).sort((a, b) => terrLevel(a) - terrLevel(b) || a.id - b.id);
+    const ready = front.filter((t) => terrLevel(t) <= best);
+    const target = ready[ready.length - 1] || front[0] || L.terrs.filter((t) => !t.home).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
+    if (target.nb.includes(0)) return { target: target.id, walk: target.id };
+    const spire = target.nb.find((n) => hasSpire(n));
+    if (spire !== undefined) return { target: target.id, spire };
+    // lit only by the outpost's own light: walk out into it and across
+    const via = target.nb.find((n) => lit(n) && terrOf(n).nb.includes(0));
+    return { target: target.id, walk: via !== undefined ? via : target.nb.find((n) => terrOf(n).ring === 1) || 1 };
+  }
+  // the opening of this territory that leads (over the fewest territories,
+  // through lit land where it can) towards `to`
+  function exitTowards(d, to) {
+    const L = worldMap(), hops = new Map([[to, 0]]), q = [to];
+    for (let i = 0; i < q.length; i++) for (const n of L.terrs[q[i]].nb) if (!hops.has(n) && n !== 0) { hops.set(n, hops.get(q[i]) + 1); q.push(n); }
+    return d.floor.exits.slice().sort((a, b) => (hops.has(a.to) ? hops.get(a.to) : 99) - (hops.has(b.to) ? hops.get(b.to) : 99))[0];
+  }
+
+  // One sortie: out to the plan's territory, its goal and its ore, a Deep
+  // now and then, and back to a spire (or the outpost) to bank and go home.
+  // Returns how it ended.
+  function sortie({ maxTime = 900, deepOdds = 0.4 } = {}) {
     UI.close();
-    startDive(biome);
-    const d = Game.dive;
+    const P = plan(Save.data.equip.pick && Save.data.equip.pick.base.power >= 2 ? deepOdds * 0.6 : 0);
+    if (P.walk !== undefined) startSortie({ terr: P.walk, from: 0 }); else startSortie({ terr: P.spire, spire: true });
+    const d = Game.dive, kindled0 = kindledCount();
     Input.bot = { x: 0, y: 0 };
-    let t = 0, stuck = 0, lastX = 0, lastY = 0, ended = null;
-    // a watchdog: no kill, ore or new floor for a while and the bot gives up
-    // on whatever it was after
+    let t = 0, stuck = 0, lastX = 0, lastY = 0, ended = null, back = false, deepTried = false, iter = 0, pushes = 0, target = P.target;
+    // (not with the gear it started with)
+    const ready = Save.data.equip.pick && Save.data.equip.pick.base.power >= 2;
+    const wantDeep = ready && (P.deep || Math.random() < deepOdds);
     const skipOre = new Set(), skipFoe = new Set();
-    let progressT = 0, progress = '', aim = null, iter = 0;
-    const result = () => ({ biome, depth: d.depth, clime: d.clime, kills: d.kills, cargo: cargoUsed(d), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t) });
+    let progressT = 0, progress = '', aim = null;
+    const result = () => ({ target, ring: terrOf(target).ring, level: terrLevel(terrOf(target)), clime: terrOf(target).clime, kills: d.kills, cargo: cargoUsed(d) + Object.values((d.banked && d.banked.stuff) || {}).reduce((a, b) => a + b, 0), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t), deep: !!(d.tally && d.tally.deeps), kindled: kindledCount() - kindled0 });
+    const at = (x, y) => { const w = d.floor.w; return y * w + x; };
     while (t < maxTime) {
-      if (Game.dive !== d) { ended = UI.report && UI.report.recalled ? 'recalled' : UI.report && UI.report.banked ? 'extracted' : 'died'; break; }
+      if (Game.dive !== d) { ended = UI.report && UI.report.recalled ? 'recalled' : UI.report && UI.report.banked ? 'home' : 'died'; break; }
       if (Game.modal) UI.close();
-      const p = d.p, st = d.stats, steps = stepsFromMe(d);
+      if (d.warp) { for (let k = 0; k < 6; k++) Game.step(STEP); t += 0.1; continue; }
+      const p = d.p, st = d.stats, f = d.floor, steps = stepsFromMe(d), ts = terrPeek(d.terr) || {}, T0 = terrOf(d.terr);
       Input.bot = { x: 0, y: 0 };
-      const now = [d.kills, cargoUsed(d), d.depth, d.items.length].join();
+      const now = [d.kills, cargoUsed(d), d.terr, d.deep && d.deep.site, (ts.lit || []).length, ts.done, ts.state].join();
       if (now !== progress) { progress = now; progressT = t; }
       else if (t - progressT > 20 && aim) { (aim.ore !== undefined ? skipOre.add(aim.ore) : skipFoe.add(aim.foe)); aim = null; progressT = t; }
-      const foe = d.enemies.filter((e) => !e.dead && !skipFoe.has(e) && (e.aggro || dist(e.x, e.y, p.x, p.y) < 70) && steps.plain[Math.floor(e.y / TILE) * d.floor.w + Math.floor(e.x / TILE)] >= 0)
+      const hollow = d.enemies.find((e) => !e.dead && e.type === 'hollow');
+      const foe = d.enemies.filter((e) => !e.dead && !skipFoe.has(e) && e.type !== 'hollow' && dist(e.x, e.y, p.x, p.y) < (e.aggro ? 110 : 70) && steps.plain[at(Math.floor(e.x / TILE), Math.floor(e.y / TILE))] >= 0)
         .sort((a, b) => dist(a.x, a.y, p.x, p.y) - dist(b.x, b.y, p.x, p.y))[0];
-      const full = cargoUsed(d) >= st.cargo * (greed ? 1 : 0.85), hurt = !greed && p.hp < st.maxHp * 0.35;
-      const leave = (full || hurt || d.depth >= depth || !(d.floor.ways || []).length) && d.floor.pad && !d.padDark;
+      const foeM = foe ? dist(foe.x, foe.y, p.x, p.y) : 1e9, close = foe && (foeM < 40 || (foe.state === 'windup' && foeM < 70));
+      // dim: no more light than the walk back to lit land takes, and a bit
+      const lead = d.deep ? 0.3 : (() => { const g = compassTargetWorld(d, steps), n = g ? steps[at(g.x, g.y)] : 30; return (Math.max(0, n) / 3.2 + 3) / T.world.light; })();
+      const full = cargoUsed(d) >= st.cargo * 0.92, hurt = p.hp < st.maxHp * 0.3, dim = !d.kindled && d.pull < lead;
+      if (!d.kindled && (full || hurt || dim || (t > 420 && d.terr === target))) back = true;
+      if (d.terr === target && d.kindled && !P.deep) back = true;
+      // back in lit land with light again: push out once more, if it's fit
+      const canPush = pushes < 3 && p.hp > st.maxHp * 0.6 && t < 360 && cargoUsed(d) < st.cargo * 0.7;
       const action = actionHere();
-      Bot.why = [action, !!foe, full, hurt, leave, d.depth, depth, !!d.floor.pad].join(',');
-      // stranded (no lodeline here, full, hurt or out of time): recall
-      const late = d.pull < 0.3, stranded = (!d.floor.pad || d.padDark) && (full || hurt || late) && (!(d.floor.ways || []).length || hurt || late || d.depth >= depth);
-      if (d.channel) { /* hold still while the lodeline lifts */ }
-      else if (stranded && (!foe || late)) UI.acts.recall();
-      else if (action === 'extract' && leave) { Input.bot.act = true; }
-      else if (action === 'way' && !leave && (!d.floor.pad || d.depth < depth || full || hurt)) { Input.bot.act = true; }
-      else if (foe && !(hurt && d.floor.pad)) {
+      let goal = null; // where to walk, if not fighting or mining
+      let act = false, mine = true;
+      if (d.channel) { mine = false; /* hold still */ }
+      // stranded: hurt with no light, or in a Deep with no lit way up
+      else if (!d.kindled && ((hurt && d.pull <= 0) || (d.deep && (d.pull <= 0 || d.zone === 'lair' || (back && hurt)) && !(f.pad && !d.padDark && steps[at(f.pad.x, f.pad.y)] >= 0 && steps[at(f.pad.x, f.pad.y)] < 15))) && (!foe || d.pull <= 0 || hurt)) UI.acts.recall();
+      else if (d.deep) {
+        // a Deep, as the old expeditions: on through its portal, or up its
+        // lodeline when it's time
+        const up = f.pad && !d.padDark ? f.pad : null;
+        if ((back || d.deep.site >= d.deep.of) && up) { if (action === 'extract') act = true; else goal = up; mine = false; }
+        else if (action === 'way' && (back || !full)) act = true;
+        else if (f.ways && f.ways[0] && (back || !full)) { goal = f.ways[0]; if (back) mine = false; }
+        else if (up) goal = up;
+      } else if (d.kindled) {
+        mine = false;
+        if (P.deep && d.terr === target && !deepTried && f.ways && f.ways[0] && !back) {
+          if (action === 'way') { act = true; deepTried = true; } else goal = f.ways[0];
+        } else if (back || d.terr === target) {
+          // bank, push out again if it's fit, or go home: at a spire, travel
+          // home; else walk home
+          const spire = f.pad && hasSpire(d.terr), carrying = cargoUsed(d) > 0 || d.items.length;
+          if (canPush && !(spire && carrying)) { back = false; pushes++; target = plan(0).target; }
+          else if (spire) { if (action === 'extract') { if (carrying) act = true; else travelFrom(d, 0); } else goal = f.pad; }
+          else { const e = f.exits.find((x) => x.to === 0) || exitTowards(d, 0); goal = e; }
+        } else goal = exitTowards(d, target);
+      } else {
+        // dark land
+        if (back || d.terr !== target) { goal = d.terr === target || back ? compassTargetWorld(d, steps) : exitTowards(d, target); if (back) mine = false; }
+        else {
+          // the heart goal, while there's light and health for it (or
+          // first, the Deep under it, if that's what it came for)
+          const fit = d.pull > 0.3 && p.hp > st.maxHp * 0.5;
+          if (wantDeep && !deepTried && f.ways && f.ways[0] && deepZone(T0, T0.deep) !== 'lair' && d.pull > 0.7 && !full && p.hp > st.maxHp * 0.6) deepTried = 'go';
+          if (deepTried === 'go') { /* below */ }
+          else if (T0.goal === 'waystones' && !ts.done && fit) {
+            if (d.hold) { const s = f.stones[d.hold.k]; goal = { x: s.x, y: s.y + 1 }; }
+            else { const k = [0, 1, 2].find((k) => !(ts.lit || []).includes(k)); const s = f.stones[k]; if (action === 'stone' && !close) act = true; else goal = { x: s.x, y: s.y + 1 }; }
+            mine = !d.hold;
+          } else if (T0.goal === 'rift' && !ts.done && fit && d.rift && d.rift.open) {
+            if (action === 'rift' && !close) act = true; else goal = { x: d.rift.x, y: d.rift.y + 1 };
+          } else if (ts.done && fit) {
+            if (action === 'plant' && !close) act = true; else goal = { x: f.heart.x, y: f.heart.y + 1 };
+          }
+          if (deepTried === 'go' && !d.deep) { if (action === 'way') { act = true; deepTried = true; } else goal = f.ways[0]; mine = false; }
+          else if (deepTried === 'go') deepTried = true;
+        }
+      }
+      Bot.why = [d.terr, target, !!d.deep, d.kindled, back, action, !!foe, !!hollow, full, hurt, dim].join(',');
+      if (act) Input.bot.act = true;
+      else if (d.channel) { /* hold still while it fills */ }
+      else if (hollow && !d.kindled && dist(hollow.x, hollow.y, p.x, p.y) < 90 && !(foe && dist(foe.x, foe.y, p.x, p.y) < 20)) {
+        // run from the Hollow, towards lit land
+        const g = d.deep ? (f.pad && !d.padDark ? f.pad : f.ways[0]) : compassTargetWorld(d, steps);
+        if (g) goTile(d, steps, g.x, g.y);
+        if (p.dashCd <= 0 && dist(hollow.x, hollow.y, p.x, p.y) < 30) Input.bot.dash = true;
+      } else if (foe && (close || (!back && !goal))) {
         const m = dist(foe.x, foe.y, p.x, p.y);
         aim = { foe };
         if (m > 14) goTile(d, steps, Math.floor(foe.x / TILE), Math.floor(foe.y / TILE));
-        // tap, don't hold: alternate presses make combos; dash out of a tell
         const tap = (iter++ & 1) === 0, mf = firstForm(Save.data.equip.main), mainClose = !Save.data.equip.main || mf === 'arc' || mf === 'glaive';
         Input.bot.main = tap && (mainClose ? m < 30 : m < 120);
         Input.bot.off = !tap && m < 120 && !!Save.data.equip.off;
         if (d.enemies.some((e) => !e.dead && e.state === 'windup' && dist(e.x, e.y, p.x, p.y) < 50) && p.dashCd <= 0) { const a = norm(p.x - foe.x, p.y - foe.y); Input.bot.x = -a.y; Input.bot.y = a.x; Input.bot.dash = true; }
-      } else if (leave) goTile(d, steps, d.floor.pad.x, d.floor.pad.y);
-      else {
-        const ore = !full && oreToMine(d, steps, skipOre);
-        if (ore) {
-          aim = { ore: ore.oy * d.floor.w + ore.ox };
-          const near = steps[ore.sy * d.floor.w + ore.sx] <= 1;
-          // stand a little in from the middle of the tile beside it, towards it
+      } else {
+        const ore = mine && !full && !d.kindled && oreToMine(d, steps, skipOre);
+        if (ore && !act && (!goal || steps[at(ore.sx, ore.sy)] < 6)) {
+          aim = { ore: at(ore.ox, ore.oy) };
+          const near = steps[at(ore.sx, ore.sy)] <= 1;
           const m = near ? walkTo(d, (ore.sx + 0.5) * TILE + (ore.ox - ore.sx) * 3, (ore.sy + 0.5) * TILE + (ore.oy - ore.sy) * 3) : (goTile(d, steps, ore.sx, ore.sy), 99);
           if (m < 4) { Input.bot.x = 0; Input.bot.y = 0; p.fx = ore.ox - ore.sx; p.fy = ore.oy - ore.sy; Input.bot.mine = true; }
-        } else {
-          // on: the nearer way (the lair's last of all), or home
-          // the lair only with a weapon of the biome's own tier or better
-          const main = Save.data.equip.main, ready = main && main.tier >= 1 + d.biome * 2;
-          const lair = (w) => !ready && d.ways[d.floor.ways.indexOf(w)] === 'lair' ? 1e6 : 0;
-          const ways = (d.floor.ways || []).slice().sort((a, b) => steps[a.y * d.floor.w + a.x] + lair(a) - steps[b.y * d.floor.w + b.x] - lair(b));
-          const to = (d.depth >= depth || full || !ways.length) ? (d.floor.pad && !d.padDark ? d.floor.pad : ways[0]) : ways[0];
-          if (to) goTile(d, steps, to.x, to.y);
+        } else if (goal) {
+          aim = null;
+          if (goal.to !== undefined && steps[at(goal.x, goal.y)] <= 2) walkTo(d, (goal.x + 0.5 - goal.nx) * TILE, (goal.y + 0.5 - goal.ny) * TILE);
+          else goTile(d, steps, goal.x, goal.y);
         }
       }
       // grab drops nearby
-      const drop = d.drops.find((dr) => dist(dr.x, dr.y, p.x, p.y) < 80 && !dr.warned && steps.plain[Math.floor(dr.y / TILE) * d.floor.w + Math.floor(dr.x / TILE)] >= 0);
-      if (drop && !foe) {
+      const drop = !hollow && d.drops.find((dr) => dist(dr.x, dr.y, p.x, p.y) < 80 && !dr.warned && steps.plain[at(Math.floor(dr.x / TILE), Math.floor(dr.y / TILE))] >= 0);
+      if (drop && !foe && !d.channel && !act && !back && !goal) {
         const tx = Math.floor(drop.x / TILE), ty = Math.floor(drop.y / TILE);
-        if (steps.plain[ty * d.floor.w + tx] <= 1) walkTo(d, drop.x, drop.y); else goTile(d, steps, tx, ty);
+        if (steps.plain[at(tx, ty)] <= 1) walkTo(d, drop.x, drop.y); else goTile(d, steps, tx, ty);
       }
-      for (let k = 0; k < 6; k++) { Game.step(STEP); t += STEP; if (Game.dive !== d) break; }
+      for (let k = 0; k < 6; k++) { Game.step(STEP); t += STEP; if (Game.dive !== d || d.warp) break; }
       // unstick: if not moving while trying to, jiggle
       if (Math.hypot(p.x - lastX, p.y - lastY) < 0.05 && (Input.bot.x || Input.bot.y)) stuck++; else stuck = 0;
       lastX = p.x; lastY = p.y;
       if (stuck > 30) { Input.bot.x = Math.random() * 2 - 1; Input.bot.y = Math.random() * 2 - 1; for (let k = 0; k < 20; k++) Game.step(STEP); stuck = 0; }
     }
     Input.bot = null;
-    const o = oreToMine(d, stepsFromMe(d));
-    const why = Bot.why + ` at ${Math.round(d.p.x)},${Math.round(d.p.y)} ore ${JSON.stringify(o)} target ${JSON.stringify(d.target)} mine ${JSON.stringify(d.p.mine)} bot ${JSON.stringify(Input.bot)}`;
+    const why = ended ? '' : Bot.why + ` at ${Math.round(d.p.x)},${Math.round(d.p.y)}`;
+    // two good sorties at its edge and it's ready for a level more; a fall
+    // and it starts counting again
+    const lv = terrLevel(terrOf(target)), sv = Save.data;
+    if (ended === 'died') sv.botWins = 0;
+    else if (ended === 'home' && lv >= (sv.botBest || 1) && (sv.botWins = (sv.botWins || 0) + 1) >= 2) { sv.botBest = (sv.botBest || 1) + 1; sv.botWins = 0; }
+    const r = result();
     if (!ended) { if (Game.dive === d) abandonDive(); ended = 'timeout'; }
-    return Object.assign(result(), { ended, why: ended === 'timeout' ? why : '' });
+    // a fall wakes at a spire: home from there to spend the haul
+    if (Game.dive && !Game.dive.hub) { const w = Game.dive; UI.close(); w.cargo = {}; goHome('spire'); }
+    UI.close();
+    return Object.assign(r, { ended, why });
   }
 
   // what a player might do at home with the haul
@@ -193,7 +293,7 @@ function installBot() {
     // plate and a charm, in the best ore it has plenty of
     const offBp = s.blueprints.includes('staff') ? 'staff' : 'wand';
     for (const [bpId, slot] of [['gauntlet', 'main'], [offBp, 'off'], ['plate', 'armor'], ['charm', 'charm']]) {
-      const bp = BLUEPRINTS[bpId], ore = T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) >= bp.ore + 6);
+      const bp = BLUEPRINTS[bpId], ore = T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) - (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0) >= bp.ore + 6);
       const cur = s.equip[slot];
       if (ore && (!cur || cur.tier < ore.tier || (bp.kind === 'caster' && cur.bp !== bpId)) && forge(bpId, ore.id)) log.push('forged ' + bpId + ' in ' + ore.name);
     }
@@ -235,7 +335,9 @@ function installBot() {
     };
     const elements = ['shock', 'frost', 'ember', 'blight'];
     const have = (id) => s.items.filter((x) => x.kind === 'stone' && x.stone === id).concat(['main', 'off'].flatMap((k) => (s.equip[k] ? s.equip[k].slots.filter((x) => x && x.stone === id) : [])));
-    const bestOre = (bp) => T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) >= bp.ore + 4);
+    // (keeping back what the next pick takes)
+    const pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
+    const bestOre = (bp) => T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) - (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0) >= bp.ore + 4);
     const make = (id) => {
       const bpId = BP_IDS.find((b) => BLUEPRINTS[b].stone === id);
       if (!bpId || !s.blueprints.includes(bpId)) return false;
@@ -277,24 +379,23 @@ function installBot() {
     return log;
   }
 
-  function career({ dives = 20 } = {}) {
+  function career({ sorties = 20 } = {}) {
     const out = [];
-    for (let n = 0; n < dives; n++) {
+    for (let n = 0; n < sorties; n++) {
       const s = Save.data;
-      const biome = [2, 1, 0].find((i) => biomeOpen(s, i));
-      const deep = s.deepest[T.biomes[biome].id] || 0;
-      const r = dive({ biome, depth: Math.max(2, Math.min(deep + 1, 6)) });
+      const r = sortie();
       r.home = home();
       r.mag = magnitudeOf(s.star);
       r.pick = s.equip.pick ? s.equip.pick.base.power : 0;
       r.hands = ['main', 'off'].map((k) => (s.equip[k] ? `${s.equip[k].name} t${s.equip[k].tier} [${s.equip[k].slots.map((x) => (x ? x.stone : '-')).join(' ')}]` : 'fist')).join(' / ');
       r.maxHp = computeStats(s.equip, s.attune).maxHp;
+      r.kindledAll = kindledCount();
       out.push(r);
     }
     return out;
   }
 
-  window.Bot = { dive, home, career, circuits };
+  window.Bot = { sortie, plan, home, career, circuits };
 }
 
 module.exports = { installBot };

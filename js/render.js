@@ -574,13 +574,16 @@ function bloomScene() {
 function lampLevels(d) {
   const f = d.floor, Lt = T.light;
   const cl = climeLight(f), zl0 = !d.hub && T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
-  const amb = d.hub ? Lt.hubAmbient : zl ? lerp(zl.dusk, zl.day, clamp(d.pull, 0, 1)) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
-  const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(d.pull * 1.5, 0, 1))) : (cl && cl.tint) || Lt.tint;
-  // the lamp gutters out as the diver dies, and dims as the star's pull fades
+  // under the sky, the sun (sunOf: daylight in kindled land, a dim dusk in
+  // the dark, darker still at the Edge)
+  const sun = sunOf(d);
+  const amb = d.hub ? Lt.hubAmbient : zl ? Math.max(0.2, lerp(zl.dusk, zl.day, Math.min(1, sun))) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
+  const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(sun * 1.5, 0, 1))) : (cl && cl.tint) || Lt.tint;
+  // the lamp gutters out as the diver dies, and dims as your light fades
   let lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
   if (!d.hub && d.pull < T.pull.dimAt) lamp *= lerp(T.pull.lampMin, 1, d.pull / T.pull.dimAt);
   // in daylight the lamp isn't needed; it comes on at dusk
-  if (zl && d.pull > zl.lampAt) lamp *= 0.15;
+  if (zl && sun > zl.lampAt) lamp *= 0.15;
   return { amb, tint, lamp, r: Lt.lamp[0] * ATILE * lamp * (1 + (d.stats.lamp || 0) / 100), i: Lt.lamp[1] * lamp };
 }
 
@@ -646,6 +649,7 @@ function renderFrame() {
 
   if (d.hub) drawHubUnder(d, ox, oy, tick, lights);
   if (!d.hub) drawHazardsUnder(d, ox, oy, tick, lights);
+  drawWorldUnder(d, ox, oy, lights);
   drawCastGround(d, ox, oy, tick, lights);
   if (d.fieldForge) {
     const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * ATILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * ATILE + oy - spr.ay + ap(6));
@@ -655,7 +659,7 @@ function renderFrame() {
 
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) drawDrop(dr, ox, oy, lights);
-  const props = (d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : riftProps(d).concat(lifeActors(d))).concat(portalProps(d));
+  const props = (d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : riftProps(d).concat(lifeActors(d), worldProps(d))).concat(portalProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
@@ -663,6 +667,7 @@ function renderFrame() {
     else if (a.wreck) drawWreck(d, ox, oy, lights);
     else if (a.tear) drawRift(d, a, ox, oy, lights);
     else if (a.portal) drawPortal(d, a, ox, oy, lights);
+    else if (a.wprop) drawWorldProp(d, a, ox, oy, lights);
     else if (a.piece || a.strip) drawFlora(d, a, ox, oy, lights);
     else if (a.crit) drawCritter(d, a, ox, oy);
     else drawEnemy(d, a, ox, oy, tick, lights);
@@ -774,7 +779,7 @@ function renderFrame() {
   }
   // the tools' marks and the outpost's labels too
   View.ctx = o;
-  try { drawToolHud(d, ox, oy); if (d.hub) drawStationLabels(d, ox, oy); else drawStormMark(d, ox, oy); } finally { View.ctx = x; }
+  try { drawToolHud(d, ox, oy); if (d.hub) drawStationLabels(d, ox, oy); else { drawStormMark(d, ox, oy); drawExitMarks(d, ox, oy); } } finally { View.ctx = x; }
   // stepping through a portal, or just through one: over everything
   drawPortalIris(d, ox, oy);
 }

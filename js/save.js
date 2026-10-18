@@ -2,16 +2,18 @@
 // ---------------------------------------------------------------------------
 // The save, kept in localStorage: what's banked at the Lodestar (ore,
 // parts and exotics in stash, gear in items), what's worn, the blueprints
-// known, the star's points, the attunements, and the deepest floor reached
-// in each biome. An expedition under way is saved too (game.js, saveRun).
+// known, the star's points, the attunements, and the world. A sortie under
+// way is saved too (game.js, saveRun).
 //
-// Circuits replaced blades and spell cores, and a save from before them
-// (SAVE_OLD) isn't converted: the game starts fresh, says so once, and
-// leaves the old save where it was.
+// The world replaced the dive chain, and a save from before it (SAVE_OLD:
+// the circuits' save, or older) isn't converted: the game starts fresh,
+// says so once, and leaves the old save where it was. The world itself
+// (Save.data.world: its seed and what's been done to each territory) is
+// rolled the first time it's needed (frontier.js).
 // ---------------------------------------------------------------------------
 
-const SAVE_KEY = 'lodestar.save.v3';
-const SAVE_OLD = 'lodestar.save.v2';
+const SAVE_KEY = 'lodestar.save.v4';
+const SAVE_OLD = ['lodestar.save.v3', 'lodestar.save.v2'];
 
 // Drops what this version of the game doesn't know (blueprints, affixes,
 // stones), so a save can't crash a screen.
@@ -40,9 +42,9 @@ const Save = {
   fresh() {
     const rng = new Rng((Math.random() * 4294967296) >>> 0);
     return {
-      v: 4, uid: 100, crafts: 0, dives: 0, star: 0, magSeen: 1,
+      v: 5, uid: 100, crafts: 0, dives: 0, star: 0, magSeen: 1,
       stash: {}, items: [], equip: startingGear(rng),
-      attune: {}, deepest: {}, tips: {}, settings: { haptics: true },
+      attune: {}, tips: {}, settings: { haptics: true }, world: null, lastSpire: 0,
       blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start),
       tools: ['compass'], tool: 'compass', codex: [],
     };
@@ -53,7 +55,7 @@ const Save = {
       raw = localStorage.getItem(SAVE_KEY);
       this.data = raw ? Object.assign(this.fresh(), JSON.parse(raw)) : this.fresh();
       // a save from before circuits: a fresh start, said once
-      if (!raw && localStorage.getItem(SAVE_OLD)) this.data.freshStart = true;
+      if (!raw && SAVE_OLD.some((k) => localStorage.getItem(k))) this.data.freshStart = true;
       const s = this.data;
       s.equip = s.equip || {};
       cleanSave(s);

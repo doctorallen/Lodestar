@@ -105,6 +105,7 @@ const UI = {
     $('card').addEventListener('click', (e) => { if (e.target === $('card')) { if (Game.realT - UI.openedAt >= T.ui.tapGuard) UI.acts.closeCard(); } else UI.onTap(e); });
     $('btn-pause').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.openPause(); });
     $('btn-cargo').addEventListener('click', () => { if (Game.dive && !Game.dive.hub && !Game.modal) UI.openCargo(); });
+    $('btn-act2').addEventListener('pointerdown', (e) => { e.preventDefault(); if (Game.dive && !Game.dive.hub && !Game.modal) UI.openMap('travel'); });
     $('build').textContent = BUILD_INFO;
     // the anvil takes a tap anywhere; the reveal, a tap once it has risen
     $('screen-anvil').addEventListener('pointerdown', (e) => { if (e.target.closest('[data-act]')) return; e.preventDefault(); if (Game.realT - UI.openedAt > 0.3) Anvil.strike(); });
@@ -167,8 +168,15 @@ const UI = {
     }
     else if (id === 'locker') { UI.gearRunes = false; UI.show('screen-gear'); }
     else if (id === 'runes') { UI.gearRunes = true; UI.show('screen-gear'); }
-    else if (id === 'setout') UI.show('screen-setout');
+    else if (id === 'setout') UI.openMap('setout');
     else if (id === 'wreck') UI.show('screen-wreck');
+  },
+  // The world map: 'setout' at the outpost's portal, 'travel' at a spire.
+  openMap(mode) {
+    UI.mapMode = mode;
+    const d = Game.dive;
+    if (UI.mapSel === undefined || UI.mapSel === null || !terrOf(UI.mapSel)) UI.mapSel = d && d.sortie ? d.terr : 0;
+    UI.show('screen-setout');
   },
   openPause() {
     const home = !!(Game.dive && Game.dive.hub);
@@ -254,6 +262,7 @@ const UI = {
     const hpW = Math.round(hp * 100) + '%', chW = Math.round(ch * 100) + '%';
     if ($('hp-fill').style.width !== hpW) $('hp-fill').style.width = hpW;
     if ($('ch-fill').style.width !== chW) $('ch-fill').style.width = chW;
+    $('hud-goal').hidden = !drawGoalHud(d);
     const pW = Math.round(d.pull * 100) + '%';
     if ($('pull-fill').style.width !== pW) $('pull-fill').style.width = pW;
     $('hud-pull').classList.toggle('fading', d.pull < T.pull.dimAt);
@@ -262,7 +271,7 @@ const UI = {
     $('hud-hp').classList.toggle('warded', p.ward > 0);
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
     $('hud-ch').classList.toggle('low', p.lowCharge > 0);
-    if (!d.hub) setTextIfChanged('hud-depth', `${T.zones[d.zone].name.toUpperCase()} ${d.depth}/${T.expedition.sites}`);
+    if (!d.hub) setTextIfChanged('hud-depth', d.deep ? `THE DEEP ${d.deep.site}/${d.deep.of}` : d.terr ? terrOf(d.terr).name.toUpperCase() : '');
     setTextIfChanged('btn-cargo', `CARGO ${cargoUsed(d)}/${st.cargo}`);
     const eq = Save.data.equip;
     for (const slot of ['main', 'off']) {
@@ -280,11 +289,15 @@ const UI = {
     if ($('btn-off').hidden !== !eq.off) $('btn-off').hidden = !eq.off;
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
-    const way = a === 'way' ? wayPlaceName(d, wayHere(d)) : null;
     const rh = a === 'rift' && riftHere(d);
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way ? 'STEP THROUGH: ' + way.toUpperCase() : { setout: 'SET OUT', extract: 'EXTRACT', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'BOARD THE MERIDIAN' }[a] || '');
-    if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : d.channel.kind === 'seal' ? 'SEALING…' : 'RISING…');
+    let way = '';
+    if (a === 'way') way = !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'STEP THROUGH: ' + wayPlaceName(d, wayHere(d)).toUpperCase();
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: 'PLANT THE SPIRE', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'BOARD THE MERIDIAN' }[a] || '');
+    if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
+    // at a spire (or a beacon's light), TRAVEL too
+    const travel = a === 'extract' && d.sortie && !d.deep, b2 = $('btn-act2');
+    if (b2.hidden !== !travel) b2.hidden = !travel;
   },
 };
 
@@ -297,7 +310,8 @@ function drawResume() {
   const r = Save.data.run;
   if (!r) return;
   const n = Object.values(r.cargo || {}).reduce((a, b) => a + b, 0) + (r.items || []).length;
-  $('resume-text').textContent = `An expedition into ${T.biomes[r.biome].name} was under way: ${placeName(r.zone, r.clime)}, site ${r.depth} of ${T.expedition.sites}, carrying ${n ? n + ' things' : 'nothing yet'}. Carry on from that site's start, or give it up and lose the cargo (the pocket comes home).`;
+  const t = terrOf(r.terr);
+  $('resume-text').textContent = `A sortie was under way: ${t ? t.name : 'out in the world'}${r.deep ? `, in its Deep (site ${r.deep})` : ''}, carrying ${n ? n + ' things' : 'nothing yet'}. Carry on from where you came in, or give it up and lose the cargo (the pocket and what you banked are safe).`;
 }
 
 function drawStory() {
@@ -312,7 +326,7 @@ function drawWreck_() {
   const s = Save.data, held = Story.shardsHeld(), set = Story.shardsSet();
   const shardRow = (b, i) => {
     const has = (s.shards || []).includes(i);
-    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Take it to the altar') : `In the Keeper's Lair, the last site of an expedition${biomeOpen(s, i) ? '' : ', beyond the star\'s reach for now'}`}</span></span></div>`;
+    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Take it to the altar') : `In its Keeper's Lair, at the bottom of the Deep under the furthest territory of ring ${i + 1}`}</span></span></div>`;
   };
   const echoes = (s.echoes || []).map((i) => `<div class="echo"><b>${esc(ECHOES[i].title)}</b><p>${esc(ECHOES[i].text)}</p></div>`).join('');
   $('wreck-body').innerHTML = `
@@ -326,7 +340,7 @@ function drawWreck_() {
 function drawReport() {
   const r = UI.report;
   if (!r) return;
-  const where = `${T.biomes[r.biome].name} · site ${r.depth} of ${T.expedition.sites}`;
+  const where = r.where || '';
   const gear = (items) => (items && items.length ? `${items.length} piece${items.length > 1 ? 's' : ''} of gear` : '');
   const got = [stuffLines(r.banked || r.lost || {}), gear(r.items)].filter(Boolean).join(', ');
   const rows = [], row = (label, cls, text) => rows.push(`<div class="rep-row"><span class="rep-label ${cls}">${label}</span><span class="rep-text">${esc(text)}</span></div>`);
@@ -336,8 +350,15 @@ function drawReport() {
     if (got) row('BANKED', 'good', got);
     const lost = [stuffLines(r.recalled.lost), gear({ length: r.recalled.lostItems })].filter(Boolean).join(', ');
     if (lost) row('THE DARK KEPT', 'bad', lost);
-  } else if (r.banked) { title = 'PULLED HOME'; row('BANKED', 'good', got || 'Nothing this time'); }
-  else { title = r.died ? 'YOU FELL' : 'YOU GAVE UP'; if (got) row('LOST', 'bad', got); }
+  } else if (r.banked) { title = 'HOME'; row('BANKED', 'good', got || 'Nothing this time'); }
+  else {
+    title = r.died ? 'YOU FELL' : 'YOU GAVE UP';
+    if (got) row('LOST', 'bad', got);
+    const before = r.earlier && [stuffLines(r.earlier.stuff || {}), gear(r.earlier.items)].filter(Boolean).join(', ');
+    if (before) row('BANKED BEFORE', 'good', before);
+    if (r.wake) row('YOU WAKE', 'gold', `At the spire of ${r.wake}`);
+  }
+  if (r.kindled) row('KINDLED', 'gold', `${r.kindled} territor${r.kindled > 1 ? 'ies' : 'y'}`);
   if (r.kept && (r.kept.items.length || Object.keys(r.kept.stuff).length)) row('POCKET KEPT', 'gold', [stuffLines(r.kept.stuff), r.kept.items.map((i) => i.name).join(', ')].filter(Boolean).join(', '));
   const learned = (r.learned || []).concat((r.kept && r.kept.blueprints) || []);
   if (learned.length) row('LEARNED', 'gold', learned.map((id) => BLUEPRINTS[id].name).join(', '));
@@ -359,19 +380,7 @@ function drawReport() {
   $('report-body').innerHTML = `<p class="rep-where">${esc(where)}</p>${rows.join('')}${star}`;
 }
 
-function drawSetOut() {
-  const s = Save.data;
-  const owned = TOOL_IDS.filter(toolOwned);
-  const carry = `<h3>CARRYING</h3><div class="chips">${owned.map((id) => `<button class="chip ${s.tool === id ? 'on' : ''}" data-act="carryTool" data-arg="${id}"><img class="chip-icon" src="${toolIconUrl(id)}" alt="">${esc(TOOLS[id].name)}</button>`).join('')}</div><h3>WHERE</h3>`;
-  $('setout-body').innerHTML = carry + T.biomes.map((b, i) => {
-    const open = biomeOpen(s, i), deep = s.deepest[b.id] || 0;
-    const ores = b.ores.map((id) => T.ores[ORE_INDEX[id]].name).join(' and ');
-    return `<button class="row biome" data-act="dive" data-arg="${i}" ${open ? '' : 'disabled'}>
-      <span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${open ? `${ores}${deep ? ` · furthest: site ${deep}` : ''} · ${(s.shards || []).includes(i) ? 'shard recovered' : 'its Keeper waits at the last site'}` : `The star's lines reach here at magnitude ${T.star.biomeAt[i]}`}</span></span></button>`;
-  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it sets out through the portal onto the surface, and at every exit two portals lead on, each to somewhere else. Odds of a lodeline at each site: ${[1, 2, 3, 4].map((k) => Math.round(lodelineOdds(k) * 100) + '%').join(', ')}. Where none reaches, go on or recall.</p>` + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME${Save.data.swapped ? '' : ' · ONE SWAP A TRIP'}</h3>${contractRows(null)}` + drawToolRows();
-}
-
-// The tools, under the biomes: the one carried, the others to carry or make.
+// The tools, under the map: the one carried, the others to carry or make.
 function drawToolRows() {
   const s = Save.data;
   return `<h3>TOOLS · CARRY ONE</h3>` + TOOL_IDS.map((id) => {
@@ -539,14 +548,13 @@ function drawStar() {
   const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag], pts = attunePointsLeft(s);
   const feed = T.ores.filter((o) => s.stash[o.id]).map((o) => `<div class="row static"><span class="row-text"><span class="row-name">${esc(o.name)} × ${s.stash[o.id]}</span><span class="row-sub">${orePoints(o.id)} point${orePoints(o.id) > 1 ? 's' : ''} each</span></span>
       <button class="mini" data-act="feed" data-arg="${o.id}:10">FEED 10</button><button class="mini" data-act="feed" data-arg="${o.id}:all">ALL</button></div>`).join('');
-  const nextBiome = T.biomes.find((b, i) => T.star.biomeAt[i] > mag);
   const att = Object.entries(T.attune).map(([id, A]) => {
     const r = s.attune[id] || 0;
     return `<div class="row static"><span class="row-text"><span class="row-name">${A.name} ${r}/${A.max}</span><span class="row-sub">${A.text} a rank</span></span><button class="mini" data-act="attune" data-arg="${id}" ${pts > 0 && r < A.max ? '' : 'disabled'}>+</button></div>`;
   }).join('');
   $('star-body').innerHTML = `
     <div class="mag">MAGNITUDE ${mag}${next !== undefined ? ` · ${s.star}/${next}` : ''}</div>
-    <p class="note">Ore fed to the star makes it grow. Each magnitude reaches its lines a floor deeper and gives an attunement point.${nextBiome ? ` At magnitude ${T.star.biomeAt[T.biomes.indexOf(nextBiome)]} its lines reach ${esc(nextBiome.name)}.` : ''}</p>
+    <p class="note">Ore fed to the star makes it grow. Each magnitude gives an attunement point, makes a Deep's lodelines likelier and a recall gentler, and now and then a pocket slot more.</p>
     <h3>FEED THE STAR</h3>${feed || '<p class="note">No ore banked.</p>'}
     <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3>${att}`;
 }
@@ -563,11 +571,11 @@ function drawCargo() {
     <h3>POCKET · ${d.pocket.length}/${slots}</h3>
     ${pocket || '<p class="note">Empty. Whatever you pocket comes home even if you fall: tap something below to pocket it.</p>'}
     <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">No ore yet.</p>'}
-    ${d.blueprints.length ? `<h3>BLUEPRINTS · LEARNED WHEN YOU GET HOME</h3>${d.blueprints.map((b, i) => `<div class="row static"><img class="icon" src="${itemIconUrl(bpSample(b.id))}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint · weighs 1</span></span>${d.pocket.length < pocketSlots() ? `<button class="mini" data-act="pocketBp" data-arg="${i}">POCKET</button>` : ''}</div>`).join('')}` : ''}
+    ${d.blueprints.length ? `<h3>BLUEPRINTS · LEARNED WHEN BANKED</h3>${d.blueprints.map((b, i) => `<div class="row static"><img class="icon" src="${itemIconUrl(bpSample(b.id))}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint · weighs 1</span></span>${d.pocket.length < pocketSlots() ? `<button class="mini" data-act="pocketBp" data-arg="${i}">POCKET</button>` : ''}</div>`).join('')}` : ''}
     <h3>FOUND</h3>${items || '<p class="note">Nothing forged or found yet.</p>'}
     <h3>CONTRACTS</h3>${contractRows(d)}
     <h3>WORN</h3>${worn}
-    <p class="note">What you wear and what's in your pocket are safe. The rest of the cargo is lost if you fall.</p>
+    <p class="note">What you wear and what's in your pocket are safe. The rest of the cargo is lost if you fall, until it's banked at a spire.</p>
     <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL · LOSE ${Math.round(recallCost(d) * 100)}%</button></div>`;
 }
 
@@ -681,7 +689,6 @@ UI.acts = {
   back: () => UI.close(),
   resume: () => UI.close(),
   abandon: () => abandonDive(),
-  dive: (i) => { UI.close(); startDive(Number(i)); },
   closeReport: () => {
     UI.report = null; UI.close();
     Story.starGrew();
@@ -691,7 +698,7 @@ UI.acts = {
     UI.close();
     const r = Save.data.run;
     if (!r) return;
-    Game.dive = newWorld({ seed: r.seed, biome: r.biome, depth: r.depth, zone: r.zone, cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], gotShard: r.gotShard, echoes: r.echoes });
+    Game.dive = newWorld({ sortie: true, terr: r.terr, depth: 1, zone: 'surface', cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], gotShard: r.gotShard, echoes: r.echoes, banked: r.banked });
     abandonDive();
   },
   storyNext: () => {
