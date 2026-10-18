@@ -412,4 +412,3 @@ function attunePointsLeft(save) {
   for (const id in save.attune) spent += save.attune[id];
   return magnitudeOf(save.star) - 1 - spent;
 }
-function biomeOpen(save, i) { return magnitudeOf(save.star) >= T.star.biomeAt[i]; }

@@ -27,11 +27,11 @@ const T = {
   // survive a fall; an ore stack in one holds at most pocketStack.
   cargo: { capacity: 40, itemWeight: 3, pocket: [1, 1, 2, 2, 3, 3, 3, 3], pocketStack: 10 },
 
-  // The star's pull on each floor: full on arrival, it fades over `time`
-  // seconds (less by perDepth a floor, to min). Below dimAt the lamp dims
-  // (to lampMin) and every waveEvery seconds `wave` more enemies stir in the
-  // dark; when it's gone the floor's lodeline goes dark and the Hollow comes.
-  pull: { time: 100, perDepth: -5, min: 80, dimAt: 0.5, lampMin: 0.6, waveEvery: 16, wave: 2 },
+  // Your light (d.pull): full in kindled land and at home, it drains in the
+  // dark over T.world.light seconds. Below dimAt the lamp dims (to lampMin)
+  // and every waveEvery seconds `wave` more enemies stir in the dark; when
+  // it's gone the Hollow comes (and a Deep's lodeline goes dark).
+  pull: { dimAt: 0.5, lampMin: 0.6, waveEvery: 16, wave: 2 },
 
   // Leaving takes a moment: standing in a lodeline, EXTRACT takes `extract`
   // seconds; an emergency recall works anywhere but takes `recall` seconds
@@ -47,8 +47,8 @@ const T = {
   // few extra tunnels so there are loops. pillar: the chance a big cavern
   // keeps a pillar of rock. wallNoise: how far the walls' line wanders off
   // the tiles. veins: ore veins per cavern (none in the entry's). padOdds:
-  // the chance each site has a lodeline, up by padPerMag for each magnitude
-  // past the first, to no more than padCap.
+  // the chance each site of a Deep has a lodeline (back up to the surface),
+  // up by padPerMag for each magnitude past the first, to no more than padCap.
   floor: {
     w: 52, h: 52,
     rooms: [7, 10], roomR: [2.5, 4.8], roomGap: 3, loops: [1, 3],
@@ -68,10 +68,54 @@ const T = {
     lair: { name: "Keeper's Lair", gen: { rooms: [3, 4], veins: [1, 2] }, forge: 0 },
     deep: { name: 'Deep Vein', gen: { veins: [2, 3], veinLen: [3, 5] }, forge: 0.1, warden: 0.6 },
   },
-  // An expedition: `sites` long; site 1 is always on the surface; at each
-  // exit two ways lead on to other zones. At the last exit, one way leads to
-  // the Keeper's Lair (if its shard is still held there) or a Deep Vein.
-  expedition: { sites: 4, ways: 2 },
+  // The world (world.js, frontier.js): rolled once a save from its seed, in
+  // rings round the outpost. Its layout lives on the world map, `map` px
+  // square, the world a disc `disc` px across the middle.
+  //   rings: n territories each, their middles r px from the star give or
+  //     take band; region: its ore and enemies (T.biomes), or none for the
+  //     outpost; edge: the Edge (unknown on the map until walked).
+  //   warp: how far (px) a border wanders; border: the px of shared border
+  //     that make two territories neighbours.
+  //   depth: a territory's danger within its region, 1 to 4, by how far out
+  //     it stands among its ring, spread evenly (the Edge adds edgeDepth,
+  //     levels 13+).
+  //   light: seconds of fresh light in dark land before the Hollow comes.
+  //   goals: each heart goal's weight, plus perRing for each ring out.
+  //   deep: the chance a territory has a portal down into a Deep, of
+  //     `sites` sites; every ring's last territory has one, and while its
+  //     region's shard is missing, its last site is the Keeper's Lair.
+  //   exits: an opening at the map's edge for each neighbour, at least
+  //     `apart` tiles from the next, its tunnel tunnelR tiles wide; walking
+  //     within `reach` px of it crosses over, arriving `inward` tiles in.
+  //   gen: a territory's own overrides of the surface's generator (a cavern
+  //     fewer than a site: its passages to the openings make up the ground);
+  //     veins: more veins in each cavern (but the first) than a site has.
+  //   regrow: sorties before a mined vein in dark land grows back.
+  //   straggler: the chance one enemy is left in kindled land; clear: tiles
+  //     round where the diver arrives that start clear of enemies.
+  //   waystone: lighting one is a `channel` s channel within `touch` px;
+  //     the last must then be held `hold` s within holdR px, the dark sending
+  //     `wave` more every waveEvery s. plant: the spire's channel, s.
+  //   sun: daylight on the surface (0 dusk, 1 noon) in dark land, in kindled
+  //     land, and on the Edge.
+  world: {
+    map: 176, disc: 86, warp: 9, border: 3,
+    rings: [
+      { n: 1, r: 0, band: 0, region: null },
+      { n: 7, r: 25, band: 5, region: 0 },
+      { n: 10, r: 45, band: 5, region: 1 },
+      { n: 12, r: 63, band: 4, region: 2 },
+      { n: 10, r: 79, band: 3, region: 2, edge: true },
+    ],
+    edgeDepth: 4, light: 75,
+    goals: { waystones: { weight: 3, perRing: 0 }, rift: { weight: 1, perRing: 0.5 } },
+    deep: { chance: 0.35, sites: [1, 3] },
+    exits: { apart: 9, tunnelR: 1.2, reach: 9, inward: 3 },
+    gen: { rooms: [5, 7] }, veins: [0, 1], regrow: 3, straggler: 0.4, clear: 7,
+    waystone: { channel: 2.5, touch: 18, hold: 20, holdR: 40, waveEvery: 8, wave: 1 },
+    plant: 6,
+    sun: { dark: -0.35, kindled: 1, edge: -0.6 },
+  },
   // Climes: the kind of country a site is, rolled when the way to it is
   // made (so its portal can name it). zones: where it can turn up; weight:
   // how often, times lean[region] in a region it leans to (every clime can
@@ -123,11 +167,11 @@ const T = {
   portal: { enter: 0.45, arrive: 0.7, reach: 11, light: [2.6, 1.0], sunLight: 0.55 },
   // Contracts: how many are posted, how often each kind comes up, and the
   // star points each pays per magnitude.
-  // newest: the share of hauls and reaches set in the newest biome open;
-  // stale: how many expeditions one stands before it's replaced.
-  // A hunt names a clime's own creature (one whose clime leans to an open
-  // biome, or to none) with the chance huntSignature, huntN [least, most].
-  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, ride: 2 }, star: 25, newest: 0.7, stale: 3, huntSignature: 0.4, huntN: [2, 4] },
+  // newest: the share of hauls set in the furthest region reached;
+  // stale: how many sorties one stands before it's replaced.
+  // A hunt names a clime's own creature (one whose clime leans to a region
+  // reached, or to none) with the chance huntSignature, huntN [least, most].
+  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, kindle: 2, deep: 1 }, star: 25, newest: 0.7, stale: 3, huntSignature: 0.4, huntN: [2, 4] },
   // A Lodestorm: the chance an expedition sets out under one; on the
   // surface a strike every `every` s (the first after `first`), within
   // `near` tiles of the diver, marked `warn` s ahead, hurting within
@@ -149,12 +193,13 @@ const T = {
   // Tools: the magnitude each can be made at, and what it costs from the
   // stash (a part's kind takes parts of any grade, the lowest first).
   // sight/reach in tiles; the beacon lands after `land` seconds and
-  // wakes what's within `noise` px.
+  // wakes what's within `noise` px; in a territory, standing within `refill`
+  // px of it brings your light back at refillRate a second.
   tools: {
     compass: { mag: 1, cost: {} },
     oresense: { mag: 2, cost: { ferrite: 14, spore: 3 }, reach: 9 },
     radar: { mag: 2, cost: { ferrite: 14, ether: 3 }, reach: 18 },
-    beacon: { mag: 2, cost: { lumenite: 6, cog: 3 }, land: 6, noise: 140 },
+    beacon: { mag: 2, cost: { lumenite: 6, cog: 3 }, land: 6, noise: 140, refill: 40, refillRate: 0.12 },
     map: { mag: 3, cost: { lumenite: 8, fiber: 4 }, sight: 6 },
     satchel: { mag: 3, cost: { lumenite: 8, chitin: 4 } },
   },
@@ -621,10 +666,11 @@ const T = {
 
   // The Lodestar. Each ore fed is worth tier² points; magnitude n needs
   // levels[n - 1] points in all. Each level past the first is an
-  // attunement point and reaches lodelines a floor deeper. biomeAt: the
-  // magnitude each biome opens at.
-  // extractStar: what a ride home feeds the star, times the depth squared.
-  star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], biomeAt: [1, 3, 5], extractStar: 8 },
+  // attunement point, a Deep's lodelines a little likelier, a pocket slot
+  // now and then (T.cargo.pocket) and a gentler recall.
+  // extractStar: what coming home feeds the star, once a sortie, times the
+  // square of the deepest dark land walked (its depth, 1 to 4).
+  star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], extractStar: 8 },
   // The story: each region's Keeper waits in its lair, at the end of an
   // expedition, holding a shard of the star's heart; each shard set in the star adds shardStar points.
   // An echo (a log of the crews before) turns up by an ancient forge, from

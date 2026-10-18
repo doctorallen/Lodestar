@@ -39,7 +39,7 @@ async function openGame(browser, { width = 390, height = 844, mobile = true, sav
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   const url = 'file://' + path.join(ROOT, 'index.html') + query;
   await page.goto(url);
-  await page.evaluate((s) => { try { localStorage.clear(); if (s) localStorage.setItem('lodestar.save.v3', JSON.stringify(s)); } catch (e) {} }, save);
+  await page.evaluate((s) => { try { localStorage.clear(); if (s) localStorage.setItem('lodestar.save.v4', JSON.stringify(s)); } catch (e) {} }, save);
   await page.reload();
   await page.waitForFunction(() => typeof Game !== 'undefined' && Game.ready, { timeout: 30000 });
   return { page, errors };

@@ -13,8 +13,9 @@
 // Standing at a tear (not a gate), SEAL closes it: a few seconds of
 // standing still in a light everything nearby comes to see, for riftglass,
 // which forges a piece a tier higher. What the rift changed stays changed.
-// Placed from the dive's seed after the floor is made, so floor.js and its
-// golden hashes don't know about them.
+// Placed from the floor's seed after the floor is made, so floor.js and its
+// golden hashes don't know about them. A territory whose heart goal is to
+// seal its tear has one on its heart (frontier.js).
 // ---------------------------------------------------------------------------
 
 const RIFT_KINDS = {
@@ -24,9 +25,11 @@ const RIFT_KINDS = {
   inversion: { name: 'Inversion' },
 };
 
-// A room for a tear: not the entry, a way on's, the lodeline's or an arena.
+// A room for a tear: not the entry, a way on's, the lodeline's, an arena,
+// or a territory's heart's or waystones'.
 function riftRooms(f) {
-  return f.rooms.slice(1).filter((r) => !r.arena && !(f.ways || []).some((w) => roomHas(r, w)) && !(f.pad && roomHas(r, f.pad)) && r.cells.length > 10);
+  const keep = (f.ways || []).concat(f.pad ? [f.pad] : [], f.heart ? [f.heart] : [], f.stones || []);
+  return f.rooms.slice(1).filter((r) => !r.arena && !keep.some((w) => roomHas(r, w)) && r.cells.length > 10);
 }
 // The open tile nearest a room's middle.
 function riftSpot(f, r) {
@@ -213,6 +216,7 @@ function sealRift() {
   r.open = false;
   d.floor.riftShift = null;
   tallySeal(d);
+  riftSealedHere(d);
   if (View.floorFor === d.floor) { const x0 = (r.x - 6) * ATILE, y0 = (r.y - 6) * ATILE; for (let y = r.y - 6; y <= r.y + 6; y++) for (let x = r.x - 6; x <= r.x + 6; x++) if (x >= 0 && y >= 0 && x < d.floor.w && y < d.floor.h) paintTileArt(d.floor, x, y); paintGraft(d.floor, r.x - 6, r.y - 6, r.x + 6, r.y + 6); tintRift(d.floor, x0, y0, x0 + 13 * ATILE, y0 + 13 * ATILE); View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0); View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0); }
   const cx = (r.x + 0.5) * TILE, cy = (r.y + 0.5) * TILE, n = d.rng.i(T.rifts.glass[0], T.rifts.glass[1]) + riftTouchedAlive(d);
   for (let k = 0; k < n; k++) d.drops.push({ x: cx + d.rng.f(-6, 6), y: cy + d.rng.f(-4, 4), t: 0, exotic: 'riftglass', home: true });

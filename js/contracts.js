@@ -1,20 +1,21 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Contracts: three small goals at a time, posted at the ledge, so every
-// expedition, even a short one, is working towards something. Each is
-// settled when the diver comes home (a lodeline or a recall, not a fall):
-// bring home some ore, bring down some creature, reach a site, seal a rift,
-// ride a lodeline home from a certain zone. Each pays the star and leaves
-// something useful, and a new one takes its place. The board keeps moving:
-// never two of a kind, hauls mostly from the newest biome open, one left
-// standing for `stale` expeditions is replaced, and one may be swapped for
-// free each time home. All three in one expedition pays the star twice.
+// Contracts: three small goals at a time, posted at the portal, so every
+// sortie, even a short one, is working towards something. Each is settled
+// when the diver comes home (walking in, from a spire, or by a recall; not
+// after a fall): bring home some ore, bring down some creature, reach a ring
+// of the world, seal a rift, kindle a territory, go down into a Deep. Each
+// pays the star and leaves something useful, and a new one takes its place.
+// The board keeps moving: never two of a kind, hauls mostly from the
+// furthest region reached, one left standing for `stale` sorties is
+// replaced, and one may be swapped for free each time home. All three in
+// one sortie pays the star twice.
 // ---------------------------------------------------------------------------
 
 const CONTRACT_HUNTS = ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'];
 
 function newContract(rng, without = []) {
-  const s = Save.data, mag = magnitudeOf(s.star), open = T.biomes.map((b, i) => i).filter((i) => biomeOpen(s, i));
+  const s = Save.data, mag = magnitudeOf(s.star), open = T.biomes.map((b, i) => i).filter((i) => regionReached(i));
   const C = T.contracts, kinds = Object.keys(C.kinds).filter((k) => !without.includes(k));
   const kind = rng.weighted(kinds.map((k) => [C.kinds[k], k]));
   const c = { id: (s.contractN = (s.contractN || 0) + 1), kind, age: 0 };
@@ -30,9 +31,8 @@ function newContract(rng, without = []) {
     if (sig.length && rng.chance(C.huntSignature)) { c.type = rng.pick(sig); c.n = rng.i(C.huntN[0], C.huntN[1]); }
     else { c.type = rng.pick(CONTRACT_HUNTS); c.n = rng.i(5, 10); }
   }
-  else if (kind === 'reach') { c.biome = rng.chance(C.newest) ? newest : rng.pick(open); c.site = Math.min(T.expedition.sites, rng.i(2, 2 + Math.min(2, mag))); }
-  else if (kind === 'seal') c.n = 1;
-  else { c.zone = rng.pick(['surface', 'cave', 'ruin']); }
+  else if (kind === 'reach') c.ring = Math.min(T.world.rings.length - 1, newest + 1 + (rng.chance(0.4) ? 1 : 0));
+  else c.n = 1;
   // what it pays: the star, and a thing
   c.star = C.star * mag;
   c.reward = rng.weighted([[codexAllWhole() ? 0 : T.circuits.resonance.contract, 'resonance'], [3, 'exotic'], [2, 'parts'], [1, 'riftglass']]);
@@ -75,9 +75,10 @@ function contractText(c) {
   if (c.kind === 'haul') return `Bring home ${c.n} ${stuffName(c.ore)}`;
   if (c.kind === 'hunt' && FOE_NAMES[c.type]) return `Bring down ${c.n} ${c.n > 1 ? FOE_NAMES[c.type][1] : FOE_NAMES[c.type][0].toLowerCase()} (${climeName(climeOfFoe(c.type))}), and come home`;
   if (c.kind === 'hunt') return `Bring down ${c.n} ${c.type}${c.n > 1 ? 's' : ''}, and come home`;
-  if (c.kind === 'reach') return `Reach site ${c.site} in ${T.biomes[c.biome].name}, and come home`;
+  if (c.kind === 'reach') return `Walk into ring ${c.ring}, and come home`;
   if (c.kind === 'seal') return 'Seal a rift, and come home';
-  return `Ride a lodeline home from ${c.zone === 'surface' ? 'the surface' : 'a ' + T.zones[c.zone].name.toLowerCase()}`;
+  if (c.kind === 'kindle') return 'Kindle a territory, and come home';
+  return 'Go down into a Deep, and come home';
 }
 function contractRewardText(c) {
   const thing = c.reward === 'exotic' ? stuffName(c.exotic) : c.reward === 'parts' ? `${c.parts} ${partName(c.part).toLowerCase()}` : c.reward === 'resonance' ? 'a resonance stone (the Codex)' : 'riftglass';
@@ -89,13 +90,15 @@ function contractProgress(c, d) {
   const t = d.tally || {};
   if (c.kind === 'haul') return Math.min(c.n, (d.cargo[c.ore] || 0) + (d.pocket || []).filter((e) => e.stuff === c.ore).reduce((a, e) => a + e.n, 0));
   if (c.kind === 'hunt') return Math.min(c.n, (t.kills && t.kills[c.type]) || 0);
-  if (c.kind === 'reach') return d.biome === c.biome ? Math.min(c.site, d.depth) : 0;
+  if (c.kind === 'reach') return Math.min(c.ring, d.maxRing || 0);
   if (c.kind === 'seal') return Math.min(c.n, t.sealed || 0);
+  if (c.kind === 'kindle') return Math.min(c.n, t.kindled || 0);
+  if (c.kind === 'deep') return Math.min(c.n, t.deeps || 0);
   return 0;
 }
-function contractGoal(c) { return c.kind === 'reach' ? c.site : c.kind === 'ride' ? 1 : c.n; }
+function contractGoal(c) { return c.kind === 'reach' ? c.ring : c.n; }
 
-// A dive's tally, as it goes.
+// A sortie's tally, as it goes.
 function tallyKill(d, e) {
   const t = d.tally || (d.tally = {}), k = t.kills || (t.kills = {});
   k[e.type] = (k[e.type] || 0) + 1;
@@ -105,15 +108,14 @@ function tallySeal(d) { const t = d.tally || (d.tally = {}); t.sealed = (t.seale
 // Two piles of stuff, added together.
 function sumStuff(a, b) { const out = Object.assign({}, a); for (const k in b) out[k] = (out[k] || 0) + b[k]; return out; }
 
-// Coming home: which contracts this dive settled. banked: what reached the
-// stash (after a recall's losses); how: 'extract' or 'recall'.
-function settleContracts(d, banked, how) {
+// Coming home: which contracts this sortie settled. banked: what reached
+// the stash this sortie (after a recall's losses).
+function settleContracts(d, banked) {
   const s = Save.data, done = [];
   fillContracts();
   for (const c of s.contracts) {
     let ok;
     if (c.kind === 'haul') ok = (banked[c.ore] || 0) >= c.n;
-    else if (c.kind === 'ride') ok = how === 'extract' && d.zone === c.zone;
     else ok = contractProgress(c, d) >= contractGoal(c);
     if (!ok) continue;
     done.push(c);
@@ -129,12 +131,12 @@ function settleContracts(d, banked, how) {
   return done;
 }
 
-// The board, as rows (at the ledge, and in the cargo screen mid-dive).
+// The board, as rows (at the portal, and in the cargo screen mid-sortie).
 function contractRows(d) {
   fillContracts();
   return Save.data.contracts.map((c) => {
-    const prog = d && !d.hub && c.kind !== 'ride' ? ` · ${contractProgress(c, d)}/${contractGoal(c)}` : '';
+    const prog = d && !d.hub ? ` · ${contractProgress(c, d)}/${contractGoal(c)}` : '';
     const left = T.contracts.stale - (c.age || 0), swap = !d && !Save.data.swapped ? `<button class="mini" data-act="swapContract" data-arg="${c.id}">SWAP</button>` : '';
-    return `<div class="row static"><span class="row-text"><span class="row-name">${esc(contractText(c))}${prog}</span><span class="row-sub">${esc(contractRewardText(c))}${left <= 1 ? ' · last expedition' : ''}</span></span>${swap}</div>`;
+    return `<div class="row static"><span class="row-text"><span class="row-name">${esc(contractText(c))}${prog}</span><span class="row-sub">${esc(contractRewardText(c))}${left <= 1 ? ' · last sortie' : ''}</span></span>${swap}</div>`;
   }).join('');
 }

@@ -552,7 +552,7 @@ function cfxDecal(x, y, kind, big) {
 // afterimages. ox, oy: the floor's offset on the view.
 function drawCastGround(d, ox, oy, tick, lights) {
   const zl = !d.hub && T.zones[d.zone] && T.zones[d.zone].light;
-  CFX.day = !!(zl && d.pull > zl.lampAt);
+  CFX.day = !!(zl && sunOf(d) > zl.lampAt);
   CFX.dayLights.length = 0;
   if (CFX.dive !== d) return;
   const p = d.p, c = View.ctx, e = View.emCtx;

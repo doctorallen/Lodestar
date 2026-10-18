@@ -1,20 +1,20 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Tools. The diver carries one, chosen at the ledge before setting out, and
-// each changes what can be seen or done down there: where the way home is,
-// where the ore is, what's coming, the lay of the site, a pocket more, a
-// lodeline called down where there's none. The Compass is carried from the
+// Tools. The diver carries one, chosen at the portal before setting out, and
+// each changes what can be seen or done out there: where the light is,
+// where the ore is, what's coming, the lay of the land, a pocket more, a
+// spire's light called down where there's none. The Compass is carried from the
 // start; the rest are made once, from the stash, as the star grows
 // (T.tools: the magnitude each needs, and what it costs).
 // ---------------------------------------------------------------------------
 
 const TOOLS = {
-  compass: { name: 'Lodeline Compass', icon: 'compass', text: 'An arrow to the nearest lodeline, or where none reaches, to the nearest portal on.' },
+  compass: { name: 'Lodeline Compass', icon: 'compass', text: 'An arrow to the spire, or the way to the nearest kindled land; in a Deep, to its lodeline or the portal on.' },
   oresense: { name: 'Ore Sense', icon: 'lens', text: 'Veins nearby glint through the dark, and an arrow points to the nearest beyond the view.' },
   radar: { name: 'Threat Radar', icon: 'radar', text: 'Marks at the edge of the view for what is out there: red for the dangerous, violet for the Hollow.' },
-  map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each site as you walk it, with its portals and lodeline once seen.' },
+  map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each place as you walk it, with its portals, spire and waystones once seen.' },
   satchel: { name: 'Deep Satchel', icon: 'satchel', text: 'One more pocket slot, so more comes home whatever happens.' },
-  beacon: { name: 'Lode Beacon', icon: 'beacon', text: 'Once an expedition: call a lodeline down where you stand. It takes a few seconds to land, and its light draws everything near.' },
+  beacon: { name: 'Lode Beacon', icon: 'beacon', text: "Once a sortie: call a spire's light down where you stand, to bank and travel from, and to stand in while your light comes back. It takes a few seconds to land, and its light draws everything near." },
 };
 const TOOL_IDS = ['compass', 'oresense', 'radar', 'beacon', 'map', 'satchel'];
 
@@ -76,6 +76,7 @@ function updateTools(dt) {
 // nearest portal on.
 function compassTarget(d, tx, ty) {
   const f = d.floor, steps = floorDistances(f.tiles, f.w, f.h, tx, ty);
+  if (d.sortie && !d.deep) return compassTargetWorld(d, steps);
   const far = (t) => { const s = steps[t.y * f.w + t.x]; return s < 0 ? 1e9 : s; };
   if (f.pad && !d.padDark) return { x: f.pad.x, y: f.pad.y, col: ART.pal.star[3], home: true };
   const ways = (f.ways || []).map((w, i) => ({ x: w.x, y: w.y, col: ZONE_SIGNS[d.ways[i]] || '#ffffff' })).sort((a, b) => far(a) - far(b));
@@ -103,12 +104,13 @@ function plantBeacon() {
   const d = Game.dive, p = d.p, f = d.floor, tx = Math.floor(p.x / TILE), ty = Math.floor(p.y / TILE);
   if (d.tool !== 'beacon' || d.beaconUsed || d.beacon || d.hub) return false;
   if (d.zone === 'lair' && d.keeper && !d.keeper.dead) { UI.toast("The Keeper's hold is too strong here"); return false; }
-  if (f.pad && !d.padDark) { UI.toast('A lodeline already reaches here'); return false; }
+  if (f.pad && !d.padDark) { UI.toast(d.deep ? 'A lodeline already reaches here' : 'A spire already stands here'); return false; }
+  if (d.sortie && !d.deep && (f.heart && Math.hypot(f.heart.x - tx, f.heart.y - ty) < 2 || (f.stones || []).some((s) => Math.hypot(s.x - tx, s.y - ty) < 2))) { UI.toast('Not so close to that'); return false; }
   if ((d.fieldForge && Math.hypot(d.fieldForge.x - tx, d.fieldForge.y - ty) < 2) || (d.rift && d.rift.open && [d.rift, d.rift.pair].some((r) => r && Math.hypot(r.x - tx, r.y - ty) < 2))) { UI.toast('Not so close to that'); return false; }
   if (floorTile(f, tx, ty) !== TILE_FLOOR) { UI.toast('The beacon needs open ground'); return false; }
   d.beacon = { x: tx, y: ty, t: 0, landed: false };
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.tools.beacon.noise) wake(d, e);
-  UI.toast('The beacon is calling a lodeline down', 'legendary');
+  UI.toast(d.deep ? 'The beacon is calling a lodeline down' : "The beacon is calling a spire's light down", 'legendary');
   return true;
 }
 function landBeacon(d, quiet) {
@@ -122,7 +124,7 @@ function landBeacon(d, quiet) {
   repaintAround(f, b.x, b.y);
   if (quiet) return;
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, (b.x + 0.5) * TILE, (b.y + 0.5) * TILE) < T.tools.beacon.noise) wake(d, e);
-  UI.toast('A lodeline lands', 'legendary');
+  UI.toast(d.deep ? 'A lodeline lands' : "A spire's light lands: bank here, or stand in it", 'legendary');
   buzz(40);
 }
 
@@ -220,6 +222,8 @@ function drawSiteMap(d) {
   const m = 4 - q, mark = (t, col) => { if (t && s[t.y * f.w + t.x]) { c.fillStyle = col; c.fillRect(x0 + Math.floor(t.x / q) - 1, y0 + Math.floor(t.y / q) - 1, m, m); } };
   (f.ways || []).forEach((w, i) => mark(w, ZONE_SIGNS[d.ways[i]] || '#fff'));
   if (f.pad && !d.padDark) mark(f.pad, ART.pal.star[3]);
+  for (const s of f.stones || []) mark(s, '#c8c0a0');
+  for (const e of f.exits || []) mark(e, isKindled(e.to) ? ART.pal.star[2] : '#8a84a0');
   if (d.fieldForge) mark(d.fieldForge, '#ff8a3a');
   if (d.rift && d.rift.open) { mark(d.rift, RIFT_PAL.riftedge[0]); if (d.rift.pair) mark(d.rift.pair, RIFT_PAL.riftedge[0]); }
   if (Math.sin(Game.realT * 8) > -0.3) { const px = x0 + Math.floor(d.p.x / TILE / q), py = y0 + Math.floor(d.p.y / TILE / q); c.fillStyle = '#ffffff'; c.fillRect(px, py, q > 1 ? 1 : 2, q > 1 ? 1 : 2); }

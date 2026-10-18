@@ -575,7 +575,7 @@ function drawLifeAir(d, ox, oy, lights) {
 function drawLifeShade(d, ox, oy) {
   const L = d.life;
   if (!L || !L.clouds) return;
-  const a = (1 - SURFACE_LIGHT.cloudDark) * clamp((d.pull - 0.2) * 2.5, 0, 1);
+  const a = (1 - SURFACE_LIGHT.cloudDark) * clamp((sunOf(d) - 0.2) * 2.5, 0, 1);
   if (a <= 0.01) return;
   const x = View.ctx;
   x.globalAlpha = a;

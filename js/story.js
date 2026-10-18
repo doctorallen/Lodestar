@@ -15,7 +15,7 @@
 
 // Said once, before the opening, to a player whose save came from before
 // circuits.
-const FRESH_START_LINE = 'Spells are now circuits you build from stones, and blades are gone, so your outpost starts afresh.';
+const FRESH_START_LINE = 'The land round the star is one world now, to walk and kindle territory by territory, so your outpost starts afresh.';
 
 const STORY_INTRO = [
   'The Meridian was three days out when every instrument died at once.',
@@ -129,15 +129,13 @@ const Story = {
     UI.speak('WICK', WICK[id]);
   },
   // The star, when it grows: a line for every magnitude it passed (a big
-  // feed can pass two), what opened, and the attunement to spend.
+  // feed can pass two), and the attunement to spend.
   starGrew() {
     const s = Save.data, mag = magnitudeOf(s.star);
     if (s.magSeen === undefined) s.magSeen = mag;
     if (mag <= s.magSeen) return;
     for (let m = s.magSeen + 1; m <= mag; m++) {
       if (STAR_SPEAKS[m]) UI.speak('THE STAR', STAR_SPEAKS[m], 'star');
-      const b = T.star.biomeAt.indexOf(m);
-      if (b > 0) UI.toast(`The star reaches the ${T.biomes[b].name}`, 'legendary');
     }
     UI.toast(`Magnitude ${mag}: ${mag - s.magSeen > 1 ? 'attunements' : 'an attunement'} to spend at the altar`);
     s.magSeen = mag;

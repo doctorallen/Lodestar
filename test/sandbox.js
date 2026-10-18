@@ -11,7 +11,7 @@ const ROOT = path.resolve(__dirname, '..');
 function sandbox(files) {
   const store = new Map();
   const ctx = {
-    console, Math, JSON, Date, Map, Set, Uint8Array, Int16Array, Array, Object, Number, String, Boolean, Error,
+    console, Math, JSON, Date, Map, Set, Uint8Array, Int8Array, Int16Array, Int32Array, Float64Array, Array, Object, Number, String, Boolean, Error,
     localStorage: { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k), clear: () => store.clear() },
     navigator: { userAgent: 'node' },
     addEventListener() {},
@@ -25,7 +25,8 @@ function sandbox(files) {
   if (files.some((f) => f.endsWith('items.js')) && !files.includes('js/blueprints.js')) files = files.slice(0, -1).concat(['js/circuits.js', 'js/blueprints.js', files[files.length - 1]]);
   const src = files.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n');
   const expose = '\n;globalThis.__game = { T, Rng, hashInts, generateFloor, floorHash, floorDistances, floorTile, ORE_INDEX, TILE_FLOOR, TILE_ROCK, TILE_ORE, TILE_EDGE, TILE_PAD, TILE_PORTAL, TILE_SOLID, TILE,'
-    + (files.some((f) => f.endsWith('items.js')) ? ' AFFIXES, KIND_FAMILIES, LEGENDARIES, SETS, RARITIES, makeItem, makeStone, makeRelic, rollRarity, unsealRelic, BLUEPRINTS, BP_IDS, PARTS, PART_STACK_IDS, parsePart, partId, bindsWith, BLUEPRINT_BIOME, casterSlotCount, parseCircuit, circuitCost, circuitReadout, circuitResonance, affinityMult, stoneKind, RESONANCES, CIRCUIT_FORMS, CIRCUIT_ELEMENTS, CIRCUIT_GLYPHS, forgeItem, rerollAffix, upgradeAffix, addAffix, salvageYield, computeStats, startingGear, magnitudeOf, attunePointsLeft, biomeOpen, fmtAffix, itemBaseLine, itemWorth, compareLines, affixRoll,' : '')
+    + (files.some((f) => f.endsWith('items.js')) ? ' AFFIXES, KIND_FAMILIES, LEGENDARIES, SETS, RARITIES, makeItem, makeStone, makeRelic, rollRarity, unsealRelic, BLUEPRINTS, BP_IDS, PARTS, PART_STACK_IDS, parsePart, partId, bindsWith, BLUEPRINT_BIOME, casterSlotCount, parseCircuit, circuitCost, circuitReadout, circuitResonance, affinityMult, stoneKind, RESONANCES, CIRCUIT_FORMS, CIRCUIT_ELEMENTS, CIRCUIT_GLYPHS, forgeItem, rerollAffix, upgradeAffix, addAffix, salvageYield, computeStats, startingGear, magnitudeOf, attunePointsLeft, fmtAffix, itemBaseLine, itemWorth, compareLines, affixRoll,' : '')
+    + (files.some((f) => f.endsWith('world.js')) ? ' worldLayout, generateTerritory, territoryHash, territorySeed, deepSeed,' : '')
     + ' };';
   vm.runInContext(src + expose, ctx, { filename: 'lodestar-sandbox.js' });
   return ctx.__game;
