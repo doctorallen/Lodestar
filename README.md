@@ -11,7 +11,7 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | | Phone | Keyboard |
 |---|---|---|
 | Move | Left thumb, anywhere on the left deck | WASD / arrows |
-| Main hand (swing a blade, cast a focus): tap for a combo, hold to charge | The big button | J |
+| Main hand (cast its caster's circuit; an Arc combos): tap to cast, hold to charge | The big button | J |
 | Off hand | The blue button | K |
 | Dash | DASH, or flick the move thumb | Shift / U |
 | Mine | MINE, held | Space / L |
@@ -29,7 +29,7 @@ The loop:
 At home, walk the outpost's stations:
 - the forge: strike the anvil well for better odds;
 - the rune bench: rework affixes;
-- the locker: your gear;
+- the locker: your gear, and each caster's circuit, built from stones for free;
 - the star's altar: feed it ore to grow it and open deeper biomes;
 - the portal: set out again.
 
@@ -51,13 +51,14 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/hub.js` | The outpost: stations, the star over the pit, lanterns, feeding the star |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
 | `js/diver.js` | The player's sprite: the circuit diver's five facings, walk frames and hand points |
-| `js/blueprints.js` | What can be forged: blueprints, creature parts, elements |
-| `js/art2.js` | Art for crafting and the story: new item icons, parts, the wreck, the Shard Keepers |
+| `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots, its charge and its words; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
+| `js/blueprints.js` | What can be forged: blueprints (casters, gear, stones), creature parts |
+| `js/art2.js` | Art for crafting and the story: new item icons, parts, stones, the wreck, the Shard Keepers |
 | `js/art3.js` | The sunlit surface's palette and plants, the rift, tool icons |
-| `js/items.js` | Affixes, rarities, legendaries, the set, cores, relics; the forge, rune bench, salvage; stats |
+| `js/items.js` | Affixes, rarities, legendaries, the set, casters and stones, relics; the forge, rune bench, salvage; stats |
 | `js/game.js` | Game state, the dive, walking, mining, leaving |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
-| `js/combat.js` | Swings, spells, damage, kills and drops, pickups, cargo |
+| `js/combat.js` | The hands' buttons, the dash, damage, kills and drops, pickups, cargo |
 | `js/rifts.js` | Rifts: grafts, ore wakes, gates, inversions; sealing for riftglass |
 | `js/portals.js` | The portals: each way on and the outpost's, drawn in their destination's colour; stepping through |
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
@@ -68,9 +69,9 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/undergrowth.js` | How flora grows into a place (cosmetic): habitat, drifts, stands of tall grass, beds and ground cover painted into the floor, moss and roots on the walls, wind and stir |
 | `js/shadow.js` | Shadows from the light: the rock stops the diver's lamp (and the floor's fixed lights), and big things cast a short shadow away from it |
 | `js/render.js` | The pixel view (art px, 1.5 to a world px), the floor canvas, lighting and bloom, sparks |
-| `js/castfx.js` | How a cast looks (cosmetic): the flash at the fist, the rune circle, motes, swept rings, bolts' trails, bursts and marks on the ground |
+| `js/castfx.js` | How a cast looks (cosmetic): the flash at the fist, the rune circle, motes, swept rings, an Arc's crescent, a Glaive's blades, an Orb, bolts' trails, bursts and marks on the ground |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
-| `js/ui.js` | The Lodestar, set out, forge, gear, star, cargo and pause screens, the item card, the top bar |
+| `js/ui.js` | The Lodestar, set out, forge, gear, star, cargo and pause screens, the item card (with a caster's circuit and the drawer of stones), the top bar |
 | `js/main.js` | Boot, the fixed-step loop, the upright and sideways layouts |
 | `test/` | Static checks, floor generation with golden hashes, the loot tables, a headless smoke run, and the autopilot (`botlib.js`) playing careers |
 

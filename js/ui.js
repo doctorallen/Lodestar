@@ -455,7 +455,7 @@ function drawForge() {
   const pk = F.part && parsePart(F.part), ex = F.exotic && T.exotics.find((e) => e.id === F.exotic);
   const lines = [];
   if (stone) {
-    lines.push(`A tier ${ore.tier} ${esc(bp.name)} stone, a ${STONE_KIND_NAMES[bp.stoneKind].toLowerCase()} (tier ${Math.min(T.ores.length, ore.tier + 1)} from a fine forge). ${esc(stoneLine(bp.stone))}`);
+    lines.push(`A tier ${ore.tier} ${esc(bp.name)} stone, ${bp.stoneKind === 'element' ? 'an' : 'a'} ${STONE_KIND_NAMES[bp.stoneKind].toLowerCase()} (tier ${Math.min(T.ores.length, ore.tier + 1)} from a fine forge). ${esc(stoneLine(bp.stone))}`);
     lines.push('Socket it into a caster at the locker: it costs nothing to change.');
   } else {
     const tier = Math.min(T.ores.length, ore.tier + (ex && ex.tierUp ? 1 : 0));

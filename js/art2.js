@@ -25,6 +25,28 @@ const ART2_GLOWS = ["shardglow","shardwarm","ether","sporeglow","beacon","fleshg
 const ART2_PAL = {"fiber":["#151a10","#2e3a22","#4a5c34","#6c8048"],"chitin":["#140e14","#2c2030","#4a3850","#6e5878"],"shardglow":["#fff6dc"],"shardwarm":["#ffc860"],"ether":["#9fe8ff"],"print":["#0c1424","#18284a","#284470","#4a70a8"],"spore":["#1e1218","#492b3c","#75465b","#a46b7f"],"sporeglow":["#d8e890"],"hull":["#0e1014","#1c2028","#2e3440","#4a5262"],"beacon":["#fff0c0"],"lens":["#0a0c10","#1a1e26","#2a303c"],"moss":["#121a10","#2b3c23","#445e37","#638249"],"flesh":["#1e1218","#492b3c","#75465b","#a46b7f"],"fleshglow":["#a6c84a"],"slag":["#1a1210","#3a2823","#5b3e37","#7f584b"],"magma":["#ff7a2a"],"bone":["#2a2620","#5d5544","#8f8568","#c3b692"]};
 
 const ICON_ROWS2 = {
+  // a short rod of the ore, bound in leather at the grip, a glowing
+  // crystal at its tip
+  wand: [
+    "..............RR..",
+    ".............RAAR.",
+    "............RAAAAR",
+    "............RAAAAR",
+    ".............RAAR.",
+    "............MMRR..",
+    "...........MWM....",
+    "..........MWM.....",
+    ".........DWM......",
+    "........DDM.......",
+    ".......DDD........",
+    "......DDD.........",
+    ".....DDD..........",
+    "....BBD...........",
+    "...BBB............",
+    "..BBB.............",
+    ".MBB..............",
+    ".MM...............",
+  ],
   staff: [
     "............AAAA..",
     "...........AAQQAA.",

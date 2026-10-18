@@ -352,7 +352,7 @@ function castArc(s, off, mult, inst, centre) {
     // (the reach is measured from where it began, so the lunge can't carry
     // the diver past something standing on top of it)
     moveBody(d.floor, p, dir.x * A[4], dir.y * A[4], T.player.radius);
-    p.strikeT = Math.max(p.strikeT || 0, A[1] * 0.6);
+    p.strikeT = Math.max(p.strikeT || 0, A[1] * F.slow);
   }
   let first = null, fd = 1e9, n = 0;
   for (const e of d.enemies) {
@@ -373,8 +373,8 @@ function castArc(s, off, mult, inst, centre) {
 // Nova: a burst all round where it's cast. Split makes three (the i-th of
 // k), set evenly round it from the aim.
 function castNova(s, i, k, mult, inst) {
-  const d = Game.dive, p = d.p, cx = s.cx, F = s.F, r = F.radius * s.area * (cx.charged && s.g.form !== 'arc' ? 1.15 : 1);
-  const o = cx.from || p, aim = circuitAim(cx.from, T.circuits.aimRange, cx.exclude, cx.aim).a, b = aim + (i / k) * Math.PI * 2, out = k > 1 ? r * 0.6 : 0;
+  const d = Game.dive, p = d.p, cx = s.cx, F = s.F, r = F.radius * s.area * (cx.charged && s.g.form !== 'arc' ? F.chargedR : 1);
+  const o = cx.from || p, aim = circuitAim(cx.from, T.circuits.aimRange, cx.exclude, cx.aim).a, b = aim + (i / k) * Math.PI * 2, out = k > 1 ? r * F.splitOut : 0;
   const x = o.x + Math.cos(b) * out, y = o.y + Math.sin(b) * out;
   d.fx.push({ kind: 'nova', x, y: y - 6, r, t: 0.3, max: 0.3, col: s.col });
   castFxFor(T.castFx.shapeOf.nova, s.g.els[0] || null, { x, y }, 0, { r, col: s.col });
@@ -384,7 +384,7 @@ function castNova(s, i, k, mult, inst) {
     const m = dist(e.x, e.y, x, y);
     if (m >= r + e.r) continue;
     const k = norm(e.x - x, e.y - y);
-    circuitHit(s, e, s.dmg * mult, { knock: { x: k.x * 60, y: k.y * 60 }, heavy: cx.charged });
+    circuitHit(s, e, s.dmg * mult, { knock: { x: k.x * F.knock, y: k.y * F.knock }, heavy: cx.charged });
     if (m < fd) { fd = m; first = e; }
   }
   if (first && !cx.from) freezeFrame(T.impact.hitstop, false);
@@ -398,7 +398,7 @@ function castWell(s, off, mult, inst) {
   const d = Game.dive, p = d.p, cx = s.cx, F = s.F, r = F.radius * s.area;
   const aim = circuitAim(cx.from, casterBase(cx.item).aim, cx.exclude, cx.aim), a = aim.a + off;
   let x, y;
-  if (cx.from) { x = cx.from.x + Math.cos(a) * (off ? r * 0.6 : 0); y = cx.from.y + Math.sin(a) * (off ? r * 0.6 : 0); }
+  if (cx.from) { x = cx.from.x + Math.cos(a) * (off ? r * F.splitOut : 0); y = cx.from.y + Math.sin(a) * (off ? r * F.splitOut : 0); }
   else if (aim.target && !off) { x = aim.target.x; y = aim.target.y; }
   else { x = p.x + Math.cos(a) * F.ahead; y = p.y + Math.sin(a) * F.ahead; }
   for (const e of d.enemies) {
@@ -518,7 +518,8 @@ function updateAuras(dt) {
         for (const e of d.enemies) {
           if (e.dead || dist(e.x, e.y, bx, by) > au.reach + e.r || (au.seen.get(e) || 0) > au.age) continue;
           au.seen.set(e, au.age + T.circuits.forms.glaive.again);
-          circuitHit(au.s, e, au.dmg, { knock: { x: -Math.sin(b) * 60, y: Math.cos(b) * 60 } });
+          const kb = T.circuits.forms.glaive.knock;
+          circuitHit(au.s, e, au.dmg, { knock: { x: -Math.sin(b) * kb, y: Math.cos(b) * kb } });
           au.inst.hit(e.x, e.y, e, b);
         }
       }

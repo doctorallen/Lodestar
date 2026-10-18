@@ -224,14 +224,17 @@ const T = {
   //   forms: cost, mult and cd (seconds the hand waits) for each, and:
   //     arc: combo [damage ×, cooldown, arc cos, knockback px/s, lunge px]
   //       (the last is heavy and staggers); range px; heldMult, the damage
-  //       of the Nova it bursts into when held (instead of chargedMult).
+  //       of the Nova it bursts into when held (instead of chargedMult);
+  //       slow: the share of its wait the diver walks slower and can't turn.
   //     glaive: blades circling at radius px for time s, spin rad/s; each
   //       cuts what's within reach px of it, the same foe again after
-  //       `again` s; at most `most` glaives at once.
+  //       `again` s, knocked knock px/s along; at most `most` at once.
   //     bolt, lance, orb: speed px/s, life s; lance pierces `pierce`; orb
   //       pulses every `every` s, hurting within radius px.
-  //     nova: radius. well: radius, time, pull px/s, a tick every `every`,
-  //       a first yank px/s and stun s; ahead: px out when nothing's in aim.
+  //     nova: radius, knock px/s, chargedR (its radius, charged), splitOut
+  //       (a Split's three stand this share of the radius out). well:
+  //       radius, time, pull px/s, a tick every `every`, a first yank px/s
+  //       and stun s; ahead: px out when nothing's in aim; splitOut.
   //     ward: soak (× power) for time s; thorns (× power) to what strikes it.
   //     close: it refunds `refund` charge for each foe it hits, for at most
   //       refundMost foes a cast. field: the radius of a Linger's field.
@@ -254,14 +257,14 @@ const T = {
       staff: { slots: [4, 5, 5, 6], cd: 1.3, area: 1.3, aim: 170 },
     },
     forms: {
-      arc: { cost: 3, mult: 0.9, close: true, refund: 2, refundMost: 3, range: 22, heldMult: 2.2, field: 14,
+      arc: { cost: 3, mult: 0.9, close: true, refund: 2, refundMost: 3, range: 22, heldMult: 2.2, field: 14, slow: 0.6,
         combo: [[1, 0.24, 0.3, 70, 4], [1, 0.24, 0.3, 70, 4], [1.7, 0.45, -0.1, 160, 9]] },
-      glaive: { cost: 6, mult: 0.5, close: true, refund: 1, refundMost: 4, cd: 0.4, blades: 2, radius: 20, reach: 7, time: 3, spin: 7, again: 0.35, most: 3, field: 20 },
+      glaive: { cost: 6, mult: 0.5, close: true, refund: 1, refundMost: 4, cd: 0.4, blades: 2, radius: 20, reach: 7, time: 3, spin: 7, again: 0.35, most: 3, knock: 60, field: 20 },
       bolt: { cost: 4, mult: 1.0, cd: 0.3, speed: 170, life: 1.2, field: 12 },
       lance: { cost: 6, mult: 1.1, cd: 0.35, speed: 210, life: 0.9, pierce: 4, field: 12 },
       orb: { cost: 7, mult: 0.4, cd: 0.45, speed: 42, life: 3, every: 0.45, radius: 18, field: 18 },
-      nova: { cost: 10, mult: 1.3, cd: 0.4, radius: 34, field: 26 },
-      well: { cost: 10, mult: 0.3, cd: 0.45, radius: 56, time: 2.5, pull: 70, every: 0.5, yank: 120, stun: 0.5, ahead: 50, field: 30 },
+      nova: { cost: 10, mult: 1.3, cd: 0.4, radius: 34, knock: 60, chargedR: 1.15, splitOut: 0.6, field: 26 },
+      well: { cost: 10, mult: 0.3, cd: 0.45, radius: 56, time: 2.5, pull: 70, every: 0.5, yank: 120, stun: 0.5, ahead: 50, splitOut: 0.6, field: 30 },
       ward: { cost: 9, mult: 0, cd: 0.45, soak: 2.5, time: 5, thorns: 0.6, field: 20 },
     },
     glyphs: {

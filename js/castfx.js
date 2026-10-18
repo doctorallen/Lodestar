@@ -2,14 +2,15 @@
 // ---------------------------------------------------------------------------
 // How a cast looks (cosmetic only). A spell still fires on the frame of the
 // tap; everything here wraps round that instant: the diver's arm thrusts the
-// focus at the aim (the pose frames are in diver.js, drawn in render.js), a
+// caster at the aim (the pose frames are in diver.js, drawn in render.js), a
 // burst flashes at the fist, a rune circle flashes under the feet, motes
 // rise round the body; the big spells sweep a ring over
 // the ground, push dust away and stir the flora. Bolts leave from the fist,
 // trail and shed motes by their element, and burst where they land, leaving
 // a mark on the ground that fades. A held charge gathers motes into the
-// focus over a growing circle. Blink and phase leave afterimages, and an
-// Echo's recast shows a ghost of the pose.
+// caster over a growing circle. An Arc sweeps a crescent of light across in
+// front; a Glaive's blades turn round the diver; an Orb pulses. Moves leave
+// afterimages, and an Echo's recast shows a ghost of the pose.
 //
 // Everything is drawn in whole art px: rings and glyphs are rasterised
 // ellipses (cfxEllipse) painted once into small pictures and kept; motes are

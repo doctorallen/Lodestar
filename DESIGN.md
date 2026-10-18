@@ -46,9 +46,9 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
 ## The loop
 
 1. **At the Lodestar:**
-   - forge gear, picks and spell cores;
+   - forge casters, gear, picks and the stones circuits are built from;
    - rework affixes and salvage what you don't need;
-   - socket cores, unseal relics, feed the star and spend attunements.
+   - build circuits at the locker, unseal relics, feed the star and spend attunements.
 2. **Set out:** pick one of the biomes the star reaches. An expedition is a chain of up to 4 sites, starting on the sunlit surface.
 3. **Explore each site:** mine ore veins, fight, and pick up loot. Your cargo is limited.
 4. **Push or leave:** each site has two portals on, each in the colour of the zone it leads to, and some have a lodeline home.
@@ -186,34 +186,34 @@ Only two enemies can wind up at once, plus one more every three floors down. The
 
 Finished gear comes from the forge. Enemies leave the materials to make it, not gear.
 
-- **Blueprints are item types**, each with its own feel. Six are known from the start: blade, focus, plate, charm, pick and the Arc Bolt core. The rest are found in the depths:
+- **Blueprints are item types**, each with its own feel. Known from the start: wand, gauntlet, plate, charm, pick, the Arc and Bolt Forms, and every Element and Glyph stone. The rest are found in the depths:
 
   | Blueprint | Slot | What it does |
   |---|---|---|
-  | Spear | hand | Long, narrow thrusts; charged, a lunge through everything ahead |
-  | Hammer | hand | Slow, wide blows that always stagger; charged, a ground slam |
-  | Chain-whip | hand | Quick, wide sweeps at reach; charged, drags enemies in |
-  | Staff | hand (casting) | More sockets; a charged cast fires everything three times |
-  | Gauntlet | hand (casting) | One socket, cast hard and cheap, close range only |
+  | Staff | hand (caster) | 4–6 slots; slower to cast, every reach 30% wider |
   | Weave | armour | Light: dash 30% more often, move faster |
   | Shell | armour | Heavy: much more armour, a little slower |
   | Lantern | charm | A brighter lamp; the star's pull fades 20% slower |
   | Drill | pick | Mines 60% faster, but the noise wakes what's near |
-  | Nova, Lodestone Pull, Ward Pulse | core | The other spell cores |
+  | Glaive, Lance, Orb, Nova, Well, Ward | Form stone | The other Forms (Combat and builds) |
 
 - **Where blueprints come from.** Elites sometimes drop one, the warden always does, and ancient forges often have one lying by them. Each biome favours its own. A blueprint rides home in the cargo (weight 1) and is learned when it gets there, so a fall loses it unless it's pocketed. A sealed relic can open into a piece of a blueprint not yet known.
 - **A forging takes three things:**
   - **an ore head:** the blueprint's amount of one ore, which sets the tier;
   - **a binding:** creature parts, which guarantee affixes from their family, as many as the part's grade, each stronger the higher the grade;
-  - **an exotic, optionally:** it gives a weapon or focus an element, guarantees an affix family, or raises the rarity.
-- **The anvil decides the rest:** three timed strikes set the temper (rough, fair, fine, masterwork), which sets the rarity odds.
+  - **an exotic, optionally:** an elemental one brings its Element stone out with a caster; the others guarantee an affix family, raise the rarity, or (riftglass) forge it a tier higher.
+- **The anvil decides the rest:** three timed strikes set the temper (rough, fair, fine, masterwork), which sets the rarity odds and a caster's slots (a wand or gauntlet 3, 4 from a fine forge; a staff 4, 5 from fair or fine, 6 from a masterwork).
+- **Stones** are forged too, for circuits (Combat and builds). A stone's tier is its ore's, one higher from a fine forge.
+  - **Form stones:** 6 ore and 2 ether (or a heart), once the Form's blueprint is known.
+  - **Element stones:** 4 ore and the element's exotic. Force needs no exotic.
+  - **Glyph stones:** 5 ore and 3 creature parts: chitin makes Pierce and Split, ether Echo, cogs Quicken, fibre Linger and Trigger, spores Chain; any part makes Amplify.
 - **The forge previews** what the chosen parts guarantee before you commit.
 
 | Part | From | Binds |
 |---|---|---|
 | Chitin | crawlers | defense |
-| Ether | wisps | spell (and binds spell cores) |
-| Cog | constructs | melee |
+| Ether | wisps | spell (and binds Form stones) |
+| Cog | constructs | close (close spell damage, cast speed, crits) |
 | Fibre | snapjaws | utility |
 | Spore | spitters | mining |
 | Heart | the warden | anything; a fine forge or better is legendary |
@@ -222,6 +222,7 @@ Parts come in three grades, Rim, Choir and Forge, one per biome. Deeper biomes g
 
 | Element | Exotic | On hit |
 |---|---|---|
+| Force | none | Knocks back harder; heavy hits stagger |
 | Shock | Voltaic crystal | Arcs to the next enemy |
 | Frost | Frostglass | Chills; a heavy hit on the chilled shatters for more |
 | Ember | Emberglass | Burns |
@@ -247,58 +248,70 @@ Salvaging a legendary at home writes its power into the forge's **Codex**. Any l
 | Name | Kind | Power |
 |---|---|---|
 | Faultline | pick | Breaking a vein sends out a shockwave |
-| Twice-Told | blade or focus | Its socketed cores fire twice |
-| Redwake | blade | Critical hits heal |
+| Twice-Told | caster | Every Form in its circuit fires twice |
+| Redwake | caster | Critical hits heal |
 | Lodeheart | armour or charm | Kills heal and pull in nearby loot |
-| Stormcaller | focus | Arc Bolts chain to two more enemies |
+| Stormcaller | caster | Bolts chain to two more enemies |
 
 - **Sets.** Prospector's Regalia (pick, plate and charm): 2 pieces give +20% mining speed and +6 cargo; 3 pieces heal you when you break a vein and give +20% chance of double ore.
 - **Sealed relics** only drop at rare or better and are unsealed at home.
 
 ## Combat and builds
 
-- **Melee and magic.** A character can be melee only, magic only, or a balanced hybrid. Gear and attunements support all three.
-- **Slots:** main hand, off hand, pick, armor and charm. Each hand takes a blade or a focus and has its own button, which shows what's held.
-  - **A blade SWINGs**, aimed at the nearest enemy. Taps chain a three-hit combo, and the third hit is heavy: wider, harder, and it staggers. Holding past a swing charges a spin that hits everything round you.
-  - **A focus CASTs.** Holding charges a stronger cast. Charged bolts are bigger and pass through enemies.
-  - A press during a cooldown is held over until the cooldown ends, so taps never get lost.
-  - Builds: blade and blade for melee, focus and focus for magic, blade and focus for a hybrid.
-- **You start with a Scrap Blade and a Cracked Focus**, so the first fight has both melee and range.
+- **Everything is a spell.** Each hand holds a caster, and each caster holds a short **circuit** of stones. Close range is a spell too: the Arc and the Glaive replaced the blade, the spear, the hammer, the whip and the spin.
+- **Slots:** main hand, off hand, pick, armor and charm. Each hand has its own button, which shows its circuit's first Form.
+  - **A press casts the whole circuit**, for charge. A press during a cooldown is held over until the cooldown ends, so taps never get lost.
+  - **Holding charges it:** 1.8× the damage for 1.5× the charge; charged bolts and lances are bigger and pass through more. A held Arc bursts into a Nova of its element instead.
+  - An empty main hand casts a free Arc with the fist.
+- **Casters:**
+
+  | Caster | Slots | Its way |
+  |---|---|---|
+  | Wand | 3–4 | Quick: the hand waits 15% less |
+  | Gauntlet | 3–4 | Close Forms cost 1 charge less |
+  | Staff | 4–6 | Slower (30% more wait), every reach 30% wider |
+
+- **The circuit**, read left to right:
+  - a **Form** starts a spell: its shape and range;
+  - **Elements** after it set its damage type, two at most (the damage split between them, both statuses applied); with none, it's Force;
+  - **Glyphs** change the Form to their left;
+  - two Forms in a row fire together, and both are paid for;
+  - **Trigger** makes the next Form fire from where this one hits or ends;
+  - stones before the first Form do nothing; a circuit with no Form casts a weak spark.
+- **Charge** is the mana. It refills on its own. A cast costs the sum of its Forms' costs, each times its glyphs'. **Close Forms give charge back** for each foe they hit (2 a foe, 3 foes at most), so fighting close keeps the casting going.
+- **Socketing is free** at the locker: tap a caster, tap a slot, tap a stone from the drawer. The card says in words what the circuit does and what it costs.
+- **You start with a Scrap Gauntlet `ARC · – · –` and a Cracked Wand `BOLT · – · –`**, so the first fight has close and far, and both have room to grow.
+
+| Form | Range | Charge | What it does |
+|---|---|---|---|
+| Arc | close | 3 | A sweep of light in front. Tap, tap, tap: the third is heavy and staggers. Held, a Nova |
+| Glaive | close | 6 | Two blades of light circle you for 3 s, cutting what they touch |
+| Bolt | mid | 4 | A fast bolt at the nearest foe |
+| Lance | far | 6 | A long lance that pierces a line of up to five |
+| Orb | mid | 7 | A slow orb that drifts at the aim, pulsing damage round itself |
+| Nova | area | 10 | A burst all round you |
+| Well | area | 10 | A knot of gravity at the aim: yanks and stuns, then drags and grinds |
+| Ward | guard | 9 | A shield that soaks damage for 5 s; its element hurts what strikes it |
+
+| Glyph | Charge × | What it does to the Form to its left |
+|---|---|---|
+| Split | 1.3 | Three at once, each at 60% (a Glaive's blades tripled, a Ward's soak) |
+| Amplify | 1.2 | 50% wider and 20% harder |
+| Quicken | 0.67 | A third cheaper, and the hand waits less |
+| Chain | 1.2 | Each hit leaps to 2 more foes |
+| Echo | 1.25 | Casts again 0.4 s later at 60% |
+| Pierce | 1.1 | Passes through 3 more (bolts and lances) |
+| Linger | 1.2 | Leaves a field of its element where it ends, for 3 s |
+| Trigger | 1 | The next Form fires from where this one hits or ends |
+
+- Two of a glyph stack: two Splits fire five, two Echoes cast twice more, and so on.
+- **Resonances** (proposed, phase 3): exact circuits that fill a caster and wake into named spells (Thunderhead, Shatterglass, Kindling Arc, Wildfire, Stormglaive, Starfall). The engine already recognises them; nothing acts on them yet.
+- **(proposed, phase 2)** Reactions between two elements' statuses, enemies' resistances and weaknesses with pips over them, ore affinity, linked slots, and the Lode and Rift elements with more Forms and Glyphs.
 - **The dash** is a quick burst that nothing can touch, from DASH or a flick of the move thumb. It's how you get out of a lunge or a charge.
 - **Impact:**
   - a hit stops the world for an instant (the view doesn't shake: the designer found it unpleasant);
   - damage numbers pop off;
-  - the weapon is drawn in hand: the blade sweeps its arc with a slash of light, and the focus floats glowing over the hand.
-- **Spell cores** socket into blades and foci. They're a second layer of loot, found or forged.
-  - **In a focus,** casting fires every core socketed in it, for charge. An empty focus casts a weak spark.
-  - **In a blade,** its cores fire free on every third hit, at reduced power, so pure melee builds use cores too.
-- **Charge** is the mana. It refills on its own, and melee hits refill it faster, which rewards hybrid play.
-- **The spell cores** (Arc Bolt is known from the start; the rest are blueprints to find):
-
-| Core | What it does |
-|---|---|
-| Arc Bolt | A fast bolt at the nearest enemy |
-| Nova | A burst all around you |
-| Lodestone Pull | Drags enemies in and stuns them |
-| Ward Pulse | A shield that soaks damage for 5 seconds |
-| Frost Lance | A lance of ice through a line of enemies; chills |
-| Ember Burst | A lobbed ember that bursts and leaves burning ground |
-| Chain Lightning | Leaps from enemy to enemy |
-| Thorn Ring | Blighted thorns turning round you, cutting what comes close |
-| Blink | Step through space a short way, untouchable as you go |
-| Gravity Well | A knot of gravity that drags enemies into it |
-| Phase Step | Dash through enemies, cutting each one you pass |
-
-- **Modifiers** take a socket beside the spells and change every spell in the piece. More sockets (a staff) make room for combinations:
-
-| Modifier | Effect |
-|---|---|
-| Split | Bolts, lances and embers fly three at once, a little weaker |
-| Amplify | Wider and 20% harder |
-| Quicken | A third less charge, and faster |
-| Chain | Bolts and lightning jump to two more enemies |
-| Echo | Everything casts again a moment later, weaker |
-- **(proposed)** A ward for the off hand, and more cores.
+  - the caster is drawn in hand and the diver casts with it (castfx.js); an Arc is a crescent of light swept across in front, the heavy third thicker and wider, throwing sparks.
 - **The player is the circuit diver.**
   - A sleek suit with glowing teal circuits, under a glass dome with a violet light inside. The dome is the lamp you see by.
   - Drawn in 8 facings, with a 4-frame walk.
@@ -314,9 +327,9 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 | Station | What it does |
 |---|---|
 | The portal (SET OUT) | Pick a biome, a tool, and step through onto its surface |
-| The forge (FORGE) | Make blades, foci, plate, charms, picks and spell cores from banked ore, with one exotic worked in. Every forge is played on the anvil |
+| The forge (FORGE) | Make casters, plate, charms, picks, and Form, Element and Glyph stones from banked ore, parts and exotics. Every forge is played on the anvil |
 | The rune bench (RUNES) | Rework affixes on any piece: reroll, raise, add |
-| The locker (GEAR) | What's worn, the stash, stats; equip, socket cores, salvage, unseal relics |
+| The locker (GEAR) | What's worn, the stash and its stones, stats; equip, build circuits (free), salvage, unseal relics |
 | The star's altar (THE STAR) | Feed it ore, and spend attunements. Feeding sends you back out to watch the ore stream up into the star as it pulses and grows |
 | The practice target | A construct that takes every hit and never falls, for trying combos |
 | The *Meridian* (wreck) | The star's heart (shards found and set), the echoes, and lighting the beacon |
@@ -324,7 +337,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 - **The anvil.** Each forge is three hammer strikes: a marker sweeps a bar, faster each time and dragging as it crosses the glowing zone, and you tap while it's in the zone.
   - A strike in the zone is good, and one in its marked middle is perfect.
   - The strikes add up to a quality from rough to masterwork, which shifts the rarity odds. A masterwork can even come out legendary.
-  - For a spell core, a good forge raises its tier.
+  - It sets a caster's slots, and a fine forge raises a stone's tier.
 - **The reveal.** A forged piece or an unsealed relic rises in a beam of its rarity's colour, then its card opens.
 - **After a dive,** a report says what came home or what was lost, then you're back on the plaza.
 
@@ -332,7 +345,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 |---|---|
 | Vitality | +15 max health |
 | Capacity | +6 cargo |
-| Might | +8% melee damage |
+| Proximity | +8% close spell damage |
 | Clarity | +8% spell damage |
 | Stride | +5% move speed |
 
@@ -350,7 +363,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
   - MINE, held to dig;
   - the contextual SET OUT, STEP THROUGH or EXTRACT above them.
 - **Sideways:** the view stands in the middle with the controls either side, as in NEO.
-- Swings aim at the nearest enemy in reach, and spells at the nearest in sight. Mining targets the ore you're facing.
+- Close Forms aim at the nearest enemy in reach, and the rest at the nearest in sight. Mining targets the ore you're facing.
 - CARGO in the top bar shows what you carry, ore and exotics included. Tap anything to equip it or drop it mid-dive. Dropped ore lies on the floor as a glowing heap you can pick back up.
 - **Keyboard:**
   - WASD or the arrows to move,
