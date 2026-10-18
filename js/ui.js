@@ -201,7 +201,8 @@ const UI = {
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     const way = a === 'way' ? d.ways[wayHere(d)] : null;
-    setTextIfChanged('btn-act', way ? 'ON: ' + T.zones[way].name.toUpperCase() : { descend: 'DESCEND', extract: 'EXTRACT', forge: 'FORGE', runes: 'RUNES', locker: 'GEAR', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'THE STAR', wreck: 'THE MERIDIAN' }[a] || '');
+    const rh = a === 'rift' && riftHere(d);
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'STEP THROUGH' : 'SEAL THE TEAR') : way ? 'ON: ' + T.zones[way].name.toUpperCase() : { descend: 'DESCEND', extract: 'EXTRACT', forge: 'FORGE', runes: 'RUNES', locker: 'GEAR', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'THE STAR', wreck: 'THE MERIDIAN' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
   },
@@ -330,6 +331,7 @@ function drawForge() {
     if (ex && ex.element && (bp.kind === 'blade' || bp.kind === 'focus')) lines.push(`${esc(ex.name)}: ${esc(ELEMENTS[ex.element].name.toLowerCase())}. ${esc(ELEMENTS[ex.element].text)}.`);
     else if (ex && ex.family) lines.push(`${esc(ex.name)}: a ${ex.family} affix for sure.`);
     else if (ex && ex.rarity) lines.push(`${esc(ex.name)}: a rarity higher.`);
+    else if (ex && ex.tierUp) lines.push(`${esc(ex.name)}: a tier above its ore.`);
     else if (ex) lines.push(`${esc(ex.name)} does nothing for a ${esc(bp.name.toLowerCase())}.`);
     lines.push('The rest is in your strikes: rough, fair, fine or masterwork.');
   }
@@ -480,7 +482,7 @@ function drawCard() {
 // Ore or an exotic in the cargo: how much, and dropping some.
 function drawStuffCard(id) {
   const n = (Game.dive && Game.dive.cargo[id]) || 0, x = T.exotics.find((e) => e.id === id), pk = parsePart(id);
-  const what = x ? (x.element ? `Worked into a weapon or focus at the forge, it carries ${ELEMENTS[x.element].name.toLowerCase()}: ${ELEMENTS[x.element].text.toLowerCase()}.` : x.family ? `Worked into a piece at the forge, it's sure to roll a ${x.family} affix.` : 'Worked into a piece at the forge, it comes out a rarity higher.')
+  const what = x ? (x.element ? `Worked into a weapon or focus at the forge, it carries ${ELEMENTS[x.element].name.toLowerCase()}: ${ELEMENTS[x.element].text.toLowerCase()}.` : x.family ? `Worked into a piece at the forge, it's sure to roll a ${x.family} affix.` : x.tierUp ? 'Left where a rift was sealed. Worked into a piece at the forge, it comes out a tier above its ore.' : 'Worked into a piece at the forge, it comes out a rarity higher.')
     : pk ? (PARTS[pk.kind].family ? `A creature part. It binds a forged piece with ${pk.grade} ${PARTS[pk.kind].family} affix${pk.grade > 1 ? 'es' : ''}.` : 'A heart. It binds anything, and a fine forge with it comes out legendary.')
     : `Tier ${T.ores[ORE_INDEX[id]].tier} ore, worth ${orePoints(id)} to the star.`;
   $('card-body').innerHTML = `

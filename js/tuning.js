@@ -72,6 +72,16 @@ const T = {
   // exit two ways lead on to other zones. At the last exit, one way leads to
   // the Keeper's Lair (if its shard is still held there) or a Deep Vein.
   expedition: { sites: 4, ways: 2 },
+  // Rifts: the chance of one at each site; how often each kind; a graft's
+  // radius and the veins it brings; an ore wake's radius, veins and share of
+  // the better ore; how near a tear you must stand (px), how long sealing
+  // takes, the riftglass it leaves, an inversion's light (tiles).
+  rifts: {
+    chance: [0.25, 0.35, 0.45, 0.55],
+    kinds: { graft: 3, bloom: 3, gate: 2, inversion: 2 },
+    graftR: 6, graftOre: 4, bloomR: 4, bloomOre: 8, bloomRich: 0.5,
+    touch: 12, seal: 2.5, glass: [1, 2], inversionR: 7, tintR: 4.5,
+  },
   // Tools: the magnitude each can be made at, and what it costs from the
   // stash. sight/reach in tiles; the beacon lands after `land` seconds and
   // wakes what's within `noise` px.
@@ -105,6 +115,8 @@ const T = {
     { id: 'blightcap', name: 'Blightcap', element: 'blight' },
     { id: 'bloodresin', name: 'Bloodresin', family: 'leech' },
     { id: 'lodeshard', name: 'Lodestone shard', rarity: true },
+    // only from sealing a rift
+    { id: 'riftglass', name: 'Riftglass', tierUp: true, riftOnly: true },
   ],
 
   // Each biome's look is in art.js, under the same id. A floor's enemy level

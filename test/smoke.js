@@ -321,6 +321,31 @@ async function phone(browser) {
   check(tools.planted && !tools.again, 'phone: the beacon was not planted once, and only once');
   check(tools.lands, 'phone: the beacon did not land a lodeline');
 
+  // rifts: a tear can be sealed for riftglass, a gate carries the diver
+  // through, and riftglass forges a tier higher
+  const rifts = await page.evaluate(() => {
+    const was = [T.rifts.chance, T.rifts.kinds], out = {};
+    T.rifts.chance = [1, 1, 1, 1];
+    for (const kind of ['bloom', 'gate', 'graft']) {
+      T.rifts.kinds = { graft: 0, bloom: 0, gate: 0, inversion: 0, [kind]: 1 };
+      UI.close(); startDive(0); enterFloor(2, 'cave');
+      const d = Game.dive, r = d.rift;
+      if (!r) { out[kind] = 'none'; continue; }
+      for (const e of d.enemies) e.dead = true;
+      d.p.x = (r.x + 0.5) * TILE; d.p.y = (r.y + 1.2) * TILE; Game.step(1 / 60);
+      Input.actReq = true;
+      for (let i = 0; i < 60 * (T.rifts.seal + 1.5); i++) Game.step(1 / 60);
+      out[kind] = kind === 'gate' ? Math.abs(Math.floor(d.p.y / TILE) - r.pair.y) <= 1 && Math.abs(Math.floor(d.p.x / TILE) - r.pair.x) <= 1 : !r.open && (d.cargo.riftglass || 0) > 0;
+      UI.close(); abandonDive(); UI.close();
+    }
+    [T.rifts.chance, T.rifts.kinds] = was;
+    out.tier = forgeItem(Save.rng(), 'blade', 'ferrite', 'cog1', 'riftglass', 1).tier;
+    return out;
+  });
+  check(rifts.bloom === true && rifts.graft === true, `phone: sealing a tear did not leave riftglass (${JSON.stringify(rifts)})`);
+  check(rifts.gate === true, 'phone: a gate did not carry the diver through');
+  check(rifts.tier === 2, 'phone: riftglass did not forge a tier higher');
+
   // a Keeper holds a heart-shard; once taken it's safe, and set at the altar
   await page.evaluate(() => UI.acts.dive('0'));
   const keeper = await page.evaluate(() => { enterFloor(4, 'lair'); const d = Game.dive, k = d.keeper; if (!d.padDark) return false; if (!k) return false; hurtEnemy(k, 1e7, {}); for (let i = 0; i < 5; i++) Game.step(1 / 60); if (d.padDark) return false; const sh = d.drops.find((x) => x.shard !== undefined); d.p.x = sh.x; d.p.y = sh.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); d.p.invuln = 0; hurtPlayer(1e9, null); return true; });

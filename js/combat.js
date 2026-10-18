@@ -480,7 +480,7 @@ function killEnemy(e) {
     drop({ echo: true });
     dropBlueprint(d, drop, true);
     hoard(L.bossParts);
-    for (let k = 0; k < 2; k++) drop({ exotic: rng.pick(T.exotics).id });
+    for (let k = 0; k < 2; k++) drop({ exotic: randomExotic(rng) });
     if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
     return;
   }
@@ -489,18 +489,18 @@ function killEnemy(e) {
     drop({ stuff: partId('heart', grade), n: 1 });
     dropBlueprint(d, drop, true);
     if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
-    drop({ exotic: rng.pick(T.exotics).id });
+    drop({ exotic: randomExotic(rng) });
     return;
   }
   if (e.elite) {
     parts(rng.i(L.eliteParts[0], L.eliteParts[1]));
-    if (rng.chance(L.eliteExotic)) drop({ exotic: rng.pick(T.exotics).id });
+    if (rng.chance(L.eliteExotic)) drop({ exotic: randomExotic(rng) });
     if (rng.chance(L.eliteBlueprint)) dropBlueprint(d, drop);
     if (rng.chance(L.eliteRelic)) drop({ item: makeRelic(tier) });
     if (rng.chance(T.story.echoElite)) drop({ echo: true });
   } else {
     if (rng.chance(L.part)) parts(rng.chance(L.partTwo) ? 2 : 1);
-    if (rng.chance(L.exotic)) drop({ exotic: rng.pick(T.exotics).id });
+    if (rng.chance(L.exotic)) drop({ exotic: randomExotic(rng) });
     if (rng.chance(L.relic)) drop({ item: makeRelic(tier) });
   }
   if (rng.chance(L.mote)) drop({ mote: L.moteHeal });
@@ -508,13 +508,16 @@ function killEnemy(e) {
 
 // A blueprint not yet known (nor already carried), likelier one of this
 // biome's own; when every one is known, an exotic instead.
+// Any exotic but the rifts' own.
+function randomExotic(rng) { return rng.pick(T.exotics.filter((x) => !x.riftOnly)).id; }
+
 function dropBlueprint(d, drop, sure) {
   const known = new Set(Save.data.blueprints.concat(d.blueprints.map((b) => b.id), d.drops.filter((x) => x.blueprint).map((x) => x.blueprint), (d.pocket || []).filter((x) => x.blueprint).map((x) => x.blueprint)));
   const local = BLUEPRINT_BIOME[T.biomes[d.biome].id].filter((id) => !known.has(id));
   const any = BP_IDS.filter((id) => !known.has(id));
   const pool = local.length && (sure || d.rng.chance(0.7)) ? local : any;
   if (pool.length) drop({ blueprint: d.rng.pick(pool) });
-  else drop({ exotic: d.rng.pick(T.exotics).id });
+  else drop({ exotic: d.randomExotic(rng) });
 }
 
 // The tier of loot on this floor: the biome's lower ore, or its deeper one

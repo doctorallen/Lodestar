@@ -198,5 +198,6 @@ function drawSiteMap(d) {
   (f.ways || []).forEach((w, i) => mark(w, ZONE_SIGNS[d.ways[i]] || '#fff'));
   if (f.pad && !d.padDark) mark(f.pad, ART.pal.star[3]);
   if (d.fieldForge) mark(d.fieldForge, '#ff8a3a');
+  if (d.rift && d.rift.open) { mark(d.rift, RIFT_PAL.riftedge[0]); if (d.rift.pair) mark(d.rift.pair, RIFT_PAL.riftedge[0]); }
   if (Math.sin(Game.realT * 8) > -0.3) { c.fillStyle = '#ffffff'; c.fillRect(x0 + Math.floor(d.p.x / TILE), y0 + Math.floor(d.p.y / TILE), 1, 1); }
 }

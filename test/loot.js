@@ -62,11 +62,11 @@ for (let seed = 1; seed <= 3000; seed++) {
   const fam = G.PARTS[pk.kind].family;
   const famCount = made.affixes.filter((a) => G.AFFIXES[a.id].family === fam).length;
   const famSize = Object.keys(G.AFFIXES).filter((id) => G.AFFIXES[id].family === fam).length;
-  if (fam && famCount < Math.min(pk.grade, G.T.items.affixes[made.rarity], famSize)) fail(`forged ${bpId} ${seed}: bound with ${part} but only ${famCount} ${fam} affixes`);
+  if (fam && famCount < Math.min(pk.grade, G.T.items.affixes[made.rarity] - (ex && ex.family && ex.family !== fam ? 1 : 0), famSize)) fail(`forged ${bpId} ${seed}: bound with ${part} but only ${famCount} ${fam} affixes`);
   if (pk.kind === 'heart' && q >= 2 && made.rarity !== 'legendary') fail(`forged ${bpId} ${seed}: a heart at quality ${q} came out ${made.rarity}`);
   if (ex && ex.element && (bp.kind === 'blade' || bp.kind === 'focus') && made.element !== ex.element) fail(`forged ${bpId} ${seed}: ${ex.id} gave no ${ex.element}`);
   if (ex && ex.family && !made.affixes.some((a) => G.AFFIXES[a.id].family === ex.family)) fail(`forged ${seed}: ${ex.id} gave no ${ex.family} affix`);
-  if (bp.kind === 'pick' && made.base.power !== tier + 1) fail(`forged ${seed}: a ${ore} pick breaks tier ${made.base.power}`);
+  if (bp.kind === 'pick' && made.base.power !== Math.min(G.T.ores.length, tier + (ex && ex.tierUp ? 1 : 0)) + 1) fail(`forged ${seed}: a ${ore} pick breaks tier ${made.base.power}`);
   if (bp.sockets && (!made.sockets || made.sockets.length < bp.sockets[0])) fail(`forged ${bpId} ${seed}: ${made.sockets ? made.sockets.length : 0} sockets`);
   // the rune bench
   if (made.affixes.length) {

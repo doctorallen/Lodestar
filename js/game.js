@@ -91,6 +91,7 @@ function enterFloor(depth, zone = 'cave') {
   const e = d.floor.entry;
   p.x = (e.x + 0.5) * TILE; p.y = (e.y + 0.5) * TILE; p.mine = null;
   d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.globs = []; d.puddles = []; d.auras = []; d.later = []; d.flowAt = -1; d.keeper = null;
+  placeRift(d);
   spawnEnemies(d);
   placeFieldForge(d);
   const P = T.pull;
@@ -101,6 +102,7 @@ function enterFloor(depth, zone = 'cave') {
   if (d.floor.pad && !d.padDark) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
   UI.toast(`${T.biomes[d.biome].name} · ${T.zones[zone].name} · site ${depth} of ${X.sites}${d.floor.pad || zone === 'lair' ? '' : ': no lodeline reaches here'}`);
   if (!d.floor.pad) Story.say('noPad');
+  noticeRift(d);
 }
 
 // Which way on the diver stands at, if any.
@@ -177,6 +179,7 @@ function updateDive(dtReal, dt) {
     if (d.hub) { if (a) UI.useStation(a); }
     else if (a === 'way') { const i = wayHere(d); enterFloor(d.depth + 1, d.ways[i]); }
     else if (a === 'extract') startChannel('extract');
+    else if (a === 'rift') useRift(d);
     else if (a === 'forge') UI.useStation('fieldForge');
   }
 }
@@ -198,6 +201,7 @@ function actionHere() {
   if (d.fieldForge && near(d.fieldForge.x, d.fieldForge.y, 20)) return 'forge';
   const t = floorTile(d.floor, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
   if (t === TILE_SHAFT && wayHere(d) >= 0) return 'way';
+  if (!d.channel && riftHere(d)) return 'rift';
   return t === TILE_PAD && !d.padDark && !d.channel ? 'extract' : null;
 }
 
@@ -249,7 +253,7 @@ function stirTheDark(d, n) {
 function startChannel(kind) {
   const d = Game.dive, L = T.leave;
   if (!d || d.hub || d.dying || d.channel) return;
-  d.channel = { kind, t: 0, max: kind === 'recall' ? L.recall : L.extract, x: d.p.x, y: d.p.y };
+  d.channel = { kind, t: 0, max: kind === 'recall' ? L.recall : kind === 'seal' ? T.rifts.seal : L.extract, x: d.p.x, y: d.p.y };
   // the light draws attention
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, d.p.x, d.p.y) < L.noise) wake(d, e);
 }
@@ -268,6 +272,7 @@ function updateChannel(dt) {
   if ((c.t += dt) >= c.max) {
     d.channel = null;
     if (c.kind === 'extract') extractDive();
+    else if (c.kind === 'seal') sealRift();
     else recallDive();
   }
 }

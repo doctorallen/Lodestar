@@ -152,6 +152,8 @@ function paintFloor(f) {
   View.rockPx = new Uint8Array(P.w * P.h);
   fillRockField(f, 0, 0, P.w, P.h);
   for (let ty = 0; ty < f.h; ty++) for (let tx = 0; tx < f.w; tx++) paintTileArt(f, tx, ty);
+  paintGraft(f, 0, 0, f.w - 1, f.h - 1);
+  tintRift(f, 0, 0, P.w, P.h);
   View.floorImgs = [new ImageData(P.col, P.w, P.h), new ImageData(P.em, P.w, P.h)];
   let x;
   [View.floorCol, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[0], 0, 0);
@@ -161,7 +163,7 @@ function paintFloor(f) {
 }
 
 function paintTileArt(f, tx, ty) {
-  const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, b = artBiome(f), t = floorTile(f, tx, ty), ox = tx * TILE, oy = ty * TILE;
+  const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, b = tileArt(f, tx, ty), t = floorTile(f, tx, ty), ox = tx * TILE, oy = ty * TILE;
   const r = new Rng(hashInts(f.seed, f.depth, tx, ty)), rnd = () => r.next();
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
   if (t === TILE_PIT) { paintPitTile(P, rock, ox, oy, b, rnd); return; }
@@ -180,6 +182,8 @@ function repaintAround(f, tx, ty) {
   if (View.floorFor !== f) return;
   fillRockField(f, (tx - 1) * TILE, (ty - 1) * TILE, (tx + 2) * TILE, (ty + 2) * TILE);
   for (let y = ty - 2; y <= ty + 2; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
+  paintGraft(f, tx - 1, ty - 2, tx + 1, ty + 2);
+  tintRift(f, (tx - 1) * TILE, (ty - 2) * TILE, (tx + 2) * TILE, (ty + 3) * TILE);
   const dx = Math.max(0, tx - 1) * TILE, dy = Math.max(0, ty - 2) * TILE;
   View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, dx, dy, 3 * TILE, 5 * TILE);
   View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, dx, dy, 3 * TILE, 5 * TILE);
@@ -380,11 +384,13 @@ function renderFrame() {
 
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) drawDrop(dr, ox, oy, lights);
-  const props = d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : [];
+  const props = d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : riftProps(d);
+  if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], View.flora || [], props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
     if (a === p) drawProspector(d, ox, oy, tick, lights);
     else if (a.wreck) drawWreck(d, ox, oy, lights);
+    else if (a.tear) drawRift(d, a, ox, oy, lights);
     else if (a.piece) drawFlora(d, a, ox, oy, lights);
     else drawEnemy(d, a, ox, oy, tick, lights);
   }
@@ -469,7 +475,7 @@ function renderFrame() {
   if (zl && d.pull > zl.lampAt) lamp *= 0.15;
   // a channel home: a ring filling round the diver, the light swelling
   if (d.channel) {
-    const k = d.channel.t / d.channel.max, col = d.channel.kind === 'recall' ? '#c9a2ff' : ART.pal.star[3];
+    const k = d.channel.t / d.channel.max, col = d.channel.kind === 'recall' ? '#c9a2ff' : d.channel.kind === 'seal' ? RIFT_PAL.riftedge[0] : ART.pal.star[3];
     const n = 28;
     for (let i = 0; i < n * k; i++) { const a = -Math.PI / 2 + (i / n) * Math.PI * 2; dot(Math.round(fx + Math.cos(a) * 12), Math.round(fy - 8 + Math.sin(a) * 9), col, true); }
     lights.push({ x: fx, y: fy - 8, r: TILE * (1.5 + k * 2), i: 0.6 + k, c: rgb01(col) });

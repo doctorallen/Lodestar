@@ -94,6 +94,16 @@ The diver carries one tool, chosen at the ledge before setting out. Each changes
 | Deep Satchel | 3 | One more pocket slot. |
 | Lode Beacon | 4 | Once an expedition, from the pause menu: call a lodeline down where you stand. It lands after 6 s, and its light wakes everything near. Not in a Keeper's lair. |
 
+## Rifts
+
+Tears in the world, where the star's fall cracked more than the ground. A site may hold one (a quarter of first sites, rising to over half of last ones), above ground or below. Each changes the site around it:
+- **Graft:** another place has bled through. A blob of another biome's ground, stitched in with a glowing seam: a patch of sunlit badlands in a cave (its daylight with it), or a patch of cave on the surface. The ore inside is that biome's, so a graft can bring a better ore early.
+- **Ore wake:** the rock round the tear has woken into ore, half of it the site's better ore.
+- **Gate:** two tears in different rooms, one place. Step into one, out of the other: a shortcut, or an escape.
+- **Inversion** (underground only): noon pours out of the tear and lights the dark around it.
+
+Ground near an open tear washes violet with flickers of the rift's colours. **SEAL THE TEAR** (any but a gate) is a 2.5 s channel in a light that wakes everything near, like extracting. It leaves 1–2 **riftglass**, an exotic found nowhere else: a piece forged with it comes out a tier above its ore. What the rift changed stays changed.
+
 ## Enemies
 
 Every biome has the same three, in its own colours:

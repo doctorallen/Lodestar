@@ -110,3 +110,11 @@ The designer asked for utility items that change the interface and play, such as
 - **One tool carried, chosen at the ledge.** A single slot makes it a choice per expedition (find the way home, find ore, see danger, map the site, carry more safely, or make an exit) rather than a pile of upgrades.
 - **Tools are made once, from the stash,** gated by the star's magnitude. They're a materials sink for the parts that pile up, and another reason to feed the star.
 - **The Lode Beacon** answers a site with no lodeline: an exit you build, at the cost of 6 noisy seconds. It can't bypass a Keeper.
+
+## 2026-10-18: rifts (overnight team, round 1)
+
+The designer asked for dimensional shifts and rifts that cause strange changes and variation to the map, above and below ground.
+- **Four kinds to start:** graft (another biome's ground and ore bleeding through), ore wake, gate (paired tears), and inversion (daylight underground). They change the map, the loot or the route, not just the look.
+- **Sealing is the push-your-luck moment,** for riftglass, which forges a piece a tier above its ore. That's a reason to engage with a rift rather than walk past.
+- **Placed from the dive's seed after generation,** so floors still rebuild exactly and the golden hashes are untouched.
+- **Not adopted yet** from the designer's longer list: phase seams (walls that flicker), negative space, gravity wells, time slips. They're harder to read on a phone screen; worth a second round.

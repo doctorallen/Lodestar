@@ -367,14 +367,15 @@ const RARITY_STEP = { common: 'magic', magic: 'rare', rare: 'legendary', legenda
 // binding forged fine or better comes out legendary. The caller has checked
 // and spent the materials.
 function forgeItem(rng, bpId, oreId, partStack, exoticId, q = 1) {
-  const bp = BLUEPRINTS[bpId], tier = T.ores[ORE_INDEX[oreId]].tier, part = parsePart(partStack);
+  const bp = BLUEPRINTS[bpId], part = parsePart(partStack), ex = exoticId && T.exotics.find((e) => e.id === exoticId);
+  // riftglass forges a piece a tier above its ore
+  const tier = Math.min(T.ores.length, T.ores[ORE_INDEX[oreId]].tier + (ex && ex.tierUp ? 1 : 0));
   if (bp.kind === 'core') {
     const core = makeCore(rng, bp.core, Math.min(T.ores.length, tier + (q >= 2 ? 1 : 0)));
     if (part) core.binding = part;
     return core;
   }
   let rarity = craftRarity(rng, q);
-  const ex = exoticId && T.exotics.find((e) => e.id === exoticId);
   if (ex && ex.rarity) rarity = RARITY_STEP[rarity];
   if (part && part.kind === 'heart' && q >= 2) rarity = 'legendary';
   const elemental = bp.kind === 'blade' || bp.kind === 'focus';
