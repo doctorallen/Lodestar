@@ -979,3 +979,238 @@ const DIVER_FRAMES = {
     ]),
   ],
 };
+
+// The cast pose: in each facing, an arm thrust out the way the spell goes
+// (from the side and three-quarter views, the arm on that side; from the
+// front and the back, the casting hand's own, the other one mirrored from
+// it). Drawn by hand at the art's size like the frames above, standing
+// still; walking, the legs come from the walk frames (diverCastRows).
+// hand: the fist, [x, y] in the grid's art px, where the focus is held out;
+// rest: the other hand, behind the body if restBehind (null: as the off
+// hand is placed in that facing anyway). split: the row the legs start
+// at, where a walk frame takes over.
+const DIVER_CAST = {
+  S: artNative([
+    '......................................',
+    '.............RR.......................',
+    '..............w.......................',
+    '..............w.NNNNNN................',
+    '...............NnnNNNNN...............',
+    '..............NnNNNNNNNN..............',
+    '..............NnNNNNNNNN..............',
+    '..............NNNNNNNNNN..............',
+    '..............NNNQQQQNNN..............',
+    '..............NNQQQQQQNN..............',
+    '..............NNNQQQQNNN..............',
+    '..............NNNNNNNNNN..............',
+    '...............NNNNNNNN...............',
+    '.............GGGMMMMMMGGG.............',
+    '............GGGGUUUUUUGGGG............',
+    '............GGGRUUUUUURGGG............',
+    '............RUUURUUUURUUUR............',
+    '............MMMMURUURUUUUR............',
+    '............MMMMMURRUUUUUR............',
+    '............MMMMMUUUUUU.UR............',
+    '.............MMMUUUUUUU.UR............',
+    '...............MMMMMMMM.MM............',
+    '...............UUUUUUUU.MM............',
+    '...............UUUUUUUU.MM............',
+    '...............UUU..UUU...............',
+    '...............UUU..UUU...............',
+    '...............UUU..UUU...............',
+    '...............UUU..UUU...............',
+    '...............UUU..UUU...............',
+    '...............RUU..UUR...............',
+    '...............RUU..UUR...............',
+    '...............UUU..UUU...............',
+    '...............KKK..KKK...............',
+    '...............KKK..KKK...............',
+    '..............KKKK..KKKK..............',
+    '......................................',
+  ]),
+  SE: artNative([
+    '......................................',
+    '......................................',
+    '...........RR.........................',
+    '.............w..NNNNNN................',
+    '..............wNnnNNNNN...............',
+    '..............NnNNNNNNNN..............',
+    '..............NnNNNNNNNN..............',
+    '..............NNNNNNNNNN..............',
+    '..............NNNNNQQQQN..............',
+    '..............NNNNQQQQQN..............',
+    '..............NNNNNQQQQN..............',
+    '..............NNNNNNNNNN..............',
+    '...............NNNNNNNN...............',
+    '.............gGGGMMMMMMGG.............',
+    '.............gGGGGUUUUUGGG............',
+    '.............gGGGRUUUUURGG............',
+    '.............gRUUURUUURUURU...........',
+    '.............gRUUUURURUUUURU..........',
+    '.............gRUUUUURUUUURURU.........',
+    '..............RU.UUUUUUUU..URU........',
+    '..............RU.UUUUUUUU...UMMM......',
+    '..............RU.MMMMMMMM....MMMM.....',
+    '..............MM.UUUUUUU.....MMMM.....',
+    '..............MM.UUUUUUU......MM......',
+    '..............MM.UUU.UUU..............',
+    '.................UUU.UUU..............',
+    '.................UUU.UUU..............',
+    '.................UUU.UUU..............',
+    '.................UUU.UUR..............',
+    '.................RUU.UUR..............',
+    '.................RUU.UUU..............',
+    '.................UUU.KKK..............',
+    '.................KKK.KKK..............',
+    '.................KKK.KKKK.............',
+    '.................KKKK.................',
+    '......................................',
+  ]),
+  E: artNative([
+    '......................................',
+    '......................................',
+    '............RR........................',
+    '..............w.NNNNNN................',
+    '...............NnnNNNNN...............',
+    '..............NnNNNNNNNN..............',
+    '..............NnNNNNNNNN..............',
+    '..............NNNNNNNNNN..............',
+    '..............NNNNNNQQQN..............',
+    '..............NNNNNNQQQN..............',
+    '..............NNNNNNNQQN..............',
+    '..............NNNNNNNNNN..............',
+    '...............NNNNNNNN...............',
+    '..............ggGGGMMM................',
+    '..............ggGGGGUU......MM........',
+    '..............ggGGGGUUUUUUUMMMM.......',
+    '..............ggUUURRRRRRRRMMMM.......',
+    '..............ggUUUUUUUUUUUMMM........',
+    '..............ggUUUUUR................',
+    '..............ggUUUUUR................',
+    '..............ggUUUUUR................',
+    '................MMMMMM................',
+    '................UUUUUU................',
+    '................UUUUUU................',
+    '.................UUUU.................',
+    '.................UUUU.................',
+    '.................UUUU.................',
+    '.................UUUU.................',
+    '.................UUUU.................',
+    '.................UUUR.................',
+    '.................UUUR.................',
+    '.................UUUU.................',
+    '.................KKKK.................',
+    '.................KKKKK................',
+    '.................KKKKK................',
+    '......................................',
+  ]),
+  NE: artNative([
+    '......................................',
+    '...............RR.....................',
+    '................w.....................',
+    '................wNNNNN................',
+    '...............NnnNNNNN...............',
+    '..............NnNNNNNNNN..............',
+    '..............NnNNNNNNNN..............',
+    '..............NNNNNNNNNN....MM........',
+    '..............NNNNNNNQQN...MMMM.......',
+    '..............NNNNNNNQQN...MMMM.......',
+    '..............NNNNNNNQQN..UMMM........',
+    '..............NNNNNNNNNN.URU..........',
+    '...............NNNNNNNN.URU...........',
+    '............GGGMMMMMMGGGGU............',
+    '............GGUGGGGGGUGGG.............',
+    '............RUUGGGGGGUU...............',
+    '............RUUGGGGGGUU...............',
+    '............RUUGGGGGGUU...............',
+    '............RUUGGGGGGUU...............',
+    '............RUUGGGGGG.................',
+    '............RUURGGGGR.................',
+    '............MMMMMMMMM.................',
+    '............MMUUUUUUU.................',
+    '..............UUUUUUU.................',
+    '..............UUU.UUU.................',
+    '..............UUU.UUU.................',
+    '..............UUU.UUU.................',
+    '..............UUU.UUU.................',
+    '..............UUU.UUU.................',
+    '..............RUU.UUR.................',
+    '..............RUU.UUR.................',
+    '..............KKK.UUU.................',
+    '..............KKK.KKK.................',
+    '..............KKK.KKK.................',
+    '..................KKK.................',
+    '......................................',
+  ]),
+  N: artNative([
+    '......................................',
+    '.......................RR.............',
+    '.......................w..............',
+    '................NNNNNNw...............',
+    '...............NnnNNNNN...............',
+    '..............NnNNNNNNNN..............',
+    '..............NnNNNNNNNNMM............',
+    '..............NNNNNNNNNMMMM...........',
+    '..............NNNNNNNNNMMMM...........',
+    '..............NNNQQQQNNNUR............',
+    '..............NNNQQQQNNNUR............',
+    '..............NNNNNNNNNNUR............',
+    '...............NNNNNNNN.UR............',
+    '.............GGGMMMMMMGGG.............',
+    '............GGGGUUUUUUGGGG............',
+    '............GGGUGGGGGGUGGG............',
+    '............RUUUGGGGGGUU..............',
+    '............RUUUGGGGGGUU..............',
+    '............RUUUGGGGGGUU..............',
+    '............RU.UGGGGGGU...............',
+    '............RU.URGGGGRU...............',
+    '............MM.MMMMMMMM...............',
+    '............MM.UUUUUUUU...............',
+    '............MM.UUUUUUUU...............',
+    '...............UUU..UUU...............',
+    '...............UUU..UUU...............',
+    '...............UUU..UUU...............',
+    '...............UUU..UUU...............',
+    '...............UUU..UUU...............',
+    '...............RUU..UUR...............',
+    '...............RUU..UUR...............',
+    '...............UUU..UUU...............',
+    '...............KKK..KKK...............',
+    '...............KKK..KKK...............',
+    '..............KKKK..KKKK..............',
+    '......................................',
+  ]),
+};
+const DIVER_CAST_HAND = { S: [14, 18], SE: [31, 21], E: [30, 16], NE: [29, 8], N: [24, 6] };
+const DIVER_CAST_REST = { S: [25, 23], SE: [14, 24], E: null, NE: [12, 22], N: [12, 23] };
+const DIVER_CAST_BEHIND = { S: false, SE: false, E: true, NE: true, N: true };
+const DIVER_CAST_SPLIT = { S: 24, SE: 22, E: 22, NE: 22, N: 24 };
+
+// The off hand's cast from the front or the back: the main hand's pose
+// mirrored onto the other arm, leaving the dome and the antenna as they are
+// (what the pose changed, put in at the mirrored place on the idle frame).
+function diverCastMirror(cast, idle) {
+  const w = idle[0].length, out = idle.map((r) => r.split(''));
+  for (let y = 0; y < idle.length; y++)
+    for (let x = 0; x < w; x++) if (cast[y][x] !== idle[y][x]) out[y][w - 1 - x] = cast[y][x];
+  return out.map((r) => r.join(''));
+}
+
+// The cast pose while walking: above the split, the pose, raised a pixel
+// with the body on the passing frames; below it, the walk frame's legs,
+// with what the pose added there drawn over them, and the walk frame's
+// gloves (which swing there) replaced by the pose's own pixels.
+function diverCastRows(cast, idle, walk, split) {
+  const top = (rows) => rows.findIndex((r) => /[^.]/.test(r));
+  const bob = top(walk) - top(idle), out = [];
+  for (let y = 0; y < walk.length; y++) {
+    const ys = clamp(y - bob, 0, cast.length - 1);
+    let row = '';
+    for (let x = 0; x < walk[y].length; x++) {
+      const c = cast[ys][x];
+      row += y < split + bob || c !== idle[ys][x] || walk[y][x] === 'M' ? c : walk[y][x];
+    }
+    out.push(row);
+  }
+  return out;
+}
