@@ -96,12 +96,14 @@ function stationSprite(id) {
 }
 
 const LANTERNS = [[3, 12], [19, 12], [3, 17], [19, 17], [7, 21], [15, 21], [8, 13], [14, 13]];
-// A lantern on its post, its lamp lit (L) or dark (E).
-const LANTERN_ROWS = ['MMM', 'MLM', 'MMM', '.M.', '.M.', '.M.', '.M.', '.M.', '.M.', '.M.', '.M.', '.M.'];
+// A lantern on its post, its lamp lit (L) or dark (E): a hood, a frame
+// round the glass, a post a pixel wide on a foot. Drawn by hand at the
+// art's size (artNative).
+const LANTERN_ROWS = artNative(['.MMM.', 'MMMMM', 'MLLLM', 'MLLLM', 'MLLLM', 'MMMMM', '..M..', '..M..', '..M..', '..M..', '..M..', '..M..', '..M..', '..M..', '..M..', '..M..', '..M..', '.MMM.']);
 const _lanterns = {};
 function lanternSprite(lit) {
   if (!_lanterns[lit]) {
-    const s = buildArtSprite(lit ? LANTERN_ROWS : LANTERN_ROWS.map((r) => r.replace('L', 'E')), { lamp: [ART.pal.star[3]], eye: ['#202028'] });
+    const s = buildArtSprite(lit ? LANTERN_ROWS : artNative(LANTERN_ROWS.map((r) => r.replace(/L/g, 'E'))), { lamp: [ART.pal.star[3]], eye: ['#202028'] });
     s.ax = s.w / 2; s.ay = s.h - 1;
     _lanterns[lit] = s;
   }
