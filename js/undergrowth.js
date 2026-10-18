@@ -39,7 +39,7 @@ const UG_LOOKS = {
   rim: { bed: '#2c4424', litter: ['#5a6a34', '#3a4624'], moss: ['#3e5a2a', '#24381c'], strand: ['#4e3e2e', '#2b231c'], blade: 'moss', tall: 'stem', head: 'cap', pad: 'moss', root: 'root' },
   choir: { bed: '#3a2a52', litter: ['#6a5080', '#45345a'], moss: ['#4a3a66', '#2c2244'], strand: ['#6a5a7e', '#3a2e46'], blade: 'moss', tall: 'stem', head: 'flesh', pad: 'moss', root: 'root' },
   underforge: { bed: '#1c1210', litter: ['#5e5858', '#2e2a2a'], moss: ['#3e4430', '#24281c'], strand: ['#4a3024', '#26180f'], blade: 'ash', tall: 'stem', head: 'ash', pad: 'moss', root: 'root' },
-  surface: { bed: '#3a2416', litter: ['#c8b888', '#8a7650'], lip: ['#d8c890', '#a89660', '#6a5a38'], blade: 'reed', tall: 'grass', head: 'stem', pad: 'cactus', root: 'bark' },
+  surface: { bed: '#3a2416', litter: ['#c8b888', '#8a7650'], lip: ['#d8c890', '#a89660', '#6a5a38'], blade: 'reed', tall: 'stem', head: 'reed', pad: 'cactus', root: 'bark' },
   frost: { bed: '#5a6078', litter: ['#f2f8ff', '#8a92ac'], lip: ['#f6faff', '#c8d4e6', '#8a96b4'], strand: ['#eef4ff', '#a8c4e6'], icicle: true, blade: 'stem', tall: 'stem', head: 'snow', pad: 'leaf', root: 'root' },
   cinder: { bed: '#6a6066', litter: ['#8a8086', '#140e10'], lip: ['#5a5054', '#2a2224', '#141012'], blade: 'stem', tall: 'stem', head: 'ash', pad: 'ash', root: 'root' },
   bloomfen: { bed: '#34501e', litter: ['#c890b0', '#2a4220'], lip: ['#6a9a46', '#3c5c2c', '#22381a'], moss: ['#527a3a', '#2a4220'], strand: ['#4a7a36', '#22401c'], blade: 'leaf', tall: 'leaf', head: 'bark', pad: 'moss', root: 'bark' },
@@ -51,7 +51,7 @@ const UG_LOOKS = {
 };
 // Kinds that grow by water, and kinds that grow towards the light
 // underground (lava, daylight).
-const UG_WET = new Set(['Cattails', 'Kelp fronds', 'Lilies', 'Frost reeds', 'Fen grass', 'Reed pipes', 'Barnacle mound', 'Barnacle shelf', 'Anemones', 'Water sacs', 'Chime reeds', 'Bladder pods', 'Tube worms']);
+const UG_WET = new Set(['Cattails', 'Kelp fronds', 'Lilies', 'Frost reeds', 'Fen grass', 'Reed pipes', 'Sponge mound', 'Sponge shelf', 'Anemones', 'Water sacs', 'Chime reeds', 'Bladder pods', 'Tube worms']);
 const UG_LIT = new Set(['Glowcaps', 'Fire fungus', 'Lava bloom', 'Ember moss', 'Flower bush', 'Fern', 'Fire lily', 'Basalt columns']);
 
 // The ground cover, as letter rows (built with the set's flora palette by
@@ -154,7 +154,7 @@ function ugClass(p) { return p.w * p.h >= 300 || p.h >= 22 ? 2 : p.h <= 9 && p.w
 // and how wet and how near a wall it is.
 function ugHabitat(f, S) {
   const F = T.flora, W = f.w, H = f.h, N = W * H;
-  const wd = new Uint8Array(N).fill(99), wet = new Float32Array(N), lit = new Float32Array(N), nook = new Uint8Array(N), suit = new Float32Array(N);
+  const wd = new Uint8Array(N).fill(99), wet = new Float32Array(N), water = new Float32Array(N), lit = new Float32Array(N), nook = new Uint8Array(N), suit = new Float32Array(N);
   // distance to the nearest wall, in tiles (eight ways)
   const q = [];
   for (let i = 0; i < N; i++) if (TILE_SOLID[f.tiles[i]]) { wd[i] = 0; q.push(i); }
@@ -187,14 +187,33 @@ function ugHabitat(f, S) {
       let n = 0;
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && TILE_SOLID[floorTile(f, x + dx, y + dy)]) n++;
       nook[i] = n;
-      wet[i] = Math.min(1, (wdist[i] <= F.wetReach ? 1 - wdist[i] / (F.wetReach + 1) : 0) + (S.wet || 0));
+      // (water: near standing water; wet: that, or a damp clime, which
+      // sways which kinds grow but not how much, so a damp clime's open
+      // ground stays as clear as any)
+      water[i] = wdist[i] <= F.wetReach ? 1 - wdist[i] / (F.wetReach + 1) : 0;
+      wet[i] = Math.min(1, water[i] + (S.wet || 0));
       lit[i] = ldist[i] <= F.lightReach ? 1 - ldist[i] / (F.lightReach + 1) : 0;
       const foot = F.foot * Math.exp(-(wd[i] - 1) / F.wallReach);
-      let s = foot + (n >= 3 ? F.nook : 0) + wet[i] * F.wet + lit[i] * F.light + F.base;
-      if (wd[i] >= F.openFrom) s *= F.openKeep;
+      let s = foot + (n >= 3 ? F.nook : 0) + water[i] * F.wet + lit[i] * F.light + F.base;
+      if (wd[i] >= F.openFrom) s *= Math.max(F.openKeep, water[i]);
       suit[i] = Math.min(1.4, s);
     }
-  return { wd, wet, lit, nook, suit };
+  // the middle of a narrow passage (under narrow tiles across, either
+  // way): where a stand would hide what comes along it
+  const mid = new Uint8Array(N), open = (x, y) => !TILE_SOLID[floorTile(f, x, y)];
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      if (!open(x, y)) continue;
+      for (const [dx, dy] of [[1, 0], [0, 1]]) {
+        let a = 0, b = 0;
+        while (a < 4 && open(x - dx * (a + 1), y - dy * (a + 1))) a++;
+        while (b < 4 && open(x + dx * (b + 1), y + dy * (b + 1))) b++;
+        const w = a + b + 1;
+        // (in one a tile or two across, all of it; one tile wider, its middle)
+        if (w <= F.narrow - 2 || (w === F.narrow - 1 && a > 0 && b > 0)) mid[y * W + x] = 1;
+      }
+    }
+  return { wd, wet, water, lit, nook, suit, mid };
 }
 
 // ---------------------------------------------------------------------------
@@ -296,7 +315,7 @@ function placeUndergrowth(f, set) {
       const v = kindNoise(o.k, tx, ty) + o.bias + (o.wet ? hab.wet[i] * 0.8 - 0.25 : 0) + (o.lit ? hab.lit[i] * 0.8 - 0.15 : 0);
       if (v > bv) { bv = v; best = o; }
     }
-    const g = artNoise(tx, ty, F.drift, seed + 53 * salt) + hab.wet[i] * 0.4;
+    const g = artNoise(tx, ty, F.drift, seed + 53 * salt) + hab.water[i] * 0.4;
     return [best, clamp((g - (F.cut - F.fray)) / (2 * F.fray), 0, 1)];
   };
   const order = rng.shuffle(Array.from({ length: N }, (_, i) => i));
@@ -306,7 +325,9 @@ function placeUndergrowth(f, set) {
   if (S.tall > 0) {
     const C = F.stand, sa = (tx, ty) => {
       if (!open(tx, ty)) return 0;
-      const i = ty * W + tx, n = artNoise(tx, ty, F.drift * 0.8, seed + 777) + hab.wet[i] * 0.45;
+      // (close to a wall or by water, never across a narrow passage's middle)
+      const i = ty * W + tx, n = artNoise(tx, ty, F.drift * 0.8, seed + 777) + hab.water[i] * 0.45;
+      if (hab.mid[i] || (hab.wd[i] > C.reach && !hab.water[i])) return 0;
       return hab.suit[i] >= C.minSuit && n > C.cut + (1 - S.tall) * 0.5 ? n : 0;
     };
     for (let ty = 1; ty < H - 1; ty++) for (let tx = 1; tx < W - 1; tx++) if (sa(tx, ty)) stand[ty * W + tx] = 1;

@@ -415,7 +415,9 @@ const T = {
   //     wetReach tiles of standing water, plus the set's own wet), light
   //     (within lightReach tiles of lava or a shaft of daylight
   //     underground), base (anywhere); from openFrom tiles off a wall only
-  //     openKeep of it is left, so the middles of open ground stay clear.
+  //     openKeep of it is left (more by water), so the middles of open
+  //     ground stay clear. narrow: a passage fewer tiles across than this
+  //     keeps its middle clear of stands.
   //   drift: the size of a drift of one kind (tiles across a bump of its
   //     noise); cut: how high its noise must be to grow there; fray: how
   //     softly that edge thins out; outlier: the odd one anywhere.
@@ -426,7 +428,8 @@ const T = {
   //     of a kind, which clump). gather: [least, most] small pieces round
   //     each big one.
   //   stand: tall grass and reeds (the set's tall): cut on its own noise,
-  //     minSuit the least suitability, rows a tile, gap px between stems.
+  //     minSuit the least suitability, reach the most tiles from a wall
+  //     (unless by water), rows a tile, gap px between stems.
   //   cover: stamps on the ground (tufts, sprigs, pebbles, moss, roots):
   //     [least, most] round a piece (round); along a wall's foot (foot, a
   //     share of tiles; scree: [least, most] pebbles); in the open (open).
@@ -451,10 +454,10 @@ const T = {
   //   sets: per flora set: density, wet (the clime's own dampness), tall
   //     (how much grows in stands), scree, strands (how many hang).
   flora: {
-    foot: 1, wallReach: 1.6, nook: 0.35, wet: 0.7, wetReach: 3, light: 0.5, lightReach: 3, base: 0.12, openFrom: 4, openKeep: 0.25,
+    foot: 1, wallReach: 1.6, nook: 0.35, wet: 0.7, wetReach: 3, light: 0.5, lightReach: 3, base: 0.12, openFrom: 3, openKeep: 0.25, narrow: 4,
     drift: 3.2, cut: 0.1, fray: 0.28, outlier: 0.04,
     floorP: 0.55, wallP: 0.5, ceilP: 0.4, hub: 0.4, space: 0.9, sameKind: 0.8, gather: [1, 3],
-    stand: { cut: 0.5, minSuit: 0.45, rows: 3, gap: 5 },
+    stand: { cut: 0.5, minSuit: 0.45, reach: 2, rows: 3, gap: 5 },
     cover: { round: [2, 4], foot: 0.7, scree: [1, 3], open: 0.03 },
     bed: { reach: 5, squash: 0.62, fray: 0.6, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6, drift: 0.6 },
     shadow: { w: 0.36, core: 0.68, rim: 0.84 },

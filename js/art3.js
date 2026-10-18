@@ -19,7 +19,7 @@
 const SURFACE_BIOME = {"floor":["#74492c","#835536","#916240"],"rock":["#b47e4a","#c48e58","#d29e66","#f6d8a4"],"front":["#3a1e14","#52291a","#6c3822"],"glow":"#ffd890"};
 const SURFACE_LETTERS = {"S":["stem"],"s":["stem",0],"L":["leaf"],"l":["leaf",0],"W":["sac"],"w":["sac",0],"h":["sac",3],"R":["reed"],"r":["reed",0],"o":["hole"],"C":["cactus"],"c":["cactus",0],"G":["grass"],"g":["grass",0],"B":["bark"],"b":["bark",0],"K":["canopy"],"k":["canopy",0],"O":["bone"],"P":["pod"],"p":["pod",0],"F":["flower"],"D":["dust"],"Y":["pollen"]};
 const SURFACE_GLOWS = ["pollen"];
-const SURFACE_PAL = {"stem":["#2a2a18","#4e5030","#727548","#9a9c64"],"leaf":["#1e1838","#3a3170","#5a4fa8","#8a80d8"],"sac":["#22304a","#3e5a80","#6a8cb8","#c4daf4"],"reed":["#3a3020","#6a5a38","#9a865a","#c8b888"],"hole":["#120e0a"],"cactus":["#1e2c22","#38503c","#587a5a","#82a47c"],"grass":["#1a2a3a","#2e4c66","#4a74a0","#78a8d0"],"bark":["#1c120c","#3a2618","#5a3c24","#7a5636"],"canopy":["#10241e","#1c3e30","#2e6046","#4a8a60"],"bone":["#3a3428","#6e6450","#a69a7c","#e0d4b0"],"pod":["#3a1a10","#6a3018","#9a4a24","#c8703a"],"flower":["#4a2040","#7a3a68","#b05a96","#e088c0"],"dust":["#6a4a2c","#7a5434","#8a603c","#9a6e48"],"pollen":["#fff0b0"]};
+const SURFACE_PAL = {"stem":["#2a2a18","#4e5030","#727548","#9a9c64"],"leaf":["#1e1838","#3a3170","#5a4fa8","#8a80d8"],"sac":["#22304a","#3e5a80","#6a8cb8","#c4daf4"],"reed":["#3a3020","#6a5a38","#9a865a","#c8b888"],"hole":["#120e0a"],"cactus":["#1e2c22","#38503c","#587a5a","#82a47c"],"grass":["#1c2418","#34442a","#56683e","#7c8c58"],"bark":["#1c120c","#3a2618","#5a3c24","#7a5636"],"canopy":["#10241e","#1c3e30","#2e6046","#4a8a60"],"bone":["#3a3428","#6e6450","#a69a7c","#e0d4b0"],"pod":["#3a1a10","#6a3018","#9a4a24","#c8703a"],"flower":["#4a2040","#7a3a68","#b05a96","#e088c0"],"dust":["#6a4a2c","#7a5434","#8a603c","#9a6e48"],"pollen":["#fff0b0"]};
 const SURFACE_FLORA = [
   { name: "Seed spire", anchor: "floor", w: 9, h: 26, weight: 3, frames: [
     [
@@ -235,22 +235,22 @@ const SURFACE_FLORA = [
   ] },
   { name: "Sky-grass", anchor: "floor", w: 11, h: 7, weight: 5, frames: [
     [
-      ".......g...",
-      "...g..G..g.",
-      "...Gg.Gg.G.",
-      "..gGG.GG.Gg",
-      ".GGG.GG.GG.",
-      ".GGG.GG.GG.",
-      ".GGG.GG.GG.",
+      "..G..G..G..",
+      ".GGg.GG.Gg.",
+      "GGGGGGgGGG.",
+      "GgGGGGGGgGG",
+      ".GGGgGGGGGg",
+      ".gGGGGgGGg.",
+      "..gg.gg.gg.",
     ],
     [
-      ".........g.",
-      ".....g..G..",
-      "....Gg.Gg.G",
-      "..gGG.GG.Gg",
-      ".GGG.GG.GG.",
-      ".GGG.GG.GG.",
-      ".GGG.GG.GG.",
+      "...G..G..G.",
+      ".GGg.GG.Gg.",
+      "GGGGGGgGGG.",
+      "GgGGGGGGgGG",
+      ".GGGgGGGGGg",
+      ".gGGGGgGGg.",
+      "..gg.gg.gg.",
     ]
   ] },
   { name: "Dome tree", anchor: "floor", w: 28, h: 32, weight: 1, frames: [

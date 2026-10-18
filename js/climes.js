@@ -423,11 +423,12 @@ const CLIME_FLORA = {
     ],
   },
   grotto: {
-    looks: { snapjaw: 'Anemones', spitter: 'Barnacle mound' },
+    looks: { snapjaw: 'Anemones', spitter: 'Sponge mound' },
     pal: climePal({
-      moss: ['#081814', '#12302a', '#1c463c', '#2a5e50'], leaf: ['#08161c', '#102a32', '#1a3e48', '#26525e'], flesh: ['#2a1a3a', '#4a3068', '#6c4c94', '#9a78c0'],
+      moss: ['#081814', '#12302a', '#1c463c', '#2a5e50'], leaf: ['#08161c', '#102a32', '#1a3e48', '#26525e'], flesh: ['#2a1420', '#542a3c', '#80465a', '#a8687a'],
+      petal: ['#1e1618', '#3e2e2e', '#624842', '#86685a'],
       shell: ['#1e2428', '#3e4a50', '#66747a', '#9aa8ac'], drip: ['#1c3040', '#3a5a72', '#5e86a2', '#a8d0e8'], rock: ['#14242c', '#26404c', '#365664', '#4a6e7c'],
-      glow: ['#5a7cff'], glow2: ['#b4c4ff'],
+      glow: ['#5a7cff'], glow2: ['#f0b4c4'],
     }),
     pieces: [
       { name: 'Algae curtain', anchor: 'ceiling', weight: 3, frames: [[
@@ -497,25 +498,44 @@ const CLIME_FLORA = {
         '.RRFR.RFR..',
         'RRRRRRRRRR.',
       ]] },
-      { name: 'Barnacle mound', anchor: 'floor', weight: 2, frames: [[
-        '....HH.....',
-        '..HhHHhH...',
-        '.HHHHLHHH..',
-        '.HhHHhHHHH.',
-        'HHHHHHHhHHH',
-        'RRRRRRRRRRR',
+      // soft sponges, lobed and pitted, in a muted clay (never pale or
+      // faceted, so never like ore); one pore glows (red on a spitter)
+      { name: 'Sponge mound', anchor: 'floor', weight: 2, frames: [[
+        '..PPP..PP..',
+        '.PPpPPPPPP.',
+        '.PPPPPLPPP.',
+        'PPpPPPPPPPP',
+        'PPPPPpPPpPP',
+        '.RRRRRRRRR.',
       ]] },
-      { name: 'Barnacle shelf', anchor: 'wall', weight: 3, frames: [[
-        '..HHH......',
-        '.HhHhH.....',
-        '..HHHHH.HH.',
-        '.....HhHhHH',
-        '.......HHH.',
-        '..HH.......',
-        '.HhHH......',
-        'HHHHH......',
+      { name: 'Sponge shelf', anchor: 'wall', weight: 3, frames: [[
+        '..PPP......',
+        '.PPpPP.....',
+        '.PPPPPP.PP.',
+        '....PPPpPPP',
+        '......PPPP.',
+        '..PP.......',
+        '.PPpPP.....',
+        'PPPPPP.....',
       ]] },
-      borrowFlora('rim', 'Dripstone', { weight: 2 }),
+      // a beard of moss trailing from a lip
+      { name: 'Moss beard', anchor: 'ceiling', weight: 2, frames: [[
+        'OOOOOOOOO',
+        'OOoOOOOoO',
+        '.OO.OoOO.',
+        '.O..OO.O.',
+        '.O...O.O.',
+        '.o...O...',
+        '.....o...',
+      ], [
+        'OOOOOOOOO',
+        'OOoOOOOoO',
+        '.OO.OoOO.',
+        '.O..OO.O.',
+        '..O..O.O.',
+        '..o..O...',
+        '......o..',
+      ]] },
     ],
   },
   magma: {
