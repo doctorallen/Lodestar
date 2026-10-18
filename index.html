@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#07080a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lodestar">
+<meta name="description" content="Dive beneath a fallen star. Mine, loot, and get out before the dark takes your haul.">
+<title>Lodestar</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <span id="hud-depth"></span>
+    <span id="hud-cargo"></span>
+    <button id="btn-pause" class="icon-btn" aria-label="Pause">II</button>
+  </header>
+
+  <main id="stage">
+    <canvas id="view"></canvas>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+  </main>
+
+  <div id="deck-left" class="deck">
+    <span class="deck-hint">MOVE</span>
+  </div>
+  <div id="deck-right" class="deck">
+    <button id="btn-act" class="deck-btn act" hidden></button>
+    <button id="btn-mine" class="deck-btn mine">MINE</button>
+  </div>
+  <div id="stick-base" class="stick-base" hidden><div id="stick-knob" class="stick-knob"></div></div>
+
+  <!-- the screens; only one shows at a time -->
+  <section id="screen-base" class="screen base" hidden>
+    <div class="star-wrap"><canvas id="star"></canvas><div class="sinkhole"></div></div>
+    <h1 class="logo">LODESTAR</h1>
+    <p id="base-report" class="report"></p>
+    <div id="base-stash" class="stash"></div>
+    <button id="base-descend" class="btn primary">DESCEND</button>
+    <div class="build" id="build"></div>
+  </section>
+
+  <section id="screen-pause" class="screen" hidden>
+    <h2>PAUSED</h2>
+    <button id="pause-resume" class="btn primary">RESUME</button>
+    <button id="pause-abandon" class="btn danger">ABANDON DIVE</button>
+    <p class="dim">Abandoning loses everything in your cargo.</p>
+  </section>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/version.js"></script>
+<script src="js/tuning.js"></script>
+<script src="js/save.js"></script>
+<script src="js/floor.js"></script>
+<script src="js/game.js"></script>
+<script src="js/render.js"></script>
+<script src="js/input.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
