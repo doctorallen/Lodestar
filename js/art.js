@@ -45,9 +45,9 @@ const ART = {
   // each biome: the same materials with its own floor, rock and light.
   // deco: what grows on the floor and glows (fungus, crystals, magma cracks)
   biomes: {
-    rim: { deco: 'fungus', floor: ['#1f1d27', '#2a2735', '#363243'], rock: ['#060609', '#0b0a0f', '#111017', '#8c80a6'], front: ['#3a3446', '#4a4358', '#5c546c'], glow: '#5ce8c8', stem: '#4a5058' },
-    choir: { deco: 'crystal', floor: ['#1a1d2c', '#232740', '#2d3250'], rock: ['#05060d', '#0a0b16', '#100f20', '#7c88c8'], front: ['#2c3352', '#3a4268', '#4a5480'], glow: '#b08cff', stem: '#3a3460' },
-    underforge: { deco: 'magma', floor: ['#251c18', '#30241f', '#3d2e27'], rock: ['#080504', '#0e0907', '#150e0b', '#b06a48'], front: ['#45291f', '#5a3628', '#704434'], glow: '#ff7a2a', stem: '#5a2a18' },
+    rim: { deco: 'fungus', floor: ['#22303a', '#2c3e4a', '#3a4e5c'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#5ce8c8', stem: '#3c5058' },
+    choir: { deco: 'crystal', floor: ['#282242', '#342c56', '#42386a'], rock: ['#06050e', '#0b0918', '#110e22', '#9a84d0'], front: ['#30285a', '#3e3470', '#504488'], glow: '#c08cff', stem: '#3a3460' },
+    underforge: { deco: 'magma', floor: ['#33252a', '#402e34', '#503a40'], rock: ['#080506', '#0f090b', '#160d10', '#b07060'], front: ['#46282a', '#5a3436', '#704244'], glow: '#ff7a2a', stem: '#5a2a18' },
   },
 };
 
@@ -175,34 +175,20 @@ const PROSPECTOR_LEGS = {
 // Tiles, painted into a floor's pixel buffer at (ox, oy). rnd() is the
 // tile's own seeded generator.
 // ---------------------------------------------------------------------------
-function paintGround(P, ox, oy, b, rnd, shadow) {
-  const f = b.floor;
-  for (let y = 0; y < TILE; y++)
-    for (let x = 0; x < TILE; x++) {
-      const v = 0.5 + (rnd() - 0.5) * 0.7;
-      putPx(P, ox + x, oy + y, f[clamp(Math.floor(v * 3 + bayerAt(ox + x, oy + y) - 0.5), 0, 2)]);
-    }
-  // pebbles
-  const n = 1 + Math.floor(rnd() * 2);
-  for (let k = 0; k < n; k++) {
-    const x = ox + 2 + Math.floor(rnd() * (TILE - 5)), y = oy + 3 + Math.floor(rnd() * (TILE - 6));
-    putPx(P, x, y, f[2]); putPx(P, x + 1, y, f[2]); putPx(P, x, y + 1, f[0]); putPx(P, x + 1, y + 1, f[0]);
-  }
-  // a wall above casts a short shadow
-  if (shadow)
-    for (let y = 0; y < 3; y++)
-      for (let x = 0; x < TILE; x++) if (!(y === 2 && bayerAt(ox + x, oy + y) > 0.5)) putPx(P, ox + x, oy + y, f[0]);
-}
-
-// What glows on a biome's floor: fungus on the Rim, singing crystals in the
-// Choir, magma through cracks in the Underforge.
-function paintDeco(P, ox, oy, b, rnd) {
-  const c = b.glow;
+// What glows on a biome's floor, chosen by `kind` (0–2): on the Rim, fungus
+// caps, a stalk with a hanging bulb, or a cluster of pods; in the Choir,
+// singing crystals, a tall chime spire, or a ring of shards; in the
+// Underforge, a magma crack, an ember vent, or cinder pods.
+function paintDeco(P, ox, oy, b, rnd, kind = 0) {
+  const c = b.glow, dark = mix(c, '#000000', 0.45), pale = mix(c, '#ffffff', 0.6), stem = b.stem;
   if (b.deco === 'crystal') {
-    const r = [mix(c, '#000000', 0.6), mix(c, '#000000', 0.3), c, mix(c, '#ffffff', 0.6)];
-    paintShard(P, ox + 5, oy + 11, 6, 2, r, true, true);
-    paintShard(P, ox + 10, oy + 9, 4, 2, r, true, true);
-  } else if (b.deco === 'magma') {
+    const r = [mix(c, '#000000', 0.6), mix(c, '#000000', 0.3), c, pale];
+    if (kind === 1) { paintShard(P, ox + 7, oy + 13, 10, 2, r, true, true); paintShard(P, ox + 10, oy + 13, 5, 2, r, true, true); }
+    else if (kind === 2) for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2; paintShard(P, ox + 7 + Math.round(Math.cos(a) * 4), oy + 9 + Math.round(Math.sin(a) * 3), 3, 1, r, true, true); }
+    else { paintShard(P, ox + 5, oy + 11, 6, 2, r, true, true); paintShard(P, ox + 10, oy + 9, 4, 2, r, true, true); }
+    return;
+  }
+  if (b.deco === 'magma' && kind === 0) {
     const hot = mix(c, '#ffe080', 0.6), edge = b.floor[0];
     let y = oy + Math.round(5 + rnd() * 5);
     for (let x = ox + 2; x < ox + TILE - 2; x++) {
@@ -211,15 +197,31 @@ function paintDeco(P, ox, oy, b, rnd) {
       putPx(P, x, y + 1, edge);
       if (rnd() < 0.35) { y = clamp(y + (rnd() < 0.5 ? -1 : 1), oy + 2, oy + TILE - 3); putPx(P, x, y, c, true); }
     }
-  } else {
-    const dark = mix(c, '#000000', 0.45), stem = b.stem;
-    for (const [sx, sy, big] of [[5, 9, 1], [10, 6, 0], [9, 12, 0]]) {
-      const x = ox + sx, y = oy + sy, w = big ? 2 : 1;
-      for (let i = 0; i <= 2; i++) putPx(P, x, y + i, stem);
-      for (let i = -w; i <= w; i++) putPx(P, x + i, y - 1, i === -w || i === w ? dark : c, true);
-      for (let i = -w + 1; i <= w - 1; i++) putPx(P, x + i, y - 2, c, true);
-      if (big) putPx(P, x, y - 2, mix(c, '#ffffff', 0.6), true);
+    return;
+  }
+  if (kind === 1) {
+    // a curling stalk with a glowing bulb hanging from its tip
+    const x0 = ox + 6 + Math.floor(rnd() * 4);
+    let x = x0;
+    for (let y = oy + 14; y > oy + 4; y--) { putPx(P, x, y, stem); if (rnd() < 0.3) x += x < x0 + 2 ? 1 : -1; }
+    putPx(P, x + 1, oy + 4, stem); putPx(P, x + 2, oy + 5, stem);
+    for (const [i, j] of [[2, 6], [1, 7], [2, 7], [3, 7], [2, 8]]) putPx(P, x + i, oy + j, j === 6 ? pale : c, true);
+    return;
+  }
+  if (kind === 2) {
+    // a cluster of round pods, each with a glowing heart
+    for (const [px, py, rr] of [[5, 10, 2], [10, 11, 2], [8, 7, 1]]) {
+      for (let j = -rr; j <= rr; j++) for (let i = -rr; i <= rr; i++) if (i * i + j * j <= rr * rr + 1) putPx(P, ox + px + i, oy + py + j, i * i + j * j <= (rr - 1) * (rr - 1) ? c : dark, i * i + j * j <= (rr - 1) * (rr - 1));
+      putPx(P, ox + px, oy + py - rr, pale, true);
     }
+    return;
+  }
+  for (const [sx, sy, big] of [[5, 9, 1], [10, 6, 0], [9, 12, 0]]) {
+    const x = ox + sx, y = oy + sy, w = big ? 2 : 1;
+    for (let i = 0; i <= 2; i++) putPx(P, x, y + i, stem);
+    for (let i = -w; i <= w; i++) putPx(P, x + i, y - 1, i === -w || i === w ? dark : c, true);
+    for (let i = -w + 1; i <= w - 1; i++) putPx(P, x + i, y - 2, c, true);
+    if (big) putPx(P, x, y - 2, pale, true);
   }
 }
 
@@ -251,30 +253,45 @@ function paintShard(P, x, y, h, w, r, glow, glintGlow) {
   }
 }
 
-// o: { front, up, left, right } (which sides meet open ground), ore: an ore id
-function paintRock(P, ox, oy, b, rnd, o) {
-  const r = b.rock, fr = b.front;
-  const frontH = o.front ? 6 : 0, topH = TILE - frontH;
-  // dark tops, so the floor always reads as the lighter surface
-  for (let y = 0; y < topH; y++)
-    for (let x = 0; x < TILE; x++) {
-      const v = 0.5 + (rnd() - 0.5) * 0.6;
-      putPx(P, ox + x, oy + y, r[clamp(Math.floor(v * 3 + bayerAt(ox + x, oy + y) - 0.5), 0, 2)]);
+// One tile of cave, pixel by pixel along the smooth wall line. rock(x, y):
+// is that floor pixel rock (from the floor's field). Ground is dithered and
+// darkened just under a wall; rock is a dark top, a lit rim where it meets
+// the ground above or beside it, and a lit face where the ground is below
+// it. Here and there the rock carries a faint glowing vein, and the ground a
+// glowing speck: this world's light lives in its stone.
+const FACE_H = 6;
+function paintCaveTile(P, rock, ox, oy, b, rnd, seedH) {
+  const f = b.floor, r = b.rock, fr = b.front, vein = mix(b.glow, '#000000', 0.55);
+  for (let y = oy; y < oy + TILE; y++)
+    for (let x = ox; x < ox + TILE; x++) {
+      const t = bayerAt(x, y), q = rnd();
+      if (!rock(x, y)) {
+        let shade = clamp(Math.floor((0.5 + (q - 0.5) * 0.7) * 3 + t - 0.5), 0, 2);
+        if (rock(x, y - 1) || rock(x, y - 2) || (rock(x, y - 3) && t < 0.5)) shade = 0;
+        putPx(P, x, y, f[shade]);
+        if ((hashInts(x, y, seedH) & 1023) < 3) putPx(P, x, y, vein, true);
+        continue;
+      }
+      let below = 0;
+      for (let k = 1; k <= FACE_H; k++) if (!rock(x, y + k)) { below = k; break; }
+      if (below === FACE_H) putPx(P, x, y, r[3]);
+      else if (below) putPx(P, x, y, fr[clamp(Math.floor((below / FACE_H) * 2.2 + t - 0.5), 0, 2)]);
+      else if (!rock(x - 1, y) || !rock(x, y - 1)) putPx(P, x, y, r[3]);
+      else if (!rock(x + 1, y)) putPx(P, x, y, mix(r[3], r[2], 0.45));
+      else putPx(P, x, y, r[clamp(Math.floor((0.5 + (q - 0.5) * 0.6) * 3 + t - 0.5), 0, 2)]);
     }
-  // rims against open ground, lit from the top left
-  if (o.up) for (let x = 0; x < TILE; x++) putPx(P, ox + x, oy, r[3]);
-  if (o.left) for (let y = 0; y < topH; y++) putPx(P, ox, oy + y, r[3]);
-  if (o.right) for (let y = 0; y < topH; y++) putPx(P, ox + TILE - 1, oy + y, mix(r[3], r[2], 0.45));
-  if (o.front) {
-    for (let x = 0; x < TILE; x++) putPx(P, ox + x, oy + topH - 1, r[3]);
-    for (let y = 0; y < frontH; y++)
-      for (let x = 0; x < TILE; x++) putPx(P, ox + x, oy + topH + y, fr[clamp(Math.floor((1 - y / frontH) * 2.2 + bayerAt(ox + x, oy + topH + y) - 0.5), 0, 2)]);
-    // strata
-    for (let x = 1 + Math.floor(rnd() * 3); x < TILE; x += 3 + Math.floor(rnd() * 3))
-      for (let y = 1; y < frontH - 1; y++) if (rnd() < 0.8) putPx(P, ox + x, oy + topH + y, fr[0]);
-    for (let x = 0; x < TILE; x++) putPx(P, ox + x, oy + TILE - 1, fr[0]);
+}
+
+// A thin glowing crack wandering across a rock top
+function paintRockVein(P, rock, ox, oy, b, rnd) {
+  const col = mix(b.glow, '#000000', 0.4);
+  let x = ox + 3 + Math.floor(rnd() * 10), y = oy + 2 + Math.floor(rnd() * 8);
+  for (let k = 0; k < 9; k++) {
+    if (!rock(x, y) || !rock(x, y + FACE_H)) break;
+    putPx(P, x, y, col, true);
+    x += rnd() < 0.5 ? 1 : -1; if (rnd() < 0.6) y += rnd() < 0.5 ? 1 : -1;
+    x = clamp(x, ox, ox + TILE - 1); y = clamp(y, oy, oy + TILE - 1);
   }
-  if (o.ore) paintOre(P, ox, oy, b, rnd, ART.ores[o.ore], topH, frontH);
 }
 
 // A cluster of crystals breaking out of the rock; only their tips glow
@@ -522,6 +539,25 @@ function itemIconUrl(item) {
   if (item.kind === 'relic') pal.arcane = [ART.rarity.relic];
   const s = buildArtSprite(ICON_ROWS[item.kind], pal);
   url = s.c.toDataURL();
+  _iconCache.set(key, url);
+  return url;
+}
+
+// Ore and exotics as icons: a cluster of crystals in their colour.
+const STUFF_ROWS = [
+  '....VV.....',
+  '...VQV..V..',
+  '..VVVV.VQ..',
+  '..VVVVVVV..',
+  '.MMVVVVVMM.',
+  'MMMMMMMMMMM',
+];
+function stuffIconUrl(id) {
+  const key = 'stuff/' + id;
+  let url = _iconCache.get(key);
+  if (url) return url;
+  const r = ART.ores[id], col = r ? r[2] : ART.exotics[id];
+  url = buildArtSprite(STUFF_ROWS, { crystal: [col], coreglow: [r ? r[3] : mix(col, '#ffffff', 0.6)] }).c.toDataURL();
   _iconCache.set(key, url);
   return url;
 }

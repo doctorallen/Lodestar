@@ -74,7 +74,7 @@ function installBot() {
     // a watchdog: no kill, ore or new floor for a while and the bot gives up
     // on whatever it was after
     const skipOre = new Set(), skipFoe = new Set();
-    let progressT = 0, progress = '', aim = null;
+    let progressT = 0, progress = '', aim = null, iter = 0;
     const result = () => ({ biome, depth: d.depth, kills: d.kills, cargo: cargoUsed(d), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t) });
     while (t < maxTime) {
       if (Game.dive !== d) { ended = UI.report && UI.report.banked ? 'extracted' : 'died'; break; }
@@ -96,8 +96,11 @@ function installBot() {
         const m = dist(foe.x, foe.y, p.x, p.y);
         aim = { foe };
         if (m > 14) goTile(d, steps, Math.floor(foe.x / TILE), Math.floor(foe.y / TILE));
-        Input.bot.main = m < 40; Input.bot.off = m < 120 && !!Save.data.equip.off;
-        if (Save.data.equip.main && Save.data.equip.main.kind === 'focus') Input.bot.main = m < 120;
+        // tap, don't hold: alternate presses make combos; dash out of a tell
+        const tap = (iter++ & 1) === 0, mainFocus = Save.data.equip.main && Save.data.equip.main.kind === 'focus';
+        Input.bot.main = tap && (mainFocus ? m < 120 : m < 40);
+        Input.bot.off = !tap && m < 120 && !!Save.data.equip.off;
+        if (d.enemies.some((e) => !e.dead && e.state === 'windup' && dist(e.x, e.y, p.x, p.y) < 50) && p.dashCd <= 0) { const a = norm(p.x - foe.x, p.y - foe.y); Input.bot.x = -a.y; Input.bot.y = a.x; Input.bot.dash = true; }
       } else if (leave) goTile(d, steps, d.floor.pad.x, d.floor.pad.y);
       else {
         const ore = !full && oreToMine(d, steps, skipOre);

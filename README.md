@@ -11,8 +11,9 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | | Phone | Keyboard |
 |---|---|---|
 | Move | Left thumb, anywhere on the left deck | WASD / arrows |
-| Main hand (swing a blade, cast a focus) | The big button, held | J |
-| Off hand | The blue button, held | K |
+| Main hand (swing a blade, cast a focus): tap for a combo, hold to charge | The big button | J |
+| Off hand | The blue button | K |
+| Dash | DASH, or flick the move thumb | Shift / U |
 | Mine | MINE, held | Space / L |
 | Descend / extract | The button that appears on a shaft or in a lodeline | E / Enter |
 | Cargo | CARGO in the top bar | I |

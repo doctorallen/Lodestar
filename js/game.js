@@ -15,7 +15,7 @@ const Game = {
   ready: false,
   scene: 'base', // 'base' | 'dive'
   modal: null, // the id of the screen that's open; the simulation stops while one is
-  t: 0, realT: 0, timeScale: 1,
+  t: 0, realT: 0, timeScale: 1, hitstop: 0,
   dive: null,
   step: null, render: null,
 };
@@ -31,16 +31,19 @@ function startDive(biome = 0) {
   Game.dive = {
     seed, biome, depth: 0, floor: null, target: null, time: 0, kills: 0, dying: 0,
     rng: new Rng(hashInts(seed, 0x5eed)), stats, reach: lodelineReach(),
-    cargo: {}, items: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], flow: null, flowAt: -1,
+    cargo: {}, items: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], flow: null, flowAt: -1,
     p: {
       x: 0, y: 0, fx: 0, fy: 1, walkT: 0, mine: null,
       hp: stats.maxHp, charge: stats.maxCharge, ward: 0, wardT: 0, invuln: 0, hurtT: 0, restT: 0, lowCharge: 0,
-      hands: { main: { cd: 0, hits: 0 }, off: { cd: 0, hits: 0 } },
+      dashT: 0, dashCd: 0, dashX: 0, dashY: 0, swing: null, cast: null,
+      hands: { main: newHand(), off: newHand() },
     },
   };
   Game.scene = 'dive';
   enterFloor(1);
 }
+
+function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0, hits: 0 }; }
 
 function enterFloor(depth) {
   const d = Game.dive, p = d.p;
@@ -48,7 +51,7 @@ function enterFloor(depth) {
   d.floor = generateFloor(d.seed, depth, d.biome, d.reach);
   const e = d.floor.entry;
   p.x = (e.x + 0.5) * TILE; p.y = (e.y + 0.5) * TILE; p.mine = null;
-  d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.flowAt = -1;
+  d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.flowAt = -1;
   spawnEnemies(d);
   if (d.floor.pad) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
   UI.toast(`${T.biomes[d.biome].name}, depth ${depth}${d.floor.pad ? '' : ': no lodeline reaches this deep'}`);
@@ -79,18 +82,22 @@ function updateDive(dtReal, dt) {
   const rest = p.restT > T.player.restAfter ? T.player.restRegen : 0;
   p.hp = Math.min(st.maxHp, p.hp + (st.regen + rest) * dtReal);
   p.charge = Math.min(st.maxCharge, p.charge + T.player.chargeRegen * (1 + st.chargeRegen / 100) * dtReal);
-  for (const k in p.hands) p.hands[k].cd = Math.max(0, p.hands[k].cd - dtReal);
+  if (p.swing && (p.swing.t -= dtReal) <= 0) p.swing = null;
+  if (p.cast && (p.cast.t -= dtReal) <= 0) p.cast = null;
+  for (const n of d.nums) { n.t -= dtReal; n.y -= 14 * dtReal; }
+  d.nums = d.nums.filter((n) => n.t > 0);
 
-  const mv = Input.move, m = Math.hypot(mv.x, mv.y);
-  if (m > 0.05) {
-    const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * dtReal;
-    moveBody(d.floor, p, (mv.x / m) * sp, (mv.y / m) * sp, T.player.radius);
-    p.fx = mv.x / m; p.fy = mv.y / m;
-    p.walkT += dtReal;
-  } else p.walkT = 0;
-  // holding a hand's button keeps swinging or casting
-  if (Input.handHeld('main')) useHand('main');
-  if (Input.handHeld('off')) useHand('off');
+  if (!updateDash(dtReal)) {
+    const mv = Input.move, m = Math.hypot(mv.x, mv.y);
+    if (m > 0.05) {
+      // slower mid-swing, so a swing commits
+      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.swing ? 0.45 : 1) * dtReal;
+      moveBody(d.floor, p, (mv.x / m) * sp, (mv.y / m) * sp, T.player.radius);
+      if (!p.swing) { p.fx = mv.x / m; p.fy = mv.y / m; }
+      p.walkT += dtReal;
+    } else p.walkT = 0;
+  }
+  updateHands(dtReal);
   updateMining(dtReal);
   updateEnemies(dt);
   updateBolts(dt);
@@ -119,33 +126,35 @@ function actionHere() {
 }
 
 // ---------------------------------------------------------------------------
-// Walking: a circle against the tile grid, one axis at a time. Enemies use
-// it too.
+// Walking: a circle against the floor's smooth wall line (rockAt), felt at
+// its centre and eight points round its edge. Enemies use it too.
 // ---------------------------------------------------------------------------
+const BODY_RING = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [Math.cos((k * Math.PI) / 4), Math.sin((k * Math.PI) / 4)]);
 function bodyHits(f, x, y, r) {
-  const x0 = Math.floor((x - r) / TILE), x1 = Math.floor((x + r) / TILE);
-  const y0 = Math.floor((y - r) / TILE), y1 = Math.floor((y + r) / TILE);
-  for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (TILE_SOLID[floorTile(f, tx, ty)]) return true;
+  if (rockAt(f, x, y)) return true;
+  for (const [c, s] of BODY_RING) if (rockAt(f, x + c * r, y + s * r)) return true;
   return false;
 }
 
 function moveBody(f, b, dx, dy, r) {
-  if (dx) {
-    if (!bodyHits(f, b.x + dx, b.y, r)) b.x += dx;
-    else {
-      b.x = dx > 0 ? Math.max(b.x, Math.floor((b.x + dx + r) / TILE) * TILE - r - 0.01) : Math.min(b.x, (Math.floor((b.x + dx - r) / TILE) + 1) * TILE + r + 0.01);
-      // blocked, but the gap is just above or below: slide towards it, so a
-      // thumb a few pixels off still finds the corridor
-      const cy = (Math.floor(b.y / TILE) + 0.5) * TILE;
-      if (Math.abs(dy) < Math.abs(dx) && !bodyHits(f, b.x + dx, cy, r)) b.y = approach(b.y, cy, Math.abs(dx));
-    }
+  if (!dx && !dy) return;
+  // already wedged in rock (a spawn on a ragged edge): let it walk out
+  if (!bodyHits(f, b.x + dx, b.y + dy, r) || bodyHits(f, b.x, b.y, r)) { b.x += dx; b.y += dy; return; }
+  // blocked: slide along the wall, one axis at a time, as far as each goes
+  const x0 = b.x, y0 = b.y;
+  for (const [mx, my] of [[dx, 0], [0, dy]]) {
+    if (!mx && !my) continue;
+    let lo = 0, hi = 1;
+    if (!bodyHits(f, b.x + mx, b.y + my, r)) lo = 1;
+    else for (let k = 0; k < 4; k++) { const mid = (lo + hi) / 2; if (bodyHits(f, b.x + mx * mid, b.y + my * mid, r)) hi = mid; else lo = mid; }
+    b.x += mx * lo; b.y += my * lo;
   }
-  if (dy) {
-    if (!bodyHits(f, b.x, b.y + dy, r)) b.y += dy;
-    else {
-      b.y = dy > 0 ? Math.max(b.y, Math.floor((b.y + dy + r) / TILE) * TILE - r - 0.01) : Math.min(b.y, (Math.floor((b.y + dy - r) / TILE) + 1) * TILE + r + 0.01);
-      const cx = (Math.floor(b.x / TILE) + 0.5) * TILE;
-      if (Math.abs(dx) < Math.abs(dy) && !bodyHits(f, cx, b.y + dy, r)) b.x = approach(b.x, cx, Math.abs(dy));
+  // head-on into a curve: try the way round it, half a turn either side
+  const m = Math.hypot(dx, dy);
+  if (Math.hypot(b.x - x0, b.y - y0) < m * 0.3) {
+    for (const turn of [0.7, -0.7, 1.2, -1.2]) {
+      const c = Math.cos(turn), s = Math.sin(turn), tx = (dx * c - dy * s) * 0.8, ty = (dx * s + dy * c) * 0.8;
+      if (!bodyHits(f, x0 + tx, y0 + ty, r)) { b.x = x0 + tx; b.y = y0 + ty; return; }
     }
   }
 }

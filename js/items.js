@@ -184,8 +184,10 @@ function unsealRelic(rng, relic) {
 function startingGear(rng) {
   const blade = makeItem(rng, 'blade', 1, { affixes: 0 });
   blade.base.dmg = 5; blade.name = 'Scrap Blade';
+  const focus = makeItem(rng, 'focus', 1, { affixes: 0 });
+  focus.base.power = 5; focus.name = 'Cracked Focus';
   const pick = makeItem(rng, 'pick', 0, { affixes: 0 });
-  return { main: blade, off: null, pick, armor: null, charm: null };
+  return { main: blade, off: focus, pick, armor: null, charm: null };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,11 +1,14 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Fighting. Each hand has its own button: a blade (or an empty main hand)
-// swings, a focus casts. A swing hits everything in an arc in front, aimed
-// at the nearest enemy in reach. A focus casts every core socketed in it
-// (an empty one casts a spark), for charge. A blade fires its cores every
-// few hits, free. Hits can arc lightning, chill and heal (affixes). Kills
-// drop loot, exotics, sealed relics and healing motes onto the floor.
+// Fighting. Each hand has its own button. A blade (or an empty main hand)
+// swings: taps chain a three-hit combo whose last hit is heavy, and holding
+// past a swing charges a spin that hits all round. A focus casts every core
+// socketed in it (an empty one casts a spark), for charge; holding charges
+// a stronger cast. A blade fires its cores every few hits, free. A press
+// during a cooldown is held over until it ends. The dash is a burst of speed
+// that nothing can touch. Hits stop the world for a moment, shake the view
+// and knock enemies back; heavy ones stagger them. Kills drop loot,
+// exotics, sealed relics and healing motes onto the floor.
 // ---------------------------------------------------------------------------
 
 // The nearest living enemy within range that the prospector can see.
@@ -19,35 +22,98 @@ function nearestEnemy(d, range, from = d.p, except = null) {
   return best;
 }
 
-function useHand(slot) {
-  const d = Game.dive, p = d.p, item = Save.data.equip[slot], h = p.hands[slot];
-  if (h.cd > 0 || d.dying) return;
-  if (!item && slot === 'off') return;
-  if (item && item.kind === 'focus') castFocus(item, h);
-  else swing(item, h);
+const handKind = (item) => (item && item.kind === 'focus' ? 'focus' : 'blade');
+
+// Each step: presses, holds and releases of both hands' buttons.
+function updateHands(dt) {
+  const d = Game.dive, p = d.p, M = T.melee;
+  for (const slot of ['main', 'off']) {
+    const item = Save.data.equip[slot], h = p.hands[slot], btn = Input.hand(slot);
+    h.cd = Math.max(0, h.cd - dt);
+    h.comboT = Math.max(0, h.comboT - dt);
+    h.buffer = Math.max(0, h.buffer - dt);
+    if (!item && slot === 'off') { h.holdT = 0; continue; }
+    if (btn.pressed) { h.buffer = 0.25; h.holdT = 0; h.holding = true; }
+    if (h.buffer > 0 && h.cd <= 0 && !d.dying) { h.buffer = 0; attackTap(slot, item, h); }
+    if (h.holding && btn.down) h.holdT += dt;
+    if (btn.released || (!btn.down && h.holding)) {
+      if (h.holding && chargeLevel(h) >= 1 && !d.dying) chargedAttack(slot, item, h);
+      h.holding = false; h.holdT = 0;
+    }
+  }
 }
 
-function swing(item, h) {
+// How charged a hand is, 0–1.
+function chargeLevel(h) {
+  const M = T.melee;
+  return clamp((h.holdT - M.chargeStart) / (M.chargeFull - M.chargeStart), 0, 1);
+}
+
+function attackTap(slot, item, h) {
+  if (handKind(item) === 'focus') castFocus(item, h, false);
+  else swing(slot, item, h);
+}
+
+// Where a swing aims: the nearest enemy in reach, else straight ahead.
+function aimDir(range) {
+  const d = Game.dive, p = d.p, target = nearestEnemy(d, range);
+  if (target) { const a = norm(target.x - p.x, target.y - p.y); p.fx = a.x; p.fy = a.y; return a; }
+  return norm(p.fx, p.fy);
+}
+
+function swing(slot, item, h) {
   const d = Game.dive, p = d.p, st = d.stats, M = T.melee;
-  const target = nearestEnemy(d, M.autoAim);
-  const dir = target ? norm(target.x - p.x, target.y - p.y) : norm(p.fx, p.fy);
-  if (target) { p.fx = dir.x; p.fy = dir.y; }
-  h.cd = M.cooldown / (1 + st.atkSpeed / 100);
-  d.fx.push({ kind: 'swing', x: p.x, y: p.y - 6, dx: dir.x, dy: dir.y, t: M.swingTime, max: M.swingTime });
+  h.step = h.comboT > 0 ? (h.step + 1) % M.combo.length : 0;
+  const [mult, cd, arc, knock, lunge, time] = M.combo[h.step], heavy = h.step === M.combo.length - 1;
+  const dir = aimDir(M.autoAim);
+  h.cd = cd / (1 + st.atkSpeed / 100);
+  h.comboT = M.comboWindow + h.cd;
+  moveBody(d.floor, p, dir.x * lunge, dir.y * lunge, T.player.radius);
+  p.swing = { slot, a: Math.atan2(dir.y, dir.x), side: h.step % 2 ? -1 : 1, t: time, max: time, heavy, spin: false };
   const base = item ? item.base.dmg : M.fist;
   let hit = 0;
   for (const e of d.enemies) {
     if (e.dead) continue;
     const dx = e.x - p.x, dy = e.y - p.y, m = Math.hypot(dx, dy);
-    if (m > M.range + e.r || (m > 2 && (dx * dir.x + dy * dir.y) / m < M.arcCos)) continue;
-    const crit = d.rng.f(100) < st.crit;
-    hurtEnemy(e, base * (1 + st.meleeDmg / 100) * (crit ? 2 : 1), { crit });
-    if (crit && st.powers.bloodedge) healPlayer(st.maxHp * 0.04);
+    if (m > M.range + e.r || (m > 2 && (dx * dir.x + dy * dir.y) / m < arc)) continue;
+    meleeHit(e, base * mult, dir, knock, heavy);
     hit++;
   }
+  afterMelee(item, h, hit, heavy);
+}
+
+// The spin: everything round the prospector, hard.
+function chargedAttack(slot, item, h) {
+  const d = Game.dive, p = d.p, C = T.melee.charged;
+  if (handKind(item) === 'focus') { castFocus(item, h, true); return; }
+  p.swing = { slot, a: Math.atan2(p.fy, p.fx), side: 1, t: C.time, max: C.time, heavy: true, spin: true };
+  h.cd = T.melee.combo[0][1];
+  h.comboT = 0;
+  const base = item ? item.base.dmg : T.melee.fist;
+  let hit = 0;
+  for (const e of d.enemies) {
+    if (e.dead || dist(e.x, e.y, p.x, p.y) > C.radius + e.r) continue;
+    meleeHit(e, base * C.mult, norm(e.x - p.x, e.y - p.y), C.knock, true);
+    hit++;
+  }
+  d.fx.push({ kind: 'spin', x: p.x, y: p.y - 6, r: C.radius, t: C.time, max: C.time });
+  afterMelee(item, h, hit, true);
+}
+
+function meleeHit(e, dmg, dir, knock, heavy) {
+  const d = Game.dive, st = d.stats;
+  const crit = d.rng.f(100) < st.crit;
+  hurtEnemy(e, dmg * (1 + st.meleeDmg / 100) * (crit ? 2 : 1), { crit, knock: { x: dir.x * knock, y: dir.y * knock }, heavy });
+  if (crit && st.powers.bloodedge) healPlayer(st.maxHp * 0.04);
+}
+
+function afterMelee(item, h, hit, heavy) {
+  const d = Game.dive, p = d.p, st = d.stats, I = T.impact;
   if (!hit) return;
-  p.charge = Math.min(st.maxCharge, p.charge + T.player.chargeOnHit);
-  buzz(10);
+  p.charge = Math.min(st.maxCharge, p.charge + T.player.chargeOnHit * hit);
+  Game.hitstop = Math.max(Game.hitstop, heavy ? I.heavyStop : I.hitstop);
+  shakeView(heavy ? I.heavyShake : I.shake);
+  buzz(heavy ? 25 : 10);
   // a blade's cores fire every few hits, free
   if (item && item.sockets && item.sockets.some(Boolean)) {
     h.hits = (h.hits || 0) + 1;
@@ -55,31 +121,61 @@ function swing(item, h) {
   }
 }
 
-function castFocus(item, h) {
+function castFocus(item, h, charged) {
   const d = Game.dive, p = d.p, S = T.spells;
   const cores = (item.sockets || []).filter(Boolean);
-  const cost = cores.length ? cores.reduce((a, c) => a + S[c.core].cost, 0) : S.spark.cost;
+  let cost = cores.length ? cores.reduce((a, c) => a + S[c.core].cost, 0) : S.spark.cost;
+  if (charged) cost *= S.chargedCost;
   if (p.charge < cost) { p.lowCharge = 0.4; return; }
   p.charge -= cost;
   h.cd = S.castCooldown;
-  const power = item.base.power;
-  if (!cores.length) castSpell('spark', power * S.spark.mult);
-  else castCores(item, power);
+  p.cast = { t: 0.15, max: 0.15, charged };
+  const power = item.base.power * (charged ? S.chargedMult : 1);
+  if (!cores.length) castSpell('spark', power * S.spark.mult, 0, charged);
+  else castCores(item, power, charged);
+  if (charged) shakeView(T.impact.shake);
 }
 
 // Fires every core in an item (twice with the Twice-Told).
-function castCores(item, power) {
+function castCores(item, power, charged = false) {
   const st = Game.dive.stats;
   const times = st.powers.echo && item.power === 'echo' ? 2 : 1;
   for (const c of item.sockets || []) {
     if (!c) continue;
     const p = power * (1 + T.items.core.growth * (c.tier - 1)) * T.spells[c.core].mult;
-    for (let k = 0; k < times; k++) castSpell(c.core, p, k * 0.25);
+    for (let k = 0; k < times; k++) castSpell(c.core, p, k * 0.25, charged);
   }
 }
 
-// spread: an angle to fan a second bolt out by
-function castSpell(kind, power, spread = 0) {
+// The dash: when asked for and ready, a burst along the stick (or the way
+// the prospector faces).
+function updateDash(dt) {
+  const d = Game.dive, p = d.p, D = T.dash;
+  p.dashCd = Math.max(0, p.dashCd - dt);
+  const req = Input.consumeDash();
+  if (req && p.dashCd <= 0 && !d.dying) {
+    const mv = typeof req === 'object' ? req : Input.move;
+    const dir = Math.hypot(mv.x, mv.y) > 0.2 ? norm(mv.x, mv.y) : norm(p.fx, p.fy);
+    p.dashT = D.time; p.dashX = dir.x; p.dashY = dir.y;
+    p.fx = dir.x; p.fy = dir.y;
+    p.invuln = Math.max(p.invuln, D.invuln);
+    p.dashCd = D.cooldown;
+    buzz(8);
+  }
+  if (p.dashT > 0) {
+    p.dashT -= dt;
+    moveBody(d.floor, p, p.dashX * D.speed * dt, p.dashY * D.speed * dt, T.player.radius);
+    if (Math.floor(p.dashT * 60) % 2 === 0) d.fx.push({ kind: 'ghost', x: p.x, y: p.y, fx: p.fx, fy: p.fy, t: 0.18, max: 0.18 });
+    return true;
+  }
+  return false;
+}
+
+function shakeView(n) { View.shake = Math.max(View.shake || 0, n); }
+
+// spread: an angle to fan a second bolt out by; charged: bolts are bigger
+// and go through what they hit
+function castSpell(kind, power, spread = 0, charged = false) {
   const d = Game.dive, p = d.p, st = d.stats, S = T.spells;
   const dmg = power * (1 + st.spellDmg / 100);
   if (kind === 'spark' || kind === 'bolt') {
@@ -87,7 +183,7 @@ function castSpell(kind, power, spread = 0) {
     let a = target ? Math.atan2(target.y - 4 - (p.y - 8), target.x - p.x) : Math.atan2(p.fy, p.fx);
     a += spread;
     const sp = S[kind].speed;
-    d.bolts.push({ x: p.x, y: p.y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg, kind, t: 1.2, chain: kind === 'bolt' && st.powers.stormcaller ? 2 : 0, hitIds: [] });
+    d.bolts.push({ x: p.x, y: p.y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg, kind, t: 1.2, chain: kind === 'bolt' && st.powers.stormcaller ? 2 : 0, hitIds: [], big: charged, pierce: charged ? 3 : 0 });
     return;
   }
   if (kind === 'nova') {
@@ -121,9 +217,12 @@ function updateBolts(dt) {
     b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
     if (TILE_SOLID[floorTile(f, Math.floor(b.x / TILE), Math.floor((b.y + 6) / TILE))]) { b.t = 0; continue; }
     for (const e of d.enemies) {
-      if (e.dead || b.hitIds.includes(e) || dist(b.x, b.y, e.x, e.y - 5) > e.r + 4) continue;
-      hurtEnemy(e, b.dmg, { spell: true });
+      if (e.dead || b.hitIds.includes(e) || dist(b.x, b.y, e.x, e.y - 5) > e.r + (b.big ? 7 : 4)) continue;
+      const sp0 = Math.hypot(b.vx, b.vy) || 1;
+      hurtEnemy(e, b.dmg, { spell: true, knock: { x: (b.vx / sp0) * (b.big ? 120 : 50), y: (b.vy / sp0) * (b.big ? 120 : 50) }, heavy: b.big });
+      Game.hitstop = Math.max(Game.hitstop, T.impact.hitstop * 0.6);
       b.hitIds.push(e);
+      if (b.pierce > 0) { b.pierce--; continue; }
       // Stormcaller: on to the next nearest
       const next = b.chain > 0 && nearestEnemy(d, T.onHit.shockRange * 1.5, e, null);
       if (next && !b.hitIds.includes(next)) {
@@ -146,6 +245,8 @@ function hurtPlayer(dmg, from) {
   dmg *= T.items.armorK / (T.items.armorK + st.armor);
   if (p.ward > 0) { const soak = Math.min(p.ward, dmg); p.ward -= soak; dmg -= soak; }
   p.hp -= dmg;
+  shakeView(T.impact.hurtShake);
+  d.nums.push({ x: p.x, y: p.y - 22, v: Math.max(1, Math.round(dmg)), t: 0.8, hurt: true });
   p.invuln = T.player.hurtInvuln;
   p.hurtT = 0.25;
   p.restT = 0;
@@ -158,12 +259,17 @@ function healPlayer(n) {
   p.hp = Math.min(Game.dive.stats.maxHp, p.hp + n);
 }
 
-// opts: { crit, spell, noProc (an arc of lightning doesn't arc again) }
+// opts: { crit, spell, noProc (an arc of lightning doesn't arc again),
+// knock: { x, y } px/s, heavy (staggers) }
 function hurtEnemy(e, dmg, opts = {}) {
   const d = Game.dive, st = d.stats, O = T.onHit;
   if (e.dead) return;
+  if (e.state === 'dazed') dmg *= 1.5;
   e.hp -= dmg;
   e.flash = T.enemies.hurtFlash;
+  d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit });
+  if (opts.knock) { const k = e.boss ? 0.2 : e.type === 'construct' ? 0.5 : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
+  if (opts.heavy && !e.boss && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
   wake(d, e);
   if (st.leech) healPlayer((dmg * st.leech) / 100);
   if (!opts.noProc) {
@@ -242,8 +348,16 @@ function updatePickups(dt) {
     if (dr.home) { const a = norm(p.x - dr.x, p.y - dr.y); dr.x += a.x * 90 * dt; dr.y += a.y * 90 * dt; }
     if (dist(dr.x, dr.y, p.x, p.y) > reach) { dr.warned = false; continue; }
     if (dr.mote) { healPlayer(dr.mote); dr.gone = true; continue; }
+    const room = d.stats.cargo - cargoUsed(d);
+    // a pile of ore: take what fits
+    if (dr.stuff) {
+      const k = Math.min(room, dr.n);
+      if (k > 0) { d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k; dr.n -= k; UI.toast(`+${k} ${stuffName(dr.stuff)}`); }
+      if (dr.n > 0) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } } else dr.gone = true;
+      continue;
+    }
     const w = dr.item ? T.cargo.itemWeight : 1;
-    if (cargoUsed(d) + w > d.stats.cargo) {
+    if (room < w) {
       if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); }
       continue;
     }

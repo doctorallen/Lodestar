@@ -38,7 +38,12 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
 
 ## Expeditions
 
-- **Floors** are procedural rooms and corridors, seeded so a floor can be rebuilt from its seed. Ore veins run into the walls. Most rock can't be mined, so the layout stays readable.
+- **Floors** are seeded caverns, so a floor can be rebuilt from its seed:
+  - lumpy caverns with ragged, rounded walls, joined by tunnels that wander like rivers;
+  - some caverns keep a pillar of rock;
+  - ore veins run into the walls;
+  - most rock can't be mined, so the layout stays readable.
+- **Walls follow a smooth line**, not the tile grid. Corners round off and edges wander by a few pixels, and bodies collide with that same line.
 - **(proposed) Breakable walls** that open shortcuts.
 - **No fixed length.** The player decides how deep to go.
 - **Danger rises with depth.** A floor's enemy level is 4 × the biome's index plus the depth. Each level raises enemy health by 16% and damage by 8%. Deeper floors also have more enemies, more elites, and more of the biome's better ore and loot.
@@ -49,11 +54,13 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
 ## Enemies
 
 Every biome has the same three, in its own colours:
-- **The crawler** runs in, winds up, bites, then hops back.
-- **The wisp** keeps its distance and fires slow orbs.
-- **The construct** (from depth 2) winds up, then charges in a straight line.
+- **The crawler** closes in and circles. Then it crouches with its eyes flaring, shows a red line, lunges and bites. Afterwards it recovers, which leaves it open to a counter.
+- **The wisp** keeps its distance, strafing, and fires slow orbs: one at first, three from depth 3.
+- **The construct** (from depth 2) shows the line it will charge along, then charges. If it hits a wall, it's dazed, and it takes extra damage while dazed.
 
-All of them glow brighter while winding up, so you can see the attack coming. Enemies wake when they see you or when one near them is hit, then find their way to you through the corridors.
+All of them glow brighter while winding up, so you can see the attack coming. Enemies wake when they see you or when one near them is hit, then find their way to you through the tunnels.
+
+Only two enemies can wind up at once, plus one more every three floors down. The rest circle and wait their turn. Your hits knock enemies back, and heavy hits stagger anything but the warden out of an attack.
 
 **Elites** have more health, hit harder and always drop magic-or-better gear. They wear a coloured pip for their affix:
 - **Fast:** moves half again as fast.
@@ -112,10 +119,17 @@ All of them glow brighter while winding up, so you can see the attack coming. En
 ## Combat and builds
 
 - **Melee and magic.** A character can be melee only, magic only, or a balanced hybrid. Gear and attunements support all three.
-- **Slots:** main hand, off hand, pick, armor and charm. Each hand takes a blade or a focus and has its own button:
-  - a blade SWINGs at everything in an arc in front, aimed at the nearest enemy;
-  - a focus CASTs.
-  - Melee: blade and blade. Magic: focus and focus. Hybrid: blade and focus.
+- **Slots:** main hand, off hand, pick, armor and charm. Each hand takes a blade or a focus and has its own button, which shows what's held.
+  - **A blade SWINGs**, aimed at the nearest enemy. Taps chain a three-hit combo, and the third hit is heavy: wider, harder, and it staggers. Holding past a swing charges a spin that hits everything round you.
+  - **A focus CASTs.** Holding charges a stronger cast. Charged bolts are bigger and pass through enemies.
+  - A press during a cooldown is held over until the cooldown ends, so taps never get lost.
+  - Builds: blade and blade for melee, focus and focus for magic, blade and focus for a hybrid.
+- **You start with a Scrap Blade and a Cracked Focus**, so the first fight has both melee and range.
+- **The dash** is a quick burst that nothing can touch, from DASH or a flick of the move thumb. It's how you get out of a lunge or a charge.
+- **Impact:**
+  - a hit stops the world for an instant and shakes the view;
+  - damage numbers pop off;
+  - the weapon is drawn in hand: the blade sweeps its arc with a slash of light, and the focus floats glowing over the hand.
 - **Spell cores** socket into blades and foci. They're a second layer of loot, found or forged.
   - **In a focus,** casting fires every core socketed in it, for charge. An empty focus casts a weak spark.
   - **In a blade,** its cores fire free on every third hit, at reduced power, so pure melee builds use cores too.
@@ -125,7 +139,8 @@ All of them glow brighter while winding up, so you can see the attack coming. En
   - **Nova:** a burst all around you.
   - **Lodestone Pull:** drags enemies in and stuns them.
   - **Ward Pulse:** a shield that soaks damage for 5 seconds.
-- **(proposed)** A ward for the off hand, a dash, and more cores.
+- **(proposed)** A ward for the off hand, and more cores.
+- **The player character** is being redesigned as an alien-tech diver, drawn in 8 directions. The current prospector is a stand-in.
 
 ## The base
 
@@ -148,17 +163,19 @@ All of them glow brighter while winding up, so you can see the attack coming. En
 
 ## Controls
 
-- **Upright:** a floating joystick under the left thumb. Under the right thumb:
-  - the main hand's button,
-  - the off hand's button,
-  - MINE, held to dig,
-  - the contextual DESCEND or EXTRACT.
+- **Upright:** a floating joystick under the left thumb (a quick flick dashes). Under the right thumb, a cluster:
+  - the main hand, big, in the corner;
+  - the off hand;
+  - DASH;
+  - MINE, held to dig;
+  - the contextual DESCEND or EXTRACT above them.
 - **Sideways:** the view stands in the middle with the controls either side, as in NEO.
 - Swings aim at the nearest enemy in reach, and spells at the nearest in sight. Mining targets the ore you're facing.
-- CARGO in the top bar shows what you carry, and lets you equip or drop it mid-dive.
+- CARGO in the top bar shows what you carry, ore and exotics included. Tap anything to equip it or drop it mid-dive. Dropped ore lies on the floor as a glowing heap you can pick back up.
 - **Keyboard:**
   - WASD or the arrows to move,
   - J for the main hand and K for the off hand,
+  - Shift or U to dash,
   - Space or L to mine,
   - E or Enter to act, I for cargo, Esc to pause.
 
@@ -170,7 +187,11 @@ All of them glow brighter while winding up, so you can see the attack coming. En
   - Darkness, where only magitech gives off light: the helmet lamp, ore glints, runes, glowing fungus, singing crystals, magma, enemies' eyes and cores, the lodelines and the Lodestar.
   - Light comes in a few dithered bands, and glowing things bloom.
 - **Readability rule.** Rock tops are always darker than the floor, with lit rims and front faces where they meet it.
-- **Biome looks.** Each biome changes only its floor, rock and light colours, its enemies' colours, and what glows on its floor (fungus on the Rim, crystals in the Choir, magma in the Underforge).
+- **Biome looks.** Each biome changes its floor, rock and light colours and its enemies' colours. What grows and glows changes too, mostly against the walls:
+  - **the Rim:** fungus caps, curling stalks with hanging bulbs, clusters of pods;
+  - **the Choir:** singing crystals, chime spires, rings of shards;
+  - **the Underforge:** magma cracks, ember vents, cinder pods.
+- **Alien light.** Faint veins glow in the rock, and specks glow in the ground: this world's light lives in its stone.
 - **Loot glows in its rarity's colour.** Rare and better stands up in a beam, so it's seen from across a room.
 - **(proposed) Lamp radius as a dial.** The lamp's radius could shrink as danger rises with depth.
 - **(proposed) Brightness setting.** Dark scenes lose contrast in bright sunlight.

@@ -19,7 +19,7 @@ const VIEW_MIN = 176;
 const View = {
   canvas: null, ctx: null, w: 0, h: 0, scale: 1, camX: 0, camY: 0,
   em: null, emCtx: null, light: null, lightCtx: null, blooms: [],
-  floorFor: null, floorBuf: null, floorCol: null, floorEm: null, floorImgs: null, lights: [],
+  floorFor: null, floorBuf: null, rockPx: null, floorCol: null, floorEm: null, floorImgs: null, lights: [],
 };
 const Sprites = {};
 const Sparks = [];
@@ -62,16 +62,30 @@ function buildSprites() {
 const artBiome = (f) => ART.biomes[T.biomes[f.biome].id];
 const rgb01 = (hex) => rgbOf(hex).map((v) => v / 255);
 
-// Does this patch of ground grow something that glows? Cosmetic, but
-// seeded, so a floor always looks the same.
-function hasDeco(f, tx, ty) {
-  if (floorTile(f, tx, ty) !== TILE_FLOOR || (tx === f.entry.x && ty === f.entry.y)) return false;
-  return hashInts(f.seed, f.depth, tx, ty, 0xdec0) % 1000 < T.light.decoChance * 1000;
+// Does this patch of ground grow something that glows, and what? Cosmetic,
+// but seeded, so a floor always looks the same. Things grow more against
+// the walls than out in the open. -1: nothing.
+function decoAt(f, tx, ty) {
+  if (floorTile(f, tx, ty) !== TILE_FLOOR || (tx === f.entry.x && ty === f.entry.y)) return -1;
+  let walls = 0;
+  for (const [dx, dy] of DIRS4) if (TILE_SOLID[floorTile(f, tx + dx, ty + dy)]) walls++;
+  const h = hashInts(f.seed, f.depth, tx, ty, 0xdec0);
+  return h % 1000 < (walls ? T.light.decoWall : T.light.decoOpen) * 1000 ? (h >>> 12) % 3 : -1;
+}
+const hasDeco = (f, tx, ty) => decoAt(f, tx, ty) >= 0;
+
+// The floor's rock, pixel by pixel, from the smooth wall line.
+function fillRockField(f, x0, y0, x1, y1) {
+  const W = f.w * TILE, R = View.rockPx;
+  for (let y = Math.max(0, y0); y < Math.min(f.h * TILE, y1); y++)
+    for (let x = Math.max(0, x0); x < Math.min(W, x1); x++) R[y * W + x] = rockAt(f, x, y) ? 1 : 0;
 }
 
 function paintFloor(f) {
   const P = pixBuf(f.w * TILE, f.h * TILE);
   View.floorFor = f; View.floorBuf = P;
+  View.rockPx = new Uint8Array(P.w * P.h);
+  fillRockField(f, 0, 0, P.w, P.h);
   for (let ty = 0; ty < f.h; ty++) for (let tx = 0; tx < f.w; tx++) paintTileArt(f, tx, ty);
   View.floorImgs = [new ImageData(P.col, P.w, P.h), new ImageData(P.em, P.w, P.h)];
   let x;
@@ -81,27 +95,28 @@ function paintFloor(f) {
 }
 
 function paintTileArt(f, tx, ty) {
-  const P = View.floorBuf, b = artBiome(f), t = floorTile(f, tx, ty), ox = tx * TILE, oy = ty * TILE;
+  const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, b = artBiome(f), t = floorTile(f, tx, ty), ox = tx * TILE, oy = ty * TILE;
   const r = new Rng(hashInts(f.seed, f.depth, tx, ty)), rnd = () => r.next();
-  const open = (dx, dy) => !TILE_SOLID[floorTile(f, tx + dx, ty + dy)];
-  if (!TILE_SOLID[t]) {
-    paintGround(P, ox, oy, b, rnd, !open(0, -1));
-    if (t === TILE_PAD) paintDish(P, ox, oy, b, 'pad');
-    else if (t === TILE_SHAFT) paintDish(P, ox, oy, b, 'shaft');
-    else if (hasDeco(f, tx, ty)) paintDeco(P, ox, oy, b, rnd);
-    return;
-  }
-  const ore = t === TILE_ORE ? T.ores[f.ore[ty * f.w + tx] - 1].id : null;
-  paintRock(P, ox, oy, b, rnd, { front: open(0, 1), up: open(0, -1), left: open(-1, 0), right: open(1, 0), ore });
+  const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
+  paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth);
+  if (t === TILE_PAD) paintDish(P, ox, oy, b, 'pad');
+  else if (t === TILE_SHAFT) paintDish(P, ox, oy, b, 'shaft');
+  else if (t === TILE_ORE) {
+    const front = !TILE_SOLID[floorTile(f, tx, ty + 1)];
+    paintOre(P, ox, oy, b, rnd, ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id], front ? TILE - FACE_H : TILE, front ? FACE_H : 0);
+  } else if (t === TILE_ROCK && (hashInts(f.seed, tx, ty, 0x7e1) & 255) < 18) paintRockVein(P, rock, ox, oy, b, rnd);
+  else { const k = decoAt(f, tx, ty); if (k >= 0) paintDeco(P, ox, oy, b, rnd, k); }
 }
 
-// After mining: the tiles round tx, ty change their rims, faces and shadows.
+// After mining: the wall line moves round tx, ty, and with it the rims,
+// faces and shadows of the tiles about it.
 function repaintAround(f, tx, ty) {
   if (View.floorFor !== f) return;
-  for (let y = ty - 1; y <= ty + 1; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
-  const dx = Math.max(0, tx - 1) * TILE, dy = Math.max(0, ty - 1) * TILE;
-  View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, dx, dy, 3 * TILE, 3 * TILE);
-  View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, dx, dy, 3 * TILE, 3 * TILE);
+  fillRockField(f, (tx - 1) * TILE, (ty - 1) * TILE, (tx + 2) * TILE, (ty + 2) * TILE);
+  for (let y = ty - 2; y <= ty + 2; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
+  const dx = Math.max(0, tx - 1) * TILE, dy = Math.max(0, ty - 2) * TILE;
+  View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, dx, dy, 3 * TILE, 5 * TILE);
+  View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, dx, dy, 3 * TILE, 5 * TILE);
   View.lights = floorLights(f);
 }
 
@@ -251,7 +266,8 @@ function renderFrame() {
   const fw = f.w * TILE, fh = f.h * TILE;
   const camX = (View.camX = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(p.x - View.w / 2, 0, fw - View.w)));
   const camY = (View.camY = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(p.y - 8 - View.h / 2, 0, fh - View.h)));
-  const ox = -camX, oy = -camY, ex = View.emCtx;
+  const sh = View.shake > 0.3 ? View.shake : 0;
+  const ox = -camX + Math.round(FX_R.f(-sh, sh)), oy = -camY + Math.round(FX_R.f(-sh, sh)), ex = View.emCtx;
   const tick = Math.floor(Game.realT * 8);
   ex.clearRect(0, 0, View.w, View.h);
   x.drawImage(View.floorCol, ox, oy);
@@ -287,7 +303,8 @@ function renderFrame() {
   for (const b of d.bolts) {
     const col = b.kind === 'bolt' ? ART.cores.bolt : '#e8f4ff';
     dot(Math.round(b.x + ox - b.vx * 0.012), Math.round(b.y + oy - b.vy * 0.012), col, true, 0.5);
-    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(Math.round(b.x + ox) + i - 1, Math.round(b.y + oy) + j - 1, col, true);
+    const pts = b.big ? [[0, -1], [-1, 0], [0, 0], [1, 0], [0, 1], [-1, -1], [1, 1], [1, -1], [-1, 1], [2, 0], [-2, 0], [0, 2], [0, -2]] : [[0, 0], [1, 0], [0, 1], [1, 1]];
+    for (const [i, j] of pts) dot(Math.round(b.x + ox) + i - (b.big ? 0 : 1), Math.round(b.y + oy) + j - (b.big ? 0 : 1), i === 0 && j === 0 && b.big ? '#ffffff' : col, true);
     lights.push({ x: b.x + ox, y: b.y + oy, r: TILE, i: 0.7, c: rgb01(col) });
   }
   const shotCol = artBiome(f).glow;
@@ -334,6 +351,7 @@ function renderFrame() {
     x.fillStyle = '#000'; x.fillRect(bx - 1, 5, w + 2, 4);
     x.fillStyle = '#c04040'; x.fillRect(bx, 6, Math.round((w * boss.hp) / boss.maxHp), 2);
   }
+  for (const n of d.nums) drawNumber(n.v, Math.round(n.x + ox), Math.round(n.y + oy), n.hurt ? '#ff6a5a' : n.crit ? '#ffd34d' : '#f4ecd8', Math.min(1, n.t * 3));
   if (d.target) {
     const tx = d.target.tx * TILE + ox, ty = d.target.ty * TILE + oy;
     x.fillStyle = Input.mining() ? '#fff2c8' : 'rgba(255,242,200,0.5)';
@@ -364,17 +382,29 @@ function drawShadow(fx, fy, rx) {
 }
 
 function drawProspector(d, ox, oy, tick, lights) {
-  const p = d.p, x = View.ctx;
+  const p = d.p;
   const walking = p.walkT > 0;
   const frame = walking && Math.floor(p.walkT * 8) % 2 ? 1 : 0;
   const side = p.fx < -0.1 ? -1 : 1;
   const spr = (side < 0 ? Sprites.prospectorL : Sprites.prospector)[frame];
   const fx = Math.round(p.x + ox), fy = Math.round(p.y + oy);
   drawShadow(fx, fy, 5);
+  // what's held goes behind the body when facing away
+  const away = p.fy < -0.3 && !(p.swing && p.swing.spin);
+  if (away) drawHeld(d, fx, fy, tick, lights);
   // blink while hurt; fall still while dying
-  if (!(p.invuln > 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0))
+  if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0))
     drawArtSprite(spr, Math.round(fx - spr.ax), Math.round(fy - spr.ay - (walking && frame ? 1 : 0)));
+  if (!away) drawHeld(d, fx, fy, tick, lights);
   if (p.ward > 0) ringDots(fx, fy - 8, 11, ART.cores.ward, 0.5 + 0.3 * Math.sin(Game.realT * 6), true);
+  // a charging hand gathers light, and flashes when it's full
+  for (const slot of ['main', 'off']) {
+    const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
+    if (lv <= 0) continue;
+    const col = handKind(Save.data.equip[slot]) === 'focus' ? ART.cores.bolt : '#fff2c8';
+    ringDots(fx, fy - 8, 14 - lv * 5, col, lv >= 1 ? (tick % 2 ? 1 : 0.5) : 0.25 + lv * 0.5, true);
+    lights.push({ x: fx, y: fy - 8, r: TILE * (0.8 + lv), i: 0.3 + lv * 0.6, c: rgb01(col) });
+  }
   const swinging = p.mine && !p.mine.refused && d.target;
   if (swinging) {
     const phase = tick % 4, striking = phase >= 2;
@@ -390,11 +420,68 @@ function drawProspector(d, ox, oy, tick, lights) {
   }
 }
 
+// Where a hand is: to the prospector's right (main) or left (off) of the
+// way it faces, at the waist.
+function handAt(p, slot, fx, fy) {
+  const s = slot === 'main' ? 1 : -1;
+  return { x: fx + Math.round(-p.fy * 5 * s + p.fx * 2), y: fy - 7 + Math.round(p.fx * 3 * s * 0.5) };
+}
+
+// The weapons in hand: a blade (swinging through its arc, with a slash of
+// light behind it), or a focus, a glowing orb over the hand.
+function drawHeld(d, fx, fy, tick, lights) {
+  const p = d.p, eq = Save.data.equip;
+  if (!p.mine || p.mine.refused) for (const slot of ['main', 'off']) {
+    const it = eq[slot];
+    if (!it && slot === 'off') continue;
+    const hand = handAt(p, slot, fx, fy), sw = p.swing && p.swing.slot === slot ? p.swing : null;
+    if (handKind(it) === 'focus') { drawFocusHeld(d, it, hand, lights); continue; }
+    if (!it) continue;
+    const ramp = it.tier >= 1 ? ART.ores[oreOfTier(it.tier).id] : ART.pal.steel;
+    const face = Math.atan2(p.fy, p.fx);
+    let a, len = 10;
+    if (sw) {
+      const k = 1 - sw.t / sw.max;
+      if (sw.spin) a = sw.a + k * Math.PI * 2;
+      else { const reach = sw.heavy ? 1.6 : 1.2; a = sw.a + sw.side * (-reach + 2 * reach * k); }
+      len = sw.heavy ? 12 : 11;
+      // the slash of light behind the edge
+      const steps = 7;
+      for (let n = 1; n <= steps; n++) {
+        const b = sw.spin ? a - n * 0.35 : a - sw.side * n * 0.16 * (sw.heavy ? 1.4 : 1);
+        for (const r of [len - 2, len, len + 2]) dot(Math.round(hand.x + Math.cos(b) * r), Math.round(hand.y + Math.sin(b) * r * 0.85), r === len ? ramp[3] : ramp[2], true, (1 - n / (steps + 1)) * 0.7);
+      }
+      lights.push({ x: hand.x + Math.cos(a) * 8, y: hand.y + Math.sin(a) * 7, r: TILE * 1.2, i: 0.6, c: rgb01(ramp[3]) });
+    } else a = face + (slot === 'main' ? 1 : -1) * 1.1 + Math.sin(Game.realT * 2) * 0.05;
+    const c = Math.cos(a), sn = Math.sin(a);
+    // the grip and guard, then the blade, its edge catching the light
+    dot(Math.round(hand.x - c), Math.round(hand.y - sn), ART.pal.leather[2]);
+    for (const g of [-2, -1, 1, 2]) dot(Math.round(hand.x + c * 1.5 - sn * g * 0.8), Math.round(hand.y + sn * 1.5 + c * g * 0.8), ART.pal.metal[3]);
+    const glow = it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'rare';
+    for (let r = 2; r <= len; r++) {
+      const x = Math.round(hand.x + c * r), y = Math.round(hand.y + sn * r * 0.85);
+      dot(x, y, r === len ? ramp[3] : ramp[2], glow && r > len - 3, glow && r > len - 3 ? 0.9 : 1);
+      dot(Math.round(x - sn), Math.round(y + c), ramp[1]);
+    }
+  }
+}
+
+function drawFocusHeld(d, it, hand, lights) {
+  const p = d.p, core = it && it.sockets && it.sockets.find(Boolean);
+  const col = core ? ART.cores[core.core] : '#9fe8ff';
+  const bob = Math.round(Math.sin(Game.realT * 4 + (hand.x & 3)) * 1);
+  const x = hand.x, y = hand.y - 3 + bob, flare = p.cast ? p.cast.t / p.cast.max : 0;
+  for (const [i, j] of [[0, -1], [-1, 0], [0, 0], [1, 0], [0, 1]]) dot(x + i, y + j, i || j ? col : '#ffffff', true);
+  if (flare > 0) ringDots(x, y, 3 + (1 - flare) * 5, col, flare, true);
+  lights.push({ x, y, r: TILE * (0.9 + flare), i: 0.5 + flare, c: rgb01(col) });
+}
+
 function drawEnemy(d, e, ox, oy, tick, lights) {
   const spr = enemySprite(d, e.type), x = View.ctx;
   let lift = 0;
   if (e.type === 'wisp') lift = 5 + Math.round(Math.sin(e.bob * 3) * 1.5);
-  else if (e.state === 'chase' && Math.floor(e.bob * 8) % 2) lift = 1;
+  else if ((e.state === 'chase' || e.state === 'circle') && Math.floor(e.bob * 8) % 2) lift = 1;
+  else if (e.state === 'lunge') lift = 2;
   const shake = e.state === 'windup' ? (tick % 2 ? 1 : -1) : 0;
   const fx = Math.round(e.x + ox), fy = Math.round(e.y + oy);
   if (fx < -40 || fy < -10 || fx > View.w + 40 || fy > View.h + 50) return;
@@ -410,6 +497,15 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   // their eyes and cores light the floor round them, brighter as they wind up
   const glow = e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : pal.rune[0];
   lights.push({ x: fx, y: fy - spr.h / 2, r: (e.boss ? 2.4 : e.type === 'wisp' ? 1.5 : 0.9) * TILE, i: e.state === 'windup' ? 1.2 : 0.5, c: rgb01(glow) });
+  // tells: a crawler's line before it lunges, a construct's charge line,
+  // stars round anything dazed
+  if (e.state === 'windup' && e.aimX !== undefined) {
+    const def = T.enemies[e.type], reach = e.type === 'crawler' ? def.lungeSpeed * def.lungeTime : def.chargeSpeed * def.chargeTime;
+    const a = norm(e.aimX - e.x, e.aimY - e.y), col = e.type === 'crawler' ? ART.pal.eyeglow[0] : pal.rune[0];
+    for (let r = 6; r < reach; r += 4) dot(Math.round(fx + a.x * r), Math.round(fy + a.y * r), col, true, (tick % 2 ? 0.8 : 0.45) * (1 - r / reach / 1.5));
+  }
+  if (e.state === 'dazed' || e.state === 'stagger')
+    for (let k = 0; k < 3; k++) { const a = Game.realT * 6 + (k * Math.PI * 2) / 3; dot(Math.round(fx + Math.cos(a) * 6), Math.round(sy - 2 + Math.sin(a) * 2), '#fff2c8', true); }
   // an elite wears a pip of its affix's colour; a chilled one, a pale one
   if (e.elite) for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, sy - 3 + j, ELITE_COLS[e.elite], true);
   if (e.slowT > 0) dot(fx + 3, sy - 2, '#c8f0ff', true);
@@ -419,9 +515,14 @@ function drawDrop(dr, ox, oy, lights) {
   const fx = Math.round(dr.x + ox), fy = Math.round(dr.y + oy) - 3 - Math.round(Math.sin(dr.t * 3 + dr.x) * 1.2);
   let col;
   if (dr.mote) col = '#c8ffd8';
+  else if (dr.stuff) col = ART.ores[dr.stuff] ? ART.ores[dr.stuff][2] : ART.exotics[dr.stuff];
   else if (dr.exotic) col = ART.exotics[dr.exotic];
   else col = ART.rarity[dr.item.rarity] || '#ffffff';
   if (dr.mote) { for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, fy + j, col, true); }
+  else if (dr.stuff) {
+    // a little heap of crystals
+    for (const [i, j] of [[-2, 1], [-1, 0], [-1, 1], [0, -1], [0, 0], [0, 1], [1, 0], [1, 1], [2, 1]]) dot(fx + i, fy + j + 3, j < 0 ? '#ffffff' : col, true);
+  }
   else {
     for (const [i, j] of [[0, -2], [-1, -1], [0, -1], [1, -1], [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [0, 2]]) dot(fx + i, fy + j, (i || j) ? col : '#ffffff', true);
     // the best of it stands up in a beam, so it's seen from across a room
@@ -450,6 +551,15 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
       const a = a0 + s * 0.2 * (1.2 - k * 0.4);
       for (const r of [11, 14, 17]) dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.8), '#f4ecd8', true, k * (r === 14 ? 0.9 : 0.45));
     }
+  } else if (fx.kind === 'spin') {
+    ringDots(cx, cy, fx.r * (1 - k * 0.5), '#fff2c8', k, true);
+    lights.push({ x: cx, y: cy, r: fx.r * 1.4, i: 0.8 * k, c: [1, 0.95, 0.8] });
+  } else if (fx.kind === 'ghost') {
+    // a dash's afterimage
+    const spr = (fx.fx < -0.1 ? Sprites.prospectorL : Sprites.prospector)[0], x = View.ctx;
+    x.globalAlpha = 0.35 * k;
+    x.drawImage(spr.flash || spr.c, Math.round(cx - spr.ax), Math.round(cy - spr.ay));
+    x.globalAlpha = 1;
   } else if (fx.kind === 'nova') {
     ringDots(cx, cy, fx.r * (1 - k * 0.7), ART.cores.nova, k, true);
     lights.push({ x: cx, y: cy, r: fx.r * 1.3, i: k, c: rgb01(ART.cores.nova) });
@@ -477,4 +587,18 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
 function pixelLineGlow(x0, y0, x1, y1, col) {
   const n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))));
   for (let s = 0; s <= n; s++) dot(Math.round(x0 + ((x1 - x0) * s) / n), Math.round(y0 + ((y1 - y0) * s) / n), col, true);
+}
+
+// A tiny pixel font for the numbers that pop off hits: 3×5 digits.
+const DIGITS = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001', '111100111001111', '111100111101111', '111001001010010', '111101111101111', '111101111001111'];
+function drawNumber(v, cx, cy, col, alpha) {
+  const s = String(v), x0 = cx - Math.floor((s.length * 4 - 1) / 2), x = View.ctx;
+  x.globalAlpha = alpha;
+  for (const [ink, off] of [['#000000', 1], [col, 0]])
+    for (let k = 0; k < s.length; k++) {
+      const g = DIGITS[s.charCodeAt(k) - 48];
+      x.fillStyle = ink;
+      for (let j = 0; j < 5; j++) for (let i = 0; i < 3; i++) if (g[j * 3 + i] === '1') x.fillRect(x0 + k * 4 + i + off, cy + j + off, 1, 1);
+    }
+  x.globalAlpha = 1;
 }

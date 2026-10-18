@@ -1,39 +1,60 @@
 'use strict';
 // ---------------------------------------------------------------------------
 // Controls. On a phone: a floating joystick wherever the left thumb lands in
-// the left deck, and buttons in the right deck, all held: one for each hand
-// (SWING for a blade, CAST for a focus), MINE, and the contextual action
-// (DESCEND, EXTRACT). Upright the decks sit side by side under the view;
-// sideways they're either side of it. On a keyboard: WASD or the arrows to
-// move, J for the main hand, K for the off hand, Space or L to mine, E or
-// Enter to act, Esc to pause. The tests drive the same interface through
-// Input.bot.
+// the left deck (a quick flick as it lands dashes), and buttons in the
+// right deck: one for each hand (SWING for a blade, CAST for a focus: tap,
+// tap again for a combo, hold to charge), DASH, MINE (held), and the
+// contextual action (DESCEND, EXTRACT). Upright the decks sit side by side
+// under the view; sideways they're either side of it. On a keyboard: WASD
+// or the arrows to move, J for the main hand, K for the off hand, Shift or
+// U to dash, Space or L to mine, E or Enter to act, I for cargo, Esc to
+// pause. The tests drive the same interface through Input.bot.
 // ---------------------------------------------------------------------------
 
 const STICK_R = 44; // CSS px
 const STICK_DEAD = 6;
 const HOLD_BUTTONS = { main: 'btn-main', off: 'btn-off', mine: 'btn-mine' };
 const HOLD_KEYS = { main: ['KeyJ'], off: ['KeyK'], mine: ['Space', 'KeyL'] };
+const DASH_KEYS = ['ShiftLeft', 'ShiftRight', 'KeyU'];
 
 const Input = {
   move: { x: 0, y: 0 },
   stick: null, // { id, bx, by, x, y } in client px
   held: { main: null, off: null, mine: null }, // the pointer holding each button
   actReq: false,
+  dashReq: null, // true, or a direction from a flick
   keys: new Set(),
-  bot: null, // { x, y, main, off, mine, act } from the tests
+  bot: null, // { x, y, main, off, mine, act, dash } from the tests
+  // each hand's button: down now, and a press or release since the game
+  // last looked (they wait to be seen, so a hit's pause doesn't eat them)
+  hands: { main: { down: false, pressed: false, released: false }, off: { down: false, pressed: false, released: false } },
 
   isHeld(k) {
     if (this.bot) return !!this.bot[k];
     return this.held[k] !== null || HOLD_KEYS[k].some((c) => this.keys.has(c));
   },
   mining() { return this.isHeld('mine'); },
-  handHeld(slot) { return this.isHeld(slot); },
+  // A hand's button for the game to read; reading clears its press and release.
+  hand(slot) {
+    const h = this.hands[slot], out = { down: h.down, pressed: h.pressed, released: h.released };
+    h.pressed = false; h.released = false;
+    return out;
+  },
+  consumeDash() {
+    if (this.bot) { const a = !!this.bot.dash; this.bot.dash = false; return a; }
+    const r = this.dashReq; this.dashReq = null; return r;
+  },
   consumeAct() {
     if (this.bot) { const a = !!this.bot.act; this.bot.act = false; return a; }
     const a = this.actReq; this.actReq = false; return a;
   },
   update() {
+    for (const k of ['main', 'off']) {
+      const h = this.hands[k], now = this.isHeld(k);
+      if (now && !h.down) h.pressed = true;
+      if (!now && h.down) h.released = true;
+      h.down = now;
+    }
     if (this.bot) { this.move.x = this.bot.x || 0; this.move.y = this.bot.y || 0; return; }
     const s = this.stick;
     if (s) {
@@ -56,6 +77,8 @@ const Input = {
     this.stick = null;
     this.actReq = false;
     for (const k in this.held) { this.held[k] = null; $(HOLD_BUTTONS[k]).classList.remove('held'); }
+    for (const k in this.hands) Object.assign(this.hands[k], { down: false, pressed: false, released: false });
+    this.dashReq = null;
     drawStick();
   },
 };
@@ -81,7 +104,7 @@ function setupInput() {
     const r = left.getBoundingClientRect();
     const bx = clamp(e.clientX, r.left + STICK_R, Math.max(r.left + STICK_R, r.right - STICK_R));
     const by = clamp(e.clientY, r.top + STICK_R, Math.max(r.top + STICK_R, r.bottom - STICK_R));
-    Input.stick = { id: e.pointerId, bx, by, x: e.clientX, y: e.clientY };
+    Input.stick = { id: e.pointerId, bx, by, x: e.clientX, y: e.clientY, t0: performance.now(), x0: e.clientX, y0: e.clientY, flicked: false };
     try { left.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ }
     drawStick();
   });
@@ -89,6 +112,9 @@ function setupInput() {
     const s = Input.stick;
     if (!s || s.id !== e.pointerId) return;
     s.x = e.clientX; s.y = e.clientY;
+    // a quick flick as the thumb lands dashes that way
+    const fx = s.x - s.x0, fy = s.y - s.y0;
+    if (!s.flicked && performance.now() - s.t0 < T.dash.flickMs && Math.hypot(fx, fy) > T.dash.flickPx) { s.flicked = true; Input.dashReq = norm(fx, fy); }
     drawStick();
   });
   const endStick = (e) => { if (Input.stick && Input.stick.id === e.pointerId) { Input.stick = null; drawStick(); } };
@@ -109,6 +135,11 @@ function setupInput() {
     btn.addEventListener('pointercancel', end);
   }
 
+  $('btn-dash').addEventListener('pointerdown', (e) => {
+    if (Game.modal) return;
+    e.preventDefault();
+    Input.dashReq = true;
+  });
   $('btn-act').addEventListener('pointerdown', (e) => {
     if (Game.modal) return;
     e.preventDefault();
@@ -126,6 +157,7 @@ function setupInput() {
     }
     if (e.code === 'KeyI' && Game.scene === 'dive' && !Game.modal) { UI.openCargo(); return; }
     if ((e.code === 'KeyE' || e.code === 'Enter') && !Game.modal) Input.actReq = true;
+    if (DASH_KEYS.includes(e.code) && !Game.modal) Input.dashReq = true;
     Input.keys.add(e.code);
   });
   window.addEventListener('keyup', (e) => { if (GAME_KEYS.has(e.code)) e.preventDefault(); Input.keys.delete(e.code); });

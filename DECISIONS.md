@@ -40,3 +40,18 @@ The major gameplay decisions, newest last, and why each was made. Read this befo
 - **Rest heals.** Health returns slowly after a few seconds without being hurt. Without this, a bot that fought everything died on the first floor. Now danger builds with depth rather than with every fight.
 - **The star's reach grows with it.** Each magnitude makes lodelines sure a floor deeper. Feeding the star makes deeper dives safer to try, as well as opening biomes.
 - **Balance is checked by a bot.** The autopilot plays careers on every test run. It fails if a career can't bring a haul home early, improve its pick, or grow the star.
+
+## 2026-10-17: feel, from the first time on a phone
+
+- **Organic caves.** The designer found the room-and-corridor floors too blocky. Now there are lumpy caverns and tunnels that wander like rivers. Walls follow a smooth line through the tiles, rather than the tiles' squares, and bodies collide with that line, so what you see is what you bump into.
+- **More alien.** Flora that glows, veins of light in the rock, specks in the ground, and less earthly biome colours.
+- **Combat with timing.** Early fights were found unengaging, so the designer asked for:
+  - combos and charged attacks (tap, tap, heavy; hold for a spin or a charged cast);
+  - a dash with a moment of untouchability;
+  - impact: hit-stop, shake, knockback, stagger and damage numbers;
+  - enemies with readable tells, who take turns: circling crawlers that lunge, strafing wisps, constructs that show their charge line and are dazed by walls.
+- **A visible weapon.** The blade is drawn swinging in the hand and the focus glowing over it, and the hand buttons show the held item's icon.
+- **Start with a focus too.** Melee and range are both there from the first fight.
+- **Hands are tapped, not held.** Holding now charges instead of repeating, which makes room for the charged attack.
+- **Ore can be dropped like gear.** In the cargo screen it shows as rows you can drop by 1, 5 or all, and it lies as a heap to pick back up.
+- **The character won't be a miner.** It's being redrawn as an alien-tech exo-diver, in 8 directions.

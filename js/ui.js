@@ -18,6 +18,8 @@ function stuffLines(stash) {
   return names.filter(([id]) => stash[id]).map(([id, name]) => `${stash[id]} ${name}`).join(', ');
 }
 const exoticName = (id) => T.exotics.find((x) => x.id === id).name;
+const stuffIds = () => T.ores.map((o) => o.id).concat(T.exotics.map((x) => x.id));
+const stuffName = (id) => (ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : exoticName(id));
 
 function iconImg(item, cls = 'icon') { return `<img class="${cls}" src="${itemIconUrl(item)}" alt="">`; }
 function itemRow(item, act, arg, tag = '') {
@@ -128,9 +130,18 @@ const UI = {
     setTextIfChanged('hud-depth', `${T.biomes[d.biome].name.replace('The ', '').toUpperCase()} ${d.depth}`);
     setTextIfChanged('btn-cargo', `CARGO ${cargoUsed(d)}/${st.cargo}`);
     const eq = Save.data.equip;
-    setTextIfChanged('btn-main', eq.main ? (eq.main.kind === 'focus' ? 'CAST' : 'SWING') : 'PUNCH');
-    setTextIfChanged('btn-off', eq.off ? (eq.off.kind === 'focus' ? 'CAST' : 'SWING') : '');
+    for (const slot of ['main', 'off']) {
+      const it = eq[slot], btn = $('btn-' + slot), key = it ? it.uid + ':' + it.kind : 'none';
+      if (btn.dataset.key !== key) {
+        btn.dataset.key = key;
+        btn.innerHTML = it ? `<img class="btn-icon" src="${itemIconUrl(it)}" alt=""><span>${it.kind === 'focus' ? 'CAST' : 'SWING'}</span>` : '<span>PUNCH</span>';
+      }
+      const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
+      btn.classList.toggle('charging', lv > 0 && lv < 1);
+      btn.classList.toggle('charged', lv >= 1);
+    }
     if ($('btn-off').hidden !== !eq.off) $('btn-off').hidden = !eq.off;
+    $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     setTextIfChanged('btn-act', a === 'descend' ? 'DESCEND' : a === 'extract' ? 'EXTRACT' : '');
     if (btn.hidden !== !a) btn.hidden = !a;
@@ -248,9 +259,10 @@ function drawCargo() {
   if (!d) return;
   const items = d.items.map((it) => itemRow(it, 'cardCargo', it.uid, compareTag(it, Save.data.equip))).join('');
   const worn = SLOTS.filter((k) => Save.data.equip[k]).map((k) => itemRow(Save.data.equip[k], 'cardWorn', k, `<span class="slot">${SLOT_NAMES[k]}</span>`)).join('');
+  const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${ORE_INDEX[id] !== undefined ? 'Ore' : 'Exotic material'} · weighs ${d.cargo[id]}</span></span></button>`).join('');
   $('cargo-body').innerHTML = `
     <div class="mag">CARGO ${cargoUsed(d)}/${d.stats.cargo}</div>
-    <p class="note">${esc(stuffLines(d.cargo)) || 'No ore yet.'}</p>
+    <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">No ore yet.</p>'}
     <h3>FOUND</h3>${items || '<p class="note">No gear yet.</p>'}
     <h3>WORN</h3>${worn}
     <p class="note">What you wear is safe. Everything in the cargo is lost if you fall.</p>`;
@@ -263,7 +275,9 @@ function drawCargo() {
 // where: 'stash' | 'equip' (at home) | 'cargo' | 'worn' (mid-dive) ; key:
 // the uid or slot
 function drawCard() {
-  const c = UI.card, it = c.item, home = c.where === 'stash' || c.where === 'equip';
+  const c = UI.card;
+  if (c.stuff) { drawStuffCard(c.stuff); return; }
+  const it = c.item, home = c.where === 'stash' || c.where === 'equip';
   const s = Save.data, oreId = runeOre(it), oreHave = s.stash[oreId] || 0, R = T.runes;
   const runes = home && it.kind !== 'core' && it.kind !== 'relic' && !(it.kind === 'pick' && it.tier === 0);
   const affixes = it.affixes.map((a, i) => `<li><span>${esc(fmtAffix(a))}</span>${runes ? `<span class="rune">
@@ -309,6 +323,22 @@ function drawCard() {
     <div class="menu">${acts.join('')}<button class="btn" data-act="closeCard">BACK</button></div>`;
 }
 
+// Ore or an exotic in the cargo: how much, and dropping some.
+function drawStuffCard(id) {
+  const n = (Game.dive && Game.dive.cargo[id]) || 0, x = T.exotics.find((e) => e.id === id);
+  const what = x ? (x.family ? `Worked into a piece at the forge, it's sure to roll a ${x.family} affix.` : 'Worked into a piece at the forge, it comes out a rarity higher.')
+    : `Tier ${T.ores[ORE_INDEX[id]].tier} ore, worth ${orePoints(id)} to the star.`;
+  $('card-body').innerHTML = `
+    <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${x ? 'Exotic material' : 'Ore'} · in your cargo</div></div></div>
+    <p class="base">${esc(what)}</p>
+    <div class="menu">
+      ${n ? `<button class="btn danger" data-act="dropStuff" data-arg="1">DROP 1</button>` : ''}
+      ${n > 5 ? `<button class="btn danger" data-act="dropStuff" data-arg="5">DROP 5</button>` : ''}
+      ${n > 1 ? `<button class="btn danger" data-act="dropStuff" data-arg="all">DROP ALL</button>` : ''}
+      <button class="btn" data-act="closeCard">BACK</button>
+    </div>`;
+}
+
 // ---------------------------------------------------------------------------
 // What the buttons do
 // ---------------------------------------------------------------------------
@@ -328,6 +358,16 @@ UI.acts = {
   cardStash: (uid) => UI.openCard(findStash(uid), 'stash', uid),
   cardCargo: (uid) => UI.openCard(Game.dive.items.find((i) => String(i.uid) === uid), 'cargo', uid),
   cardWorn: (slot) => UI.openCard(Save.data.equip[slot], 'worn', slot),
+  cardStuff: (id) => { UI.card = { stuff: id, where: 'cargo' }; $('card').hidden = false; UI.openedAt = Game.realT; drawCard(); },
+  dropStuff: (n) => {
+    const d = Game.dive, id = UI.card.stuff, have = d.cargo[id] || 0, k = n === 'all' ? have : Math.min(have, Number(n));
+    if (!k) return;
+    d.cargo[id] -= k;
+    if (!d.cargo[id]) delete d.cargo[id];
+    d.drops.push({ x: d.p.x, y: d.p.y, t: 0, stuff: id, n: k, warned: true });
+    if (!d.cargo[id]) UI.closeCard();
+    UI.redraw();
+  },
 
   forgeOre: (id) => { UI.forge.ore = id; UI.redraw(); },
   forgeExotic: (id) => { UI.forge.exotic = UI.forge.exotic === id ? null : id; UI.redraw(); },

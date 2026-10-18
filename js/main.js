@@ -11,10 +11,13 @@ let _acc = 0, _last = 0, _resizeT = 0;
 
 function step(dtReal) {
   Game.realT += dtReal;
-  Input.update();
+  Input.update(dtReal);
   updateSparks(dtReal);
   UI.frame(dtReal);
+  View.shake = (View.shake || 0) * Math.exp(-14 * dtReal);
   if (Game.modal) return;
+  // a hit lands: everything holds still for a moment
+  if (Game.hitstop > 0) { Game.hitstop -= dtReal; return; }
   if (Game.scene !== 'dive' || !Game.dive) return;
   const dt = dtReal * Game.timeScale;
   Game.t += dt;

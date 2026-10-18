@@ -81,12 +81,10 @@ body:not(.diving) #topbar > * { visibility: hidden; }
 }
 #deck-left { grid-area: left; border-right: 1px solid var(--line); }
 #app.wide #deck-left { border-right: none; }
-#deck-right {
-  grid-area: right;
-  display: grid; gap: 8px; align-content: center; justify-content: center;
-  grid-template-areas: "act act" "off main" "mine main";
-  grid-template-columns: 64px 92px; grid-template-rows: 40px 64px 64px;
-}
+/* the right thumb's cluster: the main hand big in the corner, the off hand,
+   DASH and MINE round it, and the contextual action above */
+#deck-right { grid-area: right; display: block; }
+#deck-right .deck-btn { position: absolute; }
 .deck-hint {
   position: absolute; bottom: calc(8px + env(safe-area-inset-bottom)); left: 0; right: 0;
   text-align: center; color: var(--dim); font-size: 10px; letter-spacing: 0.2em;
@@ -100,11 +98,19 @@ body:not(.diving) #topbar > * { visibility: hidden; }
   font: inherit; font-size: 11px; font-weight: bold; letter-spacing: 0.06em;
   touch-action: none; padding: 0;
 }
-.deck-btn.main { grid-area: main; width: 92px; height: 92px; align-self: center; font-size: 13px; }
-.deck-btn.off { grid-area: off; width: 62px; height: 62px; border-color: #9fc4ff; color: #9fc4ff; background: rgba(140, 180, 255, 0.08); }
-.deck-btn.mine { grid-area: mine; width: 62px; height: 62px; border-color: var(--dim); color: var(--ink); background: rgba(255, 255, 255, 0.04); }
+.deck-btn.main { right: 14px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 92px; height: 92px; font-size: 12px; }
+.deck-btn.off { right: 112px; bottom: calc(22px + env(safe-area-inset-bottom)); width: 60px; height: 60px; border-color: #9fc4ff; color: #9fc4ff; background: rgba(140, 180, 255, 0.08); }
+.deck-btn.dash { right: 100px; bottom: calc(90px + env(safe-area-inset-bottom)); width: 54px; height: 54px; border-color: #c9a2ff; color: #c9a2ff; background: rgba(200, 160, 255, 0.08); font-size: 10px; }
+.deck-btn.mine { right: 34px; bottom: calc(118px + env(safe-area-inset-bottom)); width: 54px; height: 54px; border-color: var(--dim); color: var(--ink); background: rgba(255, 255, 255, 0.04); font-size: 10px; }
 .deck-btn.held { background: rgba(240, 192, 80, 0.4); color: #111; }
-.deck-btn.act { grid-area: act; width: auto; height: 40px; padding: 0 18px; border-radius: 20px; color: #111; background: var(--gold); }
+.deck-btn.charging { box-shadow: 0 0 10px rgba(255, 240, 200, 0.5); }
+.deck-btn.charged { box-shadow: 0 0 18px rgba(255, 240, 200, 0.95); background: rgba(255, 240, 200, 0.3); }
+.deck-btn.cooling { opacity: 0.45; }
+.deck-btn.act { left: 10px; top: 10px; width: auto; height: 40px; padding: 0 16px; border-radius: 20px; color: #111; background: var(--gold); }
+.deck-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.btn-icon { width: 30px; height: 30px; image-rendering: pixelated; pointer-events: none; }
+.deck-btn.off .btn-icon { width: 22px; height: 22px; }
+.deck-btn span { pointer-events: none; }
 .deck-btn[hidden] { display: none; }
 
 .stick-base {
@@ -241,7 +247,7 @@ body:not(.diving) #topbar > * { visibility: hidden; }
 .card .menu .btn { width: 100%; min-width: 0; margin: 4px 0; }
 
 /* sideways, the side decks can be as narrow as 150px */
-#app.wide #deck-right { grid-template-columns: 54px 82px; grid-template-rows: 40px 56px 56px; gap: 6px; }
-#app.wide .deck-btn.main { width: 82px; height: 82px; }
-#app.wide .deck-btn.off, #app.wide .deck-btn.mine { width: 54px; height: 54px; font-size: 10px; }
-.note.intro { text-align: center; margin: 0 0 10px; }
+#app.wide .deck-btn.main { right: 8px; width: 80px; height: 80px; }
+#app.wide .deck-btn.off { right: 92px; width: 52px; height: 52px; }
+#app.wide .deck-btn.dash { right: 84px; bottom: calc(80px + env(safe-area-inset-bottom)); width: 48px; height: 48px; }
+#app.wide .deck-btn.mine { right: 22px; bottom: calc(106px + env(safe-area-inset-bottom)); width: 48px; height: 48px; }
