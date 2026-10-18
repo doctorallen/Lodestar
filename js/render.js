@@ -457,8 +457,10 @@ function bakeFloorLights(f) {
   const w = Math.ceil((f.w * ATILE) / LC), h = Math.ceil((f.h * ATILE) / LC);
   if (!View.bake || View.bake.w !== w || View.bake.h !== h) View.bake = { a: new Float32Array(w * h * 3), w, h, x0: 0, y0: 0 };
   else View.bake.a.fill(0);
-  for (const s of View.lights) addLight(View.bake, s.x * AP, s.y * AP, s.r * AP, s.i, s.c);
-  for (const s of View.floraLights) addLight(View.bake, s.x * AP, s.y * AP, s.r * AP, s.i, s.c);
+  // (each stopped by the rock: shadow.js)
+  bakedSightsFor(f);
+  for (const s of View.lights) addBakedLight(f, View.bake, s);
+  for (const s of View.floraLights) addBakedLight(f, View.bake, s);
 }
 
 // Starts the view's light for a frame: ambient (r, g, b), plus what's
@@ -565,6 +567,23 @@ function bloomScene() {
   x.drawImage(sum, 0, 0, View.w, View.h);
 }
 
+// The light of the place and of the diver's lamp this frame: the ambient
+// level (amb) and its tint, a clime's own sun or dark if it has one
+// (T.climes); and the lamp's strength (lamp, 0-1), reach (r, art px) and
+// light (i).
+function lampLevels(d) {
+  const f = d.floor, Lt = T.light;
+  const cl = climeLight(f), zl0 = !d.hub && T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
+  const amb = d.hub ? Lt.hubAmbient : zl ? lerp(zl.dusk, zl.day, clamp(d.pull, 0, 1)) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
+  const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(d.pull * 1.5, 0, 1))) : (cl && cl.tint) || Lt.tint;
+  // the lamp gutters out as the diver dies, and dims as the star's pull fades
+  let lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
+  if (!d.hub && d.pull < T.pull.dimAt) lamp *= lerp(T.pull.lampMin, 1, d.pull / T.pull.dimAt);
+  // in daylight the lamp isn't needed; it comes on at dusk
+  if (zl && d.pull > zl.lampAt) lamp *= 0.15;
+  return { amb, tint, lamp, r: Lt.lamp[0] * ATILE * lamp * (1 + (d.stats.lamp || 0) / 100), i: Lt.lamp[1] * lamp };
+}
+
 // ---------------------------------------------------------------------------
 // A frame
 // ---------------------------------------------------------------------------
@@ -592,6 +611,8 @@ function renderFrame() {
   ex.clearRect(0, 0, View.w, View.h);
   x.drawImage(View.floorCol, ox, oy);
   ex.drawImage(View.floorEm, ox, oy);
+  // the shadows big things cast from the lamp, on the ground (shadow.js)
+  drawLampShadows(d, ox, oy);
   // lights: x, y on the view (art px), r in world px
   const lights = [];
 
@@ -701,18 +722,10 @@ function renderFrame() {
   const fx = vx(p.x), fy = vy(p.y);
 
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
-  // a clime may set its own sun, or its own dark (T.climes)
-  const cl = climeLight(f), zl0 = !d.hub && T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
-  const ambLevel = d.hub ? Lt.hubAmbient : zl ? lerp(zl.dusk, zl.day, clamp(d.pull, 0, 1)) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
-  const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(d.pull * 1.5, 0, 1))) : (cl && cl.tint) || Lt.tint;
+  const lv = lampLevels(d), ambLevel = lv.amb, tint = lv.tint;
   const L = View.light;
   if (View.bakedFrom !== View.lights) bakeFloorLights(f);
   startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
-  // the lamp gutters out as the diver dies, and dims as the star's pull fades
-  let lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
-  if (!d.hub && d.pull < T.pull.dimAt) lamp *= lerp(T.pull.lampMin, 1, d.pull / T.pull.dimAt);
-  // in daylight the lamp isn't needed; it comes on at dusk
-  if (zl && d.pull > zl.lampAt) lamp *= 0.15;
   // a channel home: a ring filling round the diver, the light swelling
   if (d.channel) {
     const k = d.channel.t / d.channel.max, col = d.channel.kind === 'recall' ? '#c9a2ff' : d.channel.kind === 'seal' ? RIFT_PAL.riftedge[0] : ART.pal.star[3];
@@ -724,7 +737,8 @@ function renderFrame() {
     if (s.beam) addBeamLight(L, s.x - ox, s.y0 - oy, s.y1 - oy, s.r * AP, s.i, s.c);
     else addLight(L, s.x - ox, s.y - oy, s.r * AP, s.i, s.c);
   }
-  addLight(L, fx - ox, fy - ap(17) - oy, Lt.lamp[0] * ATILE * lamp * (1 + (d.stats.lamp || 0) / 100), Lt.lamp[1] * lamp, rgb01(ART.pal.lamp[0]));
+  // the lamp, at the dome, stopped by the rock (shadow.js)
+  addLampLight(d, L, fx - ox, fy - ap(T.light.shadow.eye) - oy, lv.r, lv.i, rgb01(ART.pal.lamp[0]));
   lightScene(-ox, -oy);
   bloomScene();
   drawLifeShade(d, ox, oy);
