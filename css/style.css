@@ -339,3 +339,13 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .forge-go .btn small { display: block; font-size: 11px; letter-spacing: 0.08em; margin-top: 2px; }
 .card .card-menu .btn { font-size: 13px; letter-spacing: 0.1em; padding-left: 4px; padding-right: 4px; }
 .mini.fav { font-size: 12px; }
+
+/* the report: a row for each thing that happened */
+.report { width: 100%; max-width: 380px; text-align: left; }
+.rep-where { color: var(--dim); text-align: center; margin: 0 0 10px; letter-spacing: 0.08em; }
+.rep-row { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.rep-label { flex: 0 0 104px; font-size: 10px; letter-spacing: 0.12em; padding-top: 2px; }
+.rep-label.good { color: #6fd08a; } .rep-label.bad { color: var(--danger); } .rep-label.gold { color: var(--gold); }
+.rep-text { flex: 1; }
+.rep-bar { height: 6px; margin: 2px 0 6px; }
+.rep-bar .fill { background: var(--gold); height: 100%; }

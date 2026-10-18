@@ -217,7 +217,7 @@ async function phone(browser) {
   await shot(page, 'smoke-rising');
   await run(page, 1.2);
   check(await visible(page, '#screen-report'), 'phone: EXTRACT did not report the dive');
-  check(/Banked/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the haul');
+  check(/BANKED/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the haul');
   const banked = await page.evaluate(() => [Object.values(Save.data.stash).reduce((a, b) => a + b, 0) + Save.data.items.length * T.cargo.itemWeight, JSON.parse(localStorage.getItem('lodestar.save.v2')), Save.data.star]);
   check(banked[0] === carried, `phone: banked ${banked[0]} of ${carried}`);
   check(banked[1].items.length === 2, 'phone: the found gear was not banked and saved');
@@ -386,7 +386,7 @@ async function phone(browser) {
   check(/YOU FELL/.test(await page.evaluate(() => $('report-title').textContent)), 'phone: the report does not say you fell');
   check(await page.evaluate(([w, fe]) => Save.data.equip.main.uid === w && Save.data.stash.ferrite === fe && !Save.data.items.some((i) => i.kind === 'relic'), kept), 'phone: dying kept the cargo or lost the gear');
   check(await page.evaluate(() => Save.data.items.some((i) => i.kind === 'charm')), 'phone: the pocketed charm did not survive the fall');
-  check(/pocket kept/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the pocket');
+  check(/POCKET KEPT/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the pocket');
 
   // every hole a mined vein leaves can be walked into, from the side or the corner
   const holes = await page.evaluate(() => {

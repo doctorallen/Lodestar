@@ -90,6 +90,7 @@ const UI = {
   // report: how the last dive ended
   openReport(report) {
     UI.report = report;
+    $('toasts').innerHTML = '';
     UI.show('screen-report');
   },
 
@@ -252,28 +253,34 @@ function drawWreck_() {
 function drawReport() {
   const r = UI.report;
   if (!r) return;
-  const where = `${T.biomes[r.biome].name}, site ${r.depth}`;
-  const got = [stuffLines(r.banked || r.lost || {}), r.items && r.items.length ? `${r.items.length} piece${r.items.length > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(' and ');
-  let title, text;
-  if (r.banked) { title = 'PULLED HOME'; text = got ? `From ${where}. Banked ${got}.` : `From ${where}, empty-handed.`; }
-  else if (r.died) { title = 'YOU FELL'; text = got ? `In ${where}. Lost ${got}.` : `In ${where}.`; }
-  else { title = 'YOU GAVE UP'; text = got ? `In ${where}. Lost ${got}.` : `In ${where}.`; }
+  const where = `${T.biomes[r.biome].name} · site ${r.depth} of ${T.expedition.sites}`;
+  const gear = (items) => (items && items.length ? `${items.length} piece${items.length > 1 ? 's' : ''} of gear` : '');
+  const got = [stuffLines(r.banked || r.lost || {}), gear(r.items)].filter(Boolean).join(', ');
+  const rows = [], row = (label, cls, text) => rows.push(`<div class="rep-row"><span class="rep-label ${cls}">${label}</span><span class="rep-text">${esc(text)}</span></div>`);
+  let title;
   if (r.recalled) {
     title = 'RECALLED';
-    const lost = [stuffLines(r.recalled.lost), r.recalled.lostItems ? `${r.recalled.lostItems} piece${r.recalled.lostItems > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(' and ');
-    text = [`From ${where}.`, got ? `Banked ${got}.` : '', lost ? `The dark kept ${lost}.` : ''].filter(Boolean).join(' ');
-  }
-  if (r.kept && (r.kept.items.length || Object.keys(r.kept.stuff).length)) text += ` Your pocket kept ${[stuffLines(r.kept.stuff), r.kept.items.map((i) => i.name).join(', ')].filter(Boolean).join(' and ')}.`;
-  if (r.shard) text += ' You carried a heart-shard home. Set it in the star at the altar.';
-  if (r.echoes) text += ` Found ${r.echoes} echo${r.echoes > 1 ? 'es' : ''}: read ${r.echoes > 1 ? 'them' : 'it'} at the wreck.`;
+    if (got) row('BANKED', 'good', got);
+    const lost = [stuffLines(r.recalled.lost), gear({ length: r.recalled.lostItems })].filter(Boolean).join(', ');
+    if (lost) row('THE DARK KEPT', 'bad', lost);
+  } else if (r.banked) { title = 'PULLED HOME'; row('BANKED', 'good', got || 'Nothing this time'); }
+  else { title = r.died ? 'YOU FELL' : 'YOU GAVE UP'; if (got) row('LOST', 'bad', got); }
+  if (r.kept && (r.kept.items.length || Object.keys(r.kept.stuff).length)) row('POCKET KEPT', 'gold', [stuffLines(r.kept.stuff), r.kept.items.map((i) => i.name).join(', ')].filter(Boolean).join(', '));
   const learned = (r.learned || []).concat((r.kept && r.kept.blueprints) || []);
-  if (learned.length) text += ` Learned: ${learned.map((id) => BLUEPRINTS[id].name).join(', ')}.`;
-  if (r.lostBlueprints) text += ` ${r.lostBlueprints} blueprint${r.lostBlueprints > 1 ? 's were' : ' was'} lost with the cargo.`;
-  if (r.fed) text += ` The lodeline fed the star ${r.fed}.`;
-  const mag = magnitudeOf(Save.data.star);
-  if (r.fed && Save.data.magSeen !== undefined && mag > Save.data.magSeen) text += ` It grew to magnitude ${mag}.`;
+  if (learned.length) row('LEARNED', 'gold', learned.map((id) => BLUEPRINTS[id].name).join(', '));
+  if (r.lostBlueprints) row('BLUEPRINTS LOST', 'bad', `${r.lostBlueprints}, with the cargo`);
+  if (r.shard) row('HEART-SHARD', 'gold', 'Carried home. Set it in the star at the altar.');
+  if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the wreck`);
+  // the star: what this ride fed it, and how far to the next magnitude
+  const s = Save.data, mag = magnitudeOf(s.star), lo = T.star.levels[mag - 1], hi = T.star.levels[mag];
+  let star = '';
+  if (r.fed) {
+    const grew = s.magSeen !== undefined && mag > s.magSeen;
+    const k = hi ? Math.min(1, (s.star - lo) / (hi - lo)) : 1;
+    star = `<div class="rep-star"><div class="rep-row"><span class="rep-label gold">THE STAR</span><span class="rep-text">+${r.fed}${grew ? ` · grew to magnitude ${mag}` : hi ? ` · ${Math.max(0, hi - s.star)} to magnitude ${mag + 1}` : ''}</span></div><div class="bar rep-bar"><div class="fill" style="width:${Math.round(k * 100)}%"></div></div></div>`;
+  }
   $('report-title').textContent = title;
-  $('report-body').textContent = text;
+  $('report-body').innerHTML = `<p class="rep-where">${esc(where)}</p>${rows.join('')}${star}`;
 }
 
 function drawDescend() {
