@@ -49,6 +49,9 @@ const WICK = {
   shardHome: 'Set it in the star, at the altar.',
   allShards: 'All three. The star is whole again. The beacon on the Meridian will take its light now.',
   echo: 'An echo: a log from a crew that fell before us. I will keep it at the wreck.',
+  // each clime's own creature, the first time it shows itself (foes.js)
+  foe_skink: "Something's swimming under the sand. Where it rings under you, step off.",
+  foe_tusker: "That one charges, and on ice it can't stop. Step aside and let the rock have it.",
 };
 
 // The star, as it grows, and as its heart comes back.

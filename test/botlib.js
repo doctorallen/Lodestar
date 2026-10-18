@@ -102,7 +102,8 @@ function installBot() {
       const now = [d.kills, cargoUsed(d), d.depth, d.items.length].join();
       if (now !== progress) { progress = now; progressT = t; }
       else if (t - progressT > 20 && aim) { (aim.ore !== undefined ? skipOre.add(aim.ore) : skipFoe.add(aim.foe)); aim = null; progressT = t; }
-      const foe = d.enemies.filter((e) => !e.dead && !skipFoe.has(e) && (e.aggro || dist(e.x, e.y, p.x, p.y) < 70) && steps.plain[Math.floor(e.y / TILE) * d.floor.w + Math.floor(e.x / TILE)] >= 0)
+      // (what's under the sand, the water or on the roof can't be fought yet)
+      const foe = d.enemies.filter((e) => !e.dead && !e.hid && !skipFoe.has(e) && (e.aggro || dist(e.x, e.y, p.x, p.y) < 70) && steps.plain[Math.floor(e.y / TILE) * d.floor.w + Math.floor(e.x / TILE)] >= 0)
         .sort((a, b) => dist(a.x, a.y, p.x, p.y) - dist(b.x, b.y, p.x, p.y))[0];
       const full = cargoUsed(d) >= st.cargo * (greed ? 1 : 0.85), hurt = !greed && p.hp < st.maxHp * 0.35;
       const leave = (full || hurt || d.depth >= depth || !(d.floor.ways || []).length) && d.floor.pad && !d.padDark;
@@ -122,7 +123,7 @@ function installBot() {
         const tap = (iter++ & 1) === 0, mf = firstForm(Save.data.equip.main), mainClose = !Save.data.equip.main || mf === 'arc' || mf === 'glaive';
         Input.bot.main = tap && (mainClose ? m < 30 : m < 120);
         Input.bot.off = !tap && m < 120 && !!Save.data.equip.off;
-        if (d.enemies.some((e) => !e.dead && e.state === 'windup' && dist(e.x, e.y, p.x, p.y) < 50) && p.dashCd <= 0) { const a = norm(p.x - foe.x, p.y - foe.y); Input.bot.x = -a.y; Input.bot.y = a.x; Input.bot.dash = true; }
+        if (d.enemies.some((e) => !e.dead && e.state === 'windup' && (e.hid ? dist(e.aimX, e.aimY, p.x, p.y) : dist(e.x, e.y, p.x, p.y)) < 50) && p.dashCd <= 0) { const a = norm(p.x - foe.x, p.y - foe.y); Input.bot.x = -a.y; Input.bot.y = a.x; Input.bot.dash = true; }
       } else if (leave) goTile(d, steps, d.floor.pad.x, d.floor.pad.y);
       else {
         const ore = !full && oreToMine(d, steps, skipOre);
@@ -142,6 +143,9 @@ function installBot() {
           if (to) goTile(d, steps, to.x, to.y);
         }
       }
+      // a ring or a shadow on the ground underfoot (a skink, a dropper): out
+      const under = d.enemies.find((e) => !e.dead && e.hid && e.state === 'windup' && dist(e.aimX, e.aimY, p.x, p.y) < 22);
+      if (under && p.dashCd <= 0 && !d.channel) { const a = norm(p.x - under.aimX + 0.01, p.y - under.aimY); Input.bot.x = a.x; Input.bot.y = a.y; Input.bot.dash = true; }
       // grab drops nearby
       const drop = d.drops.find((dr) => dist(dr.x, dr.y, p.x, p.y) < 80 && !dr.warned && steps.plain[Math.floor(dr.y / TILE) * d.floor.w + Math.floor(dr.x / TILE)] >= 0);
       if (drop && !foe) {

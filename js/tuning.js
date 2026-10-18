@@ -123,7 +123,9 @@ const T = {
   // star points each pays per magnitude.
   // newest: the share of hauls and reaches set in the newest biome open;
   // stale: how many expeditions one stands before it's replaced.
-  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, ride: 2 }, star: 25, newest: 0.7, stale: 3 },
+  // A hunt names a clime's own creature (one whose clime leans to an open
+  // biome, or to none) with the chance huntSignature, huntN [least, most].
+  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, ride: 2 }, star: 25, newest: 0.7, stale: 3, huntSignature: 0.4, huntN: [2, 4] },
   // A Lodestorm: the chance an expedition sets out under one; on the
   // surface a strike every `every` s (the first after `first`), within
   // `near` tiles of the diver, marked `warn` s ahead, hurting within
@@ -369,6 +371,32 @@ const T = {
     // puddleDps a second for puddleTime)
     snapjaw: { hp: 30, dmg: 13, speed: 0, radius: 6, reach: 24, windup: 0.5, cooldown: 1.5, weight: 2, rooted: true },
     spitter: { hp: 20, dmg: 6, speed: 0, radius: 5, range: 110, windup: 0.6, cooldown: 2.4, shotSpeed: 60, puddle: 14, puddleDps: 9, puddleTime: 2.6, weight: 2, rooted: true },
+    // Each clime's own creature (foes.js), a signature: signatureShare of
+    // what a room holds in its clime, and nowhere else but a rift's graft of
+    // that clime (graftFoes of them; not those that need its water or a
+    // ceiling: noGraft). In an exposed state (stranded, spent, just landed)
+    // one takes `exposed` times the damage, as a dazed one does. part: the
+    // creature part it leaves. knock: how far hits push it (1 a crawler).
+    // barY: how high its health bar sits (world px over its feet).
+    signatureShare: 0.3, graftFoes: [1, 2], exposed: 1.5,
+    signature: { badlands: 'skink', frost: 'tusker' },
+    // the Dune Skink (Badlands) swims under the sand (its speed), shows a
+    // ring where it will burst up once within `strike` px, and bursts there
+    // after windup s, biting within `burst` px; it stays up for `up` s,
+    // then takes `dig` s to go back under
+    skink: { hp: 24, dmg: 11, speed: 40, radius: 5, strike: 24, windup: 0.9, burst: 10, up: 1.5, dig: 0.4, cooldown: 1.2, part: 'chitin', barY: 14 },
+    // the Tusker (Frost Steppe) shows where it will charge; past chargeTime
+    // it slides on, losing speed at `grip` a second (iceGrip on ice, so on
+    // ice it goes on until the rock stops it); it can't turn, and into rock
+    // it's dazed (slam s, from a slide on ice). stopAt: px/s it stops at
+    tusker: { hp: 64, dmg: 15, speed: 18, radius: 8, range: 88, windup: 0.85, cooldown: 2.4, chargeSpeed: 150, chargeTime: 0.45, grip: 9, iceGrip: 0.7, stopAt: 16, dazed: 1.4, slam: 2.2, knock: 0.3, part: 'chitin', barY: 22 },
+    // their natures (the resistance and weakness system reads these):
+    // W weak, R resists, I immune
+    resist: {
+      skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', frost: 'R' },
+     
+     
+    },
     // the Hollow: what comes when the star's pull is gone. It can't be
     // staggered, and it doesn't stop
     hollow: { hp: 900, dmg: 22, speed: 44, radius: 7, contact: 12, cooldown: 0.9 },

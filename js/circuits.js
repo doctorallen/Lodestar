@@ -319,7 +319,7 @@ function lingerField(s, x, y, mult) {
 // the charge a close Form gives back, and a Chain's leaps.
 function circuitHit(s, e, dmg, opts = {}) {
   const d = Game.dive, st = d.stats, p = d.p;
-  if (e.dead) return;
+  if (e.dead || e.hid) return;
   const crit = d.rng.f(100) < st.crit, kf = s.els.includes('force') ? T.circuits.force.knock : 1;
   hurtEnemy(e, dmg * (crit ? 2 : 1), { spell: true, crit, els: s.els, heavy: !!opts.heavy, knock: opts.knock ? { x: opts.knock.x * kf, y: opts.knock.y * kf } : null });
   if (crit && st.powers.bloodedge) healPlayer(st.maxHp * 0.04);
@@ -334,7 +334,7 @@ function circuitLeap(s, from, dmg) {
   let cur = from, k = dmg;
   for (let j = 0; j < G.jumps * s.chain; j++) {
     let next = null, bd = G.range * s.area;
-    for (const o of d.enemies) { if (o.dead || hit.includes(o)) continue; const m = dist(o.x, o.y, cur.x, cur.y); if (m < bd) { bd = m; next = o; } }
+    for (const o of d.enemies) { if (o.dead || o.hid || hit.includes(o)) continue; const m = dist(o.x, o.y, cur.x, cur.y); if (m < bd) { bd = m; next = o; } }
     if (!next) break;
     k *= G.falloff;
     d.fx.push({ kind: 'arc', x: cur.x, y: cur.y - 5, x2: next.x, y2: next.y - 5, t: 0.18, max: 0.18, col: s.col });
@@ -407,7 +407,7 @@ function castWell(s, off, mult, inst) {
   else if (aim.target && !off) { x = aim.target.x; y = aim.target.y; }
   else { x = p.x + Math.cos(a) * F.ahead; y = p.y + Math.sin(a) * F.ahead; }
   for (const e of d.enemies) {
-    if (e.dead || e.boss || e.type === 'hollow' || T.enemies[e.type].rooted) continue;
+    if (e.dead || e.hid || e.boss || e.type === 'hollow' || T.enemies[e.type].rooted || T.enemies[e.type].anchored) continue;
     const m = dist(e.x, e.y, x, y);
     if (m > r || m < 1) continue;
     const k = Math.min(F.yank, (m - 6) * 4);
@@ -488,7 +488,7 @@ function updateBolts(dt) {
       continue;
     }
     for (const e of d.enemies) {
-      if (e.dead || b.hitIds.includes(e) || dist(b.x, b.y, e.x, e.y - 5) > e.r + (b.big ? 7 : 4)) continue;
+      if (e.dead || e.hid || b.hitIds.includes(e) || dist(b.x, b.y, e.x, e.y - 5) > e.r + (b.big ? 7 : 4)) continue;
       const sp0 = Math.hypot(b.vx, b.vy) || 1, kb = b.big ? 120 : 50;
       circuitHit(b.s, e, b.dmg, { knock: { x: (b.vx / sp0) * kb, y: (b.vy / sp0) * kb }, heavy: b.big, noChain: b.kind === 'bolt' });
       if (b.big) freezeFrame(T.impact.hitstop * 0.6, false);
@@ -497,7 +497,7 @@ function updateBolts(dt) {
       b.inst.hit(e.x, e.y, e, Math.atan2(b.vy, b.vx));
       if (b.pierce > 0) { b.pierce--; continue; }
       // a bolt's Chain (and the Stormcaller's): on to the next nearest
-      const next = b.chain > 0 && d.enemies.filter((o) => !o.dead && !b.hitIds.includes(o) && dist(o.x, o.y, e.x, e.y) < T.circuits.glyphs.chain.range * 1.5).sort((o1, o2) => dist(o1.x, o1.y, e.x, e.y) - dist(o2.x, o2.y, e.x, e.y))[0];
+      const next = b.chain > 0 && d.enemies.filter((o) => !o.dead && !o.hid && !b.hitIds.includes(o) && dist(o.x, o.y, e.x, e.y) < T.circuits.glyphs.chain.range * 1.5).sort((o1, o2) => dist(o1.x, o1.y, e.x, e.y) - dist(o2.x, o2.y, e.x, e.y))[0];
       if (next) {
         b.chain--;
         const a = norm(next.x - b.x, next.y - 4 - b.y), sp = Math.hypot(b.vx, b.vy);
@@ -531,7 +531,7 @@ function updateAuras(dt) {
     } else if (au.kind === 'well') {
       const W = T.circuits.forms.well;
       for (const e of d.enemies) {
-        if (e.dead || e.boss || e.type === 'hollow' || T.enemies[e.type].rooted) continue;
+        if (e.dead || e.hid || e.boss || e.type === 'hollow' || T.enemies[e.type].rooted || T.enemies[e.type].anchored) continue;
         const m = dist(e.x, e.y, au.x, au.y);
         if (m < au.r && m > 3) moveBody(d.floor, e, ((au.x - e.x) / m) * W.pull * dt, ((au.y - e.y) / m) * W.pull * dt, e.r);
       }

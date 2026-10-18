@@ -13,7 +13,7 @@
 function nearestEnemy(d, range, from = d.p, except = null) {
   let best = null, bd = range;
   for (const e of d.enemies) {
-    if (e.dead || e === except) continue;
+    if (e.dead || e.hid || e === except) continue;
     const m = dist(from.x, from.y, e.x, e.y);
     if (m < bd && clearLine(d.floor, from.x, from.y - 6, e.x, e.y - 4)) { bd = m; best = e; }
   }
@@ -114,9 +114,10 @@ function healPlayer(n) {
 // each brings its status, on its share of the damage), or element (one) }
 function hurtEnemy(e, dmg, opts = {}) {
   const d = Game.dive, st = d.stats, O = T.onHit, El = T.elements;
-  if (e.dead) return;
+  // (a foe under the sand, the water or on the roof can't be struck)
+  if (e.dead || e.hid) return;
   const els = opts.els || (opts.element ? [opts.element] : null);
-  if (e.state === 'dazed') dmg *= 1.5;
+  if (e.state === 'dazed' || FOE_EXPOSED.has(e.state)) dmg *= T.enemies.exposed;
   if (els) dmg *= elementMult(e, els);
   // a heavy blow to the frozen shatters them
   if (opts.heavy && e.slowT > 0 && els && els.includes('frost')) { dmg *= El.shatter; d.fx.push({ kind: 'shatter', x: e.x, y: e.y - 6, t: 0.3, max: 0.3 }); }
@@ -138,7 +139,7 @@ function hurtEnemy(e, dmg, opts = {}) {
   // the struck enemy's rim takes the hit's element (Force's is white)
   e.flashCol = els && els[0] !== 'force' ? ELEMENT_COLS[els[0]] : null;
   d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit });
-  if (opts.knock) { const k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
+  if (opts.knock) { const kd = T.enemies[e.type].knock, k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : kd !== undefined ? kd : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
   if (opts.heavy && !e.boss && e.type !== 'hollow' && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
   if (e.type === 'dummy') { if (e.hp <= 0) e.hp = e.maxHp; e.kvx = e.kvy = 0; return; }
   wake(d, e);
@@ -173,7 +174,7 @@ function killEnemy(e) {
   };
   // what it was made of: its own part, graded by the biome; elites and the
   // warden leave more, and now and then a blueprint, an exotic or a relic
-  const grade = d.biome + 1, part = Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
+  const grade = d.biome + 1, part = T.enemies[e.type].part || Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
   const parts = (n) => { if (part) for (let k = 0; k < n; k++) drop({ stuff: partId(part, grade), n: 1 }); };
   // a boss's hoard: ordinary parts of any creature (its own heart is apart)
   const hoard = (n) => { for (let k = 0; k < n; k++) drop({ stuff: partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), grade), n: 1 }); };
