@@ -195,6 +195,27 @@ async function phone(browser) {
   check(/You fell/.test(await page.evaluate(() => $('hub-body').textContent)), 'phone: the Lodestar does not say you fell');
   check(await page.evaluate(([w, fe]) => Save.data.equip.main.uid === w && Save.data.stash.ferrite === fe && !Save.data.items.some((i) => i.kind === 'relic'), kept), 'phone: dying kept the cargo or lost the gear');
 
+  // every hole a mined vein leaves can be walked into, from the side or the corner
+  const holes = await page.evaluate(() => {
+    const bad = [];
+    for (let seed = 1; seed <= 12; seed++) {
+      const f = generateFloor(seed, 2, 0);
+      for (let i = 0; i < f.w * f.h; i++) {
+        if (f.tiles[i] !== TILE_ORE) continue;
+        const tx = i % f.w, ty = Math.floor(i / f.w);
+        let from = null;
+        for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]]) if (floorTile(f, tx + dx, ty + dy) === TILE_FLOOR) { from = [tx + dx, ty + dy]; break; }
+        if (!from) continue;
+        f.tiles[i] = TILE_FLOOR;
+        const body = { x: (from[0] + 0.5) * TILE, y: (from[1] + 0.5) * TILE };
+        for (let k = 0; k < 120; k++) { const a = norm((tx + 0.5) * TILE - body.x, (ty + 0.5) * TILE - body.y); moveBody(f, body, a.x, a.y, T.player.radius); }
+        if (dist(body.x, body.y, (tx + 0.5) * TILE, (ty + 0.5) * TILE) > 4) bad.push(`seed ${seed} ${tx},${ty}`);
+      }
+    }
+    return bad;
+  });
+  check(!holes.length, `phone: mined holes that can't be walked into: ${holes.slice(0, 5).join('; ')}`);
+
   check(!(await page.evaluate(() => ScriptErrors.length + Errors.length)), 'phone: script errors: ' + (await page.evaluate(() => JSON.stringify(ScriptErrors.concat(Errors)))));
   check(!errors.length, 'phone: ' + errors.join(' | '));
   await page.close();

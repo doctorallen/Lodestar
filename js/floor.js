@@ -184,7 +184,10 @@ function rockAt(f, x, y) {
   const s = (i, j) => (TILE_SOLID[floorTile(f, i, j)] ? 1 : 0);
   const a = s(tx, ty), b = s(tx + 1, ty), c = s(tx, ty + 1), d = s(tx + 1, ty + 1);
   if (a === b && b === c && c === d) return a === 1;
-  const blend = lerp(lerp(a, b, u), lerp(c, d, u), v);
+  let blend = lerp(lerp(a, b, u), lerp(c, d, u), v);
+  // two open tiles that meet only at a corner (a vein mined on the
+  // diagonal) would pinch shut there: open the corner wide enough to walk
+  if (a === d && b === c) blend *= 0.55;
   return blend + T.floor.wallNoise * wallNoise(x, y, 7) > 0.5;
 }
 
