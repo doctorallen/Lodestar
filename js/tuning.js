@@ -86,7 +86,9 @@ const T = {
   //   exits: an opening at the map's edge for each neighbour, at least
   //     `apart` tiles from the next, its tunnel tunnelR tiles wide; walking
   //     within `reach` px of it crosses over, arriving `inward` tiles in.
-  //   veins: more veins in each cavern (but the first) than a site has.
+  //   gen: a territory's own overrides of the surface's generator (a cavern
+  //     fewer than a site: its passages to the openings make up the ground);
+  //     veins: more veins in each cavern (but the first) than a site has.
   //   regrow: sorties before a mined vein in dark land grows back.
   //   straggler: the chance one enemy is left in kindled land; clear: tiles
   //     round where the diver arrives that start clear of enemies.
@@ -108,7 +110,7 @@ const T = {
     goals: { waystones: { weight: 3, perRing: 0 }, rift: { weight: 1, perRing: 0.5 } },
     deep: { chance: 0.35, sites: [1, 3] },
     exits: { apart: 9, tunnelR: 1.2, reach: 9, inward: 3 },
-    veins: [0, 2], regrow: 3, straggler: 0.4, clear: 7,
+    gen: { rooms: [5, 7] }, veins: [0, 2], regrow: 3, straggler: 0.4, clear: 7,
     waystone: { channel: 2.5, touch: 18, hold: 20, holdR: 40, waveEvery: 8, wave: 1 },
     plant: 6,
     sun: { dark: -0.35, kindled: 1, edge: -0.6 },

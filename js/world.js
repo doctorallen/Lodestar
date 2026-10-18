@@ -141,7 +141,7 @@ function generateTerritory(worldSeed, id) {
   const L = worldLayout(worldSeed), t = L.terrs[id];
   if (!t || t.home) return null;
   const seed = territorySeed(worldSeed, id), X = T.world.exits;
-  const f = generateFloor(seed, t.depth, t.biome, 0, 'surface', t.deep ? 1 : 0, t.clime);
+  const f = generateFloor(seed, t.depth, t.biome, 0, 'surface', t.deep ? 1 : 0, t.clime, T.world.gen);
   const { w, h, tiles, ore } = f, rng = new Rng(hashInts(seed, 0xe417));
   const steps = floorDistances(tiles, w, h, f.entry.x, f.entry.y);
   // the openings: each on the side of the map facing its neighbour, kept

@@ -443,7 +443,8 @@ function worldProps(d) {
   if (!d.sortie || d.deep || !d.floor.stones) return [];
   const f = d.floor, out = [], t = terrOf(d.terr);
   if (f.pad && hasSpire(d.terr) && !(d.beacon && d.beacon.landed)) out.push({ wprop: 'spire', at: f.pad, y: (f.pad.y + 0.5) * TILE + 1 });
-  if (t.goal === 'waystones' && !terrPeek(d.terr).starter) f.stones.forEach((s, k) => out.push({ wprop: 'stone', k, at: s, y: (s.y + 0.5) * TILE + 1 }));
+  // (once the land is kindled its spire stands for them)
+  if (t.goal === 'waystones' && !d.kindled) f.stones.forEach((s, k) => out.push({ wprop: 'stone', k, at: s, y: (s.y + 0.5) * TILE + 1 }));
   return out;
 }
 
