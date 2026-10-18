@@ -108,3 +108,44 @@ All of this is on `main`, pushed and deployed, with the full test suite passing 
 ## Round 2
 
 Reviewers: QA (on everything new) and the lead designer (pacing, depth, what next), both on a snapshot at `b9888bc`.
+
+### What round 2 found
+
+**The lead designer** measured with a smarter copy of the bot (one that runs from the Hollow, seals rifts and takes the lair):
+- **A 5-minute session works.** A first expedition took about 115 bot-seconds (4–6 human minutes) over 2.4 sites, banked 26 units, fed the star 58, met 0.9 contracts and made about one craft.
+- **The finale was broken.** No Keeper fell in 210 career dives: the fight used up the whole pull, and the lodeline stayed dark until the Keeper died, so even a win usually ended in the Hollow.
+- **The gamble vanished.** From magnitude 3, every site had a lodeline.
+- **The board went stale.** Contracts fell from 0.8 a dive to 0.1–0.2 once players left the Rim, and the same board sat there for 25 dives.
+- **Crafting was thin.** Found legendaries were the best weapon for long stretches; exotics and riftglass piled up unused.
+- **The surface was hard to read:** mesa tops lighter than the ground, sparse plants, brown-on-brown dusk.
+- **A crash** whenever a blueprint dropped once every blueprint was known (a slip in a search-and-replace). It hit every Keeper kill late in a career.
+
+**QA** found 4 major bugs, all in tonight's new features, and 14 smaller ones:
+- Dying and then closing the tab kept the run.
+- A beacon still falling when the run was saved was lost.
+- A beacon planted on an ancient forge or a tear could never be ridden home.
+- Held sideways, a long report couldn't be scrolled.
+- Plus: the lair's pull meter showed empty, the compass went blank in a lair, recall during a seal did nothing, and others.
+
+### What the producer did
+
+All shipped and pushed:
+- **The crash fixed** (`213849c`), with a regression check.
+- **Every QA item fixed** (`29e470f`), except an imprecise label at 320 px wide (clamped instead). Toasts over screens moved to the very top so they never cover a button.
+- **The lair rebuilt as a fair finale:** the pull holds while the Keeper lives; it rages at 90 s; its fall lights the lodeline with 30 s to leave; 30% less health.
+- **Lodeline odds** of 100/80/60/40% by site, rising a little with each magnitude; the star softens the recall instead (`ffb712c`).
+- **The beacon at magnitude 2;** tool costs take parts of any grade.
+- **Contracts keep moving** (`67f5a5e`).
+- **Imprinting** (`080469d`): legendaries salvaged at home teach the forge's Codex; a heart or 2 riftglass imprints a known power on a new piece.
+- **The surface reads:** darker mesa tops, twice the plants, a lighter dusk (`0b64319`).
+- **The world acts on its own** (`cbecd25`): a Lodestorm over a third of expeditions, with marked strikes that can charge a vein into better ore; open tears send out rift-touched elites, and sealing pays more riftglass for each one alive.
+- **Merged from the branches:**
+  - the living world (`262032f`): lizards, flocks of birds, cave moths that circle the lamp, scurriers in ruins, drifting cloud shadows, dust gusts, drips;
+  - faster rendering (`bf3693f`): about 35% less frame time and floors painted 2–2.5× faster on a slowed CPU, with the look unchanged.
+
+**Not done, for the designer to weigh:**
+- Grazers and a stranded diver to escort (two more surface events from the designer's list).
+- Showing a lodeline mark on the signposts when the map is carried.
+- More rift kinds (phase seams, gravity wells, time slips).
+- Attunement pairs with free respec.
+- A Daily Trace.
