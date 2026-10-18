@@ -1,6 +1,6 @@
 # Lodestar: design
 
-Lodestar is a top-down pixel-art mining and looting game for the phone browser. You play a prospector on an alien world where technology runs on arcane ore. From a fallen star hanging over a vast sinkhole, you dive into the depths, mine ore, fight, and decide when to push deeper and when to get out before you lose the haul.
+Lodestar is a top-down pixel-art mining and looting game for the phone browser. You play a circuit diver, an explorer in an alien-tech suit with a glass dome and a little drone, on a world where technology runs on arcane ore. From a fallen star hanging over a vast sinkhole, you dive into the depths, mine ore, fight, and decide when to push deeper and when to get out before you lose the haul.
 
 It mixes Terraria and Starbound (always another ore to find, and the gear it makes) with Diablo (every drop is a roll of the dice, so you never keep the same gear for long).
 
@@ -140,7 +140,10 @@ Only two enemies can wind up at once, plus one more every three floors down. The
   - **Lodestone Pull:** drags enemies in and stuns them.
   - **Ward Pulse:** a shield that soaks damage for 5 seconds.
 - **(proposed)** A ward for the off hand, and more cores.
-- **The player character** is being redesigned as an alien-tech diver, drawn in 8 directions. The current prospector is a stand-in.
+- **The player is the circuit diver.**
+  - A sleek suit with glowing teal circuits, under a glass dome with a violet light inside. The dome is the lamp you see by.
+  - Drawn in 8 facings, with a 4-frame walk.
+  - A small drone follows over its shoulder, bobbing, its eye turned the way the diver looks.
 
 ## The base
 

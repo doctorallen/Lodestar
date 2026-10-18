@@ -3,10 +3,10 @@
 // The game's state and the dive: starting one in a biome, each floor,
 // walking, fighting, mining, picking things up, going down the shaft, and
 // leaving by a lodeline, by dying, or by giving up. Everything here runs
-// inside Game.step, one fixed 1/60 s step at a time. The prospector runs on
+// inside Game.step, one fixed 1/60 s step at a time. The diver runs on
 // real time; the world runs on dt × Game.timeScale.
 //
-// What the prospector wears is safe whatever happens; what's in the cargo
+// What the diver wears is safe whatever happens; what's in the cargo
 // (ore, exotics, gear, relics) is banked only by a lodeline. Nothing about a
 // dive is saved until it ends, so closing the page mid-dive loses the haul.
 // ---------------------------------------------------------------------------
@@ -117,7 +117,7 @@ function startDying() {
   d.fx.push({ kind: 'death', x: d.p.x, y: d.p.y - 6, t: 1.4, max: 1.4 });
 }
 
-// What the contextual button does where the prospector stands.
+// What the contextual button does where the diver stands.
 function actionHere() {
   const d = Game.dive;
   if (!d || d.dying) return null;
@@ -163,7 +163,7 @@ function moveBody(f, b, dx, dy, r) {
 // Mining
 // ---------------------------------------------------------------------------
 
-// The ore tile in reach nearest a point just ahead of the prospector.
+// The ore tile in reach nearest a point just ahead of the diver.
 function mineTarget(f, p) {
   const ax = p.x + p.fx * T.mine.ahead, ay = p.y + p.fy * T.mine.ahead;
   const tx0 = Math.floor(p.x / TILE), ty0 = Math.floor(p.y / TILE);

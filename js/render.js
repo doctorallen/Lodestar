@@ -46,15 +46,26 @@ function resizeView() {
   View.blooms = T.light.bloom.map(([div, a]) => { const [c] = makeCanvas(Math.max(1, Math.round(w / div)), Math.max(1, Math.round(h / div))); return [c, a * T.light.glow]; });
 }
 
+// The diver in eight facings, indexed clockwise from east (E, SE, S, SW, W,
+// NW, N, NE): the five drawn ones and mirrors of three. Each facing is
+// [idle, walk ×4], and each sprite knows its feet (ax, ay) and its main
+// hand (hand).
+const FACINGS = ['E', 'SE', 'S', 'SE', 'E', 'NE', 'N', 'NE'];
+const MIRRORED = [false, false, false, true, true, true, false, false];
 function buildSprites() {
-  const make = (legs) => {
-    const s = buildArtSprite(PROSPECTOR_TOP.concat(legs));
-    s.ax = s.w / 2; s.ay = s.h - 1.5;
+  Sprites.diver = FACINGS.map((name, i) => DIVER_FRAMES[name].map((rows) => {
+    let s = buildArtSprite(rows, DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS);
+    s.ax = s.w / 2; s.ay = s.h - 2.5;
+    const [hx, hy] = DIVER_HAND[name];
+    s.hand = { x: hx + 1, y: hy + 1 };
+    if (MIRRORED[i]) { s = flippedSprite(s); s.hand = { x: s.w - 1 - (hx + 1), y: hy + 1 }; }
+    s.flash = tinted(s.c, '#ffffff');
     return s;
-  };
-  Sprites.prospector = [make(PROSPECTOR_LEGS.idle), make(PROSPECTOR_LEGS.walk)];
-  Sprites.prospectorL = Sprites.prospector.map(flippedSprite);
+  }));
 }
+
+// Which of the eight facings a direction is.
+function facingIndex(fx, fy) { return (Math.round(Math.atan2(fy, fx) / (Math.PI / 4)) + 8) % 8; }
 
 // ---------------------------------------------------------------------------
 // The floor
@@ -331,9 +342,9 @@ function renderFrame() {
     if (s.beam) addBeamLight(lx, s.x, s.y0, s.y1, s.r, s.i, s.c);
     else addLight(lx, s.x, s.y, s.r, s.i, s.c);
   }
-  // the lamp gutters out as the prospector dies
+  // the lamp gutters out as the diver dies
   const lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
-  addLight(lx, fx, fy - 13, Lt.lamp[0] * TILE * lamp, Lt.lamp[1] * lamp, rgb01(ART.pal.lamp[0]));
+  addLight(lx, fx, fy - 17, Lt.lamp[0] * TILE * lamp, Lt.lamp[1] * lamp, rgb01(ART.pal.lamp[0]));
   lightScene(camX, camY);
   bloomScene();
 
@@ -384,57 +395,83 @@ function drawShadow(fx, fy, rx) {
 function drawProspector(d, ox, oy, tick, lights) {
   const p = d.p;
   const walking = p.walkT > 0;
-  const frame = walking && Math.floor(p.walkT * 8) % 2 ? 1 : 0;
-  const side = p.fx < -0.1 ? -1 : 1;
-  const spr = (side < 0 ? Sprites.prospectorL : Sprites.prospector)[frame];
+  const frame = walking ? 1 + (Math.floor(p.walkT * 10) % 4) : 0;
+  const spr = Sprites.diver[facingIndex(p.fx, p.fy)][frame];
   const fx = Math.round(p.x + ox), fy = Math.round(p.y + oy);
+  const sx = Math.round(fx - spr.ax), sy = Math.round(fy - spr.ay);
   drawShadow(fx, fy, 5);
-  // what's held goes behind the body when facing away
-  const away = p.fy < -0.3 && !(p.swing && p.swing.spin);
-  if (away) drawHeld(d, fx, fy, tick, lights);
+  // a hand on the far side, or both facing away, is drawn behind the body
+  const side = Math.abs(p.fx) > Math.abs(p.fy) + 0.2, away = p.fy < -0.3 && !(p.swing && p.swing.spin);
+  const behind = (slot) => away || (side && slot === 'off');
+  drawHeld(d, spr, sx, sy, tick, lights, (slot) => behind(slot));
   // blink while hurt; fall still while dying
-  if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0))
-    drawArtSprite(spr, Math.round(fx - spr.ax), Math.round(fy - spr.ay - (walking && frame ? 1 : 0)));
-  if (!away) drawHeld(d, fx, fy, tick, lights);
-  if (p.ward > 0) ringDots(fx, fy - 8, 11, ART.cores.ward, 0.5 + 0.3 * Math.sin(Game.realT * 6), true);
+  if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(spr, sx, sy);
+  drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot));
+  if (p.ward > 0) ringDots(fx, fy - 10, 12, ART.cores.ward, 0.5 + 0.3 * Math.sin(Game.realT * 6), true);
   // a charging hand gathers light, and flashes when it's full
   for (const slot of ['main', 'off']) {
     const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
     if (lv <= 0) continue;
     const col = handKind(Save.data.equip[slot]) === 'focus' ? ART.cores.bolt : '#fff2c8';
-    ringDots(fx, fy - 8, 14 - lv * 5, col, lv >= 1 ? (tick % 2 ? 1 : 0.5) : 0.25 + lv * 0.5, true);
-    lights.push({ x: fx, y: fy - 8, r: TILE * (0.8 + lv), i: 0.3 + lv * 0.6, c: rgb01(col) });
+    ringDots(fx, fy - 10, 15 - lv * 5, col, lv >= 1 ? (tick % 2 ? 1 : 0.5) : 0.25 + lv * 0.5, true);
+    lights.push({ x: fx, y: fy - 10, r: TILE * (0.8 + lv), i: 0.3 + lv * 0.6, c: rgb01(col) });
   }
-  const swinging = p.mine && !p.mine.refused && d.target;
-  if (swinging) {
-    const phase = tick % 4, striking = phase >= 2;
-    const hx = fx + side * 5, hy = fy - 7 - (striking ? 0 : 1);
+  if (p.mine && !p.mine.refused && d.target) {
+    const phase = tick % 4, striking = phase >= 2, hand = handOf(p, spr, sx, sy, 'main');
+    const hx = hand.x, hy = hand.y - (striking ? 0 : 1);
     const tx = (d.target.tx + 0.5) * TILE + ox - hx, ty = (d.target.ty + 0.5) * TILE + oy - hy;
     const m = Math.hypot(tx, ty) || 1;
-    const head = striking ? { x: hx + (tx / m) * 8, y: hy + (ty / m) * 8 } : { x: hx + side * 4, y: hy - 7 };
+    const head = striking ? { x: hx + (tx / m) * 8, y: hy + (ty / m) * 8 } : { x: hx + (p.fx < 0 ? -4 : 4), y: hy - 7 };
     const wood = ART.pal.wood, tool = ART.pal.tool;
     pixelLine(hx, hy, head.x, head.y, wood[2]);
     pixelLine(head.x - 2, head.y - 1, head.x + 2, head.y - 1, tool[3]);
     pixelLine(head.x - 2, head.y, head.x + 2, head.y, tool[1]);
     if (phase === 2) lights.push({ x: head.x, y: head.y, r: 1.1 * TILE, i: 0.8, c: [1, 0.8, 0.6] });
   }
+  drawDrone(d, fx, fy, lights);
 }
 
-// Where a hand is: to the prospector's right (main) or left (off) of the
-// way it faces, at the waist.
-function handAt(p, slot, fx, fy) {
-  const s = slot === 'main' ? 1 : -1;
-  return { x: fx + Math.round(-p.fy * 5 * s + p.fx * 2), y: fy - 7 + Math.round(p.fx * 3 * s * 0.5) };
+// The diver's drone: a little orb that drifts after it, over its back
+// shoulder, bobbing, its eye turned the way the diver looks.
+function drawDrone(d, fx, fy, lights) {
+  const p = d.p, dt = 1 / 60;
+  const tx = p.x - p.fx * 7 - p.fy * 6, ty = p.y - p.fy * 4 + p.fx * 3 - 20;
+  if (!d.drone) d.drone = { x: tx, y: ty };
+  const k = 1 - Math.exp(-5 * dt);
+  d.drone.x += (tx - d.drone.x) * k; d.drone.y += (ty - d.drone.y) * k;
+  const x = Math.round(d.drone.x + fx - p.x), y = Math.round(d.drone.y + fy - p.y + Math.sin(Game.realT * 3) * 1.5);
+  const plate = DIVER_PAL.plate, eye = DIVER_PAL.tip[0], under = DIVER_PAL.chest[0];
+  for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) {
+    if (i * i * 0.8 + j * j > 4.6) continue;
+    const c = j < -1 || (j < 0 && i < 0) ? plate[3] : j > 0 ? plate[1] : plate[2];
+    dot(x + i, y + j, c);
+  }
+  for (const [i, j] of [[-3, 0], [3, 0], [0, -3], [-2, -2], [2, -2], [-2, 2], [2, 2], [0, 3]]) dot(x + i, y + j, '#050407');
+  dot(x - 1, y - 3, DIVER_PAL.metal[3]); dot(x + 1, y - 4, DIVER_PAL.metal[2]);
+  dot(x + Math.round(p.fx * 1.4), y + Math.round(p.fy), eye, true);
+  dot(x, y + 3, under, true, 0.8);
+  lights.push({ x, y, r: TILE * 1.1, i: 0.45, c: rgb01(eye) });
+}
+
+// Where a hand is on the screen: the main hand from the sprite; the off
+// hand mirrored across it, or just behind it seen from the side.
+function handOf(p, spr, sx, sy, slot) {
+  const h = spr.hand;
+  if (slot === 'main') return { x: sx + h.x, y: sy + h.y };
+  if (Math.abs(p.fx) > Math.abs(p.fy) + 0.2) return { x: sx + h.x - Math.sign(p.fx) * 4, y: sy + h.y - 1 };
+  return { x: sx + spr.w - 1 - h.x, y: sy + h.y };
 }
 
 // The weapons in hand: a blade (swinging through its arc, with a slash of
-// light behind it), or a focus, a glowing orb over the hand.
-function drawHeld(d, fx, fy, tick, lights) {
+// light behind it), or a focus, a glowing orb over the hand. which(slot):
+// whether to draw that hand now (behind the body, or in front).
+function drawHeld(d, spr, sx, sy, tick, lights, which) {
   const p = d.p, eq = Save.data.equip;
-  if (!p.mine || p.mine.refused) for (const slot of ['main', 'off']) {
+  if (p.mine && !p.mine.refused) return;
+  for (const slot of ['main', 'off']) {
     const it = eq[slot];
-    if (!it && slot === 'off') continue;
-    const hand = handAt(p, slot, fx, fy), sw = p.swing && p.swing.slot === slot ? p.swing : null;
+    if (!which(slot) || (!it && slot === 'off')) continue;
+    const hand = handOf(p, spr, sx, sy, slot), sw = p.swing && p.swing.slot === slot ? p.swing : null;
     if (handKind(it) === 'focus') { drawFocusHeld(d, it, hand, lights); continue; }
     if (!it) continue;
     const ramp = it.tier >= 1 ? ART.ores[oreOfTier(it.tier).id] : ART.pal.steel;
@@ -556,9 +593,9 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     lights.push({ x: cx, y: cy, r: fx.r * 1.4, i: 0.8 * k, c: [1, 0.95, 0.8] });
   } else if (fx.kind === 'ghost') {
     // a dash's afterimage
-    const spr = (fx.fx < -0.1 ? Sprites.prospectorL : Sprites.prospector)[0], x = View.ctx;
+    const spr = Sprites.diver[facingIndex(fx.fx, fx.fy)][0], x = View.ctx;
     x.globalAlpha = 0.35 * k;
-    x.drawImage(spr.flash || spr.c, Math.round(cx - spr.ax), Math.round(cy - spr.ay));
+    x.drawImage(spr.flash, Math.round(cx - spr.ax), Math.round(cy - spr.ay));
     x.globalAlpha = 1;
   } else if (fx.kind === 'nova') {
     ringDots(cx, cy, fx.r * (1 - k * 0.7), ART.cores.nova, k, true);

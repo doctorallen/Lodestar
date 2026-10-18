@@ -11,7 +11,7 @@
 // exotics, sealed relics and healing motes onto the floor.
 // ---------------------------------------------------------------------------
 
-// The nearest living enemy within range that the prospector can see.
+// The nearest living enemy within range that the diver can see.
 function nearestEnemy(d, range, from = d.p, except = null) {
   let best = null, bd = range;
   for (const e of d.enemies) {
@@ -82,7 +82,7 @@ function swing(slot, item, h) {
   afterMelee(item, h, hit, heavy);
 }
 
-// The spin: everything round the prospector, hard.
+// The spin: everything round the diver, hard.
 function chargedAttack(slot, item, h) {
   const d = Game.dive, p = d.p, C = T.melee.charged;
   if (handKind(item) === 'focus') { castFocus(item, h, true); return; }
@@ -148,7 +148,7 @@ function castCores(item, power, charged = false) {
 }
 
 // The dash: when asked for and ready, a burst along the stick (or the way
-// the prospector faces).
+// the diver faces).
 function updateDash(dt) {
   const d = Game.dive, p = d.p, D = T.dash;
   p.dashCd = Math.max(0, p.dashCd - dt);

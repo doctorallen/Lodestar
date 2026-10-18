@@ -23,7 +23,7 @@ const ART = {
   outline: '#050407',
   // materials: deep, shadow, base, light (glowing ones have a single colour)
   pal: {
-    helmet: ['#1e1816', '#3a2c24', '#5e4a36', '#8a7050'], lamp: ['#ffe6a8'], skin: ['#2a1b1a', '#4e322c', '#7a5444', '#a47862'], eye: ['#060407'],
+    helmet: ['#1e1816', '#3a2c24', '#5e4a36', '#8a7050'], lamp: ['#e6dcff'], skin: ['#2a1b1a', '#4e322c', '#7a5444', '#a47862'], eye: ['#060407'],
     coat: ['#121219', '#20202c', '#323246', '#4c4c66'], leather: ['#1e130e', '#352218', '#523522', '#6e4a30'], pants: ['#100e12', '#1c181e', '#2a242c'], boots: ['#0b0909', '#18120e', '#281e16'],
     plate: ['#191c22', '#2e333c', '#4a515c', '#78808c'], rune: ['#62f0ff'], arcane: ['#c9a2ff'], metal: ['#241c12', '#4a3a20', '#7a6234', '#b89a58'],
     steel: ['#22262c', '#444a54', '#767f8c', '#c8d2dc'], tool: ['#1c2028', '#383f4a', '#5e6876', '#98a4b4'], wood: ['#1a110a', '#301d12', '#4c301c', '#64422a'], glass: ['#ffb347'],
@@ -100,20 +100,21 @@ const SPRITE_CHARS = {
 const SPRITE_GLOWS = new Set(['lamp', 'rune', 'arcane', 'glass', 'eyeglow', 'crystal', 'coreglow']);
 
 // pal: materials to use instead of ART.pal's (an enemy's biome colours, an
-// item's ore)
-function buildArtSprite(rows, pal) {
+// item's ore). letters, glows: a sprite with letters of its own (the diver).
+function buildArtSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS) {
   pal = pal ? Object.assign({}, ART.pal, pal) : ART.pal;
+  const SPRITE_CHARS_ = letters, SPRITE_GLOWS_ = glows instanceof Set ? glows : new Set(glows);
   const h = rows.length, w = Math.max(...rows.map((r) => r.length));
   const at = (x, y) => (y < 0 || y >= h || x < 0 || x >= w ? '.' : rows[y][x] || '.');
   const op = (x, y) => at(x, y) !== '.';
-  const mat = (x, y) => (op(x, y) ? SPRITE_CHARS[at(x, y)][0] : null);
+  const mat = (x, y) => (op(x, y) ? SPRITE_CHARS_[at(x, y)][0] : null);
   let x0 = w, x1 = 0, y0 = h, y1 = 0;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (op(x, y)) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
   const P = pixBuf(w + 2, h + 2);
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       if (!op(x, y)) continue;
-      const [m, forced] = SPRITE_CHARS[at(x, y)], ramp = pal[m], glow = SPRITE_GLOWS.has(m), n = ramp.length;
+      const [m, forced] = SPRITE_CHARS_[at(x, y)], ramp = pal[m], glow = SPRITE_GLOWS_.has(m), n = ramp.length;
       let i;
       if (glow) i = n - 1;
       else if (forced !== undefined) i = forced;
@@ -122,7 +123,7 @@ function buildArtSprite(rows, pal) {
         const v = (y - y0) / Math.max(1, y1 - y0), u = (x - x0) / Math.max(1, x1 - x0);
         let l = 0.86 - 0.4 * v - 0.22 * u + (top ? 0.24 : 0) - (bot ? 0.3 : 0);
         const above = mat(x, y - 1);
-        if (above && above !== m && !SPRITE_GLOWS.has(above)) l -= 0.22;
+        if (above && above !== m && !SPRITE_GLOWS_.has(above)) l -= 0.22;
         i = Math.floor(l * n + (bayerAt(x, y) - 0.5));
       }
       putPx(P, x + 1, y + 1, ramp[clamp(i, 0, n - 1)], glow);
@@ -143,33 +144,6 @@ function spriteFromBuf(P) {
 function flippedSprite(s) {
   return Object.assign({}, s, { c: flipped(s.c), ec: flipped(s.ec), ax: s.w - s.ax });
 }
-
-// The prospector: 22px tall on 16px tiles. Helmet and lamp, goggles, a coat
-// with a rune at the chest, shoulder plates.
-const PROSPECTOR_TOP = [
-  '.....HHHH.....',
-  '...HHHHHHHH...',
-  '..HHHHLLHHHH..',
-  '..HHHHLLHHHH..',
-  '.HHHHHHHHHHHH.',
-  '.hhhhhhhhhhhh.',
-  '..MOOMMMMOOM..',
-  '...SSSSSSSS...',
-  '....SSssSS....',
-  '.MMMCCssCCMMM.',
-  'MMMCCCCCCCCMMM',
-  'MMCCCCRRCCCCMM',
-  'GCCCCCRRCCCCCG',
-  'GGCCCCCCCCCCGG',
-  'GGBBBBMMBBBBGG',
-  '..CBBCCCCBBC..',
-  '..CCCCccCCCC..',
-  '..CCCc..cCCC..',
-];
-const PROSPECTOR_LEGS = {
-  idle: ['...PPP..PPP...', '...PPP..PPP...', '...KKK..KKK...', '..KKKK..KKKK..'],
-  walk: ['...PPP..PPP...', '...PPP..KKKK..', '...KKK..KKKK..', '..KKKK........'],
-};
 
 // ---------------------------------------------------------------------------
 // Tiles, painted into a floor's pixel buffer at (ox, oy). rnd() is the

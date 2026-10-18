@@ -3,9 +3,9 @@
 // Enemies. Each floor's are placed from its own seed when it's entered: a
 // few in every room but the entry, more with depth, some of them elites,
 // and now and then the warden in a side room. They wake when they see the
-// prospector (or are hit) and find their way through the corridors along a
-// flow field: steps on foot to the prospector from every tile, rebuilt
-// whenever the prospector crosses into a new tile.
+// diver (or are hit) and find their way through the corridors along a
+// flow field: steps on foot to the diver from every tile, rebuilt
+// whenever the diver crosses into a new tile.
 //   crawler: closes in, circles, crouches (eyes flaring), lunges and bites,
 //     then recovers, open to a counter.
 //   wisp: keeps its distance, strafing, and fires slow orbs (three, deeper).
@@ -70,7 +70,7 @@ const roomHas = (r, t) => t.x >= r.x && t.x < r.x + r.w && t.y >= r.y && t.y < r
 // Getting about
 // ---------------------------------------------------------------------------
 
-// Steps on foot from the prospector's tile to every tile, rebuilt when that
+// Steps on foot from the diver's tile to every tile, rebuilt when that
 // tile changes.
 function updateFlow(d) {
   const f = d.floor, i = Math.floor(d.p.y / TILE) * f.w + Math.floor(d.p.x / TILE);
@@ -89,7 +89,7 @@ function clearLine(f, x0, y0, x1, y1) {
   return true;
 }
 
-// The way towards the prospector from e: straight there when close and in
+// The way towards the diver from e: straight there when close and in
 // sight, else towards the neighbouring tile nearest on foot.
 function wayToPlayer(d, e) {
   const f = d.floor, p = d.p;
@@ -168,7 +168,7 @@ function wake(d, e) {
   for (const o of d.enemies) if (!o.aggro && !o.dead && dist(o.x, o.y, e.x, e.y) < 3 * TILE) { o.aggro = true; o.cd = Math.max(o.cd, 0.5); }
 }
 
-// Round the prospector at radius r, drifting in or out to hold it.
+// Round the diver at radius r, drifting in or out to hold it.
 function orbitMove(d, e, r, sp) {
   const p = d.p, dx = e.x - p.x, dy = e.y - p.y, m = Math.hypot(dx, dy) || 1;
   const tx = (-dy / m) * e.orbit, ty = (dx / m) * e.orbit, k = clamp((r - m) / r, -1, 1);
@@ -229,7 +229,7 @@ function updateWisp(d, e, pd, sp, dt, free) {
 }
 
 // Constructs and the warden: wind up showing their line, then charge where
-// the prospector was. Into a wall, they're dazed.
+// the diver was. Into a wall, they're dazed.
 function updateCharger(d, e, pd, sp, dt, free) {
   const def = T.enemies[e.type], p = d.p, f = d.floor;
   e.t -= dt;

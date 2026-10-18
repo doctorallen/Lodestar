@@ -54,4 +54,4 @@ The major gameplay decisions, newest last, and why each was made. Read this befo
 - **Start with a focus too.** Melee and range are both there from the first fight.
 - **Hands are tapped, not held.** Holding now charges instead of repeating, which makes room for the charged attack.
 - **Ore can be dropped like gear.** In the cargo screen it shows as rows you can drop by 1, 5 or all, and it lies as a heap to pick back up.
-- **The character won't be a miner.** It's being redrawn as an alien-tech exo-diver, in 8 directions.
+- **The character is the circuit diver**, chosen from seven concepts. Its suit's circuits and violet dome give its own light, and its drone is a separate sprite so it can follow.

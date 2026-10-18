@@ -40,7 +40,8 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/tuning.js` | Every gameplay number, the ores, exotics and biomes |
 | `js/save.js` | The save in localStorage |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, shaft, lodeline |
-| `js/art.js` | The art style: palettes, sprites, enemies, item icons, tile painting |
+| `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
+| `js/diver.js` | The player's sprite: the circuit diver's five facings, walk frames and hand points |
 | `js/items.js` | Affixes, rarities, legendaries, the set, cores, relics; the forge, rune bench, salvage; stats |
 | `js/game.js` | Game state, the dive, walking, mining, leaving |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |

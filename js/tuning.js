@@ -9,7 +9,7 @@ const T = {
   // charge is the mana: it refills at chargeRegen a second, and each melee
   // hit adds chargeOnHit. magnet: how close loot must be to be picked up.
   // rest: health comes back at restRegen a second once nothing has hurt the
-  // prospector for restAfter seconds.
+  // diver for restAfter seconds.
   player: {
     hp: 100, speed: 56, radius: 4, hurtInvuln: 0.5, restAfter: 4, restRegen: 3,
     charge: 50, chargeRegen: 5, chargeOnHit: 3, magnet: 14,
@@ -17,7 +17,7 @@ const T = {
 
   // Mining: the ore tile's nearest edge must be within `reach` of the feet
   // (10 reaches a wall from the middle of a corridor); the one nearest a
-  // point `ahead` px in front of the prospector is the target. A hardness-1
+  // point `ahead` px in front of the diver is the target. A hardness-1
   // ore breaks after 1 / speed seconds of holding MINE, times the pick's
   // speed.
   mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 2] },
@@ -178,7 +178,7 @@ const T = {
   // glow. The lamp's radius may become a dial that shrinks with depth.
   light: {
     ambient: 0.45, tint: [0.72, 0.76, 0.95], bands: 4, max: 1.9,
-    lamp: [5, 1.6], ore: [1.7, 0.75], deco: [1.4, 0.55], decoWall: 0.14, decoOpen: 0.03,
+    lamp: [5, 1.35], ore: [1.7, 0.75], deco: [1.4, 0.55], decoWall: 0.14, decoOpen: 0.03,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]],
   },
 
