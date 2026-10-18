@@ -379,7 +379,7 @@ const T = {
     // creature part it leaves. knock: how far hits push it (1 a crawler).
     // barY: how high its health bar sits (world px over its feet).
     signatureShare: 0.3, graftFoes: [1, 2], exposed: 1.5,
-    signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker', caverns: 'dropper', grotto: 'eel', magma: 'crab', rootdeep: 'weaver' },
+    signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker', caverns: 'dropper', grotto: 'eel', magma: 'crab', rootdeep: 'weaver', archive: 'sentinel', temple: 'idol' },
     // the Dune Skink (Badlands) swims under the sand (its speed), shows a
     // ring where it will burst up once within `strike` px, and bursts there
     // after windup s, biting within `burst` px; it stays up for `up` s,
@@ -423,12 +423,21 @@ const T = {
     // showing it for `weave` s: crossing one walks at snareSlow; it lasts
     // snareTime s, snareMax on a floor
     weaver: { hp: 26, dmg: 9, speed: 30, radius: 5, keep: 62, range: 110, windup: 0.55, cooldown: 2.0, shotSpeed: 80, snareEvery: 6, snareReach: 44, weave: 0.7, snareTime: 9, snareMax: 3, snareSlow: 0.45, snareWidth: 4, part: 'fiber', barY: 15 },
+    // the Sentinel Eye (Archive) floats `keep` px off and sweeps a beam
+    // through `arc` rad either side of the diver over `sweep` s, after
+    // windup s showing the arc; rock stops the beam. One hit a sweep
+    sentinel: { hp: 30, dmg: 11, speed: 16, radius: 5, keep: 74, range: 118, windup: 0.9, sweep: 1.2, arc: 0.7, cooldown: 3.0, flies: true, part: 'ether', barY: 24 },
+    // the Moss Idol (Overgrown Temple) moves only out of the light: farther
+    // than litReach of the lamp's reach, behind rock, and out of a shaft of
+    // daylight (shaftReach of its radius). Unlit, within `pounce` px, it
+    // winds up and lunges
+    idol: { hp: 56, dmg: 15, speed: 56, radius: 6, pounce: 56, windup: 0.65, lungeSpeed: 150, lungeTime: 0.32, recover: 0.6, litReach: 0.6, shaftReach: 0.7, cooldown: 1.4, knock: 0.5, part: 'spore', barY: 22 },
     // their natures (the resistance and weakness system reads these):
     // W weak, R resists, I immune
     resist: {
       skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', frost: 'R' }, wraith: { frost: 'W', ember: 'R' }, lurker: { ember: 'W', blight: 'R' },
       dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', ember: 'R' }, crab: { frost: 'W', ember: 'R', force: 'R' }, weaver: { ember: 'W', blight: 'R' },
-     
+      sentinel: { shock: 'W', blight: 'R' }, idol: { force: 'W', frost: 'R' },
     },
     // the Hollow: what comes when the star's pull is gone. It can't be
     // staggered, and it doesn't stop

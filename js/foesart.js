@@ -42,9 +42,13 @@ const FOE_PAL = {
   crab: { hide: ['#1a1210', '#3e2e28', '#64483c', '#8e6a56'], horn: ['#2a1008', '#5e2a14', '#9a4a20', '#d07a3a'], seam: ['#0c0606', '#1c0e0a', '#2a1410'], eye: ['#ffd060'], core: ['#ff7a2a'], white: ['#fff0c0'] },
   // grey bark, a root-patterned abdomen, chartreuse sacs, a red eye cluster
   weaver: { hide: ['#1c1814', '#4a4034', '#7a6a52', '#a8987a'], moss: ['#1a1c0c', '#384014', '#5a6620', '#84942e'], eye: ['#ff5a3a'], core: ['#c8e85a'], white: ['#ffd0b0'] },
+  // pale stone, a brass rim, a white eye with a red iris
+  sentinel: { hide: ['#14121a', '#34303e', '#5a5468', '#8a84a0'], horn: ['#2a1c0c', '#6a4a1c', '#a87c34', '#e0b460'], belly: ['#5a5050', '#a89c98', '#d8d0c8', '#f8f2ea'], maw: ['#0a0406'], eye: ['#ff4a3a'], core: ['#ff8a5a'], flame: ['#ffd0a0'], white: ['#ffffff'] },
+  // pale temple stone under moss; green eyes and rune when it moves
+  idol: { hide: ['#24222a', '#55505a', '#88838a', '#bcb6ae'], moss: ['#10180e', '#2a3c20', '#466236', '#6a8a4a'], belly: ['#1a181e', '#3a3640', '#5a5660', '#7a7680'], maw: ['#0a080c'], eye: ['#9cff5a'], core: ['#7affb0'] },
 };
 // what each one's eyes or core light the floor with
-const FOE_GLOW = { skink: '#ffb02a', tusker: '#8fe4ff', wraith: '#ff6a1a', lurker: '#d8ff5a', dropper: '#ff5a2a', eel: '#8ae8ff', crab: '#ffd060', weaver: '#c8e85a' };
+const FOE_GLOW = { skink: '#ffb02a', tusker: '#8fe4ff', wraith: '#ff6a1a', lurker: '#d8ff5a', dropper: '#ff5a2a', eel: '#8ae8ff', crab: '#ffd060', weaver: '#c8e85a', sentinel: '#ff4a3a', idol: '#9cff5a' };
 
 // A frame that's another with some of its rows redrawn: { row: 'pixels' }.
 function foeRowsFrom(base, rows) { return base.map((r, i) => (rows[i] !== undefined ? rows[i] : r)); }
@@ -82,6 +86,50 @@ const FOE_LURKER_UP = [
   'HHDDDDDDDDDDDDDDDHH',
   '.HHBBBBBBBBBBBBBHH.',
   '..HHBBBBBBBBBBBHH..',
+];
+const FOE_SENTINEL_IDLE = [
+  '......TTTTTTT......',
+  '....TTHHHHHHHTT....',
+  '...THHHHHHHHHHHT...',
+  '..THHHBBBBBBBHHHT..',
+  '.THHHBBBBBBBBBHHHT.',
+  '.THHBBBEEEEEBBBHHT.',
+  'THHBBBEEEDEEEBBBHHT',
+  'THHBBBEEDDDEEBBBHHT',
+  'THHBBBEEDWDEEBBBHHT',
+  'THHBBBEEDDDEEBBBHHT',
+  '.THHBBBEEEEEBBBHHT.',
+  '.THHHBBBBBBBBBHHHT.',
+  '..THHHBBBBBBBHHHT..',
+  '...THHHHHHHHHHHT...',
+  '....TTHHHHHHHTT....',
+  '......TTTTTTT......',
+  '........TCT........',
+  '.........C.........',
+];
+const FOE_IDOL_STILL = [
+  '......MMMMMMM......',
+  '.....MMMMMMMMM.....',
+  '....MHHHHHHHHHM....',
+  '....HHHHHHHHHHH....',
+  '....HHDDHHHDDHH....',
+  '....HHDDHHHDDHH....',
+  '....HHHHHHHHHHH....',
+  '....HHHHDDDHHHH....',
+  '.....HHHHHHHHH.....',
+  '...MMHHHHHHHHHMM...',
+  '..HHMHHHHHHHHHMHH..',
+  '.HHHHHHHBBBHHHHHHH.',
+  '.HHH.HHHBDBHHH.HHH.',
+  '.HHH.HHHBBBHHH.HHH.',
+  '.HHH.HHHHHHHHH.HHH.',
+  '.MHH.HHHHHHHHH.HHM.',
+  '..H..HHHHHHHHH..H..',
+  '.....HHHH.HHHH.....',
+  '.....HHHH.HHHH.....',
+  '....HHHHH.HHHHH....',
+  '...BBBBBBBBBBBBB...',
+  '...bBBBBBBBBBBBb...',
 ];
 
 // Each creature's frames, by name. foes.js picks one by its state.
@@ -617,6 +665,35 @@ const FOE_ROWS = {
       '........HHHHHHHHH........',
       '..........HHHHH..........',
     ],
+  },
+  // the Sentinel Eye: a ring of pale stone and brass round a white eye, a
+  // red iris; looking about; the pupil wide as it winds up; narrowed as
+  // it sweeps
+  sentinel: {
+    idle: FOE_SENTINEL_IDLE,
+    look: foeRowsFrom(FOE_SENTINEL_IDLE, {
+      5: '.THHBBEEEEEBBBBHHT.', 6: 'THHBBEEEDEEEBBBBHHT', 7: 'THHBBEEDDDEEBBBBHHT', 8: 'THHBBEEDWDEEBBBBHHT', 9: 'THHBBEEDDDEEBBBBHHT', 10: '.THHBBEEEEEBBBBHHT.',
+    }),
+    windup: foeRowsFrom(FOE_SENTINEL_IDLE, { 6: 'THHBBBEDDDDDEBBBHHT', 7: 'THHBBBEDDDDDEBBBHHT', 8: 'THHBBBEDDWDDEBBBHHT', 9: 'THHBBBEDDDDDEBBBHHT', 16: '........TFT........', 17: '.........F.........' }),
+    sweep: foeRowsFrom(FOE_SENTINEL_IDLE, {
+      3: '..THHHHHHHHHHHHHT..', 4: '.THHHHHHHHHHHHHHHT.', 5: '.THHHHHHHHHHHHHHHT.', 6: 'THHBBBEEEEEEEBBBHHT', 7: 'THHBBEEFFWFFEEBBHHT', 8: 'THHBBBEEEEEEEBBBHHT',
+      9: 'THHHHHHHHHHHHHHHHHT', 10: '.THHHHHHHHHHHHHHHT.', 11: '.THHHHHHHHHHHHHHHT.', 16: '........TFT........', 17: '.........F.........',
+    }),
+  },
+  // the Moss Idol: a squat temple statue draped in moss, standing on its
+  // plinth; lit, its eyes and rune are dark stone; in the dark they glow,
+  // and it raises its arms to pounce
+  idol: {
+    still: FOE_IDOL_STILL,
+    creep: foeRowsFrom(FOE_IDOL_STILL, { 4: '....HHEEHHHEEHH....', 5: '....HHEEHHHEEHH....', 12: '.HHH.HHHBCBHHH.HHH.' }),
+    windup: foeRowsFrom(FOE_IDOL_STILL, {
+      4: '....HHEEHHHEEHH....', 5: '....HHEEHHHEEHH....',
+      8: '.H...HHHHHHHHH...H.', 9: '.HHMMHHHHHHHHHMMHH.', 10: '..HHMHHHHHHHHHMHH..', 11: '.....HHHBBBHHH.....', 12: '.....HHHBCBHHH.....', 13: '.....HHHBBBHHH.....', 14: '.....HHHHHHHHH.....', 15: '.....HHHHHHHHH.....', 16: '.....HHHHHHHHH.....',
+    }),
+    lunge: foeRowsFrom(FOE_IDOL_STILL, {
+      4: '....HHEEHHHEEHH....', 5: '....HHEEHHHEEHH....', 12: '.HHH.HHHBCBHHH.HHH.',
+      13: 'HHH..HHHBBBHHH..HHH', 14: 'HHH..HHHHHHHHH..HHH', 15: 'MH...HHHHHHHHH...HM', 16: '.....HHHHHHHHH.....',
+    }),
   },
 };
 for (const k in FOE_ROWS) for (const f in FOE_ROWS[k]) artNative(FOE_ROWS[k][f]);

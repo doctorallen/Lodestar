@@ -25,6 +25,10 @@
 //             doesn't burn it.
 //   weaver    Rootdeep: keeps off and spits, and strings root snares
 //             between the walls across your way.
+//   sentinel  Archive: floats, and sweeps a beam through an arc; rock stops
+//             the beam, so a pillar is cover.
+//   idol      Overgrown Temple: moves only out of the light; in the lamp's
+//             heart (or a shaft of daylight) it's stone.
 // While under the sand or the water or on the roof (e.hid) nothing can
 // strike it or aim at it. Numbers in T.enemies; looks in foesart.js.
 // ---------------------------------------------------------------------------
@@ -33,6 +37,7 @@
 const FOE_NAMES = {
   skink: ['Dune Skink', 'dune skinks'], tusker: ['Tusker', 'tuskers'], wraith: ['Ash Wraith', 'ash wraiths'], lurker: ['Bog Lurker', 'bog lurkers'],
   dropper: ['Ceiling Dropper', 'ceiling droppers'], eel: ['Pool Eel', 'pool eels'], crab: ['Slag Crab', 'slag crabs'], weaver: ['Rootweaver', 'rootweavers'],
+  sentinel: ['Sentinel Eye', 'sentinel eyes'], idol: ['Moss Idol', 'moss idols'],
 };
 // The states in which one is open to a counter (T.enemies.exposed).
 const FOE_EXPOSED = new Set(['stranded', 'spent', 'landed']);
@@ -394,7 +399,73 @@ function foeSnareLine(f, p, e) {
   return null;
 }
 
-const FOE_UPDATE = { skink: updateSkink, tusker: updateTusker, wraith: updateWraith, lurker: updateLurker, dropper: updateDropper, eel: updateEel, crab: updateCrab, weaver: updateWeaver };
+// The Sentinel Eye: holds off, shows the arc it will sweep, and sweeps its
+// beam through it. Rock stops the beam; it strikes once a sweep.
+function updateSentinel(d, e, pd, sp, dt, free) {
+  const def = T.enemies.sentinel, p = d.p, f = d.floor;
+  e.t -= dt;
+  if (e.state === 'windup') { if (e.t <= 0) { e.state = 'sweep'; e.t = def.sweep; e.beamA = e.a0; e.hitDone = false; } return; }
+  if (e.state === 'sweep') {
+    const was = e.beamA;
+    e.beamA = lerp(e.a0, e.a1, 1 - Math.max(0, e.t) / def.sweep);
+    e.beamL = foeRay(f, e.x, e.y, Math.cos(e.beamA), Math.sin(e.beamA), def.range);
+    if (!e.hitDone && p.invuln <= 0 && !d.dying) {
+      // has the beam passed over the diver since the last step?
+      const m = Math.max(1, dist(e.x, e.y, p.x, p.y)), tol = Math.atan2(T.player.radius + 2, m);
+      const lo = Math.min(was, e.beamA) - tol, hi = Math.max(was, e.beamA) + tol, a = foeAngleNear(Math.atan2(p.y - e.y, p.x - e.x), (lo + hi) / 2);
+      if (a >= lo && a <= hi && m < def.range && foeRay(f, e.x, e.y, (p.x - e.x) / m, (p.y - e.y) / m, m) >= m - 2) { e.hitDone = true; hurtPlayer(e.dmg, e); }
+    }
+    if (e.t <= 0) { e.state = 'hover'; e.cd = def.cooldown; }
+    return;
+  }
+  e.state = 'hover';
+  const sees = clearLine(f, e.x, e.y, p.x, p.y - 6);
+  if (!sees || pd > def.keep + 30) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
+  else orbitMove(d, e, def.keep, sp);
+  if (e.aggro && sees && pd < def.range && free && e.cd <= 0) {
+    const a = Math.atan2(p.y - e.y, p.x - e.x);
+    e.a0 = a - e.orbit * def.arc; e.a1 = a + e.orbit * def.arc;
+    e.state = 'windup'; e.t = def.windup;
+  }
+}
+
+// The Moss Idol: stone while it's lit (foeLit); out of the light it comes
+// on, and close enough, pounces. A pounce begun is never stopped.
+function updateIdol(d, e, pd, sp, dt, free) {
+  const def = T.enemies.idol, p = d.p, f = d.floor;
+  e.t -= dt;
+  e.lit = foeLit(d, e);
+  if (e.state === 'windup') { if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.lungeSpeed; e.vy = a.y * def.lungeSpeed; e.state = 'lunge'; e.t = def.lungeTime; e.hitDone = false; } return; }
+  if (e.state === 'lunge') {
+    moveBody(f, e, e.vx * dt, e.vy * dt, e.r);
+    if (!e.hitDone && dist(e.x, e.y, p.x, p.y) < e.r + T.player.radius + 3) { e.hitDone = true; hurtPlayer(e.dmg, e); }
+    if (e.t <= 0) { e.state = 'recover'; e.t = def.recover; }
+    return;
+  }
+  if (e.state === 'recover') { if (e.t <= 0) { e.state = 'still'; e.cd = def.cooldown; } return; }
+  if (e.lit || !e.aggro) { e.state = 'still'; return; }
+  e.state = 'creep';
+  if (pd < def.pounce && free && e.cd <= 0 && clearLine(f, e.x, e.y, p.x, p.y)) { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; return; }
+  const w = wayToPlayer(d, e);
+  moveBody(f, e, w.x * sp, w.y * sp, e.r);
+}
+// Is an idol lit? In a shaft of daylight, or near enough the diver's lamp
+// (the heart of its reach, litReach of it) and in its sight: the lamp's
+// own sight from shadow.js where the view is on this floor, so what looks
+// lit is lit, else a line through the tiles.
+function foeLit(d, e) {
+  const def = T.enemies.idol, f = d.floor, p = d.p;
+  for (const s of f.foeShafts || (f.foeShafts = climeLights(f))) if (dist(e.x, e.y, s.x, s.y) < s.r * def.shaftReach) return true;
+  const lv = lampLevels(d);
+  if (lv.lamp <= 0 || dist(e.x, e.y, p.x, p.y) > (lv.r / AP) * def.litReach) return false;
+  if (View.floorFor === f && View.rockPx && T.light.shadow.walls) {
+    const S = lampSight(d, lv.r);
+    if (S) { const i = Math.floor((e.x * AP) / LC) - S.x0, j = Math.floor(((e.y - 2) * AP) / LC) - S.y0; return i >= 0 && j >= 0 && i < S.w && j < S.w && S.vis[j * S.w + i] >= 1; }
+  }
+  return clearLine(f, p.x, p.y - 6, e.x, e.y - 6);
+}
+
+const FOE_UPDATE = { skink: updateSkink, tusker: updateTusker, wraith: updateWraith, lurker: updateLurker, dropper: updateDropper, eel: updateEel, crab: updateCrab, weaver: updateWeaver, sentinel: updateSentinel, idol: updateIdol };
 
 // ---------------------------------------------------------------------------
 // How they look (render.js drawEnemy asks foeLook, then draws the tells)

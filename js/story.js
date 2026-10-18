@@ -58,6 +58,8 @@ const WICK = {
   foe_eel: "A fin in the water. If it lunges and misses, it's stuck on dry ground for a moment.",
   foe_crab: 'Its shell turns most of what we throw. Freeze it, or crack it with a heavy blow.',
   foe_weaver: "It strings roots across the way. They'll hold your feet; dash through them.",
+  foe_sentinel: 'A sentry. Its beam sweeps the hall. Put rock between us and it.',
+  foe_idol: 'That statue moved. Only out of the light, I think. Keep it in the lamp.',
 };
 
 // The star, as it grows, and as its heart comes back.
