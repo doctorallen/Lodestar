@@ -384,3 +384,25 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .rep-text { flex: 1; }
 .rep-bar { height: 6px; margin: 2px 0 6px; }
 .rep-bar .fill { background: var(--gold); height: 100%; }
+
+/* costs: the material's icon, how many and what, and how many there are */
+.cost-tag { white-space: nowrap; color: var(--ink); }
+.cost-tag.short, .cost-line.short, .rune-head .short { color: var(--danger); }
+.cost-have { color: var(--dim); white-space: nowrap; }
+.row-sub .cost-tag { display: block; white-space: normal; margin: 2px 0; }
+.cost-tag.short .cost-have { color: var(--danger); }
+.cost-icon { width: 16px; height: 16px; image-rendering: pixelated; vertical-align: -3px; margin-right: 4px; }
+.cost-line { margin: 0 0 6px; }
+/* rune work on the card: which ore pays, then each affix with its two
+   buttons under it, each saying what it costs or why it can't */
+.rune-head { display: flex; align-items: center; gap: 6px; margin: 8px 0; padding: 6px 8px; border: 1px solid var(--line); background: var(--panel2); font-size: 12px; }
+.rune-head .cost-icon { width: 20px; height: 20px; margin: 0; flex: none; }
+.rune-head b { color: var(--gold); font-weight: normal; }
+.affixes li.runed { flex-wrap: wrap; }
+.affixes li.runed .rune { display: flex; gap: 6px; width: 100%; white-space: normal; }
+.rune-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; }
+.affixes .rune .rune-btn { flex: 1; margin: 0; }
+.rune-btn small { display: block; font-size: 10px; letter-spacing: 0.04em; color: var(--dim); }
+.btn.rune-btn small { font-size: 11px; }
+.rune-btn:disabled { opacity: 0.75; color: var(--dim); }
+.rune-btn.short small { color: var(--danger); }

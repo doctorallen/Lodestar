@@ -20,6 +20,12 @@ const exoticName = (id) => T.exotics.find((x) => x.id === id).name;
 const stuffIds = () => T.ores.map((o) => o.id).concat(PART_STACK_IDS, T.exotics.map((x) => x.id));
 const stuffName = (id) => (ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : parsePart(id) ? partName(id) : exoticName(id));
 
+// A cost that can't be missed: the material's icon, how many and what,
+// and how many there are, in red when it's short.
+function costTag(id, n, have, name = stuffName(id)) {
+  return `<span class="cost-tag${have < n ? ' short' : ''}"><img class="cost-icon" src="${stuffIconUrl(id)}" alt="">${n} ${esc(name)} <span class="cost-have">· have ${have}</span></span>`;
+}
+
 function iconImg(item, cls = 'icon') { return `<img class="${cls}" src="${itemIconUrl(item)}" alt="">`; }
 function itemRow(item, act, arg, tag = '') {
   return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name r-${item.rarity}">${item.fav ? '★ ' : ''}${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span></span>${tag}</button>`;
@@ -306,10 +312,16 @@ function drawToolRows() {
   const s = Save.data;
   return `<h3>TOOLS · CARRY ONE</h3>` + TOOL_IDS.map((id) => {
     const t = TOOLS[id], own = toolOwned(id), open = toolOpen(id), on = s.tool === id;
-    const sub = own ? t.text : open ? `Make it from ${toolCostText(id)}. ${t.text}` : `The star must reach magnitude ${T.tools[id].mag}.`;
+    const sub = own ? esc(t.text) : open ? `Make it from ${toolCostTags(id)}${esc(t.text)}` : `The star must reach magnitude ${T.tools[id].mag}.`;
     const btn = own ? (on ? '<span class="row-tag r-legendary">CARRIED</span>' : '') : open ? `<button class="mini" data-act="makeTool" data-arg="${id}" ${toolAffordable(id) ? '' : 'disabled'}>MAKE</button>` : '';
-    return `<div class="row ${own ? '' : 'static'} ${on ? 'on' : ''}" ${own && !on ? `data-act="carryTool" data-arg="${id}"` : ''} ${open ? '' : 'style="opacity:.55"'}><img class="icon" src="${toolIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(t.name)}</span><span class="row-sub">${esc(sub)}</span></span>${btn}</div>`;
+    return `<div class="row ${own ? '' : 'static'} ${on ? 'on' : ''}" ${own && !on ? `data-act="carryTool" data-arg="${id}"` : ''} ${open ? '' : 'style="opacity:.55"'}><img class="icon" src="${toolIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(t.name)}</span><span class="row-sub">${sub}</span></span>${btn}</div>`;
   }).join('');
+}
+// What a tool costs, each with its icon and how many there are (a part
+// in any grade).
+function toolCostTags(id) {
+  const c = T.tools[id].cost;
+  return Object.keys(c).map((k) => costTag(PARTS[k] ? partId(k, 1) : k, c[k], toolHave(k), PARTS[k] ? `${PARTS[k].name} (any grade)` : stuffName(k))).join(' ');
 }
 
 // What an imprint costs from here: a heart of the lowest grade there is,
@@ -349,8 +361,9 @@ function drawForge() {
   const ids = known.slice().sort((a, b) => order.indexOf(BLUEPRINTS[a].kind) - order.indexOf(BLUEPRINTS[b].kind));
   const list = `<h3>1 · BLUEPRINT <span class="dim">· ${known.length} OF ${BP_IDS.length} KNOWN</span></h3><div class="bp-grid bp-strip">${ids.map((id) => `<button class="bp ${id === F.bp ? 'on' : ''}" data-act="forgeBp" data-arg="${id}"><img class="icon" src="${itemIconUrl(bpSample(id, ore.tier))}" alt=""><span>${esc(BLUEPRINTS[id].name)}</span></button>`).join('')}</div>`;
   const chip = (act, id, label, on, ok = true) => `<button class="chip ${on ? 'on' : ''}" data-act="${act}" data-arg="${id}" ${ok ? '' : 'disabled'}>${label}</button>`;
-  const oreChips = ores.map((o) => chip('forgeOre', o.id, `${esc(o.name)}<small>have ${stash[o.id]} · tier ${o.tier}</small>`, o.id === F.ore, stash[o.id] >= bp.ore)).join('') || `<span class="note">${F.field ? 'No ore in your cargo.' : 'No ore banked. Mine some and bring it home.'}</span>`;
-  const partChips = parts.map((id) => { const pk = parsePart(id), fam = PARTS[pk.kind].family; return chip('forgePart', id, `${esc(partName(id))}<small>have ${stash[id]} · ${fam ? fam : 'any'}</small>`, id === F.part, stash[id] >= bp.parts); }).join('')
+  const stuffIcon = (id) => `<img class="chip-icon" src="${stuffIconUrl(id)}" alt="">`;
+  const oreChips = ores.map((o) => chip('forgeOre', o.id, `${stuffIcon(o.id)}${esc(o.name)}<small>have ${stash[o.id]} · tier ${o.tier}</small>`, o.id === F.ore, stash[o.id] >= bp.ore)).join('') || `<span class="note">${F.field ? 'No ore in your cargo.' : 'No ore banked. Mine some and bring it home.'}</span>`;
+  const partChips = parts.map((id) => { const pk = parsePart(id), fam = PARTS[pk.kind].family; return chip('forgePart', id, `${stuffIcon(id)}${esc(partName(id))}<small>have ${stash[id]} · ${fam ? fam : 'any'}</small>`, id === F.part, stash[id] >= bp.parts); }).join('')
     || `<span class="note">No ${bp.partKinds ? bp.partKinds.map((k) => PARTS[k].name).join(' or ') : 'creature parts'} ${F.field ? 'in your cargo' : 'banked'}. Creatures leave them when they fall.</span>`;
   // powers the forge remembers, for this kind of piece (at home only)
   const known2 = (Save.data.codex || []).filter((k) => LEGENDARIES[k] && LEGENDARIES[k].kinds.includes(bp.kind));
@@ -358,11 +371,15 @@ function drawForge() {
   // paid from what's left once the binding is taken
   const left = Object.assign({}, stash);
   if (F.part) left[F.part] = (left[F.part] || 0) - bp.parts;
-  const canPay = !!imprintCost(left);
+  const pay = imprintCost(left), canPay = !!pay;
   if (F.imprint && !canPay) F.imprint = null;
+  // what an imprint takes from here, or why it can't be paid
+  const hearts = [1, 2, 3].reduce((n, g) => n + Math.max(0, left[partId('heart', g)] || 0), 0);
+  const impCost = pay ? `<p class="note cost-line">${F.imprint ? 'Takes' : 'Would take'} ${costTag(pay.id, pay.n, left[pay.id] || 0)}</p>`
+    : `<p class="note cost-line short">Needs a heart or ${T.imprint.glass} Riftglass besides the binding: you have ${hearts} heart${hearts === 1 ? '' : 's'} and ${left.riftglass || 0} Riftglass.</p>`;
   const impChips = F.field || bp.kind === 'core' ? '' : known2.map((k) => chip('forgeImprint', k, `${esc(LEGENDARIES[k].name)}<small>${esc(LEGENDARIES[k].text.toLowerCase())}</small>`, k === F.imprint, canPay)).join('');
   const exWhat = (x) => (x.element ? ELEMENTS[x.element].name.toLowerCase() : x.family ? x.family : x.rarity ? 'rarity +1' : x.tierUp ? 'tier +1' : '');
-  const exChips = exotics.map((x) => chip('forgeExotic', x.id, `${esc(x.name)}<small>have ${stash[x.id]} · ${exWhat(x)}</small>`, x.id === F.exotic)).join('');
+  const exChips = exotics.map((x) => chip('forgeExotic', x.id, `${stuffIcon(x.id)}${esc(x.name)}<small>have ${stash[x.id]} · ${exWhat(x)}</small>`, x.id === F.exotic)).join('');
 
   // what these parts guarantee
   const pk = F.part && parsePart(F.part), ex = F.exotic && T.exotics.find((e) => e.id === F.exotic);
@@ -383,7 +400,10 @@ function drawForge() {
     if (F.imprint) lines.push(`Imprinted with ${esc(LEGENDARIES[F.imprint].name)}: ${esc(LEGENDARIES[F.imprint].text.toLowerCase())}. A fine forge or better sets it; a rougher one, half the time.`);
     lines.push('The rest is in your strikes: rough, fair, fine or masterwork.');
   }
-  const cost = `${bp.ore} ${ore.name.toUpperCase()}${F.part ? `, ${bp.parts} ${PARTS[parsePart(F.part).kind].name.toUpperCase()}` : ''}`;
+  // what FORGE takes, or why it can't yet
+  const exPaid = ex && bp.kind !== 'core';
+  const cost = !ready ? (haveOre < bp.ore ? `need ${bp.ore} ${ore.name}, have ${haveOre}` : !F.part ? `need ${bp.parts} ${bp.partKinds ? bp.partKinds.map((k) => PARTS[k].name).join(' or ') : 'creature part'}${bp.parts > 1 ? 's' : ''}` : `need ${bp.parts} ${partName(F.part)}, have ${haveParts}`)
+    : [`${bp.ore} ${ore.name}`, `${bp.parts} ${PARTS[parsePart(F.part).kind].name}`, exPaid && `1 ${ex.name}`, F.imprint && pay && `${pay.n} ${stuffName(pay.id)}`].filter(Boolean).join(', ');
   $('forge-body').innerHTML = `
     ${list}
     <div class="recipe-panel">
@@ -391,10 +411,10 @@ function drawForge() {
       <h3>2 · HEAD <span class="dim">· ${bp.ore} ORE</span></h3><div class="chips">${oreChips}</div>
       <h3>3 · BINDING <span class="dim">· ${bp.parts} PART${bp.parts > 1 ? 'S' : ''}</span></h3><div class="chips">${partChips}</div>
       ${exChips ? `<h3>4 · EXOTIC <span class="dim">· IF YOU LIKE</span></h3><div class="chips">${exChips}</div>` : ''}
-      ${impChips ? `<h3>5 · IMPRINT <span class="dim">· A HEART OR ${T.imprint.glass} RIFTGLASS</span></h3><div class="chips">${impChips}</div>` : ''}
+      ${impChips ? `<h3>5 · IMPRINT <span class="dim">· A HEART OR ${T.imprint.glass} RIFTGLASS</span></h3>${impCost}<div class="chips">${impChips}</div>` : ''}
       <div class="preview">${lines.map((l) => `<p>${l}</p>`).join('')}</div>
       ${F.field ? '<p class="note">What you forge here goes in your cargo.</p>' : ''}
-      <div class="menu forge-go"><button class="btn primary" data-act="craft" ${ready ? '' : 'disabled'}>FORGE<small>${esc(cost)}</small></button></div>
+      <div class="menu forge-go"><button class="btn primary" data-act="craft" ${ready ? '' : 'disabled'}>FORGE<small>${esc(cost.toUpperCase())}</small></button></div>
     </div>`;
   // keep the chosen blueprint in sight in the strip
   const on = document.querySelector('#forge-body .bp.on');
@@ -413,7 +433,7 @@ function drawGear() {
     .map((it) => itemRow(it, 'cardStash', it.uid, compareTag(it, s.equip))).join('');
   $('gear-title').textContent = UI.gearRunes ? 'THE RUNE BENCH' : 'GEAR';
   $('gear-body').innerHTML = `
-    ${UI.gearRunes ? '<p class="note">Tap a piece to rework its affixes: reroll one, raise one, or add one.</p>' : ''}
+    ${UI.gearRunes ? `<p class="note">Tap a piece to rework its affixes: reroll one, raise one, or add one. It's paid in ore of the piece's own tier: ${T.ores.slice(0, 3).map((o) => `${esc(o.name)} for tier ${o.tier}`).join(', ')}, and so on.</p>` : ''}
     <div class="stats">${statLine(st)}</div>
     <h3>WORN</h3>${slots}
     <h3>STASH</h3>${stash || '<p class="note">Nothing banked. Gear you bring home lands here.</p>'}
@@ -479,9 +499,13 @@ function drawCard() {
   const s = Save.data, oreId = runeOre(it), oreHave = s.stash[oreId] || 0, R = T.runes;
   const runes = home && it.kind !== 'core' && it.kind !== 'relic' && !(it.kind === 'pick' && it.tier === 0);
   const rollBar = (a) => { const r = affixRoll(a, it.tier); return `<span class="roll" title="How well it rolled"><span style="width:${Math.round(clamp(r, 0.04, 1) * 100)}%" class="${r > 1 ? 'over' : r > 0.8 ? 'high' : ''}"></span></span>`; };
-  const affixes = it.affixes.map((a, i) => `<li><span class="aff">${esc(fmtAffix(a))}${rollBar(a)}</span>${runes ? `<span class="rune">
-      <button class="mini" data-act="reroll" data-arg="${i}" ${oreHave >= R.reroll ? '' : 'disabled'}>REROLL ${R.reroll}</button>
-      <button class="mini" data-act="upgrade" data-arg="${i}" ${oreHave >= R.upgrade && a.up < 2 ? '' : 'disabled'}>RAISE ${R.upgrade}</button></span>` : ''}</li>`).join('');
+  // a rune button names its cost in the piece's ore, or why it can't be done
+  const oreName = stuffName(oreId), oreIcon = `<img class="cost-icon" src="${stuffIconUrl(oreId)}" alt="">`;
+  const runeBtn = (cls, act, arg, label, n, block = '') => {
+    const short = oreHave < n;
+    return `<button class="${cls} rune-btn${short && !block ? ' short' : ''}" data-act="${act}"${arg === null ? '' : ` data-arg="${arg}"`} ${short || block ? 'disabled' : ''}><span>${label}</span><small>${block ? esc(block) : `${oreIcon}${esc(short ? `need ${n} ${oreName}, have ${oreHave}` : `${n} ${oreName}`)}`}</small></button>`;
+  };
+  const affixes = it.affixes.map((a, i) => `<li${runes ? ' class="runed"' : ''}><span class="aff">${esc(fmtAffix(a))}${rollBar(a)}</span>${runes ? `<span class="rune">${runeBtn('mini', 'reroll', i, 'REROLL', R.reroll)}${runeBtn('mini', 'upgrade', i, 'RAISE', R.upgrade, a.up >= 2 ? 'fully raised' : '')}</span>` : ''}</li>`).join('');
   let extra = '';
   if (it.power) extra += `<p class="power">★ ${esc(LEGENDARIES[it.power].text)}</p>`;
   if (it.set) {
@@ -491,7 +515,7 @@ function drawCard() {
   if (it.sockets) {
     extra += '<div class="sockets">' + it.sockets.map((core, i) => core
       ? `<div class="sock">◆ ${esc(core.name)} (tier ${core.tier}) ${home ? `<button class="mini" data-act="unsocket" data-arg="${i}">REMOVE</button>` : ''}</div>`
-      : `<div class="sock">◇ Empty socket ${home ? `<button class="mini" data-act="pickCore" data-arg="${i}" ${s.items.some((x) => x.kind === 'core') ? '' : 'disabled'}>SOCKET</button>` : ''}</div>`).join('') + '</div>';
+      : `<div class="sock">◇ Empty socket ${home ? `${s.items.some((x) => x.kind === 'core') ? `<button class="mini" data-act="pickCore" data-arg="${i}">SOCKET</button>` : '<button class="mini" disabled>NO CORES</button>'}` : ''}</div>`).join('') + '</div>';
     if (c.picking !== null) {
       const cores = s.items.filter((x) => x.kind === 'core');
       extra += '<div class="picker">' + cores.map((x) => `<button class="mini wide" data-act="socket" data-arg="${x.uid}">${esc(x.name)} · tier ${x.tier}</button>`).join('') + '</div>';
@@ -517,8 +541,8 @@ function drawCard() {
     if (it.kind !== 'relic') acts.push(salvageBtn);
     acts.push('<button class="btn danger" data-act="drop" data-confirm="SURE? DROP IT">DROP</button>');
   }
-  if (runes && canAddAffix(it)) acts.push(`<button class="btn" data-act="addAffix" ${oreHave >= R.add ? '' : 'disabled'}>ADD AFFIX · ${R.add}</button>`);
-  const runeNote = runes ? `<p class="note">Rune work costs ${esc(oreOfTier(it.tier).name)} (you have ${oreHave}).</p>` : '';
+  if (runes && canAddAffix(it)) acts.push(runeBtn('btn wide', 'addAffix', null, 'ADD AN AFFIX', R.add));
+  const runeNote = runes ? `<p class="rune-head">${oreIcon}<span>Rune work on a tier ${it.tier} piece is paid in <b>${esc(oreName)}</b>. <span class="${oreHave < R.reroll ? 'short' : ''}">You have ${oreHave}.</span></span></p>` : '';
   const cmp = (c.where === 'stash' || c.where === 'cargo') ? compareTag(it, s.equip) : '';
   // stat by stat against what's worn in its slot
   const slot = (c.where === 'stash' || c.where === 'cargo') && compareSlot(s.equip, it);
@@ -533,8 +557,8 @@ function drawCard() {
     <div class="card-head">${iconImg(it, 'icon big')}<div class="grow"><div class="card-name r-${it.rarity}">${esc(it.name)} ${cmp}</div><div class="row-sub">${esc(itemKindLine(it))}</div></div></div>
     <p class="base">${esc(itemBaseLine(it))}</p>
     ${itemNotes(it).map((n) => `<p class="note">${esc(n)}</p>`).join('')}
-    ${affixes ? `<ul class="affixes">${affixes}</ul>` : ''}
-    ${extra}${runeNote}
+    ${runeNote}${affixes ? `<ul class="affixes">${affixes}</ul>` : ''}
+    ${extra}
     ${acts.length ? `<div class="menu card-menu">${acts.join('')}</div>` : ''}</div>`;
 }
 
