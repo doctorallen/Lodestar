@@ -97,7 +97,7 @@ function enterFloor(depth, zone = 'cave', clime = null) {
   d.floor = generateFloor(d.seed, depth, d.biome, lodelineOdds(depth), zone, d.ways.length, d.clime);
   const e = d.floor.entry;
   p.x = (e.x + 0.5) * TILE; p.y = (e.y + 0.5) * TILE; p.mine = null;
-  d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.globs = []; d.puddles = []; d.auras = []; d.later = []; d.flowAt = -1; d.keeper = null;
+  d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.globs = []; d.puddles = []; d.auras = []; d.later = []; d.snares = []; d.drag = null; d.flowAt = -1; d.keeper = null;
   placeRift(d);
   spawnEnemies(d);
   placeFieldForge(d);

@@ -645,7 +645,7 @@ function renderFrame() {
   }
 
   if (d.hub) drawHubUnder(d, ox, oy, tick, lights);
-  if (!d.hub) drawHazardsUnder(d, ox, oy, tick, lights);
+  if (!d.hub) { drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights); }
   drawCastGround(d, ox, oy, tick, lights);
   if (d.fieldForge) {
     const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * ATILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * ATILE + oy - spr.ay + ap(6));
@@ -675,12 +675,12 @@ function renderFrame() {
   for (const b of d.bolts) drawCastBolt(b, ox, oy, tick, lights);
   const shotCol = artBiome(f).glow;
   for (const sh of d.shots) {
-    const sx = vx(sh.x), sy = vy(sh.y);
-    for (const [i, j] of [[0, -1], [-1, 0], [0, 0], [1, 0], [0, 1]]) dot(sx + i, sy + j, i || j ? shotCol : '#ffffff', true);
-    lights.push({ x: sx, y: sy, r: TILE, i: 0.6, c: rgb01(shotCol) });
+    const sx = vx(sh.x), sy = vy(sh.y), col = sh.col || shotCol;
+    for (const [i, j] of [[0, -1], [-1, 0], [0, 0], [1, 0], [0, 1]]) dot(sx + i, sy + j, i || j ? col : '#ffffff', true);
+    lights.push({ x: sx, y: sy, r: TILE, i: 0.6, c: rgb01(col) });
   }
   for (const pu of d.puddles) {
-    const k = Math.min(1, pu.t / 0.6), cx = vx(pu.x), cy = vy(pu.y), col = pu.mine ? pu.col || ELEMENT_COLS.ember : PLANT_GLOW;
+    const k = Math.min(1, pu.t / 0.6), cx = vx(pu.x), cy = vy(pu.y), col = pu.col || (pu.mine ? ELEMENT_COLS.ember : PLANT_GLOW);
     // fire on the ground (Kindling Arc, Wildfire, Scatter): flames
     if (pu.fire) { drawFirePatch(pu, cx, cy, tick, lights); continue; }
     for (let n = 0; n < 20; n++) {
@@ -745,10 +745,10 @@ function renderFrame() {
   // through it the pick is
   const o = View.overCtx;
   for (const e of d.enemies) {
-    if (e.dead) continue;
+    if (e.dead || e.hid) continue;
     // over each awake foe: what it fears and shrugs off, as Wick knows it
-    // (natures.js), over its health
-    const head = e.boss ? vy(e.y) - Math.round(enemySprite(d, e.type).ay) - 4 : vy(e.y) - ap(e.type === 'wisp' ? 22 : e.type === 'construct' ? 20 : 16);
+    // (natures.js), over its health (none over one still hidden)
+    const head = e.boss ? vy(e.y) - Math.round(enemySprite(d, e.type).ay) - 4 : vy(e.y) - ap(T.enemies[e.type].barY || (e.type === 'wisp' ? 22 : e.type === 'construct' ? 20 : 16));
     if (e.aggro && e.type !== 'dummy') { const ex = vx(e.x); if (ex > -20 && ex < View.w + 20 && head > -10 && head < View.h + 10) drawNaturePips(o, e, ex, head - 5); }
     if (e.boss || (e.hp >= e.maxHp && !e.elite)) continue;
     const w = ap(e.r * 2 + 4), bx = Math.round(vx(e.x) - w / 2), by = head;
@@ -828,6 +828,8 @@ function enemySprite(d, type) {
     }
     return _enemySprites[key];
   }
+  // a clime's own creature: its first frame (foesart.js)
+  if (FOE_ROWS[type]) return foeSprite(type, FOE_ROWS[type].idle ? 'idle' : FOE_ROWS[type].still ? 'still' : 'rear');
   if (type === 'keeper') {
     const key = 'keeper/' + id;
     if (!_enemySprites[key]) { const s = art2Sprite(KEEPER_ROWS[id], KEEPER_PAL[id], ART_CREATURE); s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - footOff(2); _enemySprites[key] = s; }
@@ -1030,17 +1032,22 @@ function spriteRim(spr, col) {
 }
 
 function drawEnemy(d, e, ox, oy, tick, lights) {
+  // a clime's own creature has frames of its own, and out of sight (under
+  // the sand or the water) only its sign shows (foes.js)
+  const look = FOE_NAMES[e.type] ? foeLook(d, e) : null;
+  if (look && look.hidden) { drawFoeHidden(d, e, ox, oy, tick, lights); return; }
   // (the fighting flora's feet melt into the ground as a plant's do)
-  const rooted = T.enemies[e.type].rooted, spr = rooted ? ugMelted(enemySprite(d, e.type)) : enemySprite(d, e.type), x = View.ctx;
+  const rooted = T.enemies[e.type].rooted, spr = look ? look.spr : rooted ? ugMelted(enemySprite(d, e.type)) : enemySprite(d, e.type), x = View.ctx;
   let lift = 0;
-  if (e.type === 'wisp' || e.type === 'hollow') lift = 5 + Math.round(Math.sin(e.bob * 3) * 1.5);
+  if (look) lift = look.lift;
+  else if (e.type === 'wisp' || e.type === 'hollow') lift = 5 + Math.round(Math.sin(e.bob * 3) * 1.5);
   else if (T.enemies[e.type].rooted) lift = e.state === 'windup' ? 1 : 0;
   else if ((e.state === 'chase' || e.state === 'circle') && Math.floor(e.bob * 8) % 2) lift = 1;
   else if (e.state === 'lunge') lift = 2;
   const shake = e.state === 'windup' ? (tick % 2 ? 1 : -1) : 0;
   const fx = Math.round(e.x * AP) + ox, fy = Math.round(e.y * AP) + oy;
   if (fx < -60 || fy < -15 || fx > View.w + 60 || fy > View.h + 75) return;
-  if (!rooted) drawShadow(fx, fy, Math.max(3, e.r));
+  if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r));
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
   drawArtSprite(spr, sx, sy);
   // struck: a rim a pixel wide round it, white or in the hit's element, on
@@ -1049,18 +1056,20 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   if (e.flash > 0 && (View.rimN = (View.rimN || 0) + 1) <= T.impact.flashMost) View.overCtx.drawImage(spriteRim(spr, e.flashCol || '#ffffff'), sx - 1, sy - 1);
   const pal = ENEMY_PAL[T.biomes[d.biome].id];
   // their eyes and cores light the floor round them, brighter as they wind up
-  const glow = e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : e.type === 'hollow' ? '#ff2a6a' : e.type === 'keeper' ? ART.pal.star[3] : T.enemies[e.type].rooted ? PLANT_GLOW : pal.rune[0];
-  lights.push({ x: fx, y: fy - spr.h / 2, r: (e.type === 'keeper' ? 3.5 : e.boss ? 2.4 : e.type === 'wisp' ? 1.5 : 0.9) * TILE, i: e.state === 'windup' ? 1.2 : 0.5, c: rgb01(glow) });
+  const glow = look ? look.glow : e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : e.type === 'hollow' ? '#ff2a6a' : e.type === 'keeper' ? ART.pal.star[3] : T.enemies[e.type].rooted ? PLANT_GLOW : pal.rune[0];
+  const winding = e.state === 'windup' || e.state === 'weave';
+  if (!look || look.light) lights.push({ x: fx, y: fy - spr.h / 2, r: (look ? look.light : e.type === 'keeper' ? 3.5 : e.boss ? 2.4 : e.type === 'wisp' ? 1.5 : 0.9) * TILE, i: winding ? 1.2 : 0.5, c: rgb01(glow) });
   // tells: a crawler's line before it lunges, a construct's charge line,
   // stars round anything dazed
-  if (e.state === 'windup' && e.type === 'snapjaw') ringDots(fx, fy - ap(4), T.enemies.snapjaw.reach * AP, PLANT_GLOW, tick % 2 ? 0.7 : 0.35, true);
+  if (look) drawFoeTells(d, e, fx, fy, sy, tick, lights, ox, oy);
+  else if (e.state === 'windup' && e.type === 'snapjaw') ringDots(fx, fy - ap(4), T.enemies.snapjaw.reach * AP, PLANT_GLOW, tick % 2 ? 0.7 : 0.35, true);
   else if (e.state === 'windup' && e.type === 'spitter') ringDots(Math.round(e.aimX * AP) + ox, Math.round(e.aimY * AP) + oy, (T.enemies.spitter.puddle / 2) * AP, PLANT_GLOW, tick % 2 ? 0.8 : 0.4, true);
   else if (e.state === 'windup' && e.aimX !== undefined) {
     const def = T.enemies[e.type], reach = e.type === 'crawler' ? def.lungeSpeed * def.lungeTime : def.chargeSpeed * def.chargeTime;
     const a = norm(e.aimX - e.x, e.aimY - e.y), col = e.type === 'crawler' ? ART.pal.eyeglow[0] : pal.rune[0];
     for (let r = 6; r < reach; r += 4) dot(Math.round(fx + a.x * r * AP), Math.round(fy + a.y * r * AP), col, true, (tick % 2 ? 0.8 : 0.45) * (1 - r / reach / 1.5));
   }
-  if (e.state === 'dazed' || e.state === 'stagger' || (e.stunT > 0 && !(e.frozenT > 0)))
+  if (e.state === 'dazed' || e.state === 'stagger' || FOE_EXPOSED.has(e.state) || (e.stunT > 0 && !(e.frozenT > 0)))
     for (let k = 0; k < 3; k++) { const a = Game.realT * 6 + (k * Math.PI * 2) / 3; dot(Math.round(fx + Math.cos(a) * 6 * AP), Math.round(sy - ap(2) + Math.sin(a) * 2 * AP), '#fff2c8', true); }
   // its statuses and its elite affix (natures.js, reactions.js)
   drawEnemyStatus(d, e, spr, sx, sy, fx, fy, tick, lights);
@@ -1147,7 +1156,8 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
   } else if (fx.kind === 'nova') {
     // (its ring is swept over the ground: castFxBig)
     cfxLight(lights, cx, cy, fx.r * 1.3, k, rgb01(fx.col || ART.forms.nova));
-  } else if (fx.kind === 'arc') drawCastArc(fx, ox, oy, lights); else if (fx.kind === 'blast') {
+  } else if (fx.kind === 'foeBurst' || fx.kind === 'foeTongue') drawFoeFx(fx, ox, oy, tick, lights);
+  else if (fx.kind === 'arc') drawCastArc(fx, ox, oy, lights); else if (fx.kind === 'blast') {
     ringDots(cx, cy, fx.r * (1 - k * 0.6) * AP, '#ff7a3a', k, true);
     lights.push({ x: cx, y: cy, r: fx.r * 1.5, i: 1.2 * k, c: [1, 0.5, 0.25] });
   } else if (fx.kind === 'volatile') {

@@ -106,6 +106,7 @@ Every site is also a **clime**: the kind of country it is. The region still sets
 - **Climes change generation a little, never its danger:** the Frost Steppe keeps fewer pillars and the Cinder Waste more, the Bloomfen, Rootdeep and Magma Tubes wander differently, but none has more, bigger or more open caverns (which meant more enemies at once, and more falls in the bot's runs). The hazards are laid over the ground afterwards from a generator of their own, so the tiles don't change.
 - **A rift's graft** brings another clime's ground with it: a patch of Frost Steppe snow in a cave, or Magma Tubes basalt under the sky.
 - The fighting flora dress as the clime's own plants, glow gone red.
+- Each clime has a creature of its own (Enemies).
 
 ## The weather
 
@@ -185,9 +186,30 @@ Only two enemies can wind up at once, plus one more every three floors down. The
 | The warden, the Keepers | one W and one R by region: the Rim Ember W, Blight R; the Choir Force W, Frost R; the Underforge Frost W, Ember R | | | | | |
 
 - **Climes shift it a step** (W to neither, neither to R, R to I, or back): the Frost Steppe more resistant to Frost and weaker to Ember; the Cinder Waste and the Magma Tubes to Ember and Frost; the Flooded Grotto to Ember and Shock; the Bloomfen and the Rootdeep to Blight and Ember; the Clockwork Vault to Force and Shock.
-- **Force is mostly neutral:** it's every spell's element when it has none, so only the wisp (no body to strike) and the Hollow resist it.
+- **Force is mostly neutral:** it's every spell's element when it has none, so only the wisp (no body to strike), the Hollow and two armoured clime creatures (the Slag Crab and the Gear Hound) resist it. The Slag Crab's shell stands in for its resistances while it's shut (35% gets through, rather than 35% of a half), and what it fears still counts.
+- **No marks over what's hidden:** a skink under the sand, an eel under the water, a dropper on the roof or a wraith in its fissure shows none until it comes out.
 - **Wick learns it.** The first hit of an element on a kind tells Wick its verdict, kept in the save. Over each awake foe, a mark for each verdict Wick knows: ▲ in the element's colour for weak, ▼ for resistant, a bar for very resistant, and "?" while some are still unknown; three at most, what it fears first, then what it resists most. An elite's affix always shows.
 - **The numbers carry it:** a weak hit pops bigger and green, a resisted one small and grey; WEAK or RESIST under it at most once every 0.8 s over a foe, and not when a reaction's name shows for that hit. A reaction's name stands over the foe above where its numbers rise, never over them. Wick says so the first time each happens.
+
+### Each clime's own creature
+
+Every clime has a creature found nowhere else: about 30% of what a room holds in its clime, and elsewhere only where a rift's graft of that clime brings one or two (not the eel or the dropper, which need their water or a roof). The crawler, wisp, construct and the fighting flora are the rest, everywhere. Each has its own attack, tied to its clime and its hazard, and like every enemy it shows its attack first (a red line, ring or mark, and it glows brighter as it winds up), a dash crosses every one, and it takes its turn with the others. Each leaves the creature part that suits it, can be an elite, and grows with the level like the rest. Wick says a word on each the first time it shows itself, and a hunt contract can name one (from a clime that leans to an open biome, or to none).
+
+| Clime | Creature | Attack | Tell | Nature (weak / resists) | Part |
+|---|---|---|---|---|---|
+| Badlands | Dune Skink | Swims under the sand (a mound with eyes), bursts up under you and bites; then it's up a moment, scuttling, before it digs back under | A ring of sand under you, its reach in red | Frost / Ember | chitin |
+| Frost Steppe | Tusker | A heavy charge; it slides on, can't turn, and on ice slides on until the rock stops it, dazed for longer | Its whole run in red, a ring where it will slam | Ember / Frost | chitin |
+| Cinder Waste | Ash Wraith | Rises from a smouldering fissure, drifts in and bursts into embers, leaving burning ground; then it's a spent cinder | It swells and glows, its reach in a red ring | Frost / Ember | ether |
+| Bloomfen | Bog Lurker | Sunk to its stalked eyes in its mire; its tongue lashes along a line and drags you a tile in | Its mouth opens, the line marked in red | Ember / Blight | spore |
+| Caverns | Ceiling Dropper | Clings to the roof; drops on you, then fights like a squat crawler | Its shadow grows on the floor, following you a moment, then holding, ringed in red | Force / Shock | chitin |
+| Flooded Grotto | Pool Eel | Swims in the pools (a fin and ripples), rears and lunges; on dry ground without a bite it's stranded | It rears, its line in red | Shock / Ember | fibre |
+| Magma Tubes | Slag Crab | Sidesteps and pinches; its shell turns most of a blow until it's chilled or cracked by a heavy hit (its seams light); lava doesn't burn it | Claws up, a short red line | Frost / Ember and Force | cog |
+| Rootdeep | Rootweaver | Keeps off and spits; strings root snares between the walls across your way, which hold your feet (a dash crosses) | A red line from its mouth; the snare's line in red | Ember / Blight | fibre |
+| Archive | Sentinel Eye | Floats and sweeps a beam through an arc; rock stops it, so a pillar is cover | The arc it will sweep, and the line it starts from | Shock / Blight | ether |
+| Overgrown Temple | Moss Idol | Moves only out of the light (the heart of the lamp's reach, or a shaft of daylight), and pounces from the dark; lit, it's stone | Arms up, eyes lit, its line in red | Force / Frost | spore |
+| Clockwork Vault | Gear Hound | Winds its key, then runs in straight lines, glancing off the walls twice; then it's spent | The key turning, the whole run shown with a ring at each wall | Shock / Force | cog |
+
+While a skink is under the sand, an eel under the water or a dropper on the roof, nothing can strike it or aim at it. A stranded eel, a spent wraith or hound and a dropper that has just landed take half again as much, as a dazed construct does.
 
 ## Mining and ore
 

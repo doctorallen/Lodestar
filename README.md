@@ -55,9 +55,11 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/blueprints.js` | What can be forged: blueprints (casters, gear, stones), creature parts |
 | `js/art2.js` | Art for crafting and the story: new item icons, parts, stones, the wreck, the Shard Keepers |
 | `js/art3.js` | The sunlit surface's palette and plants, the rift, tool icons |
+| `js/foesart.js` | Each clime's own creature: its frames drawn by hand at 24 px, and its colours |
 | `js/items.js` | Affixes, rarities, legendaries, the set, casters and stones, relics; the forge, rune bench, salvage; stats |
 | `js/game.js` | Game state, the dive, walking, mining, leaving |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
+| `js/foes.js` | Each clime's own creature: where it's placed, what it does, its tells and signs |
 | `js/combat.js` | The hands' buttons, the dash, damage, kills and drops, pickups, cargo |
 | `js/rifts.js` | Rifts: grafts, ore wakes, gates, inversions; sealing for riftglass |
 | `js/portals.js` | The portals: each way on and the outpost's, drawn in their destination's colour; stepping through |

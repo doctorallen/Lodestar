@@ -13,7 +13,7 @@
 function nearestEnemy(d, range, from = d.p, except = null) {
   let best = null, bd = range;
   for (const e of d.enemies) {
-    if (e.dead || e === except) continue;
+    if (e.dead || e.hid || e === except) continue;
     const m = dist(from.x, from.y, e.x, e.y);
     if (m < bd && clearLine(d.floor, from.x, from.y - 6, e.x, e.y - 4)) { bd = m; best = e; }
   }
@@ -116,17 +116,21 @@ function healPlayer(n) {
 // to (their statuses last longer) }
 function hurtEnemy(e, dmg, opts = {}) {
   const d = Game.dive, st = d.stats, O = T.onHit;
-  if (e.dead) return;
+  // (a foe under the sand, the water or on the roof can't be struck)
+  if (e.dead || e.hid) return;
   const els = opts.els || (opts.element ? [opts.element] : null);
-  if (e.state === 'dazed') dmg *= 1.5;
+  if (e.state === 'dazed' || FOE_EXPOSED.has(e.state)) dmg *= T.enemies.exposed;
   // its nature: weak, resistant, or neither (natures.js)
-  let verdict = null;
+  let verdict = null, m = 1;
   if (els) {
-    const m = elementMult(e, els);
-    dmg *= m;
+    m = elementMult(e, els);
     verdict = m > 1.01 ? 'W' : m < 0.99 ? 'R' : null;
     if (opts.spell) learnNature(e, els, verdict);
   }
+  // a Slag Crab's shell (foes.js): while it's shut it stands in for what
+  // the crab resists, rather than adding to it; what it fears still tells
+  if (e.type === 'crab') { const sh = crabShell(e, opts); if (sh < 1) m = sh * Math.max(1, m); }
+  dmg *= m;
   if (e.brittleT > 0) dmg *= T.circuits.react.brittle.mult;
   // what it sets off with the statuses it carries (reactions.js), then its own
   if (els && !opts.noProc) {
@@ -147,7 +151,7 @@ function hurtEnemy(e, dmg, opts = {}) {
   const quiet = !verdict || e.reactWordAt === Game.realT || Game.realT - (e.verdictAt || -9) < T.circuits.react.verdictEvery;
   if (!quiet) e.verdictAt = Game.realT;
   d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit, verdict, foe: e, quiet });
-  if (opts.knock) { const k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
+  if (opts.knock) { const kd = T.enemies[e.type].knock, k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : kd !== undefined ? kd : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
   if (opts.heavy && !e.boss && e.type !== 'hollow' && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
   if (e.type === 'dummy') { if (e.hp <= 0) e.hp = e.maxHp; e.kvx = e.kvy = 0; return; }
   wake(d, e);
@@ -182,7 +186,7 @@ function killEnemy(e) {
   };
   // what it was made of: its own part, graded by the biome; elites and the
   // warden leave more, and now and then a blueprint, an exotic or a relic
-  const grade = d.biome + 1, part = Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
+  const grade = d.biome + 1, part = T.enemies[e.type].part || Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
   const parts = (n) => { if (part) for (let k = 0; k < n; k++) drop({ stuff: partId(part, grade), n: 1 }); };
   // a boss's hoard: ordinary parts of any creature (its own heart is apart)
   const hoard = (n) => { for (let k = 0; k < n; k++) drop({ stuff: partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), grade), n: 1 }); };

@@ -72,6 +72,18 @@ const WICK = {
   // resonances (resonance.js)
   resonance: "The stones are singing together. That's a resonance: the whole circuit woke into one spell.",
   resStone: 'A resonance stone. It remembers part of a circuit that sings. I put it in the Codex at the forge.',
+  // each clime's own creature, the first time it shows itself (foes.js)
+  foe_skink: "Something's swimming under the sand. Where it rings under you, step off.",
+  foe_tusker: "That one charges, and on ice it can't stop. Step aside and let the rock have it.",
+  foe_wraith: "Ash, walking. It glows before it bursts. Don't be beside it then.",
+  foe_lurker: 'Eyes in the mire. Its tongue reaches further than you think. Stay off the line it marks.',
+  foe_dropper: 'Something was on the roof. Watch the floor for its shadow.',
+  foe_eel: "A fin in the water. If it lunges and misses, it's stuck on dry ground for a moment.",
+  foe_crab: 'Its shell turns most of what we throw. Freeze it, or crack it with a heavy blow.',
+  foe_weaver: "It strings roots across the way. They'll hold your feet; dash through them.",
+  foe_sentinel: 'A sentry. Its beam sweeps the hall. Put rock between us and it.',
+  foe_idol: 'That statue moved. Only out of the light, I think. Keep it in the lamp.',
+  foe_hound: "A wind-up hound. When the key stops, it runs, off the walls and all. After that it's spent.",
 };
 
 // The star, as it grows, and as its heart comes back.

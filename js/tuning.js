@@ -125,7 +125,9 @@ const T = {
   // star points each pays per magnitude.
   // newest: the share of hauls and reaches set in the newest biome open;
   // stale: how many expeditions one stands before it's replaced.
-  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, ride: 2 }, star: 25, newest: 0.7, stale: 3 },
+  // A hunt names a clime's own creature (one whose clime leans to an open
+  // biome, or to none) with the chance huntSignature, huntN [least, most].
+  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, ride: 2 }, star: 25, newest: 0.7, stale: 3, huntSignature: 0.4, huntN: [2, 4] },
   // A Lodestorm: the chance an expedition sets out under one; on the
   // surface a strike every `every` s (the first after `first`), within
   // `near` tiles of the diver, marked `warn` s ahead, hurting within
@@ -471,6 +473,73 @@ const T = {
     // puddleDps a second for puddleTime)
     snapjaw: { hp: 30, dmg: 13, speed: 0, radius: 6, reach: 24, windup: 0.5, cooldown: 1.5, weight: 2, rooted: true },
     spitter: { hp: 20, dmg: 6, speed: 0, radius: 5, range: 110, windup: 0.6, cooldown: 2.4, shotSpeed: 60, puddle: 14, puddleDps: 9, puddleTime: 2.6, weight: 2, rooted: true },
+    // Each clime's own creature (foes.js), a signature: signatureShare of
+    // what a room holds in its clime, and nowhere else but a rift's graft of
+    // that clime (graftFoes of them; not those that need its water or a
+    // ceiling: noGraft). In an exposed state (stranded, spent, just landed)
+    // one takes `exposed` times the damage, as a dazed one does. part: the
+    // creature part it leaves. knock: how far hits push it (1 a crawler).
+    // barY: how high its health bar sits (world px over its feet).
+    signatureShare: 0.3, graftFoes: [1, 2], exposed: 1.5,
+    signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker', caverns: 'dropper', grotto: 'eel', magma: 'crab', rootdeep: 'weaver', archive: 'sentinel', temple: 'idol', vault: 'hound' },
+    // the Dune Skink (Badlands) swims under the sand (its speed), shows a
+    // ring where it will burst up once within `strike` px, and bursts there
+    // after windup s, biting within `burst` px; it stays up for `up` s,
+    // then takes `dig` s to go back under
+    skink: { hp: 24, dmg: 11, speed: 40, radius: 5, strike: 24, windup: 0.9, burst: 10, up: 1.5, dig: 0.4, cooldown: 1.2, part: 'chitin', barY: 14 },
+    // the Tusker (Frost Steppe) shows where it will charge; past chargeTime
+    // it slides on, losing speed at `grip` a second (iceGrip on ice, so on
+    // ice it goes on until the rock stops it); it can't turn, and into rock
+    // it's dazed (slam s, from a slide on ice). stopAt: px/s it stops at
+    tusker: { hp: 64, dmg: 15, speed: 18, radius: 8, range: 88, windup: 0.85, cooldown: 2.4, chargeSpeed: 150, chargeTime: 0.45, grip: 9, iceGrip: 0.7, stopAt: 16, dazed: 1.4, slam: 2.2, knock: 0.3, part: 'chitin', barY: 22 },
+    // the Ash Wraith (Cinder Waste) waits in a fissure until the diver is
+    // within `notice` px, takes `rise` s to rise, drifts in, and within
+    // burstAt px glows for windup s and bursts, hurting within `burst` px
+    // and leaving burning ground (ashR px, ashTime s, ash × its damage a
+    // second); then it's a spent cinder for `spent` s
+    wraith: { hp: 22, dmg: 17, speed: 30, radius: 5, notice: 64, rise: 0.7, burstAt: 20, windup: 0.8, burst: 20, ashR: 13, ashTime: 2.4, ash: 0.35, spent: 1.8, cooldown: 1.6, flies: true, part: 'ether', barY: 22 },
+    // the Bog Lurker (Bloomfen) sits half-sunk in its mire and never moves;
+    // it marks a line `range` px long, then lashes its tongue along it
+    // (`width` px either side), dragging what it catches `drag` px towards
+    // itself over dragTime s
+    lurker: { hp: 40, dmg: 12, speed: 0, radius: 6, range: 74, width: 5, windup: 0.75, cooldown: 2.2, drag: 16, dragTime: 0.18, anchored: true, part: 'spore', barY: 12 },
+    // the Ceiling Dropper (Caverns) clings to the roof until the diver is
+    // within `notice` px; its shadow grows on the floor for `fall` s,
+    // following the diver for the first `track` s, then it drops, hurting
+    // within `drop` px, lies `landed` s, and fights like a squat crawler
+    // (windup, lunge and recover as a crawler's)
+    dropper: { hp: 30, dmg: 13, speed: 30, radius: 6, notice: 46, fall: 1.0, track: 0.45, windup: 0.45, drop: 11, landed: 0.6, circle: 24, lungeSpeed: 120, lungeTime: 0.25, recover: 0.6, side: 0.8, noGraft: true, part: 'chitin', barY: 14 },
+    // the Pool Eel (Flooded Grotto) swims in the pools at `speed`; within
+    // `range` px it rears up for windup s showing its line, lunges, and if
+    // it lands on dry ground without biting, lies stranded for `stranded`
+    // s, then crawls back at crawlSpeed; back in the water it stays up for
+    // `surface` s before it dives
+    eel: { hp: 30, dmg: 13, speed: 46, radius: 5, range: 54, windup: 0.75, lungeSpeed: 190, lungeTime: 0.28, stranded: 1.6, crawlSpeed: 26, surface: 0.9, cooldown: 2.2, swims: true, noGraft: true, part: 'fiber', barY: 14 },
+    // the Slag Crab (Magma Tubes) sidesteps round the diver (side × its
+    // speed) and pinches. Its shell takes `shell` of the damage until it's
+    // chilled, or cracked by a heavy hit for crackTime s. Lava can't burn it
+    crab: { hp: 44, dmg: 14, speed: 26, radius: 6, circle: 24, windup: 0.5, lungeSpeed: 110, lungeTime: 0.22, recover: 0.5, side: 1.25, shell: 0.35, crackTime: 5, knock: 0.5, lavaProof: true, part: 'cog', barY: 15 },
+    // the Rootweaver (Rootdeep) keeps `keep` px off and spits (shotSpeed);
+    // every snareEvery s it strings a root snare between two walls across
+    // the diver's way (each end at most snareReach px from the diver),
+    // showing it for `weave` s: crossing one walks at snareSlow; it lasts
+    // snareTime s, snareMax on a floor
+    weaver: { hp: 26, dmg: 9, speed: 30, radius: 5, keep: 62, range: 110, windup: 0.55, cooldown: 2.0, shotSpeed: 80, snareEvery: 6, snareReach: 44, weave: 0.7, snareTime: 9, snareMax: 3, snareSlow: 0.45, snareWidth: 4, part: 'fiber', barY: 15 },
+    // the Sentinel Eye (Archive) floats `keep` px off and sweeps a beam
+    // through `arc` rad either side of the diver over `sweep` s, after
+    // windup s showing the arc; rock stops the beam. One hit a sweep
+    sentinel: { hp: 30, dmg: 11, speed: 16, radius: 5, keep: 74, range: 118, windup: 0.9, sweep: 1.2, arc: 0.7, cooldown: 3.0, flies: true, part: 'ether', barY: 24 },
+    // the Moss Idol (Overgrown Temple) moves only out of the light: farther
+    // than litReach of the lamp's reach, behind rock, and out of a shaft of
+    // daylight (shaftReach of its radius). Unlit, within `pounce` px, it
+    // winds up and lunges
+    idol: { hp: 56, dmg: 15, speed: 56, radius: 6, pounce: 56, windup: 0.65, lungeSpeed: 150, lungeTime: 0.32, recover: 0.6, litReach: 0.6, shaftReach: 0.7, cooldown: 1.4, knock: 0.5, part: 'spore', barY: 22 },
+    // the Gear Hound (Clockwork Vault) winds its key for windup s, showing
+    // its run and where it will glance off the walls, then runs at
+    // dashSpeed for at most dashTime s, ricocheting `bounces` times; then
+    // it's spent for `spent` s
+    hound: { hp: 34, dmg: 12, speed: 30, radius: 5, range: 96, windup: 0.9, dashSpeed: 165, dashTime: 1.4, bounces: 2, spent: 1.8, cooldown: 0.8, part: 'cog', barY: 17 },
+    // (their natures are in `resist`, below, with the rest)
     // the Hollow: what comes when the star's pull is gone. It can't be
     // staggered, and it doesn't stop
     hollow: { hp: 900, dmg: 22, speed: 44, radius: 7, contact: 12, cooldown: 0.9 },
@@ -501,6 +570,10 @@ const T = {
       snapjaw: { frost: 'R', ember: 'W', blight: 'R' }, // living plants
       spitter: { frost: 'R', ember: 'W', blight: 'R' },
       hollow: { force: 'R', shock: 'R', frost: 'R', ember: 'R', blight: 'R' }, // the living dark
+      // each clime's own creature (foes.js)
+      skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', frost: 'R' }, wraith: { frost: 'W', ember: 'R' }, lurker: { ember: 'W', blight: 'R' },
+      dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', ember: 'R' }, crab: { frost: 'W', ember: 'R', force: 'R' }, weaver: { ember: 'W', blight: 'R' },
+      sentinel: { shock: 'W', blight: 'R' }, idol: { force: 'W', frost: 'R' }, hound: { shock: 'W', force: 'R' },
     },
     // the warden and the Keepers: one weakness and one resistance, by region
     regionResist: {
