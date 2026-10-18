@@ -1,28 +1,34 @@
 'use strict';
 // ---------------------------------------------------------------------------
 // Controls. On a phone: a floating joystick wherever the left thumb lands in
-// the left deck, and buttons in the right deck: MINE (hold) and the
-// contextual action (DESCEND, EXTRACT). Upright the decks sit side by side
-// under the view; sideways they're either side of it. On a keyboard: WASD or
-// the arrows to move, Space or J to mine, E or Enter to act, Esc to pause.
-// The tests drive the same interface through Input.bot.
+// the left deck, and buttons in the right deck, all held: one for each hand
+// (SWING for a blade, CAST for a focus), MINE, and the contextual action
+// (DESCEND, EXTRACT). Upright the decks sit side by side under the view;
+// sideways they're either side of it. On a keyboard: WASD or the arrows to
+// move, J for the main hand, K for the off hand, Space or L to mine, E or
+// Enter to act, Esc to pause. The tests drive the same interface through
+// Input.bot.
 // ---------------------------------------------------------------------------
 
 const STICK_R = 44; // CSS px
 const STICK_DEAD = 6;
+const HOLD_BUTTONS = { main: 'btn-main', off: 'btn-off', mine: 'btn-mine' };
+const HOLD_KEYS = { main: ['KeyJ'], off: ['KeyK'], mine: ['Space', 'KeyL'] };
 
 const Input = {
   move: { x: 0, y: 0 },
   stick: null, // { id, bx, by, x, y } in client px
-  mineId: null, // the pointer holding MINE
+  held: { main: null, off: null, mine: null }, // the pointer holding each button
   actReq: false,
   keys: new Set(),
-  bot: null, // { x, y, mine, act } from the tests
+  bot: null, // { x, y, main, off, mine, act } from the tests
 
-  mining() {
-    if (this.bot) return !!this.bot.mine;
-    return this.mineId !== null || this.keys.has('Space') || this.keys.has('KeyJ');
+  isHeld(k) {
+    if (this.bot) return !!this.bot[k];
+    return this.held[k] !== null || HOLD_KEYS[k].some((c) => this.keys.has(c));
   },
+  mining() { return this.isHeld('mine'); },
+  handHeld(slot) { return this.isHeld(slot); },
   consumeAct() {
     if (this.bot) { const a = !!this.bot.act; this.bot.act = false; return a; }
     const a = this.actReq; this.actReq = false; return a;
@@ -48,9 +54,8 @@ const Input = {
   // anything on it or carry on walking afterwards.
   block() {
     this.stick = null;
-    this.mineId = null;
     this.actReq = false;
-    $('btn-mine').classList.remove('held');
+    for (const k in this.held) { this.held[k] = null; $(HOLD_BUTTONS[k]).classList.remove('held'); }
     drawStick();
   },
 };
@@ -90,17 +95,19 @@ function setupInput() {
   left.addEventListener('pointerup', endStick);
   left.addEventListener('pointercancel', endStick);
 
-  const mine = $('btn-mine');
-  mine.addEventListener('pointerdown', (e) => {
-    if (Game.modal) return;
-    e.preventDefault();
-    Input.mineId = e.pointerId;
-    try { mine.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ }
-    mine.classList.add('held');
-  });
-  const endMine = (e) => { if (Input.mineId === e.pointerId) { Input.mineId = null; mine.classList.remove('held'); } };
-  mine.addEventListener('pointerup', endMine);
-  mine.addEventListener('pointercancel', endMine);
+  for (const [k, id] of Object.entries(HOLD_BUTTONS)) {
+    const btn = $(id);
+    btn.addEventListener('pointerdown', (e) => {
+      if (Game.modal) return;
+      e.preventDefault();
+      Input.held[k] = e.pointerId;
+      try { btn.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ }
+      btn.classList.add('held');
+    });
+    const end = (e) => { if (Input.held[k] === e.pointerId) { Input.held[k] = null; btn.classList.remove('held'); } };
+    btn.addEventListener('pointerup', end);
+    btn.addEventListener('pointercancel', end);
+  }
 
   $('btn-act').addEventListener('pointerdown', (e) => {
     if (Game.modal) return;
@@ -110,13 +117,14 @@ function setupInput() {
 
   const GAME_KEYS = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
   window.addEventListener('keydown', (e) => {
-    if (GAME_KEYS.has(e.code)) e.preventDefault();
+    if (GAME_KEYS.has(e.code) && !Game.modal) e.preventDefault();
     if (e.repeat) return;
     if ((e.code === 'Escape' || e.code === 'KeyP') && Game.scene === 'dive') {
-      if (Game.modal === 'screen-pause') UI.close();
-      else if (!Game.modal) UI.openPause();
+      if (Game.modal) UI.close();
+      else UI.openPause();
       return;
     }
+    if (e.code === 'KeyI' && Game.scene === 'dive' && !Game.modal) { UI.openCargo(); return; }
     if ((e.code === 'KeyE' || e.code === 'Enter') && !Game.modal) Input.actReq = true;
     Input.keys.add(e.code);
   });

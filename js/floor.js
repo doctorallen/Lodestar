@@ -18,7 +18,8 @@ function floorTile(f, tx, ty) {
   return tx < 0 || ty < 0 || tx >= f.w || ty >= f.h ? TILE_EDGE : f.tiles[ty * f.w + tx];
 }
 
-function generateFloor(seed, depth, biome) {
+// reach: how deep the Lodestar's lines are sure to reach.
+function generateFloor(seed, depth, biome, reach = T.floor.padSure) {
   const F = T.floor, B = T.biomes[biome];
   const rng = new Rng(hashInts(seed, depth, biome, 0x10de));
   const w = F.w, h = F.h;
@@ -70,8 +71,8 @@ function generateFloor(seed, depth, biome) {
   const shaftRoom = far[0][1];
   tiles[shaftRoom.cy * w + shaftRoom.cx] = TILE_SHAFT;
   let pad = null;
-  const reach = depth <= F.padSure ? 1 : Math.max(F.padMin, 1 - (depth - F.padSure) * F.padFade);
-  if (far.length > 1 && rng.chance(reach)) {
+  const padChance = depth <= reach ? 1 : Math.max(F.padMin, 1 - (depth - reach) * F.padFade);
+  if (far.length > 1 && rng.chance(padChance)) {
     const r = far[rng.i(1, Math.min(far.length - 1, 2))][1];
     pad = { x: r.cx, y: r.cy };
     tiles[r.cy * w + r.cx] = TILE_PAD;

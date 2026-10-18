@@ -23,7 +23,9 @@ function sandbox(files) {
   // const/let declarations are visible to each other, then expose what the
   // tests need
   const src = files.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n');
-  const expose = '\n;globalThis.__game = { T, Rng, hashInts, generateFloor, floorHash, floorDistances, floorTile, ORE_INDEX, TILE_FLOOR, TILE_ROCK, TILE_ORE, TILE_EDGE, TILE_PAD, TILE_SHAFT, TILE_SOLID, TILE };';
+  const expose = '\n;globalThis.__game = { T, Rng, hashInts, generateFloor, floorHash, floorDistances, floorTile, ORE_INDEX, TILE_FLOOR, TILE_ROCK, TILE_ORE, TILE_EDGE, TILE_PAD, TILE_SHAFT, TILE_SOLID, TILE,'
+    + (files.some((f) => f.endsWith('items.js')) ? ' AFFIXES, KIND_FAMILIES, LEGENDARIES, SETS, CORES, RARITIES, makeItem, makeCore, makeRelic, rollDrop, rollRarity, unsealRelic, forgeItem, rerollAffix, upgradeAffix, addAffix, salvageYield, computeStats, startingGear, magnitudeOf, attunePointsLeft, biomeOpen, fmtAffix, itemBaseLine, itemWorth,' : '')
+    + ' };';
   vm.runInContext(src + expose, ctx, { filename: 'lodestar-sandbox.js' });
   return ctx.__game;
 }

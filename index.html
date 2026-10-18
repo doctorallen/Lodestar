@@ -15,22 +15,28 @@
 <body>
 <div id="app">
   <header id="topbar">
-    <span id="hud-depth"></span>
-    <span id="hud-cargo"></span>
+    <div class="bars">
+      <div id="hud-hp" class="bar hp"><div id="hp-fill" class="fill"></div><span id="hp-text" class="bar-text"></span></div>
+      <div id="hud-ch" class="bar ch"><div id="ch-fill" class="fill"></div></div>
+    </div>
+    <span id="hud-depth" class="hud-depth"></span>
+    <button id="btn-cargo" class="icon-btn cargo" aria-label="Cargo"></button>
     <button id="btn-pause" class="icon-btn" aria-label="Pause">II</button>
   </header>
 
   <main id="stage">
     <canvas id="view"></canvas>
-    <div id="toasts" class="toasts" aria-live="polite"></div>
   </main>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <div id="deck-left" class="deck">
     <span class="deck-hint">MOVE</span>
   </div>
   <div id="deck-right" class="deck">
     <button id="btn-act" class="deck-btn act" hidden></button>
+    <button id="btn-off" class="deck-btn off" hidden></button>
     <button id="btn-mine" class="deck-btn mine">MINE</button>
+    <button id="btn-main" class="deck-btn main">SWING</button>
   </div>
   <div id="stick-base" class="stick-base" hidden><div id="stick-knob" class="stick-knob"></div></div>
 
@@ -38,18 +44,51 @@
   <section id="screen-base" class="screen base" hidden>
     <div class="star-wrap"><canvas id="star"></canvas><div class="sinkhole"></div></div>
     <h1 class="logo">LODESTAR</h1>
-    <p id="base-report" class="report"></p>
-    <div id="base-stash" class="stash"></div>
-    <button id="base-descend" class="btn primary">DESCEND</button>
+    <div id="hub-body" class="hub-body"></div>
     <div class="build" id="build"></div>
+  </section>
+
+  <section id="screen-descend" class="screen panel" hidden>
+    <h2>DESCEND</h2>
+    <div id="descend-body" class="list"></div>
+    <div class="menu"><button class="btn" data-act="back">BACK</button></div>
+  </section>
+
+  <section id="screen-forge" class="screen panel" hidden>
+    <h2>THE FORGE</h2>
+    <div id="forge-body" class="list"></div>
+    <div class="menu"><button class="btn" data-act="back">BACK</button></div>
+  </section>
+
+  <section id="screen-gear" class="screen panel" hidden>
+    <h2>GEAR</h2>
+    <div id="gear-body" class="list"></div>
+    <div class="menu"><button class="btn" data-act="back">BACK</button></div>
+  </section>
+
+  <section id="screen-star" class="screen panel" hidden>
+    <h2>THE STAR</h2>
+    <div id="star-body" class="list"></div>
+    <div class="menu"><button class="btn" data-act="back">BACK</button></div>
+  </section>
+
+  <section id="screen-cargo" class="screen panel" hidden>
+    <h2>CARGO</h2>
+    <div id="cargo-body" class="list"></div>
+    <div class="menu"><button class="btn primary" data-act="resume">RESUME</button></div>
   </section>
 
   <section id="screen-pause" class="screen" hidden>
     <h2>PAUSED</h2>
-    <button id="pause-resume" class="btn primary">RESUME</button>
-    <button id="pause-abandon" class="btn danger">ABANDON DIVE</button>
-    <p class="dim">Abandoning loses everything in your cargo.</p>
+    <div class="menu">
+      <button id="pause-resume" class="btn primary" data-act="resume">RESUME</button>
+      <button id="pause-cargo" class="btn" data-act="go" data-arg="screen-cargo">CARGO</button>
+      <button id="pause-abandon" class="btn danger" data-act="abandon">ABANDON DIVE</button>
+    </div>
+    <p class="note">Abandoning loses everything in your cargo. What you wear is safe.</p>
   </section>
+
+  <div id="card" class="card-wrap" hidden><div id="card-body" class="card"></div></div>
 </div>
 
 <script src="js/util.js"></script>
@@ -58,7 +97,10 @@
 <script src="js/save.js"></script>
 <script src="js/floor.js"></script>
 <script src="js/art.js"></script>
+<script src="js/items.js"></script>
 <script src="js/game.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/combat.js"></script>
 <script src="js/render.js"></script>
 <script src="js/input.js"></script>
 <script src="js/ui.js"></script>

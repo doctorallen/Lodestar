@@ -1,15 +1,22 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// The save: what's banked at the Lodestar, kept in localStorage. A dive in
-// progress isn't saved yet; leaving mid-dive loses it.
+// The save, kept in localStorage: what's banked at the Lodestar (ore and
+// exotics in stash, gear in items), what's worn, the star's points, the
+// attunements, and the deepest floor reached in each biome. A dive in
+// progress isn't saved; leaving mid-dive loses it.
 // ---------------------------------------------------------------------------
 
-const SAVE_KEY = 'lodestar.save.v1';
+const SAVE_KEY = 'lodestar.save.v2';
 
 const Save = {
   data: null,
   fresh() {
-    return { v: 1, stash: {}, pickTier: 1, deepest: 0, dives: 0, settings: { haptics: true } };
+    const rng = new Rng((Math.random() * 4294967296) >>> 0);
+    return {
+      v: 2, uid: 100, crafts: 0, dives: 0, star: 0,
+      stash: {}, items: [], equip: startingGear(rng),
+      attune: {}, deepest: {}, tips: {}, settings: { haptics: true },
+    };
   },
   load() {
     try {
@@ -22,4 +29,6 @@ const Save = {
   save() {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) { /* private mode or full: play on */ }
   },
+  // A generator for the next craft, reroll or salvage.
+  rng() { return new Rng(hashInts(this.data.uid, ++this.data.crafts, 0xf0e)); },
 };

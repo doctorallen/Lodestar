@@ -27,3 +27,16 @@ The major gameplay decisions, newest last, and why each was made. Read this befo
 ## 2026-10-17: the art style
 
 - **"Glow + Detail": D's detail in B's darkness.** Of the five styles compared, this one fits the setting and the push-your-luck feel best. Light shows you where to look, because ore, runes and lodelines glow in the dark. The 16px tiles keep 11–12 tiles across a phone screen. Dark rock tops with lit rims keep walls readable even where the light is low.
+
+## 2026-10-17: the first playable loop
+
+- **One button per hand.** A blade swings and a focus casts, each on its own held button. This keeps every build to the same few buttons, and makes melee, magic and hybrid builds simply a matter of what's held.
+- **Cores fire from blades too.** In a focus, a core is a spell you cast for charge. In a blade, it fires free every third hit at reduced power. Cores stay worth finding for melee-only builds.
+- **No off-hand ward yet.** Plate covers defense, and Ward Pulse is a core.
+- **A pick breaks the ore above its own.** A Ferrite pick breaks Lumenite, and so on. The ore you can already mine always makes the key to the next.
+- **The forge also makes cores, and the rune bench lives on the item card.** That means fewer screens to learn on a phone, and no separate Coreworks.
+- **A Lodestone shard raises rarity rather than adding magnetism.** It gives one exotic a different and clearly useful job.
+- **Cargo by weight:** ore and exotics weigh 1, gear and relics 3. Gear competes with ore without needing a grid inventory.
+- **Rest heals.** Health returns slowly after a few seconds without being hurt. Without this, a bot that fought everything died on the first floor. Now danger builds with depth rather than with every fight.
+- **The star's reach grows with it.** Each magnitude makes lodelines sure a floor deeper. Feeding the star makes deeper dives safer to try, as well as opening biomes.
+- **Balance is checked by a bot.** The autopilot plays careers on every test run. It fails if a career can't bring a haul home early, improve its pick, or grow the star.

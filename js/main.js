@@ -16,8 +16,9 @@ function step(dtReal) {
   UI.frame(dtReal);
   if (Game.modal) return;
   if (Game.scene !== 'dive' || !Game.dive) return;
-  Game.t += dtReal * Game.timeScale;
-  updateDive(dtReal);
+  const dt = dtReal * Game.timeScale;
+  Game.t += dt;
+  updateDive(dtReal, dt);
 }
 
 function frame(now) {

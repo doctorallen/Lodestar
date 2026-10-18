@@ -11,9 +11,22 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | | Phone | Keyboard |
 |---|---|---|
 | Move | Left thumb, anywhere on the left deck | WASD / arrows |
-| Mine (hold) | MINE | Space / J |
-| Descend / extract | The button that appears on a shaft or lodeline | E / Enter |
+| Main hand (swing a blade, cast a focus) | The big button, held | J |
+| Off hand | The blue button, held | K |
+| Mine | MINE, held | Space / L |
+| Descend / extract | The button that appears on a shaft or in a lodeline | E / Enter |
+| Cargo | CARGO in the top bar | I |
 | Pause | II | Esc / P |
+
+The loop:
+1. Descend into a biome the Lodestar reaches.
+2. Mine ore and fight what finds you.
+3. Stand in a lodeline's gold beam and EXTRACT to bank your cargo. Fall, and the cargo is lost, but what you wear is safe.
+
+At home:
+- forge gear, picks and spell cores;
+- rework affixes on any item's card;
+- feed ore to the star to grow it and open deeper biomes.
 
 ## Files
 
@@ -23,20 +36,24 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 |---|---|
 | `js/util.js` | DOM shortcut, error capture, seeded `Rng`, maths, colours, sprite helpers |
 | `js/version.js` | The build stamp, written by `.githooks/pre-commit` |
-| `js/tuning.js` | Every gameplay number, the ores and the biomes |
+| `js/tuning.js` | Every gameplay number, the ores, exotics and biomes |
 | `js/save.js` | The save in localStorage |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, shaft, lodeline |
-| `js/art.js` | The art style: palettes, sprites, tile painting into pixel buffers |
+| `js/art.js` | The art style: palettes, sprites, enemies, item icons, tile painting |
+| `js/items.js` | Affixes, rarities, legendaries, the set, cores, relics; the forge, rune bench, salvage; stats |
 | `js/game.js` | Game state, the dive, walking, mining, leaving |
+| `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
+| `js/combat.js` | Swings, spells, damage, kills and drops, pickups, cargo |
 | `js/render.js` | The pixel view, the floor canvas, lighting and bloom, sparks |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
-| `js/ui.js` | The Lodestar and pause screens, the top bar, toasts |
+| `js/ui.js` | The Lodestar, descend, forge, gear, star, cargo and pause screens, the item card, the top bar |
 | `js/main.js` | Boot, the fixed-step loop, the upright and sideways layouts |
-| `test/` | Static checks, floor generation with golden hashes, a headless smoke run |
+| `test/` | Static checks, floor generation with golden hashes, the loot tables, a headless smoke run, and the autopilot (`botlib.js`) playing careers |
 
 ## Tests
 
 ```sh
 npm ci       # test tools only
 npm test     # everything CI runs
+node test/bot.js --careers 4 --dives 40   # longer balance runs; results in test/out/balance.json
 ```

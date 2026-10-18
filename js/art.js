@@ -28,7 +28,12 @@ const ART = {
     plate: ['#191c22', '#2e333c', '#4a515c', '#78808c'], rune: ['#62f0ff'], arcane: ['#c9a2ff'], metal: ['#241c12', '#4a3a20', '#7a6234', '#b89a58'],
     steel: ['#22262c', '#444a54', '#767f8c', '#c8d2dc'], tool: ['#1c2028', '#383f4a', '#5e6876', '#98a4b4'], wood: ['#1a110a', '#301d12', '#4c301c', '#64422a'], glass: ['#ffb347'],
     star: ['#3a2a14', '#8a6430', '#d8ae5c', '#fff2c8'],
+    shell: ['#0e0a10', '#1c1520', '#302434', '#4a3a4e'], eyeglow: ['#ff3d3d'], crystal: ['#a070ff'], coreglow: ['#fff4e0'], legs: ['#060407'],
   },
+  // what each rarity's drops and names glow with
+  rarity: { common: '#b8b0a0', magic: '#6fa8ff', rare: '#ffd34d', legendary: '#ff8a3d', set: '#5fe08a', relic: '#c9a2ff' },
+  exotics: { voltaic: '#7fe8ff', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890' },
+  cores: { bolt: '#62f0ff', nova: '#ffb347', pull: '#ffd890', ward: '#8fb4ff' },
   ores: {
     ferrite: ['#3b170d', '#743828', '#c46444', '#ffb08a'],
     lumenite: ['#0a302c', '#2a6e64', '#4ec9b1', '#c2fff2'],
@@ -90,10 +95,14 @@ const SPRITE_CHARS = {
   C: ['coat'], c: ['coat', 0], B: ['leather'], P: ['pants'], K: ['boots'], G: ['plate'],
   R: ['rune'], A: ['arcane'], M: ['metal'], W: ['steel'], T: ['tool'], D: ['wood'], O: ['glass'],
   w: ['steel', 0], t: ['tool', 0],
+  X: ['shell'], x: ['shell', 0], Y: ['eyeglow'], V: ['crystal'], Q: ['coreglow'], l: ['legs'],
 };
-const SPRITE_GLOWS = new Set(['lamp', 'rune', 'arcane', 'glass']);
+const SPRITE_GLOWS = new Set(['lamp', 'rune', 'arcane', 'glass', 'eyeglow', 'crystal', 'coreglow']);
 
-function buildArtSprite(rows) {
+// pal: materials to use instead of ART.pal's (an enemy's biome colours, an
+// item's ore)
+function buildArtSprite(rows, pal) {
+  pal = pal ? Object.assign({}, ART.pal, pal) : ART.pal;
   const h = rows.length, w = Math.max(...rows.map((r) => r.length));
   const at = (x, y) => (y < 0 || y >= h || x < 0 || x >= w ? '.' : rows[y][x] || '.');
   const op = (x, y) => at(x, y) !== '.';
@@ -104,7 +113,7 @@ function buildArtSprite(rows) {
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       if (!op(x, y)) continue;
-      const [m, forced] = SPRITE_CHARS[at(x, y)], ramp = ART.pal[m], glow = SPRITE_GLOWS.has(m), n = ramp.length;
+      const [m, forced] = SPRITE_CHARS[at(x, y)], ramp = pal[m], glow = SPRITE_GLOWS.has(m), n = ramp.length;
       let i;
       if (glow) i = n - 1;
       else if (forced !== undefined) i = forced;
@@ -306,3 +315,213 @@ const LODESTAR_ROWS = [
   '.....D.....',
 ];
 const LODESTAR_PAL = { W: ART.pal.star[3], w: ART.pal.star[2], G: ART.pal.star[1], d: ART.pal.star[1], D: ART.pal.star[0] };
+
+// Scale2x (EPX) on a letter grid: twice the size, corners rounded.
+function scale2xRows(rows) {
+  const h = rows.length, w = Math.max(...rows.map((r) => r.length));
+  const at = (x, y) => (y < 0 || y >= h || x < 0 || x >= w ? '.' : rows[y][x] || '.');
+  const out = Array.from({ length: h * 2 }, () => new Array(w * 2).fill('.'));
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const P = at(x, y), A = at(x, y - 1), B = at(x + 1, y), C = at(x - 1, y), D = at(x, y + 1);
+      out[2 * y][2 * x] = C === A && C !== D && A !== B ? A : P;
+      out[2 * y][2 * x + 1] = A === B && A !== C && B !== D ? B : P;
+      out[2 * y + 1][2 * x] = D === C && D !== B && C !== A ? C : P;
+      out[2 * y + 1][2 * x + 1] = B === D && B !== A && D !== C ? D : P;
+    }
+  return out.map((r) => r.join(''));
+}
+
+// ---------------------------------------------------------------------------
+// Enemies. Each biome recolours their shells and what glows on them.
+// ---------------------------------------------------------------------------
+const ENEMY_ROWS = {
+  crawler: [
+    '........VV........',
+    '....V...VV...V....',
+    '....VV.VVVV.VV....',
+    '...XXXXXXXXXXXX...',
+    '..XXXXXXXXXXXXXX..',
+    '.XXXXXXXXXXXXXXXX.',
+    '.XXYYXXXXXXXXYYXX.',
+    '.XXYYXXXXXXXXYYXX.',
+    '.xXXXXXXXXXXXXXXx.',
+    'l.xxXXXXXXXXXXxx.l',
+    '.l..xxMM..MMxx..l.',
+    'l.l...M....M...l.l',
+  ],
+  wisp: [
+    '....XX....',
+    '..XXVVXX..',
+    '.XVVVVVVX.',
+    '.XVVQQVVX.',
+    'XVVQQQQVVX',
+    'XVVQQQQVVX',
+    '.XVVQQVVX.',
+    '.XVVVVVVX.',
+    '..XXVVXX..',
+    '....XX....',
+    '....x.....',
+    '.....x....',
+  ],
+  construct: [
+    '....MMMMMM....',
+    '...MGGGGGGM...',
+    '...MGYYGYYM...',
+    '...MGGGGGGM...',
+    '..MMMMMMMMMM..',
+    '.GGGGGRRGGGGG.',
+    'GGGGGRRRRGGGGG',
+    'GGMGGGRRGGGMGG',
+    'GGMGGGGGGGGMGG',
+    '.M.GGGGGGGG.M.',
+    '.M.GGMMMMGG.M.',
+    '...GG....GG...',
+    '...GG....GG...',
+    '..MMM....MMM..',
+  ],
+};
+// each biome's enemy colours: shell ramp, what glows, the constructs' plates
+const ENEMY_PAL = {
+  rim: { shell: ['#0e0a10', '#1c1520', '#302434', '#4a3a4e'], crystal: ['#5ce8c8'], coreglow: ['#d8fff4'], plate: ['#16181c', '#2a2e34', '#454b54', '#6c7480'], rune: ['#5ce8c8'] },
+  choir: { shell: ['#0a0a18', '#16162c', '#262848', '#3c4068'], crystal: ['#b08cff'], coreglow: ['#efe4ff'], plate: ['#14162a', '#262a48', '#3e4470', '#646ca0'], rune: ['#b08cff'] },
+  underforge: { shell: ['#140a08', '#261410', '#3e2219', '#5a3426'], crystal: ['#ff7a2a'], coreglow: ['#fff0c8'], plate: ['#1c1210', '#34221c', '#523830', '#7a5648'], rune: ['#ff7a2a'] },
+};
+
+// Builds every enemy sprite for a biome, each with a white silhouette for
+// hit flashes. They move by bobbing, not by frames.
+function buildEnemySprites(biomeId) {
+  const pal = ENEMY_PAL[biomeId], out = {};
+  for (const type of Object.keys(ENEMY_ROWS)) out[type] = buildArtSprite(ENEMY_ROWS[type], pal);
+  out.warden = buildArtSprite(scale2xRows(ENEMY_ROWS.construct), Object.assign({}, pal, { plate: ['#0c0a0e', '#1e1a22', '#34303c', '#565064'] }));
+  for (const type in out) { const s = out[type]; s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - 1.5; }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Item icons, drawn in the item's ore: steel and plate take its colours.
+// ---------------------------------------------------------------------------
+function bladeIconRows() {
+  const g = Array.from({ length: 20 }, () => new Array(20).fill('.'));
+  const set = (x, y, ch) => { if (x >= 0 && y >= 0 && x < 20 && y < 20) g[y][x] = ch; };
+  set(19, 0, 'W');
+  for (let i = 0; i < 12; i++) { const x = 18 - i, y = 1 + i; set(x - 1, y, 'W'); set(x, y, i < 10 ? 'A' : 'W'); set(x + 1, y, 'w'); }
+  for (let k = -3; k <= 3; k++) set(6 + k, 13 + k, k === 0 ? 'O' : 'M');
+  for (let k = 0; k < 4; k++) { set(5 - k, 14 + k, 'B'); set(4 - k, 14 + k, k % 2 ? 'M' : 'B'); }
+  set(1, 18, 'M'); set(0, 18, 'M'); set(0, 19, 'O'); set(1, 19, 'M');
+  return g.map((r) => r.join(''));
+}
+const ICON_ROWS = {
+  blade: bladeIconRows(),
+  focus: [
+    '......M..M..M.......',
+    '.....GM.GM.GM.......',
+    '.....GM.GM.GM.......',
+    '.....GM.GM.GM..MM...',
+    '.....GM.GM.GM.GMM...',
+    '....MGMMGMMGMMGM....',
+    '....GGGGGGGGGGGGM...',
+    '....GGGGRRRRGGGGM...',
+    '....GGGRRAARRGGM....',
+    '....GGGRAAAARGGM....',
+    '....GGGRAAAARGGM....',
+    '....GGGRRAARRGGM....',
+    '....GGGGRRRRGGGM....',
+    '.....GGGGGGGGGM.....',
+    '.....MMMMMMMMMM.....',
+    '.....BBBBRBBBBB.....',
+    '.....BBBBBBBBBB.....',
+    '.....MMMMMMMMMM.....',
+  ],
+  pick: [
+    '........AA..........',
+    '.....TTTMMTTT.......',
+    '...TTTTMMMMTTTT.....',
+    '..TTt..MDDM..tTT....',
+    '.TTt...MDDM...tTT...',
+    '.Tt.....DD.....tT...',
+    'Tt......DD......tT..',
+    'T.......DD.......T..',
+    '........DD..........',
+    '........DD..........',
+    '........DD..........',
+    '........DD..........',
+    '........MM..........',
+    '........BB..........',
+    '........BB..........',
+    '........BB..........',
+    '........MM..........',
+    '........OO..........',
+  ],
+  armor: [
+    '..GGG......GGG..',
+    '.GGGGG....GGGGG.',
+    'GGGGGGGMMGGGGGGG',
+    'GGGGGGGRRGGGGGGG',
+    '.GGGGGGRRGGGGGG.',
+    '.GGGGGGGGGGGGGG.',
+    '.GGGGGMMMMGGGGG.',
+    '.GGGGGGGGGGGGGG.',
+    '..GGGGGGGGGGGG..',
+    '..GGGGGGGGGGGG..',
+    '...GGGGGGGGGG...',
+    '....GGGGGGGG....',
+  ],
+  charm: [
+    '...MMMMMM...',
+    '..M......M..',
+    '.M........M.',
+    '.M........M.',
+    '..M......M..',
+    '...M....M...',
+    '....MOOM....',
+    '...MOAAOM...',
+    '..MOAAAAOM..',
+    '..MOAAAAOM..',
+    '...MOAAOM...',
+    '....MOOM....',
+    '.....MM.....',
+  ],
+  core: [
+    '....MMMM....',
+    '..MMRRRRMM..',
+    '.MRRAAAARRM.',
+    '.MRAAQQAARM.',
+    'MRAAQQQQAARM',
+    'MRAAQQQQAARM',
+    '.MRAAQQAARM.',
+    '.MRRAAAARRM.',
+    '..MMRRRRMM..',
+    '....MMMM....',
+  ],
+  relic: [
+    '.MMMMMMMMMMMM.',
+    'MDDDDDDDDDDDDM',
+    'MDDDDDAADDDDDM',
+    'MMMMMMAAMMMMMM',
+    'MDDDDDAADDDDDM',
+    'MDDDDDAADDDDDM',
+    'MDDDDDDDDDDDDM',
+    'MDDDDDDDDDDDDM',
+    '.MMMMMMMMMMMMM',
+  ],
+};
+
+const _iconCache = new Map();
+// The icon for an item as a data URL (for the screens), cached by look.
+function itemIconUrl(item) {
+  const key = item.kind + '/' + item.tier + '/' + (item.core || '') + '/' + item.rarity;
+  let url = _iconCache.get(key);
+  if (url) return url;
+  const pal = {};
+  if (item.tier >= 1 && item.kind !== 'core' && item.kind !== 'relic') {
+    const r = ART.ores[oreOfTier(item.tier).id];
+    pal.steel = r; pal.plate = r; pal.tool = r;
+  }
+  if (item.kind === 'core') { pal.arcane = [ART.cores[item.core]]; pal.rune = [mix(ART.cores[item.core], '#000000', 0.3)]; }
+  if (item.kind === 'relic') pal.arcane = [ART.rarity.relic];
+  const s = buildArtSprite(ICON_ROWS[item.kind], pal);
+  url = s.c.toDataURL();
+  _iconCache.set(key, url);
+  return url;
+}
