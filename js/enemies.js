@@ -23,7 +23,7 @@
 const ELITE_AFFIXES = ['fast', 'tough', 'volatile'];
 const ELITE_NAMES = { fast: 'Fast', tough: 'Tough', volatile: 'Volatile' };
 
-function floorLevel(d) { return d.biome * T.levelPerBiome + d.depth; }
+function floorLevel(d) { return d.biome * T.levelPerBiome + d.depth + (d.zone === 'lair' ? 1 : 0); }
 
 function makeEnemy(type, x, y, level, elite) {
   const E = T.enemies, def = E[type];
@@ -44,23 +44,26 @@ function spawnEnemies(d) {
   d.enemies = [];
   const inRoom = (r) => { const i = rng.pick(r.cells); return { x: ((i % f.w) + 0.5) * TILE, y: (Math.floor(i / f.w) + 0.5) * TILE }; };
   const types = ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'].filter((t) => !E[t].minDepth || d.depth >= E[t].minDepth);
+  const zoneWeight = (T.zones[d.zone] && T.zones[d.zone].enemies) || {};
   const eliteChance = Math.min(E.eliteMax, E.eliteBase + E.eliteDepth * d.depth);
   // the warden takes a side room: not the entry, the shaft's or the lodeline's
   let bossRoom = null;
-  if (d.depth >= E.bossDepth && rng.chance(E.bossChance)) {
-    const side = f.rooms.slice(1).filter((r) => !roomHas(r, f.shaft) && !(f.pad && roomHas(r, f.pad)) && r.w >= 5 && r.h >= 5);
+  const wardenChance = d.zone === 'deep' ? T.zones.deep.warden : d.depth >= E.bossDepth && d.zone !== 'lair' ? E.bossChance : 0;
+  if (rng.chance(wardenChance)) {
+    const side = f.rooms.slice(1).filter((r) => !r.arena && !(f.ways || []).some((w) => roomHas(r, w)) && !(f.pad && roomHas(r, f.pad)) && r.w >= 5 && r.h >= 5);
     if (side.length) bossRoom = rng.pick(side);
   }
   // the biome's Keeper, at its depth, until its shard is taken: it guards
   // the shaft
   const id = T.biomes[d.biome].id;
-  if (!d.hub && d.depth === T.story.keeperDepth[d.biome] && !(Save.data.shards || []).includes(d.biome)) {
-    const k = makeEnemy('keeper', (f.shaft.x + 0.5) * TILE, (f.shaft.y - 0.5) * TILE, level + 2, null);
+  if (d.zone === 'lair' && f.arena && !(Save.data.shards || []).includes(d.biome)) {
+    const k = makeEnemy('keeper', (f.arena.cx + 0.5) * TILE, (f.arena.cy - 1.5) * TILE, level + 1, null);
     k.home = id;
     d.enemies.push(k);
     d.keeper = k;
   }
   for (const r of f.rooms.slice(1)) {
+    if (r.arena) continue;
     if (r === bossRoom) {
       const b = makeEnemy('warden', (r.cx + 0.5) * TILE, (r.cy + 0.5) * TILE, level + 1, null);
       d.enemies.push(b);
@@ -68,7 +71,7 @@ function spawnEnemies(d) {
     }
     const n = clamp(Math.round(E.perRoom + E.perDepth * d.depth) + rng.i(-1, 1), 0, E.maxPerRoom);
     for (let k = 0; k < n; k++) {
-      const type = rng.weighted(types.map((t) => [E[t].weight, t]));
+      const type = rng.weighted(types.map((t) => [E[t].weight * (zoneWeight[t] || 1), t]));
       const at = inRoom(r);
       const elite = rng.chance(eliteChance) ? rng.pick(ELITE_AFFIXES) : null;
       d.enemies.push(makeEnemy(type, at.x, at.y, level, elite));

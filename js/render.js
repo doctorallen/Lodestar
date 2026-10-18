@@ -70,7 +70,15 @@ function facingIndex(fx, fy) { return (Math.round(Math.atan2(fy, fx) / (Math.PI 
 // ---------------------------------------------------------------------------
 // The floor
 // ---------------------------------------------------------------------------
-const artBiome = (f) => (f.hub ? ART.biomes.outpost : ART.biomes[T.biomes[f.biome].id]);
+// A floor's look: the outpost's; a surface site's (the region's sunlit
+// badlands); a ruin's (its region's, paved); else its region's caves.
+const artBiome = (f) => {
+  if (f.hub) return ART.biomes.outpost;
+  const id = T.biomes[f.biome].id;
+  if (f.zone === 'surface') return ART.surface[id];
+  if (f.zone === 'ruin') return Object.assign({}, ART.biomes[id], { paving: true });
+  return ART.biomes[id];
+};
 const rgb01 = (hex) => rgbOf(hex).map((v) => v / 255);
 
 // ---------------------------------------------------------------------------
@@ -360,6 +368,7 @@ function renderFrame() {
   }
 
   if (d.hub) drawHubUnder(d, ox, oy, tick, lights);
+  (f.ways || []).forEach((w, i) => drawSignpost(d.ways[i], (w.x + 0.5) * TILE + ox, (w.y + 0.5) * TILE + oy, tick, lights));
   if (d.fieldForge) {
     const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * TILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * TILE + oy - spr.ay + 6);
     drawArtSprite(spr, x, y);
@@ -434,9 +443,12 @@ function renderFrame() {
   const fx = Math.round(p.x + ox), fy = Math.round(p.y + oy);
 
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
-  const lx = View.lightCtx, amb = (d.hub ? Lt.hubAmbient : Lt.ambient) * 127.5;
+  const zl = !d.hub && T.zones[d.zone] && T.zones[d.zone].light;
+  const ambLevel = d.hub ? Lt.hubAmbient : zl ? lerp(zl.dusk, zl.day, clamp(d.pull, 0, 1)) : Lt.ambient;
+  const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(d.pull * 1.5, 0, 1))) : Lt.tint;
+  const lx = View.lightCtx, amb = ambLevel * 127.5;
   lx.globalCompositeOperation = 'source-over';
-  lx.fillStyle = `rgb(${amb * Lt.tint[0] | 0},${amb * Lt.tint[1] | 0},${amb * Lt.tint[2] | 0})`;
+  lx.fillStyle = `rgb(${amb * tint[0] | 0},${amb * tint[1] | 0},${amb * tint[2] | 0})`;
   lx.fillRect(0, 0, View.w, View.h);
   lx.globalCompositeOperation = 'lighter';
   for (const s of View.lights) {
@@ -450,6 +462,8 @@ function renderFrame() {
   // the lamp gutters out as the diver dies, and dims as the star's pull fades
   let lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
   if (!d.hub && d.pull < T.pull.dimAt) lamp *= lerp(T.pull.lampMin, 1, d.pull / T.pull.dimAt);
+  // in daylight the lamp isn't needed; it comes on at dusk
+  if (zl && d.pull > zl.lampAt) lamp *= 0.15;
   // a channel home: a ring filling round the diver, the light swelling
   if (d.channel) {
     const k = d.channel.t / d.channel.max, col = d.channel.kind === 'recall' ? '#c9a2ff' : ART.pal.star[3];
@@ -818,4 +832,16 @@ function drawNumber(v, cx, cy, col, alpha) {
       for (let j = 0; j < 5; j++) for (let i = 0; i < 3; i++) if (g[j * 3 + i] === '1') x.fillRect(x0 + k * 4 + i + off, cy + j + off, 1, 1);
     }
   x.globalAlpha = 1;
+}
+
+// A way on's signpost: a post, and a glowing sign of where it leads.
+const ZONE_SIGNS = { surface: '#ffd25a', cave: '#6ad8c8', ruin: '#b8b0a0', lair: '#ff4a3a', deep: '#b08cff' };
+function drawSignpost(zone, x, y, tick, lights) {
+  const col = ZONE_SIGNS[zone] || '#ffffff', px = Math.round(x + 10), py = Math.round(y);
+  for (let j = 0; j < 12; j++) dot(px, py - j, ART.pal.wood[j < 2 ? 1 : 2]);
+  // the sign: a little plate with a glyph for the zone
+  for (let j = -15; j <= -11; j++) for (let i = -3; i <= 3; i++) dot(px + i, py + j, i === -3 || i === 3 || j === -15 || j === -11 ? ART.pal.metal[1] : '#16141a');
+  const glyph = { surface: [[0, -13], [-1, -13], [1, -13], [0, -14], [0, -12]], cave: [[-1, -12], [0, -13], [1, -12], [0, -14]], ruin: [[-1, -14], [-1, -13], [-1, -12], [1, -14], [1, -13], [1, -12]], lair: [[-1, -13], [1, -13], [0, -12]], deep: [[0, -14], [-1, -13], [1, -13], [0, -12]] }[zone] || [];
+  for (const [i, j] of glyph) dot(px + i, py + j, col, true, tick % 8 < 6 ? 1 : 0.7);
+  lights.push({ x: px, y: py - 13, r: TILE * 0.8, i: 0.35, c: rgb01(col) });
 }

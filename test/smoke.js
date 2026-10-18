@@ -1,8 +1,8 @@
 'use strict';
 // The whole loop through the real controls. On a phone, upright: the
 // Lodestar, DESCEND and a biome, walking with the joystick, swinging at an
-// enemy, mining with MINE held, a vein the pick is too weak for, the shaft
-// down, pausing, the cargo screen, the lodeline home and the haul in the
+// enemy, mining with MINE held, a vein the pick is too weak for, a way on
+// to the next site, pausing, the cargo screen, the lodeline home and the haul in the
 // stash; the forge, equipping what it makes, a reroll at the rune bench,
 // feeding the star; then a death that loses the cargo but not what's worn.
 // Held sideways, the decks sit either side of the view. On a desktop: WASD,
@@ -139,14 +139,22 @@ async function phone(browser) {
     check((await page.evaluate(() => cargoUsed(Game.dive))) === cargo, 'phone: a weak pick still mined');
   }
 
-  // the shaft: DESCEND appears and takes the dive down
+  // a way on: ON: ZONE appears and takes the dive to the next site, in
+  // the zone its signpost named
+  const offered = await page.evaluate(() => Game.dive.ways.slice());
+  check(offered.length === 2, 'phone: the surface did not offer two ways on');
   await page.evaluate(standOn, 'shaft');
   await run(page, 0.1);
-  check(await visible(page, '#btn-act'), 'phone: no DESCEND on the shaft');
+  check(await visible(page, '#btn-act'), 'phone: no way on at the shaft');
+  check(/^ON:/.test(await page.evaluate(() => $('btn-act').textContent)), 'phone: the way on is not labelled ON:');
+  // (past the first site a lodeline is a coin toss; this test wants one)
+  await page.evaluate(() => { window._padBeyond = T.floor.padBeyond; T.floor.padBeyond = 1; });
   await tap(page, '#btn-act');
+  await page.evaluate(() => { T.floor.padBeyond = window._padBeyond; });
   await run(page, 0.1);
-  check(await page.evaluate(() => Game.dive.depth === 2), 'phone: DESCEND did not go down');
-  check(await page.evaluate(() => cargoUsed(Game.dive)) === cargo, 'phone: the cargo did not come down the shaft');
+  check(await page.evaluate(() => Game.dive.depth === 2), 'phone: the way on did not lead on');
+  check(await page.evaluate((o) => Game.dive.floor.zone === o[0], offered), 'phone: the way on led to the wrong zone');
+  check(await page.evaluate(() => cargoUsed(Game.dive)) === cargo, 'phone: the cargo did not come along');
   await page.evaluate(calm);
 
   // pausing stops the world; CARGO shows what's carried; gear salvaged in
@@ -288,8 +296,8 @@ async function phone(browser) {
 
   // a Keeper holds a heart-shard; once taken it's safe, and set at the altar
   await page.evaluate(() => UI.acts.dive('0'));
-  const keeper = await page.evaluate(() => { enterFloor(T.story.keeperDepth[0]); const d = Game.dive, k = d.keeper; if (!k) return false; hurtEnemy(k, 1e7, {}); for (let i = 0; i < 5; i++) Game.step(1 / 60); const sh = d.drops.find((x) => x.shard !== undefined); d.p.x = sh.x; d.p.y = sh.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); d.p.invuln = 0; hurtPlayer(1e9, null); return true; });
-  check(keeper, 'phone: no Keeper at its depth');
+  const keeper = await page.evaluate(() => { enterFloor(4, 'lair'); const d = Game.dive, k = d.keeper; if (!d.padDark) return false; if (!k) return false; hurtEnemy(k, 1e7, {}); for (let i = 0; i < 5; i++) Game.step(1 / 60); if (d.padDark) return false; const sh = d.drops.find((x) => x.shard !== undefined); d.p.x = sh.x; d.p.y = sh.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); d.p.invuln = 0; hurtPlayer(1e9, null); return true; });
+  check(keeper, "phone: no Keeper in its lair, or its fall didn't light the lodeline");
   await run(page, 2);
   check(await page.evaluate(() => (Save.data.shards || []).includes(0)), 'phone: the heart-shard was lost in the fall');
   await tap(page, '#screen-report [data-act=closeReport]');

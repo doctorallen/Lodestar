@@ -94,3 +94,12 @@ The designer found that so much loot made forging pointless, and that forged ite
 - **Shards are safe once taken.** Losing a story piece to a fall would be more frustrating than tense.
 - **The outpost is compact,** with every station a few steps apart and the wreck at the south edge. The designer found things too far apart.
 - **Enemies a little tougher:** more health and damage, more per room, more elites.
+
+## 2026-10-18: expeditions, not depth (overnight team, round 1)
+
+The designer said they weren't a fan of delving ever deeper in the same zone, and wanted meaningful progress in a 5-minute session. The balance run showed the bot ending 46 of 48 dives on depth 1, and the Keepers at depths 5–7 put the story 8+ minutes away.
+- **An expedition is a chain of 4 sites.** Each site is a different zone (surface, cave, ruin; the last a Deep Vein or a Keeper's Lair). This replaces "the player decides how deep to go" and "danger rises with depth".
+- **Two Ways On at each exit,** signposted with their zones, so the route is a choice.
+- **The Keepers live in lairs at the 4th site,** offered as one of the ways while that biome's shard is missing. A shard is now one full expedition away.
+- **The sunlit surface** is where every expedition starts. Its daylight is the star's pull: dusk as it fades, night and the Hollow when it's gone.
+- **Shorter, richer sites:** about 75 s of pull each, and the ride home feeds the star 8 × site², so going one site further is worth a lot.

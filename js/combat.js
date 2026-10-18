@@ -460,6 +460,7 @@ function killEnemy(e) {
   const parts = (n) => { if (part) for (let k = 0; k < n; k++) drop({ stuff: partId(part, grade), n: 1 }); };
   const tier = dropTier(d);
   if (e.type === 'keeper') {
+    if (d.padDark && d.zone === 'lair') { d.padDark = false; UI.toast('The lodeline lights', 'legendary'); }
     // its heart-shard, and what it had gathered
     drop({ shard: d.biome });
     drop({ echo: true });

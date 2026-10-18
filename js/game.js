@@ -48,7 +48,7 @@ function startDive(biome = 0) {
   const seed = (Math.random() * 4294967296) >>> 0;
   Game.dive = newWorld({ seed, biome, rng: new Rng(hashInts(seed, 0x5eed)) });
   Game.scene = 'dive';
-  enterFloor(1);
+  enterFloor(1, 'surface');
   Story.say('firstDive');
   if (biome === 1) Story.say('choir');
   if (biome === 2) Story.say('underforge');
@@ -71,28 +71,47 @@ function enterHub(report) {
 
 function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0, hits: 0 }; }
 
-function enterFloor(depth) {
-  const d = Game.dive, p = d.p;
-  d.depth = depth;
-  d.floor = generateFloor(d.seed, depth, d.biome, d.reach);
+// An expedition's site: `depth` is which (1 to T.expedition.sites), zone
+// what kind of place. Each exit's ways lead to zones other than this one; at
+// the last exit, one leads to the Keeper's Lair while its shard is still
+// there, else to a Deep Vein.
+function enterFloor(depth, zone = 'cave') {
+  const d = Game.dive, p = d.p, X = T.expedition;
+  d.depth = depth; d.zone = zone;
+  const rng = new Rng(hashInts(d.seed, depth, 0xa7a7));
+  const last = depth >= X.sites || zone === 'lair' || zone === 'deep';
+  d.ways = [];
+  if (!last) {
+    const others = ['surface', 'cave', 'ruin'].filter((z) => z !== zone);
+    rng.shuffle(others);
+    if (depth === X.sites - 1) d.ways = [(Save.data.shards || []).includes(d.biome) ? 'deep' : 'lair', others[0]];
+    else d.ways = others.slice(0, X.ways);
+  }
+  d.floor = generateFloor(d.seed, depth, d.biome, d.reach, zone, d.ways.length);
   const e = d.floor.entry;
   p.x = (e.x + 0.5) * TILE; p.y = (e.y + 0.5) * TILE; p.mine = null;
-  d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.globs = []; d.puddles = []; d.auras = []; d.later = []; d.flowAt = -1;
+  d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.globs = []; d.puddles = []; d.auras = []; d.later = []; d.flowAt = -1; d.keeper = null;
   spawnEnemies(d);
   placeFieldForge(d);
   const P = T.pull;
-  d.pull = 1; d.pullTime = Math.max(P.min, P.time + P.perDepth * (depth - 1)); d.waveT = P.waveEvery; d.padDark = false; d.channel = null;
-  if (d.floor.pad) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
-  UI.toast(`${T.biomes[d.biome].name}, depth ${depth}${d.floor.pad ? '' : ': no lodeline reaches this deep'}`);
+  d.pull = 1; d.pullTime = Math.max(P.min, P.time + P.perDepth * (depth - 1)); d.waveT = P.waveEvery; d.channel = null;
+  // a lair's lodeline is dark until its Keeper falls
+  d.padDark = zone === 'lair' && !!d.keeper;
+  if (d.floor.pad && !d.padDark) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
+  UI.toast(`${T.biomes[d.biome].name} · ${T.zones[zone].name} · site ${depth} of ${X.sites}${d.floor.pad || zone === 'lair' ? '' : ': no lodeline reaches here'}`);
 }
 
-// Deep down, now and then, an ancient forge stands in a side cavern: it
-// forges from what's carried.
+// Which way on the diver stands at, if any.
+function wayHere(d) {
+  const tx = Math.floor(d.p.x / TILE), ty = Math.floor(d.p.y / TILE);
+  return (d.floor.ways || []).findIndex((w) => w.x === tx && w.y === ty);
+}
+
 function placeFieldForge(d) {
   const f = d.floor, rng = new Rng(hashInts(d.seed, d.depth, 0xf0e6));
   d.fieldForge = null;
-  if (d.depth < T.fieldForge.depth || !rng.chance(T.fieldForge.chance)) return;
-  const rooms = f.rooms.slice(1).filter((r) => !roomHas(r, f.shaft) && !(f.pad && roomHas(r, f.pad)) && r.cells.length > 8);
+  if (!rng.chance(T.zones[d.zone].forge || 0)) return;
+  const rooms = f.rooms.slice(1).filter((r) => !r.arena && !(f.ways || []).some((w) => roomHas(r, w)) && !(f.pad && roomHas(r, f.pad)) && r.cells.length > 8);
   if (!rooms.length) return;
   const r = rng.pick(rooms), i = rng.pick(r.cells);
   d.fieldForge = { x: i % f.w, y: Math.floor(i / f.w) };
@@ -153,7 +172,7 @@ function updateDive(dtReal, dt) {
   if (Input.consumeAct()) {
     const a = actionHere();
     if (d.hub) { if (a) UI.useStation(a); }
-    else if (a === 'descend') enterFloor(d.depth + 1);
+    else if (a === 'way') { const i = wayHere(d); enterFloor(d.depth + 1, d.ways[i]); }
     else if (a === 'extract') startChannel('extract');
     else if (a === 'forge') UI.useStation('fieldForge');
   }
@@ -175,7 +194,8 @@ function actionHere() {
   if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && near(s.x, s.y, s.id === 'wreck' ? 30 : 20)); return s ? s.id : null; }
   if (d.fieldForge && near(d.fieldForge.x, d.fieldForge.y, 20)) return 'forge';
   const t = floorTile(d.floor, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
-  return t === TILE_SHAFT ? 'descend' : t === TILE_PAD && !d.padDark && !d.channel ? 'extract' : null;
+  if (t === TILE_SHAFT && wayHere(d) >= 0) return 'way';
+  return t === TILE_PAD && !d.padDark && !d.channel ? 'extract' : null;
 }
 
 // ---------------------------------------------------------------------------

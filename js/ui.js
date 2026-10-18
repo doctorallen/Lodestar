@@ -176,7 +176,7 @@ const UI = {
     $('hud-hp').classList.toggle('warded', p.ward > 0);
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
     $('hud-ch').classList.toggle('low', p.lowCharge > 0);
-    if (!d.hub) setTextIfChanged('hud-depth', `${T.biomes[d.biome].name.replace('The ', '').toUpperCase()} ${d.depth}`);
+    if (!d.hub) setTextIfChanged('hud-depth', `${T.zones[d.zone].name.toUpperCase()} ${d.depth}/${T.expedition.sites}`);
     setTextIfChanged('btn-cargo', `CARGO ${cargoUsed(d)}/${st.cargo}`);
     const eq = Save.data.equip;
     for (const slot of ['main', 'off']) {
@@ -192,7 +192,8 @@ const UI = {
     if ($('btn-off').hidden !== !eq.off) $('btn-off').hidden = !eq.off;
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
-    setTextIfChanged('btn-act', { descend: 'DESCEND', extract: 'EXTRACT', forge: 'FORGE', runes: 'RUNES', locker: 'GEAR', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'THE STAR', wreck: 'THE MERIDIAN' }[a] || '');
+    const way = a === 'way' ? d.ways[wayHere(d)] : null;
+    setTextIfChanged('btn-act', way ? 'ON: ' + T.zones[way].name.toUpperCase() : { descend: 'DESCEND', extract: 'EXTRACT', forge: 'FORGE', runes: 'RUNES', locker: 'GEAR', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'THE STAR', wreck: 'THE MERIDIAN' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
   },
@@ -215,7 +216,7 @@ function drawWreck_() {
   const s = Save.data, held = Story.shardsHeld(), set = Story.shardsSet();
   const shardRow = (b, i) => {
     const has = (s.shards || []).includes(i);
-    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? (i < set || set >= held ? 'Set in the star' : 'Take it to the altar') : `At depth ${T.story.keeperDepth[i]}${biomeOpen(s, i) ? '' : ', beyond the star\'s reach for now'}`}</span></span></div>`;
+    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? (i < set || set >= held ? 'Set in the star' : 'Take it to the altar') : `In the Keeper's Lair, the last site of an expedition${biomeOpen(s, i) ? '' : ', beyond the star\'s reach for now'}`}</span></span></div>`;
   };
   const echoes = (s.echoes || []).map((i) => `<div class="echo"><b>${esc(ECHOES[i].title)}</b><p>${esc(ECHOES[i].text)}</p></div>`).join('');
   $('wreck-body').innerHTML = `
@@ -229,7 +230,7 @@ function drawWreck_() {
 function drawReport() {
   const r = UI.report;
   if (!r) return;
-  const where = `${T.biomes[r.biome].name}, depth ${r.depth}`;
+  const where = `${T.biomes[r.biome].name}, site ${r.depth}`;
   const got = [stuffLines(r.banked || r.lost || {}), r.items && r.items.length ? `${r.items.length} piece${r.items.length > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(' and ');
   let title, text;
   if (r.banked) { title = 'PULLED HOME'; text = got ? `From ${where}. Banked ${got}.` : `From ${where}, empty-handed.`; }
@@ -258,8 +259,8 @@ function drawDescend() {
     const open = biomeOpen(s, i), deep = s.deepest[b.id] || 0;
     const ores = b.ores.map((id) => T.ores[ORE_INDEX[id]].name).join(' and ');
     return `<button class="row biome" data-act="dive" data-arg="${i}" ${open ? '' : 'disabled'}>
-      <span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${open ? `${ores}${deep ? ` · deepest ${deep}` : ''} · ${(s.shards || []).includes(i) ? 'shard recovered' : `its Keeper waits at depth ${T.story.keeperDepth[i]}`}` : `The star's lines reach here at magnitude ${T.star.biomeAt[i]}`}</span></span></button>`;
-  }).join('') + `<p class="note">Lodelines are sure on every floor down to depth ${lodelineReach()}. Below that, not every floor has one.</p>`;
+      <span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${open ? `${ores}${deep ? ` · furthest: site ${deep}` : ''} · ${(s.shards || []).includes(i) ? 'shard recovered' : 'its Keeper waits at the last site'}` : `The star's lines reach here at magnitude ${T.star.biomeAt[i]}`}</span></span></button>`;
+  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it starts on the surface, and at every exit two ways lead on to somewhere else. Lodelines are sure up to site ${lodelineReach()}; past that, not every site has one.</p>`;
 }
 
 // Where the forge draws its materials from: the stash at home, the cargo at

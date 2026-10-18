@@ -30,6 +30,13 @@ const ART = {
     star: ['#3a2a14', '#8a6430', '#d8ae5c', '#fff2c8'],
     shell: ['#0e0a10', '#1c1520', '#302434', '#4a3a4e'], eyeglow: ['#ff3d3d'], crystal: ['#a070ff'], coreglow: ['#fff4e0'], legs: ['#060407'],
   },
+  // the surface round the sinkhole, under the sun: each region's badlands.
+  // Mesa tops stay darker than the dust, and cast shadow to the south-east.
+  surface: {
+    rim: { sun: true, floor: ['#5a4632', '#6a543c', '#7a6248'], rock: ['#2a2018', '#33271d', '#3c2e22', '#a08060'], front: ['#4a3626', '#5a4430', '#6a523a'], glow: '#ffd25a' },
+    choir: { sun: true, floor: ['#4a4a62', '#585a74', '#666a86'], rock: ['#1e1e30', '#262638', '#2e2e42', '#9a9ac8'], front: ['#3a3a58', '#46466a', '#54547c'], glow: '#d8c8ff' },
+    underforge: { sun: true, floor: ['#5a3a30', '#6a463a', '#7a5244'], rock: ['#24140f', '#2c1913', '#341e17', '#a86a52'], front: ['#4a2a22', '#5a342a', '#6a3e32'], glow: '#ffb070' },
+  },
   // what each rarity's drops and names glow with
   rarity: { common: '#b8b0a0', magic: '#6fa8ff', rare: '#ffd34d', legendary: '#ff8a3d', set: '#5fe08a', relic: '#c9a2ff' },
   exotics: { voltaic: '#7fe8ff', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890', emberglass: '#ff8a3a', blightcap: '#9ad04a' },
@@ -201,6 +208,7 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH) {
         // flagstones: dark seams, each row of stones set off from the last
         if (b.paving && (y % 9 === 0 || (x + ((y / 9) | 0) * 5) % 11 === 0)) shade = 0;
         if (rock(x, y - 1) || rock(x, y - 2) || (rock(x, y - 3) && t < 0.5)) shade = 0;
+        else if (b.sun && (rock(x - 3, y - 4) || rock(x - 5, y - 7) || (rock(x - 7, y - 10) && t < 0.5))) shade = 0;
         putPx(P, x, y, f[shade]);
         continue;
       }

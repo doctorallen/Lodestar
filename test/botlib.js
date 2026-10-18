@@ -88,12 +88,12 @@ function installBot() {
       const foe = d.enemies.filter((e) => !e.dead && !skipFoe.has(e) && (e.aggro || dist(e.x, e.y, p.x, p.y) < 70) && steps[Math.floor(e.y / TILE) * d.floor.w + Math.floor(e.x / TILE)] >= 0)
         .sort((a, b) => dist(a.x, a.y, p.x, p.y) - dist(b.x, b.y, p.x, p.y))[0];
       const full = !greed && cargoUsed(d) >= st.cargo * 0.85, hurt = !greed && p.hp < st.maxHp * 0.35;
-      const leave = (full || hurt || d.depth >= depth) && d.floor.pad;
+      const leave = (full || hurt || d.depth >= depth || !(d.floor.ways || []).length) && d.floor.pad && !d.padDark;
       const action = actionHere();
       Bot.why = [action, !!foe, full, hurt, leave, d.depth, depth, !!d.floor.pad].join(',');
       if (d.channel) { /* hold still while the lodeline lifts */ }
       else if (action === 'extract' && leave) { Input.bot.act = true; }
-      else if (action === 'descend' && !leave && (!d.floor.pad || d.depth < depth || full || hurt)) { Input.bot.act = true; }
+      else if (action === 'way' && !leave && (!d.floor.pad || d.depth < depth || full || hurt)) { Input.bot.act = true; }
       else if (foe && !(hurt && d.floor.pad)) {
         const m = dist(foe.x, foe.y, p.x, p.y);
         aim = { foe };
@@ -112,8 +112,12 @@ function installBot() {
           // stand a little in from the middle of the tile beside it, towards it
           const m = near ? walkTo(d, (ore.sx + 0.5) * TILE + (ore.ox - ore.sx) * 3, (ore.sy + 0.5) * TILE + (ore.oy - ore.sy) * 3) : (goTile(d, steps, ore.sx, ore.sy), 99);
           if (m < 4) { Input.bot.x = 0; Input.bot.y = 0; p.fx = ore.ox - ore.sx; p.fy = ore.oy - ore.sy; Input.bot.mine = true; }
-        } else if (d.depth >= depth || full) goTile(d, steps, (d.floor.pad || d.floor.shaft).x, (d.floor.pad || d.floor.shaft).y);
-        else goTile(d, steps, d.floor.shaft.x, d.floor.shaft.y);
+        } else {
+          // on: the nearer way (the lair's last of all), or home
+          const ways = (d.floor.ways || []).slice().sort((a, b) => steps[a.y * d.floor.w + a.x] - steps[b.y * d.floor.w + b.x]);
+          const to = (d.depth >= depth || full || !ways.length) ? (d.floor.pad && !d.padDark ? d.floor.pad : ways[0]) : ways[0];
+          if (to) goTile(d, steps, to.x, to.y);
+        }
       }
       // grab drops nearby
       const drop = d.drops.find((dr) => dist(dr.x, dr.y, p.x, p.y) < 80 && !dr.warned && steps[Math.floor(dr.y / TILE) * d.floor.w + Math.floor(dr.x / TILE)] >= 0);

@@ -49,9 +49,9 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
    - forge gear, picks and spell cores;
    - rework affixes and salvage what you don't need;
    - socket cores, unseal relics, feed the star and spend attunements.
-2. **Descend:** pick one of the biomes the star reaches.
-3. **Dive:** explore floors, mine ore veins, fight, and pick up loot. Your cargo is limited.
-4. **Push or leave:** each floor has a shaft down, and most have a lodeline out.
+2. **Set out:** pick one of the biomes the star reaches. An expedition is a chain of up to 4 sites, starting on the sunlit surface.
+3. **Explore each site:** mine ore veins, fight, and pick up loot. Your cargo is limited.
+4. **Push or leave:** each site has two Ways On, each signposted with the zone it leads to, and some have a lodeline home.
 5. **Extract or fall:** if you extract, everything in your cargo is banked. If you fall, what you wear is safe, but everything in the cargo is lost (ore, exotics, gear and relics).
 
 ## Expeditions
@@ -63,15 +63,21 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
   - most rock can't be mined, so the layout stays readable.
 - **Walls follow a smooth line**, not the tile grid. Corners round off and edges wander by a few pixels, and bodies collide with that same line.
 - **(proposed) Breakable walls** that open shortcuts.
-- **No fixed length.** The player decides how deep to go.
-- **Danger rises with depth.** A floor's enemy level is 4 × the biome's index plus the depth. Each level raises enemy health by 16% and damage by 8%. Deeper floors also have more enemies, more elites, and more of the biome's better ore and loot.
+- **Zones.** Every step along the chain changes zone, so no two sites in a row feel the same:
+  - **Surface:** open, sunlit badlands under the sky. Its daylight is the star's pull: the sun sets as the pull fades, and night brings the Hollow. Wisps and constructs.
+  - **Cave:** the meandering caverns, the biome's own creatures and flora.
+  - **Ruin:** rectangular halls and pillars left by someone before, paved floors, more ancient forges, constructs.
+  - **Deep Vein:** at the last site, rich in ore, likelier to hold the warden.
+  - **Keeper's Lair:** at the last site, while the biome's heart-shard is still missing. An arena; the Keeper holds the shard, and the lodeline only lights when it falls.
+- **The chain has 4 sites.** The player decides how far to go along it, not how deep. A site's lodeline is certain at the first and a coin toss after that (more as the star's reach grows), so pushing on is a real gamble.
+- **Danger rises with each site.** A site's enemy level is 4 × the biome's index plus the site (one more in a lair). Each level raises enemy health by 16% and damage by 8%. Deeper floors also have more enemies, more elites, and more of the biome's better ore and loot.
 - **Cargo is limited** (30 units, more from attunements and affixes). Ore and exotics weigh 1, gear and relics 3. You can drop gear mid-dive to make room.
 - **The pocket.** A few cargo slots whose contents survive a fall: 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
-- **The star's pull on each floor.** A gold meter under the health bar, full on arrival, fades over about two minutes (less deeper down).
+- **The star's pull on each floor.** A gold meter under the health bar, full on arrival, fades over about 75 seconds (a little less at each site).
   - **Half gone:** your lamp dims, and more enemies stir in the dark every so often.
-  - **Gone:** the floor's lodeline goes dark and the Hollow comes, a shadow that hunts you and can't be staggered. The way out is down the shaft.
+  - **Gone:** the floor's lodeline goes dark and the Hollow comes, a shadow that hunts you and can't be staggered. The way out is a Way On, or the recall.
 - **Leaving takes a moment.** EXTRACT in a lodeline is 1.5 s of standing still. Moving or being hit breaks it, and its light wakes anything nearby.
-- **Emergency recall** (pause or cargo screen) works anywhere: 4 s standing still. The dark keeps a share of the cargo, 15% plus 6% a floor down to 70% at most, but the pocket is safe.
+- **Emergency recall** (pause or cargo screen) works anywhere: 4 s standing still. The dark keeps a share of the cargo, 15% plus 6% a site, to 70% at most, but the pocket is safe.
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room from depth 4. It charges and fires rings of orbs. It's never needed for progression, and it drops three rare-or-better pieces and often a relic.
 

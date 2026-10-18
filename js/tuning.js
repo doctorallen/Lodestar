@@ -31,7 +31,7 @@ const T = {
   // seconds (less by perDepth a floor, to min). Below dimAt the lamp dims
   // (to lampMin) and every waveEvery seconds `wave` more enemies stir in the
   // dark; when it's gone the floor's lodeline goes dark and the Hollow comes.
-  pull: { time: 130, perDepth: -6, min: 70, dimAt: 0.5, lampMin: 0.6, waveEvery: 18, wave: 2 },
+  pull: { time: 80, perDepth: -4, min: 64, dimAt: 0.5, lampMin: 0.6, waveEvery: 16, wave: 2 },
 
   // Leaving takes a moment: standing in a lodeline, EXTRACT takes `extract`
   // seconds; an emergency recall works anywhere but takes `recall` seconds
@@ -54,10 +54,27 @@ const T = {
     rooms: [7, 10], roomR: [2.5, 4.8], roomGap: 3, loops: [1, 3],
     tunnelR: [1.0, 1.6], meander: 0.35, pillar: 0.4, wallNoise: 0.14,
     veins: [1, 2], veinLen: [2, 4],
-    padSure: 3, padFade: 0.15, padMin: 0.35,
+    padSure: 1, padBeyond: 0.5,
   },
-  // The chance a vein is the biome's deeper ore, by depth.
-  oreDeep: { base: 0.12, perFloor: 0.06, max: 0.6 },
+  // Zones: what kind of place a site is. gen: overrides of T.floor for its
+  // generator. light: its ambient (a surface's runs from day, at full pull,
+  // to dusk), tint and whether the diver's lamp is lit (a surface's lights
+  // at dusk). enemies: weight multipliers. forge: the chance of an ancient
+  // forge.
+  zones: {
+    cave: { name: 'Cave', gen: { veins: [1, 3] }, forge: 0.15 },
+    surface: { name: 'Surface', gen: { rooms: [6, 8], roomR: [4, 7], roomGap: 2, tunnelR: [1.8, 2.6], meander: 0.25, veins: [0, 2], pillar: 0.8 }, light: { day: 1.15, dusk: 0.5, tint: [1.0, 0.92, 0.8], lampAt: 0.5 }, enemies: { wisp: 2, construct: 0.6 }, forge: 0.1 },
+    ruin: { name: 'Ruin', gen: { rooms: [7, 9], roomW: [5, 9], roomH: [4, 7], veinChance: 0.5, veinLen: [2, 3] }, enemies: { construct: 2, crawler: 0.7 }, forge: 0.6 },
+    lair: { name: "Keeper's Lair", gen: { rooms: [3, 4], veins: [1, 2] }, forge: 0 },
+    deep: { name: 'Deep Vein', gen: { veins: [2, 3], veinLen: [3, 5] }, forge: 0.1, warden: 0.6 },
+  },
+  // An expedition: `sites` long; site 1 is always on the surface; at each
+  // exit two ways lead on to other zones. At the last exit, one way leads to
+  // the Keeper's Lair (if its shard is still held there) or a Deep Vein.
+  expedition: { sites: 4, ways: 2 },
+
+  // The chance a vein is the biome's deeper ore, by site.
+  oreDeep: { base: 0.12, perFloor: 0.12, max: 0.6 },
 
   ores: [
     { id: 'ferrite', name: 'Ferrite', tier: 1, hardness: 1.0 },
@@ -185,12 +202,12 @@ const T = {
     keeper: { hp: 760, dmg: 18, speed: 22, radius: 12, range: 100, windup: 0.75, cooldown: 1.8, chargeSpeed: 130, chargeTime: 0.6, dazed: 1.5, shotSpeed: 70, shots: 12, summonEvery: 7, summon: 2 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },
     // a room's enemies: perRoom + perDepth × depth, give or take one
-    perRoom: 1.4, perDepth: 0.4, maxPerRoom: 6,
+    perRoom: 1.4, perDepth: 0.55, maxPerRoom: 6,
     // elites: chance eliteBase + eliteDepth × depth, to eliteMax
     eliteBase: 0.06, eliteDepth: 0.035, eliteMax: 0.35, eliteHp: 2.5, eliteDmg: 1.3,
     fast: 1.5, tough: 1.6, volatileRadius: 26, volatileDmg: 1.5, volatileFuse: 0.6,
     // the warden appears from bossDepth, in a side room, by chance
-    bossDepth: 4, bossChance: 0.3,
+    bossDepth: 3, bossChance: 0.25,
   },
 
   // Drops. Enemies leave their own parts (part: the chance; partTwo: the
@@ -228,14 +245,14 @@ const T = {
   // attunement point and reaches lodelines a floor deeper. biomeAt: the
   // magnitude each biome opens at.
   // extractStar: what a ride home feeds the star, times the depth squared.
-  star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], biomeAt: [1, 3, 5], extractStar: 3 },
-  // The story: each biome's Keeper waits at keeperDepth, holding a shard
-  // of the star's heart; each shard set in the star adds shardStar points.
+  star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], biomeAt: [1, 3, 5], extractStar: 8 },
+  // The story: each region's Keeper waits in its lair, at the end of an
+  // expedition, holding a shard of the star's heart; each shard set in the star adds shardStar points.
   // An echo (a log of the crews before) turns up by an ancient forge, from
   // an elite now and then, and from every Keeper.
-  story: { keeperDepth: [5, 6, 7], shardStar: 400, echoForge: 0.5, echoElite: 0.05 },
+  story: { shardStar: 400, echoForge: 0.5, echoElite: 0.05 },
   // An ancient forge stands on a floor this deep or deeper, by chance.
-  fieldForge: { depth: 3, chance: 0.3, blueprint: 0.6 }, // blueprint: the chance a schematic lies by it
+  fieldForge: { blueprint: 0.6 }, // the chance a schematic lies by one (how often one stands is the zone's)
   // The anvil: three strikes, each a marker sweeping a bar at `speeds`
   // (sweeps a second); a strike inside the zone (zone wide, narrowing by
   // shrink a strike) is good, inside its middle `perfect` is perfect.
