@@ -736,8 +736,6 @@ function scale2xRows(rows) {
 // ---------------------------------------------------------------------------
 // Drawn by hand at the art's size (artNative), each the size its old
 // grid was enlarged to, centred, its feet on the bottom row.
-// Drawn by hand at the art's size (artNative), each the size its old
-// grid was enlarged to, centred, its feet on the bottom row.
 const ENEMY_ROWS = {
   // a crystal-backed beetle, three legs a side (j: a pixel wide, in a
   // mid shell tone so its black outline frames them), mandibles

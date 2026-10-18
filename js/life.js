@@ -42,20 +42,22 @@ const LIFE_EYESHINE = '#d8e8b0';
 // moths take the colour of their biome's flora, paled
 const LIFE_MOTH = { rim: '#d8e890', choir: '#f0b0d4', underforge: '#f4c49a' };
 
-// Letter rows, facing east: [still or pecking, a step]. Lizards also run
-// north and south (rotated); everything is mirrored for west.
+// Letter rows, facing east: [still or pecking, a step], drawn by hand at
+// the art's size (artNative), so their eyes and legs are a pixel each.
+// Lizards also run north and south (turned a quarter); everything is
+// mirrored for west.
 const LIFE_ROWS = {
   lizard: [
-    ['...l..l..', 'tTTBBBBEH', '...DDDBH.', '..l....l.'],
-    ['..l....l.', 'tTTBBBBEH', '...DDDBH.', '...l..l..'],
+    artNative(['....l.....l...', '....BBBBBBBH..', 'tTTTBBBBBBBEHH', '...TDDDDDDBHH.', '.....DDDDD....', '.....l.....l..']),
+    artNative(['......l.....l.', '....BBBBBBBH..', 'tTTTBBBBBBBEHH', '...TDDDDDDBHH.', '.....DDDDD....', '...l.....l....']),
   ],
   bird: [
-    ['...HH.', 'BBBBHk', '.DDBB.', '..l...'],
-    ['......', 'BBBB..', '.DDBH.', '..l.Hk'],
+    artNative(['.....HHH.', '.BBBBHlHk', 'BBBBBBHH.', '.DDDDBB..', '...DD....', '...l.l...']),
+    artNative(['.........', 'BBBB.....', '.BBBBBB..', '..DDDBHH.', '...DD.HlH', '...l.l..k']),
   ],
   scurrier: [
-    ['....HHH..', 'TTTBBBBEH', '...DDDDD.', '...l...l.'],
-    ['....HHH..', 'TTTBBBBEH', '...DDDDD.', '....l.l..'],
+    artNative(['.........HH...', '......BBBBH...', '..TTTBBBBBBEHH', 'TT...DDDDDDDH.', '......DDDDD...', '......l...l...']),
+    artNative(['.........HH...', '......BBBBH...', '..TTTBBBBBBEHH', 'TT...DDDDDDDH.', '......DDDDD...', '.......l.l....']),
   ],
 };
 
@@ -76,15 +78,16 @@ function critSprite(kind, L, frame, dir) {
   const key = kind + '/' + L.key + '/' + frame + '/' + dir;
   if (_critSprites[key]) return _critSprites[key];
   let rows = LIFE_ROWS[kind][frame];
+  const native = ART_NATIVE.get(rows) || 1;
   // north and south: the east rows turned a quarter
   if (dir === 'n' || dir === 's') {
     const w = rows[0].length, h = rows.length, out = [];
     for (let x = 0; x < w; x++) { let r = ''; for (let y = 0; y < h; y++) r += dir === 'n' ? rows[h - 1 - y][w - 1 - x] : rows[y][x]; out.push(r); }
     rows = out;
   }
-  // at the art's size (AP), and a creature: outlined like the rest
-  // (T.art.outline.creature), a pixel all round
-  rows = artScaleRows(rows, AP);
+  // at the art's size (AP; drawn at it, or enlarged to it), and a creature:
+  // outlined like the rest (T.art.outline.creature), a pixel all round
+  if (native !== AP) rows = artScaleRows(rows, AP / native);
   const mode = T.art.outline.creature, pad = (src) => { const [p, x] = makeCanvas(src.width + 2, src.height + 2); x.drawImage(src, 1, 1); return p; };
   let c = spriteFrom(rows, lifePal(kind, L));
   c = mode === 'none' ? pad(c) : outlined(c, mode === 'black' ? ART.outline : mix(lifePal(kind, L).D || '#000000', '#000000', 0.6));
