@@ -502,6 +502,7 @@ function renderFrame() {
       x.fillStyle = star[2]; x.fillRect(tx + 2, ty - 3, Math.round((TILE - 4) * Math.min(1, p.mine.prog)), 1);
     }
   }
+  drawToolHud(d, ox, oy);
 }
 
 // ---------------------------------------------------------------------------

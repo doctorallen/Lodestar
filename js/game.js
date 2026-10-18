@@ -46,7 +46,7 @@ function startDive(biome = 0) {
   Save.data.dives++;
   // the dive's seed may come from anywhere; everything built from it is seeded
   const seed = (Math.random() * 4294967296) >>> 0;
-  Game.dive = newWorld({ seed, biome, rng: new Rng(hashInts(seed, 0x5eed)) });
+  Game.dive = newWorld({ seed, biome, rng: new Rng(hashInts(seed, 0x5eed)), tool: Save.data.tool || 'compass' });
   Game.scene = 'dive';
   enterFloor(1, 'surface');
   Story.say('firstDive');
@@ -97,6 +97,7 @@ function enterFloor(depth, zone = 'cave') {
   d.pull = 1; d.pullTime = Math.max(P.min, P.time + P.perDepth * (depth - 1)); d.waveT = P.waveEvery; d.channel = null;
   // a lair's lodeline is dark until its Keeper falls
   d.padDark = zone === 'lair' && !!d.keeper;
+  d.seen = null; d.beacon = null; d.compass = null; d.oreNear = null; d.toolT = 0;
   if (d.floor.pad && !d.padDark) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
   UI.toast(`${T.biomes[d.biome].name} · ${T.zones[zone].name} · site ${depth} of ${X.sites}${d.floor.pad || zone === 'lair' ? '' : ': no lodeline reaches here'}`);
   if (!d.floor.pad) Story.say('noPad');
@@ -139,6 +140,7 @@ function updateDive(dtReal, dt) {
     if (d.dying <= 0) loseDive(true);
     return;
   }
+  if (!d.hub) updateTools(dtReal);
   p.invuln = Math.max(0, p.invuln - dtReal);
   p.hurtT = Math.max(0, p.hurtT - dtReal);
   p.lowCharge = Math.max(0, p.lowCharge - dtReal);

@@ -102,6 +102,7 @@ const UI = {
   openPause() {
     const home = !!(Game.dive && Game.dive.hub);
     $('pause-cargo').hidden = home; $('pause-abandon').hidden = home; $('pause-note').hidden = home; $('pause-recall').hidden = home;
+    $('pause-beacon').hidden = home || Game.dive.tool !== 'beacon' || !!Game.dive.beaconUsed;
     if (!home) $('pause-recall').textContent = `EMERGENCY RECALL · LOSE ${Math.round(recallCost(Game.dive) * 100)}%`;
     UI.show('screen-pause');
   },
@@ -268,7 +269,18 @@ function drawDescend() {
     const ores = b.ores.map((id) => T.ores[ORE_INDEX[id]].name).join(' and ');
     return `<button class="row biome" data-act="dive" data-arg="${i}" ${open ? '' : 'disabled'}>
       <span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${open ? `${ores}${deep ? ` · furthest: site ${deep}` : ''} · ${(s.shards || []).includes(i) ? 'shard recovered' : 'its Keeper waits at the last site'}` : `The star's lines reach here at magnitude ${T.star.biomeAt[i]}`}</span></span></button>`;
-  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it starts on the surface, and at every exit two ways lead on to somewhere else. Lodelines are sure up to site ${lodelineReach()}; past that, not every site has one.</p>`;
+  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it starts on the surface, and at every exit two ways lead on to somewhere else. ${lodelineReach() >= T.expedition.sites ? 'The star now reaches a lodeline to every site.' : `Lodelines are sure up to site ${lodelineReach()}; past that, not every site has one.`}</p>` + drawToolRows();
+}
+
+// The tools, under the biomes: the one carried, the others to carry or make.
+function drawToolRows() {
+  const s = Save.data;
+  return `<h3>TOOL · CARRY ONE</h3>` + TOOL_IDS.map((id) => {
+    const t = TOOLS[id], own = toolOwned(id), open = toolOpen(id), on = s.tool === id;
+    const sub = own ? t.text : open ? `Make it from ${toolCostText(id)}. ${t.text}` : `The star must reach magnitude ${T.tools[id].mag}.`;
+    const btn = own ? (on ? '<span class="row-tag r-legendary">CARRIED</span>' : '') : open ? `<button class="mini" data-act="makeTool" data-arg="${id}" ${toolAffordable(id) ? '' : 'disabled'}>MAKE</button>` : '';
+    return `<div class="row ${own ? '' : 'static'} ${on ? 'on' : ''}" ${own && !on ? `data-act="carryTool" data-arg="${id}"` : ''} ${open ? '' : 'style="opacity:.55"'}><img class="icon" src="${toolIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(t.name)}</span><span class="row-sub">${esc(sub)}</span></span>${btn}</div>`;
+  }).join('');
 }
 
 // Where the forge draws its materials from: the stash at home, the cargo at
@@ -519,6 +531,9 @@ UI.acts = {
     UI.openStory(STORY_END, () => UI.useStation('wreck'));
   },
   recall: () => { UI.close(); startChannel('recall'); UI.toast('Hold still: recalling'); },
+  beacon: () => { UI.close(); plantBeacon(); },
+  carryTool: (id) => { if (toolOwned(id)) { Save.data.tool = id; Save.save(); UI.redraw(); } },
+  makeTool: (id) => { if (makeTool(id)) { UI.toast(`Made: ${TOOLS[id].name}`, 'legendary'); UI.redraw(); } },
   // the pocket: what's in it comes home whatever happens
   pocket: (n) => {
     const d = Game.dive, c = UI.card;

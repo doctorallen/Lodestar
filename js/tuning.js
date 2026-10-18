@@ -72,6 +72,17 @@ const T = {
   // exit two ways lead on to other zones. At the last exit, one way leads to
   // the Keeper's Lair (if its shard is still held there) or a Deep Vein.
   expedition: { sites: 4, ways: 2 },
+  // Tools: the magnitude each can be made at, and what it costs from the
+  // stash. sight/reach in tiles; the beacon lands after `land` seconds and
+  // wakes what's within `noise` px.
+  tools: {
+    compass: { mag: 1, cost: {} },
+    oresense: { mag: 2, cost: { ferrite: 14, spore1: 3 }, reach: 9 },
+    radar: { mag: 2, cost: { ferrite: 14, ether1: 3 }, reach: 18 },
+    map: { mag: 3, cost: { lumenite: 8, fiber1: 4 }, sight: 6 },
+    satchel: { mag: 3, cost: { lumenite: 8, chitin1: 4 } },
+    beacon: { mag: 4, cost: { resonite: 10, cog2: 3 }, land: 6, noise: 140 },
+  },
 
   // The chance a vein is the biome's deeper ore, by site.
   oreDeep: { base: 0.12, perFloor: 0.12, max: 0.6 },

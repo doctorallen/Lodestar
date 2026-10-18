@@ -221,6 +221,8 @@ body.home #btn-mine { display: none; }
 }
 .row.static, .row.empty { opacity: 1; }
 .row.empty { opacity: 0.5; }
+.row.on { border-color: var(--gold); }
+.row-tag { font-size: 10px; letter-spacing: 0.1em; }
 .row-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .row-name { font-size: 14px; }
 .row-sub { font-size: 11px; color: var(--dim); }

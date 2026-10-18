@@ -52,10 +52,12 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/diver.js` | The player's sprite: the circuit diver's five facings, walk frames and hand points |
 | `js/blueprints.js` | What can be forged: blueprints, creature parts, elements |
 | `js/art2.js` | Art for crafting and the story: new item icons, parts, the wreck, the Shard Keepers |
+| `js/art3.js` | The sunlit surface's palette and plants, the rift, tool icons |
 | `js/items.js` | Affixes, rarities, legendaries, the set, cores, relics; the forge, rune bench, salvage; stats |
 | `js/game.js` | Game state, the dive, walking, mining, leaving |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
 | `js/combat.js` | Swings, spells, damage, kills and drops, pickups, cargo |
+| `js/tools.js` | The carried tools: compass, ore sense, radar, map, satchel, beacon |
 | `js/render.js` | The pixel view, the floor canvas, lighting and bloom, sparks |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
 | `js/ui.js` | The Lodestar, descend, forge, gear, star, cargo and pause screens, the item card, the top bar |

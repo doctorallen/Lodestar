@@ -24,6 +24,9 @@ function cleanSave(s) {
   s.items = (s.items || []).map(cleanSaveItem).filter(Boolean);
   for (const k of Object.keys(s.equip)) s.equip[k] = cleanSaveItem(s.equip[k]);
   if (!s.stash || typeof s.stash !== 'object') s.stash = {};
+  s.tools = (s.tools || []).filter((id) => TOOLS[id]);
+  if (!s.tools.includes('compass')) s.tools.unshift('compass');
+  if (!s.tools.includes(s.tool)) s.tool = 'compass';
 }
 
 const Save = {
@@ -35,6 +38,7 @@ const Save = {
       stash: {}, items: [], equip: startingGear(rng),
       attune: {}, deepest: {}, tips: {}, settings: { haptics: true },
       blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start),
+      tools: ['compass'], tool: 'compass',
     };
   },
   load() {

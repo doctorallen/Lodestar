@@ -103,3 +103,10 @@ The designer said they weren't a fan of delving ever deeper in the same zone, an
 - **The Keepers live in lairs at the 4th site,** offered as one of the ways while that biome's shard is missing. A shard is now one full expedition away.
 - **The sunlit surface** is where every expedition starts. Its daylight is the star's pull: dusk as it fades, night and the Hollow when it's gone.
 - **Shorter, richer sites:** about 75 s of pull each, and the ride home feeds the star 8 × site², so going one site further is worth a lot.
+
+## 2026-10-18: a Tool slot (overnight team, round 1)
+
+The designer asked for utility items that change the interface and play, such as showing the way to the nearest extraction.
+- **One tool carried, chosen at the ledge.** A single slot makes it a choice per expedition (find the way home, find ore, see danger, map the site, carry more safely, or make an exit) rather than a pile of upgrades.
+- **Tools are made once, from the stash,** gated by the star's magnitude. They're a materials sink for the parts that pile up, and another reason to feed the star.
+- **The Lode Beacon** answers a site with no lodeline: an exit you build, at the cost of 6 noisy seconds. It can't bypass a Keeper.

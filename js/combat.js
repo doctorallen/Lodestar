@@ -588,4 +588,4 @@ function cargoUsed(d) {
   for (const e of d.pocket || []) n += e.item ? T.cargo.itemWeight : e.blueprint ? 1 : e.n;
   return n + d.items.length * T.cargo.itemWeight + (d.blueprints || []).length;
 }
-function pocketSlots() { return T.cargo.pocket[Math.min(T.cargo.pocket.length, magnitudeOf(Save.data.star)) - 1]; }
+function pocketSlots() { return T.cargo.pocket[Math.min(T.cargo.pocket.length, magnitudeOf(Save.data.star)) - 1] + (Game.dive && Game.dive.tool === 'satchel' ? 1 : 0); }

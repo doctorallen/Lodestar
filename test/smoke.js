@@ -295,6 +295,32 @@ async function phone(browser) {
   check(recalled[0] >= recalled[1] && recalled[0] <= recalled[2], `phone: the recall banked ${recalled[0]} Ferrite, not ${recalled[1]}–${recalled[2]}`);
   await tap(page, '#screen-report [data-act=closeReport]');
 
+  // tools: made once from the stash, one carried; the compass points home,
+  // the beacon calls a lodeline down
+  const tools = await page.evaluate(() => {
+    const s = Save.data, was = s.star;
+    s.star = 3000; Object.assign(s.stash, { ferrite: 40, spore1: 5, ether1: 5, lumenite: 20, fiber1: 5, chitin1: 5, resonite: 20, cog2: 5 });
+    const made = TOOL_IDS.filter((id) => id !== 'compass').every((id) => makeTool(id));
+    s.tool = 'compass'; UI.close(); startDive(0);
+    let d = Game.dive;
+    for (let i = 0; i < 30; i++) Game.step(1 / 60);
+    const points = !!d.compass && d.compass.home;
+    UI.close(); abandonDive(); UI.close();
+    s.tool = 'beacon'; startDive(0); d = Game.dive;
+    for (const e of d.enemies) e.dead = true;
+    d.p.x = (d.floor.entry.x + 0.5) * TILE; d.p.y = (d.floor.entry.y + 0.5) * TILE;
+    const planted = plantBeacon(), again = plantBeacon();
+    for (let i = 0; i < 60 * (T.tools.beacon.land + 0.5); i++) Game.step(1 / 60);
+    const lands = actionHere() === 'extract';
+    UI.close(); abandonDive(); UI.close();
+    s.star = was; s.tool = 'compass';
+    return { made, points, planted, again, lands };
+  });
+  check(tools.made, 'phone: the tools could not be made');
+  check(tools.points, 'phone: the compass did not point to the lodeline');
+  check(tools.planted && !tools.again, 'phone: the beacon was not planted once, and only once');
+  check(tools.lands, 'phone: the beacon did not land a lodeline');
+
   // a Keeper holds a heart-shard; once taken it's safe, and set at the altar
   await page.evaluate(() => UI.acts.dive('0'));
   const keeper = await page.evaluate(() => { enterFloor(4, 'lair'); const d = Game.dive, k = d.keeper; if (!d.padDark) return false; if (!k) return false; hurtEnemy(k, 1e7, {}); for (let i = 0; i < 5; i++) Game.step(1 / 60); if (d.padDark) return false; const sh = d.drops.find((x) => x.shard !== undefined); d.p.x = sh.x; d.p.y = sh.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); d.p.invuln = 0; hurtPlayer(1e9, null); return true; });

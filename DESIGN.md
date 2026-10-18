@@ -81,6 +81,19 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room from depth 4. It charges and fires rings of orbs. It's never needed for progression, and it drops three rare-or-better pieces and often a relic.
 
+## Tools
+
+The diver carries one tool, chosen at the ledge before setting out. Each changes what you can see or do down there, so the choice shapes the expedition. The Compass is carried from the start; the rest are made once, from the stash, as the star grows.
+
+| Tool | From magnitude | What it does |
+|---|---|---|
+| Lodeline Compass | 1 | An arrow round the diver to the nearest lit lodeline, or where none reaches, to the nearest way on (in its zone's colour). |
+| Ore Sense | 2 | Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the pick can break. |
+| Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
+| Surveyor's Map | 3 | A map of each site, drawn as you walk it, in the view's corner, with ways, lodeline and ancient forge once seen. |
+| Deep Satchel | 3 | One more pocket slot. |
+| Lode Beacon | 4 | Once an expedition, from the pause menu: call a lodeline down where you stand. It lands after 6 s, and its light wakes everything near. Not in a Keeper's lair. |
+
 ## Enemies
 
 Every biome has the same three, in its own colours:
