@@ -103,7 +103,7 @@ Every site is also a **clime**: the kind of country it is. The region still sets
 
 - **Every clime can turn up in every region.** A region only leans (2–2.5×) towards the climes that suit it.
 - **Hazards are mild, readable and fair.** Each shows before it bites (vents glow and ring their reach, pods swell and glow, lava and water are plain to see), a dash crosses any of them unharmed, and none is ever in the entry's cavern or beside a portal or a lodeline. Pools also slow walking enemies, and lava and vents burn them too. Each has a one-time tip.
-- **Climes change generation a little:** the Frost Steppe is more open, the Cinder Waste keeps more pillars, the Bloomfen and Rootdeep wander more. The hazards are laid over the ground afterwards from a generator of their own, so the tiles don't change.
+- **Climes change generation a little, never its danger:** the Frost Steppe keeps fewer pillars and the Cinder Waste more, the Bloomfen, Rootdeep and Magma Tubes wander differently, but none has more, bigger or more open caverns (which meant more enemies at once, and more falls in the bot's runs). The hazards are laid over the ground afterwards from a generator of their own, so the tiles don't change.
 - **A rift's graft** brings another clime's ground with it: a patch of Frost Steppe snow in a cave, or Magma Tubes basalt under the sky.
 - The fighting flora dress as the clime's own plants, glow gone red.
 

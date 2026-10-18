@@ -24,10 +24,15 @@ function installBot() {
       if (f.hazKind === 'burn' || f.hazKind === 'vent') {
         f.botAvoid = new Uint8Array(f.w * f.h);
         if (f.haz) for (let i = 0; i < f.haz.length; i++) if (f.haz[i]) f.botAvoid[i] = 1;
-        for (const v of f.hazPts || []) f.botAvoid[v.y * f.w + v.x] = 1;
+        if (f.hazKind === 'vent') for (const v of f.hazPts) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!dx || !dy) f.botAvoid[(v.y + dy) * f.w + v.x + dx] = 1;
       }
     }
-    return floorDistances(f.tiles, f.w, f.h, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE), f.botAvoid);
+    const x = Math.floor(d.p.x / TILE), y = Math.floor(d.p.y / TILE), plain = floorDistances(f.tiles, f.w, f.h, x, y);
+    if (!f.botAvoid) { plain.plain = plain; return plain; }
+    // walked round; but what's on them (an enemy, a drop) is still seen
+    const safe = floorDistances(f.tiles, f.w, f.h, x, y, f.botAvoid);
+    safe.plain = plain;
+    return safe;
   }
   // the next tile on the way to (tx, ty): walk back down the distances from it
   function towards(d, steps, tx, ty) {
@@ -52,6 +57,7 @@ function installBot() {
     return m;
   }
   function goTile(d, steps, tx, ty) {
+    if (steps[ty * d.floor.w + tx] < 0 && steps.plain) steps = steps.plain;
     const n = towards(d, steps, tx, ty);
     if (!n) return false;
     if (steps[ty * d.floor.w + tx] <= 1) walkTo(d, (tx + 0.5) * TILE, (ty + 0.5) * TILE);
@@ -94,7 +100,7 @@ function installBot() {
       const now = [d.kills, cargoUsed(d), d.depth, d.items.length].join();
       if (now !== progress) { progress = now; progressT = t; }
       else if (t - progressT > 20 && aim) { (aim.ore !== undefined ? skipOre.add(aim.ore) : skipFoe.add(aim.foe)); aim = null; progressT = t; }
-      const foe = d.enemies.filter((e) => !e.dead && !skipFoe.has(e) && (e.aggro || dist(e.x, e.y, p.x, p.y) < 70) && steps[Math.floor(e.y / TILE) * d.floor.w + Math.floor(e.x / TILE)] >= 0)
+      const foe = d.enemies.filter((e) => !e.dead && !skipFoe.has(e) && (e.aggro || dist(e.x, e.y, p.x, p.y) < 70) && steps.plain[Math.floor(e.y / TILE) * d.floor.w + Math.floor(e.x / TILE)] >= 0)
         .sort((a, b) => dist(a.x, a.y, p.x, p.y) - dist(b.x, b.y, p.x, p.y))[0];
       const full = cargoUsed(d) >= st.cargo * (greed ? 1 : 0.85), hurt = !greed && p.hp < st.maxHp * 0.35;
       const leave = (full || hurt || d.depth >= depth || !(d.floor.ways || []).length) && d.floor.pad && !d.padDark;
@@ -135,10 +141,10 @@ function installBot() {
         }
       }
       // grab drops nearby
-      const drop = d.drops.find((dr) => dist(dr.x, dr.y, p.x, p.y) < 80 && !dr.warned && steps[Math.floor(dr.y / TILE) * d.floor.w + Math.floor(dr.x / TILE)] >= 0);
+      const drop = d.drops.find((dr) => dist(dr.x, dr.y, p.x, p.y) < 80 && !dr.warned && steps.plain[Math.floor(dr.y / TILE) * d.floor.w + Math.floor(dr.x / TILE)] >= 0);
       if (drop && !foe) {
         const tx = Math.floor(drop.x / TILE), ty = Math.floor(drop.y / TILE);
-        if (steps[ty * d.floor.w + tx] <= 1) walkTo(d, drop.x, drop.y); else goTile(d, steps, tx, ty);
+        if (steps.plain[ty * d.floor.w + tx] <= 1) walkTo(d, drop.x, drop.y); else goTile(d, steps, tx, ty);
       }
       for (let k = 0; k < 6; k++) { Game.step(STEP); t += STEP; if (Game.dive !== d) break; }
       // unstick: if not moving while trying to, jiggle

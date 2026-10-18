@@ -76,22 +76,23 @@ const T = {
   // made (so its portal can name it). zones: where it can turn up; weight:
   // how often, times lean[region] in a region it leans to (every clime can
   // turn up in every region). The first of each zone is today's look and
-  // has no hazard. gen: overrides of the floor's generator. light: a
+  // has no hazard. gen: overrides of the floor's generator (never more or
+  // bigger caverns, which would mean more enemies at once). light: a
   // surface's day, dusk and tint, or underground the ambient and tint.
   // hazard: its one quirk (T.hazards), with `haz` overriding how much of it
   // there is. Looks are in climes.js.
   climes: {
     badlands: { zones: ['surface'], name: 'Badlands', weight: 2 },
-    frost: { zones: ['surface'], name: 'Frost Steppe', weight: 2, lean: { choir: 2.5 }, hazard: 'slick', gen: { roomR: [4.5, 7.5], pillar: 0.5, tunnelR: [2, 2.8] }, light: { day: 1.0, dusk: 0.55, tint: [0.9, 0.97, 1.1] } },
-    cinder: { zones: ['surface'], name: 'Cinder Waste', weight: 2, lean: { underforge: 2.5 }, hazard: 'vent', gen: { pillar: 1, rooms: [7, 9] }, light: { day: 0.95, dusk: 0.5, tint: [1.06, 0.86, 0.76] } },
+    frost: { zones: ['surface'], name: 'Frost Steppe', weight: 2, lean: { choir: 2.5 }, hazard: 'slick', gen: { pillar: 0.4 }, light: { day: 1.0, dusk: 0.55, tint: [0.9, 0.97, 1.1] } },
+    cinder: { zones: ['surface'], name: 'Cinder Waste', weight: 2, lean: { underforge: 2.5 }, hazard: 'vent', gen: { pillar: 1 }, light: { day: 0.95, dusk: 0.5, tint: [1.06, 0.86, 0.76] } },
     bloomfen: { zones: ['surface'], name: 'Bloomfen', weight: 2, lean: { rim: 2.5 }, hazard: 'spores', gen: { meander: 0.45, tunnelR: [1.6, 2.4] }, light: { day: 1.0, dusk: 0.58, tint: [0.98, 1.0, 0.86] } },
     caverns: { zones: ['cave', 'deep'], name: 'Caverns', weight: 2 },
-    grotto: { zones: ['cave', 'deep'], name: 'Flooded Grotto', weight: 2, lean: { choir: 2.5 }, hazard: 'pool', gen: { roomR: [3, 5.4] }, light: { ambient: 0.5, tint: [0.72, 0.8, 1.0] } },
-    magma: { zones: ['cave', 'deep'], name: 'Magma Tubes', weight: 2, lean: { underforge: 2.5 }, hazard: 'burn', gen: { roomR: [3, 5.4], meander: 0.25 }, light: { ambient: 0.4, tint: [1.0, 0.62, 0.5] } },
+    grotto: { zones: ['cave', 'deep'], name: 'Flooded Grotto', weight: 2, lean: { choir: 2.5 }, hazard: 'pool', light: { ambient: 0.5, tint: [0.72, 0.8, 1.0] } },
+    magma: { zones: ['cave', 'deep'], name: 'Magma Tubes', weight: 2, lean: { underforge: 2.5 }, hazard: 'burn', gen: { meander: 0.25 }, light: { ambient: 0.4, tint: [1.0, 0.62, 0.5] } },
     rootdeep: { zones: ['cave', 'deep'], name: 'Rootdeep', weight: 2, lean: { rim: 2.5 }, hazard: 'spores', haz: { n: [6, 9] }, gen: { meander: 0.5, pillar: 0.8 }, light: { ambient: 0.44, tint: [0.84, 0.86, 0.66] } },
     archive: { zones: ['ruin'], name: 'Archive', weight: 2 },
     temple: { zones: ['ruin'], name: 'Overgrown Temple', weight: 2, lean: { rim: 2 }, hazard: 'pool', haz: { blobs: [3, 4], r: [1.4, 2.2] }, light: { ambient: 0.52, tint: [0.8, 0.92, 0.72] } },
-    vault: { zones: ['ruin'], name: 'Clockwork Vault', weight: 2, lean: { underforge: 2, choir: 1.5 }, hazard: 'vent', haz: { n: [7, 10] }, light: { ambient: 0.46, tint: [1.0, 0.84, 0.66] } },
+    vault: { zones: ['ruin'], name: 'Clockwork Vault', weight: 2, lean: { underforge: 2, choir: 1.5 }, hazard: 'vent', light: { ambient: 0.46, tint: [1.0, 0.84, 0.66] } },
   },
   // Hazards: mild, readable, and never in the entry's cavern or on a way,
   // the lodeline or beside them. A dash crosses any of them unharmed.
@@ -107,10 +108,10 @@ const T = {
   //   spores: n pods that every `every` s let go a cloud r px across,
   //     drifting at `drift` px/s for `life` s; it eats dps a second.
   hazards: {
-    pool: { blobs: [3, 5], r: [1.3, 2.6], slow: 0.55 },
+    pool: { blobs: [3, 5], r: [1.3, 2.6], slow: 0.7 },
     slick: { blobs: [4, 6], r: [1.8, 3.4], grip: 2.4 },
     burn: { channels: [5, 7], len: [8, 15], pools: [2, 3], dps: 7 },
-    vent: { n: [6, 9], every: 5, tell: 1.2, burst: 0.6, r: 11, dmg: 9 },
+    vent: { n: [6, 9], every: 5, tell: 1.2, burst: 0.6, r: 11, dmg: 7 },
     spores: { n: [5, 8], every: 7, life: 8, r: 12, dps: 3, drift: 5 },
   },
   // A portal (portals.js), each way on: stepping in takes `enter` seconds
