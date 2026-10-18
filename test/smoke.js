@@ -153,10 +153,10 @@ async function phone(browser) {
   check(await visible(page, '#btn-act'), 'phone: no button at the portal');
   check(await page.evaluate((o) => $('btn-act').textContent === 'STEP THROUGH: ' + T.zones[o[0]].name.toUpperCase(), offered), 'phone: the portal is not labelled STEP THROUGH: and its zone');
   // (past the first site a lodeline is a coin toss; this test wants one)
-  await page.evaluate(() => { window._padOdds = T.floor.padOdds; T.floor.padOdds = [1, 1, 1, 1]; });
+  await page.evaluate(() => { window._padOdds = [T.floor.padOdds, T.floor.padCap]; T.floor.padOdds = T.floor.padCap = [1, 1, 1, 1]; });
   await tap(page, '#btn-act');
   await page.waitForFunction(() => Game.dive.depth === 2, { timeout: 5000 }).catch(() => {});
-  await page.evaluate(() => { T.floor.padOdds = window._padOdds; });
+  await page.evaluate(() => { [T.floor.padOdds, T.floor.padCap] = window._padOdds; });
   await run(page, 0.1);
   check(await page.evaluate(() => Game.dive.depth === 2), 'phone: the portal did not lead on');
   check(await page.evaluate((o) => Game.dive.floor.zone === o[0], offered), 'phone: the portal led to the wrong zone');
