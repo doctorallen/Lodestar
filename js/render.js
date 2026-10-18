@@ -8,8 +8,10 @@
 // A frame is drawn in two layers, colour (the view) and emissive (what
 // glows), then lit: the world dims to an ambient light, each light source
 // (the helmet lamp, ore, fungus, the lodeline) adds its colour back, the
-// light is cut into a few dithered bands, and emissive pixels keep their own
-// colour. Bloom from the emissive layer goes on last. A floor is painted
+// light is cut into a few dithered bands, and the emissive layer goes over
+// it at its own colour. Bloom from the emissive layer goes on last, in a
+// canvas stacked over the view that the browser adds on, and what's drawn
+// unlit (health bars, numbers) in another over that. A floor is painted
 // once into pixel buffers when it's entered, and the tiles around a mined
 // one are repainted. Sprites carry anchors ax/ay at the feet.
 // ---------------------------------------------------------------------------
@@ -18,8 +20,8 @@ const VIEW_MIN = 176;
 
 const View = {
   canvas: null, ctx: null, w: 0, h: 0, scale: 1, camX: 0, camY: 0,
-  em: null, emCtx: null, light: null, lightCtx: null, blooms: [],
-  floorFor: null, floorBuf: null, rockPx: null, floorCol: null, floorEm: null, floorImgs: null, lights: [], flora: [],
+  em: null, emCtx: null, light: null, bloom: null, bloomCtx: null, over: null, overCtx: null, blooms: [], bloomSum: null,
+  floorFor: null, floorBuf: null, rockPx: null, floorCol: null, floorEm: null, floorImgs: null, lights: [], flora: [], floraLights: [], bake: null, bakedFrom: null,
 };
 const Sprites = {};
 const Sparks = [];
@@ -27,6 +29,10 @@ const Sparks = [];
 function setupView() {
   View.canvas = $('view');
   View.ctx = View.canvas.getContext('2d', { willReadFrequently: true });
+  View.bloom = $('bloom');
+  View.bloomCtx = View.bloom.getContext('2d');
+  View.over = $('view-over');
+  View.overCtx = View.over.getContext('2d');
 }
 
 function resizeView() {
@@ -40,10 +46,17 @@ function resizeView() {
   View.canvas.style.width = (w * k) / dpr + 'px';
   View.canvas.style.height = (h * k) / dpr + 'px';
   View.ctx.imageSmoothingEnabled = false;
-  const layer = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d', { willReadFrequently: true })]; };
-  [View.em, View.emCtx] = layer();
-  [View.light, View.lightCtx] = layer();
-  View.blooms = T.light.bloom.map(([div, a]) => { const [c] = makeCanvas(Math.max(1, Math.round(w / div)), Math.max(1, Math.round(h / div))); return [c, a * T.light.glow]; });
+  for (const c of [View.bloom, View.over]) { c.width = w; c.height = h; c.style.width = View.canvas.style.width; c.style.height = View.canvas.style.height; }
+  // the layers drawn in software (they're read or drawn into the view), the
+  // overlay on the GPU where there is one
+  const layer = (cw, ch) => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; return [c, c.getContext('2d', { willReadFrequently: true })]; };
+  [View.em, View.emCtx] = layer(w, h);
+  // the light: a cell for each 2×2 pixels, with a spare row and column for
+  // the grid's offset
+  View.light = { a: new Float32Array(((w >> 1) + 2) * ((h >> 1) + 2) * 3), w: (w >> 1) + 2, h: (h >> 1) + 2, x0: 0, y0: 0 };
+  const size = (div) => [Math.max(1, Math.round(w / div)), Math.max(1, Math.round(h / div))];
+  View.blooms = T.light.bloom.map(([div, a]) => { const [c] = layer(...size(div)); return [c, a * T.light.glow]; });
+  [View.bloomSum] = layer(...size(T.light.bloom[0][0]));
 }
 
 // The diver in eight facings, indexed clockwise from east (E, SE, S, SW, W,
@@ -135,8 +148,15 @@ function drawFlora(d, fl, ox, oy, lights) {
   const sx = Math.round(fl.x + ox - spr.w / 2), sy = Math.round(fl.top ? fl.y + oy : fl.y + oy - spr.h + 1);
   if (sx > View.w || sy > View.h || sx + spr.w < 0 || sy + spr.h < 0) return;
   drawArtSprite(spr, sx, sy);
-  // under the sky the plants don't glow; only pollen catches the light
-  if (fl.set !== 'surface') lights.push({ x: sx + spr.w / 2, y: sy + spr.h * (fl.top ? 0.8 : 0.35), r: TILE * 1.1, i: T.light.flora, c: rgb01(FLORA_PAL[fl.set].glow[0]) });
+}
+
+// The plants' glow, baked with the floor's lights. Under the sky the plants
+// don't glow; only pollen catches the light.
+function floraLights(list) {
+  return list.filter((fl) => fl.set !== 'surface').map((fl) => {
+    const spr = floraSprite(fl.set, fl.piece, 0), sx = Math.round(fl.x - spr.w / 2), sy = Math.round(fl.top ? fl.y : fl.y - spr.h + 1);
+    return { x: sx + spr.w / 2, y: sy + spr.h * (fl.top ? 0.8 : 0.35), r: TILE * 1.1, i: T.light.flora, c: rgb01(FLORA_PAL[fl.set].glow[0]) };
+  });
 }
 
 // The floor's rock, pixel by pixel, from the smooth wall line.
@@ -160,6 +180,8 @@ function paintFloor(f) {
   [View.floorEm, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[1], 0, 0);
   View.lights = floorLights(f);
   View.flora = placeFlora(f, floraSetOf(f));
+  View.floraLights = floraLights(View.flora);
+  View.bakedFrom = null;
 }
 
 function paintTileArt(f, tx, ty) {
@@ -231,9 +253,58 @@ function drawArtSprite(spr, x, y) {
 
 // A pixel in colour, and in the emissive layer when it glows.
 function dot(x, y, col, glow, alpha = 1) {
+  if (LateDots.on && lateDot(x, y, col, glow, alpha)) return;
   const c = View.ctx;
   c.globalAlpha = alpha; c.fillStyle = col; c.fillRect(x, y, 1, 1); c.globalAlpha = 1;
   if (glow) { const e = View.emCtx; e.globalAlpha = alpha; e.fillStyle = col; e.fillRect(x, y, 1, 1); e.globalAlpha = 1; }
+}
+
+// Dots drawn after everyone (shots, spells, effects, sparks) are covered
+// only by later dots, so on a dive they're queued, and written straight into
+// the pixels when the frame is lit (lateDotsColour, lateDotsGlow) instead of
+// costing two canvas calls each. q: x, y, colour, glow, alpha for each.
+const LateDots = { on: false, q: [], rgb: new Map(), img: null, canvas: null, box: null };
+function lateDot(x, y, col, glow, alpha) {
+  let c = LateDots.rgb.get(col);
+  if (c === undefined) { c = /^#[0-9a-f]{6}$/i.test(col) ? parseInt(col.slice(1), 16) : -1; LateDots.rgb.set(col, c); }
+  if (c < 0 || (x | 0) !== x || (y | 0) !== y) return false;
+  // as the canvas does, an alpha out of 0–1 is ignored
+  LateDots.q.push(x, y, c, glow ? 1 : 0, alpha >= 0 && alpha <= 1 ? alpha : 1);
+  return true;
+}
+
+// The queued dots into the colour pixels d (w × h), before they're lit.
+function lateDotsColour(d, w, h) {
+  const q = LateDots.q;
+  for (let n = 0; n < q.length; n += 5) {
+    const x = q[n], y = q[n + 1], a = q[n + 4];
+    if (x < 0 || y < 0 || x >= w || y >= h || a <= 0) continue;
+    const k = (y * w + x) * 4, c = q[n + 2];
+    d[k] += ((c >> 16) - d[k]) * a; d[k + 1] += (((c >> 8) & 255) - d[k + 1]) * a; d[k + 2] += ((c & 255) - d[k + 2]) * a;
+  }
+}
+
+// The glowing ones over the emissive layer.
+function lateDotsGlow(w, h) {
+  const q = LateDots.q;
+  if (!LateDots.img || LateDots.img.width !== w || LateDots.img.height !== h) {
+    LateDots.img = new ImageData(w, h);
+    LateDots.canvas = document.createElement('canvas'); LateDots.canvas.width = w; LateDots.canvas.height = h;
+  }
+  const d = LateDots.img.data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let n = 0; n < q.length; n += 5) {
+    const x = q[n], y = q[n + 1], a = q[n + 4];
+    if (!q[n + 3] || x < 0 || y < 0 || x >= w || y >= h || a <= 0) continue;
+    const k = (y * w + x) * 4, c = q[n + 2], ea = d[k + 3] / 255, oa = a + ea * (1 - a), m = ea * (1 - a);
+    d[k] = ((c >> 16) * a + d[k] * m) / oa; d[k + 1] = (((c >> 8) & 255) * a + d[k + 1] * m) / oa; d[k + 2] = ((c & 255) * a + d[k + 2] * m) / oa; d[k + 3] = oa * 255;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < 0) return;
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+  LateDots.canvas.getContext('2d').putImageData(LateDots.img, 0, 0, x0, y0, bw, bh);
+  View.emCtx.drawImage(LateDots.canvas, x0, y0, bw, bh, x0, y0, bw, bh);
+  for (let y = y0; y <= y1; y++) d.fill(0, (y * w + x0) * 4, (y * w + x1 + 1) * 4);
 }
 
 function pixelLine(x0, y0, x1, y1, col) {
@@ -253,69 +324,129 @@ function pixelLine(x0, y0, x1, y1, col) {
 // Light
 // ---------------------------------------------------------------------------
 
-// Adds a light of colour c (0–1 a channel) and strength i, fading as
-// (1 - d/r)² out to r. The light canvas holds half the light, so a channel
-// can reach 2.
-function addLight(lx, x, y, r, i, c) {
-  const g = lx.createRadialGradient(x, y, 0, x, y, r);
-  for (const t of [0, 0.25, 0.5, 0.75, 1]) {
-    const f = (1 - t) * (1 - t) * i * 127.5;
-    g.addColorStop(t, `rgb(${Math.min(255, c[0] * f) | 0},${Math.min(255, c[1] * f) | 0},${Math.min(255, c[2] * f) | 0})`);
+// Light is kept as numbers, not drawn: a cell for each 2×2 pixels on a
+// grid fixed to the world, so it doesn't crawl as the camera moves. A light
+// map L is { a, w, h, x0, y0 }: its cells' r, g, b in light × bands, and the
+// world cell its first one is. The view has one (View.light); the floor's
+// fixed lights, ore and glowing plants, are baked into another (View.bake).
+
+// Adds a light of colour c (0–1 a channel) and strength i at world x, y,
+// fading as (1 - d/r)² out to r.
+function addLight(L, x, y, r, i, c) {
+  if (!(r > 0) || !(i > 0)) return;
+  const s = i * T.light.bands, cr = c[0] * s, cg = c[1] * s, cb = c[2] * s, k = 1 / r, a = L.a;
+  const i0 = Math.max(0, Math.floor((x - r) / 2) - L.x0), i1 = Math.min(L.w - 1, Math.ceil((x + r) / 2) - L.x0);
+  const j0 = Math.max(0, Math.floor((y - r) / 2) - L.y0), j1 = Math.min(L.h - 1, Math.ceil((y + r) / 2) - L.y0);
+  for (let j = j0; j <= j1; j++) {
+    const dy = (2 * (j + L.y0) + 1 - y) * k, dy2 = dy * dy;
+    if (dy2 >= 1) continue;
+    let o = (j * L.w + i0) * 3, dx = (2 * (i0 + L.x0) + 1 - x) * k;
+    for (let n = i0; n <= i1; n++, o += 3, dx += 2 * k) {
+      const q = dx * dx + dy2;
+      if (q >= 1) continue;
+      const f = 1 - Math.sqrt(q), g = f * f;
+      a[o] += cr * g; a[o + 1] += cg * g; a[o + 2] += cb * g;
+    }
   }
-  lx.fillStyle = g;
-  lx.fillRect(x - r, y - r, 2 * r, 2 * r);
 }
 
 // A light along a vertical line from y0 down to y1 (the lodeline's beam).
-function addBeamLight(lx, x, y0, y1, r, i, c) {
-  const g = lx.createLinearGradient(x - r, 0, x + r, 0);
-  for (const t of [0, 0.25, 0.5, 0.75, 1]) {
-    const d = Math.abs(t - 0.5) * 2, f = (1 - d) * (1 - d) * i * 127.5;
-    g.addColorStop(t, `rgb(${c[0] * f | 0},${c[1] * f | 0},${c[2] * f | 0})`);
+function addBeamLight(L, x, y0, y1, r, i, c) {
+  if (!(r > 0) || !(i > 0)) return;
+  const s = i * T.light.bands, a = L.a;
+  const i0 = Math.max(0, Math.floor((x - r) / 2) - L.x0), i1 = Math.min(L.w - 1, Math.ceil((x + r) / 2) - L.x0);
+  const j0 = Math.max(0, Math.floor(y0 / 2) - L.y0), j1 = Math.min(L.h - 1, Math.ceil(y1 / 2) - 1 - L.y0);
+  for (let n = i0; n <= i1; n++) {
+    const d = Math.abs(2 * (n + L.x0) + 1 - x) / r;
+    if (d >= 1) continue;
+    const g = (1 - d) * (1 - d) * s, cr = c[0] * g, cg = c[1] * g, cb = c[2] * g;
+    for (let j = j0, o = (j0 * L.w + n) * 3; j <= j1; j++, o += L.w * 3) { a[o] += cr; a[o + 1] += cg; a[o + 2] += cb; }
   }
-  lx.fillStyle = g;
-  lx.fillRect(x - r, y0, 2 * r, y1 - y0);
 }
 
-// Multiplies the view by the light, in dithered bands, and lets emissive
-// pixels through at their own colour.
-function lightScene(camX, camY) {
-  const w = View.w, h = View.h, Lt = T.light;
+// The floor's fixed lights, baked into a map of the whole floor whenever
+// they change.
+function bakeFloorLights(f) {
+  View.bakedFrom = View.lights;
+  const w = (f.w * TILE + 1) >> 1, h = (f.h * TILE + 1) >> 1;
+  if (!View.bake || View.bake.w !== w || View.bake.h !== h) View.bake = { a: new Float32Array(w * h * 3), w, h, x0: 0, y0: 0 };
+  else View.bake.a.fill(0);
+  for (const s of View.lights) addLight(View.bake, s.x, s.y, s.r, s.i, s.c);
+  for (const s of View.floraLights) addLight(View.bake, s.x, s.y, s.r, s.i, s.c);
+}
+
+// Starts the view's light for a frame: ambient (r, g, b), plus what's
+// baked, on the grid under a camera at world cx, cy.
+function startLight(cx, cy, r, g, b) {
+  const L = View.light, B = View.bake, a = L.a, s = T.light.bands;
+  L.x0 = Math.floor(cx / 2); L.y0 = Math.floor(cy / 2);
+  // ambient in steps of 1/127.5, as when light was drawn into a canvas, so
+  // flat light dithers the same
+  r = Math.floor(r * 127.5) / 127.5 * s; g = Math.floor(g * 127.5) / 127.5 * s; b = Math.floor(b * 127.5) / 127.5 * s;
+  for (let j = 0; j < L.h; j++) {
+    const by = j + L.y0, row = B && by >= 0 && by < B.h;
+    let o = j * L.w * 3;
+    for (let n = 0; n < L.w; n++, o += 3) {
+      const bx = n + L.x0;
+      if (row && bx >= 0 && bx < B.w) { const k = (by * B.w + bx) * 3; a[o] = r + B.a[k]; a[o + 1] = g + B.a[k + 1]; a[o + 2] = b + B.a[k + 2]; }
+      else { a[o] = r; a[o + 1] = g; a[o + 2] = b; }
+    }
+  }
+}
+
+// Multiplies the view by the light, in dithered bands, then lays the
+// emissive layer over it at its own colour. cx, cy: the camera in the
+// world, which the dither is fixed to. _bandMul[(band << 8) + v] is v lit
+// by that band.
+let _bandMul = null, _bandTop = 0;
+function lightScene(cx, cy) {
+  const w = View.w, h = View.h, Lt = T.light, L = View.light, a = L.a, lw = L.w * 3;
   const img = View.ctx.getImageData(0, 0, w, h), d = img.data;
-  const li = View.lightCtx.getImageData(0, 0, w, h).data;
-  const em = View.emCtx.getImageData(0, 0, w, h).data;
-  const B = Lt.bands, max = Lt.max, s = (2 / 255) * B;
+  LateDots.on = false;
+  lateDotsColour(d, w, h);
+  if (!_bandMul) {
+    _bandTop = Math.ceil(Lt.max * Lt.bands);
+    _bandMul = new Uint8ClampedArray((_bandTop + 1) * 256);
+    for (let n = 0; n <= _bandTop; n++) for (let v = 0; v < 256; v++) _bandMul[(n << 8) + v] = v * Math.min(Lt.max, n / Lt.bands);
+  }
+  const M = _bandMul, top = _bandTop, px = cx - 2 * L.x0, py = cy - 2 * L.y0, bt = [0, 0, 0, 0];
   for (let y = 0; y < h; y++) {
-    const row = ((y + camY) & 3) * 4;
-    for (let x = 0; x < w; x++) {
-      const k = (y * w + x) * 4, ea = em[k + 3];
-      if (ea > 200) { d[k] = em[k]; d[k + 1] = em[k + 1]; d[k + 2] = em[k + 2]; continue; }
-      const bt = (BAYER4[row + ((x + camX) & 3)] + 0.5) / 16;
-      let q = Math.floor(li[k] * s + bt) / B; d[k] *= q > max ? max : q;
-      q = Math.floor(li[k + 1] * s + bt) / B; d[k + 1] *= q > max ? max : q;
-      q = Math.floor(li[k + 2] * s + bt) / B; d[k + 2] *= q > max ? max : q;
-      if (ea > 0) { const a = ea / 255; d[k] += (em[k] - d[k]) * a; d[k + 1] += (em[k + 1] - d[k + 1]) * a; d[k + 2] += (em[k + 2] - d[k + 2]) * a; }
+    const row = ((y + cy) & 3) * 4, base = ((y + py) >> 1) * lw;
+    for (let n = 0; n < 4; n++) bt[(n + cx) & 3] = (BAYER4[row + ((n + cx) & 3)] + 0.5) / 16;
+    for (let x = 0, k = y * w * 4; x < w; x++, k += 4) {
+      const o = base + ((x + px) >> 1) * 3, t = bt[(x + cx) & 3];
+      let q = (a[o] + t) | 0; d[k] = M[((q > top ? top : q) << 8) + d[k]];
+      q = (a[o + 1] + t) | 0; d[k + 1] = M[((q > top ? top : q) << 8) + d[k + 1]];
+      q = (a[o + 2] + t) | 0; d[k + 2] = M[((q > top ? top : q) << 8) + d[k + 2]];
     }
   }
   View.ctx.putImageData(img, 0, 0);
+  lateDotsGlow(w, h);
+  LateDots.q.length = 0;
+  View.ctx.drawImage(View.em, 0, 0);
 }
 
 // Bloom from the emissive layer, soft at low resolution so it still reads
-// as pixels.
+// as pixels: each pass shrunk, summed at the finest pass's size, then
+// drawn into the overlay, which the browser adds over the view.
 function bloomScene() {
-  const x = View.ctx;
-  for (const [c, a] of View.blooms) {
+  const sum = View.bloomSum, sx = sum.getContext('2d');
+  sx.globalCompositeOperation = 'copy';
+  View.blooms.forEach(([c, a], n) => {
     const bx = c.getContext('2d');
     bx.imageSmoothingEnabled = true;
-    bx.clearRect(0, 0, c.width, c.height);
+    bx.globalCompositeOperation = 'copy';
     bx.drawImage(View.em, 0, 0, c.width, c.height);
-    x.save();
-    x.imageSmoothingEnabled = true;
-    x.globalCompositeOperation = 'lighter';
-    x.globalAlpha = a;
-    x.drawImage(c, 0, 0, View.w, View.h);
-    x.restore();
-  }
+    sx.imageSmoothingEnabled = true;
+    sx.globalAlpha = a;
+    sx.drawImage(c, 0, 0, sum.width, sum.height);
+    sx.globalCompositeOperation = 'lighter';
+  });
+  sx.globalAlpha = 1;
+  const x = View.bloomCtx;
+  x.imageSmoothingEnabled = true;
+  x.globalCompositeOperation = 'copy';
+  x.drawImage(sum, 0, 0, View.w, View.h);
 }
 
 // ---------------------------------------------------------------------------
@@ -326,8 +457,10 @@ function renderFrame() {
   if (!x || !View.w) return;
   x.fillStyle = '#000';
   x.fillRect(0, 0, View.w, View.h);
+  View.overCtx.clearRect(0, 0, View.w, View.h);
+  LateDots.on = false; LateDots.q.length = 0;
   const d = Game.dive;
-  if (!d) return;
+  if (!d) { View.bloomCtx.clearRect(0, 0, View.w, View.h); return; }
   const f = d.floor, p = d.p, Lt = T.light, star = ART.pal.star;
   if (View.floorFor !== f) paintFloor(f);
   const fw = f.w * TILE, fh = f.h * TILE;
@@ -394,6 +527,8 @@ function renderFrame() {
     else if (a.piece) drawFlora(d, a, ox, oy, lights);
     else drawEnemy(d, a, ox, oy, tick, lights);
   }
+  // from here on (but at home, where the star goes over them) dots are queued
+  LateDots.on = !d.hub;
   for (const b of d.bolts) {
     const col = b.element ? ELEMENT_COLS[b.element] : b.kind === 'bolt' ? ART.cores.bolt : '#e8f4ff';
     // a frost lance: a long shard of ice
@@ -455,18 +590,12 @@ function renderFrame() {
   const zl = !d.hub && T.zones[d.zone] && T.zones[d.zone].light;
   const ambLevel = d.hub ? Lt.hubAmbient : zl ? lerp(zl.dusk, zl.day, clamp(d.pull, 0, 1)) : Lt.ambient;
   const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(d.pull * 1.5, 0, 1))) : Lt.tint;
-  const lx = View.lightCtx, amb = ambLevel * 127.5;
-  lx.globalCompositeOperation = 'source-over';
-  lx.fillStyle = `rgb(${amb * tint[0] | 0},${amb * tint[1] | 0},${amb * tint[2] | 0})`;
-  lx.fillRect(0, 0, View.w, View.h);
-  lx.globalCompositeOperation = 'lighter';
-  for (const s of View.lights) {
-    const sx = s.x + ox, sy = s.y + oy;
-    if (sx + s.r > 0 && sy + s.r > 0 && sx - s.r < View.w && sy - s.r < View.h) addLight(lx, sx, sy, s.r, s.i, s.c);
-  }
+  const L = View.light;
+  if (View.bakedFrom !== View.lights) bakeFloorLights(f);
+  startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
   for (const s of lights) {
-    if (s.beam) addBeamLight(lx, s.x, s.y0, s.y1, s.r, s.i, s.c);
-    else addLight(lx, s.x, s.y, s.r, s.i, s.c);
+    if (s.beam) addBeamLight(L, s.x - ox, s.y0 - oy, s.y1 - oy, s.r, s.i, s.c);
+    else addLight(L, s.x - ox, s.y - oy, s.r, s.i, s.c);
   }
   // the lamp gutters out as the diver dies, and dims as the star's pull fades
   let lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
@@ -480,35 +609,38 @@ function renderFrame() {
     for (let i = 0; i < n * k; i++) { const a = -Math.PI / 2 + (i / n) * Math.PI * 2; dot(Math.round(fx + Math.cos(a) * 12), Math.round(fy - 8 + Math.sin(a) * 9), col, true); }
     lights.push({ x: fx, y: fy - 8, r: TILE * (1.5 + k * 2), i: 0.6 + k, c: rgb01(col) });
   }
-  addLight(lx, fx, fy - 17, Lt.lamp[0] * TILE * lamp * (1 + (d.stats.lamp || 0) / 100), Lt.lamp[1] * lamp, rgb01(ART.pal.lamp[0]));
-  lightScene(camX, camY);
+  addLight(L, fx - ox, fy - 17 - oy, Lt.lamp[0] * TILE * lamp * (1 + (d.stats.lamp || 0) / 100), Lt.lamp[1] * lamp, rgb01(ART.pal.lamp[0]));
+  lightScene(-ox, -oy);
   bloomScene();
 
   // on top, unlit: enemies' health, the ore being aimed at, and how far
   // through it the pick is
+  const o = View.overCtx;
   for (const e of d.enemies) {
     if (e.dead || e.boss || (e.hp >= e.maxHp && !e.elite)) continue;
     const w = e.r * 2 + 4, bx = Math.round(e.x + ox - w / 2), by = Math.round(e.y + oy) - (e.type === 'wisp' ? 22 : e.type === 'construct' ? 20 : 16);
-    x.fillStyle = '#000'; x.fillRect(bx - 1, by - 1, w + 2, 3);
-    x.fillStyle = e.elite ? ELITE_COLS[e.elite] : '#d04848'; x.fillRect(bx, by, Math.max(1, Math.round((w * e.hp) / e.maxHp)), 1);
+    o.fillStyle = '#000'; o.fillRect(bx - 1, by - 1, w + 2, 3);
+    o.fillStyle = e.elite ? ELITE_COLS[e.elite] : '#d04848'; o.fillRect(bx, by, Math.max(1, Math.round((w * e.hp) / e.maxHp)), 1);
   }
   const boss = d.enemies.find((e) => e.boss && !e.dead && e.aggro);
   if (boss) {
     const w = Math.min(View.w - 24, 140), bx = Math.round((View.w - w) / 2);
-    x.fillStyle = '#000'; x.fillRect(bx - 1, 5, w + 2, 4);
-    x.fillStyle = '#c04040'; x.fillRect(bx, 6, Math.round((w * boss.hp) / boss.maxHp), 2);
+    o.fillStyle = '#000'; o.fillRect(bx - 1, 5, w + 2, 4);
+    o.fillStyle = '#c04040'; o.fillRect(bx, 6, Math.round((w * boss.hp) / boss.maxHp), 2);
   }
   for (const n of d.nums) drawNumber(n.v, Math.round(n.x + ox), Math.round(n.y + oy), n.hurt ? '#ff6a5a' : n.elem ? ELEMENT_COLS[n.elem] : n.crit ? '#ffd34d' : '#f4ecd8', Math.min(1, n.t * 3));
   if (d.target) {
     const tx = d.target.tx * TILE + ox, ty = d.target.ty * TILE + oy;
-    x.fillStyle = Input.mining() ? '#fff2c8' : 'rgba(255,242,200,0.5)';
-    for (const [cx, cy] of [[0, 0], [TILE - 3, 0], [0, TILE - 3], [TILE - 3, TILE - 3]]) { x.fillRect(tx + cx, ty + cy + (cy ? 2 : 0), 3, 1); x.fillRect(tx + cx + (cx ? 2 : 0), ty + cy, 1, 3); }
+    o.fillStyle = Input.mining() ? '#fff2c8' : 'rgba(255,242,200,0.5)';
+    for (const [cx, cy] of [[0, 0], [TILE - 3, 0], [0, TILE - 3], [TILE - 3, TILE - 3]]) { o.fillRect(tx + cx, ty + cy + (cy ? 2 : 0), 3, 1); o.fillRect(tx + cx + (cx ? 2 : 0), ty + cy, 1, 3); }
     if (p.mine && !p.mine.refused) {
-      x.fillStyle = '#000'; x.fillRect(tx + 1, ty - 4, TILE - 2, 3);
-      x.fillStyle = star[2]; x.fillRect(tx + 2, ty - 3, Math.round((TILE - 4) * Math.min(1, p.mine.prog)), 1);
+      o.fillStyle = '#000'; o.fillRect(tx + 1, ty - 4, TILE - 2, 3);
+      o.fillStyle = star[2]; o.fillRect(tx + 2, ty - 3, Math.round((TILE - 4) * Math.min(1, p.mine.prog)), 1);
     }
   }
-  drawToolHud(d, ox, oy);
+  // the tools' marks too
+  View.ctx = o;
+  try { drawToolHud(d, ox, oy); } finally { View.ctx = x; }
 }
 
 // ---------------------------------------------------------------------------
@@ -835,7 +967,7 @@ function pixelLineGlow(x0, y0, x1, y1, col) {
 const DIGITS = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001', '111100111001111', '111100111101111', '111001001010010', '111101111101111', '111101111001111'];
 function drawNumber(v, cx, cy, col, alpha) {
   if (!Number.isFinite(v) || v >= 1e7) return;
-  const s = String(v), x0 = cx - Math.floor((s.length * 4 - 1) / 2), x = View.ctx;
+  const s = String(v), x0 = cx - Math.floor((s.length * 4 - 1) / 2), x = View.overCtx;
   x.globalAlpha = alpha;
   for (const [ink, off] of [['#000000', 1], [col, 0]])
     for (let k = 0; k < s.length; k++) {

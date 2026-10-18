@@ -73,11 +73,15 @@ body.home #topbar .bars, body.home #btn-cargo { visibility: hidden; }
 body.home #btn-mine { display: none; }
 
 #stage { grid-area: stage; position: relative; overflow: hidden; background: #000; }
-#view {
+#view, #bloom, #view-over {
   position: absolute; left: 50%; top: 50%;
   transform: translate(-50%, -50%);
   image-rendering: pixelated;
 }
+/* over the view: its bloom, added on, then what is drawn unlit */
+#bloom, #view-over { pointer-events: none; }
+#bloom { mix-blend-mode: screen; }
+@supports (mix-blend-mode: plus-lighter) { #bloom { mix-blend-mode: plus-lighter; } }
 
 /* the decks */
 .deck {
