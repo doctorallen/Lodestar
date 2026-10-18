@@ -1,8 +1,9 @@
 'use strict';
 // ---------------------------------------------------------------------------
 // The anvil, and the reveal. Forging is three hammer strikes: a marker
-// sweeps a bar, faster each strike, and a tap strikes. In the glowing zone
-// is good, dead in its middle perfect. The strikes add up to a quality
+// sweeps a bar, faster each strike but slowing as it drags through the
+// glowing zone, and a tap strikes. In the zone is good, dead in its
+// marked middle perfect. The strikes add up to a quality
 // (0–3) that shifts the rarity odds (T.anvil.odds), so a perfect forge can
 // even come out legendary; for a core, a good forge raises its tier. Then
 // the piece rises from the anvil in its rarity's light (Reveal), and its
@@ -22,32 +23,31 @@ const ANVIL_ROWS = [
 ];
 
 const Anvil = {
-  job: null, // { bp, ore, part, exotic, field, rng, k, t, strikes, zone, ... }
+  job: null, // { bp, ore, part, exotic, field, rng, k, ph, strikes, zone, ... }
   sprite: null,
 
   start(job) {
     const A = T.anvil;
     job.rng = Save.rng();
-    job.k = 0; job.t = 0; job.strikes = []; job.hammer = 0; job.sparks = []; job.flash = 0; job.doneT = -1;
+    job.k = 0; job.ph = 0; job.strikes = []; job.hammer = 0; job.sparks = []; job.flash = 0; job.doneT = -1;
     job.zone = job.rng.f(0.22, 0.78);
     this.job = job;
     UI.show('screen-anvil');
-    setTextIfChanged('anvil-call', 'Tap to strike when the marker crosses the glow');
+    setTextIfChanged('anvil-call', 'Tap as the marker crosses the glow');
     setTextIfChanged('anvil-what', `${BLUEPRINTS[job.bp].name} in ${T.ores[ORE_INDEX[job.ore]].name}, bound with ${partName(job.part).toLowerCase()}${job.exotic ? ', with ' + exoticName(job.exotic).toLowerCase() : ''}${job.imprint ? ', imprinted with ' + LEGENDARIES[job.imprint].name : ''}`);
     this.draw();
   },
 
-  marker() {
-    const j = this.job, s = T.anvil.speeds[Math.min(j.k, 2)];
-    const ph = (j.t * s) % 2;
-    return ph < 1 ? ph : 2 - ph;
-  },
+  // where the marker is on the bar (0–1): ph runs 0–2, there and back
+  marker() { const ph = this.job.ph; return ph < 1 ? ph : 2 - ph; },
   zoneHalf() { return (T.anvil.zone - T.anvil.shrink * this.job.k) / 2; },
+  inZone() { return Math.abs(this.marker() - this.job.zone) <= this.zoneHalf(); },
 
   update(dt) {
     const j = this.job;
     if (!j) return;
-    if (j.doneT < 0) j.t += dt;
+    // the marker sweeps, dragging as it crosses the zone
+    if (j.doneT < 0) j.ph = (j.ph + dt * T.anvil.speeds[Math.min(j.k, 2)] * (this.inZone() ? T.anvil.drag : 1)) % 2;
     j.hammer = Math.max(0, j.hammer - dt * 5);
     j.flash = Math.max(0, j.flash - dt * 3);
     for (const s of j.sparks) { s.t -= dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 140 * dt; }
@@ -122,12 +122,16 @@ const Anvil = {
     x.fillStyle = ART.pal.steel[2]; x.fillRect(70, hy + 14, 16, 7);
     x.fillStyle = ART.pal.steel[3]; x.fillRect(70, hy + 14, 16, 1);
     for (const s of j.sparks) { x.fillStyle = s.t > 0.4 ? '#ffffff' : '#ffb347'; x.fillRect(Math.round(s.x), Math.round(s.y), 1, 1); }
-    // the bar: the zone, its middle, the marker
+    // the bar: the zone (brighter while the marker's in it), its middle
+    // marked above and below, the marker
     const bx = 10, by = 70, bw = 100, half = this.zoneHalf();
     x.fillStyle = '#1a1c24'; x.fillRect(bx, by, bw, 6);
     if (j.doneT < 0 && j.strikes.length < 3) {
-      x.fillStyle = '#7a6234'; x.fillRect(Math.round(bx + (j.zone - half) * bw), by, Math.round(half * 2 * bw), 6);
-      x.fillStyle = '#ffd890'; x.fillRect(Math.round(bx + (j.zone - half * T.anvil.perfect) * bw), by, Math.max(1, Math.round(half * T.anvil.perfect * 2 * bw)), 6);
+      const z0 = Math.round(bx + (j.zone - half) * bw), z1 = Math.round(bx + (j.zone + half) * bw);
+      const p0 = Math.round(bx + (j.zone - half * T.anvil.perfect) * bw), p1 = Math.max(p0 + 1, Math.round(bx + (j.zone + half * T.anvil.perfect) * bw));
+      x.fillStyle = this.inZone() ? '#a8823c' : '#7a6234'; x.fillRect(z0, by, z1 - z0, 6);
+      x.fillStyle = '#ffd890'; x.fillRect(p0, by, p1 - p0, 6);
+      x.fillStyle = '#ffd34d'; x.fillRect(p0, by - 3, p1 - p0, 1); x.fillRect(p0, by + 8, p1 - p0, 1);
       x.fillStyle = '#ffffff'; x.fillRect(Math.round(bx + this.marker() * bw), by - 2, 1, 10);
     }
     // three pips: how each strike went

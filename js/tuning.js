@@ -295,12 +295,18 @@ const T = {
   imprint: { glass: 2, chance: 0.5 },
   fieldForge: { blueprint: 0.6 }, // the chance a schematic lies by one (how often one stands is the zone's)
   // The anvil: three strikes, each a marker sweeping a bar at `speeds`
-  // (sweeps a second); a strike inside the zone (zone wide, narrowing by
-  // shrink a strike) is good, inside its middle `perfect` is perfect.
-  // Quality (perfect 1, good 0.5, summed, rounded down) picks the rarity
-  // odds: [common, magic, rare, legendary] for quality 0–3.
+  // (sweeps a second), slowed to `drag` of that while it's over the zone.
+  // A strike inside the zone (`zone` of the bar wide, narrowing by `shrink`
+  // a strike) is good; inside its middle `perfect` of it, perfect. Quality
+  // (perfect 1, good 0.5, summed, rounded down) picks the rarity odds:
+  // [common, magic, rare, legendary] for quality 0–3.
+  // Made kinder after the designer found it hard (it was speeds 0.9, 1.25,
+  // 1.6, zone 0.26, shrink 0.04, no drag). The good window is now about
+  // 500, 350 and 250 ms, strike by strike (was 290, 175, 110), so most
+  // strikes land good; the perfect one about 125, 90 and 65 ms (was 85,
+  // 55, 35, with perfect 0.3), so three in a row is still rare.
   anvil: {
-    speeds: [0.9, 1.25, 1.6], zone: 0.26, shrink: 0.04, perfect: 0.3,
+    speeds: [0.75, 0.95, 1.15], drag: 0.75, zone: 0.28, shrink: 0.03, perfect: 0.25,
     odds: [[55, 35, 10, 0], [40, 42, 16, 2], [25, 44, 26, 5], [10, 38, 40, 12]],
   },
   attune: {

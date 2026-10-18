@@ -296,8 +296,8 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 | The practice target | A construct that takes every hit and never falls, for trying combos |
 | The *Meridian* (wreck) | The star's heart (shards found and set), the echoes, and lighting the beacon |
 
-- **The anvil.** Each forge is three hammer strikes: a marker sweeps a bar, faster each time, and you tap as it crosses the glowing zone.
-  - A strike in the zone is good, and one dead in its middle is perfect.
+- **The anvil.** Each forge is three hammer strikes: a marker sweeps a bar, faster each time and dragging as it crosses the glowing zone, and you tap while it's in the zone.
+  - A strike in the zone is good, and one in its marked middle is perfect.
   - The strikes add up to a quality from rough to masterwork, which shifts the rarity odds. A masterwork can even come out legendary.
   - For a spell core, a good forge raises its tier.
 - **The reveal.** A forged piece or an unsealed relic rises in a beam of its rarity's colour, then its card opens.
