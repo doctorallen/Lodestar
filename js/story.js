@@ -56,6 +56,8 @@ const WICK = {
   foe_lurker: 'Eyes in the mire. Its tongue reaches further than you think. Stay off the line it marks.',
   foe_dropper: 'Something was on the roof. Watch the floor for its shadow.',
   foe_eel: "A fin in the water. If it lunges and misses, it's stuck on dry ground for a moment.",
+  foe_crab: 'Its shell turns most of what we throw. Freeze it, or crack it with a heavy blow.',
+  foe_weaver: "It strings roots across the way. They'll hold your feet; dash through them.",
 };
 
 // The star, as it grows, and as its heart comes back.

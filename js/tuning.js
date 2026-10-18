@@ -379,7 +379,7 @@ const T = {
     // creature part it leaves. knock: how far hits push it (1 a crawler).
     // barY: how high its health bar sits (world px over its feet).
     signatureShare: 0.3, graftFoes: [1, 2], exposed: 1.5,
-    signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker', caverns: 'dropper', grotto: 'eel' },
+    signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker', caverns: 'dropper', grotto: 'eel', magma: 'crab', rootdeep: 'weaver' },
     // the Dune Skink (Badlands) swims under the sand (its speed), shows a
     // ring where it will burst up once within `strike` px, and bursts there
     // after windup s, biting within `burst` px; it stays up for `up` s,
@@ -413,11 +413,21 @@ const T = {
     // s, then crawls back at crawlSpeed; back in the water it stays up for
     // `surface` s before it dives
     eel: { hp: 30, dmg: 13, speed: 46, radius: 5, range: 54, windup: 0.75, lungeSpeed: 190, lungeTime: 0.28, stranded: 1.6, crawlSpeed: 26, surface: 0.9, cooldown: 2.2, swims: true, noGraft: true, part: 'fiber', barY: 14 },
+    // the Slag Crab (Magma Tubes) sidesteps round the diver (side × its
+    // speed) and pinches. Its shell takes `shell` of the damage until it's
+    // chilled, or cracked by a heavy hit for crackTime s. Lava can't burn it
+    crab: { hp: 44, dmg: 14, speed: 26, radius: 6, circle: 24, windup: 0.5, lungeSpeed: 110, lungeTime: 0.22, recover: 0.5, side: 1.25, shell: 0.35, crackTime: 5, knock: 0.5, lavaProof: true, part: 'cog', barY: 15 },
+    // the Rootweaver (Rootdeep) keeps `keep` px off and spits (shotSpeed);
+    // every snareEvery s it strings a root snare between two walls across
+    // the diver's way (each end at most snareReach px from the diver),
+    // showing it for `weave` s: crossing one walks at snareSlow; it lasts
+    // snareTime s, snareMax on a floor
+    weaver: { hp: 26, dmg: 9, speed: 30, radius: 5, keep: 62, range: 110, windup: 0.55, cooldown: 2.0, shotSpeed: 80, snareEvery: 6, snareReach: 44, weave: 0.7, snareTime: 9, snareMax: 3, snareSlow: 0.45, snareWidth: 4, part: 'fiber', barY: 15 },
     // their natures (the resistance and weakness system reads these):
     // W weak, R resists, I immune
     resist: {
       skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', frost: 'R' }, wraith: { frost: 'W', ember: 'R' }, lurker: { ember: 'W', blight: 'R' },
-      dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', ember: 'R' },
+      dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', ember: 'R' }, crab: { frost: 'W', ember: 'R', force: 'R' }, weaver: { ember: 'W', blight: 'R' },
      
     },
     // the Hollow: what comes when the star's pull is gone. It can't be

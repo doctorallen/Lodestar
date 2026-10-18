@@ -20,6 +20,11 @@
 //             drops, and fights like a squat crawler.
 //   eel       Flooded Grotto: swims in the pools, rears and lunges along a
 //             shown line; on dry ground without a bite, it's stranded.
+//   crab      Magma Tubes: a shell that turns most of a blow until it's
+//             chilled or a heavy hit cracks it; sidesteps and pinches; lava
+//             doesn't burn it.
+//   weaver    Rootdeep: keeps off and spits, and strings root snares
+//             between the walls across your way.
 // While under the sand or the water or on the roof (e.hid) nothing can
 // strike it or aim at it. Numbers in T.enemies; looks in foesart.js.
 // ---------------------------------------------------------------------------
@@ -27,7 +32,7 @@
 // [name, plural] for the screens and contracts
 const FOE_NAMES = {
   skink: ['Dune Skink', 'dune skinks'], tusker: ['Tusker', 'tuskers'], wraith: ['Ash Wraith', 'ash wraiths'], lurker: ['Bog Lurker', 'bog lurkers'],
-  dropper: ['Ceiling Dropper', 'ceiling droppers'], eel: ['Pool Eel', 'pool eels'],
+  dropper: ['Ceiling Dropper', 'ceiling droppers'], eel: ['Pool Eel', 'pool eels'], crab: ['Slag Crab', 'slag crabs'], weaver: ['Rootweaver', 'rootweavers'],
 };
 // The states in which one is open to a counter (T.enemies.exposed).
 const FOE_EXPOSED = new Set(['stranded', 'spent', 'landed']);
@@ -327,7 +332,69 @@ function updateEel(d, e, pd, sp, dt, free) {
   for (const [mx, my] of [[dx, dy], [dx, 0], [0, dy]]) if ((mx || my) && wet(e.x + mx, e.y + my)) { moveBody(f, e, mx, my, e.r); break; }
 }
 
-const FOE_UPDATE = { skink: updateSkink, tusker: updateTusker, wraith: updateWraith, lurker: updateLurker, dropper: updateDropper, eel: updateEel };
+// The Slag Crab: a crawler's way of fighting, sidestepping faster. Its
+// shell is crabShell's.
+function updateCrab(d, e, pd, sp, dt, free) {
+  e.cracked = Math.max(0, (e.cracked || 0) - dt);
+  updateCrawler(d, e, pd, sp, dt, free, T.enemies.crab);
+}
+// The crab's shell, a rule of its own beside its natures (T.enemies.resist,
+// which the resistance system reads): the share of a blow that gets
+// through. Chilled, or cracked, it's open; a heavy blow cracks it, and gets
+// through whole.
+function crabShell(e, opts) {
+  const def = T.enemies.crab;
+  if (e.slowT > 0 || e.cracked > 0) return 1;
+  if (opts.heavy) { e.cracked = def.crackTime; return 1; }
+  return def.shell;
+}
+
+// The Rootweaver: keeps off like a wisp and spits; now and then it shows a
+// snare across the diver's way, from wall to wall, and strings it.
+function updateWeaver(d, e, pd, sp, dt, free) {
+  const def = T.enemies.weaver, p = d.p, f = d.floor;
+  e.t -= dt;
+  e.snareT = (e.snareT === undefined ? def.snareEvery * 0.5 : e.snareT) - dt;
+  if (e.state === 'windup') {
+    if (e.t <= 0) {
+      const a = norm(e.aimX - e.x, e.aimY - (e.y - 5));
+      fireEnemyShot(d, e.x, e.y - 5, a.x * def.shotSpeed, a.y * def.shotSpeed, e.dmg, FOE_SPIT);
+      e.state = 'drift'; e.cd = def.cooldown;
+    }
+    return;
+  }
+  if (e.state === 'weave') {
+    if (e.t <= 0) {
+      d.snares = d.snares || [];
+      d.snares.push(Object.assign({ t: def.snareTime, max: def.snareTime }, e.snare));
+      while (d.snares.length > def.snareMax) d.snares.shift();
+      e.state = 'drift'; e.snareT = def.snareEvery; e.cd = Math.max(e.cd, 0.6);
+    }
+    return;
+  }
+  e.state = 'drift';
+  const sees = clearLine(f, e.x, e.y, p.x, p.y - 6);
+  if (!sees || pd > def.keep + 30) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
+  else orbitMove(d, e, def.keep, sp);
+  if (!e.aggro || !sees || pd > def.range || !free || e.cd > 0) return;
+  const sn = e.snareT <= 0 && foeSnareLine(f, p, e);
+  if (sn) { e.state = 'weave'; e.t = def.weave; e.snare = sn; }
+  else { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y - 6; }
+}
+// A line through the diver from wall to wall, across the way from the
+// weaver (or near it), each end within snareReach; null if there's none.
+function foeSnareLine(f, p, e) {
+  const R = T.enemies.weaver.snareReach, base = Math.atan2(p.y - e.y, p.x - e.x) + Math.PI / 2;
+  for (const off of [0, 0.4, -0.4, 0.8, -0.8, Math.PI / 2]) {
+    const ux = Math.cos(base + off), uy = Math.sin(base + off);
+    const l0 = foeRay(f, p.x, p.y, ux, uy, R + 2), l1 = foeRay(f, p.x, p.y, -ux, -uy, R + 2);
+    if (l0 > R || l1 > R || l0 + l1 < 10) continue;
+    return { x0: p.x + ux * l0, y0: p.y + uy * l0, x1: p.x - ux * l1, y1: p.y - uy * l1 };
+  }
+  return null;
+}
+
+const FOE_UPDATE = { skink: updateSkink, tusker: updateTusker, wraith: updateWraith, lurker: updateLurker, dropper: updateDropper, eel: updateEel, crab: updateCrab, weaver: updateWeaver };
 
 // ---------------------------------------------------------------------------
 // How they look (render.js drawEnemy asks foeLook, then draws the tells)

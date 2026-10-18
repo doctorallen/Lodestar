@@ -118,6 +118,8 @@ function hurtEnemy(e, dmg, opts = {}) {
   if (e.dead || e.hid) return;
   const els = opts.els || (opts.element ? [opts.element] : null);
   if (e.state === 'dazed' || FOE_EXPOSED.has(e.state)) dmg *= T.enemies.exposed;
+  // a Slag Crab's shell (foes.js)
+  if (e.type === 'crab') dmg *= crabShell(e, opts, els);
   if (els) dmg *= elementMult(e, els);
   // a heavy blow to the frozen shatters them
   if (opts.heavy && e.slowT > 0 && els && els.includes('frost')) { dmg *= El.shatter; d.fx.push({ kind: 'shatter', x: e.x, y: e.y - 6, t: 0.3, max: 0.3 }); }
