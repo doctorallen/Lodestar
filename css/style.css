@@ -163,17 +163,36 @@ body.home #btn-mine { display: none; }
 
 /* the screens */
 .screen {
+  --pad-l: max(16px, env(safe-area-inset-left)); --pad-r: max(16px, env(safe-area-inset-right));
   position: fixed; inset: 0; z-index: 10;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: calc(16px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  padding: calc(16px + env(safe-area-inset-top)) var(--pad-r) calc(16px + env(safe-area-inset-bottom)) var(--pad-l);
   background: var(--bg);
   text-align: center;
 }
-.screen.panel { justify-content: flex-start; overflow-y: auto; touch-action: pan-y; }
+.screen.panel { justify-content: flex-start; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; padding-top: 0; }
+/* a panel's header: the title on the left, the way out on the right, held
+   at the top while the panel scrolls (and over the notch) */
+.screen-head {
+  position: sticky; top: 0; z-index: 3; flex: none;
+  align-self: stretch; margin: 0 calc(-1 * var(--pad-r)) 10px calc(-1 * var(--pad-l));
+  padding: env(safe-area-inset-top, 0px) var(--pad-r) 0 var(--pad-l);
+  background: var(--bg); border-bottom: 1px solid var(--line);
+}
+.head-in { display: flex; align-items: center; gap: 10px; max-width: 420px; min-height: 60px; margin: 0 auto; }
+.screen .screen-head h2 { flex: 1; min-width: 0; margin: 0; text-align: left; font-size: 17px; letter-spacing: 0.16em; }
+.head-close {
+  flex: none; width: 48px; height: 48px; padding: 0;
+  background: var(--panel); color: var(--ink); border: 2px solid var(--ink);
+  font: inherit; font-size: 20px; line-height: 1;
+}
+.head-close:active { background: var(--ink); color: #111; }
 /* the report can run long: it scrolls, and centres when it doesn't */
 #screen-report { justify-content: flex-start; overflow-y: auto; touch-action: pan-y; }
 #screen-report > :first-child { margin-top: auto; }
 #screen-report > :last-child { margin-bottom: auto; }
+/* CONTINUE stays in reach however long it runs */
+#screen-report > .menu { position: sticky; bottom: 0; align-self: stretch; background: var(--bg); padding: 4px 0 calc(12px + env(safe-area-inset-bottom)); }
 .chip-icon { width: 20px; height: 20px; image-rendering: pixelated; vertical-align: middle; margin-right: 6px; }
 @media (max-height: 500px) { .forge-go { padding: 4px 0; } .forge-go .btn { min-height: 40px; padding-top: 4px; padding-bottom: 4px; } }
 .screen[hidden] { display: none; }
@@ -254,14 +273,20 @@ body.home #btn-mine { display: none; }
   position: fixed; inset: 0; z-index: 20;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0, 0, 0, 0.7);
-  padding: 16px;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 .card-wrap[hidden] { display: none; }
 .card {
-  width: 100%; max-width: 380px; max-height: 100%; overflow-y: auto; touch-action: pan-y;
-  background: var(--panel); border: 1px solid var(--line); padding: 14px;
+  width: 100%; max-width: 380px; max-height: 100%;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--line);
   text-align: left;
 }
+/* the card's header stays put; the rest scrolls under it */
+.card-bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--line); background: var(--panel2); }
+.card-where { flex: 1; min-width: 0; font-size: 11px; letter-spacing: 0.14em; color: var(--dim); }
+.card-bar .mini.fav { margin: 0; min-height: 48px; }
+.card-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; touch-action: pan-y; padding: 14px; }
 .card-head { display: flex; align-items: center; gap: 12px; }
 .card-name { font-size: 17px; }
 .card .base { margin: 10px 0 6px; }
@@ -272,7 +297,7 @@ body.home #btn-mine { display: none; }
 .set { color: var(--set); margin: 8px 0; font-size: 12px; }
 .sockets .sock { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; color: #9fc4ff; }
 .card .menu .btn { width: 100%; min-width: 0; margin: 4px 0; }
-/* the card's buttons two to a row; the long ones and BACK across */
+/* the card's buttons two to a row; the long ones across */
 .card .card-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6px; }
 .card .card-menu .btn.wide { grid-column: 1 / -1; }
 .btn.armed { background: var(--danger); color: #111; }
@@ -330,8 +355,8 @@ body.home #btn-mine { display: none; }
 .speech.star b { color: var(--gold); font-style: normal; }
 /* sideways there's no bottom deck: speak over the foot of the view */
 #app.wide .speech { bottom: calc(12px + env(safe-area-inset-bottom)); left: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); right: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); }
-/* over a screen, toasts sit at the very top, clear of the buttons below */
-body.modal .toasts { top: calc(4px + env(safe-area-inset-top)); }
+/* over a screen, toasts sit just under a panel's header, clear of its title and its way out */
+body.modal .toasts { top: calc(66px + env(safe-area-inset-top)); }
 .toasts .toast:nth-last-child(n + 3) { display: none; }
 /* nothing talks over the anvil, a reveal or the story */
 body.rapt .toasts { display: none; }
@@ -344,7 +369,7 @@ body.rapt .toasts { display: none; }
 /* the forge: blueprints in a strip along the top, FORGE kept in reach */
 .bp-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 76px; grid-template-columns: none; overflow-x: auto; touch-action: pan-x pan-y; scroll-snap-type: x proximity; padding-bottom: 4px; }
 .bp-strip .bp { scroll-snap-align: center; }
-.forge-go { position: sticky; bottom: 0; background: var(--bg); padding: 8px 0; margin: 0; }
+.forge-go { position: sticky; bottom: 0; background: var(--bg); padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); margin: 0; }
 h3 .dim { color: var(--dim); font-weight: normal; }
 .forge-go .btn small { display: block; font-size: 11px; letter-spacing: 0.08em; margin-top: 2px; }
 .card .card-menu .btn { font-size: 13px; letter-spacing: 0.1em; padding-left: 4px; padding-right: 4px; }

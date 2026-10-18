@@ -42,7 +42,8 @@ const UI = {
 
   init() {
     for (const s of document.querySelectorAll('.screen')) s.addEventListener('click', (e) => UI.onTap(e));
-    $('card').addEventListener('click', (e) => UI.onTap(e));
+    // a tap on the dark round the card closes it, as ✕ does
+    $('card').addEventListener('click', (e) => { if (e.target === $('card')) { if (Game.realT - UI.openedAt >= T.ui.tapGuard) UI.acts.closeCard(); } else UI.onTap(e); });
     $('btn-pause').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.openPause(); });
     $('btn-cargo').addEventListener('click', () => { if (Game.dive && !Game.dive.hub && !Game.modal) UI.openCargo(); });
     $('build').textContent = BUILD_INFO;
@@ -527,13 +528,20 @@ function drawCard() {
   }
   const canFav = it.kind !== 'relic' && (c.where === 'stash' || c.where === 'equip');
   const favBtn = canFav ? `<button class="mini fav ${it.fav ? 'on' : ''}" data-act="fav" title="Keep: never salvaged">${it.fav ? '★ KEPT' : '☆ KEEP'}</button>` : '';
-  $('card-body').innerHTML = `
-    <div class="card-head">${iconImg(it, 'icon big')}<div class="grow"><div class="card-name r-${it.rarity}">${esc(it.name)} ${cmp}</div><div class="row-sub">${esc(itemKindLine(it))}</div></div>${favBtn}</div>
+  const where = c.where === 'stash' ? 'IN THE STASH' : c.where === 'cargo' ? 'IN YOUR CARGO' : `WORN · ${SLOT_NAMES[c.key].toUpperCase()}`;
+  $('card-body').innerHTML = cardBar(where, favBtn) + `<div class="card-scroll">
+    <div class="card-head">${iconImg(it, 'icon big')}<div class="grow"><div class="card-name r-${it.rarity}">${esc(it.name)} ${cmp}</div><div class="row-sub">${esc(itemKindLine(it))}</div></div></div>
     <p class="base">${esc(itemBaseLine(it))}</p>
     ${itemNotes(it).map((n) => `<p class="note">${esc(n)}</p>`).join('')}
     ${affixes ? `<ul class="affixes">${affixes}</ul>` : ''}
     ${extra}${runeNote}
-    <div class="menu card-menu">${acts.join('')}<button class="btn wide" data-act="closeCard">BACK</button></div>`;
+    ${acts.length ? `<div class="menu card-menu">${acts.join('')}</div>` : ''}</div>`;
+}
+
+// The card's header, held above what scrolls: where the piece is, KEEP,
+// and the way out.
+function cardBar(where, extra = '') {
+  return `<div class="card-bar"><span class="card-where">${esc(where)}</span>${extra}<button class="head-close" data-act="closeCard" aria-label="Close">✕</button></div>`;
 }
 
 // Ore or an exotic in the cargo: how much, and dropping some.
@@ -542,16 +550,15 @@ function drawStuffCard(id) {
   const what = x ? (x.element ? `Worked into a weapon or focus at the forge, it carries ${ELEMENTS[x.element].name.toLowerCase()}: ${ELEMENTS[x.element].text.toLowerCase()}.` : x.family ? `Worked into a piece at the forge, it's sure to roll a ${x.family} affix.` : x.tierUp ? 'Left where a rift was sealed. Worked into a piece at the forge, it comes out a tier above its ore.' : 'Worked into a piece at the forge, it comes out a rarity higher.')
     : pk ? (PARTS[pk.kind].family ? `A creature part. It binds a forged piece with ${pk.grade} ${PARTS[pk.kind].family} affix${pk.grade > 1 ? 'es' : ''}.` : 'A heart. It binds anything, and a fine forge with it comes out legendary.')
     : `Tier ${T.ores[ORE_INDEX[id]].tier} ore, worth ${orePoints(id)} to the star.`;
-  $('card-body').innerHTML = `
-    <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${x ? 'Exotic material' : pk ? 'Creature part' : 'Ore'} · in your cargo</div></div></div>
+  $('card-body').innerHTML = cardBar('IN YOUR CARGO') + `<div class="card-scroll">
+    <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${x ? 'Exotic material' : pk ? 'Creature part' : 'Ore'}</div></div></div>
     <p class="base">${esc(what)}</p>
     <div class="menu">
       ${n && Game.dive.pocket.length < pocketSlots() ? `<button class="btn" data-act="pocket" data-arg="${T.cargo.pocketStack}">POCKET ${Math.min(n, T.cargo.pocketStack)} (SAFE IF YOU FALL)</button>` : ''}
       ${n ? `<button class="btn danger" data-act="dropStuff" data-arg="1">DROP 1</button>` : ''}
       ${n > 5 ? `<button class="btn danger" data-act="dropStuff" data-arg="5">DROP 5</button>` : ''}
       ${n > 1 ? `<button class="btn danger" data-act="dropStuff" data-arg="all">DROP ALL</button>` : ''}
-      <button class="btn" data-act="closeCard">BACK</button>
-    </div>`;
+    </div></div>`;
 }
 
 // Pieces in the stash worse than what's worn, not kept, not cores or relics.

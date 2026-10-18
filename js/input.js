@@ -8,7 +8,7 @@
 // under the view; sideways they're either side of it. On a keyboard: WASD
 // or the arrows to move, J for the main hand, K for the off hand, Shift or
 // U to dash, Space or L to mine, E or Enter to act, I for cargo, Esc to
-// pause. The tests drive the same interface through Input.bot.
+// pause, or to close the card or screen that's open. The tests drive the same interface through Input.bot.
 // ---------------------------------------------------------------------------
 
 const STICK_R = 44; // CSS px
@@ -153,6 +153,8 @@ function setupInput() {
     if (e.repeat) return;
     if ((e.code === 'Escape' || e.code === 'KeyP') && Game.dive) {
       if (Game.modal === 'screen-report') UI.acts.closeReport();
+      // an item card closes first, back to the screen under it
+      else if (UI.card && Game.modal !== 'screen-reveal') UI.acts.closeCard();
       else if (Game.modal === 'screen-anvil' || Game.modal === 'screen-reveal' || Game.modal === 'screen-story' || Game.modal === 'screen-resume') { /* these finish themselves, or need an answer */ }
       else if (Game.modal) UI.close();
       else UI.openPause();

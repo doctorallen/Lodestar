@@ -46,7 +46,8 @@
   </div>
   <div id="stick-base" class="stick-base" hidden><div id="stick-knob" class="stick-knob"></div></div>
 
-  <!-- the screens; only one shows at a time -->
+  <!-- the screens; only one shows at a time. A panel's header holds its
+       title and its way out (✕), always in sight -->
   <section id="screen-story" class="screen story" hidden>
     <p id="story-text" class="story-text"></p>
     <div class="menu"><button class="btn primary" data-act="storyNext">CONTINUE</button></div>
@@ -60,9 +61,8 @@
   </section>
 
   <section id="screen-wreck" class="screen panel" hidden>
-    <h2>THE MERIDIAN</h2>
+    <header class="screen-head"><div class="head-in"><h2>THE MERIDIAN</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
     <div id="wreck-body" class="list"></div>
-    <div class="menu"><button class="btn" data-act="back">BACK</button></div>
   </section>
 
   <section id="screen-report" class="screen" hidden>
@@ -72,33 +72,28 @@
   </section>
 
   <section id="screen-descend" class="screen panel" hidden>
-    <h2>SET OUT</h2>
+    <header class="screen-head"><div class="head-in"><h2>SET OUT</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
     <div id="descend-body" class="list"></div>
-    <div class="menu"><button class="btn" data-act="back">BACK</button></div>
   </section>
 
   <section id="screen-forge" class="screen panel" hidden>
-    <h2 id="forge-title">THE FORGE</h2>
+    <header class="screen-head"><div class="head-in"><h2 id="forge-title">THE FORGE</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
     <div id="forge-body" class="list"></div>
-    <div class="menu"><button class="btn" data-act="back">BACK</button></div>
   </section>
 
   <section id="screen-gear" class="screen panel" hidden>
-    <h2 id="gear-title">GEAR</h2>
+    <header class="screen-head"><div class="head-in"><h2 id="gear-title">GEAR</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
     <div id="gear-body" class="list"></div>
-    <div class="menu"><button class="btn" data-act="back">BACK</button></div>
   </section>
 
   <section id="screen-star" class="screen panel" hidden>
-    <h2>THE STAR</h2>
+    <header class="screen-head"><div class="head-in"><h2>THE STAR</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
     <div id="star-body" class="list"></div>
-    <div class="menu"><button class="btn" data-act="back">BACK</button></div>
   </section>
 
   <section id="screen-cargo" class="screen panel" hidden>
-    <h2>CARGO</h2>
+    <header class="screen-head"><div class="head-in"><h2>CARGO</h2><button class="head-close" data-act="resume" aria-label="Back to the dive">✕</button></div></header>
     <div id="cargo-body" class="list"></div>
-    <div class="menu"><button class="btn primary" data-act="resume">RESUME</button></div>
   </section>
 
   <section id="screen-pause" class="screen" hidden>
