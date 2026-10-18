@@ -761,9 +761,14 @@ function renderFrame() {
     o.fillStyle = '#000'; o.fillRect(bx - 1, 7, w + 2, 5);
     o.fillStyle = '#c04040'; o.fillRect(bx, 8, Math.round((w * boss.hp) / boss.maxHp), 3);
   }
+  // a foe's reaction names stand over it, the newest lowest, above where its
+  // numbers rise to
+  const words = new Map();
+  for (let i = d.nums.length - 1; i >= 0; i--) { const n = d.nums[i]; if (n.word && n.foe) { const k = words.get(n.foe) || 0; n.stack = k; words.set(n.foe, k + 1); } }
   for (const n of d.nums) {
     const col = n.col || (n.hurt ? '#ff6a5a' : n.elem ? ELEMENT_COLS[n.elem] : n.crit ? '#ffd34d' : '#f4ecd8'), nx = vx(n.x), ny = vy(n.y);
     // a reaction's name, or a resonance's, in the pixel hand
+    if (n.word && n.foe) { drawPixelText(o, n.word, vx(n.foe.x), vy(n.foe.y) - ap(T.circuits.react.wordAbove) - 6 - n.stack * 7, n.col, Math.min(1, n.t * 3)); continue; }
     if (n.word) { drawPixelText(o, n.word, nx, ny, n.col, Math.min(1, n.t * 3)); continue; }
     // a weak hit's number, or a resisted one's (natures.js)
     if (n.verdict && drawVerdictNumber(o, n, nx, ny)) continue;

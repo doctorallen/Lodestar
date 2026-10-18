@@ -93,6 +93,13 @@ function installBot() {
     return k;
   }
 
+  // what last hurt the diver, for the report of a fall
+  if (!window.__botHurt) {
+    window.__botHurt = true;
+    const orig = window.hurtPlayer;
+    window.hurtPlayer = function (dmg, from) { Bot.lastHurt = from && from.type ? from.type + (from.elite ? '*' : '') : from && from.vx !== undefined ? 'shot' : 'other'; return orig(dmg, from); };
+  }
+
   function dive({ biome = 0, depth = 3, maxTime = 900, greed = false } = {}) {
     UI.close();
     startDive(biome);
@@ -103,7 +110,8 @@ function installBot() {
     // on whatever it was after
     const skipOre = new Set(), skipFoe = new Set();
     let progressT = 0, progress = '', aim = null, iter = 0;
-    const result = () => ({ biome, depth: d.depth, clime: d.clime, kills: d.kills, cargo: cargoUsed(d), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t) });
+    Bot.lastHurt = null;
+    const result = () => ({ biome, depth: d.depth, clime: d.clime, kills: d.kills, cargo: cargoUsed(d), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t), lastHurt: Bot.lastHurt, hollow: d.enemies.some((e) => e.type === 'hollow' && !e.dead) });
     while (t < maxTime) {
       if (Game.dive !== d) { ended = UI.report && UI.report.recalled ? 'recalled' : UI.report && UI.report.banked ? 'extracted' : 'died'; break; }
       if (Game.modal) UI.close();

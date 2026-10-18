@@ -177,16 +177,17 @@ Only two enemies can wind up at once, plus one more every three floors down. The
 
 | Kind | Force | Shock | Frost | Ember | Blight | Why |
 |---|---|---|---|---|---|---|
-| Crawler | R | | | W | | a chitin shell, dry inside |
+| Crawler | | | | W | | a chitin shell, dry inside |
 | Wisp | R | R | | | I | no body, all ether |
-| Construct | R | W | | | I | an armoured machine |
+| Construct | | W | | | I | an armoured machine |
 | Snapjaw, spitter | | | R | W | R | living plants |
 | The Hollow | R | R | R | R | R | the living dark; in a lit lodeline's light it loses them all |
 | The warden, the Keepers | one W and one R by region: the Rim Ember W, Blight R; the Choir Force W, Frost R; the Underforge Frost W, Ember R | | | | | |
 
 - **Climes shift it a step** (W to neither, neither to R, R to I, or back): the Frost Steppe more resistant to Frost and weaker to Ember; the Cinder Waste and the Magma Tubes to Ember and Frost; the Flooded Grotto to Ember and Shock; the Bloomfen and the Rootdeep to Blight and Ember; the Clockwork Vault to Force and Shock.
-- **Wick learns it.** The first hit of an element on a kind tells Wick its verdict, kept in the save. Over each awake foe, a mark for each verdict Wick knows: ▲ in the element's colour for weak, ▼ for resistant, a bar for very resistant, and "?" while some are still unknown. An elite's affix always shows.
-- **The numbers carry it:** a weak hit pops bigger and green with WEAK under it, a resisted one small and grey with RESIST. Wick says so the first time each happens.
+- **Force is mostly neutral:** it's every spell's element when it has none, so only the wisp (no body to strike) and the Hollow resist it.
+- **Wick learns it.** The first hit of an element on a kind tells Wick its verdict, kept in the save. Over each awake foe, a mark for each verdict Wick knows: ▲ in the element's colour for weak, ▼ for resistant, a bar for very resistant, and "?" while some are still unknown; three at most, what it fears first, then what it resists most. An elite's affix always shows.
+- **The numbers carry it:** a weak hit pops bigger and green, a resisted one small and grey; WEAK or RESIST under it at most once every 0.8 s over a foe, and not when a reaction's name shows for that hit. A reaction's name stands over the foe above where its numbers rise, never over them. Wick says so the first time each happens.
 
 ## Mining and ore
 

@@ -565,7 +565,7 @@ async function spellcraft(browser) {
     out.live = !!document.querySelector('.res-banner.on') && codexWhole(resonanceById('shatterglass'));
     return out;
   });
-  check(r.crawler.join() === '0.5,1.5,1', `natures: a crawler is ${r.crawler} to force, ember, shock`);
+  check(r.crawler.join() === '1,1.5,1', `natures: a crawler is ${r.crawler} to force, ember, shock`);
   check(r.magma.join() === '1,1.5', `natures: the Magma Tubes don't shift a crawler (${r.magma})`);
   check(r.insulated === 0.25, 'natures: Insulated does not shrug off Shock');
   check(r.warded === 0.5 && r.unwarded === 1, `natures: a ward isn't ${r.warded} until Force breaks it (${r.unwarded})`);

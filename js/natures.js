@@ -103,8 +103,10 @@ function learnNature(e, els, verdict) {
   else if (verdict === 'R' || verdict === 'I') Story.say('resistHit');
 }
 
+const NATURE_ORDER = { W: 0, I: 1, R: 2 }, NATURE_MOST = 3;
 // The marks over a foe: [{ el, v }], weak first, and whether any of its
-// kind's are still unknown. An affix's marks always show: the elite's pip
+// kind's are still unknown (no more than three in all, so an elite's row
+// stays short). An affix's marks always show: the elite's pip
 // gives it away.
 function natureMarks(e) {
   const marks = [];
@@ -115,7 +117,9 @@ function natureMarks(e) {
     if (a !== undefined || natureKnown(e, el)) marks.push({ el, v });
     else unknown = true;
   }
-  marks.sort((x, y) => natureStep(x.v) - natureStep(y.v));
+  // at most NATURE_MOST: what it fears first, then what it resists most
+  marks.sort((x, y) => NATURE_ORDER[x.v] - NATURE_ORDER[y.v]);
+  if (marks.length >= NATURE_MOST) return { marks: marks.slice(0, NATURE_MOST), unknown: false };
   return { marks, unknown };
 }
 

@@ -141,10 +141,12 @@ function hurtEnemy(e, dmg, opts = {}) {
   e.flash = T.enemies.hurtFlash;
   // the struck enemy's rim takes the hit's element (Force's is white)
   e.flashCol = els && els[0] !== 'force' ? ELEMENT_COLS[els[0]] : null;
-  // (WEAK or RESIST under a number only once at a time over a foe, so a
-  // flurry's words don't pile up)
-  const said = verdict && d.nums.some((n) => n.foe === e && n.verdict && n.t > 0.35);
-  d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit, verdict, foe: e, quiet: said });
+  // WEAK or RESIST under a number at most once every verdictEvery s over a
+  // foe, and not when a reaction's name shows for the hit: the number's
+  // colour still says it
+  const quiet = !verdict || e.reactWordAt === Game.realT || Game.realT - (e.verdictAt || -9) < T.circuits.react.verdictEvery;
+  if (!quiet) e.verdictAt = Game.realT;
+  d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit, verdict, foe: e, quiet });
   if (opts.knock) { const k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
   if (opts.heavy && !e.boss && e.type !== 'hollow' && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
   if (e.type === 'dummy') { if (e.hp <= 0) e.hp = e.maxHp; e.kvx = e.kvy = 0; return; }

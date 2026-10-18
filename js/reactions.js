@@ -60,6 +60,7 @@ const reactControl = (e, t) => (e.type === 'hollow' ? 0 : e.boss ? t * T.circuit
 // A reaction's name over its target, once (not again while it shows).
 function reactWord(e, word, col) {
   const d = Game.dive, W = T.circuits.react.word;
+  e.reactWordAt = Game.realT;
   if (d.nums.some((n) => n.foe === e && n.word === word && n.t > W - 0.4)) return;
   d.nums.push({ x: e.x, y: e.y - 26, word, col, t: W, foe: e });
 }
