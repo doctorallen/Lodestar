@@ -1,6 +1,6 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// The screens: the Lodestar (home) and its rooms (descend, the forge, gear,
+// The screens: the Lodestar (home) and its rooms (setting out, the forge, gear,
 // the star), the cargo and pause screens mid-dive, and the item card that
 // opens over any of them. Also the top bar, the deck's button labels and
 // toasts. Opening a screen sets Game.modal, which stops the simulation, and
@@ -84,7 +84,7 @@ const UI = {
   },
 
   redraw() {
-    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawWreck_, 'screen-descend': drawDescend, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
+    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawWreck_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
     if (r) r();
     if (UI.card) drawCard();
   },
@@ -105,7 +105,7 @@ const UI = {
     }
     else if (id === 'locker') { UI.gearRunes = false; UI.show('screen-gear'); }
     else if (id === 'runes') { UI.gearRunes = true; UI.show('screen-gear'); }
-    else if (id === 'descend') UI.show('screen-descend');
+    else if (id === 'setout') UI.show('screen-setout');
     else if (id === 'wreck') UI.show('screen-wreck');
   },
   openPause() {
@@ -159,7 +159,10 @@ const UI = {
   },
 
   toast(msg, kind) {
-    const box = $('toasts'), el = document.createElement('div');
+    const box = $('toasts');
+    // the same words twice at once read as a stutter: the newer one only
+    for (const o of box.children) if (o.textContent === msg) o.remove();
+    const el = document.createElement('div');
     el.className = 'toast' + (kind ? ' r-' + kind : '');
     el.textContent = msg;
     box.appendChild(el);
@@ -211,7 +214,7 @@ const UI = {
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     const way = a === 'way' ? d.ways[wayHere(d)] : null;
     const rh = a === 'rift' && riftHere(d);
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'STEP THROUGH' : 'SEAL THE TEAR') : way ? 'ON: ' + T.zones[way].name.toUpperCase() : { descend: 'SET OUT', extract: 'EXTRACT', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'BOARD THE MERIDIAN' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way ? 'STEP THROUGH: ' + T.zones[way].name.toUpperCase() : { setout: 'SET OUT', extract: 'EXTRACT', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'BOARD THE MERIDIAN' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : d.channel.kind === 'seal' ? 'SEALING…' : 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
   },
@@ -288,16 +291,16 @@ function drawReport() {
   $('report-body').innerHTML = `<p class="rep-where">${esc(where)}</p>${rows.join('')}${star}`;
 }
 
-function drawDescend() {
+function drawSetOut() {
   const s = Save.data;
   const owned = TOOL_IDS.filter(toolOwned);
   const carry = `<h3>CARRYING</h3><div class="chips">${owned.map((id) => `<button class="chip ${s.tool === id ? 'on' : ''}" data-act="carryTool" data-arg="${id}"><img class="chip-icon" src="${toolIconUrl(id)}" alt="">${esc(TOOLS[id].name)}</button>`).join('')}</div><h3>WHERE</h3>`;
-  $('descend-body').innerHTML = carry + T.biomes.map((b, i) => {
+  $('setout-body').innerHTML = carry + T.biomes.map((b, i) => {
     const open = biomeOpen(s, i), deep = s.deepest[b.id] || 0;
     const ores = b.ores.map((id) => T.ores[ORE_INDEX[id]].name).join(' and ');
     return `<button class="row biome" data-act="dive" data-arg="${i}" ${open ? '' : 'disabled'}>
       <span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${open ? `${ores}${deep ? ` · furthest: site ${deep}` : ''} · ${(s.shards || []).includes(i) ? 'shard recovered' : 'its Keeper waits at the last site'}` : `The star's lines reach here at magnitude ${T.star.biomeAt[i]}`}</span></span></button>`;
-  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it starts on the surface, and at every exit two ways lead on to somewhere else. Odds of a lodeline at each site: ${[1, 2, 3, 4].map((k) => Math.round(lodelineOdds(k) * 100) + '%').join(', ')}. Where none reaches, go on or recall.</p>` + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME${Save.data.swapped ? '' : ' · ONE SWAP A TRIP'}</h3>${contractRows(null)}` + drawToolRows();
+  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it sets out through the portal onto the surface, and at every exit two portals lead on, each to somewhere else. Odds of a lodeline at each site: ${[1, 2, 3, 4].map((k) => Math.round(lodelineOdds(k) * 100) + '%').join(', ')}. Where none reaches, go on or recall.</p>` + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME${Save.data.swapped ? '' : ' · ONE SWAP A TRIP'}</h3>${contractRows(null)}` + drawToolRows();
 }
 
 // The tools, under the biomes: the one carried, the others to carry or make.
