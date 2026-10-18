@@ -138,14 +138,16 @@ function installBot() {
         if (m > 14) goTile(d, steps, Math.floor(foe.x / TILE), Math.floor(foe.y / TILE));
         // tap, don't hold: alternate presses make combos; dash out of a tell.
         // With the choice, not the hand whose elements the foe resists (and
-        // Force for a warded shell): both presses go to the other
+        // Force for a warded shell)
         const tap = (iter++ & 1) === 0, mf = firstForm(Save.data.equip.main), mainClose = !Save.data.equip.main || mf === 'arc' || mf === 'glaive';
         const inMain = mainClose ? m < 30 : m < 120, inOff = m < 120 && !!Save.data.equip.off;
         const sm = handScore(Save.data.equip.main, foe), so = handScore(Save.data.equip.off, foe);
         // (a hand the foe shrugs off rests while the other can reach it)
         const skip = inMain && inOff ? (sm < 0.8 && so > sm * 1.3 ? 'main' : so < 0.8 && sm > so * 1.3 ? 'off' : null) : null;
-        Input.bot.main = inMain && skip !== 'main' && (tap || skip === 'off');
-        Input.bot.off = inOff && skip !== 'off' && (!tap || skip === 'main');
+        // (still a tap at a time: a button down two turns running is a hold,
+        // which charges)
+        Input.bot.main = inMain && skip !== 'main' && tap;
+        Input.bot.off = inOff && skip !== 'off' && !tap;
         if (d.enemies.some((e) => !e.dead && e.state === 'windup' && dist(e.x, e.y, p.x, p.y) < 50) && p.dashCd <= 0) { const a = norm(p.x - foe.x, p.y - foe.y); Input.bot.x = -a.y; Input.bot.y = a.x; Input.bot.dash = true; }
       } else if (leave) goTile(d, steps, d.floor.pad.x, d.floor.pad.y);
       else {
