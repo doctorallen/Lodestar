@@ -12,6 +12,8 @@
 //   construct: shows the line it will charge along, then charges; one that
 //     hits a wall is dazed.
 //   warden: a great construct that charges and bursts orbs in a ring.
+//   snapjaw: a rooted plant that glows red and snaps at what comes close.
+//   spitter: a rooted plant that lobs globs, leaving spores on the ground.
 // Only a couple wind up at once; the rest circle, waiting their turn. Hits
 // knock them back, and heavy ones stagger them out of an attack. All of
 // them run on world time (dt × Game.timeScale).
@@ -40,7 +42,7 @@ function spawnEnemies(d) {
   const rng = new Rng(hashInts(d.seed, d.depth, d.biome, 0xe1e));
   d.enemies = [];
   const inRoom = (r) => { const i = rng.pick(r.cells); return { x: ((i % f.w) + 0.5) * TILE, y: (Math.floor(i / f.w) + 0.5) * TILE }; };
-  const types = ['crawler', 'wisp', 'construct'].filter((t) => !E[t].minDepth || d.depth >= E[t].minDepth);
+  const types = ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'].filter((t) => !E[t].minDepth || d.depth >= E[t].minDepth);
   const eliteChance = Math.min(E.eliteMax, E.eliteBase + E.eliteDepth * d.depth);
   // the warden takes a side room: not the entry, the shaft's or the lodeline's
   let bossRoom = null;
@@ -124,6 +126,7 @@ function updateEnemies(dt) {
     e.cd = Math.max(0, e.cd - dt);
     e.bob += dt;
     // knocked back
+    if (T.enemies[e.type].rooted) e.kvx = e.kvy = 0;
     if (Math.abs(e.kvx) + Math.abs(e.kvy) > 1) { moveBody(f, e, e.kvx * dt, e.kvy * dt, e.r); e.kvx *= knockFade; e.kvy *= knockFade; }
     const pd = dist(e.x, e.y, p.x, p.y);
     if (!e.aggro && !d.dying && pd < E.aggro && clearLine(f, e.x, e.y, p.x, p.y - 6)) wake(d, e);
@@ -141,6 +144,7 @@ function updateEnemies(dt) {
     const was = ATTACKING.has(e.state);
     if (e.type === 'crawler') updateCrawler(d, e, pd, sp, dt, free);
     else if (e.type === 'wisp') updateWisp(d, e, pd, sp, dt, free);
+    else if (e.type === 'snapjaw' || e.type === 'spitter') updatePlant(d, e, pd, dt);
     else updateCharger(d, e, pd, sp, dt, free);
     if (!was && ATTACKING.has(e.state)) attackers++;
   }
@@ -158,6 +162,7 @@ function updateEnemies(dt) {
       }
     }
   updateEnemyShots(dt);
+  updateGlobs(dt);
 }
 
 // Waking one wakes the others nearby.
@@ -266,6 +271,50 @@ function updateCharger(d, e, pd, sp, dt, free) {
     return;
   }
   if (pd > e.r + 6) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
+}
+
+// Rooted flora: it doesn't move or take turns; it waits to be close enough.
+function updatePlant(d, e, pd, dt) {
+  const def = T.enemies[e.type], p = d.p;
+  e.t -= dt;
+  if (e.state === 'windup') {
+    if (e.t > 0) return;
+    if (e.type === 'snapjaw') {
+      if (pd < def.reach + T.player.radius) hurtPlayer(e.dmg, e);
+      d.fx.push({ kind: 'snap', x: e.x, y: e.y - 6, dx: e.aimX - e.x, dy: e.aimY - e.y, t: 0.18, max: 0.18 });
+    } else {
+      // a glob, lobbed to where the diver stood
+      d.globs.push({ x: e.x, y: e.y - 10, x0: e.x, y0: e.y - 10, x1: e.aimX, y1: e.aimY, t: 0, max: dist(e.x, e.y, e.aimX, e.aimY) / def.shotSpeed, dmg: e.dmg });
+    }
+    e.state = 'rest'; e.cd = def.cooldown;
+    return;
+  }
+  e.state = 'rest';
+  const reach = e.type === 'snapjaw' ? def.reach + 6 : def.range;
+  if (e.cd <= 0 && pd < reach && clearLine(d.floor, e.x, e.y, p.x, p.y)) { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; }
+}
+
+// Spitters' globs fly in an arc and burst into a patch of spores that
+// hurts while it lasts.
+function updateGlobs(dt) {
+  const d = Game.dive, p = d.p, def = T.enemies.spitter;
+  for (const g of d.globs) {
+    g.t += dt;
+    const k = Math.min(1, g.t / g.max);
+    g.x = lerp(g.x0, g.x1, k); g.y = lerp(g.y0, g.y1, k) - Math.sin(k * Math.PI) * 18;
+    if (k >= 1) { g.done = true; d.puddles.push({ x: g.x1, y: g.y1, r: def.puddle / 2, t: def.puddleTime, max: def.puddleTime, dps: def.puddleDps * (g.dmg / def.dmg) }); }
+  }
+  d.globs = d.globs.filter((g) => !g.done);
+  for (const pu of d.puddles) {
+    pu.t -= dt;
+    if (!d.dying && dist(pu.x, pu.y, p.x, p.y) < pu.r + T.player.radius && p.invuln <= 0 && p.dashT <= 0) {
+      // spores eat at you without the flinch of a blow
+      p.hp -= pu.dps * dt * T.items.armorK / (T.items.armorK + d.stats.armor);
+      p.restT = 0;
+      if (p.hp <= 0) { p.hp = 0; startDying(); }
+    }
+  }
+  d.puddles = d.puddles.filter((pu) => pu.t > 0);
 }
 
 // ---------------------------------------------------------------------------

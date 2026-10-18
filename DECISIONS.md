@@ -68,3 +68,4 @@ The major gameplay decisions, newest last, and why each was made. Read this befo
 - **Arrivals are shown.** Forged pieces and opened relics rise in their rarity's light, and fed ore streams into the star.
 - **Fewer trips home:** salvage in the field, ancient forges deep down, and every ride home feeds the star.
 - **Real flora.** The lumps are replaced by designed sprites (mushrooms, stalactites, tube worms, roots…) that sway, sort in depth with the actors, and never look like ore.
+- **Some flora fights back.** Snapjaws and spitters hide in the undergrowth, rooted, red where the harmless kind is green, pink or ember.

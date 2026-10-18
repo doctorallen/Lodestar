@@ -31,7 +31,7 @@ function newWorld(fields) {
   return Object.assign({
     seed: 0, biome: 0, depth: 0, floor: null, target: null, time: 0, kills: 0, dying: 0,
     rng: new Rng(1), stats, reach: lodelineReach(),
-    cargo: {}, items: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], flow: null, flowAt: -1,
+    cargo: {}, items: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], flow: null, flowAt: -1,
     p: {
       x: 0, y: 0, fx: 0, fy: 1, walkT: 0, mine: null,
       hp: stats.maxHp, charge: stats.maxCharge, ward: 0, wardT: 0, invuln: 0, hurtT: 0, restT: 0, lowCharge: 0,
@@ -72,7 +72,7 @@ function enterFloor(depth) {
   d.floor = generateFloor(d.seed, depth, d.biome, d.reach);
   const e = d.floor.entry;
   p.x = (e.x + 0.5) * TILE; p.y = (e.y + 0.5) * TILE; p.mine = null;
-  d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.flowAt = -1;
+  d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.globs = []; d.puddles = []; d.flowAt = -1;
   spawnEnemies(d);
   placeFieldForge(d);
   if (d.floor.pad) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");

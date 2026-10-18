@@ -124,6 +124,12 @@ const T = {
     wisp: { hp: 14, dmg: 8, speed: 28, radius: 4, keep: 60, range: 115, windup: 0.55, cooldown: 1.9, shotSpeed: 72, fanDepth: 3, weight: 3 },
     // constructs show where they'll charge; one that hits a wall is dazed
     construct: { hp: 45, dmg: 15, speed: 20, radius: 6, range: 80, windup: 0.7, cooldown: 2.2, chargeSpeed: 135, chargeTime: 0.5, dazed: 1.3, weight: 2, minDepth: 2 },
+    // flora that fights: rooted, hidden among the harmless kind until it
+    // wakes. A snapjaw snaps at anything within `reach`; a spitter lobs a
+    // glob that leaves spores on the ground (`puddle` px across, hurting
+    // puddleDps a second for puddleTime)
+    snapjaw: { hp: 30, dmg: 13, speed: 0, radius: 6, reach: 24, windup: 0.5, cooldown: 1.5, weight: 2, rooted: true },
+    spitter: { hp: 20, dmg: 6, speed: 0, radius: 5, range: 110, windup: 0.6, cooldown: 2.4, shotSpeed: 60, puddle: 14, puddleDps: 9, puddleTime: 2.6, weight: 2, minDepth: 2, rooted: true },
     // the practice target at the outpost: it never fights back or falls
     dummy: { hp: 400, dmg: 0, speed: 0, radius: 6 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },

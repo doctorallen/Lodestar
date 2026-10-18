@@ -387,6 +387,19 @@ function renderFrame() {
     for (const [i, j] of [[0, -1], [-1, 0], [0, 0], [1, 0], [0, 1]]) dot(sx + i, sy + j, i || j ? shotCol : '#ffffff', true);
     lights.push({ x: sx, y: sy, r: TILE, i: 0.6, c: rgb01(shotCol) });
   }
+  for (const pu of d.puddles) {
+    const k = Math.min(1, pu.t / 0.6), cx = Math.round(pu.x + ox), cy = Math.round(pu.y + oy);
+    for (let n = 0; n < 14; n++) {
+      const a = n * 2.4 + pu.max, r = (n % 4) / 4 * pu.r;
+      dot(Math.round(cx + Math.cos(a + Game.realT * 0.6) * r), Math.round(cy + Math.sin(a) * r * 0.7), n % 3 ? mix(PLANT_GLOW, '#000000', 0.4) : PLANT_GLOW, true, 0.55 * k);
+    }
+    lights.push({ x: cx, y: cy, r: TILE * 1.1, i: 0.4 * k, c: rgb01(PLANT_GLOW) });
+  }
+  for (const g of d.globs) {
+    const gx = Math.round(g.x + ox), gy = Math.round(g.y + oy);
+    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]]) dot(gx + i, gy + j, j < 0 || i < 0 ? '#ffd0a0' : PLANT_GLOW, true);
+    lights.push({ x: gx, y: gy, r: TILE, i: 0.6, c: rgb01(PLANT_GLOW) });
+  }
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
   if (d.hub) { drawHubOver(d, ox, oy, lights); if (d.feedT > 0) d.feedT = Math.max(0, d.feedT - 1 / 60); }
   for (const s of Sparks) dot(Math.round(s.x + ox), Math.round(s.y + oy), s.col, true);
@@ -442,10 +455,27 @@ function renderFrame() {
 // The people in it
 // ---------------------------------------------------------------------------
 const ELITE_COLS = { fast: '#7fe8ff', tough: '#ffd34d', volatile: '#ff5a3a' };
+// Which flora piece each biome's fighting plants look like.
+const PLANT_LOOKS = {
+  rim: { snapjaw: 'Pitcher', spitter: 'Puffballs' },
+  choir: { snapjaw: 'Bell flower', spitter: 'Spore sac' },
+  underforge: { snapjaw: 'Vent flower', spitter: 'Cinder pods' },
+};
+const PLANT_GLOW = '#ff4a3a';
 const _enemySprites = {};
 function enemySprite(d, type) {
-  const id = T.biomes[d.biome].id;
-  if (!_enemySprites[id]) _enemySprites[id] = buildEnemySprites(id);
+  const id = d.hub ? 'rim' : T.biomes[d.biome].id;
+  if (!_enemySprites[id]) {
+    const out = (_enemySprites[id] = buildEnemySprites(id));
+    // the fighting flora: a harmless piece's shape, its glow gone red
+    for (const kind of ['snapjaw', 'spitter']) {
+      const piece = FLORA[id].find((p) => p.name === PLANT_LOOKS[id][kind]) || FLORA[id][0];
+      const pal = Object.assign({}, FLORA_PAL[id], { glow: [PLANT_GLOW], glow2: [mix(PLANT_GLOW, '#ffd0a0', 0.4)] });
+      const spr = buildArtSprite(piece.frames[piece.frames.length - 1], pal, FLORA_LETTERS, FLORA_GLOWS);
+      spr.flash = tinted(spr.c, '#ffffff'); spr.ax = spr.w / 2; spr.ay = spr.h - 1.5;
+      out[kind] = spr;
+    }
+  }
   return _enemySprites[id][type];
 }
 
@@ -581,6 +611,7 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   const spr = enemySprite(d, e.type), x = View.ctx;
   let lift = 0;
   if (e.type === 'wisp') lift = 5 + Math.round(Math.sin(e.bob * 3) * 1.5);
+  else if (T.enemies[e.type].rooted) lift = e.state === 'windup' ? 1 : 0;
   else if ((e.state === 'chase' || e.state === 'circle') && Math.floor(e.bob * 8) % 2) lift = 1;
   else if (e.state === 'lunge') lift = 2;
   const shake = e.state === 'windup' ? (tick % 2 ? 1 : -1) : 0;
@@ -596,11 +627,13 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   } else drawArtSprite(spr, sx, sy);
   const pal = ENEMY_PAL[T.biomes[d.biome].id];
   // their eyes and cores light the floor round them, brighter as they wind up
-  const glow = e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : pal.rune[0];
+  const glow = e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : T.enemies[e.type].rooted ? PLANT_GLOW : pal.rune[0];
   lights.push({ x: fx, y: fy - spr.h / 2, r: (e.boss ? 2.4 : e.type === 'wisp' ? 1.5 : 0.9) * TILE, i: e.state === 'windup' ? 1.2 : 0.5, c: rgb01(glow) });
   // tells: a crawler's line before it lunges, a construct's charge line,
   // stars round anything dazed
-  if (e.state === 'windup' && e.aimX !== undefined) {
+  if (e.state === 'windup' && e.type === 'snapjaw') ringDots(fx, fy - 4, T.enemies.snapjaw.reach, PLANT_GLOW, tick % 2 ? 0.7 : 0.35, true);
+  else if (e.state === 'windup' && e.type === 'spitter') ringDots(Math.round(e.aimX + ox), Math.round(e.aimY + oy), T.enemies.spitter.puddle / 2, PLANT_GLOW, tick % 2 ? 0.8 : 0.4, true);
+  else if (e.state === 'windup' && e.aimX !== undefined) {
     const def = T.enemies[e.type], reach = e.type === 'crawler' ? def.lungeSpeed * def.lungeTime : def.chargeSpeed * def.chargeTime;
     const a = norm(e.aimX - e.x, e.aimY - e.y), col = e.type === 'crawler' ? ART.pal.eyeglow[0] : pal.rune[0];
     for (let r = 6; r < reach; r += 4) dot(Math.round(fx + a.x * r), Math.round(fy + a.y * r), col, true, (tick % 2 ? 0.8 : 0.45) * (1 - r / reach / 1.5));
@@ -661,6 +694,13 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     x.globalAlpha = 0.35 * k;
     x.drawImage(spr.flash, Math.round(cx - spr.ax), Math.round(cy - spr.ay));
     x.globalAlpha = 1;
+  } else if (fx.kind === 'snap') {
+    // jaws closing on where the diver stood
+    const a0 = Math.atan2(fx.dy, fx.dx), r = T.enemies.snapjaw.reach * (1 - k * 0.3);
+    for (const side of [-1, 1]) for (let s2 = 0; s2 <= 6; s2++) {
+      const b = a0 + side * (0.6 - s2 * 0.1) * k;
+      dot(Math.round(cx + Math.cos(b) * r * s2 / 6), Math.round(cy + Math.sin(b) * r * s2 / 6), PLANT_GLOW, true, k);
+    }
   } else if (fx.kind === 'mote') {
     // ore fed to the star, rising from the altar into it
     const t = 1 - k, sx = STAR_AT.x * TILE + ox, sy = STAR_AT.y * TILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * (1 - t);
