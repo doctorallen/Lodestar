@@ -327,7 +327,8 @@ function buildArtSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS,
   const tones = opts.tones || A.tones, dither = opts.dither !== undefined ? opts.dither : A.dither;
   pal = pal ? Object.assign({}, ART.pal, pal) : ART.pal;
   const G = glows instanceof Set ? glows : new Set(glows), scale = opts.scale !== undefined ? opts.scale : A.px;
-  rows = artScaleRows(rows, scale);
+  // (what glows is enlarged as exact blocks: artScaleRows)
+  if (scale !== 1) rows = artScaleRows(rows, scale, new Set(Object.keys(letters).filter((ch) => letters[ch] && G.has(letters[ch][0]))));
   const h = rows.length, w = Math.max(...rows.map((r) => r.length)), W = w + 2, H = h + 2, N = W * H;
   // the grid, a pixel of clear all round: each cell's letter entry, or null
   const L = new Array(N).fill(null);
@@ -656,15 +657,17 @@ const LODESTAR_ROWS = [
 const LODESTAR_PAL = { W: ART.pal.star[3], w: ART.pal.star[2], G: ART.pal.star[1], d: ART.pal.star[1], D: ART.pal.star[0] };
 
 // Scale3x (AdvMAME3x) on a letter grid: three times the size, diagonals
-// kept as clean steps rather than blocks.
-function scale3xRows(rows) {
+// kept as clean steps rather than blocks. fixed: letters (glows: eyes,
+// runes, cores) enlarged as exact blocks, neither rounded off by their
+// neighbours nor spilling into them, so a small light keeps its shape.
+function scale3xRows(rows, fixed) {
   const h = rows.length, w = Math.max(...rows.map((r) => r.length));
   const at = (x, y) => (y < 0 || y >= h || x < 0 || x >= w ? '.' : rows[y][x] || '.');
   const out = Array.from({ length: h * 3 }, () => new Array(w * 3).fill('.'));
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const A = at(x - 1, y - 1), B = at(x, y - 1), C = at(x + 1, y - 1), D = at(x - 1, y), E = at(x, y), F = at(x + 1, y), G = at(x - 1, y + 1), H = at(x, y + 1), I = at(x + 1, y + 1);
-      const o = (i, j, v) => { out[3 * y + j][3 * x + i] = v; };
+      const o = fixed && fixed.has(E) ? (i, j) => { out[3 * y + j][3 * x + i] = E; } : fixed ? (i, j, v) => { out[3 * y + j][3 * x + i] = fixed.has(v) ? E : v; } : (i, j, v) => { out[3 * y + j][3 * x + i] = v; };
       if (B !== H && D !== F) {
         o(0, 0, D === B ? D : E);
         o(1, 0, (D === B && E !== C) || (B === F && E !== A) ? B : E);
@@ -683,20 +686,20 @@ function scale3xRows(rows) {
 // 1.5×: Scale3x, then every other row and column. Each even pixel keeps its
 // two corners and each odd one its middle, so a diagonal stays a clean
 // step, a curve stays round, and nothing is blurred or invented.
-function scale15Rows(rows) {
-  return scale3xRows(rows).filter((_, y) => y % 2 === 0).map((r) => [...r].filter((_, x) => x % 2 === 0).join(''));
+function scale15Rows(rows, fixed) {
+  return scale3xRows(rows, fixed).filter((_, y) => y % 2 === 0).map((r) => [...r].filter((_, x) => x % 2 === 0).join(''));
 }
 
 // A letter grid enlarged k times (1, 1.5, 2, 3 or products of them), by the
-// rules above; any other k by nearest neighbour.
-function artScaleRows(rows, k) {
+// rules above; any other k by nearest neighbour. fixed: as scale3xRows.
+function artScaleRows(rows, k, fixed) {
   const whole = (v) => Math.abs(v - Math.round(v)) < 1e-6;
   if (Math.abs(k - 1) < 1e-6) return rows;
-  if (whole(k / 3)) return artScaleRows(scale3xRows(rows), k / 3);
-  if (whole(k / 2)) return artScaleRows(scale2xRows(rows), k / 2);
-  if (Math.abs(k - 1.5) < 1e-6) return scale15Rows(rows);
+  if (whole(k / 3)) return artScaleRows(scale3xRows(rows, fixed), k / 3, fixed);
+  if (whole(k / 2)) return artScaleRows(scale2xRows(rows), k / 2, fixed);
+  if (Math.abs(k - 1.5) < 1e-6) return scale15Rows(rows, fixed);
   // (4.5: three times, then half as much again)
-  if (whole(k / 1.5)) return scale15Rows(artScaleRows(rows, k / 1.5));
+  if (whole(k / 1.5)) return scale15Rows(artScaleRows(rows, k / 1.5, fixed), fixed);
   const h = rows.length, w = Math.max(...rows.map((r) => r.length)), W = Math.round(w * k), H = Math.round(h * k);
   return Array.from({ length: H }, (_, y) => Array.from({ length: W }, (_, x) => rows[Math.floor(y / k)][Math.floor(x / k)] || '.').join(''));
 }

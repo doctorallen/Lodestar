@@ -199,26 +199,28 @@ function drawToolHud(d, ox, oy) {
   if (d.tool === 'map' && d.seen) drawSiteMap(d);
 }
 
-// The map: what's been seen of the site, a pixel for each 2×2 tiles, in the
-// view's top-right corner.
+// The map: what's been seen of the site, in the view's top-right corner: a
+// pixel for each MAP_Q × MAP_Q tiles (each tile, at 24 px tiles, so it's
+// about as big on the screen as it was).
+const MAP_Q = AP > 1 ? 1 : 2;
 function drawSiteMap(d) {
-  const f = d.floor, c = View.ctx, s = d.seen, mw = Math.ceil(f.w / 2), mh = Math.ceil(f.h / 2), x0 = View.w - mw - 4, y0 = 4;
+  const f = d.floor, c = View.ctx, s = d.seen, q = MAP_Q, mw = Math.ceil(f.w / q), mh = Math.ceil(f.h / q), x0 = View.w - mw - 4, y0 = 4;
   c.globalAlpha = 0.8; c.fillStyle = '#000'; c.fillRect(x0 - 1, y0 - 1, mw + 2, mh + 2); c.globalAlpha = 1;
   c.fillStyle = '#3a3630'; c.fillRect(x0 - 1, y0 - 1, mw + 2, 1); c.fillRect(x0 - 1, y0 + mh, mw + 2, 1);
   c.fillStyle = '#8a8478';
   for (let y = 0; y < mh; y++)
     for (let x = 0; x < mw; x++) {
       let open = false;
-      for (let j = 0; j < 2 && !open; j++) for (let i = 0; i < 2 && !open; i++) {
-        const tx = x * 2 + i, ty = y * 2 + j, k = ty * f.w + tx;
+      for (let j = 0; j < q && !open; j++) for (let i = 0; i < q && !open; i++) {
+        const tx = x * q + i, ty = y * q + j, k = ty * f.w + tx;
         if (tx < f.w && ty < f.h && s[k] && !TILE_SOLID[f.tiles[k]]) open = true;
       }
       if (open) c.fillRect(x0 + x, y0 + y, 1, 1);
     }
-  const mark = (t, col) => { if (t && s[t.y * f.w + t.x]) { c.fillStyle = col; c.fillRect(x0 + (t.x >> 1) - 1, y0 + (t.y >> 1) - 1, 2, 2); } };
+  const m = 4 - q, mark = (t, col) => { if (t && s[t.y * f.w + t.x]) { c.fillStyle = col; c.fillRect(x0 + Math.floor(t.x / q) - 1, y0 + Math.floor(t.y / q) - 1, m, m); } };
   (f.ways || []).forEach((w, i) => mark(w, ZONE_SIGNS[d.ways[i]] || '#fff'));
   if (f.pad && !d.padDark) mark(f.pad, ART.pal.star[3]);
   if (d.fieldForge) mark(d.fieldForge, '#ff8a3a');
   if (d.rift && d.rift.open) { mark(d.rift, RIFT_PAL.riftedge[0]); if (d.rift.pair) mark(d.rift.pair, RIFT_PAL.riftedge[0]); }
-  if (Math.sin(Game.realT * 8) > -0.3) { c.fillStyle = '#ffffff'; c.fillRect(x0 + (Math.floor(d.p.x / TILE) >> 1), y0 + (Math.floor(d.p.y / TILE) >> 1), 1, 1); }
+  if (Math.sin(Game.realT * 8) > -0.3) { const px = x0 + Math.floor(d.p.x / TILE / q), py = y0 + Math.floor(d.p.y / TILE / q); c.fillStyle = '#ffffff'; c.fillRect(px, py, q > 1 ? 1 : 2, q > 1 ? 1 : 2); }
 }

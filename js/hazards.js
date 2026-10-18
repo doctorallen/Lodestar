@@ -270,7 +270,7 @@ function paintDecor(P, f, tx, ty, ox, oy, b, shaded) {
     if (rnd(2) < 0.18) clump(ox + at(3, 2, 12), oy + at(4, 2, 12), BLOB, ['#4a5a28', '#34401e']);
   } else if (d === 'overgrowth') {
     // moss creeping along the flagstones' seams in runs, and leaf litter
-    for (let y = oy; y < oy + ATILE; y++) for (let x = ox; x < ox + ATILE; x++) if ((y % FLAG_H === 0 || (x + ((y / FLAG_H) | 0) * FLAG_SET) % FLAG_W === 0) && wallNoise(x / AP + 3, y / AP + 9, 5) > 0.15) put(x, y, wallNoise(x / AP, y / AP, 3) > 0.3 ? '#4a6a34' : '#2e4a26');
+    for (let y = oy; y < oy + ATILE; y++) for (let x = ox; x < ox + ATILE; x++) if ((y % FLAG_H < AP || (x + ((y / FLAG_H) | 0) * FLAG_SET) % FLAG_W < AP) && wallNoise(x / AP + 3, y / AP + 9, 5) > 0.15) put(x, y, wallNoise(x / AP, y / AP, 3) > 0.3 ? '#4a6a34' : '#2e4a26');
     if (rnd(10) < 0.2) clump(ox + at(11, 3, 10), oy + at(17, 3, 10), BLOB, ['#6a6a30', '#4a5a28', '#4a5a28', '#6a6a30', '#2e3a1e']);
   } else if (d === 'plates') {
     // floor plates: dark seams on the tile lines, a rivet in each corner,
