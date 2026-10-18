@@ -499,7 +499,7 @@ The aim is broad and rough rather than narrow and polished. Everything below is 
 - the world: rings of territories, light, spires, kindling, Deeps;
 - cargo, death, and saving in localStorage.
 
-The autopilot (`test/bot.js`) plays whole careers from a fresh save. With its simple play it reaches the Choir after about 8 dives and magnitude 4–5 after about 25, and it rarely dies. A bot that never turns back dies 2–4 floors down in any biome with gear made for it.
+The autopilot (`test/bot.js`) plays whole careers from a fresh save, out into the world and home again. Over 24 sorties it usually kindles most of ring 1 and walks into ring 2, ends at magnitude 4–5, and falls in about a fifth of its sorties, fewer as the land round it is kindled.
 
 ## Open questions
 

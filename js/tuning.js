@@ -111,7 +111,7 @@ const T = {
     goals: { waystones: { weight: 3, perRing: 0 }, rift: { weight: 1, perRing: 0.5 } },
     deep: { chance: 0.35, sites: [1, 3] },
     exits: { apart: 9, tunnelR: 1.2, reach: 9, inward: 3 },
-    gen: { rooms: [5, 7] }, veins: [0, 2], regrow: 3, straggler: 0.4, clear: 7,
+    gen: { rooms: [5, 7] }, veins: [0, 1], regrow: 3, straggler: 0.4, clear: 7,
     waystone: { channel: 2.5, touch: 18, hold: 20, holdR: 40, waveEvery: 8, wave: 1 },
     plant: 6,
     sun: { dark: -0.35, kindled: 1, edge: -0.6 },
