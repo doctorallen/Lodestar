@@ -88,3 +88,23 @@ Four reviewers looked at the game at the start of the night (before the expediti
 | pull per site | 80 s (−4) → 100 s (−5), at least 80 |
 
 The analyst warned that an 80 s pull is about the bot's own rush time, so humans would meet the Hollow on almost every site; hence 100 s. After the change, bot dives reach sites 2–3 in 100–160 bot-seconds (about 3–5 minutes for a person), with 1 death in 6.
+
+### What shipped after round 1
+
+All of this is on `main`, pushed and deployed, with the full test suite passing at each commit.
+
+- **Expeditions** (`f12ae85`): a chain of 4 sites (surface → two Ways On → … → a Keeper's Lair or a Deep Vein), each a different zone. The Keepers live in lairs whose lodeline only lights when they fall.
+- **Review fixes** (`9ceb36d`, `6980fcd`): every bug in the QA and engineering lists above except the deferred performance work; the UX fixes for speech, toasts, the action button, small phones and the sideways anvil.
+- **Balance** (`99130ff`): the analyst's table above.
+- **The sunlit surface** (`145ae13`): the art pass's mesa palette and eight surface plants.
+- **Tools** (`4b81854`): carry one, chosen at the ledge; six to make (Compass, Ore Sense, Threat Radar, Surveyor's Map, Deep Satchel, Lode Beacon).
+- **Rifts** (`84137ed`): graft, ore wake, gate, inversion; seal one for riftglass, which forges a tier higher. Grafts are stitched in pixel by pixel with a glowing seam.
+- **Saved between sites** (`6d2b936`): a dropped tab no longer loses an expedition.
+- **UX round 2** (`f17d55a`, `544ecdf`, `b9888bc`): the forge reads in order with FORGE in reach; the card pairs its equip buttons and asks before salvaging or dropping; pickups float as +n instead of toasting; reports are rows with a star meter; the outpost's stations are labelled in a small pixel hand, and their buttons are verbs (SET OUT, FEED THE STAR, REWORK…).
+- **Contracts** (`01a9bbb`): three small goals always posted at the ledge, paid when you come home.
+
+**In progress on branches:** rendering performance (lighting and bloom; the engineer's worktree `lodestar-perf`), and the living world (critters and weather; `lodestar-life`). They'll be merged when they pass review.
+
+## Round 2
+
+Reviewers: QA (on everything new) and the lead designer (pacing, depth, what next), both on a snapshot at `b9888bc`.
