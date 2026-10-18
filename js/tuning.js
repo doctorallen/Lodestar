@@ -408,19 +408,82 @@ const T = {
     lightSteps: 5, lightDither: 0.3,
   },
 
+  // How flora grows into a place (undergrowth.js; cosmetic, placed from the
+  // floor's seed on the render side, so play and generation never change).
+  //   Habitat, a tile's suitability: foot (a wall's foot, falling off over
+  //     wallReach tiles), nook (3+ walls among the 8 round it), wet (within
+  //     wetReach tiles of standing water, plus the set's own wet), light
+  //     (within lightReach tiles of lava or a shaft of daylight
+  //     underground), base (anywhere); from openFrom tiles off a wall only
+  //     openKeep of it is left, so the middles of open ground stay clear.
+  //   drift: the size of a drift of one kind (tiles across a bump of its
+  //     noise); cut: how high its noise must be to grow there; fray: how
+  //     softly that edge thins out; outlier: the odd one anywhere.
+  //   floorP, wallP, ceilP: the most of a tile that grows a floor piece,
+  //     a piece at the foot of a wall, one hanging from it (times the set's
+  //     density; at the outpost, times hub). space: how far apart pieces
+  //     stand, a share of their half widths added (sameKind: for small ones
+  //     of a kind, which clump). gather: [least, most] small pieces round
+  //     each big one.
+  //   stand: tall grass and reeds (the set's tall): cut on its own noise,
+  //     minSuit the least suitability, rows a tile, gap px between stems.
+  //   cover: stamps on the ground (tufts, sprigs, pebbles, moss, roots):
+  //     [least, most] round a piece (round); along a wall's foot (foot, a
+  //     share of tiles; scree: [least, most] pebbles); in the open (open).
+  //   bed: the ground grown into round a plant: reach (px past its half
+  //     width), squash (its depth for its width), fray (how ragged its edge),
+  //     deep (where it turns its darker tone); outer, inner: how far the
+  //     ground there is drawn to the bed's colour, at its edge and within
+  //     deep; litter (how much of it is
+  //     strewn with leaves, ash or petals). shadow: a piece's contact
+  //     shadow: w, its half width for the piece's; core, rim: what's left
+  //     of the ground's colour in its middle and at its edge.
+  //   faceMoss: how far up a wall's face moss climbs over a bed at its
+  //     foot (a share of the face); strands: roots or vines hanging from a
+  //     lip (cut on their noise, past: the most px past the face's foot);
+  //     lip: the most px a mesa's fringe of dry grass hangs.
+  //   wind: under the sky (merryfolk's windAt): s, a steady push; swell
+  //     [base, amount, speed]; gust [strength, speed]; amp: art px a
+  //     full-height plant leans at wind 1. stir: [art px, seconds, reach px]:
+  //     how far a plant leans as something brushes past, how long it takes
+  //     to settle, and how close it must come.
+  //   sets: per flora set: density, wet (the clime's own dampness), tall
+  //     (how much grows in stands), scree, strands (how many hang).
+  flora: {
+    foot: 1, wallReach: 1.6, nook: 0.35, wet: 0.7, wetReach: 3, light: 0.5, lightReach: 3, base: 0.12, openFrom: 4, openKeep: 0.25,
+    drift: 3.2, cut: 0.1, fray: 0.28, outlier: 0.04,
+    floorP: 0.55, wallP: 0.5, ceilP: 0.4, hub: 0.4, space: 0.9, sameKind: 0.8, gather: [1, 3],
+    stand: { cut: 0.5, minSuit: 0.45, rows: 3, gap: 5 },
+    cover: { round: [2, 4], foot: 0.7, scree: [1, 3], open: 0.03 },
+    bed: { reach: 5, squash: 0.62, fray: 0.6, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6 },
+    shadow: { w: 0.36, core: 0.68, rim: 0.84 },
+    faceMoss: 0.7, strands: { cut: 0.3, past: 3 }, lip: 3,
+    wind: { s: 0.55, swell: [0.55, 0.45, 0.7], gust: [1.3, 0.45], amp: 2.2, stir: [1.5, 0.8, 9] },
+    sets: {
+      rim: { density: 1, wet: 0.1, tall: 0.5, scree: 1, strands: 1 },
+      choir: { density: 1, wet: 0.2, tall: 0.4, scree: 1, strands: 1 },
+      underforge: { density: 0.9, wet: 0, tall: 0.2, scree: 1.4, strands: 0.6 },
+      surface: { density: 1.3, wet: 0, tall: 1, scree: 1.3, strands: 0 },
+      frost: { density: 1.2, wet: 0, tall: 0.8, scree: 0.8, strands: 1 },
+      cinder: { density: 1.1, wet: 0, tall: 0.4, scree: 1.6, strands: 0 },
+      bloomfen: { density: 1.4, wet: 0.5, tall: 1.2, scree: 0.4, strands: 0.8 },
+      grotto: { density: 1.1, wet: 0.4, tall: 0.6, scree: 0.8, strands: 1.2 },
+      magma: { density: 0.9, wet: 0, tall: 0, scree: 1.6, strands: 0.3 },
+      rootdeep: { density: 1.4, wet: 0.3, tall: 0.8, scree: 0.5, strands: 1.8 },
+      temple: { density: 1.2, wet: 0.3, tall: 0.9, scree: 0.8, strands: 1.4 },
+      vault: { density: 0.8, wet: 0, tall: 0.1, scree: 1.2, strands: 0 },
+    },
+  },
+
   // Light (render.js). The world dims to `ambient` (tinted; at home, the
   // brighter hubAmbient); lights add back
   // [radius in tiles, strength]; the result is cut into T.art.lightSteps
   // bands, never brighter than `max`. flora: how bright a plant's glow is.
-  // floraCeiling, floraWall: the share of ground under a wall face that
-  // something hangs over, or grows at the foot of; floraNearWall, floraOpen:
-  // the share of other ground, by a wall or out in the open, that grows a
-  // plant (fewer at the outpost). bloom: [downscale, strength] passes, times
-  // glow. The lamp's radius may become a dial that shrinks with depth.
+  // bloom: [downscale, strength] passes, times glow. The lamp's radius may
+  // become a dial that shrinks with depth.
   light: {
     ambient: 0.45, hubAmbient: 0.85, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
-    floraCeiling: 0.08, floraWall: 0.07, floraNearWall: 0.16, floraOpen: 0.025,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]],
   },
 

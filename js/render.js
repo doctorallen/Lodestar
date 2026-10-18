@@ -111,11 +111,12 @@ const artBiome = (f) => {
 const rgb01 = (hex) => rgbOf(hex).map((v) => v / 255);
 
 // ---------------------------------------------------------------------------
-// Flora (flora.js): what grows in each biome, placed from the floor's seed
-// so a floor always looks the same. Floor pieces grow mostly against the
-// walls; wall pieces at the foot of a wall's face; ceiling pieces hang from
-// the bottom of one. Drawn every frame among the actors, sorted by their
-// feet, so the diver passes behind the tall ones; two-frame pieces sway.
+// Flora (flora.js, climes.js, art3.js): what grows in each biome, placed by
+// habitat and in drifts from the floor's seed (undergrowth.js), so a floor
+// always looks the same. Drawn every frame among the actors, sorted by their
+// feet, so the diver passes behind the tall ones and through the stands.
+// Under the sky they lean in the wind; underground two-frame pieces sway or
+// pulse, and anything stirs as something brushes past.
 // ---------------------------------------------------------------------------
 const _floraSprites = {};
 function floraSprite(set, piece, frame) {
@@ -127,52 +128,26 @@ function floraSprite(set, piece, frame) {
 // surface's under the sky, or its biome's.
 function floraSetOf(f) { return f.hub ? 'rim' : f.clime && CLIME_FLORA[f.clime] ? f.clime : f.zone === 'surface' ? 'surface' : T.biomes[f.biome].id; }
 
-function placeFlora(f, set) {
-  const kit = floraKit(set), out = [], pieces = kit.pieces, L = T.light, keep = new Set();
-  const mark = (x, y) => keep.add(y * f.w + x);
-  if (f.entry) mark(f.entry.x, f.entry.y);
-  // the ground round a portal and its plinth stays clear
-  for (const w of f.ways || []) for (let dy = -2; dy <= 0; dy++) for (let dx = -1; dx <= 1; dx++) mark(w.x + dx, w.y + dy);
-  if (f.pad) mark(f.pad.x, f.pad.y);
-  if (f.hub) for (const s of HUB_STATIONS) for (let dy = -1; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) mark(s.x + dx, s.y + dy);
-  const pick = (anchor, h) => {
-    const list = pieces.filter((p) => p.anchor === anchor);
-    let w = list.reduce((a, p) => a + p.weight, 0), r = (h % 1000) / 1000 * w;
-    for (const p of list) if ((r -= p.weight) < 0) return p;
-    return list[list.length - 1] || null;
-  };
-  for (let ty = 1; ty < f.h - 1; ty++)
-    for (let tx = 1; tx < f.w - 1; tx++) {
-      if (floorTile(f, tx, ty) !== TILE_FLOOR || keep.has(ty * f.w + tx) || hazardNear(f, tx, ty, 0)) continue;
-      const h = hashInts(f.seed, f.depth, tx, ty, 0xf10a), roll = (h >>> 8) % 1000 / 1000;
-      const wallAbove = TILE_SOLID[floorTile(f, tx, ty - 1)] && floorTile(f, tx, ty - 1) !== TILE_PIT;
-      let walls = 0;
-      for (const [dx, dy] of DIRS4) if (TILE_SOLID[floorTile(f, tx + dx, ty + dy)]) walls++;
-      const scale = (f.hub ? 0.4 : kit.sky ? 2 : 1) * (kit.density || 1);
-      let piece = null, x = (tx + 0.5) * TILE + ((h >>> 20) % 7) - 3, y;
-      if (wallAbove && roll < L.floraCeiling * scale) { piece = pick('ceiling', h); y = ty * TILE - 1; }
-      else if (wallAbove && roll < (L.floraCeiling + L.floraWall) * scale) { piece = pick('wall', h); if (piece) y = ty * TILE + piece.h - 2; }
-      else if (roll < (walls ? L.floraNearWall : L.floraOpen) * scale) { piece = pick('floor', h); y = (ty + 1) * TILE - 3; }
-      if (piece) out.push({ piece, set, x, y, top: piece.anchor === 'ceiling', phase: (h & 255) / 255 });
-    }
-  return out;
-}
+function placeFlora(f, set) { return placeUndergrowth(f, set); }
 
-// One piece, drawn with its feet (or for a hanging one, its top) at x, y.
+// One piece, drawn with its feet (or for a hanging one, its top) at x, y;
+// or a row of a stand. A piece on a wall that's been mined away is gone.
 function drawFlora(d, fl, ox, oy, lights) {
-  const p = fl.piece;
-  const frame = p.frames.length > 1 ? Math.floor(Game.realT * 2 + fl.phase * 2) % 2 : 0;
+  if (fl.strip) { drawStandRow(fl, ox, oy); return; }
+  if (fl.anchorT >= 0 && !TILE_SOLID[d.floor.tiles[fl.anchorT]]) return;
+  const p = fl.piece, sky = View.ug && View.ug.sky;
+  const frame = p.frames.length > 1 && !sky ? Math.floor(Game.realT * 2 + fl.phase * 2) % 2 : 0;
   const spr = floraSprite(fl.set, p, frame);
   const fx = Math.round(fl.x * AP) + ox, fy = Math.round(fl.y * AP) + oy;
   const sx = Math.round(fx - spr.w / 2), sy = fl.top ? fy : fy - spr.h + 1;
   if (sx > View.w || sy > View.h || sx + spr.w < 0 || sy + spr.h < 0) return;
-  drawArtSprite(spr, sx, sy);
+  drawLeaning(spr.c, ugGlows(spr) ? spr.ec : null, 0, 0, spr.w, spr.h, sx, sy, fl.amp || 0, fl.top, fl.over !== false);
 }
 
 // The plants' glow, baked with the floor's lights (in world px). Under the
 // sky the plants don't glow; only pollen catches the light.
 function floraLights(list) {
-  return list.filter((fl) => !floraKit(fl.set).sky).map((fl) => {
+  return list.filter((fl) => fl.piece && !floraKit(fl.set).sky).map((fl) => {
     const h = floraSprite(fl.set, fl.piece, 0).h / AP;
     return { x: fl.x, y: fl.top ? fl.y + h * 0.8 : fl.y - h * 0.65, r: TILE * 1.1, i: T.light.flora, c: rgb01(floraKit(fl.set).pal.glow[0]) };
   });
@@ -201,6 +176,8 @@ function paintFloor(f) {
   View.floorFor = f; View.floorBuf = P;
   View.rockPx = new Uint8Array(P.w * P.h);
   fillRockField(f, 0, 0, P.w, P.h);
+  // what grows here first: its beds are painted with the tiles
+  View.flora = placeFlora(f, floraSetOf(f));
   for (let ty = 0; ty < f.h; ty++) for (let tx = 0; tx < f.w; tx++) paintTileArt(f, tx, ty);
   paintGraft(f, 0, 0, f.w - 1, f.h - 1);
   tintRift(f, 0, 0, P.w, P.h);
@@ -209,7 +186,6 @@ function paintFloor(f) {
   [View.floorCol, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[0], 0, 0);
   [View.floorEm, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[1], 0, 0);
   View.lights = floorLights(f);
-  View.flora = placeFlora(f, floraSetOf(f));
   View.floraLights = floraLights(View.flora);
   View.bakedFrom = null;
 }
@@ -232,6 +208,7 @@ function paintTileArt(f, tx, ty) {
   if (t === TILE_PIT) { paintPitTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth); return; }
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
   if (f.clime) paintClimeTile(P, f, tx, ty, ox, oy, b);
+  paintUndergrowth(P, f, tx, ty, ox, oy, b);
   if (t === TILE_PAD) paintDish(P, ox, oy);
   else if (t === TILE_ORE) {
     const front = !TILE_SOLID[floorTile(f, tx, ty + 1)];
@@ -621,13 +598,13 @@ function renderFrame() {
   for (const dr of d.drops) drawDrop(dr, ox, oy, lights);
   const props = (d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : riftProps(d).concat(lifeActors(d))).concat(portalProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
-  const actors = d.enemies.filter((e) => !e.dead).concat([p], View.flora || [], props).sort((a, b) => a.y - b.y);
+  const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
     if (a === p) drawProspector(d, ox, oy, tick, lights);
     else if (a.wreck) drawWreck(d, ox, oy, lights);
     else if (a.tear) drawRift(d, a, ox, oy, lights);
     else if (a.portal) drawPortal(d, a, ox, oy, lights);
-    else if (a.piece) drawFlora(d, a, ox, oy, lights);
+    else if (a.piece || a.strip) drawFlora(d, a, ox, oy, lights);
     else if (a.crit) drawCritter(d, a, ox, oy);
     else drawEnemy(d, a, ox, oy, tick, lights);
   }

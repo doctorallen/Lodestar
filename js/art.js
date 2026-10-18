@@ -534,7 +534,7 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
     // the texture of the ground and of the rock top, where there's any
     let rocks = 0;
     for (let i = base + y * W + ox, e = i + ATILE; i < e; i++) rocks += M[i];
-    if (rocks < ATILE) artClumpRow(gRow, ox, ATILE, y, seedH);
+    if (rocks < ATILE) { artClumpRow(gRow, ox, ATILE, y, seedH); _caveNoise.set(gRow, (y - oy) * ATILE); }
     if (rocks) artClumpRow(rRow, ox, ATILE, y, seedH + 11);
     for (let x = ox; x < ox + ATILE; x++) {
       const t = (BAYER4[((y & 3) << 2) | (x & 3)] + 0.5) / 16, m = base + y * W + x, gn = gRow[x - ox];
@@ -583,7 +583,9 @@ function cavePal(b) {
   _cavePals.set(b, Q);
   return Q;
 }
-const _caveRows = [new Float32Array(ATILE), new Float32Array(ATILE)], _caveBelow = new Int16Array(ATILE * ATILE);
+// (the last tile's: the ground's texture, and how far down from each rock
+// pixel the ground is, kept for undergrowth.js to paint over it)
+const _caveRows = [new Float32Array(ATILE), new Float32Array(ATILE)], _caveBelow = new Int16Array(ATILE * ATILE), _caveNoise = new Float32Array(ATILE * ATILE);
 
 // The sinkhole, pixel by pixel. Where the ground's edge is above it, a
 // cliff face falls away into the dark in bands; elsewhere a lit lip, then
