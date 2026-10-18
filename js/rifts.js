@@ -143,7 +143,7 @@ function paintGraft(f, tx0, ty0, tx1, ty1) {
 function tintRift(f, x0, y0, x1, y1) {
   const P = View.floorBuf, S = RIFT_SHIFT;
   if (!P || (!f.riftShift && !f.graft)) return;
-  const to = rgbOf(S.floorToward), edge = rgbOf(S.fringe[1]), fr = S.fringe.map(rgbOf), reach = T.rifts.tintR * TILE, dz = T.art.groundDither, fs = 2.5 * T.art.px;
+  const to = rgbOf(S.floorToward), edge = rgbOf(S.fringe[1]), fr = S.fringe.map(rgbOf), reach = T.rifts.tintR * TILE, dz = T.art.groundDither, fs = 2 * T.art.px;
   x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(P.w, x1); y1 = Math.min(P.h, y1);
   const gf = f.graft;
   // the graft's outline stays within its radius and a tile and a half of
