@@ -311,6 +311,14 @@ function drawToolRows() {
   }).join('');
 }
 
+// What an imprint costs from here: a heart of the lowest grade there is,
+// or riftglass. Null if neither.
+function imprintCost(src) {
+  for (const g of [1, 2, 3]) if ((src[partId('heart', g)] || 0) > 0) return { id: partId('heart', g), n: 1 };
+  if ((src.riftglass || 0) >= T.imprint.glass) return { id: 'riftglass', n: T.imprint.glass };
+  return null;
+}
+
 // Where the forge draws its materials from: the stash at home, the cargo at
 // an ancient forge.
 function forgeSource() { return UI.forge.field && Game.dive ? Game.dive.cargo : Save.data.stash; }
@@ -343,6 +351,11 @@ function drawForge() {
   const oreChips = ores.map((o) => chip('forgeOre', o.id, `${esc(o.name)}<small>have ${stash[o.id]} · tier ${o.tier}</small>`, o.id === F.ore, stash[o.id] >= bp.ore)).join('') || `<span class="note">${F.field ? 'No ore in your cargo.' : 'No ore banked. Mine some and bring it home.'}</span>`;
   const partChips = parts.map((id) => { const pk = parsePart(id), fam = PARTS[pk.kind].family; return chip('forgePart', id, `${esc(partName(id))}<small>have ${stash[id]} · ${fam ? fam : 'any'}</small>`, id === F.part, stash[id] >= bp.parts); }).join('')
     || `<span class="note">No ${bp.partKinds ? bp.partKinds.map((k) => PARTS[k].name).join(' or ') : 'creature parts'} ${F.field ? 'in your cargo' : 'banked'}. Creatures leave them when they fall.</span>`;
+  // powers the forge remembers, for this kind of piece (at home only)
+  const known2 = (Save.data.codex || []).filter((k) => LEGENDARIES[k] && LEGENDARIES[k].kinds.includes(bp.kind));
+  if (F.imprint && !known2.includes(F.imprint)) F.imprint = null;
+  const canPay = !!imprintCost(stash);
+  const impChips = F.field || bp.kind === 'core' ? '' : known2.map((k) => chip('forgeImprint', k, `${esc(LEGENDARIES[k].name)}<small>${esc(LEGENDARIES[k].text.toLowerCase())}</small>`, k === F.imprint, canPay)).join('');
   const exWhat = (x) => (x.element ? ELEMENTS[x.element].name.toLowerCase() : x.family ? x.family : x.rarity ? 'rarity +1' : x.tierUp ? 'tier +1' : '');
   const exChips = exotics.map((x) => chip('forgeExotic', x.id, `${esc(x.name)}<small>have ${stash[x.id]} · ${exWhat(x)}</small>`, x.id === F.exotic)).join('');
 
@@ -362,6 +375,7 @@ function drawForge() {
     else if (ex && ex.rarity) lines.push(`${esc(ex.name)}: a rarity higher.`);
     else if (ex && ex.tierUp) lines.push(`${esc(ex.name)}: a tier above its ore.`);
     else if (ex) lines.push(`${esc(ex.name)} does nothing for a ${esc(bp.name.toLowerCase())}.`);
+    if (F.imprint) lines.push(`Imprinted with ${esc(LEGENDARIES[F.imprint].name)}: ${esc(LEGENDARIES[F.imprint].text.toLowerCase())}. A fine forge or better sets it; a rougher one, half the time.`);
     lines.push('The rest is in your strikes: rough, fair, fine or masterwork.');
   }
   const cost = `${bp.ore} ${ore.name.toUpperCase()}${F.part ? `, ${bp.parts} ${PARTS[parsePart(F.part).kind].name.toUpperCase()}` : ''}`;
@@ -372,6 +386,7 @@ function drawForge() {
       <h3>2 · HEAD <span class="dim">· ${bp.ore} ORE</span></h3><div class="chips">${oreChips}</div>
       <h3>3 · BINDING <span class="dim">· ${bp.parts} PART${bp.parts > 1 ? 'S' : ''}</span></h3><div class="chips">${partChips}</div>
       ${exChips ? `<h3>4 · EXOTIC <span class="dim">· IF YOU LIKE</span></h3><div class="chips">${exChips}</div>` : ''}
+      ${impChips ? `<h3>5 · IMPRINT <span class="dim">· A HEART OR ${T.imprint.glass} RIFTGLASS</span></h3><div class="chips">${impChips}</div>` : ''}
       <div class="preview">${lines.map((l) => `<p>${l}</p>`).join('')}</div>
       ${F.field ? '<p class="note">What you forge here goes in your cargo.</p>' : ''}
       <div class="menu forge-go"><button class="btn primary" data-act="craft" ${ready ? '' : 'disabled'}>FORGE<small>${esc(cost)}</small></button></div>
@@ -481,7 +496,8 @@ function drawCard() {
   const handBtns = (act) => [`<button class="btn primary" data-act="${act}" data-arg="main">EQUIP · MAIN</button>`, `<button class="btn primary" data-act="${act}" data-arg="off">EQUIP · OFF</button>`];
   // destructive: a second tap confirms, and says what it gives
   const sy = it.kind !== 'relic' && salvageYield(new Rng(1), it);
-  const salvageBtn = sy ? `<button class="btn danger" data-act="salvage" data-confirm="SURE? +${sy.n} ${esc(stuffName(sy.ore).toUpperCase())}">SALVAGE</button>` : '';
+  const learns = it.power && c.where === 'stash' && !(Save.data.codex || []).includes(it.power);
+  const salvageBtn = sy ? `<button class="btn danger" data-act="salvage" data-confirm="SURE? +${sy.n} ${esc(stuffName(sy.ore).toUpperCase())}${learns ? ', ITS POWER KEPT' : ''}">SALVAGE${learns ? ' · KEEP ITS POWER' : ''}</button>` : '';
   const slotOf = KIND_SLOT[it.kind];
   if (c.where === 'stash') {
     if (it.kind === 'relic') acts.push('<button class="btn primary" data-act="unseal">UNSEAL</button>');
@@ -633,6 +649,7 @@ UI.acts = {
   forgeExotic: (id) => { UI.forge.exotic = UI.forge.exotic === id ? null : id; UI.redraw(); },
   forgeBp: (id) => { UI.forge.bp = id; UI.forge.part = null; UI.redraw(); },
   forgePart: (id) => { UI.forge.part = id; UI.redraw(); },
+  forgeImprint: (id) => { UI.forge.imprint = UI.forge.imprint === id ? null : id; UI.redraw(); },
   craft: () => {
     const F = UI.forge, src = forgeSource(), bp = BLUEPRINTS[F.bp];
     if ((src[F.ore] || 0) < bp.ore || !F.part || (src[F.part] || 0) < bp.parts) return;
@@ -642,8 +659,15 @@ UI.acts = {
     let exotic = null;
     if (bp.kind !== 'core' && F.exotic && (src[F.exotic] || 0) > 0) { exotic = F.exotic; take(F.exotic, 1); }
     F.exotic = null;
+    let imprint = null;
+    if (F.imprint && !F.field && imprintCost(src)) {
+      const pay = imprintCost(src);
+      take(pay.id, pay.n);
+      imprint = F.imprint;
+    }
+    F.imprint = null;
     if (!F.field) Save.save();
-    Anvil.start({ bp: F.bp, ore: F.ore, part: F.part, exotic, field: !!F.field });
+    Anvil.start({ bp: F.bp, ore: F.ore, part: F.part, exotic, imprint, field: !!F.field });
   },
   equip: (slot) => {
     const c = UI.card, it = c.item, eq = Save.data.equip;
@@ -675,6 +699,9 @@ UI.acts = {
     const s = field ? Game.dive.cargo : Save.data.stash, list = field ? Game.dive.items : Save.data.items;
     for (const core of it.sockets || []) if (core) list.push(core);
     removeFrom(list, it);
+    // a legendary broken down at home: the forge remembers its power
+    const codex = Save.data.codex || (Save.data.codex = []);
+    if (it.power && !field && !codex.includes(it.power)) { codex.push(it.power); UI.toast(`The forge remembers ${LEGENDARIES[it.power].name}: it can be imprinted now`, 'legendary'); }
     s[y.ore] = (s[y.ore] || 0) + y.n;
     if (y.part) s[y.part] = (s[y.part] || 0) + 1;
     if (y.exotic) s[y.exotic] = (s[y.exotic] || 0) + 1;

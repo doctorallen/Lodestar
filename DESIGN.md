@@ -198,6 +198,10 @@ Parts come in three grades, Rim, Choir and Forge, one per biome. Deeper biomes g
 
 Bloodresin guarantees a leech affix, and a Lodestone shard raises the rarity.
 
+### Imprinting
+
+Salvaging a legendary at home writes its power into the forge's **Codex**. Any later forging of a piece that power suits can imprint it (step 5 at the forge), paid with a heart of any grade or 2 riftglass: a fine forge or better always sets it, a rougher one half the time. Found legendaries become recipes, and hearts and riftglass have a use. Elites drop sealed relics half as often (5%) to leave room for it.
+
 ## Loot
 
 - **Drops are materials:** each creature's own part, graded by the biome. Elites drop more, sometimes an exotic, a blueprint or a sealed relic. The warden drops a heart, parts, a blueprint and often a relic.

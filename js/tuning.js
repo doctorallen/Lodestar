@@ -246,7 +246,7 @@ const T = {
   loot: {
     part: 0.45, partTwo: 0.15, eliteParts: [2, 3], bossParts: 4,
     exotic: 0.03, eliteExotic: 0.5, eliteBlueprint: 0.22,
-    relic: 0.008, eliteRelic: 0.1, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
+    relic: 0.008, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
     rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [1, 0.35], set: [0.8, 0.25] },
   },
 
@@ -281,6 +281,10 @@ const T = {
   // an elite now and then, and from every Keeper.
   story: { shardStar: 400, echoForge: 0.5, echoElite: 0.05 },
   // An ancient forge stands on a floor this deep or deeper, by chance.
+  // Imprinting a known legendary power at the forge costs a heart (any
+  // grade) or `glass` riftglass; a fine forge or better always takes it,
+  // a rougher one with `chance`.
+  imprint: { glass: 2, chance: 0.5 },
   fieldForge: { blueprint: 0.6 }, // the chance a schematic lies by one (how often one stands is the zone's)
   // The anvil: three strikes, each a marker sweeping a bar at `speeds`
   // (sweeps a second); a strike inside the zone (zone wide, narrowing by

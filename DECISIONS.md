@@ -126,3 +126,12 @@ Phones drop background tabs often. The run is now saved on arriving at each site
 ## 2026-10-18: contracts (overnight team, round 1)
 
 To make a 5-minute session feel like progress beyond the haul, three contracts are always posted at the ledge and settled on coming home. They pay the star and a useful material, and steer expeditions (a biome, a zone, a creature, a rift) without forcing them. Falling settles nothing, so they add to the push-your-luck. No timers and no daily resets, so a short session never wastes one.
+
+## 2026-10-18: round 2 (overnight team)
+
+From the lead designer's measured review and the QA pass:
+- **The lair is a fair finale.** The pull holds while the Keeper lives; it rages at 90 s; when it falls, its lodeline lights with a 30 s pull. Keepers have 30% less health. Before this, no Keeper fell in 210 bot dives: the fight used up the whole pull and the lodeline stayed dark.
+- **Lodelines stay a gamble.** Odds by site of 100/80/60/40%, +5% a magnitude, capped at 100/90/75/55%. The star's growth now softens the recall instead (−2% lost a magnitude). Before, from magnitude 3 every site had one and the push-your-luck vanished.
+- **The beacon at magnitude 2,** where it matters, and never over a lit lodeline. Tool costs take parts of any grade.
+- **Contracts keep moving:** no duplicates, mostly in the newest biome, stale ones replaced after 3 expeditions, a free swap each time home, a bonus for the whole board.
+- **Imprinting** (the designer's crafting proposal): legendaries salvaged at home teach the forge their power; a heart or 2 riftglass imprints it on a new piece. It turns lucky finds into recipes and gives hearts and riftglass a purpose.

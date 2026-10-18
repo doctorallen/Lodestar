@@ -33,7 +33,7 @@ const Anvil = {
     this.job = job;
     UI.show('screen-anvil');
     setTextIfChanged('anvil-call', 'Tap to strike when the marker crosses the glow');
-    setTextIfChanged('anvil-what', `${BLUEPRINTS[job.bp].name} in ${T.ores[ORE_INDEX[job.ore]].name}, bound with ${partName(job.part).toLowerCase()}${job.exotic ? ', with ' + exoticName(job.exotic).toLowerCase() : ''}`);
+    setTextIfChanged('anvil-what', `${BLUEPRINTS[job.bp].name} in ${T.ores[ORE_INDEX[job.ore]].name}, bound with ${partName(job.part).toLowerCase()}${job.exotic ? ', with ' + exoticName(job.exotic).toLowerCase() : ''}${job.imprint ? ', imprinted with ' + LEGENDARIES[job.imprint].name : ''}`);
     this.draw();
   },
 
@@ -85,10 +85,16 @@ const Anvil = {
   finish(q = this.quality()) {
     const j = this.job;
     const item = forgeItem(j.rng, j.bp, j.ore, j.part, j.exotic, q);
+    // a power from the Codex, struck into the piece
+    if (j.imprint) {
+      if (q >= 2 || j.rng.chance(T.imprint.chance)) { item.power = j.imprint; item.name = LEGENDARIES[j.imprint].name; item.imprinted = true; }
+      else j.imprintLost = true;
+    }
     this.job = null;
     if (j.field) Game.dive.items.push(item);
     else { Save.data.items.push(item); Save.save(); }
     Reveal.show(item, j.field ? 'cargo' : 'stash', 'screen-forge', q);
+    if (j.imprintLost) UI.toast("The imprint didn't take");
     return item;
   },
 

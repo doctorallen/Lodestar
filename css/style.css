@@ -330,8 +330,8 @@ body.home #btn-mine { display: none; }
 .speech.star b { color: var(--gold); font-style: normal; }
 /* sideways there's no bottom deck: speak over the foot of the view */
 #app.wide .speech { bottom: calc(12px + env(safe-area-inset-bottom)); left: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); right: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); }
-/* over a screen, toasts move to the foot, out of the way of titles */
-body.modal .toasts { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); }
+/* over a screen, toasts sit at the very top, clear of the buttons below */
+body.modal .toasts { top: calc(4px + env(safe-area-inset-top)); }
 .toasts .toast:nth-last-child(n + 3) { display: none; }
 /* nothing talks over the anvil, a reveal or the story */
 body.rapt .toasts { display: none; }
