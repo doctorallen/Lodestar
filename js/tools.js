@@ -47,7 +47,6 @@ function makeTool(id) {
   Save.save();
   return true;
 }
-function toolCostText(id) { const c = T.tools[id].cost; return Object.keys(c).map((k) => `${c[k]} ${PARTS[k] ? PARTS[k].name + ' (any grade)' : stuffName(k)}`).join(', '); }
 
 // ---------------------------------------------------------------------------
 // In a dive
