@@ -69,7 +69,7 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
   - **Ruin:** rectangular halls and pillars left by someone before, paved floors, more ancient forges, constructs.
   - **Deep Vein:** at the last site, rich in ore, likelier to hold the warden.
   - **Keeper's Lair:** at the last site, while the biome's heart-shard is still missing. An arena; the Keeper holds the shard, and the lodeline only lights when it falls. While the Keeper lives the star's pull doesn't fade (the Keeper holds the dark off), but after 90 s it rages: faster, with twice the ring of orbs. When it falls, its lodeline lights and a short 30 s pull begins: take the shard and go.
-- **The chain has 4 sites.** The player decides how far to go along it, not how deep. A site's lodeline is certain at the first and a coin toss after that (more as the star's reach grows), so pushing on is a real gamble.
+- **The chain has 4 sites.** The player decides how far to go along it, not how deep. A site's lodeline is certain at the first, then 80%, 60% and 40% (5% more for each magnitude past the first, to at most 90%, 75% and 55%), so pushing on stays a gamble. The star's growth also softens the emergency recall (2% less lost for each magnitude).
 - **Danger rises with each site.** A site's enemy level is 4 × the biome's index plus the site (one more in a lair). Each level raises enemy health by 16% and damage by 8%. Deeper floors also have more enemies, more elites, and more of the biome's better ore and loot.
 - **Cargo is limited** (40 units, more from attunements and affixes). Ore and exotics weigh 1, gear and relics 3. You can drop gear mid-dive to make room.
 - **The pocket.** A few cargo slots whose contents survive a fall: 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
@@ -104,7 +104,7 @@ The diver carries one tool, chosen at the ledge before setting out. Each changes
 | Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
 | Surveyor's Map | 3 | A map of each site, drawn as you walk it, in the view's corner, with ways, lodeline and ancient forge once seen. |
 | Deep Satchel | 3 | One more pocket slot. |
-| Lode Beacon | 4 | Once an expedition, from the pause menu: call a lodeline down where you stand, where no lit one reaches. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
+| Lode Beacon | 2 | Once an expedition, from the pause menu: call a lodeline down where you stand, where no lit one reaches. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
 
 ## Rifts
 

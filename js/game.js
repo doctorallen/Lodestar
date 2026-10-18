@@ -20,8 +20,12 @@ const Game = {
   step: null, render: null,
 };
 
-// How deep the Lodestar's lines are sure to reach: deeper as it grows.
-function lodelineReach() { return T.floor.padSure + magnitudeOf(Save.data.star) - 1; }
+// The chance a site has a lodeline: less further along an expedition, a
+// little more as the star grows.
+function lodelineOdds(depth) {
+  const F = T.floor, i = Math.min(F.padOdds.length, depth) - 1;
+  return Math.min(F.padCap[i], F.padOdds[i] + F.padPerMag * (magnitudeOf(Save.data.star) - 1));
+}
 
 // A world to walk in: a dive, or the outpost (hub: true). Both run the
 // same walking, fighting and drawing; the outpost has no enemies but a
@@ -30,7 +34,7 @@ function newWorld(fields) {
   const stats = computeStats(Save.data.equip, Save.data.attune);
   return Object.assign({
     seed: 0, biome: 0, depth: 0, floor: null, target: null, time: 0, kills: 0, dying: 0,
-    rng: new Rng(1), stats, reach: lodelineReach(),
+    rng: new Rng(1), stats,
     cargo: {}, items: [], blueprints: [], pocket: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], auras: [], later: [], flow: null, flowAt: -1,
     pull: 1, pullTime: 1, waveT: 0, channel: null, padDark: false,
     p: {
@@ -87,7 +91,7 @@ function enterFloor(depth, zone = 'cave') {
     if (depth === X.sites - 1) d.ways = [(Save.data.shards || []).includes(d.biome) ? 'deep' : 'lair', others[0]];
     else d.ways = others.slice(0, X.ways);
   }
-  d.floor = generateFloor(d.seed, depth, d.biome, d.reach, zone, d.ways.length);
+  d.floor = generateFloor(d.seed, depth, d.biome, lodelineOdds(depth), zone, d.ways.length);
   const e = d.floor.entry;
   p.x = (e.x + 0.5) * TILE; p.y = (e.y + 0.5) * TILE; p.mine = null;
   d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.globs = []; d.puddles = []; d.auras = []; d.later = []; d.flowAt = -1; d.keeper = null;
@@ -337,7 +341,7 @@ function updateChannel(dt) {
 }
 
 // The share of the cargo an emergency recall costs here.
-function recallCost(d) { const L = T.leave; return Math.min(L.recallMax, L.recallLoss + L.recallPerDepth * d.depth); }
+function recallCost(d) { const L = T.leave; return clamp(L.recallLoss + L.recallPerDepth * d.depth - L.recallPerMag * (magnitudeOf(Save.data.star) - 1), L.recallMin, L.recallMax); }
 
 // ---------------------------------------------------------------------------
 // Walking: a circle against the floor's smooth wall line (rockAt), felt at

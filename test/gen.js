@@ -4,7 +4,7 @@
 //    on and the lodeline reachable on foot from the entry, the ways asked
 //    for all there, a lair with its arena and lodeline, every ore tile
 //    reachable by mining in from open ground, ore from the floor's own
-//    biome, the edge intact, a lodeline on every site up to padSure, and
+//    biome, the edge intact, a lodeline wherever its chance is 1, and
 //    generation that repeats exactly for the same arguments;
 //  - golden hashes pin generation, so a change to it has to be meant
 //    (re-record with --update).
@@ -26,7 +26,7 @@ for (let seed = 1; seed <= 150; seed++)
       for (const zone of ZONES) {
         const ways = zone === 'lair' || zone === 'deep' || depth === 4 ? 0 : 2;
         const at = `seed ${seed} biome ${biome} site ${depth} ${zone}`;
-        const f = G.generateFloor(seed, depth, biome, G.T.floor.padSure, zone, ways);
+        const odds = depth === 1 ? 1 : 0.5, f = G.generateFloor(seed, depth, biome, odds, zone, ways);
         const { w, h, tiles, ore } = f;
         if (f.rooms.length < 3) fail(`${at}: only ${f.rooms.length} rooms`);
         for (let x = 0; x < w; x++) if (tiles[x] !== G.TILE_EDGE || tiles[(h - 1) * w + x] !== G.TILE_EDGE) fail(`${at}: the edge is open at x ${x}`);
@@ -39,7 +39,7 @@ for (let seed = 1; seed <= 150; seed++)
         }
         if (f.pad && steps[f.pad.y * w + f.pad.x] < 0) fail(`${at}: the lodeline can't be reached`);
         if (zone === 'lair' && (!f.arena || !f.pad)) fail(`${at}: a lair without its arena or lodeline`);
-        if (zone !== 'lair' && depth <= G.T.floor.padSure && !f.pad) fail(`${at}: no lodeline up to padSure`);
+        if (zone !== 'lair' && odds === 1 && !f.pad) fail(`${at}: no lodeline where one is sure`);
         const allowed = new Set(G.T.biomes[biome].ores.map((id) => G.ORE_INDEX[id] + 1));
         const reach = new Uint8Array(w * h), q = [];
         for (let i = 0; i < w * h; i++) if (steps[i] >= 0) { reach[i] = 1; q.push(i); }
@@ -53,13 +53,13 @@ for (let seed = 1; seed <= 150; seed++)
             if (!allowed.has(ore[i])) fail(`${at}: ore ${ore[i]} isn't from this biome`);
           } else if (ore[i]) fail(`${at}: ore on a non-ore tile`);
         }
-        if (seed <= 10 && G.floorHash(G.generateFloor(seed, depth, biome, G.T.floor.padSure, zone, ways)) !== G.floorHash(f)) fail(`${at}: generation doesn't repeat`);
+        if (seed <= 10 && G.floorHash(G.generateFloor(seed, depth, biome, odds, zone, ways)) !== G.floorHash(f)) fail(`${at}: generation doesn't repeat`);
       }
 
 const golden = {};
 for (const seed of [1, 7, 1234])
   for (let biome = 0; biome < G.T.biomes.length; biome++)
-    for (const [depth, zone] of [[1, 'surface'], [2, 'cave'], [3, 'ruin'], [4, 'lair']]) golden[`${seed}/${biome}/${depth}/${zone}`] = G.floorHash(G.generateFloor(seed, depth, biome, G.T.floor.padSure, zone, depth < 4 ? 2 : 0));
+    for (const [depth, zone] of [[1, 'surface'], [2, 'cave'], [3, 'ruin'], [4, 'lair']]) golden[`${seed}/${biome}/${depth}/${zone}`] = G.floorHash(G.generateFloor(seed, depth, biome, depth === 1 ? 1 : 0.5, zone, depth < 4 ? 2 : 0));
 if (update || !fs.existsSync(GOLDEN)) {
   fs.writeFileSync(GOLDEN, JSON.stringify(golden, null, 2) + '\n');
   console.log('gen: golden hashes recorded');

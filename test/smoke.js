@@ -150,9 +150,9 @@ async function phone(browser) {
   check(await visible(page, '#btn-act'), 'phone: no way on at the shaft');
   check(/^ON:/.test(await page.evaluate(() => $('btn-act').textContent)), 'phone: the way on is not labelled ON:');
   // (past the first site a lodeline is a coin toss; this test wants one)
-  await page.evaluate(() => { window._padBeyond = T.floor.padBeyond; T.floor.padBeyond = 1; });
+  await page.evaluate(() => { window._padOdds = T.floor.padOdds; T.floor.padOdds = [1, 1, 1, 1]; });
   await tap(page, '#btn-act');
-  await page.evaluate(() => { T.floor.padBeyond = window._padBeyond; });
+  await page.evaluate(() => { T.floor.padOdds = window._padOdds; });
   await run(page, 0.1);
   check(await page.evaluate(() => Game.dive.depth === 2), 'phone: the way on did not lead on');
   check(await page.evaluate((o) => Game.dive.floor.zone === o[0], offered), 'phone: the way on led to the wrong zone');
@@ -303,7 +303,7 @@ async function phone(browser) {
   // the beacon calls a lodeline down
   const tools = await page.evaluate(() => {
     const s = Save.data, was = s.star;
-    s.star = 3000; Object.assign(s.stash, { ferrite: 40, spore1: 5, ether1: 5, lumenite: 20, fiber1: 5, chitin1: 5, resonite: 20, cog2: 5 });
+    s.star = 3000; Object.assign(s.stash, { ferrite: 40, spore1: 5, ether2: 5, lumenite: 30, fiber3: 5, chitin1: 5, resonite: 20, cog2: 5 });
     const made = TOOL_IDS.filter((id) => id !== 'compass').every((id) => makeTool(id));
     s.tool = 'compass'; UI.close(); startDive(0);
     let d = Game.dive;

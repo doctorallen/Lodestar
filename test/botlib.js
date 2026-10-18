@@ -92,9 +92,9 @@ function installBot() {
       const action = actionHere();
       Bot.why = [action, !!foe, full, hurt, leave, d.depth, depth, !!d.floor.pad].join(',');
       // stranded (no lodeline here, full, hurt or out of time): recall
-      const stranded = (!d.floor.pad || d.padDark) && (full || hurt || d.pull < 0.12) && (!(d.floor.ways || []).length || hurt || d.pull < 0.12 || d.depth >= depth + 1);
+      const late = d.pull < 0.3, stranded = (!d.floor.pad || d.padDark) && (full || hurt || late) && (!(d.floor.ways || []).length || hurt || late || d.depth >= depth);
       if (d.channel) { /* hold still while the lodeline lifts */ }
-      else if (stranded && !foe) UI.acts.recall();
+      else if (stranded && (!foe || late)) UI.acts.recall();
       else if (action === 'extract' && leave) { Input.bot.act = true; }
       else if (action === 'way' && !leave && (!d.floor.pad || d.depth < depth || full || hurt)) { Input.bot.act = true; }
       else if (foe && !(hurt && d.floor.pad)) {
@@ -117,7 +117,10 @@ function installBot() {
           if (m < 4) { Input.bot.x = 0; Input.bot.y = 0; p.fx = ore.ox - ore.sx; p.fy = ore.oy - ore.sy; Input.bot.mine = true; }
         } else {
           // on: the nearer way (the lair's last of all), or home
-          const ways = (d.floor.ways || []).slice().sort((a, b) => steps[a.y * d.floor.w + a.x] - steps[b.y * d.floor.w + b.x]);
+          // the lair only with a weapon of the biome's own tier or better
+          const main = Save.data.equip.main, ready = main && main.tier >= 1 + d.biome * 2;
+          const lair = (w) => !ready && d.ways[d.floor.ways.indexOf(w)] === 'lair' ? 1e6 : 0;
+          const ways = (d.floor.ways || []).slice().sort((a, b) => steps[a.y * d.floor.w + a.x] + lair(a) - steps[b.y * d.floor.w + b.x] - lair(b));
           const to = (d.depth >= depth || full || !ways.length) ? (d.floor.pad && !d.padDark ? d.floor.pad : ways[0]) : ways[0];
           if (to) goTile(d, steps, to.x, to.y);
         }

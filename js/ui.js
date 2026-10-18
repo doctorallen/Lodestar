@@ -296,7 +296,7 @@ function drawDescend() {
     const ores = b.ores.map((id) => T.ores[ORE_INDEX[id]].name).join(' and ');
     return `<button class="row biome" data-act="dive" data-arg="${i}" ${open ? '' : 'disabled'}>
       <span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${open ? `${ores}${deep ? ` · furthest: site ${deep}` : ''} · ${(s.shards || []).includes(i) ? 'shard recovered' : 'its Keeper waits at the last site'}` : `The star's lines reach here at magnitude ${T.star.biomeAt[i]}`}</span></span></button>`;
-  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it starts on the surface, and at every exit two ways lead on to somewhere else. ${lodelineReach() >= T.expedition.sites ? 'The star now reaches a lodeline to every site.' : `Lodelines are sure up to site ${lodelineReach()}; past that, not every site has one.`}</p>` + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME</h3>${contractRows(null)}` + drawToolRows();
+  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it starts on the surface, and at every exit two ways lead on to somewhere else. Odds of a lodeline at each site: ${[1, 2, 3, 4].map((k) => Math.round(lodelineOdds(k) * 100) + '%').join(', ')}. Where none reaches, go on or recall.</p>` + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME</h3>${contractRows(null)}` + drawToolRows();
 }
 
 // The tools, under the biomes: the one carried, the others to carry or make.

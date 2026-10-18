@@ -16,7 +16,7 @@ const TOOLS = {
   satchel: { name: 'Deep Satchel', icon: 'satchel', text: 'One more pocket slot, so more comes home whatever happens.' },
   beacon: { name: 'Lode Beacon', icon: 'beacon', text: 'Once an expedition: call a lodeline down where you stand. It takes a few seconds to land, and its light draws everything near.' },
 };
-const TOOL_IDS = Object.keys(TOOLS);
+const TOOL_IDS = ['compass', 'oresense', 'radar', 'beacon', 'map', 'satchel'];
 
 const _toolIcons = {};
 function toolIconUrl(id) {
@@ -26,17 +26,28 @@ function toolIconUrl(id) {
 
 function toolOwned(id) { return (Save.data.tools || []).includes(id); }
 function toolOpen(id) { return magnitudeOf(Save.data.star) >= T.tools[id].mag; }
-function toolAffordable(id) { const s = Save.data.stash, c = T.tools[id].cost; return Object.keys(c).every((k) => (s[k] || 0) >= c[k]); }
+// How many of k the stash holds: an ore or exotic by its id, a part by its
+// kind in any grade.
+function toolHave(k) { const s = Save.data.stash; return PARTS[k] ? [1, 2, 3].reduce((n, g) => n + (s[partId(k, g)] || 0), 0) : s[k] || 0; }
+function toolAffordable(id) { const c = T.tools[id].cost; return Object.keys(c).every((k) => toolHave(k) >= c[k]); }
 function makeTool(id) {
   if (toolOwned(id) || !toolOpen(id) || !toolAffordable(id)) return false;
   const s = Save.data.stash, c = T.tools[id].cost;
-  for (const k in c) { s[k] -= c[k]; if (!s[k]) delete s[k]; }
+  for (const k in c) {
+    // parts from the lowest grade up
+    let left = c[k];
+    for (const id of PARTS[k] ? [1, 2, 3].map((g) => partId(k, g)) : [k]) {
+      const n = Math.min(left, s[id] || 0);
+      s[id] -= n; left -= n;
+      if (!s[id]) delete s[id];
+    }
+  }
   Save.data.tools.push(id);
   Save.data.tool = id;
   Save.save();
   return true;
 }
-function toolCostText(id) { const c = T.tools[id].cost; return Object.keys(c).map((k) => `${c[k]} ${stuffName(k)}`).join(', '); }
+function toolCostText(id) { const c = T.tools[id].cost; return Object.keys(c).map((k) => `${c[k]} ${PARTS[k] ? PARTS[k].name + ' (any grade)' : stuffName(k)}`).join(', '); }
 
 // ---------------------------------------------------------------------------
 // In a dive

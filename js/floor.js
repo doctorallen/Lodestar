@@ -26,15 +26,15 @@ function floorTile(f, tx, ty) {
   return tx < 0 || ty < 0 || tx >= f.w || ty >= f.h ? TILE_EDGE : f.tiles[ty * f.w + tx];
 }
 
-// A site of an expedition. depth: which site (1–4); reach: how far along
-// the Lodestar's lines are sure to reach; zone: 'cave' (lumpy caverns and
+// A site of an expedition. depth: which site (1–4); padChance: the chance
+// it has a lodeline; zone: 'cave' (lumpy caverns and
 // wandering tunnels), 'surface' (the open badlands in sunlight: wider
 // caverns, broad passes), 'ruin' (rectangular halls and straight
 // corridors), 'lair' (a Keeper's great arena) or 'deep' (a cave rich in the
 // deeper ore). ways: how many shafts lead on (each a TILE_SHAFT, listed in
 // f.ways, furthest first).
-function generateFloor(seed, depth, biome, reach = T.floor.padSure, zone = 'cave', ways = 1) {
-  if (zone === 'ruin') return generateRuin(seed, depth, biome, reach, ways);
+function generateFloor(seed, depth, biome, padChance = 1, zone = 'cave', ways = 1) {
+  if (zone === 'ruin') return generateRuin(seed, depth, biome, padChance, ways);
   const F = Object.assign({}, T.floor, T.zones[zone] && T.zones[zone].gen), B = T.biomes[biome];
   const rng = new Rng(hashInts(seed, depth, biome, ZONE_SALT[zone] || 0x10de));
   const w = F.w, h = F.h;
@@ -129,7 +129,7 @@ function generateFloor(seed, depth, biome, reach = T.floor.padSure, zone = 'cave
     r.x = Math.floor(r.cx - r.rx); r.y = Math.floor(r.cy - r.ry); r.w = Math.ceil(2 * r.rx) + 1; r.h = Math.ceil(2 * r.ry) + 1;
   }
 
-  const { shafts, pad } = placeExits(tiles, w, rooms, steps, rng, depth, reach, F, ways, zone);
+  const { shafts, pad } = placeExits(tiles, w, rooms, steps, rng, padChance, ways, zone);
 
   // ore veins: each starts in the wall of a cavern and wanders into the rock
   const deep = zone === 'deep' ? T.oreDeep.max : Math.min(T.oreDeep.max, T.oreDeep.base + T.oreDeep.perFloor * (depth - 1));
@@ -157,16 +157,15 @@ function generateFloor(seed, depth, biome, reach = T.floor.padSure, zone = 'cave
 const ZONE_SALT = { cave: 0x10de, surface: 0x5a11, ruin: 0x7111, lair: 0x1a17, deep: 0xdee9 };
 
 // The ways on (shafts) in the caverns furthest from the entry on foot, and
-// the lodeline (when the star reaches this far) in another. A lair's
+// the lodeline (if the chance comes up) in another. A lair's
 // lodeline is in its arena (it lights when the Keeper falls).
-function placeExits(tiles, w, rooms, steps, rng, depth, reach, F, ways, zone) {
+function placeExits(tiles, w, rooms, steps, rng, padChance, ways, zone) {
   const far = rooms.slice(1).map((r) => [steps[r.cy * w + r.cx], r]).filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).map(([, r]) => r);
   const shafts = [];
   for (let k = 0; k < ways && k < far.length; k++) { const r = far[k]; tiles[r.cy * w + r.cx] = TILE_SHAFT; shafts.push({ x: r.cx, y: r.cy }); }
   let pad = null;
   const arena = rooms.find((r) => r.arena);
   if (arena) { pad = { x: arena.cx, y: arena.cy + 3 }; tiles[pad.y * w + pad.x] = TILE_PAD; return { shafts, pad }; }
-  const padChance = depth <= reach ? 1 : F.padBeyond;
   const rest = far.slice(shafts.length);
   if (rest.length && rng.chance(padChance)) {
     const r = rest[rng.i(0, Math.min(rest.length - 1, 1))];
@@ -178,7 +177,7 @@ function placeExits(tiles, w, rooms, steps, rng, depth, reach, F, ways, zone) {
 
 // A ruin: rectangular halls kept apart, joined by straight corridors two
 // wide, with fewer veins.
-function generateRuin(seed, depth, biome, reach, ways) {
+function generateRuin(seed, depth, biome, padChance, ways) {
   const F = Object.assign({}, T.floor, T.zones.ruin.gen), B = T.biomes[biome];
   const rng = new Rng(hashInts(seed, depth, biome, ZONE_SALT.ruin));
   const w = F.w, h = F.h;
@@ -213,7 +212,7 @@ function generateRuin(seed, depth, biome, reach, ways) {
     r.cells = [];
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (tiles[y * w + x] === TILE_FLOOR) r.cells.push(y * w + x);
   }
-  const { shafts, pad } = placeExits(tiles, w, rooms, steps, rng, depth, reach, F, ways, 'ruin');
+  const { shafts, pad } = placeExits(tiles, w, rooms, steps, rng, padChance, ways, 'ruin');
   const deep = Math.min(T.oreDeep.max, T.oreDeep.base + T.oreDeep.perFloor * (depth - 1));
   for (const r of rooms.slice(1)) {
     if (!rng.chance(F.veinChance)) continue;

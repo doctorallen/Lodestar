@@ -35,26 +35,26 @@ const T = {
 
   // Leaving takes a moment: standing in a lodeline, EXTRACT takes `extract`
   // seconds; an emergency recall works anywhere but takes `recall` seconds
-  // and loses a share of the cargo, recallLoss + recallPerDepth a floor (to
+  // and loses a share of the cargo, recallLoss + recallPerDepth a site, less
+  // recallPerMag for each magnitude past the first (between recallMin and
   // recallMax). Moving or being hit breaks either. Starting one wakes
   // anything within `noise` px.
-  leave: { extract: 1.5, recall: 4, recallLoss: 0.15, recallPerDepth: 0.06, recallMax: 0.7, noise: 160 },
+  leave: { extract: 1.5, recall: 4, recallLoss: 0.15, recallPerDepth: 0.06, recallPerMag: 0.02, recallMin: 0.05, recallMax: 0.7, noise: 160 },
 
   // Floors: a w × h tile grid of lumpy caverns (radius roomR tiles, at least
   // roomGap apart) joined by tunnels that wander (meander: how hard the
   // heading drifts each half-tile) at a half-width of tunnelR tiles, plus a
   // few extra tunnels so there are loops. pillar: the chance a big cavern
   // keeps a pillar of rock. wallNoise: how far the walls' line wanders off
-  // the tiles. veins: ore veins per cavern (none in the entry's). The
-  // Lodestar's line reaches every floor down to padSure (more as it grows,
-  // see star); below that the chance falls by padFade a floor, to no less
-  // than padMin.
+  // the tiles. veins: ore veins per cavern (none in the entry's). padOdds:
+  // the chance each site has a lodeline, up by padPerMag for each magnitude
+  // past the first, to no more than padCap.
   floor: {
     w: 52, h: 52,
     rooms: [7, 10], roomR: [2.5, 4.8], roomGap: 3, loops: [1, 3],
     tunnelR: [1.0, 1.6], meander: 0.35, pillar: 0.4, wallNoise: 0.14,
     veins: [1, 2], veinLen: [2, 4],
-    padSure: 1, padBeyond: 0.5,
+    padOdds: [1, 0.8, 0.6, 0.4], padPerMag: 0.05, padCap: [1, 0.9, 0.75, 0.55],
   },
   // Zones: what kind of place a site is. gen: overrides of T.floor for its
   // generator. light: its ambient (a surface's runs from day, at full pull,
@@ -86,15 +86,16 @@ const T = {
     touch: 12, seal: 2.5, glass: [1, 2], inversionR: 7, tintR: 4.5,
   },
   // Tools: the magnitude each can be made at, and what it costs from the
-  // stash. sight/reach in tiles; the beacon lands after `land` seconds and
+  // stash (a part's kind takes parts of any grade, the lowest first).
+  // sight/reach in tiles; the beacon lands after `land` seconds and
   // wakes what's within `noise` px.
   tools: {
     compass: { mag: 1, cost: {} },
-    oresense: { mag: 2, cost: { ferrite: 14, spore1: 3 }, reach: 9 },
-    radar: { mag: 2, cost: { ferrite: 14, ether1: 3 }, reach: 18 },
-    map: { mag: 3, cost: { lumenite: 8, fiber1: 4 }, sight: 6 },
-    satchel: { mag: 3, cost: { lumenite: 8, chitin1: 4 } },
-    beacon: { mag: 4, cost: { resonite: 10, cog2: 3 }, land: 6, noise: 140 },
+    oresense: { mag: 2, cost: { ferrite: 14, spore: 3 }, reach: 9 },
+    radar: { mag: 2, cost: { ferrite: 14, ether: 3 }, reach: 18 },
+    beacon: { mag: 2, cost: { lumenite: 6, cog: 3 }, land: 6, noise: 140 },
+    map: { mag: 3, cost: { lumenite: 8, fiber: 4 }, sight: 6 },
+    satchel: { mag: 3, cost: { lumenite: 8, chitin: 4 } },
   },
 
   // The chance a vein is the biome's deeper ore, by site.
