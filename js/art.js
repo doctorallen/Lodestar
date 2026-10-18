@@ -25,6 +25,13 @@ const ap = (v) => Math.round(v * AP);
 // grid (a pixel of outline, then letters), at its art size: the outline
 // stays a pixel and the letters' share is enlarged by k.
 const footOff = (old, k = AP) => 1 + (old - 1) * k;
+// Letter grids redrawn by hand at the art's size (A+ step 3), marked with
+// the scale they're drawn at: buildArtSprite enlarges them only by what's
+// left (nothing, for a sprite drawn at AP), never by scale15Rows. Drawn to
+// the size the old grid was enlarged to (a w-wide grid: ceil(1.5w)), with its
+// feet in the same place, so anchors and hand points don't move.
+const ART_NATIVE = new WeakMap();
+function artNative(rows, k = AP) { ART_NATIVE.set(rows, k); return rows; }
 
 const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 // The ordered-dither threshold at x, y, in (0, 1). Anchored to the world, so
@@ -327,8 +334,10 @@ function buildArtSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS,
   const tones = opts.tones || A.tones, dither = opts.dither !== undefined ? opts.dither : A.dither;
   pal = pal ? Object.assign({}, ART.pal, pal) : ART.pal;
   const G = glows instanceof Set ? glows : new Set(glows), scale = opts.scale !== undefined ? opts.scale : A.px;
-  // (what glows is enlarged as exact blocks: artScaleRows)
-  if (scale !== 1) rows = artScaleRows(rows, scale, new Set(Object.keys(letters).filter((ch) => letters[ch] && G.has(letters[ch][0]))));
+  // (what glows is enlarged as exact blocks: artScaleRows; a grid drawn by
+  // hand at the art's size isn't enlarged at all: artNative)
+  const drawn = ART_NATIVE.get(rows) || 1;
+  if (scale !== drawn) rows = artScaleRows(rows, scale / drawn, new Set(Object.keys(letters).filter((ch) => letters[ch] && G.has(letters[ch][0]))));
   const h = rows.length, w = Math.max(...rows.map((r) => r.length)), W = w + 2, H = h + 2, N = W * H;
   // the grid, a pixel of clear all round: each cell's letter entry, or null
   const L = new Array(N).fill(null);
