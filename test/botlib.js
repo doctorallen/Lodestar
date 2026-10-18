@@ -14,7 +14,7 @@
 function installBot() {
   const STEP = 1 / 60;
 
-  // steps on foot from the prospector to every tile
+  // steps on foot from the diver to every tile
   function stepsFromMe(d) {
     const f = d.floor;
     return floorDistances(f.tiles, f.w, f.h, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));

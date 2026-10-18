@@ -33,7 +33,7 @@ async function hold(page, sel, seconds) {
   await page.touchscreen.touchEnd();
 }
 
-// in the page: puts the prospector on open ground beside an ore of the
+// in the page: puts the diver on open ground beside an ore of the
 // floor's highest ('weak') or lowest tier, facing it; returns its tier
 function standByOre(want) {
   const d = Game.dive, f = d.floor;
@@ -84,7 +84,7 @@ async function phone(browser) {
   const blocked = await page.evaluate(() => TILE_SOLID[floorTile(Game.dive.floor, Math.floor((Game.dive.p.x + 8) / TILE), Math.floor(Game.dive.p.y / TILE))]);
   check(after[0] > before[0] + 4 || blocked, `phone: the joystick didn't walk right (${before} → ${after})`);
 
-  // SWING hits an enemy beside the prospector
+  // SWING hits an enemy beside the diver
   const hit = await page.evaluate(() => {
     const d = Game.dive, e = makeEnemy('crawler', d.p.x + 10, d.p.y, 1, null);
     e.aggro = true; d.enemies.push(e);
