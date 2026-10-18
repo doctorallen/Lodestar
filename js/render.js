@@ -519,6 +519,7 @@ function renderFrame() {
     }
   }
   drawToolHud(d, ox, oy);
+  if (d.hub) drawStationLabels(d, ox, oy);
 }
 
 // ---------------------------------------------------------------------------

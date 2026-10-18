@@ -4,7 +4,7 @@
 // the left deck (a quick flick as it lands dashes), and buttons in the
 // right deck: one for each hand (SWING for a blade, CAST for a focus: tap,
 // tap again for a combo, hold to charge), DASH, MINE (held), and the
-// contextual action (DESCEND, EXTRACT). Upright the decks sit side by side
+// contextual action (SET OUT, EXTRACT). Upright the decks sit side by side
 // under the view; sideways they're either side of it. On a keyboard: WASD
 // or the arrows to move, J for the main hand, K for the off hand, Shift or
 // U to dash, Space or L to mine, E or Enter to act, I for cargo, Esc to

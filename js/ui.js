@@ -209,7 +209,7 @@ const UI = {
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     const way = a === 'way' ? d.ways[wayHere(d)] : null;
     const rh = a === 'rift' && riftHere(d);
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'STEP THROUGH' : 'SEAL THE TEAR') : way ? 'ON: ' + T.zones[way].name.toUpperCase() : { descend: 'DESCEND', extract: 'EXTRACT', forge: 'FORGE', runes: 'RUNES', locker: 'GEAR', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'THE STAR', wreck: 'THE MERIDIAN' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'STEP THROUGH' : 'SEAL THE TEAR') : way ? 'ON: ' + T.zones[way].name.toUpperCase() : { descend: 'SET OUT', extract: 'EXTRACT', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'BOARD THE MERIDIAN' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
   },

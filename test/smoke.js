@@ -84,7 +84,7 @@ async function phone(browser) {
   check(await page.evaluate((h0) => Game.dive.p.y < h0 - 4, h0), 'phone: the joystick did not walk at the outpost');
   await page.evaluate(atStation, 'descend');
   await run(page, 0.1);
-  check(await page.evaluate(() => $('btn-act').textContent === 'DESCEND'), 'phone: no DESCEND at the ledge');
+  check(await page.evaluate(() => $('btn-act').textContent === 'SET OUT'), 'phone: no SET OUT at the ledge');
   await tap(page, '#btn-act');
   await run(page, 0.05);
   check(await visible(page, '#screen-descend'), 'phone: the ledge did not open the biomes');
@@ -255,7 +255,7 @@ async function phone(browser) {
   // the rune bench rerolls an affix on what's worn
   await page.evaluate(atStation, 'runes');
   await run(page, 0.05);
-  check(await page.evaluate(() => $('btn-act').textContent === 'RUNES'), 'phone: no RUNES at the rune bench');
+  check(await page.evaluate(() => $('btn-act').textContent === 'REWORK'), 'phone: no REWORK at the rune bench');
   await tap(page, '#btn-act');
   await run(page, 0.05);
   await tap(page, '#gear-body [data-act=cardEquip][data-arg=main]');
@@ -270,7 +270,7 @@ async function phone(browser) {
   // feeding the star at the altar: back out to watch it drink
   await page.evaluate(atStation, 'altar');
   await run(page, 0.05);
-  check(await page.evaluate(() => $('btn-act').textContent === 'THE STAR'), 'phone: no THE STAR at the altar');
+  check(await page.evaluate(() => $('btn-act').textContent === 'FEED THE STAR'), 'phone: no FEED THE STAR at the altar');
   await tap(page, '#btn-act');
   await run(page, 0.05);
   const pts = await page.evaluate(() => Save.data.star);

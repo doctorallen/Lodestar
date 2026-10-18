@@ -176,3 +176,38 @@ function drawWreck(d, ox, oy, lights) {
   if (Save.data.beaconLit) lights.push({ x: x + 25, y: y + 1, r: TILE * 6, i: 1.4, c: rgb01(ART.pal.star[3]) });
   else lights.push({ x: x + 25, y: y + 1, r: TILE, i: 0.25 + 0.15 * Math.sin(Game.realT * 2), c: [0.5, 0.6, 0.8] });
 }
+
+// Each station's name, in a small pixel hand, over it: always there, a
+// little brighter as the diver comes near. Drawn over the lit scene.
+const LABEL_FONT = {
+  'A': '010/101/111/101/101', 'B': '110/101/110/101/110', 'C': '011/100/100/100/011', 'D': '110/101/101/101/110', 'E': '111/100/110/100/111',
+  'F': '111/100/110/100/100', 'G': '0111/1000/1011/1001/0111', 'H': '101/101/111/101/101', 'I': '111/010/010/010/111', 'J': '001/001/001/101/010',
+  'K': '101/101/110/101/101', 'L': '100/100/100/100/111', 'M': '10001/11011/10101/10001/10001', 'N': '1001/1101/1011/1001/1001', 'O': '0110/1001/1001/1001/0110',
+  'P': '110/101/110/100/100', 'Q': '0110/1001/1001/1010/0101', 'R': '110/101/110/101/101', 'S': '011/100/010/001/110', 'T': '111/010/010/010/010',
+  'U': '101/101/101/101/111', 'V': '101/101/101/101/010', 'W': '10001/10001/10101/11011/10001', 'X': '101/101/010/101/101', 'Y': '101/101/010/010/010',
+  'Z': '111/001/010/100/111', ' ': '00/00/00/00/00',
+};
+function drawLabel(text, cx, y, col, alpha) {
+  const c = View.ctx, glyphs = [...text].map((ch) => (LABEL_FONT[ch] || LABEL_FONT[' ']).split('/'));
+  const w = glyphs.reduce((n, g) => n + g[0].length + 1, -1);
+  const x0 = clamp(Math.round(cx - w / 2), 1, View.w - w - 2);
+  c.globalAlpha = alpha;
+  for (const [ink, o] of [['#000000', 1], [col, 0]]) {
+    c.fillStyle = ink;
+    let x = x0;
+    for (const g of glyphs) {
+      for (let j = 0; j < 5; j++) for (let i = 0; i < g[j].length; i++) if (g[j][i] === '1') c.fillRect(x + i + o, y + j + o, 1, 1);
+      x += g[0].length + 1;
+    }
+  }
+  c.globalAlpha = 1;
+}
+const STATION_LABELS = { descend: 'THE LEDGE', altar: 'THE STAR', locker: 'LOCKER', forge: 'FORGE', runes: 'RUNE BENCH', wreck: 'THE MERIDIAN', dummy: 'TARGET' };
+const STATION_LABEL_Y = { descend: 8, altar: -26, locker: -24, forge: -26, runes: -20, wreck: -34, dummy: -22 };
+function drawStationLabels(d, ox, oy) {
+  for (const s of HUB_STATIONS) {
+    const x = (s.x + 0.5) * TILE, y = (s.y + 0.5) * TILE, m = dist(x, y, d.p.x, d.p.y) / TILE;
+    const a = clamp(1.1 - (m - 2) / 4, 0.45, 1);
+    drawLabel(STATION_LABELS[s.id], Math.round(x + ox), Math.round(y + oy + STATION_LABEL_Y[s.id]), m < 2 ? '#fff2c8' : '#c8bca0', a);
+  }
+}
