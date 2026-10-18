@@ -364,17 +364,55 @@ const T = {
     stride: { name: 'Stride', text: '+5% move speed', max: 5, moveSpeed: 5 },
   },
 
+  // The art's look, "A+" (art.js; DECISIONS.md, 2026-10-18). Visual only.
+  //   px: art pixels to one design pixel: 1 at today's 16 px tiles, 1.5 at
+  //     24 px. Every distance below in px is multiplied by it.
+  //   tones: the most tones of one material on one sprite, chosen by form
+  //     (light from the top left), never spread as a gradient.
+  //   hueShift: [shadows, lights, richer]: how far a ramp's darkest tone
+  //     leans to violet (hue `violet`) and its lightest to warm gold (hue
+  //     `gold`), 0-1, falling to nothing at the middle tone (a cool hue's
+  //     lights stay cool), and the middle tones' extra saturation.
+  //     groundHue: the same, softer, for the ground, rock and faces.
+  //   form: how a sprite is shaded. edge: the radius (px) of the rounding
+  //     at its silhouette; body: the share of the sprite's own size over
+  //     which the whole of it is rounded; part: the rounding (px) of each
+  //     material's patch; depth: how steeply rounded; light, shade: how far
+  //     the lit and the turned-away sides move from the base tone; fall:
+  //     how much darker its foot is than its head; crease: the shadow
+  //     under a different material.
+  //   dither: ordered dithering in sprites (A+: none).
+  //   outline: by kind of sprite: 'black' (ART.outline), 'selout' (a much
+  //     darker shade of the colour inside it) or 'none'. creature: the
+  //     diver, enemies, critters; prop: flora, stations, portals, icons.
+  //     selout: how dark a sel-out is, a share of the colour inside.
+  //   cluster: the ground's texture, in clumps of light and dark: patch
+  //     and grain (px across), and cut (how far the noise must swing from
+  //     the middle before a clump takes the light or dark tone; higher
+  //     means fewer, smaller clumps). rockCut: the same on rock tops.
+  //   groundDither: ordered dithering at the edges of the ground's large
+  //     gradients (wall shadows, the rift's wash, the sinkhole's faces).
+  //   lightSteps: the light's bands for each 1.0 of light; lightDither: how
+  //     much of each step's edge is dithered (0 hard, 1 the whole step).
+  art: {
+    px: 1, tones: 4, hueShift: [0.2, 0.3, 0.05], violet: 255, gold: 50, groundHue: [0.1, 0.1, 0],
+    form: { edge: 1.5, body: 0.3, part: 2, depth: 1.6, light: 0.5, shade: 0.32, fall: 0.1, crease: 0.24 },
+    dither: false, outline: { creature: 'black', prop: 'selout' }, selout: 0.42,
+    cluster: { patch: 9, grain: 3, cut: 0.28 }, rockCut: 0.34, groundDither: true,
+    lightSteps: 5, lightDither: 0.3,
+  },
+
   // Light (render.js). The world dims to `ambient` (tinted; at home, the
   // brighter hubAmbient); lights add back
-  // [radius in tiles, strength]; the result is cut into `bands` dithered
-  // steps, never brighter than `max`. flora: how bright a plant's glow is.
+  // [radius in tiles, strength]; the result is cut into T.art.lightSteps
+  // bands, never brighter than `max`. flora: how bright a plant's glow is.
   // floraCeiling, floraWall: the share of ground under a wall face that
   // something hangs over, or grows at the foot of; floraNearWall, floraOpen:
   // the share of other ground, by a wall or out in the open, that grows a
   // plant (fewer at the outpost). bloom: [downscale, strength] passes, times
   // glow. The lamp's radius may become a dial that shrinks with depth.
   light: {
-    ambient: 0.45, hubAmbient: 0.85, tint: [0.72, 0.76, 0.95], bands: 4, max: 1.9,
+    ambient: 0.45, hubAmbient: 0.85, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
     floraCeiling: 0.08, floraWall: 0.07, floraNearWall: 0.16, floraOpen: 0.025,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]],

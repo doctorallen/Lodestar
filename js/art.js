@@ -100,8 +100,117 @@ function putPx(P, x, y, hex, glow, alpha) {
 const fourStep = (r) => (r.length >= 4 ? r : r.length === 3 ? [r[0], r[0], r[1], r[2]] : r.length === 2 ? [r[0], r[0], r[1], r[1]] : [r[0], r[0], r[0], r[0]]);
 
 // ---------------------------------------------------------------------------
-// Sprites: rows of letters, each letter a material. Upper case is shaded
-// (light from the top left, dithered); lower case is that material's darkest
+// The A+ rules (T.art): a few tones a material, chosen by form; ramps whose
+// shadows lean to violet and lights to warm gold; texture in clusters, never
+// pixel noise; no dither on sprites; black outlines on creatures and
+// sel-outs (a much darker shade of the colour inside) on everything else.
+// ---------------------------------------------------------------------------
+// Ramps whose hues are what they mean: the ores (they must look like ore,
+// and nothing else may).
+const ART_TRUE_HUES = new WeakSet(Object.values(ART.ores));
+
+function artHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [(h * 60 + 360) % 360, s, l];
+}
+function artRgbOfHsl(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+}
+const artLerpHue = (a, b, t) => { const d = ((b - a + 540) % 360) - 180; return (a + d * t + 360) % 360; };
+
+// A ramp (dark to light) hue-shifted: its shadows lean to violet, its lights
+// to warm gold, by amt [shadows, lights, richer], each fading to nothing at
+// the middle tone, which gains a little saturation (richer). A cool hue's lights stay
+// cool (the way to gold from cyan or blue is through green). Lightness
+// never changes, so a rock top stays as dark against the ground as it was.
+// Worked out once.
+const _hueRamps = new Map();
+function hueRamp(ramp, amt = T.art.hueShift) {
+  if (!ramp || ramp.length < 2 || !amt || !(amt[0] || amt[1]) || ART_TRUE_HUES.has(ramp)) return ramp;
+  const key = ramp.join() + '|' + amt.join();
+  let q = _hueRamps.get(key);
+  if (q) return q;
+  const A = T.art, n = ramp.length;
+  q = ramp.map((hex, k) => {
+    const f = k / (n - 1), [r, g, b] = hexToRgb(hex), [h, s, l] = artHsl(r, g, b);
+    const warm = Math.max(0, Math.cos((((A.gold - h + 540) % 360) - 180) * Math.PI / 180));
+    const h2 = f < 0.5 ? artLerpHue(h, A.violet, amt[0] * (1 - f * 2)) : artLerpHue(h, A.gold, amt[1] * warm * (f * 2 - 1));
+    const rich = amt[2] || 0, s2 = Math.min(1, s * (1 + rich) + rich * (1 - Math.abs(f * 2 - 1)));
+    return rgbToHex(...artRgbOfHsl(h2, s2, l));
+  });
+  _hueRamps.set(key, q);
+  return q;
+}
+
+// Which of a ramp's n steps a sprite may use when it may use only `tones`:
+// spread from the darkest to the lightest. For each step, the nearest
+// allowed one.
+function toneMap(n, tones) {
+  const out = Array.from({ length: n }, (_, i) => i);
+  if (!tones || tones >= n) return out;
+  const ok = Array.from({ length: tones }, (_, k) => Math.round((k * (n - 1)) / Math.max(1, tones - 1)));
+  return out.map((i) => ok.reduce((a, b) => (Math.abs(b - i) < Math.abs(a - i) ? b : a)));
+}
+
+// A sel-out: the outline pixel is a much darker, slightly violet shade of
+// the colour inside it.
+function seloutRgb(c) {
+  const k = T.art.selout;
+  return [c[0] * k + 4, c[1] * (k - 0.04) + 3, c[2] * (k + 0.03) + 9];
+}
+
+// Outlines everything solid in a pixel buffer (solid: 1 per pixel) in one
+// mode: 'black' (ART.outline), 'selout', or 'none'. skip(x, y): a pixel
+// that stays clear (a portal's open face).
+function outlineBuf(P, solid, mode, skip) {
+  if (mode === 'none') return;
+  const w = P.w, h = P.h, ink = rgbOf(ART.outline), add = [];
+  const on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && solid[y * w + x];
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (solid[y * w + x] || (skip && skip(x, y))) continue;
+      // the pixel inside it: below first, then beside, then above
+      const from = on(x, y + 1) ? [x, y + 1] : on(x - 1, y) ? [x - 1, y] : on(x + 1, y) ? [x + 1, y] : on(x, y - 1) ? [x, y - 1] : null;
+      if (from) add.push(x, y, from[0], from[1]);
+    }
+  for (let n = 0; n < add.length; n += 4) {
+    const k = (add[n + 1] * w + add[n]) * 4, j = (add[n + 3] * w + add[n + 2]) * 4;
+    const c = mode === 'selout' ? seloutRgb([P.col[j], P.col[j + 1], P.col[j + 2]]) : ink;
+    P.col[k] = c[0]; P.col[k + 1] = c[1]; P.col[k + 2] = c[2]; P.col[k + 3] = 255; P.em[k + 3] = 0;
+  }
+}
+
+// Smooth value noise in -1..1, about s px across a bump, fixed to the
+// world (or the sprite). Cheap enough to call for every pixel of a floor.
+function artHash(x, y, seed) {
+  let n = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(seed | 0, 1442695041)) | 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+function artNoise(x, y, s, seed) {
+  const gx = x / s, gy = y / s, x0 = Math.floor(gx), y0 = Math.floor(gy), u = gx - x0, v = gy - y0;
+  const su = u * u * (3 - 2 * u), sv = v * v * (3 - 2 * v);
+  const a = artHash(x0, y0, seed), b = artHash(x0 + 1, y0, seed), c = artHash(x0, y0 + 1, seed), d = artHash(x0 + 1, y0 + 1, seed);
+  return (a + (b - a) * su + (c - a) * sv + (a - b - c + d) * su * sv) * 2 - 1;
+}
+// The ground's texture at a pixel: -1 a dark clump, 1 a light one, 0 the
+// base tone between. Patches and grain together, cut hard, so it reads in
+// clusters of a few pixels and more, never as speckle.
+function artClump(x, y, seed, cut) {
+  const C = T.art.cluster, px = T.art.px;
+  const n = artNoise(x, y, C.patch * px, seed) * 0.62 + artNoise(x, y, C.grain * px, seed + 7) * 0.38;
+  return n > cut ? 1 : n < -cut ? -1 : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Sprites: rows of letters, each letter a material. Upper case is shaded by
+// its form, lit from the top left; lower case is that material's darkest
 // step. Glowing materials keep their brightest colour and give off light.
 // A sprite is { c, ec, w, h }: its colour and emissive canvases.
 // ---------------------------------------------------------------------------
@@ -113,39 +222,114 @@ const SPRITE_CHARS = {
   X: ['shell'], x: ['shell', 0], Y: ['eyeglow'], V: ['crystal'], Q: ['coreglow'], l: ['legs'],
 };
 const SPRITE_GLOWS = new Set(['lamp', 'rune', 'arcane', 'glass', 'eyeglow', 'crystal', 'coreglow']);
+// What a creature is built with: black outlines (everything else gets
+// T.art.outline.prop).
+const ART_CREATURE = { kind: 'creature' };
 
 // pal: materials to use instead of ART.pal's (an enemy's biome colours, an
 // item's ore). letters, glows: a sprite with letters of its own (the diver).
-function buildArtSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS) {
+// opts: { kind: 'creature' or 'prop' (the default), outline: 'black',
+// 'selout' or 'none' (else the kind's, T.art.outline), hueShift: [shadows,
+// lights] or false, tones, dither }.
+//
+// Shading by form: each pixel's height is how far it lies inside the
+// silhouette (rounded at the edge, and over the whole body) and inside its
+// own material's patch; the slope of that height is the pixel's facing,
+// lit from the top left. That, a little darker towards the feet and in the
+// crease under another material, picks one of the ramp's steps, cut hard.
+// A lone pixel of a tone among its material's others takes theirs.
+function buildArtSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS, opts = {}) {
+  const A = T.art, F = A.form, kind = opts.kind || 'prop';
+  const outline = opts.outline || A.outline[kind] || 'black';
+  const shift = opts.hueShift === false ? null : opts.hueShift || A.hueShift;
+  const tones = opts.tones || A.tones, dither = opts.dither !== undefined ? opts.dither : A.dither;
   pal = pal ? Object.assign({}, ART.pal, pal) : ART.pal;
-  const SPRITE_CHARS_ = letters, SPRITE_GLOWS_ = glows instanceof Set ? glows : new Set(glows);
-  const h = rows.length, w = Math.max(...rows.map((r) => r.length));
-  const at = (x, y) => (y < 0 || y >= h || x < 0 || x >= w ? '.' : rows[y][x] || '.');
-  const op = (x, y) => at(x, y) !== '.';
-  const mat = (x, y) => (op(x, y) ? SPRITE_CHARS_[at(x, y)][0] : null);
-  let x0 = w, x1 = 0, y0 = h, y1 = 0;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (op(x, y)) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-  const P = pixBuf(w + 2, h + 2);
+  const G = glows instanceof Set ? glows : new Set(glows);
+  const h = rows.length, w = Math.max(...rows.map((r) => r.length)), W = w + 2, H = h + 2, N = W * H;
+  // the grid, a pixel of clear all round: each cell's letter entry, or null
+  const L = new Array(N).fill(null);
+  let y0 = H, y1 = 0;
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
-      if (!op(x, y)) continue;
-      const [m, forced] = SPRITE_CHARS_[at(x, y)], ramp = pal[m], glow = SPRITE_GLOWS_.has(m), n = ramp.length;
-      let i;
-      if (glow) i = n - 1;
-      else if (forced !== undefined) i = forced;
-      else {
-        const top = !op(x, y - 1) || !op(x - 1, y), bot = !op(x, y + 1) || !op(x + 1, y);
-        const v = (y - y0) / Math.max(1, y1 - y0), u = (x - x0) / Math.max(1, x1 - x0);
-        let l = 0.86 - 0.4 * v - 0.22 * u + (top ? 0.24 : 0) - (bot ? 0.3 : 0);
-        const above = mat(x, y - 1);
-        if (above && above !== m && !SPRITE_GLOWS_.has(above)) l -= 0.22;
-        i = Math.floor(l * n + (bayerAt(x, y) - 0.5));
-      }
-      putPx(P, x + 1, y + 1, ramp[clamp(i, 0, n - 1)], glow);
+      const ch = rows[y][x];
+      if (!ch || ch === '.') continue;
+      L[(y + 1) * W + x + 1] = letters[ch];
+      y0 = Math.min(y0, y + 1); y1 = Math.max(y1, y + 1);
     }
-  for (let y = -1; y <= h; y++)
-    for (let x = -1; x <= w; x++)
-      if (!op(x, y) && (op(x - 1, y) || op(x + 1, y) || op(x, y - 1) || op(x, y + 1))) putPx(P, x + 1, y + 1, ART.outline);
+  // how far each pixel lies inside the silhouette (dS) and inside its own
+  // material's patch (dM): two chamfer passes
+  const BIG = 1e6, dS = new Float32Array(N), dM = new Float32Array(N);
+  for (let i = 0; i < N; i++) dS[i] = dM[i] = L[i] ? BIG : 0;
+  const pass = (from, to, by, nbrs) => {
+    for (let i = from; i !== to; i += by) {
+      if (!L[i]) continue;
+      for (const [o, c] of nbrs) {
+        const j = i + o;
+        if (dS[j] + c < dS[i]) dS[i] = dS[j] + c;
+        const m = L[j] && L[j][0] === L[i][0] ? dM[j] : 0;
+        if (m + c < dM[i]) dM[i] = m + c;
+      }
+    }
+  };
+  pass(W + 1, N - W - 1, 1, [[-1, 1], [-W, 1], [-W - 1, 1.4], [-W + 1, 1.4]]);
+  pass(N - W - 2, W, -1, [[1, 1], [W, 1], [W + 1, 1.4], [W - 1, 1.4]]);
+  const px = A.px, rE = F.edge * px, rB = Math.max(rE + 1, F.body * Math.min(w, h)), rP = F.part * px;
+  const hgt = new Float32Array(N);
+  for (let i = 0; i < N; i++) if (L[i]) hgt[i] = 0.45 * Math.min(1, (dS[i] - 0.5) / rE) + 0.35 * Math.min(1, (dS[i] - 0.5) / rB) + 0.2 * Math.min(1, (dM[i] - 0.5) / rP);
+  // each pixel's step on its ramp; -1 for glows and forced steps, which
+  // stay as they are
+  const idx = new Int8Array(N).fill(-1), ramps = new Array(N), LX = -0.46, LY = -0.62, LZ = 0.64;
+  for (let i = 0; i < N; i++) {
+    const e = L[i];
+    if (!e) continue;
+    const [m, forced] = e, glow = G.has(m);
+    const ramp = glow ? pal[m] : hueRamp(pal[m], shift);
+    ramps[i] = ramp;
+    if (glow || forced !== undefined) continue;
+    const x = i % W, y = (i - x) / W, n = ramp.length;
+    const nx = -(hgt[i + 1] - hgt[i - 1]) * F.depth, ny = -(hgt[i + W] - hgt[i - W]) * F.depth;
+    const lam = Math.max(0, (LX * nx + LY * ny + LZ) / Math.hypot(nx, ny, 1)) / LZ;
+    let s = 0.6 + (lam - 1) * (lam > 1 ? F.light : F.shade) - F.fall * ((y - y0) / Math.max(1, y1 - y0));
+    const above = L[i - W];
+    if (above && above[0] !== m && !G.has(above[0])) s -= F.crease;
+    idx[i] = Math.max(0, Math.min(n - 1, Math.floor(s * n + (dither ? bayerAt(x, y) - 0.5 : 0))));
+  }
+  // no orphans: a pixel whose tone none of its material's neighbours share
+  // (with at least two of them about it) takes the tone most of them have
+  const fixed = idx.slice();
+  for (let i = 0; i < N; i++) {
+    if (idx[i] < 0) continue;
+    const m = L[i][0], seen = [];
+    let alone = true;
+    for (const o of [-1, 1, -W, W, -W - 1, -W + 1, W - 1, W + 1]) {
+      const j = i + o;
+      if (!L[j] || L[j][0] !== m || idx[j] < 0) continue;
+      if (idx[j] === idx[i]) { alone = false; break; }
+      if (o === -1 || o === 1 || o === -W || o === W) seen.push(idx[j]);
+    }
+    if (!alone || seen.length < 2) continue;
+    seen.sort((a, b) => seen.filter((v) => v === b).length - seen.filter((v) => v === a).length);
+    fixed[i] = seen[0];
+  }
+  // a lone darkest-step pixel drawn into the rows (a lower-case letter)
+  // grows into a cluster: the pixel under it darkens too
+  for (let i = 0; i < N; i++) {
+    const e = L[i];
+    if (!e || e[1] !== 0 || G.has(e[0])) continue;
+    let alone = true;
+    for (const o of [-1, 1, -W, W, -W - 1, -W + 1, W - 1, W + 1]) { const j = i + o; if (L[j] && L[j][0] === e[0] && (L[j][1] === 0 || fixed[j] === 0)) { alone = false; break; } }
+    if (alone && L[i + W] && L[i + W][0] === e[0] && fixed[i + W] > 0) fixed[i + W] = 0;
+  }
+  const P = pixBuf(W, H), solid = new Uint8Array(N);
+  for (let i = 0; i < N; i++) {
+    const e = L[i];
+    if (!e) continue;
+    const ramp = ramps[i], n = ramp.length, glow = G.has(e[0]);
+    const k = glow ? n - 1 : e[1] !== undefined ? e[1] : toneMap(n, tones)[fixed[i]];
+    putPx(P, i % W, (i / W) | 0, ramp[Math.max(0, Math.min(n - 1, k))], glow);
+    solid[i] = 1;
+  }
+  outlineBuf(P, solid, outline);
   return spriteFromBuf(P);
 }
 
@@ -191,31 +375,32 @@ function paintShard(P, x, y, h, w, r, glow, glintGlow) {
 }
 
 // One tile of cave, pixel by pixel along the smooth wall line. rock(x, y):
-// is that floor pixel rock (from the floor's field). Ground is dithered and
-// darkened just under a wall; rock is a dark top, a lit rim where it meets
-// the ground above or beside it, and a lit face where the ground is below
-// it.
+// is that floor pixel rock (from the floor's field). Ground is clumps of
+// its three tones, darkened just under a wall; rock is a dark top in
+// clumps, a lit rim where it meets the ground above or beside it, and a
+// face where the ground is below it, in three bands broken by streaks.
 const FACE_H = 6;
-// A ramp as [r, g, b] colours, and a rock ramp's shaded rim, worked out once.
+// A ramp hue-shifted for the ground, as [r, g, b] colours, and a rock
+// ramp's shaded rim, worked out once.
 const _rampRgbs = new WeakMap(), _rimRgbs = new WeakMap();
 function rampRgb(ramp) {
   let v = _rampRgbs.get(ramp);
-  if (!v) { v = ramp.map(rgbOf); _rampRgbs.set(ramp, v); }
+  if (!v) { v = hueRamp(ramp, T.art.groundHue).map(rgbOf); _rampRgbs.set(ramp, v); }
   return v;
 }
 function rimRgb(rock) {
   let v = _rimRgbs.get(rock);
-  if (!v) { v = rgbOf(mix(rock[3], rock[2], 0.45)); _rimRgbs.set(rock, v); }
+  if (!v) { const g = hueRamp(rock, T.art.groundHue); v = rgbOf(mix(g[3], g[2], 0.45)); _rimRgbs.set(rock, v); }
   return v;
 }
 // The rock round a tile being painted, read once: CAVE_MW × CAVE_MH pixels from
 // (ox - 7, oy - 10), as far as a tile's pixels look. field: the floor's rock
 // pixels (P.w × P.h, 1 for rock), if at hand, read straight instead of
-// through rock().
+// through rock(). seedH: the floor's, for its texture.
 const CAVE_MW = TILE + 8, CAVE_MH = TILE + 10 + FACE_H, _caveMask = new Uint8Array(CAVE_MW * CAVE_MH);
 function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
   const f = rampRgb(b.floor), r = rampRgb(b.rock), fr = rampRgb(b.front), rim = rimRgb(b.rock), C = P.col, E = P.em, M = _caveMask;
-  const paving = !!b.paving, sun = !!b.sun;
+  const A = T.art, paving = !!b.paving, sun = !!b.sun, cut = A.cluster.cut, dz = A.groundDither, gs = A.cluster.grain * A.px;
   for (let j = 0; j < CAVE_MH; j++) {
     const y = oy - 10 + j, x0 = ox - 7;
     if (field && y >= 0 && y < P.h && x0 >= 0 && x0 + CAVE_MW <= P.w) for (let i = 0, k = y * P.w + x0; i < CAVE_MW; i++) M[j * CAVE_MW + i] = field[k + i];
@@ -223,24 +408,30 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
   }
   for (let y = oy; y < oy + TILE; y++)
     for (let x = ox; x < ox + TILE; x++) {
-      const t = (BAYER4[((y & 3) << 2) | (x & 3)] + 0.5) / 16, q = rnd(), m = (y - oy + 10) * CAVE_MW + x - ox + 7;
+      const t = (BAYER4[((y & 3) << 2) | (x & 3)] + 0.5) / 16, m = (y - oy + 10) * CAVE_MW + x - ox + 7;
       let c, n;
       if (!M[m]) {
-        n = Math.floor((0.5 + (q - 0.5) * 0.7) * 3 + t - 0.5);
-        let shade = n < 0 ? 0 : n > 2 ? 2 : n;
-        // flagstones: dark seams, each row of stones set off from the last
-        if (paving && (y % 9 === 0 || (x + ((y / 9) | 0) * 5) % 11 === 0)) shade = 0;
-        if (M[m - CAVE_MW] || M[m - 2 * CAVE_MW] || (M[m - 3 * CAVE_MW] && t < 0.5)) shade = 0;
-        else if (sun && (M[m - 4 * CAVE_MW - 3] || M[m - 7 * CAVE_MW - 5] || (M[m - 10 * CAVE_MW - 7] && t < 0.5))) shade = 0;
+        let shade = 1 + artClump(x, y, seedH, cut);
+        if (paving) {
+          // flagstones: dark seams, each row of stones set off from the
+          // last, each stone a little lighter or darker than its neighbours,
+          // bevelled light along its top and left
+          const row = (y / 9) | 0, sx = x + row * 5, gy = y % 9, gx = sx % 11;
+          if (gy === 0 || gx === 0) shade = 0;
+          else if (gy === 1 || gx === 1) shade = 2;
+          else if (shade === 1 && artHash((sx / 11) | 0, row, seedH) < 0.35) shade = 2;
+        }
+        if (M[m - CAVE_MW] || M[m - 2 * CAVE_MW] || (dz && M[m - 3 * CAVE_MW] && t < 0.5)) shade = 0;
+        else if (sun && (M[m - 4 * CAVE_MW - 3] || M[m - 7 * CAVE_MW - 5] || (dz && M[m - 10 * CAVE_MW - 7] && t < 0.5))) shade = 0;
         c = f[shade];
       } else {
         let below = 0;
         for (let k = 1; k <= FACE_H; k++) if (!M[m + k * CAVE_MW]) { below = k; break; }
         if (below === FACE_H) c = r[3];
-        else if (below) { n = Math.floor((below / FACE_H) * 2.2 + t - 0.5); c = fr[n < 0 ? 0 : n > 2 ? 2 : n]; }
+        else if (below) { n = Math.floor((below / FACE_H) * 3 + artNoise(x, y * 0.3, gs, seedH + 3) * 0.6); c = fr[n < 0 ? 0 : n > 2 ? 2 : n]; }
         else if (!M[m - 1] || !M[m - CAVE_MW]) c = r[3];
         else if (!M[m + 1]) c = rim;
-        else { n = Math.floor((0.5 + (q - 0.5) * 0.6) * 3 + t - 0.5); c = r[n < 0 ? 0 : n > 2 ? 2 : n]; }
+        else c = r[1 + artClump(x, y, seedH + 11, A.rockCut)];
       }
       const k = (y * P.w + x) * 4;
       C[k] = c[0]; C[k + 1] = c[1]; C[k + 2] = c[2]; C[k + 3] = 255; E[k + 3] = 0;
@@ -248,20 +439,21 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
 }
 
 // The sinkhole, pixel by pixel. Where the ground's edge is above it, a
-// cliff face falls away into the dark; elsewhere a lit lip, then nothing.
+// cliff face falls away into the dark in bands; elsewhere a lit lip, then
+// nothing.
 const PIT_FACE = 14;
-function paintPitTile(P, rock, ox, oy, b, rnd) {
-  const fr = b.front, abyss = ['#000000', '#030306', '#06070c'];
+function paintPitTile(P, rock, ox, oy, b, rnd, seedH) {
+  const fr = rampRgb(b.front), fl = rampRgb(b.floor), abyss = ['#000000', '#030306', '#06070c'], dz = T.art.groundDither ? 0.5 : 0;
   for (let y = oy; y < oy + TILE; y++)
     for (let x = ox; x < ox + TILE; x++) {
-      const t = bayerAt(x, y);
-      if (!rock(x, y)) { putPx(P, x, y, b.floor[clamp(Math.floor(rnd() * 3 * 0.7 + t * 0.6), 0, 2)]); continue; }
+      const t = 0.5 + (bayerAt(x, y) - 0.5) * dz;
+      if (!rock(x, y)) { putPx(P, x, y, rgbToHex(...fl[1 + artClump(x, y, seedH, T.art.cluster.cut)])); continue; }
       let above = 0;
       for (let k = 1; k <= PIT_FACE; k++) if (!rock(x, y - k)) { above = k; break; }
-      if (above === 1) putPx(P, x, y, b.rock[3]);
-      else if (above) putPx(P, x, y, fr[clamp(Math.floor((1 - above / PIT_FACE) * 2.6 + t - 0.5), 0, 2)]);
+      if (above === 1) putPx(P, x, y, rgbToHex(...rampRgb(b.rock)[3]));
+      else if (above) putPx(P, x, y, rgbToHex(...fr[clamp(Math.floor((1 - above / PIT_FACE) * 2.6 + t - 0.5), 0, 2)]));
       else if (!rock(x, y + 1) || !rock(x - 1, y) || !rock(x + 1, y)) putPx(P, x, y, mix(b.rock[3], '#000000', 0.4));
-      else putPx(P, x, y, abyss[clamp(Math.floor(rnd() * 1.4 + t), 0, 2)]);
+      else putPx(P, x, y, abyss[1 + artClump(x, y, seedH + 5, 0.4)]);
     }
 }
 
@@ -393,10 +585,11 @@ const ENEMY_PAL = {
 // hit flashes. They move by bobbing, not by frames.
 function buildEnemySprites(biomeId) {
   const pal = ENEMY_PAL[biomeId], out = {};
-  for (const type of Object.keys(ENEMY_ROWS)) out[type] = buildArtSprite(ENEMY_ROWS[type], pal);
-  out.dummy = buildArtSprite(ENEMY_ROWS.construct, Object.assign({}, pal, { plate: ['#1c1810', '#3a3020', '#5e4c30', '#8a7048'], rune: [ART.pal.star[2]] }));
-  out.hollow = buildArtSprite(scale2xRows(ENEMY_ROWS.wisp), { shell: ['#000000', '#030205', '#07050c', '#0e0a16'], crystal: ['#2a0838'], coreglow: ['#ff2a6a'] });
-  out.warden = buildArtSprite(scale2xRows(ENEMY_ROWS.construct), Object.assign({}, pal, { plate: ['#0c0a0e', '#1e1a22', '#34303c', '#565064'] }));
+  const mk = (rows, p) => buildArtSprite(rows, p, undefined, undefined, ART_CREATURE);
+  for (const type of Object.keys(ENEMY_ROWS)) out[type] = mk(ENEMY_ROWS[type], pal);
+  out.dummy = mk(ENEMY_ROWS.construct, Object.assign({}, pal, { plate: ['#1c1810', '#3a3020', '#5e4c30', '#8a7048'], rune: [ART.pal.star[2]] }));
+  out.hollow = mk(scale2xRows(ENEMY_ROWS.wisp), { shell: ['#000000', '#030205', '#07050c', '#0e0a16'], crystal: ['#2a0838'], coreglow: ['#ff2a6a'] });
+  out.warden = mk(scale2xRows(ENEMY_ROWS.construct), Object.assign({}, pal, { plate: ['#0c0a0e', '#1e1a22', '#34303c', '#565064'] }));
   for (const type in out) { const s = out[type]; s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - 1.5; }
   return out;
 }
@@ -512,9 +705,10 @@ const ICON_ROWS = {
 
 const _iconCache = new Map();
 // The icon for an item as a data URL (for the screens), cached by look.
-// A sprite from art2.js, with its own letters and glows. pal: overrides.
-function art2Sprite(rows, pal) {
-  return buildArtSprite(rows, Object.assign({}, ART2_PAL, pal), Object.assign({}, SPRITE_CHARS, ART2_LETTERS), [...SPRITE_GLOWS, ...ART2_GLOWS]);
+// A sprite from art2.js, with its own letters and glows. pal: overrides;
+// opts: buildArtSprite's.
+function art2Sprite(rows, pal, opts) {
+  return buildArtSprite(rows, Object.assign({}, ART2_PAL, pal), Object.assign({}, SPRITE_CHARS, ART2_LETTERS), [...SPRITE_GLOWS, ...ART2_GLOWS], opts);
 }
 
 function itemIconUrl(item) {

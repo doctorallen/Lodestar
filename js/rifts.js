@@ -138,12 +138,12 @@ function paintGraft(f, tx0, ty0, tx1, ty1) {
 }
 
 // After painting (px x0..x1, y0..y1): the ground round an open tear washes
-// violet, with now and then a pixel of the rift's colours, and a graft's
+// violet in steps, with small clumps of the rift's colours here and there, and a graft's
 // edge glows where the two places are stitched together.
 function tintRift(f, x0, y0, x1, y1) {
   const P = View.floorBuf, S = RIFT_SHIFT;
   if (!P || (!f.riftShift && !f.graft)) return;
-  const to = rgbOf(S.floorToward), edge = rgbOf(S.fringe[1]), fr = S.fringe.map(rgbOf), reach = T.rifts.tintR * TILE;
+  const to = rgbOf(S.floorToward), edge = rgbOf(S.fringe[1]), fr = S.fringe.map(rgbOf), reach = T.rifts.tintR * TILE, dz = T.art.groundDither, fs = 2.5 * T.art.px;
   x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(P.w, x1); y1 = Math.min(P.h, y1);
   const gf = f.graft;
   // the graft's outline stays within its radius and a tile and a half of
@@ -161,16 +161,17 @@ function tintRift(f, x0, y0, x1, y1) {
       let t = 0;
       if (f.riftShift) for (const s of f.riftShift) { const dx = x - (s.x + 0.5) * TILE, dy = y - (s.y + 0.5) * TILE; if (dx < reach && dx > -reach && dy < reach && dy > -reach) t = Math.max(t, 1 - Math.hypot(dx, dy) / reach); }
       if (t > 0) {
-        const a = Math.min(1, t * 1.4) * S.amount;
+        // the wash, in three hard steps, dithered only at their edges
+        const a = Math.min(3, Math.floor(Math.min(1, t * 1.4) * 3 + 0.5 + (dz ? (bayerAt(x, y) - 0.5) * 0.5 : 0))) / 3 * S.amount;
         c[k] += (to[0] - c[k]) * a; c[k + 1] += (to[1] - c[k + 1]) * a; c[k + 2] += (to[2] - c[k + 2]) * a;
-        const h = hashInts(x, y, 0x41f8) % S.fringeEvery;
-        if (h < 2 && t > 0.2) { const q = fr[h]; c[k] = q[0]; c[k + 1] = q[1]; c[k + 2] = q[2]; e[k] = q[0]; e[k + 1] = q[1]; e[k + 2] = q[2]; e[k + 3] = 200; }
+        // the fringe: small clumps of the rift's two colours, never lone pixels
+        if (t > 0.2 && artNoise(x, y, fs, 0x41f8) > S.fringeCut) { const q = fr[artNoise(x, y, fs * 4, 0x41f9) > 0 ? 0 : 1]; c[k] = q[0]; c[k + 1] = q[1]; c[k + 2] = q[2]; e[k] = q[0]; e[k + 1] = q[1]; e[k + 2] = q[2]; e[k + 3] = 200; }
       }
       // the seam, on open ground only: in the rock it would draw the grid
       if (gf && Math.abs(x - gx) < gr && Math.abs(y - gy) < gr && !View.rockPx[y * P.w + x]) {
         const g = gm(x, y);
         if (gm(x + 1, y) !== g || gm(x, y + 1) !== g) {
-          const lit = hashInts(x, y, 0x5ea) % 3 !== 0;
+          const lit = artNoise(x, y, fs, 0x5ea) > -0.35;
           c[k] += (edge[0] - c[k]) * 0.55; c[k + 1] += (edge[1] - c[k + 1]) * 0.55; c[k + 2] += (edge[2] - c[k + 2]) * 0.55;
           if (lit) { e[k] = edge[0]; e[k + 1] = edge[1]; e[k + 2] = edge[2]; e[k + 3] = 110; }
         }

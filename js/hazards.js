@@ -185,9 +185,14 @@ function paintVent(P, cx, cy, b) {
   if (!steam) for (const [i, j] of [[0, 0], [-1, 0], [0, 1], [1, 0]]) putPx(P, cx + i, cy + j, '#6a1a08', true);
 }
 
-// The bed a spore pod grows from.
+// The bed a spore pod grows from: a hollow, its far (lower right) lip
+// catching the light, its near one in shadow, dark in the middle.
 function paintPodBed(P, cx, cy, b) {
-  for (let j = -3; j <= 3; j++) for (let i = -6; i <= 6; i++) if ((i * i) / 36 + (j * j) / 9 <= 1) putPx(P, cx + i, cy + j, (i + j) % 3 ? b.front[0] : b.rock[2]);
+  for (let j = -3; j <= 3; j++)
+    for (let i = -6; i <= 6; i++) {
+      const e = (i * i) / 36 + (j * j) / 9;
+      if (e <= 1) putPx(P, cx + i, cy + j, e < 0.5 ? b.rock[2] : i * 0.5 + j > 0 ? b.front[2] : b.front[0]);
+    }
 }
 
 // Rock woven of old roots (Rootdeep): strands wandering over the rock's

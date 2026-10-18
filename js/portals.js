@@ -41,12 +41,13 @@ function portalSprite(zone) {
   const L = PORTAL_LOOKS[zone] || PORTAL_LOOKS.cave, P = pixBuf(PORTAL_W, PORTAL_H), S = LODESTONE, C = PORTAL_C;
   const solid = new Uint8Array(PORTAL_W * PORTAL_H);
   const put = (x, y, col, glow) => { putPx(P, x, y, col, glow); solid[y * PORTAL_W + x] = 1; };
-  const step = (v, x, y) => S[clamp(Math.floor(v * 4 + bayerAt(x, y) - 0.5), 0, 3)];
+  // a tone by form, cut hard (no dither on a prop)
+  const step = (v) => S[clamp(Math.floor(v * 4), 0, 3)];
   // the plinth: a slab, lit along its top
   for (let y = 27; y < 32; y++)
     for (let x = 1; x < 24; x++) {
       if (y === 27 && (x < 3 || x > 21)) continue;
-      put(x, y, y === 27 ? S[3] : y === 28 ? step(0.62, x, y) : step(0.3 - (y - 29) * 0.06, x, y));
+      put(x, y, y === 27 ? S[3] : y === 28 ? step(0.62) : step(0.3 - (y - 29) * 0.06));
     }
   // the ring: lit from the top left on its outer side, from the bottom
   // right inside, flat across its face
@@ -59,9 +60,9 @@ function portalSprite(zone) {
       if (eo > 0.8) v = 0.55 - 0.42 * (nx * 0.6 + ny * 0.8);
       else if (ei < 1.3) v = 0.4 + 0.4 * (nx * 0.6 + ny * 0.8);
       else v = 0.62 - 0.12 * ny;
-      let col = step(v, x, y);
-      // veins of star metal in the stone
-      if ((hashInts(x, y, 0x10de) & 31) === 0) col = ART.pal.star[1];
+      let col = step(v);
+      // veins of star metal in the stone, in short runs
+      if (artNoise(x, y * 2, 2.5 * T.art.px, 0x10de) > 0.66) col = ART.pal.star[1];
       put(x, y, col);
     }
   // runes round the ring, in the destination's colour
@@ -74,22 +75,16 @@ function portalSprite(zone) {
   for (let y = 0; y < 7; y++) for (let x = C.x - 3; x <= C.x + 3; x++) put(x, y, y === 0 || x === C.x - 3 ? S[3] : x === C.x + 3 || y === 6 ? S[1] : S[2]);
   for (let y = 2; y <= 4; y++) for (let x = C.x - 1; x <= C.x + 1; x++) put(x, y, S[0]);
   for (const [i, j] of L.glyph) put(C.x + i, 3 + j, L.face[3], true);
-  // a dark outline round everything solid
-  for (let y = 0; y < PORTAL_H; y++)
-    for (let x = 0; x < PORTAL_W; x++) {
-      if (solid[y * PORTAL_W + x]) continue;
-      const dx = x - C.x, dy = y - C.y;
-      if ((dx / PORTAL_IN[0]) ** 2 + (dy / PORTAL_IN[1]) ** 2 <= 1) continue;
-      const near = (i, j) => x + i >= 0 && y + j >= 0 && x + i < PORTAL_W && y + j < PORTAL_H && solid[(y + j) * PORTAL_W + x + i];
-      if (near(1, 0) || near(-1, 0) || near(0, 1) || near(0, -1)) putPx(P, x, y, ART.outline);
-    }
+  // an outline round everything solid but the open face: a sel-out, or as
+  // T.art.outline.prop says
+  outlineBuf(P, solid, T.art.outline.prop, (x, y) => ((x - C.x) / PORTAL_IN[0]) ** 2 + ((y - C.y) / PORTAL_IN[1]) ** 2 <= 1);
   const s = spriteFromBuf(P);
   s.ax = C.x + 0.5; s.ay = PORTAL_H - 2;
   return (_portalSprites[zone] = s);
 }
 
 // The face, one frame of its swirl: two arms turning about a bright eye,
-// darker towards the ring. All of it glows.
+// darker towards the ring, in hard bands. All of it glows.
 const _portalFaces = {};
 function portalFace(zone, k) {
   const key = zone + k;
@@ -102,7 +97,7 @@ function portalFace(zone, k) {
       if (r > 1) continue;
       const arm = Math.sin(2 * Math.atan2(v, u) + 6 * r - ph);
       const val = 0.32 + 0.28 * arm * (0.4 + r) + 0.7 * (1 - r) ** 3 - 0.3 * r ** 4;
-      putPx(P, x, y, L.face[clamp(Math.floor(val * 4 + bayerAt(x, y) - 0.5), 0, 3)], true);
+      putPx(P, x, y, L.face[clamp(Math.floor(val * 4), 0, 3)], true);
     }
   return (_portalFaces[key] = spriteFromBuf(P));
 }

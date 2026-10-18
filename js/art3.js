@@ -433,10 +433,10 @@ const RIFT_ROWS = [
   ]
 ];
 // Near an open rift: mix the biome's floor, rock and front ramps toward
-// these colours by 'amount'; 1 ground pixel in 'fringeEvery' gets a cyan and
-// magenta pair (flickering); the rift lights the ground in 'light', radius
+// these colours by 'amount', in steps; where the ground's noise is over
+// 'fringeCut' it takes a small clump of cyan or magenta; the rift lights the ground in 'light', radius
 // 3 tiles, pulsing.
-const RIFT_SHIFT = {"floorToward":"#3a1c5a","rockToward":"#12061e","frontToward":"#5a2a8a","amount":0.55,"fringe":["#5ae8ff","#ff4ae0"],"fringeEvery":40,"light":"#c060ff"};
+const RIFT_SHIFT = {"floorToward":"#3a1c5a","rockToward":"#12061e","frontToward":"#5a2a8a","amount":0.55,"fringe":["#5ae8ff","#ff4ae0"],"fringeCut":0.62,"light":"#c060ff"};
 
 const TOOL_ROWS = {
   compass: [

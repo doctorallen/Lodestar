@@ -8,7 +8,7 @@
 // A frame is drawn in two layers, colour (the view) and emissive (what
 // glows), then lit: the world dims to an ambient light, each light source
 // (the helmet lamp, ore, fungus, the lodeline) adds its colour back, the
-// light is cut into a few dithered bands. The emissive layer is a canvas
+// light is cut into a few hard bands. The emissive layer is a canvas
 // stacked over the view, so it shows at its own colour; its bloom is
 // another over that, which the browser adds on, and what's drawn unlit
 // (health bars, numbers) is in a third on top. A floor is painted
@@ -67,7 +67,7 @@ const FACINGS = ['E', 'SE', 'S', 'SE', 'E', 'NE', 'N', 'NE'];
 const MIRRORED = [false, false, false, true, true, true, false, false];
 function buildSprites() {
   Sprites.diver = FACINGS.map((name, i) => DIVER_FRAMES[name].map((rows) => {
-    let s = buildArtSprite(rows, DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS);
+    let s = buildArtSprite(rows, DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS, ART_CREATURE);
     s.ax = s.w / 2; s.ay = s.h - 2.5;
     const [hx, hy] = DIVER_HAND[name];
     s.hand = { x: hx + 1, y: hy + 1 };
@@ -213,7 +213,7 @@ function paintTileArt(f, tx, ty) {
   _tileSeed = hashInts(f.seed, f.depth, tx, ty) | 0;
   const rnd = tileRnd;
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
-  if (t === TILE_PIT) { paintPitTile(P, rock, ox, oy, b, rnd); return; }
+  if (t === TILE_PIT) { paintPitTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth); return; }
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
   if (f.clime) paintClimeTile(P, f, tx, ty, ox, oy, b);
   if (t === TILE_PAD) paintDish(P, ox, oy);
@@ -386,7 +386,7 @@ function lightFade(d) { const s = d * 4, n = s | 0; return LIGHT_FADE[n] + (LIGH
 // fading out to r.
 function addLight(L, x, y, r, i, c) {
   if (!(r > 0) || !(i > 0)) return;
-  const s = i * T.light.bands, cr = c[0] * s, cg = c[1] * s, cb = c[2] * s, k = 1 / r, a = L.a;
+  const s = i * T.art.lightSteps, cr = c[0] * s, cg = c[1] * s, cb = c[2] * s, k = 1 / r, a = L.a;
   const i0 = Math.max(0, Math.floor((x - r) / 2) - L.x0), i1 = Math.min(L.w - 1, Math.ceil((x + r) / 2) - L.x0);
   const j0 = Math.max(0, Math.floor((y - r) / 2) - L.y0), j1 = Math.min(L.h - 1, Math.ceil((y + r) / 2) - L.y0);
   for (let j = j0; j <= j1; j++) {
@@ -405,7 +405,7 @@ function addLight(L, x, y, r, i, c) {
 // A light along a vertical line from y0 down to y1 (the lodeline's beam).
 function addBeamLight(L, x, y0, y1, r, i, c) {
   if (!(r > 0) || !(i > 0)) return;
-  const s = i * T.light.bands, a = L.a;
+  const s = i * T.art.lightSteps, a = L.a;
   const i0 = Math.max(0, Math.floor((x - r) / 2) - L.x0), i1 = Math.min(L.w - 1, Math.ceil((x + r) / 2) - L.x0);
   const j0 = Math.max(0, Math.floor(y0 / 2) - L.y0), j1 = Math.min(L.h - 1, Math.ceil(y1 / 2) - 1 - L.y0);
   for (let n = i0; n <= i1; n++) {
@@ -431,11 +431,13 @@ function bakeFloorLights(f) {
 // Starts the view's light for a frame: ambient (r, g, b), plus what's
 // baked, on the grid under a camera at world cx, cy.
 function startLight(cx, cy, r, g, b) {
-  const L = View.light, B = View.bake, a = L.a, s = T.light.bands;
+  const L = View.light, B = View.bake, a = L.a, s = T.art.lightSteps;
   L.x0 = Math.floor(cx / 2); L.y0 = Math.floor(cy / 2);
-  // ambient in steps of 1/127.5, as when light was drawn into a canvas, so
-  // flat light dithers the same
-  r = Math.floor(r * 127.5) / 127.5 * s; g = Math.floor(g * 127.5) / 127.5 * s; b = Math.floor(b * 127.5) / 127.5 * s;
+  // ambient snapped to a whole band (its colour kept), so flat light is
+  // one flat step and never sits on a step's dithered edge
+  r *= s; g *= s; b *= s;
+  const I = Math.max(r, g, b), k = I > 0 ? Math.max(1, Math.round(I)) / I : 0;
+  r *= k; g *= k; b *= k;
   for (let j = 0; j < L.h; j++) {
     const by = j + L.y0, row = B && by >= 0 && by < B.h;
     let o = j * L.w * 3;
@@ -447,30 +449,33 @@ function startLight(cx, cy, r, g, b) {
   }
 }
 
-// Multiplies the view by the light, in dithered bands (the emissive layer
-// over it shows at its own colour). cx, cy: the camera in the
-// world, which the dither is fixed to. _bandMul[(band << 8) + v] is v lit
-// by that band.
-let _bandMul = null, _bandTop = 0;
+// Multiplies the view by the light, its brightness in hard bands
+// (T.art.lightSteps for each 1.0 of light) dithered only just at each
+// step's edge (T.art.lightDither), its colour kept as it is: the band is
+// of the brightest channel, and the others scaled with it, so a tinted
+// light never changes hue at a step. The emissive layer over it shows at
+// its own colour. cx, cy: the camera in the world, which the dither is
+// fixed to.
 function lightScene(cx, cy) {
-  const w = View.w, h = View.h, Lt = T.light, L = View.light, a = L.a, lw = L.w * 3;
+  const w = View.w, h = View.h, Lt = T.light, A = T.art, L = View.light, a = L.a, lw = L.w * 3, dz = A.lightDither;
   const img = View.ctx.getImageData(0, 0, w, h), d = img.data;
   LateDots.on = false;
   lateDotsColour(d, w, h);
-  if (!_bandMul) {
-    _bandTop = Math.ceil(Lt.max * Lt.bands);
-    _bandMul = new Uint8ClampedArray((_bandTop + 1) * 256);
-    for (let n = 0; n <= _bandTop; n++) for (let v = 0; v < 256; v++) _bandMul[(n << 8) + v] = v * Math.min(Lt.max, n / Lt.bands);
-  }
-  const M = _bandMul, top = _bandTop, px = cx - 2 * L.x0, py = cy - 2 * L.y0, bt = [0, 0, 0, 0];
+  const top = Math.ceil(Lt.max * A.lightSteps), mx = Lt.max, inv = 1 / A.lightSteps;
+  const px = cx - 2 * L.x0, py = cy - 2 * L.y0, bt = [0, 0, 0, 0];
   for (let y = 0; y < h; y++) {
     const row = ((y + cy) & 3) * 4, base = ((y + py) >> 1) * lw;
-    for (let n = 0; n < 4; n++) bt[(n + cx) & 3] = (BAYER4[row + ((n + cx) & 3)] + 0.5) / 16;
+    // the threshold: a half (a hard step), give or take a little dither
+    for (let n = 0; n < 4; n++) bt[(n + cx) & 3] = 0.5 + ((BAYER4[row + ((n + cx) & 3)] + 0.5) / 16 - 0.5) * dz;
     for (let x = 0, k = y * w * 4; x < w; x++, k += 4) {
-      const o = base + ((x + px) >> 1) * 3, t = bt[(x + cx) & 3];
-      let q = (a[o] + t) | 0; d[k] = M[((q > top ? top : q) << 8) + d[k]];
-      q = (a[o + 1] + t) | 0; d[k + 1] = M[((q > top ? top : q) << 8) + d[k + 1]];
-      q = (a[o + 2] + t) | 0; d[k + 2] = M[((q > top ? top : q) << 8) + d[k + 2]];
+      const o = base + ((x + px) >> 1) * 3, r = a[o], g = a[o + 1], b = a[o + 2], I = r > g ? (r > b ? r : b) : g > b ? g : b;
+      if (I <= 0) { d[k] = d[k + 1] = d[k + 2] = 0; continue; }
+      let q = (I + bt[(x + cx) & 3]) | 0;
+      if (q > top) q = top;
+      const s = (q * inv) / I;
+      let f = r * s; d[k] *= f > mx ? mx : f;
+      f = g * s; d[k + 1] *= f > mx ? mx : f;
+      f = b * s; d[k + 2] *= f > mx ? mx : f;
     }
   }
   View.ctx.putImageData(img, 0, 0);
@@ -739,7 +744,7 @@ function enemySprite(d, type) {
   }
   if (type === 'keeper') {
     const key = 'keeper/' + id;
-    if (!_enemySprites[key]) { const s = art2Sprite(KEEPER_ROWS[id], KEEPER_PAL[id]); s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - 2; _enemySprites[key] = s; }
+    if (!_enemySprites[key]) { const s = art2Sprite(KEEPER_ROWS[id], KEEPER_PAL[id], ART_CREATURE); s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - 2; _enemySprites[key] = s; }
     return _enemySprites[key];
   }
   if (!_enemySprites[id]) {

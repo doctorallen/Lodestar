@@ -15,8 +15,9 @@
 // Math.random, as it changes nothing. They run on world time.
 // ---------------------------------------------------------------------------
 
-// Each kind's colours by biome, a letter a colour. No outline, unlike
-// everything that fights or can be picked up: they're part of the ground.
+// Each kind's colours by biome, a letter a colour: muted, so they read as
+// part of the place rather than as enemies or loot. Outlined as every
+// creature is (T.art.outline.creature).
 const LIFE_PAL = {
   // each region's lizards and birds stand out from its own ground
   lizard: {
@@ -81,9 +82,13 @@ function critSprite(kind, L, frame, dir) {
     for (let x = 0; x < w; x++) { let r = ''; for (let y = 0; y < h; y++) r += dir === 'n' ? rows[h - 1 - y][w - 1 - x] : rows[y][x]; out.push(r); }
     rows = out;
   }
+  // a creature: outlined like the rest (T.art.outline.creature), a pixel
+  // all round
+  const mode = T.art.outline.creature, pad = (src) => { const [p, x] = makeCanvas(src.width + 2, src.height + 2); x.drawImage(src, 1, 1); return p; };
   let c = spriteFrom(rows, lifePal(kind, L));
+  c = mode === 'none' ? pad(c) : outlined(c, mode === 'black' ? ART.outline : mix(lifePal(kind, L).D || '#000000', '#000000', 0.6));
   if (dir === 'w') c = flipped(c);
-  let ec = kind === 'scurrier' ? spriteFrom(rows.map((r) => r.replace(/[^E]/g, '.')), { E: LIFE_EYESHINE }) : makeCanvas(c.width, c.height)[0];
+  let ec = kind === 'scurrier' ? pad(spriteFrom(rows.map((r) => r.replace(/[^E]/g, '.')), { E: LIFE_EYESHINE })) : makeCanvas(c.width, c.height)[0];
   if (dir === 'w') ec = flipped(ec);
   const s = { c, ec, w: c.width, h: c.height };
   return (_critSprites[key] = s);
@@ -475,7 +480,7 @@ function drawCritter(d, c, ox, oy) {
     if (c.z > 3) { x.fillRect(fx - 1 + Math.round(c.z * 0.15), fy, 3, 1); return; }
     x.fillRect(fx - 2, fy, 4, 1);
     const s = critSprite('bird', d.life, c.peck > 0 ? 1 : 0, c.dir);
-    drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + 1 - Math.round(c.z));
+    drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + 2 - Math.round(c.z));
     return;
   }
   const moving = c.state === 'flee' || c.state === 'dart' || c.state === 'run';
@@ -487,7 +492,7 @@ function drawCritter(d, c, ox, oy) {
     return;
   }
   if (d.zone === 'surface') { x.fillStyle = 'rgba(0,0,0,0.28)'; x.fillRect(fx - Math.floor(s.w / 2) + 1, fy + 1, s.w - 2, 1); }
-  drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + 2);
+  drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + 3);
 }
 
 // Before the light: flying birds, moths, dust, drips.
