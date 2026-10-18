@@ -8,10 +8,10 @@
 // A frame is drawn in two layers, colour (the view) and emissive (what
 // glows), then lit: the world dims to an ambient light, each light source
 // (the helmet lamp, ore, fungus, the lodeline) adds its colour back, the
-// light is cut into a few dithered bands, and the emissive layer goes over
-// it at its own colour. Bloom from the emissive layer goes on last, in a
-// canvas stacked over the view that the browser adds on, and what's drawn
-// unlit (health bars, numbers) in another over that. A floor is painted
+// light is cut into a few dithered bands. The emissive layer is a canvas
+// stacked over the view, so it shows at its own colour; its bloom is
+// another over that, which the browser adds on, and what's drawn unlit
+// (health bars, numbers) is in a third on top. A floor is painted
 // once into pixel buffers when it's entered, and the tiles around a mined
 // one are repainted. Sprites carry anchors ax/ay at the feet.
 // ---------------------------------------------------------------------------
@@ -29,6 +29,8 @@ const Sparks = [];
 function setupView() {
   View.canvas = $('view');
   View.ctx = View.canvas.getContext('2d', { willReadFrequently: true });
+  View.em = $('view-glow');
+  View.emCtx = View.em.getContext('2d', { willReadFrequently: true });
   View.bloom = $('bloom');
   View.bloomCtx = View.bloom.getContext('2d');
   View.over = $('view-over');
@@ -46,11 +48,9 @@ function resizeView() {
   View.canvas.style.width = (w * k) / dpr + 'px';
   View.canvas.style.height = (h * k) / dpr + 'px';
   View.ctx.imageSmoothingEnabled = false;
-  for (const c of [View.bloom, View.over]) { c.width = w; c.height = h; c.style.width = View.canvas.style.width; c.style.height = View.canvas.style.height; }
-  // the layers drawn in software (they're read or drawn into the view), the
-  // overlay on the GPU where there is one
+  for (const c of [View.em, View.bloom, View.over]) { c.width = w; c.height = h; c.style.width = View.canvas.style.width; c.style.height = View.canvas.style.height; }
+  // the bloom's passes are drawn from the emissive layer in software
   const layer = (cw, ch) => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; return [c, c.getContext('2d', { willReadFrequently: true })]; };
-  [View.em, View.emCtx] = layer(w, h);
   // the light: a cell for each 2×2 pixels, with a spare row and column for
   // the grid's offset
   View.light = { a: new Float32Array(((w >> 1) + 2) * ((h >> 1) + 2) * 3), w: (w >> 1) + 2, h: (h >> 1) + 2, x0: 0, y0: 0 };
@@ -271,6 +271,28 @@ function drawArtSprite(spr, x, y) {
   ex.drawImage(spr.ec, x, y);
 }
 
+// The lodeline's beam, as dots dithered down a strip 2 × half wide at x;
+// one of each kind drawn once and kept.
+const _beamStrips = new Map();
+function beamStrip(x, tick, half) {
+  const key = `${x & 3} ${tick & 3} ${half} ${View.h}`;
+  let c = _beamStrips.get(key);
+  if (c) return c;
+  if (_beamStrips.size > 64) _beamStrips.clear();
+  const star = ART.pal.star, w = 2 * half, h = View.h, img = new ImageData(w, h), d = img.data, lit = rgbOf(star[2]), rim = rgbOf(star[1]);
+  for (let y = 0; y < h; y++)
+    for (let i = -half; i < half; i++) {
+      const edge = i === -half || i === half - 1;
+      if (bayerAt(x + i, y + tick) > (edge ? 0.45 : 0.75)) continue;
+      const k = (y * w + i + half) * 4, col = edge ? rim : lit;
+      d[k] = col[0]; d[k + 1] = col[1]; d[k + 2] = col[2]; d[k + 3] = (edge ? 0.55 : 0.8) * 255;
+    }
+  [c] = makeCanvas(w, h);
+  c.getContext('2d').putImageData(img, 0, 0);
+  _beamStrips.set(key, c);
+  return c;
+}
+
 // A pixel in colour, and in the emissive layer when it glows.
 function dot(x, y, col, glow, alpha = 1) {
   if (LateDots.on && lateDot(x, y, col, glow, alpha)) return;
@@ -350,8 +372,13 @@ function pixelLine(x0, y0, x1, y1, col) {
 // world cell its first one is. The view has one (View.light); the floor's
 // fixed lights, ore and glowing plants, are baked into another (View.bake).
 
+// How a light fades with distance d (0–1 of its radius): as (1 - d)², in
+// straight steps between quarters, as the gradients that used to draw it did.
+const LIGHT_FADE = [1, 0.5625, 0.25, 0.0625, 0, 0];
+function lightFade(d) { const s = d * 4, n = s | 0; return LIGHT_FADE[n] + (LIGHT_FADE[n + 1] - LIGHT_FADE[n]) * (s - n); }
+
 // Adds a light of colour c (0–1 a channel) and strength i at world x, y,
-// fading as (1 - d/r)² out to r.
+// fading out to r.
 function addLight(L, x, y, r, i, c) {
   if (!(r > 0) || !(i > 0)) return;
   const s = i * T.light.bands, cr = c[0] * s, cg = c[1] * s, cb = c[2] * s, k = 1 / r, a = L.a;
@@ -364,7 +391,7 @@ function addLight(L, x, y, r, i, c) {
     for (let n = i0; n <= i1; n++, o += 3, dx += 2 * k) {
       const q = dx * dx + dy2;
       if (q >= 1) continue;
-      const f = 1 - Math.sqrt(q), g = f * f;
+      const g = lightFade(Math.sqrt(q));
       a[o] += cr * g; a[o + 1] += cg * g; a[o + 2] += cb * g;
     }
   }
@@ -379,7 +406,8 @@ function addBeamLight(L, x, y0, y1, r, i, c) {
   for (let n = i0; n <= i1; n++) {
     const d = Math.abs(2 * (n + L.x0) + 1 - x) / r;
     if (d >= 1) continue;
-    const g = (1 - d) * (1 - d) * s, cr = c[0] * g, cg = c[1] * g, cb = c[2] * g;
+    // the beam's gradient had its steps at halves
+    const g = (d < 0.5 ? 1 - 1.5 * d : 0.5 - 0.5 * d) * s, cr = c[0] * g, cg = c[1] * g, cb = c[2] * g;
     for (let j = j0, o = (j0 * L.w + n) * 3; j <= j1; j++, o += L.w * 3) { a[o] += cr; a[o + 1] += cg; a[o + 2] += cb; }
   }
 }
@@ -414,8 +442,8 @@ function startLight(cx, cy, r, g, b) {
   }
 }
 
-// Multiplies the view by the light, in dithered bands, then lays the
-// emissive layer over it at its own colour. cx, cy: the camera in the
+// Multiplies the view by the light, in dithered bands (the emissive layer
+// over it shows at its own colour). cx, cy: the camera in the
 // world, which the dither is fixed to. _bandMul[(band << 8) + v] is v lit
 // by that band.
 let _bandMul = null, _bandTop = 0;
@@ -443,7 +471,6 @@ function lightScene(cx, cy) {
   View.ctx.putImageData(img, 0, 0);
   lateDotsGlow(w, h);
   LateDots.q.length = 0;
-  View.ctx.drawImage(View.em, 0, 0);
 }
 
 // Bloom from the emissive layer, soft at low resolution so it still reads
@@ -480,7 +507,7 @@ function renderFrame() {
   View.overCtx.clearRect(0, 0, View.w, View.h);
   LateDots.on = false; LateDots.q.length = 0;
   const d = Game.dive;
-  if (!d) { View.bloomCtx.clearRect(0, 0, View.w, View.h); return; }
+  if (!d) { View.emCtx.clearRect(0, 0, View.w, View.h); View.bloomCtx.clearRect(0, 0, View.w, View.h); return; }
   const f = d.floor, p = d.p, Lt = T.light, star = ART.pal.star;
   if (View.floorFor !== f) paintFloor(f);
   const fw = f.w * TILE, fh = f.h * TILE;
@@ -512,12 +539,8 @@ function renderFrame() {
   if (f.pad && !d.padDark) {
     const bx = (f.pad.x + 0.5) * TILE + ox, bot = (f.pad.y + 0.5) * TILE + oy, half = d.hub ? 3 : Math.max(1, Math.round(3 * Math.min(1, d.pull * 2)));
     if (bot > 0 && bx > -TILE && bx < View.w + TILE) {
-      for (let y = 0; y < bot; y++)
-        for (let i = -half; i < half; i++) {
-          const edge = i === -half || i === half - 1;
-          if (bayerAt(bx + i, y + tick) > (edge ? 0.45 : 0.75)) continue;
-          dot(Math.round(bx + i - 0.5), y, edge ? star[1] : star[2], true, edge ? 0.55 : 0.8);
-        }
+      const strip = beamStrip(bx, tick, half), rows = Math.min(bot, View.h);
+      if (rows > 0) for (const c of [x, ex]) c.drawImage(strip, 0, 0, 2 * half, rows, bx - half, 0, 2 * half, rows);
       for (let i = 0; i < 6; i++) {
         const y = Math.round(bot - ((Game.realT * 16 + (i * bot) / 6) % bot));
         dot(Math.round(bx - 0.5 + ((i * 7) % (2 * half)) - half), y, star[3], true);
