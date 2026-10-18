@@ -107,8 +107,12 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
 
 ## Presentation
 
-- Top-down pixel art with 16 px tiles. The view always shows at least 176 game pixels on its shorter side, scaled up by whole device pixels.
-- Placeholder art for now. The art style is still being chosen.
+- Top-down pixel art with 16 px tiles. The view always shows at least 176 game pixels on its shorter side (about 11–12 tiles), scaled up by whole device pixels.
+- **Art style: "Glow + Detail".** It takes a grim, desaturated palette with four-step ramps and ordered dithering, and sets it in darkness where only magitech gives off light: the helmet lamp, ore glints, runes, glowing fungus, singing crystals, magma, the lodelines and the Lodestar. Light comes in a few dithered bands, and glowing things bloom.
+- **Readability rule.** Rock tops are always darker than the floor, with lit rims and front faces where they meet it.
+- **Biome looks.** Each biome changes only its floor, rock and light colours, and what glows on its floor (fungus on the Rim, crystals in the Choir, magma in the Underforge).
+- **(proposed) Lamp radius as a dial.** The lamp's radius could shrink as danger rises with depth.
+- **Brightness setting.** Dark scenes lose contrast in bright sunlight, so the game will need one.
 
 ## First version: broad prototype
 

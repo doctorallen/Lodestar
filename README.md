@@ -26,8 +26,9 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/tuning.js` | Every gameplay number, the ores and the biomes |
 | `js/save.js` | The save in localStorage |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, shaft, lodeline |
+| `js/art.js` | The art style: palettes, sprites, tile painting into pixel buffers |
 | `js/game.js` | Game state, the dive, walking, mining, leaving |
-| `js/render.js` | The pixel view, the floor canvas, sprites, sparks |
+| `js/render.js` | The pixel view, the floor canvas, lighting and bloom, sparks |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
 | `js/ui.js` | The Lodestar and pause screens, the top bar, toasts |
 | `js/main.js` | Boot, the fixed-step loop, the upright and sideways layouts |

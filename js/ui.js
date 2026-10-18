@@ -77,26 +77,9 @@ const UI = {
   },
 };
 
-// The Lodestar on the home screen (placeholder art).
+// The Lodestar on the home screen.
 function drawLodestar() {
-  const star = spriteFrom([
-    '.....W.....',
-    '....WwW....',
-    '....WwG....',
-    '...WwwwG...',
-    '...WwwwG...',
-    '..WwwwwGG..',
-    '..WwwwwGG..',
-    '.WwwwwwGGG.',
-    'WwwwwwwGGGG',
-    '.dddddddDD.',
-    '..ddddddD..',
-    '..dddddDD..',
-    '...ddddD...',
-    '....dddD...',
-    '.....dD....',
-    '.....D.....',
-  ], { W: '#fff8e0', w: '#f5d27a', G: '#c9973a', d: '#b07d2a', D: '#7a5418' });
+  const star = spriteFrom(LODESTAR_ROWS, LODESTAR_PAL);
   const c = $('star'), x = c.getContext('2d');
   c.width = star.width; c.height = star.height;
   x.drawImage(star, 0, 0);

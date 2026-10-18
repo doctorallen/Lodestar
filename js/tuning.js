@@ -30,21 +30,31 @@ const T = {
   oreDeep: { base: 0.12, perFloor: 0.06, max: 0.6 },
 
   ores: [
-    { id: 'ferrite', name: 'Ferrite', tier: 1, hardness: 1.0, color: '#b8573a', glint: '#ffb27a' },
-    { id: 'lumenite', name: 'Lumenite', tier: 2, hardness: 1.5, color: '#2fae8f', glint: '#b8ffe6' },
-    { id: 'resonite', name: 'Resonite', tier: 3, hardness: 2.0, color: '#7364e8', glint: '#d6ccff' },
-    { id: 'aetherglass', name: 'Aetherglass', tier: 4, hardness: 2.6, color: '#7cc8e8', glint: '#f0fcff' },
-    { id: 'sigilite', name: 'Sigilite', tier: 5, hardness: 3.3, color: '#d9a02a', glint: '#fff0a8' },
-    { id: 'starmetal', name: 'Starmetal', tier: 6, hardness: 4.0, color: '#e8dcb0', glint: '#ffffff' },
+    { id: 'ferrite', name: 'Ferrite', tier: 1, hardness: 1.0 },
+    { id: 'lumenite', name: 'Lumenite', tier: 2, hardness: 1.5 },
+    { id: 'resonite', name: 'Resonite', tier: 3, hardness: 2.0 },
+    { id: 'aetherglass', name: 'Aetherglass', tier: 4, hardness: 2.6 },
+    { id: 'sigilite', name: 'Sigilite', tier: 5, hardness: 3.3 },
+    { id: 'starmetal', name: 'Starmetal', tier: 6, hardness: 4.0 },
   ],
 
+  // Each biome's look is in art.js, under the same id.
   biomes: [
-    // ground: the floor; rock: the tops of walls, darker than the floor so
-    // walls read as walls; wall: their lit faces and rims
-    { id: 'rim', name: 'The Rim', ores: ['ferrite', 'lumenite'], ground: '#3b342d', rock: '#141217', wall: '#5e5145', accent: '#8fe8d0' },
-    { id: 'choir', name: 'The Choir', ores: ['resonite', 'aetherglass'], ground: '#2e3346', rock: '#101119', wall: '#4d5574', accent: '#c4b8ff' },
-    { id: 'underforge', name: 'The Underforge', ores: ['sigilite', 'starmetal'], ground: '#3d2a24', rock: '#150d0c', wall: '#653a2e', accent: '#ffb85a' },
+    { id: 'rim', name: 'The Rim', ores: ['ferrite', 'lumenite'] },
+    { id: 'choir', name: 'The Choir', ores: ['resonite', 'aetherglass'] },
+    { id: 'underforge', name: 'The Underforge', ores: ['sigilite', 'starmetal'] },
   ],
+
+  // Light (render.js). The world dims to `ambient` (tinted); lights add back
+  // [radius in tiles, strength]; the result is cut into `bands` dithered
+  // steps, never brighter than `max`. decoChance: the share of open ground
+  // that grows something glowing. bloom: [downscale, strength] passes, times
+  // glow. The lamp's radius may become a dial that shrinks with depth.
+  light: {
+    ambient: 0.45, tint: [0.72, 0.76, 0.95], bands: 4, max: 1.9,
+    lamp: [5, 1.6], ore: [1.7, 0.75], deco: [1.4, 0.55], decoChance: 0.05,
+    glow: 0.75, bloom: [[3, 0.7], [7, 0.6]],
+  },
 
   ui: { tapGuard: 0.4 }, // seconds a new screen ignores taps
 };

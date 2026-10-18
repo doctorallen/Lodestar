@@ -20,8 +20,8 @@ git config core.hooksPath .githooks
 - **Seeded generation.** Floors come from `generateFloor(seed, depth, biome)` using `Rng(hashInts(seed, depth, biome, …))`, never `Math.random`, so a floor can be rebuilt and the golden hashes stay stable. Mining yields and (later) combat and loot rolls use `Game.dive.rng`. Cosmetic effects may use `Math.random` (`FX_R`).
 - **Time.** `Game.step(dt)` is one fixed 1/60 s step. The prospector runs on real time; the world runs on `dt * Game.timeScale`.
 - **Modals.** A screen sets `Game.modal`, which stops the simulation. Opening one calls `Input.block()`, and its buttons ignore taps for 400 ms.
-- **Rendering.** The world is drawn into the `#view` canvas at one game pixel per canvas pixel; CSS scales it up by whole device pixels, and the shorter side always shows at least `VIEW_MIN` (176) game px. A floor is painted once into its own canvas and tiles are repainted when mined. Sprites carry anchors `ax`/`ay` at the feet.
-- **Tiles.** 16 px. Rock tops are darker than the ground, so walls read as walls; walls with ground in front of them show a lit face.
+- **Rendering.** The world is drawn into the `#view` canvas at one game pixel per canvas pixel; CSS scales it up by whole device pixels (whole scales keep the dithering still), and the shorter side always shows at least `VIEW_MIN` (176) game px. Each frame has two layers, colour and emissive. It's lit in `lightScene` (ambient, plus each light source, in dithered bands, with emissive pixels at their own colour), then bloomed. A floor is painted once into pixel buffers (`art.js`), and the 3×3 tiles round a mined one are repainted. Sprites carry anchors `ax`/`ay` at the feet.
+- **Art style.** `art.js` holds the palettes, sprites and tile painters for the chosen style (see DESIGN.md, Presentation). Only magitech glows. Rock tops are always darker than the floor, with lit rims and faces, so walls read as walls. Light numbers live in `T.light`.
 
 ## Testing changes
 

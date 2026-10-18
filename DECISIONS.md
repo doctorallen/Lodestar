@@ -23,3 +23,7 @@ The major gameplay decisions, newest last, and why each was made. Read this befo
 - **Upright first, sideways too.** It's built for one-handed upright play, with NEO's sideways layout as well.
 - **A broad prototype first.** Every system in rough form across three biomes, to find what's fun before polishing.
 - **NEO's tech approach.** Plain JavaScript, no build step, seeded generation, headless tests, and deploying to GitHub Pages.
+
+## 2026-10-17: the art style
+
+- **"Glow + Detail": D's detail in B's darkness.** Of the five styles compared, this one fits the setting and the push-your-luck feel best. Light shows you where to look, because ore, runes and lodelines glow in the dark. The 16px tiles keep 11–12 tiles across a phone screen. Dark rock tops with lit rims keep walls readable even where the light is low.

@@ -126,7 +126,7 @@ function updateMining(dt) {
   p.mine.hitT -= dt;
   if (p.mine.hitT <= 0) {
     p.mine.hitT = T.mine.hitEvery;
-    spawnSparks((tgt.tx + 0.5) * TILE, (tgt.ty + 0.5) * TILE, o.glint, 4);
+    spawnSparks((tgt.tx + 0.5) * TILE, (tgt.ty + 0.5) * TILE, [ART.ores[o.id][3], '#ffffff'], 4);
     buzz(6);
   }
   if (p.mine.prog >= 1) breakOre(tgt, o);
@@ -140,9 +140,8 @@ function breakOre(tgt, o) {
   d.cargo[o.id] = (d.cargo[o.id] || 0) + n;
   d.cargoUsed += n;
   d.p.mine = null;
-  // the tile above may now show a front face, and the one below loses its shadow
-  for (let ty = tgt.ty - 1; ty <= tgt.ty + 1; ty++) repaintTile(f, tgt.tx, ty);
-  spawnSparks((tgt.tx + 0.5) * TILE, (tgt.ty + 0.5) * TILE, o.color, 12);
+  repaintAround(f, tgt.tx, tgt.ty);
+  spawnSparks((tgt.tx + 0.5) * TILE, (tgt.ty + 0.5) * TILE, ART.ores[o.id].slice(2), 12);
   UI.toast(`+${n} ${o.name}`);
   buzz(20);
 }
