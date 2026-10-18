@@ -270,6 +270,7 @@ function hurtEnemy(e, dmg, opts = {}) {
   d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit });
   if (opts.knock) { const k = e.boss ? 0.2 : e.type === 'construct' ? 0.5 : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
   if (opts.heavy && !e.boss && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
+  if (e.type === 'dummy') { if (e.hp <= 0) e.hp = e.maxHp; e.kvx = e.kvy = 0; return; }
   wake(d, e);
   if (st.leech) healPlayer((dmg * st.leech) / 100);
   if (!opts.noProc) {

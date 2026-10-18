@@ -124,6 +124,8 @@ const T = {
     wisp: { hp: 14, dmg: 8, speed: 28, radius: 4, keep: 60, range: 115, windup: 0.55, cooldown: 1.9, shotSpeed: 72, fanDepth: 3, weight: 3 },
     // constructs show where they'll charge; one that hits a wall is dazed
     construct: { hp: 45, dmg: 15, speed: 20, radius: 6, range: 80, windup: 0.7, cooldown: 2.2, chargeSpeed: 135, chargeTime: 0.5, dazed: 1.3, weight: 2, minDepth: 2 },
+    // the practice target at the outpost: it never fights back or falls
+    dummy: { hp: 400, dmg: 0, speed: 0, radius: 6 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },
     // a room's enemies: perRoom + perDepth × depth, give or take one
     perRoom: 1.2, perDepth: 0.35, maxPerRoom: 6,
@@ -164,7 +166,19 @@ const T = {
   // levels[n - 1] points in all. Each level past the first is an
   // attunement point and reaches lodelines a floor deeper. biomeAt: the
   // magnitude each biome opens at.
-  star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], biomeAt: [1, 3, 5] },
+  // extractStar: what a ride home feeds the star, times the depth squared.
+  star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], biomeAt: [1, 3, 5], extractStar: 3 },
+  // An ancient forge stands on a floor this deep or deeper, by chance.
+  fieldForge: { depth: 3, chance: 0.3 },
+  // The anvil: three strikes, each a marker sweeping a bar at `speeds`
+  // (sweeps a second); a strike inside the zone (zone wide, narrowing by
+  // shrink a strike) is good, inside its middle `perfect` is perfect.
+  // Quality (perfect 1, good 0.5, summed, rounded down) picks the rarity
+  // odds: [common, magic, rare, legendary] for quality 0–3.
+  anvil: {
+    speeds: [0.9, 1.25, 1.6], zone: 0.26, shrink: 0.04, perfect: 0.3,
+    odds: [[55, 35, 10, 0], [40, 42, 16, 2], [25, 44, 26, 5], [10, 38, 40, 12]],
+  },
   attune: {
     vitality: { name: 'Vitality', text: '+15 max health', max: 5, maxHp: 15 },
     capacity: { name: 'Capacity', text: '+6 cargo', max: 5, cargo: 6 },
@@ -173,14 +187,19 @@ const T = {
     stride: { name: 'Stride', text: '+5% move speed', max: 5, moveSpeed: 5 },
   },
 
-  // Light (render.js). The world dims to `ambient` (tinted); lights add back
+  // Light (render.js). The world dims to `ambient` (tinted; at home, the
+  // brighter hubAmbient); lights add back
   // [radius in tiles, strength]; the result is cut into `bands` dithered
-  // steps, never brighter than `max`. decoWall, decoOpen: the share of open
-  // ground against a wall, and out in the open, that grows something glowing. bloom: [downscale, strength] passes, times
+  // steps, never brighter than `max`. flora: how bright a plant's glow is.
+  // floraCeiling, floraWall: the share of ground under a wall face that
+  // something hangs over, or grows at the foot of; floraNearWall, floraOpen:
+  // the share of other ground, by a wall or out in the open, that grows a
+  // plant (fewer at the outpost). bloom: [downscale, strength] passes, times
   // glow. The lamp's radius may become a dial that shrinks with depth.
   light: {
-    ambient: 0.45, tint: [0.72, 0.76, 0.95], bands: 4, max: 1.9,
-    lamp: [5, 1.35], ore: [1.7, 0.75], deco: [1.2, 0.35], decoWall: 0.14, decoOpen: 0.03,
+    ambient: 0.45, hubAmbient: 0.85, tint: [0.72, 0.76, 0.95], bands: 4, max: 1.9,
+    lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
+    floraCeiling: 0.08, floraWall: 0.07, floraNearWall: 0.16, floraOpen: 0.025,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]],
   },
 

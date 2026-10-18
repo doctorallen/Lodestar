@@ -44,10 +44,12 @@ const UI = {
   init() {
     for (const s of document.querySelectorAll('.screen')) s.addEventListener('click', (e) => UI.onTap(e));
     $('card').addEventListener('click', (e) => UI.onTap(e));
-    $('btn-pause').addEventListener('click', () => { if (Game.scene === 'dive' && !Game.modal) UI.openPause(); });
-    $('btn-cargo').addEventListener('click', () => { if (Game.scene === 'dive' && !Game.modal) UI.openCargo(); });
+    $('btn-pause').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.openPause(); });
+    $('btn-cargo').addEventListener('click', () => { if (Game.dive && !Game.dive.hub && !Game.modal) UI.openCargo(); });
     $('build').textContent = BUILD_INFO;
-    drawLodestar();
+    // the anvil takes a tap anywhere; the reveal, a tap once it has risen
+    $('screen-anvil').addEventListener('pointerdown', (e) => { if (e.target.closest('[data-act]')) return; e.preventDefault(); if (Game.realT - UI.openedAt > 0.3) Anvil.strike(); });
+    $('screen-reveal').addEventListener('pointerdown', (e) => { e.preventDefault(); if (Game.realT - Reveal.shownAt > 0.7) Reveal.done(); });
   },
 
   onTap(e) {
@@ -75,17 +77,30 @@ const UI = {
   },
 
   redraw() {
-    const r = { 'screen-base': drawHub, 'screen-descend': drawDescend, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
+    const r = { 'screen-report': drawReport, 'screen-descend': drawDescend, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
     if (r) r();
     if (UI.card) drawCard();
   },
 
   // report: how the last dive ended
-  openBase(report) {
-    UI.report = report || null;
-    UI.show('screen-base');
+  openReport(report) {
+    UI.report = report;
+    UI.show('screen-report');
   },
-  openPause() { UI.show('screen-pause'); },
+
+  // Walking up to a station in the outpost (or an ancient forge in a dive).
+  useStation(id) {
+    if (id === 'forge' || id === 'fieldForge') { UI.forge.field = id === 'fieldForge'; UI.show('screen-forge'); }
+    else if (id === 'altar') UI.show('screen-star');
+    else if (id === 'locker') { UI.gearRunes = false; UI.show('screen-gear'); }
+    else if (id === 'runes') { UI.gearRunes = true; UI.show('screen-gear'); }
+    else if (id === 'descend') UI.show('screen-descend');
+  },
+  openPause() {
+    const home = !!(Game.dive && Game.dive.hub);
+    $('pause-cargo').hidden = home; $('pause-abandon').hidden = home; $('pause-note').hidden = home;
+    UI.show('screen-pause');
+  },
   openCargo() { UI.show('screen-cargo'); },
 
   openCard(item, where, key) {
@@ -117,7 +132,12 @@ const UI = {
   frame() {
     const d = Game.dive;
     document.body.classList.toggle('diving', !!d);
+    document.body.classList.toggle('home', !!(d && d.hub));
+    if (Game.modal === 'screen-reveal' && Reveal.item && Game.realT - Reveal.shownAt > 2.2) Reveal.done();
     if (!d) return;
+    if (d.hub) {
+      setTextIfChanged('hud-depth', `THE LODESTAR · MAGNITUDE ${magnitudeOf(Save.data.star)}`);
+    }
     const p = d.p, st = d.stats;
     const hp = Math.max(0, p.hp / st.maxHp), ch = p.charge / st.maxCharge;
     const hpW = Math.round(hp * 100) + '%', chW = Math.round(ch * 100) + '%';
@@ -127,7 +147,7 @@ const UI = {
     $('hud-hp').classList.toggle('warded', p.ward > 0);
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
     $('hud-ch').classList.toggle('low', p.lowCharge > 0);
-    setTextIfChanged('hud-depth', `${T.biomes[d.biome].name.replace('The ', '').toUpperCase()} ${d.depth}`);
+    if (!d.hub) setTextIfChanged('hud-depth', `${T.biomes[d.biome].name.replace('The ', '').toUpperCase()} ${d.depth}`);
     setTextIfChanged('btn-cargo', `CARGO ${cargoUsed(d)}/${st.cargo}`);
     const eq = Save.data.equip;
     for (const slot of ['main', 'off']) {
@@ -143,36 +163,29 @@ const UI = {
     if ($('btn-off').hidden !== !eq.off) $('btn-off').hidden = !eq.off;
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
-    setTextIfChanged('btn-act', a === 'descend' ? 'DESCEND' : a === 'extract' ? 'EXTRACT' : '');
+    setTextIfChanged('btn-act', { descend: 'DESCEND', extract: 'EXTRACT', forge: 'FORGE', runes: 'RUNES', locker: 'GEAR', altar: 'THE STAR' }[a] || '');
     if (btn.hidden !== !a) btn.hidden = !a;
   },
 };
 
 // ---------------------------------------------------------------------------
-// The Lodestar
+// The Lodestar's rooms
 // ---------------------------------------------------------------------------
-function drawHub() {
-  const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag];
+
+// How the last dive ended, over the outpost.
+function drawReport() {
   const r = UI.report;
-  let report = '';
-  if (r) {
-    const where = `${T.biomes[r.biome].name}, depth ${r.depth}`;
-    const got = [stuffLines(r.banked || r.lost || {}), r.items && r.items.length ? `${r.items.length} piece${r.items.length > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(' and ');
-    if (r.banked) report = got ? `Pulled home from ${where}. Banked ${got}.` : `Pulled home from ${where}, empty-handed.`;
-    else if (r.died) report = got ? `You fell in ${where}. Lost ${got}.` : `You fell in ${where}.`;
-    else report = got ? `You gave up in ${where}. Lost ${got}.` : `You gave up in ${where}.`;
-  }
-  const pts = attunePointsLeft(s);
-  $('hub-body').innerHTML = `
-    <div class="mag">MAGNITUDE ${mag}${next !== undefined ? `<div class="bar"><div style="width:${Math.round(((s.star - T.star.levels[mag - 1]) / (next - T.star.levels[mag - 1])) * 100)}%"></div></div>` : ''}</div>
-    <p class="report">${esc(report)}</p>
-    ${s.dives === 0 ? `<p class="note intro">A fallen star hangs over the sinkhole. Descend into the Rim, mine the glowing ore, and fight what finds you. To bring the haul home, stand in a lodeline's gold beam and tap EXTRACT. Fall, and everything in your cargo is lost.</p>` : ''}
-    <div class="menu">
-      <button class="btn primary" data-act="go" data-arg="screen-descend">DESCEND</button>
-      <button class="btn" data-act="go" data-arg="screen-forge">FORGE</button>
-      <button class="btn" data-act="go" data-arg="screen-gear">GEAR${s.items.some((i) => i.kind === 'relic') ? ' <span class="dot-new"></span>' : ''}</button>
-      <button class="btn" data-act="go" data-arg="screen-star">THE STAR${pts > 0 ? ' <span class="dot-new"></span>' : ''}</button>
-    </div>`;
+  if (!r) return;
+  const where = `${T.biomes[r.biome].name}, depth ${r.depth}`;
+  const got = [stuffLines(r.banked || r.lost || {}), r.items && r.items.length ? `${r.items.length} piece${r.items.length > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(' and ');
+  let title, text;
+  if (r.banked) { title = 'PULLED HOME'; text = got ? `From ${where}. Banked ${got}.` : `From ${where}, empty-handed.`; }
+  else if (r.died) { title = 'YOU FELL'; text = got ? `In ${where}. Lost ${got}.` : `In ${where}.`; }
+  else { title = 'YOU GAVE UP'; text = got ? `In ${where}. Lost ${got}.` : `In ${where}.`; }
+  if (r.fed) text += ` The lodeline fed the star ${r.fed}.`;
+  if (r.grew) text += ` It grew to magnitude ${r.grew}.`;
+  $('report-title').textContent = title;
+  $('report-body').textContent = text;
 }
 
 function drawDescend() {
@@ -185,13 +198,18 @@ function drawDescend() {
   }).join('') + `<p class="note">Lodelines are sure on every floor down to depth ${lodelineReach()}. Below that, not every floor has one.</p>`;
 }
 
+// Where the forge draws its materials from: the stash at home, the cargo at
+// an ancient forge.
+function forgeSource() { return UI.forge.field && Game.dive ? Game.dive.cargo : Save.data.stash; }
+
 function drawForge() {
-  const s = Save.data, F = UI.forge;
-  if (!F.ore || !s.stash[F.ore]) F.ore = (T.ores.find((o) => s.stash[o.id]) || T.ores[0]).id;
-  if (F.exotic && !s.stash[F.exotic]) F.exotic = null;
-  const ore = T.ores[ORE_INDEX[F.ore]], have = s.stash[F.ore] || 0;
-  const chips = T.ores.filter((o) => s.stash[o.id]).map((o) => `<button class="chip ${o.id === F.ore ? 'on' : ''}" data-act="forgeOre" data-arg="${o.id}">${esc(o.name)} ${s.stash[o.id]}</button>`).join('') || '<span class="note">No ore banked yet. Mine some and bring it home.</span>';
-  const ex = T.exotics.filter((x) => s.stash[x.id]).map((x) => `<button class="chip ${x.id === F.exotic ? 'on' : ''}" data-act="forgeExotic" data-arg="${x.id}">${esc(x.name)} ${s.stash[x.id]}</button>`).join('');
+  const stash = forgeSource(), F = UI.forge;
+  $('forge-title').textContent = F.field ? 'AN ANCIENT FORGE' : 'THE FORGE';
+  if (!F.ore || !stash[F.ore]) F.ore = (T.ores.find((o) => stash[o.id]) || T.ores[0]).id;
+  if (F.exotic && !stash[F.exotic]) F.exotic = null;
+  const ore = T.ores[ORE_INDEX[F.ore]], have = stash[F.ore] || 0;
+  const chips = T.ores.filter((o) => stash[o.id]).map((o) => `<button class="chip ${o.id === F.ore ? 'on' : ''}" data-act="forgeOre" data-arg="${o.id}">${esc(o.name)} ${stash[o.id]}</button>`).join('') || `<span class="note">${F.field ? 'No ore in your cargo.' : 'No ore banked yet. Mine some and bring it home.'}</span>`;
+  const ex = T.exotics.filter((x) => stash[x.id]).map((x) => `<button class="chip ${x.id === F.exotic ? 'on' : ''}" data-act="forgeExotic" data-arg="${x.id}">${esc(x.name)} ${stash[x.id]}</button>`).join('');
   const recipe = (kind, label, cost, sub) => `<button class="row recipe" data-act="craft" data-arg="${kind}" ${have >= cost ? '' : 'disabled'}><span class="row-text"><span class="row-name">${label}</span><span class="row-sub">${sub}</span></span><span class="cost">${cost}</span></button>`;
   const breaks = T.ores.find((o) => o.tier === ore.tier + 1);
   $('forge-body').innerHTML = `
@@ -205,7 +223,7 @@ function drawForge() {
     ${recipe('pick', `${esc(ore.name)} Pick`, craftCost('pick'), breaks ? `Breaks up to ${esc(breaks.name)}.` : 'The finest pick there is.')}
     <h3>SPELL CORES</h3>
     ${CORE_IDS.map((c) => recipe('core:' + c, CORES[c].name, craftCost('core'), esc(CORES[c].text) + '.')).join('')}
-    <p class="note">Every piece rolls its own affixes. The cost is in the ore chosen above.</p>`;
+    <p class="note">Every piece rolls its own affixes. Strike the anvil well and the odds of a rare one rise.${F.field ? ' What you forge here goes in your cargo.' : ''}</p>`;
 }
 function exoticHint(id) {
   const x = T.exotics.find((e) => e.id === id);
@@ -222,7 +240,9 @@ function drawGear() {
   const kinds = ['relic', 'blade', 'focus', 'armor', 'charm', 'pick', 'core'];
   const stash = s.items.slice().sort((a, b) => kinds.indexOf(a.kind) - kinds.indexOf(b.kind) || b.tier - a.tier)
     .map((it) => itemRow(it, 'cardStash', it.uid, compareTag(it, s.equip))).join('');
+  $('gear-title').textContent = UI.gearRunes ? 'THE RUNE BENCH' : 'GEAR';
   $('gear-body').innerHTML = `
+    ${UI.gearRunes ? '<p class="note">Tap a piece to rework its affixes: reroll one, raise one, or add one.</p>' : ''}
     <div class="stats">${statLine(st)}</div>
     <h3>WORN</h3>${slots}
     <h3>STASH</h3>${stash || '<p class="note">Nothing banked. Gear you bring home lands here.</p>'}
@@ -310,6 +330,7 @@ function drawCard() {
   else if (c.where === 'cargo') {
     if (slotOf === 'hand') acts.push(...handBtns('equip'));
     else if (slotOf) acts.push(`<button class="btn primary" data-act="equip" data-arg="${slotOf}">EQUIP</button>`);
+    if (it.kind !== 'relic') acts.push('<button class="btn danger" data-act="salvage">SALVAGE</button>');
     acts.push('<button class="btn danger" data-act="drop">DROP</button>');
   }
   if (runes && canAddAffix(it)) acts.push(`<button class="btn" data-act="addAffix" ${oreHave >= R.add ? '' : 'disabled'}>ADD AFFIX · ${R.add}</button>`);
@@ -345,14 +366,15 @@ function drawStuffCard(id) {
 function findStash(uid) { return Save.data.items.find((i) => String(i.uid) === String(uid)); }
 function removeFrom(list, item) { const i = list.indexOf(item); if (i >= 0) list.splice(i, 1); }
 function spendOre(id, n) { const s = Save.data.stash; if ((s[id] || 0) < n) return false; s[id] -= n; if (!s[id]) delete s[id]; return true; }
-function afterChange() { if (!Game.dive) Save.save(); else refreshDiveStats(); UI.redraw(); }
+function afterChange() { if (!Game.dive || Game.dive.hub) Save.save(); if (Game.dive) refreshDiveStats(); UI.redraw(); }
 
 UI.acts = {
   go: (id) => UI.show(id),
-  back: () => UI.show('screen-base'),
+  back: () => UI.close(),
   resume: () => UI.close(),
   abandon: () => abandonDive(),
   dive: (i) => { UI.close(); startDive(Number(i)); },
+  closeReport: () => { UI.report = null; UI.close(); },
   closeCard: () => { UI.closeCard(); UI.redraw(); },
   cardEquip: (slot) => UI.openCard(Save.data.equip[slot], 'equip', slot),
   cardStash: (uid) => UI.openCard(findStash(uid), 'stash', uid),
@@ -372,23 +394,17 @@ UI.acts = {
   forgeOre: (id) => { UI.forge.ore = id; UI.redraw(); },
   forgeExotic: (id) => { UI.forge.exotic = UI.forge.exotic === id ? null : id; UI.redraw(); },
   craft: (what) => {
-    const F = UI.forge, rng = Save.rng();
+    const F = UI.forge, src = forgeSource();
     const [kind, core] = what.split(':');
-    if (!spendOre(F.ore, craftCost(kind))) return;
-    const tier = T.ores[ORE_INDEX[F.ore]].tier;
-    let item;
-    if (kind === 'core') item = makeCore(rng, core, tier);
-    else {
-      const ex = F.exotic && spendOre(F.exotic, 1) ? F.exotic : null;
-      item = forgeItem(rng, kind, F.ore, ex);
-      F.exotic = null;
-    }
-    Save.data.items.push(item);
-    Save.save();
-    UI.openCard(item, 'stash', item.uid);
-    UI.redraw();
+    if ((src[F.ore] || 0) < craftCost(kind)) return;
+    src[F.ore] -= craftCost(kind);
+    if (!src[F.ore]) delete src[F.ore];
+    let exotic = null;
+    if (kind !== 'core' && F.exotic && (src[F.exotic] || 0) > 0) { exotic = F.exotic; src[F.exotic]--; if (!src[F.exotic]) delete src[F.exotic]; }
+    F.exotic = null;
+    if (!F.field) Save.save();
+    Anvil.start({ kind, core: kind === 'core' ? core : null, ore: F.ore, exotic, field: !!F.field });
   },
-
   equip: (slot) => {
     const c = UI.card, it = c.item, eq = Save.data.equip;
     const list = c.where === 'cargo' ? Game.dive.items : Save.data.items;
@@ -412,12 +428,19 @@ UI.acts = {
     UI.closeCard();
     UI.redraw();
   },
+  // at home into the stash; mid-dive into the cargo (what doesn't fit is
+  // left on the floor)
   salvage: () => {
-    const it = UI.card.item, y = salvageYield(Save.rng(), it), s = Save.data.stash;
-    for (const core of it.sockets || []) if (core) Save.data.items.push(core);
-    removeFrom(Save.data.items, it);
+    const it = UI.card.item, y = salvageYield(Save.rng(), it), field = UI.card.where === 'cargo';
+    const s = field ? Game.dive.cargo : Save.data.stash, list = field ? Game.dive.items : Save.data.items;
+    for (const core of it.sockets || []) if (core) list.push(core);
+    removeFrom(list, it);
     s[y.ore] = (s[y.ore] || 0) + y.n;
     if (y.exotic) s[y.exotic] = (s[y.exotic] || 0) + 1;
+    if (field) {
+      const d = Game.dive, over = cargoUsed(d) - d.stats.cargo;
+      if (over > 0) { const k = Math.min(over, s[y.ore]); s[y.ore] -= k; if (!s[y.ore]) delete s[y.ore]; d.drops.push({ x: d.p.x, y: d.p.y, t: 0, stuff: y.ore, n: k, warned: true }); }
+    }
     UI.toast(`+${y.n} ${T.ores[ORE_INDEX[y.ore]].name}${y.exotic ? `, +1 ${exoticName(y.exotic)}` : ''}`);
     UI.closeCard();
     afterChange();
@@ -427,8 +450,8 @@ UI.acts = {
     removeFrom(Save.data.items, relic);
     Save.data.items.push(item);
     Save.save();
-    UI.openCard(item, 'stash', item.uid);
-    UI.redraw();
+    UI.closeCard();
+    Reveal.show(item, 'stash', UI.screen);
   },
   reroll: (i) => { const it = UI.card.item; if (spendOre(runeOre(it), T.runes.reroll)) { rerollAffix(Save.rng(), it, Number(i)); afterChange(); } },
   upgrade: (i) => { const it = UI.card.item; if (it.affixes[i].up < 2 && spendOre(runeOre(it), T.runes.upgrade)) { upgradeAffix(it, Number(i)); afterChange(); } },
@@ -456,8 +479,10 @@ UI.acts = {
     if (!k || !spendOre(id, k)) return;
     s.star += k * orePoints(id);
     const after = magnitudeOf(s.star);
-    if (after > before) UI.toast(`The Lodestar grows: magnitude ${after}`, 'legendary');
-    afterChange();
+    Save.save();
+    // out to the outpost, to watch the star drink it
+    if (Game.dive && Game.dive.hub) { UI.close(); feedStarFx(Game.dive, k, after > before ? after : 0); }
+    else UI.redraw();
   },
   attune: (id) => {
     const s = Save.data;
@@ -467,10 +492,3 @@ UI.acts = {
   },
 };
 
-// The Lodestar on the home screen.
-function drawLodestar() {
-  const star = spriteFrom(LODESTAR_ROWS, LODESTAR_PAL);
-  const c = $('star'), x = c.getContext('2d');
-  c.width = star.width; c.height = star.height;
-  x.drawImage(star, 0, 0);
-}

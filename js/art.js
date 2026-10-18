@@ -43,11 +43,13 @@ const ART = {
     starmetal: ['#4f452f', '#a69c7e', '#f0e8cd', '#ffffff'],
   },
   // each biome: the same materials with its own floor, rock and light.
-  // deco: what grows on the floor and glows (fungus, crystals, magma cracks)
+  // glow: the colour of the biome's faint light (veins in the rock, wisps' shots)
   biomes: {
-    rim: { deco: 'fungus', floor: ['#22303a', '#2c3e4a', '#3a4e5c'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#9ccf4a', stem: '#3c4a38' },
-    choir: { deco: 'crystal', floor: ['#282242', '#342c56', '#42386a'], rock: ['#06050e', '#0b0918', '#110e22', '#9a84d0'], front: ['#30285a', '#3e3470', '#504488'], glow: '#e070b0', stem: '#43304a' },
-    underforge: { deco: 'magma', floor: ['#33252a', '#402e34', '#503a40'], rock: ['#080506', '#0f090b', '#160d10', '#b07060'], front: ['#46282a', '#5a3436', '#704244'], glow: '#ff7a2a', stem: '#5a2a18' },
+    rim: { floor: ['#22303a', '#2c3e4a', '#3a4e5c'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#9ccf4a' },
+    choir: { floor: ['#282242', '#342c56', '#42386a'], rock: ['#06050e', '#0b0918', '#110e22', '#9a84d0'], front: ['#30285a', '#3e3470', '#504488'], glow: '#e070b0' },
+    // the outpost: worn flagstones on the rim, the same dark rock round it
+    outpost: { paving: true, floor: ['#2a2b33', '#34363f', '#40434d'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#9ccf4a' },
+    underforge: { floor: ['#33252a', '#402e34', '#503a40'], rock: ['#080506', '#0f090b', '#160d10', '#b07060'], front: ['#46282a', '#5a3436', '#704244'], glow: '#ff7a2a' },
   },
 };
 
@@ -149,56 +151,6 @@ function flippedSprite(s) {
 // Tiles, painted into a floor's pixel buffer at (ox, oy). rnd() is the
 // tile's own seeded generator.
 // ---------------------------------------------------------------------------
-// What glows on a biome's floor, chosen by `kind` (0–2): on the Rim, fungus
-// caps, a stalk with a hanging bulb, or a cluster of pods; in the Choir,
-// singing crystals, a tall chime spire, or a ring of shards; in the
-// Underforge, a magma crack, an ember vent, or cinder pods.
-function paintDeco(P, ox, oy, b, rnd, kind = 0) {
-  const c = mix(b.glow, '#000000', 0.3), dark = mix(c, '#000000', 0.45), pale = mix(c, '#ffffff', 0.6), stem = b.stem;
-  if (b.deco === 'crystal') {
-    const r = [mix(c, '#000000', 0.6), mix(c, '#000000', 0.3), c, pale];
-    if (kind === 1) { paintShard(P, ox + 7, oy + 13, 10, 2, r, true, true); paintShard(P, ox + 10, oy + 13, 5, 2, r, true, true); }
-    else if (kind === 2) for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2; paintShard(P, ox + 7 + Math.round(Math.cos(a) * 4), oy + 9 + Math.round(Math.sin(a) * 3), 3, 1, r, true, true); }
-    else { paintShard(P, ox + 5, oy + 11, 6, 2, r, true, true); paintShard(P, ox + 10, oy + 9, 4, 2, r, true, true); }
-    return;
-  }
-  if (b.deco === 'magma' && kind === 0) {
-    const hot = mix(c, '#ffe080', 0.6), edge = b.floor[0];
-    let y = oy + Math.round(5 + rnd() * 5);
-    for (let x = ox + 2; x < ox + TILE - 2; x++) {
-      putPx(P, x, y - 1, edge);
-      putPx(P, x, y, rnd() < 0.25 ? hot : c, true);
-      putPx(P, x, y + 1, edge);
-      if (rnd() < 0.35) { y = clamp(y + (rnd() < 0.5 ? -1 : 1), oy + 2, oy + TILE - 3); putPx(P, x, y, c, true); }
-    }
-    return;
-  }
-  if (kind === 1) {
-    // a curling stalk with a glowing bulb hanging from its tip
-    const x0 = ox + 6 + Math.floor(rnd() * 4);
-    let x = x0;
-    for (let y = oy + 14; y > oy + 4; y--) { putPx(P, x, y, stem); if (rnd() < 0.3) x += x < x0 + 2 ? 1 : -1; }
-    putPx(P, x + 1, oy + 4, stem); putPx(P, x + 2, oy + 5, stem);
-    for (const [i, j] of [[2, 6], [1, 7], [2, 7], [3, 7], [2, 8]]) putPx(P, x + i, oy + j, j === 6 ? pale : c, true);
-    return;
-  }
-  if (kind === 2) {
-    // a cluster of round pods, each with a glowing heart
-    for (const [px, py, rr] of [[5, 10, 2], [10, 11, 2], [8, 7, 1]]) {
-      for (let j = -rr; j <= rr; j++) for (let i = -rr; i <= rr; i++) if (i * i + j * j <= rr * rr + 1) putPx(P, ox + px + i, oy + py + j, i * i + j * j <= (rr - 1) * (rr - 1) ? c : dark, i * i + j * j <= (rr - 1) * (rr - 1));
-      putPx(P, ox + px, oy + py - rr, pale, true);
-    }
-    return;
-  }
-  for (const [sx, sy, big] of [[5, 9, 1], [10, 6, 0], [9, 12, 0]]) {
-    const x = ox + sx, y = oy + sy, w = big ? 2 : 1;
-    for (let i = 0; i <= 2; i++) putPx(P, x, y + i, stem);
-    for (let i = -w; i <= w; i++) putPx(P, x + i, y - 1, i === -w || i === w ? dark : c, true);
-    for (let i = -w + 1; i <= w - 1; i++) putPx(P, x + i, y - 2, c, true);
-    if (big) putPx(P, x, y - 2, pale, true);
-  }
-}
-
 // An oval dish with a lip: the lodeline's anchor (glowing star metal), or the
 // shaft down (a black drop).
 function paintDish(P, ox, oy, b, kind) {
@@ -240,6 +192,8 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH) {
       const t = bayerAt(x, y), q = rnd();
       if (!rock(x, y)) {
         let shade = clamp(Math.floor((0.5 + (q - 0.5) * 0.7) * 3 + t - 0.5), 0, 2);
+        // flagstones: dark seams, each row of stones set off from the last
+        if (b.paving && (y % 9 === 0 || (x + ((y / 9) | 0) * 5) % 11 === 0)) shade = 0;
         if (rock(x, y - 1) || rock(x, y - 2) || (rock(x, y - 3) && t < 0.5)) shade = 0;
         putPx(P, x, y, f[shade]);
         continue;
@@ -251,6 +205,24 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH) {
       else if (!rock(x - 1, y) || !rock(x, y - 1)) putPx(P, x, y, r[3]);
       else if (!rock(x + 1, y)) putPx(P, x, y, mix(r[3], r[2], 0.45));
       else putPx(P, x, y, r[clamp(Math.floor((0.5 + (q - 0.5) * 0.6) * 3 + t - 0.5), 0, 2)]);
+    }
+}
+
+// The sinkhole, pixel by pixel. Where the ground's edge is above it, a
+// cliff face falls away into the dark; elsewhere a lit lip, then nothing.
+const PIT_FACE = 14;
+function paintPitTile(P, rock, ox, oy, b, rnd) {
+  const fr = b.front, abyss = ['#000000', '#030306', '#06070c'];
+  for (let y = oy; y < oy + TILE; y++)
+    for (let x = ox; x < ox + TILE; x++) {
+      const t = bayerAt(x, y);
+      if (!rock(x, y)) { putPx(P, x, y, b.floor[clamp(Math.floor(rnd() * 3 * 0.7 + t * 0.6), 0, 2)]); continue; }
+      let above = 0;
+      for (let k = 1; k <= PIT_FACE; k++) if (!rock(x, y - k)) { above = k; break; }
+      if (above === 1) putPx(P, x, y, b.rock[3]);
+      else if (above) putPx(P, x, y, fr[clamp(Math.floor((1 - above / PIT_FACE) * 2.6 + t - 0.5), 0, 2)]);
+      else if (!rock(x, y + 1) || !rock(x - 1, y) || !rock(x + 1, y)) putPx(P, x, y, mix(b.rock[3], '#000000', 0.4));
+      else putPx(P, x, y, abyss[clamp(Math.floor(rnd() * 1.4 + t), 0, 2)]);
     }
 }
 
@@ -383,6 +355,7 @@ const ENEMY_PAL = {
 function buildEnemySprites(biomeId) {
   const pal = ENEMY_PAL[biomeId], out = {};
   for (const type of Object.keys(ENEMY_ROWS)) out[type] = buildArtSprite(ENEMY_ROWS[type], pal);
+  out.dummy = buildArtSprite(ENEMY_ROWS.construct, Object.assign({}, pal, { plate: ['#1c1810', '#3a3020', '#5e4c30', '#8a7048'], rune: [ART.pal.star[2]] }));
   out.warden = buildArtSprite(scale2xRows(ENEMY_ROWS.construct), Object.assign({}, pal, { plate: ['#0c0a0e', '#1e1a22', '#34303c', '#565064'] }));
   for (const type in out) { const s = out[type]; s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - 1.5; }
   return out;

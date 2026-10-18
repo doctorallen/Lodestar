@@ -19,7 +19,7 @@ const VIEW_MIN = 176;
 const View = {
   canvas: null, ctx: null, w: 0, h: 0, scale: 1, camX: 0, camY: 0,
   em: null, emCtx: null, light: null, lightCtx: null, blooms: [],
-  floorFor: null, floorBuf: null, rockPx: null, floorCol: null, floorEm: null, floorImgs: null, lights: [],
+  floorFor: null, floorBuf: null, rockPx: null, floorCol: null, floorEm: null, floorImgs: null, lights: [], flora: [],
 };
 const Sprites = {};
 const Sparks = [];
@@ -70,20 +70,63 @@ function facingIndex(fx, fy) { return (Math.round(Math.atan2(fy, fx) / (Math.PI 
 // ---------------------------------------------------------------------------
 // The floor
 // ---------------------------------------------------------------------------
-const artBiome = (f) => ART.biomes[T.biomes[f.biome].id];
+const artBiome = (f) => (f.hub ? ART.biomes.outpost : ART.biomes[T.biomes[f.biome].id]);
 const rgb01 = (hex) => rgbOf(hex).map((v) => v / 255);
 
-// Does this patch of ground grow something that glows, and what? Cosmetic,
-// but seeded, so a floor always looks the same. Things grow more against
-// the walls than out in the open. -1: nothing.
-function decoAt(f, tx, ty) {
-  if (floorTile(f, tx, ty) !== TILE_FLOOR || (tx === f.entry.x && ty === f.entry.y)) return -1;
-  let walls = 0;
-  for (const [dx, dy] of DIRS4) if (TILE_SOLID[floorTile(f, tx + dx, ty + dy)]) walls++;
-  const h = hashInts(f.seed, f.depth, tx, ty, 0xdec0);
-  return h % 1000 < (walls ? T.light.decoWall : T.light.decoOpen) * 1000 ? (h >>> 12) % 3 : -1;
+// ---------------------------------------------------------------------------
+// Flora (flora.js): what grows in each biome, placed from the floor's seed
+// so a floor always looks the same. Floor pieces grow mostly against the
+// walls; wall pieces at the foot of a wall's face; ceiling pieces hang from
+// the bottom of one. Drawn every frame among the actors, sorted by their
+// feet, so the diver passes behind the tall ones; two-frame pieces sway.
+// ---------------------------------------------------------------------------
+const _floraSprites = {};
+function floraSprite(biome, piece, frame) {
+  const key = biome + '/' + piece.name + '/' + frame;
+  if (!_floraSprites[key]) _floraSprites[key] = buildArtSprite(piece.frames[frame], FLORA_PAL[biome], FLORA_LETTERS, FLORA_GLOWS);
+  return _floraSprites[key];
 }
-const hasDeco = (f, tx, ty) => decoAt(f, tx, ty) >= 0;
+
+function placeFlora(f, biomeId) {
+  const out = [], pieces = FLORA[biomeId], L = T.light, keep = new Set();
+  const mark = (x, y) => keep.add(y * f.w + x);
+  if (f.entry) mark(f.entry.x, f.entry.y);
+  if (f.shaft) mark(f.shaft.x, f.shaft.y);
+  if (f.pad) mark(f.pad.x, f.pad.y);
+  if (f.hub) for (const s of HUB_STATIONS) for (let dy = -1; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) mark(s.x + dx, s.y + dy);
+  const pick = (anchor, h) => {
+    const list = pieces.filter((p) => p.anchor === anchor);
+    let w = list.reduce((a, p) => a + p.weight, 0), r = (h % 1000) / 1000 * w;
+    for (const p of list) if ((r -= p.weight) < 0) return p;
+    return list[list.length - 1];
+  };
+  for (let ty = 1; ty < f.h - 1; ty++)
+    for (let tx = 1; tx < f.w - 1; tx++) {
+      if (floorTile(f, tx, ty) !== TILE_FLOOR || keep.has(ty * f.w + tx)) continue;
+      const h = hashInts(f.seed, f.depth, tx, ty, 0xf10a), roll = (h >>> 8) % 1000 / 1000;
+      const wallAbove = TILE_SOLID[floorTile(f, tx, ty - 1)] && floorTile(f, tx, ty - 1) !== TILE_PIT;
+      let walls = 0;
+      for (const [dx, dy] of DIRS4) if (TILE_SOLID[floorTile(f, tx + dx, ty + dy)]) walls++;
+      const scale = f.hub ? 0.4 : 1;
+      let piece = null, x = (tx + 0.5) * TILE + ((h >>> 20) % 7) - 3, y;
+      if (wallAbove && roll < L.floraCeiling * scale) { piece = pick('ceiling', h); y = ty * TILE - 1; }
+      else if (wallAbove && roll < (L.floraCeiling + L.floraWall) * scale) { piece = pick('wall', h); y = ty * TILE + piece.h - 2; }
+      else if (roll < (walls ? L.floraNearWall : L.floraOpen) * scale) { piece = pick('floor', h); y = (ty + 1) * TILE - 3; }
+      if (piece) out.push({ piece, x, y, top: piece.anchor === 'ceiling', phase: (h & 255) / 255 });
+    }
+  return out;
+}
+
+// One piece, drawn with its feet (or for a hanging one, its top) at x, y.
+function drawFlora(d, fl, ox, oy, lights) {
+  const biome = d.hub ? 'rim' : T.biomes[d.biome].id, p = fl.piece;
+  const frame = p.frames.length > 1 ? Math.floor(Game.realT * 2 + fl.phase * 2) % 2 : 0;
+  const spr = floraSprite(biome, p, frame);
+  const sx = Math.round(fl.x + ox - spr.w / 2), sy = Math.round(fl.top ? fl.y + oy : fl.y + oy - spr.h + 1);
+  if (sx > View.w || sy > View.h || sx + spr.w < 0 || sy + spr.h < 0) return;
+  drawArtSprite(spr, sx, sy);
+  lights.push({ x: sx + spr.w / 2, y: sy + spr.h * (fl.top ? 0.8 : 0.35), r: TILE * 1.1, i: T.light.flora, c: rgb01(FLORA_PAL[biome].glow[0]) });
+}
 
 // The floor's rock, pixel by pixel, from the smooth wall line.
 function fillRockField(f, x0, y0, x1, y1) {
@@ -103,12 +146,14 @@ function paintFloor(f) {
   [View.floorCol, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[0], 0, 0);
   [View.floorEm, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[1], 0, 0);
   View.lights = floorLights(f);
+  View.flora = placeFlora(f, f.hub ? 'rim' : T.biomes[f.biome].id);
 }
 
 function paintTileArt(f, tx, ty) {
   const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, b = artBiome(f), t = floorTile(f, tx, ty), ox = tx * TILE, oy = ty * TILE;
   const r = new Rng(hashInts(f.seed, f.depth, tx, ty)), rnd = () => r.next();
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
+  if (t === TILE_PIT) { paintPitTile(P, rock, ox, oy, b, rnd); return; }
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth);
   if (t === TILE_PAD) paintDish(P, ox, oy, b, 'pad');
   else if (t === TILE_SHAFT) paintDish(P, ox, oy, b, 'shaft');
@@ -116,7 +161,6 @@ function paintTileArt(f, tx, ty) {
     const front = !TILE_SOLID[floorTile(f, tx, ty + 1)];
     paintOre(P, ox, oy, b, rnd, ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id], front ? TILE - FACE_H : TILE, front ? FACE_H : 0);
   } else if (t === TILE_ROCK && (hashInts(f.seed, tx, ty, 0x7e1) & 255) < 18) paintRockVein(P, rock, ox, oy, b, rnd);
-  else { const k = decoAt(f, tx, ty); if (k >= 0) paintDeco(P, ox, oy, b, rnd, k); }
 }
 
 // After mining: the wall line moves round tx, ty, and with it the rims,
@@ -131,15 +175,12 @@ function repaintAround(f, tx, ty) {
   View.lights = floorLights(f);
 }
 
-// The floor's fixed lights: every ore vein tile and every glowing deco.
+// The floor's fixed lights: every ore vein tile.
 function floorLights(f) {
-  const L = [], b = artBiome(f), Lt = T.light;
+  const L = [], Lt = T.light;
   for (let ty = 0; ty < f.h; ty++)
-    for (let tx = 0; tx < f.w; tx++) {
-      const cx = (tx + 0.5) * TILE, cy = (ty + 0.5) * TILE;
-      if (floorTile(f, tx, ty) === TILE_ORE) L.push({ x: cx, y: cy, r: Lt.ore[0] * TILE, i: Lt.ore[1], c: rgb01(ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][2]) });
-      else if (hasDeco(f, tx, ty)) L.push({ x: cx, y: cy, r: Lt.deco[0] * TILE, i: Lt.deco[1], c: rgb01(b.glow) });
-    }
+    for (let tx = 0; tx < f.w; tx++)
+      if (floorTile(f, tx, ty) === TILE_ORE) L.push({ x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE, r: Lt.ore[0] * TILE, i: Lt.ore[1], c: rgb01(ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][2]) });
   return L;
 }
 
@@ -271,12 +312,14 @@ function renderFrame() {
   x.fillStyle = '#000';
   x.fillRect(0, 0, View.w, View.h);
   const d = Game.dive;
-  if (Game.scene !== 'dive' || !d) return;
+  if (!d) return;
   const f = d.floor, p = d.p, Lt = T.light, star = ART.pal.star;
   if (View.floorFor !== f) paintFloor(f);
   const fw = f.w * TILE, fh = f.h * TILE;
   const camX = (View.camX = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(p.x - View.w / 2, 0, fw - View.w)));
-  const camY = (View.camY = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(p.y - 8 - View.h / 2, 0, fh - View.h)));
+  // at home the camera looks further up, to keep the star in sight
+  const lookUp = d.hub ? 56 : 8;
+  const camY = (View.camY = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(p.y - lookUp - View.h / 2, 0, fh - View.h)));
   const sh = View.shake > 0.3 ? View.shake : 0;
   const ox = -camX + Math.round(FX_R.f(-sh, sh)), oy = -camY + Math.round(FX_R.f(-sh, sh)), ex = View.emCtx;
   const tick = Math.floor(Game.realT * 8);
@@ -316,11 +359,19 @@ function renderFrame() {
     }
   }
 
+  if (d.hub) drawHubUnder(d, ox, oy, tick, lights);
+  if (d.fieldForge) {
+    const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * TILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * TILE + oy - spr.ay + 6);
+    drawArtSprite(spr, x, y);
+    lights.push({ x: x + spr.w / 2, y: y + spr.h / 2, r: TILE * 1.8, i: 0.9, c: rgb01(ART.pal.glass[0]) });
+  }
+
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) drawDrop(dr, ox, oy, lights);
-  const actors = d.enemies.filter((e) => !e.dead).concat([p]).sort((a, b) => a.y - b.y);
+  const actors = d.enemies.filter((e) => !e.dead).concat([p], View.flora || []).sort((a, b) => a.y - b.y);
   for (const a of actors) {
     if (a === p) drawProspector(d, ox, oy, tick, lights);
+    else if (a.piece) drawFlora(d, a, ox, oy, lights);
     else drawEnemy(d, a, ox, oy, tick, lights);
   }
   for (const b of d.bolts) {
@@ -337,11 +388,12 @@ function renderFrame() {
     lights.push({ x: sx, y: sy, r: TILE, i: 0.6, c: rgb01(shotCol) });
   }
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
+  if (d.hub) { drawHubOver(d, ox, oy, lights); if (d.feedT > 0) d.feedT = Math.max(0, d.feedT - 1 / 60); }
   for (const s of Sparks) dot(Math.round(s.x + ox), Math.round(s.y + oy), s.col, true);
   const fx = Math.round(p.x + ox), fy = Math.round(p.y + oy);
 
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
-  const lx = View.lightCtx, amb = Lt.ambient * 127.5;
+  const lx = View.lightCtx, amb = (d.hub ? Lt.hubAmbient : Lt.ambient) * 127.5;
   lx.globalCompositeOperation = 'source-over';
   lx.fillStyle = `rgb(${amb * Lt.tint[0] | 0},${amb * Lt.tint[1] | 0},${amb * Lt.tint[2] | 0})`;
   lx.fillRect(0, 0, View.w, View.h);
@@ -609,6 +661,10 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     x.globalAlpha = 0.35 * k;
     x.drawImage(spr.flash, Math.round(cx - spr.ax), Math.round(cy - spr.ay));
     x.globalAlpha = 1;
+  } else if (fx.kind === 'mote') {
+    // ore fed to the star, rising from the altar into it
+    const t = 1 - k, sx = STAR_AT.x * TILE + ox, sy = STAR_AT.y * TILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * (1 - t);
+    dot(Math.round(lerp(cx, sx, t * t) + wob), Math.round(lerp(cy, sy, t)), ART.pal.star[t > 0.8 ? 3 : 2], true);
   } else if (fx.kind === 'nova') {
     ringDots(cx, cy, fx.r * (1 - k * 0.7), ART.cores.nova, k, true);
     lights.push({ x: cx, y: cy, r: fx.r * 1.3, i: k, c: rgb01(ART.cores.nova) });

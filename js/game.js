@@ -23,14 +23,14 @@ const Game = {
 // How deep the Lodestar's lines are sure to reach: deeper as it grows.
 function lodelineReach() { return T.floor.padSure + magnitudeOf(Save.data.star) - 1; }
 
-function startDive(biome = 0) {
-  Save.data.dives++;
-  // the dive's seed may come from anywhere; everything built from it is seeded
-  const seed = (Math.random() * 4294967296) >>> 0;
+// A world to walk in: a dive, or the outpost (hub: true). Both run the
+// same walking, fighting and drawing; the outpost has no enemies but a
+// practice target, and nothing in it can hurt.
+function newWorld(fields) {
   const stats = computeStats(Save.data.equip, Save.data.attune);
-  Game.dive = {
-    seed, biome, depth: 0, floor: null, target: null, time: 0, kills: 0, dying: 0,
-    rng: new Rng(hashInts(seed, 0x5eed)), stats, reach: lodelineReach(),
+  return Object.assign({
+    seed: 0, biome: 0, depth: 0, floor: null, target: null, time: 0, kills: 0, dying: 0,
+    rng: new Rng(1), stats, reach: lodelineReach(),
     cargo: {}, items: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], flow: null, flowAt: -1,
     p: {
       x: 0, y: 0, fx: 0, fy: 1, walkT: 0, mine: null,
@@ -38,9 +38,30 @@ function startDive(biome = 0) {
       dashT: 0, dashCd: 0, dashX: 0, dashY: 0, swing: null, cast: null,
       hands: { main: newHand(), off: newHand() },
     },
-  };
+  }, fields);
+}
+
+function startDive(biome = 0) {
+  Save.data.dives++;
+  // the dive's seed may come from anywhere; everything built from it is seeded
+  const seed = (Math.random() * 4294967296) >>> 0;
+  Game.dive = newWorld({ seed, biome, rng: new Rng(hashInts(seed, 0x5eed)) });
   Game.scene = 'dive';
   enterFloor(1);
+}
+
+// Home: the outpost on the sinkhole's rim. report: how the dive ended.
+function enterHub(report) {
+  const f = makeHubFloor();
+  const d = (Game.dive = newWorld({ hub: true, floor: f }));
+  d.p.x = (f.entry.x + 0.5) * TILE; d.p.y = (f.entry.y + 0.5) * TILE; d.p.fy = -1;
+  const dm = HUB_STATIONS.find((s) => s.id === 'dummy');
+  const dummy = makeEnemy('dummy', (dm.x + 0.5) * TILE, (dm.y + 0.5) * TILE, 1, null);
+  d.enemies = [dummy];
+  Game.scene = 'hub';
+  UI.close();
+  if (report) UI.openReport(report);
+  else UI.tip('hub', 'Walk to the ledge under the star to descend');
 }
 
 function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0, hits: 0 }; }
@@ -53,8 +74,21 @@ function enterFloor(depth) {
   p.x = (e.x + 0.5) * TILE; p.y = (e.y + 0.5) * TILE; p.mine = null;
   d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.flowAt = -1;
   spawnEnemies(d);
+  placeFieldForge(d);
   if (d.floor.pad) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
   UI.toast(`${T.biomes[d.biome].name}, depth ${depth}${d.floor.pad ? '' : ': no lodeline reaches this deep'}`);
+}
+
+// Deep down, now and then, an ancient forge stands in a side cavern: it
+// forges from what's carried.
+function placeFieldForge(d) {
+  const f = d.floor, rng = new Rng(hashInts(d.seed, d.depth, 0xf0e6));
+  d.fieldForge = null;
+  if (d.depth < T.fieldForge.depth || !rng.chance(T.fieldForge.chance)) return;
+  const rooms = f.rooms.slice(1).filter((r) => !roomHas(r, f.shaft) && !(f.pad && roomHas(r, f.pad)) && r.cells.length > 8);
+  if (!rooms.length) return;
+  const r = rng.pick(rooms), i = rng.pick(r.cells);
+  d.fieldForge = { x: i % f.w, y: Math.floor(i / f.w) };
 }
 
 // The outfit changed mid-dive.
@@ -105,8 +139,10 @@ function updateDive(dtReal, dt) {
   updatePickups(dtReal);
   if (Input.consumeAct()) {
     const a = actionHere();
-    if (a === 'descend') enterFloor(d.depth + 1);
+    if (d.hub) { if (a) UI.useStation(a); }
+    else if (a === 'descend') enterFloor(d.depth + 1);
     else if (a === 'extract') extractDive();
+    else if (a === 'forge') UI.useStation('fieldForge');
   }
 }
 
@@ -117,10 +153,14 @@ function startDying() {
   d.fx.push({ kind: 'death', x: d.p.x, y: d.p.y - 6, t: 1.4, max: 1.4 });
 }
 
-// What the contextual button does where the diver stands.
+// What the contextual button does where the diver stands: a station in
+// the outpost; in a dive, the shaft, a lodeline or an ancient forge.
 function actionHere() {
   const d = Game.dive;
   if (!d || d.dying) return null;
+  const near = (tx, ty, r) => dist(d.p.x, d.p.y, (tx + 0.5) * TILE, (ty + 0.5) * TILE) < r;
+  if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && near(s.x, s.y, 20)); return s ? s.id : null; }
+  if (d.fieldForge && near(d.fieldForge.x, d.fieldForge.y, 20)) return 'forge';
   const t = floorTile(d.floor, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
   return t === TILE_SHAFT ? 'descend' : t === TILE_PAD ? 'extract' : null;
 }
@@ -230,15 +270,17 @@ function noteDeepest(d) {
   deep[id] = Math.max(deep[id] || 0, d.depth);
 }
 
+// Riding a lodeline home banks the cargo, and the star drinks a little of
+// the depth: extractStar × depth² points.
 function extractDive() {
   const d = Game.dive, s = Save.data.stash;
   for (const k in d.cargo) s[k] = (s[k] || 0) + d.cargo[k];
   Save.data.items.push(...d.items);
+  const fed = T.star.extractStar * d.depth * d.depth, before = magnitudeOf(Save.data.star);
+  Save.data.star += fed;
   noteDeepest(d);
   Save.save();
-  Game.dive = null;
-  Game.scene = 'base';
-  UI.openBase({ banked: d.cargo, items: d.items, depth: d.depth, biome: d.biome });
+  enterHub({ banked: d.cargo, items: d.items, depth: d.depth, biome: d.biome, fed, grew: magnitudeOf(Save.data.star) > before ? magnitudeOf(Save.data.star) : 0 });
 }
 
 // Dying, or giving up: the cargo is lost, what's worn is kept.
@@ -246,9 +288,7 @@ function loseDive(died) {
   const d = Game.dive;
   noteDeepest(d);
   Save.save();
-  Game.dive = null;
-  Game.scene = 'base';
-  UI.openBase({ lost: d.cargo, items: d.items, depth: d.depth, biome: d.biome, died });
+  enterHub({ lost: d.cargo, items: d.items, depth: d.depth, biome: d.biome, died });
 }
 
 function abandonDive() { loseDive(false); }

@@ -12,9 +12,10 @@
 // pixels. Bodies collide with that line, not with the tiles' squares.
 // ---------------------------------------------------------------------------
 
-const TILE_FLOOR = 0, TILE_ROCK = 1, TILE_ORE = 2, TILE_EDGE = 3, TILE_PAD = 4, TILE_SHAFT = 5;
-// Indexed by tile type: does it stop a body?
-const TILE_SOLID = [false, true, true, true, false, false];
+const TILE_FLOOR = 0, TILE_ROCK = 1, TILE_ORE = 2, TILE_EDGE = 3, TILE_PAD = 4, TILE_SHAFT = 5, TILE_PIT = 6;
+// Indexed by tile type: does it stop a body? (The pit is the sinkhole under
+// the Lodestar: it can't be walked into.)
+const TILE_SOLID = [false, true, true, true, false, false, true];
 
 // Where each ore sits in T.ores, by id. A floor's ore array holds index + 1.
 const ORE_INDEX = Object.fromEntries(T.ores.map((o, i) => [o.id, i]));
@@ -196,4 +197,35 @@ function floorHash(f) {
   let h = hashInts(f.w, f.h, f.entry.x, f.entry.y);
   for (let i = 0; i < f.tiles.length; i++) h = hashInts(h, f.tiles[i] * 16 + f.ore[i]);
   return h;
+}
+
+// ---------------------------------------------------------------------------
+// The outpost: a plateau on the sinkhole's rim, the pit itself above it
+// (the Lodestar hangs over the middle), and the stations round it. Always the
+// same. Each station is { id, x, y } in tiles.
+// ---------------------------------------------------------------------------
+const HUB_W = 26, HUB_H = 30;
+const HUB_STATIONS = [
+  { id: 'altar', x: 4, y: 10 }, { id: 'locker', x: 21, y: 10 },
+  { id: 'descend', x: 13, y: 16 },
+  { id: 'forge', x: 6, y: 21 }, { id: 'runes', x: 20, y: 21 },
+  { id: 'dummy', x: 17, y: 25 },
+];
+function makeHubFloor() {
+  const w = HUB_W, h = HUB_H, tiles = new Uint8Array(w * h).fill(TILE_ROCK);
+  const inEllipse = (x, y, cx, cy, rx, ry, wob) => {
+    const dx = (x - cx) / rx, dy = (y - cy) / ry, a = Math.atan2(dy, dx);
+    const e = 1 + wob * Math.sin(3 * a + 1.3) + wob * 0.6 * Math.sin(5 * a + 0.4);
+    return dx * dx + dy * dy <= e * e;
+  };
+  for (let y = 1; y < h - 1; y++)
+    for (let x = 1; x < w - 1; x++) {
+      if (inEllipse(x, y, 13, 15, 11.2, 13.2, 0.06)) tiles[y * w + x] = TILE_FLOOR;
+      if (inEllipse(x, y, 13, 9, 6.6, 5.4, 0.08)) tiles[y * w + x] = TILE_PIT;
+    }
+  for (let x = 0; x < w; x++) { tiles[x] = TILE_EDGE; tiles[(h - 1) * w + x] = TILE_EDGE; }
+  for (let y = 0; y < h; y++) { tiles[y * w] = TILE_EDGE; tiles[y * w + w - 1] = TILE_EDGE; }
+  for (const s of HUB_STATIONS) tiles[s.y * w + s.x] = TILE_FLOOR;
+  const start = { x: 13, y: 23 };
+  return { seed: 0x10de57a, depth: 0, biome: 0, hub: true, w, h, tiles, ore: new Uint8Array(w * h), rooms: [], entry: start, shaft: { x: -9, y: -9 }, pad: null };
 }

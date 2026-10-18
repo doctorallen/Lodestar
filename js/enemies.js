@@ -134,7 +134,7 @@ function updateEnemies(dt) {
       e.kx *= 0.85; e.ky *= 0.85;
       continue;
     }
-    if (!e.aggro || d.dying) continue;
+    if (!e.aggro || d.dying || e.type === 'dummy') continue;
     if (e.state === 'stagger' || e.state === 'dazed') { if ((e.t -= dt) <= 0) { e.state = 'chase'; e.cd = Math.max(e.cd, 0.3); } continue; }
     const slow = e.slowT > 0 ? 1 - T.onHit.chillSlow : 1;
     const sp = e.speed * slow * dt, free = attackers < E.attackers + Math.floor(E.attackersPerDepth * d.depth) || ATTACKING.has(e.state);

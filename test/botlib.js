@@ -7,8 +7,9 @@
 //   heads for a lodeline when it's there, when the cargo is nearly full, or
 //   when it's hurt. Returns how it ended.
 //   Bot.home() spends the haul like a player might: equips anything better,
-//   forges a better pick, a blade and plate when it can, salvages the rest,
-//   unseals relics, feeds spare ore to the star and spends attunements.
+//   forges a better pick, a blade and plate when it can (striking the anvil
+//   fairly), salvages the rest, unseals relics, feeds spare ore to the star
+//   and spends attunements.
 //   Bot.career({ dives }) does both over and over from a fresh save.
 
 function installBot() {
@@ -137,7 +138,9 @@ function installBot() {
     const s = Save.data, acts = UI.acts, log = [];
     UI.closeCard();
     // unseal relics
-    for (const r of s.items.filter((i) => i.kind === 'relic')) { UI.openCard(r, 'stash', r.uid); acts.unseal(); UI.closeCard(); log.push('unsealed'); }
+    for (const r of s.items.filter((i) => i.kind === 'relic')) { UI.openCard(r, 'stash', r.uid); acts.unseal(); Reveal.done(); UI.closeCard(); log.push('unsealed'); }
+    const forge = (kind) => { acts.craft(kind); if (Anvil.job) { Anvil.finish(1); Reveal.done(); } };
+    UI.forge.field = false;
     const best = () => {
       // equip anything better than what's worn
       for (const it of s.items.slice()) {
@@ -149,11 +152,11 @@ function installBot() {
     best();
     // forge: a pick that breaks the next ore, then a blade and plate in the best ore
     const pick = s.equip.pick, pickOre = T.ores.find((o) => o.tier === (pick ? pick.base.power : 1));
-    if (pickOre && (s.stash[pickOre.id] || 0) >= craftCost('pick')) { UI.forge.ore = pickOre.id; acts.craft('pick'); log.push('forged ' + pickOre.name + ' pick'); }
+    if (pickOre && (s.stash[pickOre.id] || 0) >= craftCost('pick')) { UI.forge.ore = pickOre.id; forge('pick'); log.push('forged ' + pickOre.name + ' pick'); }
     for (const kind of ['blade', 'armor', 'charm']) {
       const ore = T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) >= craftCost(kind) + 6);
       const cur = kind === 'blade' ? s.equip.main : s.equip[kind];
-      if (ore && (!cur || cur.tier < ore.tier)) { UI.forge.ore = ore.id; acts.craft(kind); log.push('forged ' + kind + ' in ' + ore.name); }
+      if (ore && (!cur || cur.tier < ore.tier)) { UI.forge.ore = ore.id; forge(kind); log.push('forged ' + kind + ' in ' + ore.name); }
     }
     UI.closeCard();
     best();
@@ -168,6 +171,7 @@ function installBot() {
     }
     for (const id of ['vitality', 'might', 'capacity', 'vitality', 'might', 'stride', 'capacity']) if (attunePointsLeft(s) > 0) acts.attune(id);
     Save.save();
+    UI.close();
     return log;
   }
 

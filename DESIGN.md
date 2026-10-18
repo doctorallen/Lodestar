@@ -145,16 +145,28 @@ Only two enemies can wind up at once, plus one more every three floors down. The
   - Drawn in 8 facings, with a 4-frame walk.
   - A small drone follows over its shoulder, bobbing, its eye turned the way the diver looks.
 
-## The base
+## The base: the outpost
 
-- **The forge** makes blades, foci, plate, charms, picks and spell cores from any banked ore. You can work one exotic into each piece.
-- **Gear:** what's worn, the stash, stats, and materials. Tap anything for its card, which shows its affixes and has these actions:
-  - equip or unequip,
-  - the rune bench,
-  - socketing cores,
-  - salvage,
-  - unsealing relics.
-- **The star:** feed it ore, and spend attunements:
+Home is a place you walk, not a menu. It's a plateau on the sinkhole's rim:
+- **The Lodestar** hangs over the pit, bobbing. Its lodelines run down into the dark, one more for every magnitude, and it grows bigger as it grows stronger.
+- **Lanterns** round the plaza light up, one for every magnitude.
+- **The stations:** walk up to one and the contextual button names it.
+
+| Station | What it does |
+|---|---|
+| The ledge (DESCEND) | Pick a biome and jump |
+| The forge (FORGE) | Make blades, foci, plate, charms, picks and spell cores from banked ore, with one exotic worked in. Every forge is played on the anvil |
+| The rune bench (RUNES) | Rework affixes on any piece: reroll, raise, add |
+| The locker (GEAR) | What's worn, the stash, stats; equip, socket cores, salvage, unseal relics |
+| The star's altar (THE STAR) | Feed it ore, and spend attunements. Feeding sends you back out to watch the ore stream up into the star as it pulses and grows |
+| The practice target | A construct that takes every hit and never falls, for trying combos |
+
+- **The anvil.** Each forge is three hammer strikes: a marker sweeps a bar, faster each time, and you tap as it crosses the glowing zone.
+  - A strike in the zone is good, and one dead in its middle is perfect.
+  - The strikes add up to a quality from rough to masterwork, which shifts the rarity odds. A masterwork can even come out legendary.
+  - For a spell core, a good forge raises its tier.
+- **The reveal.** A forged piece or an unsealed relic rises in a beam of its rarity's colour, then its card opens.
+- **After a dive,** a report says what came home or what was lost, then you're back on the plaza.
 
 | Attunement | Each rank (up to 5) |
 |---|---|
@@ -163,6 +175,11 @@ Only two enemies can wind up at once, plus one more every three floors down. The
 | Might | +8% melee damage |
 | Clarity | +8% spell damage |
 | Stride | +5% move speed |
+
+### Fewer trips home
+- **Salvage in the field:** break found gear down into ore in the cargo, so it isn't all weight. Ore that doesn't fit is left on the floor.
+- **Ancient forges:** from depth 3, a floor sometimes has one in a side cavern. It forges from what you carry, on the same anvil, and the piece goes in your cargo.
+- **The ride home feeds the star:** every extraction feeds it 3 × depth² points, so pushing deep grows the star directly.
 
 ## Controls
 
@@ -190,11 +207,11 @@ Only two enemies can wind up at once, plus one more every three floors down. The
   - Darkness, where only magitech gives off light: the helmet lamp, ore glints, runes, glowing fungus, singing crystals, magma, enemies' eyes and cores, the lodelines and the Lodestar.
   - Light comes in a few dithered bands, and glowing things bloom.
 - **Readability rule.** Rock tops are always darker than the floor, with lit rims and front faces where they meet it.
-- **Biome looks.** Each biome changes its floor, rock and light colours and its enemies' colours. What grows and glows changes too, mostly against the walls:
-  - **the Rim:** fungus caps, curling stalks with hanging bulbs, clusters of pods;
-  - **the Choir:** singing crystals, chime spires, rings of shards;
-  - **the Underforge:** magma cracks, ember vents, cinder pods.
-- **Alien light.** Faint veins glow in the rock. Flora glows dimly, in colours that clash with no ore: yellow-green on the Rim, pink in the Choir, ember in the Underforge.
+- **Biome looks.** Each biome changes its floor, rock and light colours and its enemies' colours. Each also has its own strange flora (flora.js), as sprites that stand on the floor, grow at the foot of walls, or hang from wall faces. Some sway or pulse:
+  - **the Rim:** jelly caps trailing beads of light, frilled stalks, shelf fungus, split puffballs, blinking eye stalks, a lit pitcher, hanging roots, dripstone;
+  - **the Choir:** bone tube worms, reed pipes, ribbed fans, bell flowers, spore sacs, weeping stone, ribbon fronds, chime cones;
+  - **the Underforge:** ash caps, fungus on broken pipes, charred roots, a breathing vent flower, slag drips, a half-buried cog, a rust totem, cinder pods.
+- **Alien light.** Faint veins glow in the rock. Flora glows dimly, in colours no ore uses, and never in crystal shapes: chartreuse on the Rim, dusky pink in the Choir, low ember in the Underforge.
 - **Ore twinkles**, so it's the one thing in the rock that catches the eye.
 - **Loot glows in its rarity's colour.** Rare and better stands up in a beam, so it's seen from across a room.
 - **(proposed) Lamp radius as a dial.** The lamp's radius could shrink as danger rises with depth.

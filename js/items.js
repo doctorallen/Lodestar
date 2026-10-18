@@ -273,15 +273,16 @@ function compareSlot(equip, it) {
 // The forge, the rune bench, the salvager
 // ---------------------------------------------------------------------------
 function craftCost(kind) { return T.items[kind].cost; }
-const craftRarity = (rng) => rng.weighted([[55, 'common'], [35, 'magic'], [10, 'rare']]);
-const RARITY_STEP = { common: 'magic', magic: 'rare', rare: 'legendary' };
+// The rarity a forge comes out at, by the anvil's quality (0–3).
+const craftRarity = (rng, q = 1) => rng.weighted(T.anvil.odds[clamp(q, 0, 3)].map((w, i) => [w, ['common', 'magic', 'rare', 'legendary'][i]]));
+const RARITY_STEP = { common: 'magic', magic: 'rare', rare: 'legendary', legendary: 'legendary' };
 
-// Makes an item from `cost` of an ore (and an optional exotic). The caller
-// has checked and spent the materials.
-function forgeItem(rng, kind, oreId, exoticId) {
+// Makes an item from `cost` of an ore (and an optional exotic), forged at
+// quality q. The caller has checked and spent the materials.
+function forgeItem(rng, kind, oreId, exoticId, q = 1) {
   const tier = T.ores[ORE_INDEX[oreId]].tier;
   if (kind === 'core') return null;
-  let rarity = craftRarity(rng);
+  let rarity = craftRarity(rng, q);
   const ex = exoticId && T.exotics.find((e) => e.id === exoticId);
   if (ex && !ex.family) rarity = RARITY_STEP[rarity];
   return makeItem(rng, kind, tier, { rarity, family: ex && ex.family });

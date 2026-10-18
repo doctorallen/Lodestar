@@ -150,12 +150,12 @@ function setupInput() {
   window.addEventListener('keydown', (e) => {
     if (GAME_KEYS.has(e.code) && !Game.modal) e.preventDefault();
     if (e.repeat) return;
-    if ((e.code === 'Escape' || e.code === 'KeyP') && Game.scene === 'dive') {
+    if ((e.code === 'Escape' || e.code === 'KeyP') && Game.dive) {
       if (Game.modal) UI.close();
       else UI.openPause();
       return;
     }
-    if (e.code === 'KeyI' && Game.scene === 'dive' && !Game.modal) { UI.openCargo(); return; }
+    if (e.code === 'KeyI' && Game.dive && !Game.dive.hub && !Game.modal) { UI.openCargo(); return; }
     if ((e.code === 'KeyE' || e.code === 'Enter') && !Game.modal) Input.actReq = true;
     if (DASH_KEYS.includes(e.code) && !Game.modal) Input.dashReq = true;
     Input.keys.add(e.code);

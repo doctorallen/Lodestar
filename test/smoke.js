@@ -9,6 +9,8 @@
 // J to swing, Space to mine, Esc to pause. No page errors anywhere;
 // screenshots go to test/out/.
 const { launch, openGame, shot, finish, PHONE, DESKTOP } = require('./lib');
+// The whole loop, from the outpost: the ledge, a dive, the forge and its
+// anvil, the rune bench, the star's altar.
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const failures = [];
@@ -58,15 +60,32 @@ function standOn(where) { const d = Game.dive, t = d.floor[where]; if (!t) retur
 // clears every enemy off the floor, so a test isn't interrupted
 function calm() { for (const e of Game.dive.enemies) e.dead = true; Game.dive.shots = []; }
 
+// in the page: stands the diver at a station in the outpost
+function atStation(id) { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === id); d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; }
+
 async function phone(browser) {
   const { page, errors } = await openGame(browser, PHONE);
-  check(await visible(page, '#screen-base'), 'phone: no Lodestar screen');
-  await shot(page, 'smoke-base');
-  await tap(page, '#hub-body [data-act=go][data-arg=screen-descend]');
-  check(await visible(page, '#screen-descend'), 'phone: DESCEND did not open the biomes');
+  // home: the outpost, the star over the pit
+  check(await page.evaluate(() => Game.dive && Game.dive.hub && !Game.modal), 'phone: the game did not open at the outpost');
+  await run(page, 0.2);
+  await shot(page, 'smoke-outpost');
+  // the walk works at home too
+  const h0 = await page.evaluate(() => Game.dive.p.y);
+  const [hx, hy] = await center(page, '#deck-left');
+  await page.touchscreen.touchStart(hx, hy);
+  for (let i = 1; i <= 5; i++) await page.touchscreen.touchMove(hx, hy - i * 8);
+  await run(page, 0.5);
+  await page.touchscreen.touchEnd();
+  check(await page.evaluate((h0) => Game.dive.p.y < h0 - 4, h0), 'phone: the joystick did not walk at the outpost');
+  await page.evaluate(atStation, 'descend');
+  await run(page, 0.1);
+  check(await page.evaluate(() => $('btn-act').textContent === 'DESCEND'), 'phone: no DESCEND at the ledge');
+  await tap(page, '#btn-act');
+  await run(page, 0.05);
+  check(await visible(page, '#screen-descend'), 'phone: the ledge did not open the biomes');
   check(await page.evaluate(() => document.querySelectorAll('#descend-body .biome:disabled').length === 2), 'phone: the Choir and the Underforge are open on a fresh save');
   await tap(page, '#descend-body [data-act=dive][data-arg="0"]');
-  check(await page.evaluate(() => Game.scene === 'dive' && !Game.modal && Game.dive.depth === 1), 'phone: tapping the Rim did not start a dive');
+  check(await page.evaluate(() => Game.scene === 'dive' && !Game.dive.hub && !Game.modal && Game.dive.depth === 1), 'phone: tapping the Rim did not start a dive');
   await run(page, 0.2);
   const v = await page.evaluate(() => ({ w: View.w, h: View.h, cssW: View.canvas.getBoundingClientRect().width, stageW: $('stage').getBoundingClientRect().width }));
   check(Math.min(v.w, v.h) >= 176 && v.cssW >= v.stageW - 1, `phone: the view is ${v.w}×${v.h}, ${v.cssW}px across a ${v.stageW}px stage`);
@@ -81,7 +100,7 @@ async function phone(browser) {
   await run(page, 0.6);
   await page.touchscreen.touchEnd();
   const after = await page.evaluate(() => [Game.dive.p.x, Game.dive.p.y]);
-  const blocked = await page.evaluate(() => TILE_SOLID[floorTile(Game.dive.floor, Math.floor((Game.dive.p.x + 8) / TILE), Math.floor(Game.dive.p.y / TILE))]);
+  const blocked = await page.evaluate(() => rockAt(Game.dive.floor, Game.dive.p.x + 8, Game.dive.p.y));
   check(after[0] > before[0] + 4 || blocked, `phone: the joystick didn't walk right (${before} → ${after})`);
 
   // SWING hits an enemy beside the diver
@@ -125,7 +144,8 @@ async function phone(browser) {
   check(await page.evaluate(() => cargoUsed(Game.dive)) === cargo, 'phone: the cargo did not come down the shaft');
   await page.evaluate(calm);
 
-  // pausing stops the world; CARGO shows what's carried
+  // pausing stops the world; CARGO shows what's carried; gear salvaged in
+  // the field turns into ore in the cargo
   await tap(page, '#btn-pause');
   check(await visible(page, '#screen-pause'), 'phone: II did not pause');
   const t0 = await page.evaluate(() => Game.dive.time);
@@ -133,40 +153,81 @@ async function phone(browser) {
   check(await page.evaluate((t0) => Game.dive.time === t0, t0), 'phone: the dive ran on while paused');
   await tap(page, '#pause-resume');
   check(!(await page.evaluate(() => Game.modal)), 'phone: RESUME did not close the pause');
-  await page.evaluate(() => Game.dive.items.push(makeItem(new Rng(5), 'blade', 2, { rarity: 'rare' })));
+  await page.evaluate(() => { Game.dive.items.push(makeItem(new Rng(5), 'blade', 2, { rarity: 'rare' })); Game.dive.items.push(makeItem(new Rng(6), 'armor', 1, { rarity: 'magic' })); });
   await tap(page, '#btn-cargo');
   check(await visible(page, '#screen-cargo'), 'phone: CARGO did not open');
-  check(await page.evaluate(() => document.querySelectorAll('#cargo-body [data-act=cardCargo]').length === 1), 'phone: the found blade is not in the cargo');
+  check(await page.evaluate(() => document.querySelectorAll('#cargo-body [data-act=cardCargo]').length === 2), 'phone: the found gear is not in the cargo');
   await shot(page, 'smoke-cargo');
+  const ferrite0 = await page.evaluate(() => Game.dive.cargo.ferrite || 0);
+  const plate = await page.evaluate(() => Game.dive.items.find((i) => i.kind === 'armor').uid);
+  await tap(page, `#cargo-body [data-act=cardCargo][data-arg="${plate}"]`);
+  await tap(page, '#card [data-act=salvage]');
+  check(await page.evaluate((f0) => Game.dive.items.length === 1 && (Game.dive.cargo.ferrite || 0) > f0, ferrite0), 'phone: salvaging in the field gave no ore');
   await tap(page, '#screen-cargo [data-act=resume]');
 
-  // the lodeline home banks the haul
+  // an ancient forge forges from the cargo, and what it makes goes in it
+  await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 20; d.fieldForge = { x: Math.floor(d.p.x / TILE), y: Math.floor(d.p.y / TILE) }; });
+  await run(page, 0.05);
+  check(await page.evaluate(() => $('btn-act').textContent === 'FORGE'), 'phone: no FORGE at an ancient forge');
+  await tap(page, '#btn-act');
+  await run(page, 0.05);
+  check(await page.evaluate(() => $('forge-title').textContent === 'AN ANCIENT FORGE'), 'phone: the ancient forge did not open');
+  await tap(page, '#forge-body [data-act=craft][data-arg=charm]');
+  check(await visible(page, '#screen-anvil'), 'phone: forging did not go to the anvil');
+  for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.evaluate(() => Anvil.strike()); }
+  await run(page, 0.8);
+  check(await visible(page, '#screen-reveal'), 'phone: the forged piece was not revealed');
+  await run(page, 2.5);
+  check(await page.evaluate(() => Game.dive.items.some((i) => i.kind === 'charm') && Game.dive.cargo.ferrite === 20 - T.items.charm.cost), 'phone: the ancient forge did not use the cargo, or the charm is not in it');
+  await page.evaluate(() => { UI.closeCard(); UI.close(); Game.dive.fieldForge = null; });
+  const carried = await page.evaluate(() => cargoUsed(Game.dive));
+
+  // the lodeline home banks the haul and feeds the star
   await page.evaluate(standOn, 'pad');
   await run(page, 0.1);
   await shot(page, 'smoke-lodeline');
   check(await page.evaluate(() => $('btn-act').textContent === 'EXTRACT'), 'phone: no EXTRACT on the lodeline');
   await tap(page, '#btn-act');
   await run(page, 0.1);
-  check(await visible(page, '#screen-base'), 'phone: EXTRACT did not come home');
-  const banked = await page.evaluate(() => [Object.values(Save.data.stash).reduce((a, b) => a + b, 0), Save.data.items.length, JSON.parse(localStorage.getItem('lodestar.save.v2'))]);
-  check(banked[0] === cargo, `phone: banked ${banked[0]} ore of ${cargo}`);
-  check(banked[1] === 1 && banked[2].items.length === 1, 'phone: the found blade was not banked and saved');
-  check(/Banked/.test(await page.evaluate(() => $('hub-body').textContent)), 'phone: the Lodestar does not report the haul');
-  await shot(page, 'smoke-banked');
+  check(await visible(page, '#screen-report'), 'phone: EXTRACT did not report the dive');
+  check(/Banked/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the haul');
+  const banked = await page.evaluate(() => [Object.values(Save.data.stash).reduce((a, b) => a + b, 0) + Save.data.items.length * T.cargo.itemWeight, JSON.parse(localStorage.getItem('lodestar.save.v2')), Save.data.star]);
+  check(banked[0] === carried, `phone: banked ${banked[0]} of ${carried}`);
+  check(banked[1].items.length === 2, 'phone: the found gear was not banked and saved');
+  const fedWant = await page.evaluate(() => T.star.extractStar * 4);
+  check(banked[2] === fedWant, `phone: the lodeline fed the star ${banked[2]}, not ${fedWant}`);
+  await shot(page, 'smoke-report');
+  await tap(page, '#screen-report [data-act=closeReport]');
+  check(await page.evaluate(() => Game.dive.hub && !Game.modal), 'phone: CONTINUE did not come back to the outpost');
 
-  // the forge makes a blade, which goes in the main hand
-  await page.evaluate(() => { Save.data.stash.ferrite = 40; UI.redraw(); });
-  await tap(page, '#hub-body [data-arg=screen-forge]');
+  // the forge: three strikes on the anvil, the reveal, the card
+  await page.evaluate(() => { Save.data.stash.ferrite = 40; });
+  await page.evaluate(atStation, 'forge');
+  await run(page, 0.05);
+  check(await page.evaluate(() => $('btn-act').textContent === 'FORGE'), 'phone: no FORGE at the forge');
+  await tap(page, '#btn-act');
+  await run(page, 0.05);
   await tap(page, '#forge-body [data-act=craft][data-arg=blade]');
-  check(await visible(page, '#card'), 'phone: forging showed no card');
   check(await page.evaluate(() => Save.data.stash.ferrite === 32), 'phone: forging a blade did not cost 8 Ferrite');
+  await shot(page, 'smoke-anvil');
+  const [ax, ay] = await center(page, '#anvil-canvas');
+  for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.touchscreen.tap(ax, ay); await sleep(60); }
+  check(await page.evaluate(() => !Anvil.job || Anvil.job.strikes.length === 3), 'phone: three taps did not strike three times');
+  await run(page, 0.8);
+  await shot(page, 'smoke-reveal');
+  await run(page, 2.5);
+  check(await visible(page, '#card'), 'phone: the reveal did not open the card');
   await shot(page, 'smoke-forged');
   await tap(page, '#card [data-act=equip][data-arg=main]');
   check(await page.evaluate(() => Save.data.equip.main.name !== 'Scrap Blade' && Save.data.items.some((i) => i.name === 'Scrap Blade')), 'phone: the forged blade is not in the main hand');
   await tap(page, '#screen-forge [data-act=back]');
 
   // the rune bench rerolls an affix on what's worn
-  await tap(page, '#hub-body [data-arg=screen-gear]');
+  await page.evaluate(atStation, 'runes');
+  await run(page, 0.05);
+  check(await page.evaluate(() => $('btn-act').textContent === 'RUNES'), 'phone: no RUNES at the rune bench');
+  await tap(page, '#btn-act');
+  await run(page, 0.05);
   await tap(page, '#gear-body [data-act=cardEquip][data-arg=main]');
   if (await page.evaluate(() => Save.data.equip.main.affixes.length > 0)) {
     await tap(page, '#card [data-act=reroll][data-arg="0"]');
@@ -176,23 +237,27 @@ async function phone(browser) {
   await shot(page, 'smoke-gear');
   await tap(page, '#screen-gear [data-act=back]');
 
-  // feeding the star
-  await tap(page, '#hub-body [data-arg=screen-star]');
+  // feeding the star at the altar: back out to watch it drink
+  await page.evaluate(atStation, 'altar');
+  await run(page, 0.05);
+  check(await page.evaluate(() => $('btn-act').textContent === 'THE STAR'), 'phone: no THE STAR at the altar');
+  await tap(page, '#btn-act');
+  await run(page, 0.05);
   const pts = await page.evaluate(() => Save.data.star);
   await tap(page, '#star-body [data-act=feed][data-arg="ferrite:10"]');
-  check(await page.evaluate((p) => Save.data.star === p + 10, pts), 'phone: feeding 10 Ferrite did not add 10 points');
-  await tap(page, '#screen-star [data-act=back]');
+  check(await page.evaluate((p) => Save.data.star === p + 10 && !Game.modal, pts), 'phone: feeding 10 Ferrite did not add 10 points and show the star');
+  await run(page, 0.4);
+  await shot(page, 'smoke-feed');
 
   // dying loses the cargo, keeps what's worn
   const kept = await page.evaluate(() => [Save.data.equip.main.uid, Save.data.stash.ferrite]);
-  await tap(page, '#hub-body [data-arg=screen-descend]');
-  await tap(page, '#descend-body [data-act=dive][data-arg="0"]');
+  await page.evaluate(() => UI.acts.dive('0'));
   await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 9; d.items.push(makeRelic(1)); d.p.invuln = 0; hurtPlayer(9999, null); });
   await run(page, 1);
   await shot(page, 'smoke-dying');
   await run(page, 1);
-  check(await visible(page, '#screen-base'), 'phone: dying did not come home');
-  check(/You fell/.test(await page.evaluate(() => $('hub-body').textContent)), 'phone: the Lodestar does not say you fell');
+  check(await visible(page, '#screen-report'), 'phone: dying did not report');
+  check(/YOU FELL/.test(await page.evaluate(() => $('report-title').textContent)), 'phone: the report does not say you fell');
   check(await page.evaluate(([w, fe]) => Save.data.equip.main.uid === w && Save.data.stash.ferrite === fe && !Save.data.items.some((i) => i.kind === 'relic'), kept), 'phone: dying kept the cargo or lost the gear');
 
   // every hole a mined vein leaves can be walked into, from the side or the corner
@@ -238,8 +303,7 @@ async function sideways(browser) {
 
 async function desktop(browser) {
   const { page, errors } = await openGame(browser, DESKTOP);
-  await sleep(450);
-  await page.click('#hub-body [data-arg=screen-descend]');
+  await page.evaluate(() => UI.useStation('descend'));
   await sleep(450);
   await page.click('#descend-body [data-act=dive][data-arg="0"]');
   await run(page, 0.1);
@@ -249,7 +313,7 @@ async function desktop(browser) {
   await run(page, 0.5);
   await page.keyboard.up('KeyS');
   const y1 = await page.evaluate(() => Game.dive.p.y);
-  const blocked = await page.evaluate(() => TILE_SOLID[floorTile(Game.dive.floor, Math.floor(Game.dive.p.x / TILE), Math.floor((Game.dive.p.y + 8) / TILE))]);
+  const blocked = await page.evaluate(() => rockAt(Game.dive.floor, Game.dive.p.x, Game.dive.p.y + 8));
   check(y1 > y0 + 4 || blocked, 'desktop: S did not walk down');
   const hp = await page.evaluate(() => { const d = Game.dive, e = makeEnemy('crawler', d.p.x + 10, d.p.y, 1, null); d.enemies.push(e); return e.hp; });
   await page.keyboard.down('KeyJ');

@@ -60,3 +60,11 @@ The major gameplay decisions, newest last, and why each was made. Read this befo
 
 - **Only ore may look like ore.** Glowing flora in ore colours was mistaken for ore. Now flora is dim and coloured unlike any ore, ground specks are gone, rock veins are faint, and ore twinkles.
 - **No screen shake.** The designer disliked it. Hit-stop, knockback and numbers carry the impact.
+
+## 2026-10-17: home is a place
+
+- **A walkable outpost instead of a menu.** The designer found forging through menus uninteresting. The base is now the sinkhole's rim, with the star over the pit and stations to walk up to, and it visibly grows with the star.
+- **Forging is played.** Three timed strikes on an anvil set the quality, which shifts the rarity odds, so skill nudges the dice without replacing them.
+- **Arrivals are shown.** Forged pieces and opened relics rise in their rarity's light, and fed ore streams into the star.
+- **Fewer trips home:** salvage in the field, ancient forges deep down, and every ride home feeds the star.
+- **Real flora.** The lumps are replaced by designed sprites (mushrooms, stalactites, tube worms, roots…) that sway, sort in depth with the actors, and never look like ore.

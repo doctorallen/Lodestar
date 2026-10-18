@@ -42,11 +42,10 @@
   <div id="stick-base" class="stick-base" hidden><div id="stick-knob" class="stick-knob"></div></div>
 
   <!-- the screens; only one shows at a time -->
-  <section id="screen-base" class="screen base" hidden>
-    <div class="star-wrap"><canvas id="star"></canvas><div class="sinkhole"></div></div>
-    <h1 class="logo">LODESTAR</h1>
-    <div id="hub-body" class="hub-body"></div>
-    <div class="build" id="build"></div>
+  <section id="screen-report" class="screen" hidden>
+    <h2 id="report-title"></h2>
+    <p id="report-body" class="report"></p>
+    <div class="menu"><button class="btn primary" data-act="closeReport">CONTINUE</button></div>
   </section>
 
   <section id="screen-descend" class="screen panel" hidden>
@@ -56,13 +55,13 @@
   </section>
 
   <section id="screen-forge" class="screen panel" hidden>
-    <h2>THE FORGE</h2>
+    <h2 id="forge-title">THE FORGE</h2>
     <div id="forge-body" class="list"></div>
     <div class="menu"><button class="btn" data-act="back">BACK</button></div>
   </section>
 
   <section id="screen-gear" class="screen panel" hidden>
-    <h2>GEAR</h2>
+    <h2 id="gear-title">GEAR</h2>
     <div id="gear-body" class="list"></div>
     <div class="menu"><button class="btn" data-act="back">BACK</button></div>
   </section>
@@ -86,7 +85,19 @@
       <button id="pause-cargo" class="btn" data-act="go" data-arg="screen-cargo">CARGO</button>
       <button id="pause-abandon" class="btn danger" data-act="abandon">ABANDON DIVE</button>
     </div>
-    <p class="note">Abandoning loses everything in your cargo. What you wear is safe.</p>
+    <p id="pause-note" class="note">Abandoning loses everything in your cargo. What you wear is safe.</p>
+    <div class="build" id="build"></div>
+  </section>
+
+  <section id="screen-anvil" class="screen anvil" hidden>
+    <h2>THE ANVIL</h2>
+    <p id="anvil-what" class="note center"></p>
+    <canvas id="anvil-canvas"></canvas>
+    <p id="anvil-call" class="anvil-call"></p>
+  </section>
+
+  <section id="screen-reveal" class="screen reveal" hidden>
+    <div id="reveal-body" class="reveal-stage"></div>
   </section>
 
   <div id="card" class="card-wrap" hidden><div id="card-body" class="card"></div></div>
@@ -99,13 +110,16 @@
 <script src="js/floor.js"></script>
 <script src="js/art.js"></script>
 <script src="js/diver.js"></script>
+<script src="js/flora.js"></script>
 <script src="js/items.js"></script>
 <script src="js/game.js"></script>
 <script src="js/enemies.js"></script>
 <script src="js/combat.js"></script>
 <script src="js/render.js"></script>
+<script src="js/hub.js"></script>
 <script src="js/input.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/anvil.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

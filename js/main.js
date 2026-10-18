@@ -15,10 +15,11 @@ function step(dtReal) {
   updateSparks(dtReal);
   UI.frame(dtReal);
   View.shake = (View.shake || 0) * Math.exp(-14 * dtReal);
+  if (Game.modal === 'screen-anvil') Anvil.update(dtReal);
   if (Game.modal) return;
   // a hit lands: everything holds still for a moment
   if (Game.hitstop > 0) { Game.hitstop -= dtReal; return; }
-  if (Game.scene !== 'dive' || !Game.dive) return;
+  if (!Game.dive) return;
   const dt = dtReal * Game.timeScale;
   Game.t += dt;
   updateDive(dtReal, dt);
@@ -77,12 +78,12 @@ function boot() {
   if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
   // leaving the tab pauses a dive
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && Game.scene === 'dive' && !Game.modal) UI.openPause();
+    if (document.hidden && Game.dive && !Game.dive.hub && !Game.modal) UI.openPause();
   });
   Game.step = step;
   Game.render = renderFrame;
   Game.ready = true;
-  UI.openBase();
+  enterHub();
   requestAnimationFrame((t) => { _last = t; frame(t); });
 }
 

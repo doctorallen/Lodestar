@@ -24,10 +24,12 @@ The loop:
 2. Mine ore and fight what finds you.
 3. Stand in a lodeline's gold beam and EXTRACT to bank your cargo. Fall, and the cargo is lost, but what you wear is safe.
 
-At home:
-- forge gear, picks and spell cores;
-- rework affixes on any item's card;
-- feed ore to the star to grow it and open deeper biomes.
+At home, walk the outpost's stations:
+- the forge: strike the anvil well for better odds;
+- the rune bench: rework affixes;
+- the locker: your gear;
+- the star's altar: feed it ore to grow it and open deeper biomes;
+- the ledge: jump back in.
 
 ## Files
 
@@ -41,6 +43,9 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/save.js` | The save in localStorage |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, shaft, lodeline |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
+| `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
+| `js/hub.js` | The outpost: stations, the star over the pit, lanterns, feeding the star |
+| `js/anvil.js` | The forging minigame, and the reveal of what arrives |
 | `js/diver.js` | The player's sprite: the circuit diver's five facings, walk frames and hand points |
 | `js/items.js` | Affixes, rarities, legendaries, the set, cores, relics; the forge, rune bench, salvage; stats |
 | `js/game.js` | Game state, the dive, walking, mining, leaving |
