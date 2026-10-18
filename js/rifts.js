@@ -143,12 +143,21 @@ function tintRift(f, x0, y0, x1, y1) {
   if (!P || (!f.riftShift && !f.graft)) return;
   const to = rgbOf(S.floorToward), edge = rgbOf(S.fringe[1]), fr = S.fringe.map(rgbOf), reach = T.rifts.tintR * TILE;
   x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(P.w, x1); y1 = Math.min(P.h, y1);
-  const gm = (x, y) => graftAt(f, x, y);
+  const gf = f.graft;
+  // the graft's outline stays within its radius and a tile and a half of
+  // wobble, so it's worked out once a pixel in a box round it; the tint
+  // reaches only so far from a tear
+  const gx = gf ? (gf.x + 0.5) * TILE : 0, gy = gf ? (gf.y + 0.5) * TILE : 0, gr = gf ? (gf.r + 2) * TILE : 0;
+  const mx0 = Math.max(x0, Math.floor(gx - gr)), my0 = Math.max(y0, Math.floor(gy - gr));
+  const mw = Math.max(0, Math.min(x1, Math.ceil(gx + gr)) + 2 - mx0), mh = Math.max(0, Math.min(y1, Math.ceil(gy + gr)) + 2 - my0);
+  const inG = gf ? new Uint8Array(mw * mh) : null;
+  if (gf) for (let j = 0; j < mh; j++) for (let i = 0; i < mw; i++) inG[j * mw + i] = graftAt(f, mx0 + i, my0 + j) ? 1 : 0;
+  const gm = (x, y) => inG[(y - my0) * mw + x - mx0] === 1;
   for (let y = y0; y < y1; y++)
     for (let x = x0; x < x1; x++) {
       const k = (y * P.w + x) * 4, c = P.col, e = P.em;
       let t = 0;
-      if (f.riftShift) for (const s of f.riftShift) t = Math.max(t, 1 - Math.hypot(x - (s.x + 0.5) * TILE, y - (s.y + 0.5) * TILE) / reach);
+      if (f.riftShift) for (const s of f.riftShift) { const dx = x - (s.x + 0.5) * TILE, dy = y - (s.y + 0.5) * TILE; if (dx < reach && dx > -reach && dy < reach && dy > -reach) t = Math.max(t, 1 - Math.hypot(dx, dy) / reach); }
       if (t > 0) {
         const a = Math.min(1, t * 1.4) * S.amount;
         c[k] += (to[0] - c[k]) * a; c[k + 1] += (to[1] - c[k + 1]) * a; c[k + 2] += (to[2] - c[k + 2]) * a;
@@ -156,7 +165,7 @@ function tintRift(f, x0, y0, x1, y1) {
         if (h < 2 && t > 0.2) { const q = fr[h]; c[k] = q[0]; c[k + 1] = q[1]; c[k + 2] = q[2]; e[k] = q[0]; e[k + 1] = q[1]; e[k + 2] = q[2]; e[k + 3] = 200; }
       }
       // the seam, on open ground only: in the rock it would draw the grid
-      if (f.graft && !View.rockPx[y * P.w + x]) {
+      if (gf && Math.abs(x - gx) < gr && Math.abs(y - gy) < gr && !View.rockPx[y * P.w + x]) {
         const g = gm(x, y);
         if (gm(x + 1, y) !== g || gm(x, y + 1) !== g) {
           const lit = hashInts(x, y, 0x5ea) % 3 !== 0;
