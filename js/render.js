@@ -89,14 +89,16 @@ const rgb01 = (hex) => rgbOf(hex).map((v) => v / 255);
 // feet, so the diver passes behind the tall ones; two-frame pieces sway.
 // ---------------------------------------------------------------------------
 const _floraSprites = {};
-function floraSprite(biome, piece, frame) {
-  const key = biome + '/' + piece.name + '/' + frame;
-  if (!_floraSprites[key]) _floraSprites[key] = buildArtSprite(piece.frames[frame], FLORA_PAL[biome], FLORA_LETTERS, FLORA_GLOWS);
+function floraSprite(set, piece, frame) {
+  const key = set + '/' + piece.name + '/' + frame;
+  if (!_floraSprites[key]) _floraSprites[key] = set === 'surface' ? buildArtSprite(piece.frames[frame], SURFACE_PAL, SURFACE_LETTERS, SURFACE_GLOWS) : buildArtSprite(piece.frames[frame], FLORA_PAL[set], FLORA_LETTERS, FLORA_GLOWS);
   return _floraSprites[key];
 }
+// Which plants grow on a floor: the surface's under the sky, else its biome's.
+function floraSetOf(f) { return f.hub ? 'rim' : f.zone === 'surface' ? 'surface' : T.biomes[f.biome].id; }
 
-function placeFlora(f, biomeId) {
-  const out = [], pieces = FLORA[biomeId], L = T.light, keep = new Set();
+function placeFlora(f, set) {
+  const out = [], pieces = set === 'surface' ? SURFACE_FLORA : FLORA[set], L = T.light, keep = new Set();
   const mark = (x, y) => keep.add(y * f.w + x);
   if (f.entry) mark(f.entry.x, f.entry.y);
   if (f.shaft) mark(f.shaft.x, f.shaft.y);
@@ -106,7 +108,7 @@ function placeFlora(f, biomeId) {
     const list = pieces.filter((p) => p.anchor === anchor);
     let w = list.reduce((a, p) => a + p.weight, 0), r = (h % 1000) / 1000 * w;
     for (const p of list) if ((r -= p.weight) < 0) return p;
-    return list[list.length - 1];
+    return list[list.length - 1] || null;
   };
   for (let ty = 1; ty < f.h - 1; ty++)
     for (let tx = 1; tx < f.w - 1; tx++) {
@@ -118,22 +120,23 @@ function placeFlora(f, biomeId) {
       const scale = f.hub ? 0.4 : 1;
       let piece = null, x = (tx + 0.5) * TILE + ((h >>> 20) % 7) - 3, y;
       if (wallAbove && roll < L.floraCeiling * scale) { piece = pick('ceiling', h); y = ty * TILE - 1; }
-      else if (wallAbove && roll < (L.floraCeiling + L.floraWall) * scale) { piece = pick('wall', h); y = ty * TILE + piece.h - 2; }
+      else if (wallAbove && roll < (L.floraCeiling + L.floraWall) * scale) { piece = pick('wall', h); if (piece) y = ty * TILE + piece.h - 2; }
       else if (roll < (walls ? L.floraNearWall : L.floraOpen) * scale) { piece = pick('floor', h); y = (ty + 1) * TILE - 3; }
-      if (piece) out.push({ piece, x, y, top: piece.anchor === 'ceiling', phase: (h & 255) / 255 });
+      if (piece) out.push({ piece, set, x, y, top: piece.anchor === 'ceiling', phase: (h & 255) / 255 });
     }
   return out;
 }
 
 // One piece, drawn with its feet (or for a hanging one, its top) at x, y.
 function drawFlora(d, fl, ox, oy, lights) {
-  const biome = d.hub ? 'rim' : T.biomes[d.biome].id, p = fl.piece;
+  const p = fl.piece;
   const frame = p.frames.length > 1 ? Math.floor(Game.realT * 2 + fl.phase * 2) % 2 : 0;
-  const spr = floraSprite(biome, p, frame);
+  const spr = floraSprite(fl.set, p, frame);
   const sx = Math.round(fl.x + ox - spr.w / 2), sy = Math.round(fl.top ? fl.y + oy : fl.y + oy - spr.h + 1);
   if (sx > View.w || sy > View.h || sx + spr.w < 0 || sy + spr.h < 0) return;
   drawArtSprite(spr, sx, sy);
-  lights.push({ x: sx + spr.w / 2, y: sy + spr.h * (fl.top ? 0.8 : 0.35), r: TILE * 1.1, i: T.light.flora, c: rgb01(FLORA_PAL[biome].glow[0]) });
+  // under the sky the plants don't glow; only pollen catches the light
+  if (fl.set !== 'surface') lights.push({ x: sx + spr.w / 2, y: sy + spr.h * (fl.top ? 0.8 : 0.35), r: TILE * 1.1, i: T.light.flora, c: rgb01(FLORA_PAL[fl.set].glow[0]) });
 }
 
 // The floor's rock, pixel by pixel, from the smooth wall line.
@@ -154,7 +157,7 @@ function paintFloor(f) {
   [View.floorCol, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[0], 0, 0);
   [View.floorEm, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[1], 0, 0);
   View.lights = floorLights(f);
-  View.flora = placeFlora(f, f.hub ? 'rim' : T.biomes[f.biome].id);
+  View.flora = placeFlora(f, floraSetOf(f));
 }
 
 function paintTileArt(f, tx, ty) {
