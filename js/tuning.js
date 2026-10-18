@@ -451,18 +451,21 @@ const T = {
 
   // Enemies at level 1; each level multiplies hp by hpGrowth and damage by
   // dmgGrowth. windup: the tell before an attack. weight: how often each
-  // turns up. No more than `attackers` (plus attackersPerDepth a floor)
+  // turns up. (Crawlers, wisps and constructs have half the health they had
+  // before natures, as they resist Force, the element of every spell with
+  // none: Force fells one in as many hits as before, an element it fears in
+  // a third of them.) No more than `attackers` (plus attackersPerDepth a floor)
   // wind up at once; the rest circle.
   // A heavy hit staggers anything but the warden for staggerTime.
   enemies: {
     hpGrowth: 1.16, dmgGrowth: 1.07, aggro: 96, hurtFlash: 0.08, attackers: 2, attackersPerDepth: 0.34, staggerTime: 0.35,
     // crawlers close to `circle` px, circle for a moment, wind up, lunge,
     // then recover (open to a counter)
-    crawler: { hp: 26, dmg: 14, speed: 36, radius: 5, circle: 28, windup: 0.38, lungeSpeed: 145, lungeTime: 0.28, recover: 0.55, weight: 5 },
+    crawler: { hp: 13, dmg: 14, speed: 36, radius: 5, circle: 28, windup: 0.38, lungeSpeed: 145, lungeTime: 0.28, recover: 0.55, weight: 5 },
     // wisps keep `keep` px away and strafe; from fanDepth they fire three
-    wisp: { hp: 17, dmg: 9, speed: 28, radius: 4, keep: 60, range: 115, windup: 0.55, cooldown: 1.9, shotSpeed: 72, fanDepth: 3, weight: 3 },
+    wisp: { hp: 9, dmg: 9, speed: 28, radius: 4, keep: 60, range: 115, windup: 0.55, cooldown: 1.9, shotSpeed: 72, fanDepth: 3, weight: 3 },
     // constructs show where they'll charge; one that hits a wall is dazed
-    construct: { hp: 52, dmg: 16, speed: 20, radius: 6, range: 80, windup: 0.7, cooldown: 2.2, chargeSpeed: 135, chargeTime: 0.5, dazed: 1.3, weight: 2 },
+    construct: { hp: 26, dmg: 16, speed: 20, radius: 6, range: 80, windup: 0.7, cooldown: 2.2, chargeSpeed: 135, chargeTime: 0.5, dazed: 1.3, weight: 2 },
     // flora that fights: rooted, hidden among the harmless kind until it
     // wakes. A snapjaw snaps at anything within `reach`; a spitter lobs a
     // glob that leaves spores on the ground (`puddle` px across, hurting

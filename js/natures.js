@@ -153,21 +153,32 @@ function crackWard(e, heavy) {
 // Drawing (render.js calls these on the unlit layer over the view)
 // ---------------------------------------------------------------------------
 // The marks: 3 art px wide, a dark rim round each so it reads on any ground.
+// A row of marks is painted once into a small picture and kept.
 const NATURE_MARK = { W: ['.#.', '###'], R: ['###', '.#.'], I: ['###', '###'] };
-function drawNaturePips(o, e, cx, y) {
-  const { marks, unknown } = natureMarks(e);
-  const n = marks.length + (unknown ? 1 : 0);
-  if (!n) return;
-  let x = Math.round(cx - (n * 5 - 2) / 2);
-  const dark = (rows) => { for (let j = -1; j <= rows.length; j++) for (let i = -1; i <= 3; i++) o.fillRect(x + i, y + j, 1, 1); };
+const _naturePips = new Map();
+function naturePipsPic(marks, unknown) {
+  const key = marks.map((m) => m.el + m.v).join() + (unknown ? '?' : '');
+  let pic = _naturePips.get(key);
+  if (pic) return pic;
+  const n = marks.length + (unknown ? 1 : 0), w = n * 5 + 1, h = 7, [c, o] = makeCanvas(w, h);
+  let x = 1;
   for (const m of marks) {
     const rows = NATURE_MARK[m.v];
-    o.fillStyle = '#0b0a12'; dark(rows);
+    o.fillStyle = '#0b0a12'; o.fillRect(x - 1, 2, 5, rows.length + 2);
     o.fillStyle = ELEMENT_COLS[m.el];
-    rows.forEach((r, j) => { for (let i = 0; i < 3; i++) if (r[i] === '#') o.fillRect(x + i, y + j, 1, 1); });
+    rows.forEach((r, j) => { for (let i = 0; i < 3; i++) if (r[i] === '#') o.fillRect(x + i, 3 + j, 1, 1); });
     x += 5;
   }
-  if (unknown) drawPixelText(o, '?', x + 1, y - 3, '#c8bca0', 1);
+  if (unknown) o.drawImage(pixelTextPic('?', '#c8bca0'), x, 0);
+  pic = { c, w };
+  _naturePips.set(key, pic);
+  return pic;
+}
+function drawNaturePips(o, e, cx, y) {
+  const { marks, unknown } = natureMarks(e);
+  if (!marks.length && !unknown) return;
+  const pic = naturePipsPic(marks, unknown);
+  o.drawImage(pic.c, Math.round(cx - pic.w / 2), y - 3);
 }
 
 // A foe's number: bigger and green with WEAK under it when weak, small and
@@ -181,17 +192,21 @@ const BIG_DIGITS = [
   ['.###.', '##...', '####.', '##.##', '##.##', '##.##', '.###.'], ['#####', '...##', '..##.', '..##.', '.##..', '.##..', '.##..'],
   ['.###.', '##.##', '##.##', '.###.', '##.##', '##.##', '.###.'], ['.###.', '##.##', '##.##', '.####', '...##', '...##', '.###.'],
 ];
+// (each digit painted once, with its shadow, in each colour)
+const _bigDigits = new Map();
+function bigDigitPic(k, col) {
+  const key = k + col;
+  let c = _bigDigits.get(key);
+  if (c) return c;
+  const g = BIG_DIGITS[k], [cv, o] = makeCanvas(6, 8);
+  for (const [ink, off] of [['#000000', 1], [col, 0]]) { o.fillStyle = ink; for (let j = 0; j < 7; j++) for (let i = 0; i < 5; i++) if (g[j][i] === '#') o.fillRect(i + off, j + off, 1, 1); }
+  _bigDigits.set(key, cv);
+  return cv;
+}
 function drawBigNumber(o, v, cx, cy, col, alpha) {
   const s = String(v), w = s.length * 6 - 1, x0 = cx - Math.floor(w / 2);
   o.globalAlpha = alpha;
-  for (const [ink, off] of [['#000000', 1], [col, 0]]) {
-    o.fillStyle = ink;
-    for (let k = 0; k < s.length; k++) {
-      const g = BIG_DIGITS[s.charCodeAt(k) - 48];
-      if (!g) continue;
-      for (let j = 0; j < 7; j++) for (let i = 0; i < 5; i++) if (g[j][i] === '#') o.fillRect(x0 + k * 6 + i + off, cy + j + off, 1, 1);
-    }
-  }
+  for (let k = 0; k < s.length; k++) { const d = s.charCodeAt(k) - 48; if (d >= 0 && d <= 9) o.drawImage(bigDigitPic(d, col), x0 + k * 6, cy); }
   o.globalAlpha = 1;
 }
 function drawVerdictNumber(o, n, nx, ny) {
@@ -209,5 +224,28 @@ function drawVerdictNumber(o, n, nx, ny) {
   return false;
 }
 
-// Words in the stations' pixel hand (hub.js), centred on cx, on a canvas.
-function drawPixelText(o, text, cx, y, col, alpha) { drawLabel(text, cx, y, col, alpha, o); }
+// Words in the stations' pixel hand (hub.js), centred on cx (kept inside
+// the view), on a canvas; each word painted once in each colour, and kept.
+const _pixelWords = new Map();
+function pixelTextPic(text, col) {
+  const key = text + col;
+  let c = _pixelWords.get(key);
+  if (c) return c;
+  if (_pixelWords.size > 400) _pixelWords.clear();
+  const glyphs = [...text].map((ch) => (LABEL_FONT[ch] || LABEL_FONT[' ']).split('/')), w = glyphs.reduce((n, g) => n + g[0].length + 1, -1);
+  const [cv, o] = makeCanvas(w + 1, 6);
+  for (const [ink, off] of [['#000000', 1], [col, 0]]) {
+    o.fillStyle = ink;
+    let x = 0;
+    for (const g of glyphs) { for (let j = 0; j < 5; j++) for (let i = 0; i < g[j].length; i++) if (g[j][i] === '1') o.fillRect(x + i + off, j + off, 1, 1); x += g[0].length + 1; }
+  }
+  cv.textW = w;
+  _pixelWords.set(key, cv);
+  return cv;
+}
+function drawPixelText(o, text, cx, y, col, alpha) {
+  const pic = pixelTextPic(text, col), w = pic.textW;
+  o.globalAlpha = alpha;
+  o.drawImage(pic, clamp(Math.round(cx - w / 2), 1, View.w - w - 2), y);
+  o.globalAlpha = 1;
+}

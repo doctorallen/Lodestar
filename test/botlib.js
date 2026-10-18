@@ -249,7 +249,10 @@ function installBot() {
       main: ['arc', 'el', 'quicken', 'amplify', 'chain', 'linger'],
       off: [s.blueprints.includes('form_lance') ? 'lance' : 'bolt', 'el', s.blueprints.includes('form_lance') ? 'split' : 'pierce', 'amplify', 'echo', 'chain'],
     };
-    const elements = ['shock', 'frost', 'ember', 'blight'];
+    // the elements, best first: by how often the kinds it meets fear them
+    // and how seldom they shrug them off
+    const worth = (el) => ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'].reduce((n, t) => { const v = (natureTable(t) || {})[el]; return n + T.enemies[t].weight * (v ? T.circuits.resist[v] : 1); }, 0);
+    const elements = ['shock', 'frost', 'ember', 'blight'].sort((a, b) => worth(b) - worth(a));
     const have = (id) => s.items.filter((x) => x.kind === 'stone' && x.stone === id).concat(['main', 'off'].flatMap((k) => (s.equip[k] ? s.equip[k].slots.filter((x) => x && x.stone === id) : [])));
     const bestOre = (bp) => T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) >= bp.ore + 4);
     const make = (id) => {
