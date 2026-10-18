@@ -7,9 +7,11 @@
 //   heads for a lodeline when it's there, when the cargo is nearly full, or
 //   when it's hurt. Returns how it ended.
 //   Bot.home() spends the haul like a player might: equips anything better,
-//   forges a better pick, a blade and plate when it can (striking the anvil
-//   fairly), salvages the rest, unseals relics, feeds spare ore to the star
-//   and spends attunements.
+//   forges a better pick, casters, plate and a charm when it can (striking
+//   the anvil fairly), forges the stones its circuits want and sockets them
+//   (an Arc in the gauntlet, a Bolt or Lance in the other hand, with an
+//   element and glyphs as it finds them), salvages the rest, unseals relics,
+//   feeds spare ore to the star and spends attunements.
 //   Bot.career({ dives }) does both over and over from a fresh save.
 
 function installBot() {
@@ -117,8 +119,8 @@ function installBot() {
         aim = { foe };
         if (m > 14) goTile(d, steps, Math.floor(foe.x / TILE), Math.floor(foe.y / TILE));
         // tap, don't hold: alternate presses make combos; dash out of a tell
-        const tap = (iter++ & 1) === 0, mainFocus = Save.data.equip.main && Save.data.equip.main.kind === 'focus';
-        Input.bot.main = tap && (mainFocus ? m < 120 : m < 40);
+        const tap = (iter++ & 1) === 0, mf = firstForm(Save.data.equip.main), mainClose = !Save.data.equip.main || mf === 'arc' || mf === 'glaive';
+        Input.bot.main = tap && (mainClose ? m < 30 : m < 120);
         Input.bot.off = !tap && m < 120 && !!Save.data.equip.off;
         if (d.enemies.some((e) => !e.dead && e.state === 'windup' && dist(e.x, e.y, p.x, p.y) < 50) && p.dashCd <= 0) { const a = norm(p.x - foe.x, p.y - foe.y); Input.bot.x = -a.y; Input.bot.y = a.x; Input.bot.dash = true; }
       } else if (leave) goTile(d, steps, d.floor.pad.x, d.floor.pad.y);
@@ -166,10 +168,10 @@ function installBot() {
     // unseal relics
     for (const r of s.items.filter((i) => i.kind === 'relic')) { UI.openCard(r, 'stash', r.uid); acts.unseal(); Reveal.done(); UI.closeCard(); log.push('unsealed'); }
     const best = () => {
-      // equip anything better than what's worn
+      // equip anything better than what's worn (casters: below)
       for (const it of s.items.slice()) {
         const slot = compareSlot(s.equip, it);
-        if (!slot) continue;
+        if (!slot || it.kind === 'caster') continue;
         if (itemWorth(it) > itemWorth(s.equip[slot]) * 1.05) { UI.openCard(it, 'stash', it.uid); acts.equip(slot); log.push('equip ' + it.name); }
       }
     };
@@ -177,8 +179,8 @@ function installBot() {
     // forge: the best ore it has enough of, bound with the part it has most of
     const forge = (bpId, oreId) => {
       const bp = BLUEPRINTS[bpId], part = PART_STACK_IDS.filter((id) => bindsWith(bpId, id) && (s.stash[id] || 0) >= bp.parts).sort((a, b) => s.stash[b] - s.stash[a])[0];
-      if (!part || (s.stash[oreId] || 0) < bp.ore) return false;
-      Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, part, exotic: null });
+      if ((bp.parts && !part) || (s.stash[oreId] || 0) < bp.ore || (bp.exotic && !s.stash[bp.exotic])) return false;
+      Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, part: part || null, exotic: null });
       acts.craft();
       if (Anvil.job) { Anvil.finish(1); Reveal.done(); }
       return true;
@@ -187,17 +189,25 @@ function installBot() {
     // a pick that breaks the next ore up
     const pick = s.equip.pick, pickOre = T.ores.find((o) => o.tier === (pick ? pick.base.power : 1));
     if (pickOre && forge(s.blueprints.includes('drill') ? 'drill' : 'pick', pickOre.id)) log.push('forged ' + pickOre.name + ' pick');
-    // a weapon, plate and a charm in the best ore it has plenty of
-    const weapon = ['hammer', 'spear', 'whip', 'blade'].find((id) => s.blueprints.includes(id));
-    for (const [bpId, slot] of [[weapon, 'main'], ['plate', 'armor'], ['charm', 'charm']]) {
+    // casters (a gauntlet in the main hand, a staff or a wand in the off),
+    // plate and a charm, in the best ore it has plenty of
+    const offBp = s.blueprints.includes('staff') ? 'staff' : 'wand';
+    for (const [bpId, slot] of [['gauntlet', 'main'], [offBp, 'off'], ['plate', 'armor'], ['charm', 'charm']]) {
       const bp = BLUEPRINTS[bpId], ore = T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) >= bp.ore + 6);
       const cur = s.equip[slot];
-      if (ore && (!cur || cur.tier < ore.tier) && forge(bpId, ore.id)) log.push('forged ' + bpId + ' in ' + ore.name);
+      if (ore && (!cur || cur.tier < ore.tier || (bp.kind === 'caster' && cur.bp !== bpId)) && forge(bpId, ore.id)) log.push('forged ' + bpId + ' in ' + ore.name);
     }
     UI.closeCard();
     best();
-    // salvage what's left that isn't a core
-    for (const it of s.items.filter((i) => i.kind !== 'core' && i.kind !== 'relic')) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
+    // the casters: the best of each kind into its hand, its circuit moved over
+    for (const [slot, bpId] of [['main', 'gauntlet'], ['off', offBp]]) {
+      const cur = s.equip[slot], better = s.items.filter((it) => it.kind === 'caster' && it.bp === bpId && itemWorth(it) > (cur && cur.bp === bpId ? itemWorth(cur) * 1.05 : 0)).sort((a, b) => itemWorth(b) - itemWorth(a))[0];
+      if (better) { UI.openCard(better, 'stash', better.uid); acts.equip(slot); log.push('equip ' + better.name); }
+    }
+    UI.closeCard();
+    log.push(...circuits(forge));
+    // salvage what's left that isn't a stone
+    for (const it of s.items.filter((i) => i.kind !== 'stone' && i.kind !== 'relic')) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
     UI.closeCard();
     // feed ore the bot doesn't need for its next pick
     const keep = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
@@ -205,9 +215,65 @@ function installBot() {
       const have = s.stash[o.id] || 0, spare = have - (keep && o.id === keep.id ? BLUEPRINTS.pick.ore : 14);
       if (spare >= 10) for (let k = 0; k < Math.floor(spare / 10); k++) acts.feed(o.id + ':10');
     }
-    for (const id of ['vitality', 'might', 'capacity', 'vitality', 'might', 'stride', 'capacity']) if (attunePointsLeft(s) > 0) acts.attune(id);
+    for (const id of ['vitality', 'proximity', 'capacity', 'vitality', 'clarity', 'stride', 'capacity']) if (attunePointsLeft(s) > 0) acts.attune(id);
     Save.save();
     UI.close();
+    return log;
+  }
+
+  // The circuits a player might build: the gauntlet an Arc (Quicken,
+  // Amplify, Chain), the other hand a Lance if it has one, else a Bolt
+  // (Pierce or Split, Amplify), each with an Element if it has the exotic.
+  // It forges the stones it wants from what's in the stash (a Form again
+  // when its ore is a tier better), with home's forge(bp, ore), then
+  // sockets them.
+  function circuits(forge) {
+    const s = Save.data, log = [];
+    const want = {
+      main: ['arc', 'el', 'quicken', 'amplify', 'chain', 'linger'],
+      off: [s.blueprints.includes('form_lance') ? 'lance' : 'bolt', 'el', s.blueprints.includes('form_lance') ? 'split' : 'pierce', 'amplify', 'echo', 'chain'],
+    };
+    const elements = ['shock', 'frost', 'ember', 'blight'];
+    const have = (id) => s.items.filter((x) => x.kind === 'stone' && x.stone === id).concat(['main', 'off'].flatMap((k) => (s.equip[k] ? s.equip[k].slots.filter((x) => x && x.stone === id) : [])));
+    const bestOre = (bp) => T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) >= bp.ore + 4);
+    const make = (id) => {
+      const bpId = BP_IDS.find((b) => BLUEPRINTS[b].stone === id);
+      if (!bpId || !s.blueprints.includes(bpId)) return false;
+      const ore = bestOre(BLUEPRINTS[bpId]);
+      if (!ore) return false;
+      const top = Math.max(0, ...have(id).map((x) => x.tier));
+      if (top >= ore.tier) return false;
+      if (forge(bpId, ore.id)) { log.push(`forged ${id} stone in ${ore.name}`); return true; }
+      return false;
+    };
+    for (const k of ['main', 'off']) {
+      const it = s.equip[k];
+      if (!it) continue;
+      const n = it.slots.length;
+      for (const id of want[k].slice(0, n)) {
+        if (id !== 'el') { make(id); continue; }
+        // an element: one this hand hasn't, from an exotic it has
+        const own = elements.filter((e) => have(e).length);
+        if (own.length < 2) { const e = elements.find((x) => !have(x).length && s.stash[STONE_ELEMENTS[x]]); if (e) make(e); }
+      }
+    }
+    // socket: every stone back to the stash, then each hand's best
+    for (const k of ['main', 'off']) { const it = s.equip[k]; if (!it) continue; it.slots.forEach((x, i) => { if (x) { s.items.push(x); it.slots[i] = null; } }); }
+    const take = (id) => { const st = s.items.filter((x) => x.kind === 'stone' && x.stone === id).sort((a, b) => b.tier - a.tier)[0]; if (st) s.items.splice(s.items.indexOf(st), 1); return st || null; };
+    const used = [];
+    for (const k of ['main', 'off']) {
+      const it = s.equip[k];
+      if (!it) continue;
+      let i = 0;
+      for (const id of want[k]) {
+        if (i >= it.slots.length) break;
+        let st;
+        if (id === 'el') { const e = elements.find((x) => !used.includes(x) && s.items.some((y) => y.stone === x)) || elements.find((x) => s.items.some((y) => y.stone === x)); st = e ? take(e) : null; if (st) used.push(e); }
+        else st = take(id);
+        if (st) it.slots[i++] = st;
+      }
+    }
+    Save.save();
     return log;
   }
 
@@ -221,14 +287,14 @@ function installBot() {
       r.home = home();
       r.mag = magnitudeOf(s.star);
       r.pick = s.equip.pick ? s.equip.pick.base.power : 0;
-      r.blade = s.equip.main ? `${s.equip.main.name} t${s.equip.main.tier}` : 'fists';
+      r.hands = ['main', 'off'].map((k) => (s.equip[k] ? `${s.equip[k].name} t${s.equip[k].tier} [${s.equip[k].slots.map((x) => (x ? x.stone : '-')).join(' ')}]` : 'fist')).join(' / ');
       r.maxHp = computeStats(s.equip, s.attune).maxHp;
       out.push(r);
     }
     return out;
   }
 
-  window.Bot = { dive, home, career };
+  window.Bot = { dive, home, career, circuits };
 }
 
 module.exports = { installBot };

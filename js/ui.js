@@ -28,7 +28,60 @@ function costTag(id, n, have, name = stuffName(id)) {
 
 function iconImg(item, cls = 'icon') { return `<img class="${cls}" src="${itemIconUrl(item)}" alt="">`; }
 function itemRow(item, act, arg, tag = '') {
-  return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name r-${item.rarity}">${item.fav ? '★ ' : ''}${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span></span>${tag}</button>`;
+  return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name r-${item.rarity}">${item.fav ? '★ ' : ''}${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span>${isCaster(item) ? miniCircuit(item) : ''}</span>${tag}</button>`;
+}
+
+// ---------------------------------------------------------------------------
+// Circuits on the screens: a stone as a tile, a caster's row of them, and
+// the drawer of stones to socket
+// ---------------------------------------------------------------------------
+const STONE_ORDER = Object.keys(CIRCUIT_FORMS).concat(Object.keys(CIRCUIT_ELEMENTS), Object.keys(CIRCUIT_GLYPHS));
+
+// A stone as a tile: a Form's is stone with a heavy rim, an Element's filled
+// with its colour, a Glyph's etched with a dashed rim; or an empty slot.
+// st: a stone, or { stone, tier }; opts: { act, arg, sel, mini, count }.
+function stoneTile(st, opts = {}) {
+  const tag = opts.act ? 'button' : 'span', cls = `${opts.sel ? ' sel' : ''}${opts.mini ? ' mini' : ''}`;
+  const attrs = opts.act ? ` data-act="${opts.act}" data-arg="${opts.arg}"` : '';
+  if (!st) return `<${tag} class="tile t-empty${cls}"${attrs} aria-label="Empty slot"><b>·</b>${opts.mini ? '' : '<small>EMPTY</small>'}</${tag}>`;
+  const W = stoneWords(st.stone), k = stoneKind(st.stone);
+  const img = opts.mini ? '' : `<img src="${stoneIconUrl(st.stone, st.tier)}" alt="">`;
+  const sub = opts.mini ? '' : `<small>${opts.count ? '×' + opts.count + ' · ' : ''}T${st.tier}</small>`;
+  return `<${tag} class="tile t-${k}${cls}" style="--c:${stoneCol(st.stone)}"${attrs} aria-label="${esc(W.name)}, tier ${st.tier}">${img}<b>${W.abbr}</b>${sub}</${tag}>`;
+}
+function miniCircuit(it) { return `<span class="mini-circuit">${it.slots.map((s) => stoneTile(s, { mini: true })).join('')}</span>`; }
+// The stones in a list, one entry for each kind and tier: { stone, tier, n }.
+function groupStones(items) {
+  const m = new Map();
+  for (const it of items) {
+    if (it.kind !== 'stone') continue;
+    const k = it.stone + ':' + it.tier, e = m.get(k) || { stone: it.stone, tier: it.tier, n: 0 };
+    e.n++; m.set(k, e);
+  }
+  return [...m.values()].sort((a, b) => STONE_ORDER.indexOf(a.stone) - STONE_ORDER.indexOf(b.stone) || b.tier - a.tier);
+}
+
+// A caster's circuit on its card: the row of slots, what it costs, what it
+// does in words; and at home, the drawer to socket stones from (free).
+function circuitPanel(it, edit, c) {
+  if (edit && (typeof c.slot !== 'number' || c.slot >= it.slots.length)) c.slot = Math.max(0, it.slots.indexOf(null));
+  const R = circuitReadout(it);
+  const tiles = it.slots.map((st, i) => (i ? '<span class="link" aria-hidden="true"></span>' : '') + stoneTile(st, edit ? { act: 'slotPick', arg: i, sel: c.slot === i } : {})).join('');
+  let h = `<h3>CIRCUIT · ${it.slots.length} SLOTS</h3><div class="circuit">${tiles}</div>`;
+  h += `<p class="circuit-cost">Costs <b>${R.cost} charge</b> a cast · held, <b>${R.held} charge</b>${R.close ? ' · close Forms give charge back' : ''}</p>`;
+  h += `<div class="readout">${R.lines.map((l) => `<p${l.warn ? ' class="warn"' : ''}>${esc(l.text)}</p>`).join('')}</div>`;
+  if (!edit) return h + (c.where === 'cargo' || c.where === 'worn' ? '<p class="note">Its stones can be changed at home, at the locker.</p>' : '');
+  const sel = it.slots[c.slot], have = groupStones(Save.data.items);
+  const grp = (kind, label, none) => {
+    const list = have.filter((x) => stoneKind(x.stone) === kind);
+    return `<div class="drawer-grp"><div class="gl">${label}</div><div class="drawer-row">${list.length ? list.map((x) => stoneTile(x, { act: 'slotPut', arg: x.stone + ':' + x.tier, count: x.n })).join('') : `<span class="note">${none}</span>`}</div></div>`;
+  };
+  h += `<div class="drawer"><div class="drawer-head"><span>SLOT ${c.slot + 1} · ${sel ? `${esc(stoneWords(sel.stone).name.toUpperCase())} · TIER ${sel.tier}` : 'EMPTY'}</span>${sel ? '<button class="mini" data-act="slotEmpty">TAKE OUT</button>' : ''}</div>
+    <p class="note">Tap a stone to set it in slot ${c.slot + 1}. Socketing is free: change it as often as you like.</p>
+    ${grp('form', 'FORMS · THE SHAPE', 'No spare Form stones: forge them from a Form blueprint.')}
+    ${grp('element', 'ELEMENTS · THE DAMAGE', 'No Element stones: forge them from exotics, or Force from ore.')}
+    ${grp('glyph', 'GLYPHS · WHAT CHANGES IT', 'No Glyph stones: forge them from creature parts.')}</div>`;
+  return h;
 }
 // ▲ or ▼ against what's worn in the slot it would go in
 function compareTag(item, equip) {
@@ -43,7 +96,7 @@ function compareTag(item, equip) {
 const UI = {
   openedAt: 0,
   screen: null,
-  card: null, // { item, where, key, picking }
+  card: null, // { item, where, key, slot (the circuit's chosen slot) }
   forge: { bp: null, ore: null, part: null, exotic: null, field: false },
 
   init() {
@@ -125,7 +178,7 @@ const UI = {
   openCargo() { UI.show('screen-cargo'); },
 
   openCard(item, where, key) {
-    UI.card = { item, where, key, picking: null };
+    UI.card = { item, where, key, slot: null };
     $('card').hidden = false;
     UI.openedAt = Game.realT;
     drawCard();
@@ -207,10 +260,12 @@ const UI = {
     setTextIfChanged('btn-cargo', `CARGO ${cargoUsed(d)}/${st.cargo}`);
     const eq = Save.data.equip;
     for (const slot of ['main', 'off']) {
-      const it = eq[slot], btn = $('btn-' + slot), key = it ? it.uid + ':' + it.kind : 'none';
+      // each hand's button shows its circuit's first Form
+      const it = eq[slot], P = isCaster(it) ? parseCircuit(it.slots) : null, g = P && P.groups[0];
+      const form = it ? (g ? g.form : null) : 'arc', tier = g ? g.tier : 1, btn = $('btn-' + slot), key = `${it ? it.uid : 'fist'}:${form}:${tier}`;
       if (btn.dataset.key !== key) {
         btn.dataset.key = key;
-        btn.innerHTML = it ? `<img class="btn-icon" src="${itemIconUrl(it)}" alt=""><span>${it.kind === 'focus' ? 'CAST' : 'SWING'}</span>` : '<span>PUNCH</span>';
+        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt', tier)}" alt=""><span>${!it ? 'FIST' : form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
       }
       const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
       btn.classList.toggle('charging', lv > 0 && lv < 1);
@@ -339,63 +394,78 @@ function imprintCost(src) {
 // an ancient forge.
 function forgeSource() { return UI.forge.field && Game.dive ? Game.dive.cargo : Save.data.stash; }
 
-// The kinds of blueprint, in the order the forge lists them.
-const FORGE_GROUPS = [['FIGHTING', 'blade'], ['CASTING', 'focus'], ['ARMOR', 'armor'], ['CHARMS', 'charm'], ['PICKS', 'pick'], ['SPELL CORES', 'core']];
+// The forge's tabs: gear (casters first), then each kind of stone.
+const FORGE_TABS = [['GEAR', 'gear'], ['FORMS', 'form'], ['ELEMENTS', 'element'], ['GLYPHS', 'glyph']];
+const FORGE_ORDER = ['caster', 'armor', 'charm', 'pick'];
+const forgeTabOf = (id) => BLUEPRINTS[id].stoneKind || 'gear';
 
 // A stand-in piece for a blueprint, for its icon.
-function bpSample(id, tier = 1) { const bp = BLUEPRINTS[id]; return bp.kind === 'core' ? { kind: 'core', core: bp.core, tier, rarity: 'magic' } : { kind: bp.kind, bp: id, tier, rarity: 'common' }; }
+function bpSample(id, tier = 1) { const bp = BLUEPRINTS[id]; return bp.kind === 'stone' ? { kind: 'stone', stone: bp.stone, tier, rarity: 'magic' } : { kind: bp.kind, bp: id, tier, rarity: 'common' }; }
+
+// A caster's slots by how the anvil goes, in words.
+function slotWords(bpId) {
+  const S = T.circuits.bases[BLUEPRINTS[bpId].style].slots, Q = ['rough', 'fair', 'fine', 'masterwork'], by = {};
+  S.forEach((n, q) => (by[n] = by[n] || []).push(Q[q]));
+  return Object.keys(by).map((n) => `${n} from a ${by[n].join(' or ')} forge`).join(', ');
+}
 
 function drawForge() {
   const stash = forgeSource(), F = UI.forge, known = Save.data.blueprints;
   $('forge-title').textContent = F.field ? 'AN ANCIENT FORGE' : 'THE FORGE';
-  if (!F.bp || !known.includes(F.bp)) F.bp = known[0];
-  const bp = BLUEPRINTS[F.bp];
+  if (!F.bp || !known.includes(F.bp)) F.bp = known.find((id) => BLUEPRINTS[id].kind === 'caster') || known[0];
+  F.tab = forgeTabOf(F.bp);
+  const bp = BLUEPRINTS[F.bp], stone = bp.kind === 'stone';
   // what this blueprint can be made from, of what's to hand
   const ores = T.ores.filter((o) => (stash[o.id] || 0) > 0);
   const parts = PART_STACK_IDS.filter((id) => (stash[id] || 0) > 0 && bindsWith(F.bp, id));
-  const exotics = T.exotics.filter((x) => (stash[x.id] || 0) > 0 && (bp.kind !== 'core'));
+  const exotics = stone ? [] : T.exotics.filter((x) => (stash[x.id] || 0) > 0);
   if (!F.ore || !stash[F.ore]) F.ore = (ores.find((o) => stash[o.id] >= bp.ore) || ores[0] || T.ores[0]).id;
   if (!F.part || !parts.includes(F.part)) F.part = parts.find((id) => stash[id] >= bp.parts) || parts[0] || null;
-  if (F.exotic && !stash[F.exotic]) F.exotic = null;
-  const ore = T.ores[ORE_INDEX[F.ore]], haveOre = stash[F.ore] || 0, haveParts = F.part ? stash[F.part] || 0 : 0;
-  const ready = haveOre >= bp.ore && haveParts >= bp.parts;
+  if (F.exotic && (!stash[F.exotic] || stone)) F.exotic = null;
+  const ore = T.ores[ORE_INDEX[F.ore]], haveOre = stash[F.ore] || 0, haveParts = F.part ? stash[F.part] || 0 : 0, haveEx = bp.exotic ? stash[bp.exotic] || 0 : 0;
+  const ready = haveOre >= bp.ore && (!bp.parts || haveParts >= bp.parts) && (!bp.exotic || haveEx >= 1);
 
-  const order = FORGE_GROUPS.map(([, kind]) => kind);
-  const ids = known.slice().sort((a, b) => order.indexOf(BLUEPRINTS[a].kind) - order.indexOf(BLUEPRINTS[b].kind));
-  const list = `<h3>1 · BLUEPRINT <span class="dim">· ${known.length} OF ${BP_IDS.length} KNOWN</span></h3><div class="bp-grid bp-strip">${ids.map((id) => `<button class="bp ${id === F.bp ? 'on' : ''}" data-act="forgeBp" data-arg="${id}"><img class="icon" src="${itemIconUrl(bpSample(id, ore.tier))}" alt=""><span>${esc(BLUEPRINTS[id].name)}</span></button>`).join('')}</div>`;
+  const tabs = `<div class="chips forge-tabs">${FORGE_TABS.map(([label, tab]) => `<button class="chip ${F.tab === tab ? 'on' : ''}" data-act="forgeTab" data-arg="${tab}">${label}</button>`).join('')}</div>`;
+  const inTab = known.filter((id) => forgeTabOf(id) === F.tab).sort((a, b) => FORGE_ORDER.indexOf(BLUEPRINTS[a].kind) - FORGE_ORDER.indexOf(BLUEPRINTS[b].kind) || BP_IDS.indexOf(a) - BP_IDS.indexOf(b));
+  const all = BP_IDS.filter((id) => forgeTabOf(id) === F.tab).length;
+  const list = `<h3>1 · BLUEPRINT <span class="dim">· ${inTab.length} OF ${all} KNOWN</span></h3>${tabs}<div class="bp-grid bp-strip">${inTab.map((id) => `<button class="bp ${id === F.bp ? 'on' : ''}" data-act="forgeBp" data-arg="${id}"><img class="icon" src="${itemIconUrl(bpSample(id, ore.tier))}" alt=""><span>${esc(BLUEPRINTS[id].name)}</span></button>`).join('')}</div>`;
   const chip = (act, id, label, on, ok = true) => `<button class="chip ${on ? 'on' : ''}" data-act="${act}" data-arg="${id}" ${ok ? '' : 'disabled'}>${label}</button>`;
   const stuffIcon = (id) => `<img class="chip-icon" src="${stuffIconUrl(id)}" alt="">`;
   const oreChips = ores.map((o) => chip('forgeOre', o.id, `${stuffIcon(o.id)}${esc(o.name)}<small>have ${stash[o.id]} · tier ${o.tier}</small>`, o.id === F.ore, stash[o.id] >= bp.ore)).join('') || `<span class="note">${F.field ? 'No ore in your cargo.' : 'No ore banked. Mine some and bring it home.'}</span>`;
-  const partChips = parts.map((id) => { const pk = parsePart(id), fam = PARTS[pk.kind].family; return chip('forgePart', id, `${stuffIcon(id)}${esc(partName(id))}<small>have ${stash[id]} · ${fam ? fam : 'any'}</small>`, id === F.part, stash[id] >= bp.parts); }).join('')
-    || `<span class="note">No ${bp.partKinds ? bp.partKinds.map((k) => PARTS[k].name).join(' or ') : 'creature parts'} ${F.field ? 'in your cargo' : 'banked'}. Creatures leave them when they fall.</span>`;
+  const partWord = bp.partKinds ? bp.partKinds.map((k) => PARTS[k].name).join(' or ') : 'creature parts';
+  const partChips = parts.map((id) => { const pk = parsePart(id), fam = PARTS[pk.kind].family; return chip('forgePart', id, `${stuffIcon(id)}${esc(partName(id))}<small>have ${stash[id]} · ${stone ? 'binds it' : fam || 'any'}</small>`, id === F.part, stash[id] >= bp.parts); }).join('')
+    || `<span class="note">No ${partWord} ${F.field ? 'in your cargo' : 'banked'}. Creatures leave them when they fall.</span>`;
   // powers the forge remembers, for this kind of piece (at home only)
   const known2 = (Save.data.codex || []).filter((k) => LEGENDARIES[k] && LEGENDARIES[k].kinds.includes(bp.kind));
   if (F.imprint && !known2.includes(F.imprint)) F.imprint = null;
   // paid from what's left once the binding is taken
   const left = Object.assign({}, stash);
-  if (F.part) left[F.part] = (left[F.part] || 0) - bp.parts;
+  if (F.part && bp.parts) left[F.part] = (left[F.part] || 0) - bp.parts;
   const pay = imprintCost(left), canPay = !!pay;
   if (F.imprint && !canPay) F.imprint = null;
   // what an imprint takes from here, or why it can't be paid
   const hearts = [1, 2, 3].reduce((n, g) => n + Math.max(0, left[partId('heart', g)] || 0), 0);
   const impCost = pay ? `<p class="note cost-line">${F.imprint ? 'Takes' : 'Would take'} ${costTag(pay.id, pay.n, left[pay.id] || 0)}</p>`
     : `<p class="note cost-line short">Needs a heart or ${T.imprint.glass} Riftglass besides the binding: you have ${hearts} heart${hearts === 1 ? '' : 's'} and ${left.riftglass || 0} Riftglass.</p>`;
-  const impChips = F.field || bp.kind === 'core' ? '' : known2.map((k) => chip('forgeImprint', k, `${esc(LEGENDARIES[k].name)}<small>${esc(LEGENDARIES[k].text.toLowerCase())}</small>`, k === F.imprint, canPay)).join('');
-  const exWhat = (x) => (x.element ? ELEMENTS[x.element].name.toLowerCase() : x.family ? x.family : x.rarity ? 'rarity +1' : x.tierUp ? 'tier +1' : '');
+  const impChips = F.field || stone ? '' : known2.map((k) => chip('forgeImprint', k, `${esc(LEGENDARIES[k].name)}<small>${esc(LEGENDARIES[k].text.toLowerCase())}</small>`, k === F.imprint, canPay)).join('');
+  const exWhat = (x) => (x.element ? `${CIRCUIT_ELEMENTS[x.element].name.toLowerCase()} stone` : x.family ? x.family : x.rarity ? 'rarity +1' : x.tierUp ? 'tier +1' : '');
   const exChips = exotics.map((x) => chip('forgeExotic', x.id, `${stuffIcon(x.id)}${esc(x.name)}<small>have ${stash[x.id]} · ${exWhat(x)}</small>`, x.id === F.exotic)).join('');
 
   // what these parts guarantee
   const pk = F.part && parsePart(F.part), ex = F.exotic && T.exotics.find((e) => e.id === F.exotic);
   const lines = [];
-  if (bp.kind === 'core') lines.push(`A tier ${ore.tier} ${esc(bp.name)} core (tier ${Math.min(6, ore.tier + 1)} from a fine forge). ${esc(CORES[bp.core].text)}.`);
-  else {
+  if (stone) {
+    lines.push(`A tier ${ore.tier} ${esc(bp.name)} stone, a ${STONE_KIND_NAMES[bp.stoneKind].toLowerCase()} (tier ${Math.min(T.ores.length, ore.tier + 1)} from a fine forge). ${esc(stoneLine(bp.stone))}`);
+    lines.push('Socket it into a caster at the locker: it costs nothing to change.');
+  } else {
     const tier = Math.min(T.ores.length, ore.tier + (ex && ex.tierUp ? 1 : 0));
-    const b = baseStats(bp.kind, tier, bp), base = itemBaseLine({ kind: bp.kind, base: b, tier });
+    const b = baseStats(bp.kind, tier, bp), base = bp.kind === 'caster' ? `${b.power} spell power` : itemBaseLine({ kind: bp.kind, base: b, tier });
     lines.push(`A tier ${tier} ${esc(bp.name.toLowerCase())}: ${esc(base)}.`);
+    if (bp.kind === 'caster') lines.push(`Slots: ${esc(slotWords(F.bp))}.`);
     if (bp.text) lines.push(esc(bp.text));
     if (pk && PARTS[pk.kind].family) lines.push(`Bound with ${esc(partName(F.part).toLowerCase())}: ${pk.grade} ${PARTS[pk.kind].family} affix${pk.grade > 1 ? 'es' : ''} for sure${pk.grade > 1 ? `, ${Math.round(T.items.gradeBoost * (pk.grade - 1) * 100)}% stronger` : ''}.`);
     if (pk && pk.kind === 'heart') lines.push('A heart: a fine forge or better comes out legendary.');
-    if (ex && ex.element && (bp.kind === 'blade' || bp.kind === 'focus')) lines.push(`${esc(ex.name)}: ${esc(ELEMENTS[ex.element].name.toLowerCase())}. ${esc(ELEMENTS[ex.element].text)}.`);
+    if (ex && ex.element && bp.kind === 'caster') lines.push(`${esc(ex.name)}: a ${esc(CIRCUIT_ELEMENTS[ex.element].name)} stone comes out with it.`);
     else if (ex && ex.family) lines.push(`${esc(ex.name)}: a ${ex.family} affix for sure.`);
     else if (ex && ex.rarity) lines.push(`${esc(ex.name)}: a rarity higher.`);
     else if (ex && ex.tierUp) lines.push(`${esc(ex.name)}: a tier above its ore.`);
@@ -404,17 +474,20 @@ function drawForge() {
     lines.push('The rest is in your strikes: rough, fair, fine or masterwork.');
   }
   // what FORGE takes, or why it can't yet
-  const exPaid = ex && bp.kind !== 'core';
-  const cost = !ready ? (haveOre < bp.ore ? `need ${bp.ore} ${ore.name}, have ${haveOre}` : !F.part ? `need ${bp.parts} ${bp.partKinds ? bp.partKinds.map((k) => PARTS[k].name).join(' or ') : 'creature part'}${bp.parts > 1 ? 's' : ''}` : `need ${bp.parts} ${partName(F.part)}, have ${haveParts}`)
-    : [`${bp.ore} ${ore.name}`, `${bp.parts} ${PARTS[parsePart(F.part).kind].name}`, exPaid && `1 ${ex.name}`, F.imprint && pay && `${pay.n} ${stuffName(pay.id)}`].filter(Boolean).join(', ');
+  const exName = bp.exotic && exoticName(bp.exotic);
+  const cost = !ready ? (haveOre < bp.ore ? `need ${bp.ore} ${ore.name}, have ${haveOre}` : bp.exotic && haveEx < 1 ? `need 1 ${exName}, have 0` : !F.part ? `need ${bp.parts} ${partWord}` : `need ${bp.parts} ${partName(F.part)}, have ${haveParts}`)
+    : [`${bp.ore} ${ore.name}`, bp.parts && `${bp.parts} ${PARTS[parsePart(F.part).kind].name}`, bp.exotic && `1 ${exName}`, !stone && ex && `1 ${ex.name}`, F.imprint && pay && `${pay.n} ${stuffName(pay.id)}`].filter(Boolean).join(', ');
+  const need = [`${bp.ore} ore`, bp.parts && `${bp.parts} part${bp.parts > 1 ? 's' : ''}`, bp.exotic && `1 ${exName}`, !stone && 'an exotic if you like'].filter(Boolean).join(' · ');
+  let step = 2;
   $('forge-body').innerHTML = `
     ${list}
     <div class="recipe-panel">
-      <div class="card-head"><img class="icon big" src="${itemIconUrl(bpSample(F.bp, ore.tier))}" alt=""><div class="grow"><div class="card-name">${esc(bp.name)}</div><div class="row-sub">${bp.ore} ore · ${bp.parts} part${bp.parts > 1 ? 's' : ''}${bp.kind !== 'core' ? ' · an exotic if you like' : ''}</div></div></div>
-      <h3>2 · HEAD <span class="dim">· ${bp.ore} ORE</span></h3><div class="chips">${oreChips}</div>
-      <h3>3 · BINDING <span class="dim">· ${bp.parts} PART${bp.parts > 1 ? 'S' : ''}</span></h3><div class="chips">${partChips}</div>
-      ${exChips ? `<h3>4 · EXOTIC <span class="dim">· IF YOU LIKE</span></h3><div class="chips">${exChips}</div>` : ''}
-      ${impChips ? `<h3>5 · IMPRINT <span class="dim">· A HEART OR ${T.imprint.glass} RIFTGLASS</span></h3>${impCost}<div class="chips">${impChips}</div>` : ''}
+      <div class="card-head"><img class="icon big" src="${itemIconUrl(bpSample(F.bp, ore.tier))}" alt=""><div class="grow"><div class="card-name">${esc(bp.name)}${stone ? ' stone' : ''}</div><div class="row-sub">${esc(need)}</div></div></div>
+      <h3>${step++} · HEAD <span class="dim">· ${bp.ore} ORE</span></h3><div class="chips">${oreChips}</div>
+      ${bp.parts ? `<h3>${step++} · BINDING <span class="dim">· ${bp.parts} ${esc(stone ? partWord.toUpperCase() : `PART${bp.parts > 1 ? 'S' : ''}`)}</span></h3><div class="chips">${partChips}</div>` : ''}
+      ${bp.exotic ? `<h3>${step++} · EXOTIC <span class="dim">· IT MAKES THE ELEMENT</span></h3><p class="note cost-line">Takes ${costTag(bp.exotic, 1, haveEx)}</p>` : ''}
+      ${exChips ? `<h3>${step++} · EXOTIC <span class="dim">· IF YOU LIKE</span></h3><div class="chips">${exChips}</div>` : ''}
+      ${impChips ? `<h3>${step++} · IMPRINT <span class="dim">· A HEART OR ${T.imprint.glass} RIFTGLASS</span></h3>${impCost}<div class="chips">${impChips}</div>` : ''}
       <div class="preview">${lines.map((l) => `<p>${l}</p>`).join('')}</div>
       ${F.field ? '<p class="note">What you forge here goes in your cargo.</p>' : ''}
       <div class="menu forge-go"><button class="btn primary" data-act="craft" ${ready ? '' : 'disabled'}>FORGE<small>${esc(cost.toUpperCase())}</small></button></div>
@@ -431,21 +504,24 @@ function drawGear() {
     return it ? itemRow(it, 'cardEquip', k, `<span class="slot">${SLOT_NAMES[k]}</span>`)
       : `<div class="row empty"><span class="row-text"><span class="row-name">Empty</span><span class="row-sub">${SLOT_NAMES[k]}</span></span></div>`;
   }).join('');
-  const kinds = ['relic', 'blade', 'focus', 'armor', 'charm', 'pick', 'core'];
-  const stash = s.items.slice().sort((a, b) => kinds.indexOf(a.kind) - kinds.indexOf(b.kind) || b.tier - a.tier)
+  const kinds = ['relic', 'caster', 'armor', 'charm', 'pick'];
+  const stash = s.items.filter((it) => it.kind !== 'stone').sort((a, b) => kinds.indexOf(a.kind) - kinds.indexOf(b.kind) || b.tier - a.tier)
     .map((it) => itemRow(it, 'cardStash', it.uid, compareTag(it, s.equip))).join('');
+  const stones = groupStones(s.items);
   $('gear-title').textContent = UI.gearRunes ? 'THE RUNE BENCH' : 'GEAR';
   $('gear-body').innerHTML = `
     ${UI.gearRunes ? `<p class="note">Tap a piece to rework its affixes: reroll one, raise one, or add one. It's paid in ore of the piece's own tier: ${T.ores.slice(0, 3).map((o) => `${esc(o.name)} for tier ${o.tier}`).join(', ')}, and so on.</p>` : ''}
     <div class="stats">${statLine(st)}</div>
     <h3>WORN</h3>${slots}
+    <p class="note">Tap a caster to build its circuit from your stones.</p>
+    <h3>STONES · ${stones.reduce((n, x) => n + x.n, 0)}</h3>${stones.length ? `<div class="drawer-row">${stones.map((x) => stoneTile(x, { act: 'cardStone', arg: x.stone + ':' + x.tier, count: x.n })).join('')}</div>` : '<p class="note">None spare. Forge Form, Element and Glyph stones at the forge.</p>'}
     <h3>STASH</h3>${stash || '<p class="note">Nothing banked. Gear you bring home lands here.</p>'}
-    ${downgrades().length ? `<div class="menu"><button class="btn danger" data-act="salvageAll">${UI.salvageAllArmed ? `TAP AGAIN: SALVAGE ${downgrades().length}` : `SALVAGE ALL ▼ (${downgrades().length})`}</button></div><p class="note">Breaks down every piece marked ▼ that isn't kept (★). Cores and relics are left alone.</p>` : ''}
+    ${downgrades().length ? `<div class="menu"><button class="btn danger" data-act="salvageAll">${UI.salvageAllArmed ? `TAP AGAIN: SALVAGE ${downgrades().length}` : `SALVAGE ALL ▼ (${downgrades().length})`}</button></div><p class="note">Breaks down every piece marked ▼ that isn't kept (★). Stones and relics are left alone.</p>` : ''}
     <h3>MATERIALS</h3><p class="note">${esc(stuffLines(s.stash)) || 'None.'}</p>`;
 }
 function statLine(st) {
   const bits = [`${st.maxHp} health`, `${st.armor} armor`, `${st.cargo} cargo`];
-  if (st.meleeDmg) bits.push(`+${Math.round(st.meleeDmg)}% melee`);
+  if (st.closeDmg) bits.push(`+${Math.round(st.closeDmg)}% close`);
   if (st.spellDmg) bits.push(`+${Math.round(st.spellDmg)}% spells`);
   if (st.crit) bits.push(`${Math.round(st.crit)}% crit`);
   if (st.moveSpeed) bits.push(`${st.moveSpeed > 0 ? '+' : ''}${Math.round(st.moveSpeed)}% speed`);
@@ -500,7 +576,7 @@ function drawCard() {
   if (c.stuff) { drawStuffCard(c.stuff); return; }
   const it = c.item, home = c.where === 'stash' || c.where === 'equip';
   const s = Save.data, oreId = runeOre(it), oreHave = s.stash[oreId] || 0, R = T.runes;
-  const runes = home && it.kind !== 'core' && it.kind !== 'relic' && !(it.kind === 'pick' && it.tier === 0);
+  const runes = home && it.kind !== 'stone' && it.kind !== 'relic' && !(it.kind === 'pick' && it.tier === 0);
   const rollBar = (a) => { const r = affixRoll(a, it.tier); return `<span class="roll" title="How well it rolled"><span style="width:${Math.round(clamp(r, 0.04, 1) * 100)}%" class="${r > 1 ? 'over' : r > 0.8 ? 'high' : ''}"></span></span>`; };
   // a rune button names its cost in the piece's ore, or why it can't be done
   const oreName = stuffName(oreId), oreIcon = `<img class="cost-icon" src="${stuffIconUrl(oreId)}" alt="">`;
@@ -514,15 +590,6 @@ function drawCard() {
   if (it.set) {
     const n = computeStats(s.equip, s.attune).sets[it.set] || 0, S = SETS[it.set];
     extra += `<p class="set">${esc(S.name)} (${n}/3 worn)<br>2: ${esc(S.bonus2.text)}<br>3: ${esc(S.bonus3.text)}</p>`;
-  }
-  if (it.sockets) {
-    extra += '<div class="sockets">' + it.sockets.map((core, i) => core
-      ? `<div class="sock">◆ ${esc(core.name)} (tier ${core.tier}) ${home ? `<button class="mini" data-act="unsocket" data-arg="${i}">REMOVE</button>` : ''}</div>`
-      : `<div class="sock">◇ Empty socket ${home ? `${s.items.some((x) => x.kind === 'core') ? `<button class="mini" data-act="pickCore" data-arg="${i}">SOCKET</button>` : '<button class="mini" disabled>NO CORES</button>'}` : ''}</div>`).join('') + '</div>';
-    if (c.picking !== null) {
-      const cores = s.items.filter((x) => x.kind === 'core');
-      extra += '<div class="picker">' + cores.map((x) => `<button class="mini wide" data-act="socket" data-arg="${x.uid}">${esc(x.name)} · tier ${x.tier}</button>`).join('') + '</div>';
-    }
   }
   const acts = [];
   const handBtns = (act) => [`<button class="btn primary" data-act="${act}" data-arg="main">EQUIP · MAIN</button>`, `<button class="btn primary" data-act="${act}" data-arg="off">EQUIP · OFF</button>`];
@@ -559,6 +626,7 @@ function drawCard() {
   $('card-body').innerHTML = cardBar(where, favBtn) + `<div class="card-scroll">
     <div class="card-head">${iconImg(it, 'icon big')}<div class="grow"><div class="card-name r-${it.rarity}">${esc(it.name)} ${cmp}</div><div class="row-sub">${esc(itemKindLine(it))}</div></div></div>
     <p class="base">${esc(itemBaseLine(it))}</p>
+    ${isCaster(it) ? circuitPanel(it, home, c) : ''}
     ${itemNotes(it).map((n) => `<p class="note">${esc(n)}</p>`).join('')}
     ${runeNote}${affixes ? `<ul class="affixes">${affixes}</ul>` : ''}
     ${extra}
@@ -574,7 +642,7 @@ function cardBar(where, extra = '') {
 // Ore or an exotic in the cargo: how much, and dropping some.
 function drawStuffCard(id) {
   const n = (Game.dive && Game.dive.cargo[id]) || 0, x = T.exotics.find((e) => e.id === id), pk = parsePart(id);
-  const what = x ? (x.element ? `Worked into a weapon or focus at the forge, it carries ${ELEMENTS[x.element].name.toLowerCase()}: ${ELEMENTS[x.element].text.toLowerCase()}.` : x.family ? `Worked into a piece at the forge, it's sure to roll a ${x.family} affix.` : x.tierUp ? 'Left where a rift was sealed. Worked into a piece at the forge, it comes out a tier above its ore.' : 'Worked into a piece at the forge, it comes out a rarity higher.')
+  const what = x ? (x.element ? `Forged into a ${CIRCUIT_ELEMENTS[x.element].name} stone, it gives a spell ${CIRCUIT_ELEMENTS[x.element].name.toLowerCase()} damage: ${CIRCUIT_ELEMENTS[x.element].status}. Worked into a caster, the stone comes with it.` : x.family ? `Worked into a piece at the forge, it's sure to roll a ${x.family} affix.` : x.tierUp ? 'Left where a rift was sealed. Worked into a piece at the forge, it comes out a tier above its ore.' : 'Worked into a piece at the forge, it comes out a rarity higher.')
     : pk ? (PARTS[pk.kind].family ? `A creature part. It binds a forged piece with ${pk.grade} ${PARTS[pk.kind].family} affix${pk.grade > 1 ? 'es' : ''}.` : 'A heart. It binds anything, and a fine forge with it comes out legendary.')
     : `Tier ${T.ores[ORE_INDEX[id]].tier} ore, worth ${orePoints(id)} to the star.`;
   $('card-body').innerHTML = cardBar('IN YOUR CARGO') + `<div class="card-scroll">
@@ -591,7 +659,7 @@ function drawStuffCard(id) {
 // Pieces in the stash worse than what's worn, not kept, not cores or relics.
 function downgrades() {
   const s = Save.data;
-  return s.items.filter((it) => !it.fav && it.kind !== 'core' && it.kind !== 'relic' && /down/.test(compareTag(it, s.equip)));
+  return s.items.filter((it) => !it.fav && it.kind !== 'stone' && it.kind !== 'relic' && /down/.test(compareTag(it, s.equip)));
 }
 
 // ---------------------------------------------------------------------------
@@ -686,34 +754,39 @@ UI.acts = {
   forgeOre: (id) => { UI.forge.ore = id; UI.redraw(); },
   forgeExotic: (id) => { UI.forge.exotic = UI.forge.exotic === id ? null : id; UI.redraw(); },
   forgeBp: (id) => { UI.forge.bp = id; UI.forge.part = null; UI.redraw(); },
+  forgeTab: (tab) => { const id = Save.data.blueprints.find((b) => forgeTabOf(b) === tab); if (id) { UI.forge.bp = id; UI.forge.part = null; UI.redraw(); } },
   forgePart: (id) => { UI.forge.part = id; UI.redraw(); },
   forgeImprint: (id) => { UI.forge.imprint = UI.forge.imprint === id ? null : id; UI.redraw(); },
   craft: () => {
-    const F = UI.forge, src = forgeSource(), bp = BLUEPRINTS[F.bp];
-    if ((src[F.ore] || 0) < bp.ore || !F.part || (src[F.part] || 0) < bp.parts) return;
-    if (F.imprint && !F.field) { const left = Object.assign({}, src); left[F.part] -= bp.parts; if (!imprintCost(left)) return; }
+    const F = UI.forge, src = forgeSource(), bp = BLUEPRINTS[F.bp], stone = bp.kind === 'stone';
+    if ((src[F.ore] || 0) < bp.ore || (bp.parts && (!F.part || (src[F.part] || 0) < bp.parts)) || (bp.exotic && !(src[bp.exotic] > 0))) return;
+    if (F.imprint && !F.field && !stone) { const left = Object.assign({}, src); if (bp.parts) left[F.part] -= bp.parts; if (!imprintCost(left)) return; }
     const take = (id, n) => { src[id] -= n; if (!src[id]) delete src[id]; };
     take(F.ore, bp.ore);
-    take(F.part, bp.parts);
+    if (bp.parts) take(F.part, bp.parts);
     let exotic = null;
-    if (bp.kind !== 'core' && F.exotic && (src[F.exotic] || 0) > 0) { exotic = F.exotic; take(F.exotic, 1); }
+    if (bp.exotic) { exotic = bp.exotic; take(exotic, 1); }
+    else if (!stone && F.exotic && (src[F.exotic] || 0) > 0) { exotic = F.exotic; take(F.exotic, 1); }
     F.exotic = null;
     let imprint = null;
-    if (F.imprint && !F.field && imprintCost(src)) {
+    if (F.imprint && !F.field && !stone && imprintCost(src)) {
       const pay = imprintCost(src);
       take(pay.id, pay.n);
       imprint = F.imprint;
     }
     F.imprint = null;
     if (!F.field) Save.save();
-    Anvil.start({ bp: F.bp, ore: F.ore, part: F.part, exotic, imprint, field: !!F.field });
+    Anvil.start({ bp: F.bp, ore: F.ore, part: bp.parts ? F.part : null, exotic, imprint, field: !!F.field });
   },
   equip: (slot) => {
     const c = UI.card, it = c.item, eq = Save.data.equip;
     const list = c.where === 'cargo' ? Game.dive.items : Save.data.items;
     removeFrom(list, it);
-    if (eq[slot]) list.push(eq[slot]);
+    const old = eq[slot];
+    if (old) list.push(old);
     eq[slot] = it;
+    // a caster with nothing in it takes the circuit of the one it replaces
+    if (isCaster(it) && isCaster(old) && !it.slots.some(Boolean) && old.slots.some(Boolean)) { moveCircuit(old, it, list); UI.toast('The circuit moves across'); }
     UI.closeCard();
     afterChange();
   },
@@ -736,7 +809,7 @@ UI.acts = {
   salvage: () => {
     const it = UI.card.item, y = salvageYield(Save.rng(), it), field = UI.card.where === 'cargo';
     const s = field ? Game.dive.cargo : Save.data.stash, list = field ? Game.dive.items : Save.data.items;
-    for (const core of it.sockets || []) if (core) list.push(core);
+    for (const st of it.slots || []) if (st) list.push(st);
     removeFrom(list, it);
     // a legendary broken down at home: the forge remembers its power
     const codex = Save.data.codex || (Save.data.codex = []);
@@ -763,7 +836,27 @@ UI.acts = {
   reroll: (i) => { const it = UI.card.item; if (spendOre(runeOre(it), T.runes.reroll)) { rerollAffix(Save.rng(), it, Number(i)); afterChange(); } },
   upgrade: (i) => { const it = UI.card.item; if (it.affixes[i].up < 2 && spendOre(runeOre(it), T.runes.upgrade)) { upgradeAffix(it, Number(i)); afterChange(); } },
   addAffix: () => { const it = UI.card.item; if (canAddAffix(it) && spendOre(runeOre(it), T.runes.add)) { addAffix(Save.rng(), it); afterChange(); } },
-  pickCore: (i) => { UI.card.picking = Number(i); UI.redraw(); },
+  // the circuit, at home: a slot chosen (tapped again, it's emptied), a
+  // stone set in it from the stash, or taken out
+  slotPick: (i) => {
+    const c = UI.card, it = c.item;
+    i = Number(i);
+    if (c.slot === i && it.slots[i]) { Save.data.items.push(it.slots[i]); it.slots[i] = null; afterChange(); return; }
+    c.slot = i; UI.redraw();
+  },
+  slotPut: (arg) => {
+    const c = UI.card, it = c.item, [stone, tier] = arg.split(':');
+    const st = Save.data.items.find((x) => x.kind === 'stone' && x.stone === stone && String(x.tier) === tier);
+    if (!st || !isCaster(it)) return;
+    removeFrom(Save.data.items, st);
+    if (it.slots[c.slot]) Save.data.items.push(it.slots[c.slot]);
+    it.slots[c.slot] = st;
+    const next = it.slots.indexOf(null);
+    if (next >= 0) c.slot = next;
+    afterChange();
+  },
+  slotEmpty: () => { const c = UI.card, it = c.item, st = it.slots[c.slot]; if (!st) return; it.slots[c.slot] = null; Save.data.items.push(st); afterChange(); },
+  cardStone: (arg) => { const [stone, tier] = arg.split(':'), st = Save.data.items.find((x) => x.kind === 'stone' && x.stone === stone && String(x.tier) === tier); if (st) UI.openCard(st, 'stash', st.uid); },
   fav: () => { const it = UI.card.item; it.fav = !it.fav; afterChange(); },
   salvageAll: () => {
     if (!UI.salvageAllArmed) { UI.salvageAllArmed = true; UI.redraw(); setTimeout(() => { UI.salvageAllArmed = false; UI.redraw(); }, 3000); return; }
@@ -771,7 +864,7 @@ UI.acts = {
     const rng = Save.rng(), s = Save.data.stash, got = {};
     for (const it of downgrades()) {
       const y = salvageYield(rng, it);
-      for (const core of it.sockets || []) if (core) Save.data.items.push(core);
+      for (const st of it.slots || []) if (st) Save.data.items.push(st);
       removeFrom(Save.data.items, it);
       s[y.ore] = (s[y.ore] || 0) + y.n; got[y.ore] = (got[y.ore] || 0) + y.n;
       if (y.part) { s[y.part] = (s[y.part] || 0) + 1; got[y.part] = (got[y.part] || 0) + 1; }
@@ -780,22 +873,6 @@ UI.acts = {
     UI.toast('Salvaged for ' + stuffLines(got));
     afterChange();
   },
-  socket: (uid) => {
-    const c = UI.card, core = findStash(uid);
-    if (!core || c.picking === null) return;
-    removeFrom(Save.data.items, core);
-    c.item.sockets[c.picking] = core;
-    c.picking = null;
-    afterChange();
-  },
-  unsocket: (i) => {
-    const it = UI.card.item, core = it.sockets[i];
-    if (!core) return;
-    it.sockets[i] = null;
-    Save.data.items.push(core);
-    afterChange();
-  },
-
   feed: (arg) => {
     const [id, n] = arg.split(':'), s = Save.data, before = magnitudeOf(s.star);
     const k = n === 'all' ? s.stash[id] || 0 : Math.min(10, s.stash[id] || 0);
@@ -815,3 +892,9 @@ UI.acts = {
   },
 };
 
+
+// A caster's stones moved into another, slot for slot; what doesn't fit goes
+// to `list`.
+function moveCircuit(from, to, list) {
+  from.slots.forEach((st, i) => { if (!st) return; if (i < to.slots.length) to.slots[i] = st; else list.push(st); from.slots[i] = null; });
+}

@@ -363,22 +363,16 @@ function updateGlobs(dt) {
     g.t += dt;
     const k = Math.min(1, g.t / g.max);
     g.x = lerp(g.x0, g.x1, k); g.y = lerp(g.y0, g.y1, k) - Math.sin(k * Math.PI) * 18;
-    if (k >= 1 && g.mine) {
-      // the diver's Ember Burst: a burst, and burning ground
-      g.done = true;
-      d.fx.push({ kind: 'blast', x: g.x1, y: g.y1 - 4, r: g.r, t: 0.3, max: 0.3 });
-      castFxSpot(g.x1, g.y1 - 4, 'ember', 1.5);
-      for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, g.x1, g.y1) < g.r + e.r) hurtEnemy(e, g.dmg, { spell: true, element: 'ember' });
-      d.puddles.push({ x: g.x1, y: g.y1, r: g.r * 0.7, t: T.spells.ember.burnTime, max: T.spells.ember.burnTime, dps: g.dmg * T.spells.ember.burn, mine: true });
-    } else if (k >= 1) { g.done = true; d.puddles.push({ x: g.x1, y: g.y1, r: def.puddle / 2, t: def.puddleTime, max: def.puddleTime, dps: def.puddleDps * (g.dmg / def.dmg) }); }
+    if (k >= 1) { g.done = true; d.puddles.push({ x: g.x1, y: g.y1, r: def.puddle / 2, t: def.puddleTime, max: def.puddleTime, dps: def.puddleDps * (g.dmg / def.dmg) }); }
   }
   d.globs = d.globs.filter((g) => !g.done);
   for (const pu of d.puddles) {
     pu.t -= dt;
     if (pu.mine) {
-      // burning ground the diver left: it burns enemies, not the diver
+      // a Linger's field the diver left: its element eats at enemies, not
+      // the diver
       pu.tick = (pu.tick || 0) - dt;
-      if (pu.tick <= 0) { pu.tick = 0.5; for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, pu.x, pu.y) < pu.r + e.r) hurtEnemy(e, pu.dps * 0.5, { spell: true, noProc: true }); }
+      if (pu.tick <= 0) { pu.tick = pu.every; for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, pu.x, pu.y) < pu.r + e.r) hurtEnemy(e, pu.dps * pu.every, { spell: true, els: pu.els }); }
       continue;
     }
     if (!d.dying && dist(pu.x, pu.y, p.x, p.y) < pu.r + T.player.radius && p.invuln <= 0 && p.dashT <= 0) {

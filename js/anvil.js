@@ -5,9 +5,9 @@
 // glowing zone, and a tap strikes. In the zone is good, dead in its
 // marked middle perfect. The strikes add up to a quality
 // (0–3) that shifts the rarity odds (T.anvil.odds), so a perfect forge can
-// even come out legendary; for a core, a good forge raises its tier. Then
-// the piece rises from the anvil in its rarity's light (Reveal), and its
-// card opens. The ingot glows hotter with every strike.
+// even come out legendary; it sets a caster's slots, and raises a stone's
+// tier. Then the piece rises from the anvil in its rarity's light (Reveal),
+// and its card opens. The ingot glows hotter with every strike.
 // ---------------------------------------------------------------------------
 
 // The anvil's scene, laid out in px (it's drawn at AP art px to each).
@@ -35,7 +35,8 @@ const Anvil = {
     this.job = job;
     UI.show('screen-anvil');
     setTextIfChanged('anvil-call', 'Tap as the marker crosses the glow');
-    setTextIfChanged('anvil-what', `${BLUEPRINTS[job.bp].name} in ${T.ores[ORE_INDEX[job.ore]].name}, bound with ${partName(job.part).toLowerCase()}${job.exotic ? ', with ' + exoticName(job.exotic).toLowerCase() : ''}${job.imprint ? ', imprinted with ' + LEGENDARIES[job.imprint].name : ''}`);
+    const bp = BLUEPRINTS[job.bp];
+    setTextIfChanged('anvil-what', `${bp.name}${bp.kind === 'stone' ? ' stone' : ''} in ${T.ores[ORE_INDEX[job.ore]].name}${job.part ? ', bound with ' + partName(job.part).toLowerCase() : ''}${job.exotic ? ', with ' + exoticName(job.exotic).toLowerCase() : ''}${job.imprint ? ', imprinted with ' + LEGENDARIES[job.imprint].name : ''}`);
     this.draw();
   },
 
@@ -92,10 +93,16 @@ const Anvil = {
       else j.imprintLost = true;
     }
     this.job = null;
-    if (j.field) Game.dive.items.push(item);
-    else { Save.data.items.push(item); Save.save(); }
+    // a caster forged with an elemental exotic: its Element's stone with it
+    const extra = item.withStone;
+    delete item.withStone;
+    const list = j.field ? Game.dive.items : Save.data.items;
+    list.push(item);
+    if (extra) list.push(extra);
+    if (!j.field) Save.save();
     Reveal.show(item, j.field ? 'cargo' : 'stash', 'screen-forge', q);
     if (j.imprintLost) UI.toast("The imprint didn't take");
+    if (extra) UI.toast(`And a ${extra.name}`, 'magic');
     return item;
   },
 

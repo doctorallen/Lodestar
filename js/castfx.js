@@ -50,20 +50,15 @@ const CFX_ELEMENTS = {
   rift: { col: '#c060ff', shed: CFX_SPARK, burst: CFX_SPARK, dark: '#3a1a5a', decal: 'arcane' },
 };
 const cfxEl = (el) => CFX_ELEMENTS[el] || CFX_ELEMENTS.force;
-// How a projectile flies, by what it is: a spark wobbles, a frost lance is
-// a shard with a glint; the rest are small stars that turn.
-const CFX_BOLT_LOOK = { spark: 'wobble', frost: 'lance' };
-// A projectile's colour: its element's, else its spell's.
-const cfxBoltCol = (b) => (b.element ? cfxEl(b.element).col : ART.cores[b.kind] || CFX_ELEMENTS.force.col);
-const cfxBoltEl = (b) => b.element || (b.kind === 'frost' ? 'frost' : null);
+// How a projectile flies, by its Form: a spark wobbles, a lance is a shard
+// with a glint, an orb a pulsing ball; the rest are small stars that turn.
+const CFX_BOLT_LOOK = { spark: 'wobble', lance: 'lance', orb: 'orb' };
+// A projectile's colour: its group's (its element's, else its Form's).
+const cfxBoltCol = (b) => b.col || (b.element ? cfxEl(b.element).col : CFX_ELEMENTS.force.col);
+const cfxBoltEl = (b) => b.element || null;
 
-// The colour a cast is in: its element's, else its first core's.
-function castFxCol(item, kind) {
-  if (item && item.element) return cfxEl(item.element).col;
-  if (kind && ART.cores[kind]) return ART.cores[kind];
-  const core = item && item.sockets && item.sockets.find((c) => c && !CORES[c.core].mod);
-  return core ? ART.cores[core.core] : '#9fe8ff';
-}
+// The colour a caster casts in: its first group's (castFx's circuitCol).
+function castFxCol(item) { return isCaster(item) ? circuitCol(item) : ART.forms.arc; }
 
 // A fade in a few hard steps, from the share of a life left.
 const cfxBand = (k) => (k > 0.75 ? 1 : k > 0.5 ? 0.75 : k > 0.25 ? 0.5 : k > 0 ? 0.25 : 0);
@@ -95,7 +90,7 @@ function cfxFlare(x, y, r, i, col, t, follow) {
 // The aim of a cast: the nearest enemy in reach (as castSpell aims), else
 // the way the diver faces.
 function castFxAim(d) {
-  const p = d.p, e = nearestEnemy(d, d.castRange || T.spells.aimRange);
+  const p = d.p, e = nearestEnemy(d, d.castRange || T.circuits.aimRange);
   return e ? Math.atan2(e.y - 4 - (p.y - 8), e.x - p.x) : Math.atan2(p.fy, p.fx);
 }
 
@@ -130,7 +125,7 @@ function castFxLean(c) {
 function castFxStart(d, item, slot, style, charged, kinds) {
   if (CFX.dive !== d) cfxReset(d);
   const p = d.p, C = T.castFx, a = castFxAim(d);
-  p.cast = { t: C.pose, max: C.pose, charged, slot, style, a, col: castFxCol(item, kinds[0]) };
+  p.cast = { t: C.pose, max: C.pose, charged, slot, style, a, col: castFxCol(item) };
   const hand = castFxHandRel(a, slot, style), col = p.cast.col, big = charged || kinds.some((k) => (C.shapes[C.shapeOf[k]] || {}).big);
   CFX.origin = { x: hand.x, y: hand.y, t: Game.realT };
   CFX.last = { a, slot, style, col };
@@ -163,7 +158,7 @@ function cfxCastBurst(p, a, hand, col, big, charged, style, ghost) {
 // bolts' origin.
 function castFxEcho(d) {
   if (CFX.dive !== d || !CFX.last || !Game.dive) return;
-  const p = d.p, L = CFX.last, col = ART.cores.echo, hand = castFxHandRel(L.a, L.slot, L.style), spr = castFxSprite(L.a, L.slot);
+  const p = d.p, L = CFX.last, col = ART.glyphs.echo, hand = castFxHandRel(L.a, L.slot, L.style), spr = castFxSprite(L.a, L.slot);
   CFX.origin = { x: hand.x, y: hand.y, t: Game.realT };
   // (over the diver, or the diver would hide it)
   if (spr) CFX.ghosts.push({ spr, x: p.x, y: p.y, col, t: T.castFx.echo, max: T.castFx.echo, alpha: 0.45, over: true });
@@ -208,8 +203,21 @@ function castFxFor(shape, element, origin, aim, opts = {}) {
     CFX.rings.push({ kind: 'sweep', x: 0, y: -2, r0: S.ring[0], r1: S.ring[1], col, t: S.time, max: S.time, f: true, air: true });
     for (let k = 0; k < S.motes; k++) { const q = cfxPart(CFX_MOTE, 0, 0, 0, 0, T.castFx.moteTime * 1.4, k % 2 ? col : '#ffffff', col, true); if (q) { q.a = (k / S.motes) * Math.PI * 2; q.r = 10; q.h = FX_R.f(2, 10); } }
   } else if (shape === 'sweep') {
-    // a short ring swept out in front
-    cfxSweep(x + Math.cos(aim) * r * 0.5, y + Math.sin(aim) * r * 0.3, S.from, r * 0.6, col, S.time, false, S.dust);
+    // a crescent of light swept across in front, from one side of the aim
+    // to the other; a heavy one wider, thicker and longer, throwing sparks
+    const half = Math.acos(clamp(opts.cos === undefined ? 0.3 : opts.cos, -0.6, 0.9)), t = opts.heavy ? S.heavyTime : S.time;
+    CFX.rings.push({ kind: 'crescent', x, y, a: aim, half, side: opts.side || 1, r, heavy: !!opts.heavy, col, t, max: t, f: false });
+    const n = opts.heavy ? S.sparks : (S.sparks >> 1);
+    for (let k = 0; k < n; k++) {
+      const b = aim + opts.side * FX_R.f(-half, half) * 0.8, sp = FX_R.f(40, opts.heavy ? 110 : 70);
+      const q = cfxPart(E.burst, x + Math.cos(b) * r * 0.8, y - 6 + Math.sin(b) * r * 0.6, Math.cos(b) * sp, Math.sin(b) * sp * 0.75 - 10, FX_R.f(0.12, 0.26), k % 3 ? col : '#ffffff', col);
+      if (q) { q.g = E.burst === CFX_CINDER ? -20 : 60; q.drag = 4; }
+    }
+    if (opts.heavy) CFX.rings.push({ kind: 'burst', x: x + Math.cos(aim) * r * 0.75, y: y - 6 + Math.sin(aim) * r * 0.55, r0: 2, r1: 9, col, t: 0.14, max: 0.14, f: false });
+    CFX.waves.push({ x: x + Math.cos(aim) * r * 0.5, y: y + Math.sin(aim) * r * 0.5, r0: 2, r1: r, t, max: t });
+    if (S.dust) cfxSweep(x + Math.cos(aim) * r * 0.4, y + Math.sin(aim) * r * 0.3, 2, 3, col, 0.01, false, opts.heavy ? S.dust * 2 : S.dust);
+    cfxFlare(x + Math.cos(aim) * r * 0.6, y - 6 + Math.sin(aim) * r * 0.45, r * S.bloom[0] * (opts.heavy ? 1.4 : 1), S.bloom[1] * (opts.heavy ? 1.3 : 1), col, S.bloom[2]);
+    return;
   } else {
     const inward = !!opts.inward || shape === 'placed', t = S.time * (r > 50 ? 1.3 : 1);
     cfxSweep(x, y, inward ? r : S.from, inward ? S.from : r, col, t, false, S.dust, inward);
@@ -327,17 +335,10 @@ function updateCastFx(dt) {
     b.cfx.emit = C.bolt.every / (b.big ? 2 : 1);
     cfxShed(b.x, b.y, cfxBoltEl(b), cfxBoltCol(b), b.cfx.n++, b.vx, b.vy);
   }
-  for (const g of d.globs) {
-    if (!g.mine) continue;
-    if (!g.cfx) g.cfx = { ox: fresh ? o.x : 0, oy: fresh ? o.y + 10 : 0, born: Game.realT, emit: 0, n: 0 };
-    if ((g.cfx.emit -= dt) > 0) continue;
-    g.cfx.emit = C.bolt.every;
-    cfxShed(g.x, g.y, 'ember', CFX_ELEMENTS.ember.col, g.cfx.n++, 0, 0);
-  }
-  // a focus being charged draws motes in
+  // a caster being charged draws motes in
   for (const slot of ['main', 'off']) {
     const h = p.hands[slot], it = Save.data.equip[slot];
-    if (!h.holding || handKind(it) !== 'focus') continue;
+    if (!h.holding || !isCaster(it)) continue;
     const lv = chargeLevel(h);
     if (lv <= 0 || FX_R.f() > C.charge.motes * lv * dt) continue;
     const at = CFX.focusAt[slot] || { x: 0, y: -12 }, a = FX_R.f(Math.PI * 2), r = FX_R.f(14, 22), col = castFxCol(it);
@@ -523,7 +524,7 @@ function cfxDecalPic(kind, big, v) {
       return;
     }
     for (const [x, y] of list) set(x, y, nb(x, y) >= 3 ? tones[0] : tones[1], 0.85);
-    const lit = { ember: [ELEMENT_COLS.ember, '#ffd070'], shock: [ELEMENT_COLS.shock], blight: [ELEMENT_COLS.blight], arcane: [ART.cores.bolt], spark: ['#e8f4ff'] }[kind] || [ART.cores.bolt];
+    const lit = { ember: [ELEMENT_COLS.ember, '#ffd070'], shock: [ELEMENT_COLS.shock], blight: [ELEMENT_COLS.blight], arcane: [ART.forms.bolt], spark: ['#e8f4ff'] }[kind] || [ART.forms.bolt];
     const inner = list.filter(([x, y]) => nb(x, y) >= 3);
     for (let k = 0; k < (big ? 4 : 2); k++) { const [x, y] = inner[(Math.random() * inner.length) | 0] || [0, 0]; glows.push([x, y, lit[k % lit.length]]); }
     if (kind === 'shock') for (const s of [-1, 1]) for (let i = 2; i < 5; i++) glows.push([s * i, i % 2 ? 0 : -s, ELEMENT_COLS.shock]);
@@ -574,10 +575,10 @@ function drawCastGround(d, ox, oy, tick, lights) {
       cfxBlit(cfxSweepPic(cfxQuant(lerp(r.r0, r.r1, 1 - (1 - u) * (1 - u)) * AP), r.col, 0.6), x, y, cfxBand(Math.min(1, k * 1.6)));
     }
   }
-  // a focus being charged: a circle growing under the feet, flashing when full
+  // a caster being charged: a circle growing under the feet, flashing when full
   for (const slot of ['main', 'off']) {
     const h = p.hands[slot], it = Save.data.equip[slot];
-    if (!h.holding || handKind(it) !== 'focus') continue;
+    if (!h.holding || !isCaster(it)) continue;
     const lv = chargeLevel(h);
     if (lv <= 0) continue;
     const C = T.castFx.charge, rx = cfxQuant(lerp(C.glyph[0], C.glyph[1], lv) * AP), full = lv >= 1;
@@ -654,6 +655,7 @@ function drawCastAir(d, ox, oy, tick, lights) {
   for (const r of CFX.rings) {
     const k = r.t / r.max, u = 1 - k, x = r.f ? fx + Math.round(r.x * AP) : vx(r.x), y = r.f ? fy + Math.round(r.y * AP) : vy(r.y);
     if (r.kind === 'flash') cfxDrawFlash(x, y, r.a, r.col, k, r.big);
+    else if (r.kind === 'crescent') cfxDrawCrescent(r, x, y, u, lights);
     else if (r.kind === 'sweep' && r.air) {
       const rx = Math.round(lerp(r.r0, r.r1, u) * AP), a = cfxBand(Math.min(1, k * 1.6));
       cfxRingDots(x, y, rx, mix(r.col, '#ffffff', 0.4), a); cfxRingDots(x, y, rx - 1, r.col, a);
@@ -695,6 +697,7 @@ function drawCastBolt(b, ox, oy, tick, lights) {
   // a spark wobbles across its path
   const wob = look === 'wobble' ? Math.round(Math.sin(age * 45) * 1.2) : 0;
   const x = Math.round(bx * AP) + ox - Math.round(uy * wob), y = Math.round(by * AP) + oy + Math.round(ux * wob);
+  if (look === 'orb') { cfxDrawOrb(b, x, y, tick, col, lights); return; }
   if (look === 'lance') {
     const n = ap(6), glint = Math.floor(Game.realT * 30) % (n + 3);
     for (let k = 0; k < n; k++) dot(Math.round(x - ux * k), Math.round(y - uy * k), k === glint || k < ap(2) ? '#ffffff' : col, true, 1 - (k / AP) * 0.12);
@@ -726,20 +729,11 @@ function drawCastBolt(b, ox, oy, tick, lights) {
   cfxLight(lights, x, y, TILE * (b.big ? 1.4 : 1), 0.6 + (tick % 2) * 0.15, rgb01(col));
 }
 
-// The diver's ember glob in flight: a lump that turns, burning.
-function drawCastGlob(g, ox, oy, tick, lights) {
-  const c = g.cfx, o = c ? Math.max(0, 1 - (Game.realT - c.born) / T.castFx.bolt.originT) : 0;
-  const x = Math.round((g.x + (c ? c.ox * o : 0)) * AP) + ox, y = Math.round((g.y + (c ? c.oy * o : 0)) * AP) + oy, col = CFX_ELEMENTS.ember.col;
-  const shapes = [[[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]], [[0, 0], [1, 0], [0, 1], [1, 1], [2, 1], [1, 2]], [[0, 0], [1, 0], [0, 1], [1, 1], [1, -1], [-1, 1]]];
-  shapes[(tick >> 1) % 3].forEach(([i, j], k) => dot(x + i, y + j, k === 0 ? '#ffd0a0' : k > 3 ? mix(col, '#000000', 0.3) : col, true));
-  cfxLight(lights, x, y, TILE * 1.1, 0.7, rgb01(col));
-}
-
 // A chain's arc: a jagged white line with the colour round it and a fork,
 // jumping anew each frame; its ends flash.
 function drawCastArc(fx, ox, oy, lights) {
   const k = fx.t / fx.max, x0 = Math.round(fx.x * AP) + ox, y0 = Math.round(fx.y * AP) + oy, x1 = Math.round(fx.x2 * AP) + ox, y1 = Math.round(fx.y2 * AP) + oy;
-  const n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / 8)), col = ART.exotics.voltaic, a = cfxBand(k);
+  const n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / 8)), col = fx.col || ART.exotics.voltaic, a = cfxBand(k);
   let px = x0, py = y0;
   for (let s = 1; s <= n; s++) {
     const tx = Math.round(x0 + ((x1 - x0) * s) / n + (s < n ? FX_R.i(-3, 3) : 0)), ty = Math.round(y0 + ((y1 - y0) * s) / n + (s < n ? FX_R.i(-3, 3) : 0));
@@ -755,4 +749,60 @@ function drawCastArc(fx, ox, oy, lights) {
 function cfxLine(x0, y0, x1, y1, col, alpha) {
   const n = Math.max(1, Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)));
   for (let s = 0; s <= n; s++) dot(Math.round(x0 + ((x1 - x0) * s) / n), Math.round(y0 + ((y1 - y0) * s) / n), col, true, alpha);
+}
+
+// An Arc's crescent (art px x, y: where it was cast from; u: how far through
+// its life): the leading edge sweeps across the aim's arc in the first part
+// of its life, white at its head, the element's colour behind and a darker
+// rim inside, then fades in steps. Heavy: twice as thick.
+function cfxDrawCrescent(r, x, y, u, lights) {
+  const lead = Math.min(1, u / 0.55), fade = u < 0.55 ? 1 : cfxBand((1 - u) / 0.45);
+  if (fade <= 0) return;
+  const R = Math.round(r.r * AP * 0.95), th = r.heavy ? 4 : 2, cy = y - Math.round(6 * AP), a0 = r.a - r.side * r.half, span = 2 * r.half * r.side;
+  const tail = Math.max(0, lead - (r.heavy ? 1 : 0.8)), steps = Math.max(8, Math.round(Math.abs(span) * R * (lead - tail)));
+  const lite = mix(r.col, '#ffffff', 0.45), dark = mix(r.col, '#000000', 0.35);
+  for (let i = 0; i <= steps; i++) {
+    const k = tail + ((lead - tail) * i) / steps, b = a0 + span * k, head = lead < 1 && i > steps * 0.85, age = cfxBand((i / steps) * 1.2);
+    const c = Math.cos(b), sn = Math.sin(b);
+    for (let j = 0; j <= th; j++) {
+      const rr = R - j, col = head ? '#ffffff' : j === 0 ? lite : j === th ? dark : r.col;
+      dot(Math.round(x + c * rr), Math.round(cy + sn * rr * 0.75), col, j < th, Math.min(1, age + 0.25) * fade);
+    }
+  }
+  const b = a0 + span * lead;
+  cfxLight(lights, Math.round(x + Math.cos(b) * R), Math.round(cy + Math.sin(b) * R * 0.75), TILE * (r.heavy ? 1.5 : 1.1), 0.8 * fade, rgb01(r.col));
+}
+
+// An orb in flight: a ball with a white heart in its colour, a darker rim,
+// motes turning round it, and a ring when it pulses.
+function cfxDrawOrb(b, x, y, tick, col, lights) {
+  const dark = mix(col, '#000000', 0.4), R = 3;
+  for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
+    const e = i * i + j * j;
+    if (e > R * R + 1) continue;
+    dot(x + i, y + j, e <= 2 && i <= 0 && j <= 0 ? '#ffffff' : e >= R * R - 1 ? dark : col, true);
+  }
+  for (let k = 0; k < 3; k++) { const a = Game.realT * 5 + (k * Math.PI * 2) / 3; dot(Math.round(x + Math.cos(a) * ap(4)), Math.round(y + Math.sin(a) * ap(3)), k ? col : '#ffffff', true, 0.75); }
+  const since = Game.realT - (b.orb ? b.orb.pulse : -1);
+  if (since >= 0 && since < 0.2) { const k = since / 0.2; cfxRingDots(x, y + Math.round(6 * AP * 0.5), Math.max(2, Math.round(b.orb.r * AP * k)), k < 0.5 ? '#ffffff' : col, cfxBand(1 - k)); }
+  cfxLight(lights, x, y, TILE * 1.3, 0.7 + (since < 0.15 ? 0.4 : 0), rgb01(col));
+}
+
+// A Glaive's blades (art px ox, oy: the floor's offset on the view): each
+// a short crescent on the ring it turns round, its head white, a trail of
+// dots behind it, all in its colour.
+function drawCastGlaive(au, ox, oy, tick, lights) {
+  const cx = Math.round(au.x * AP) + ox, cy = Math.round((au.y - 6) * AP) + oy, R = au.r * AP, fade = Math.min(1, au.t / 0.3);
+  const dark = mix(au.col, '#000000', 0.35), lite = mix(au.col, '#ffffff', 0.5), seg = Math.round(R * 0.55);
+  for (let n = 0; n < au.n; n++) {
+    const a = au.a + (n / au.n) * Math.PI * 2, dir = Math.sign(au.spin) || 1;
+    for (let i = 0; i <= seg; i++) {
+      const b = a - (dir * i) / R, k = i / seg, c = Math.cos(b), s = Math.sin(b);
+      for (const [rr, col] of [[R + 1, i < 2 ? '#ffffff' : lite], [R, i < 3 ? '#ffffff' : au.col], [R - 1, dark]]) {
+        if (rr === R - 1 && i > seg * 0.6) continue;
+        dot(Math.round(cx + c * rr), Math.round(cy + s * rr * 0.75), col, true, cfxBand(1 - k * 0.8) * fade);
+      }
+    }
+  }
+  cfxLight(lights, cx, cy, au.r * 1.1, 0.45 * fade, rgb01(au.col));
 }

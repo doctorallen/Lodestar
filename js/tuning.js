@@ -6,13 +6,13 @@
 // ---------------------------------------------------------------------------
 
 const T = {
-  // charge is the mana: it refills at chargeRegen a second, and each melee
-  // hit adds chargeOnHit. magnet: how close loot must be to be picked up.
-  // rest: health comes back at restRegen a second once nothing has hurt the
-  // diver for restAfter seconds.
+  // charge is the mana: it refills at chargeRegen a second, and close Forms
+  // give some back when they hit (T.circuits). magnet: how close loot must
+  // be to be picked up. rest: health comes back at restRegen a second once
+  // nothing has hurt the diver for restAfter seconds.
   player: {
     hp: 100, speed: 56, radius: 4, hurtInvuln: 0.5, restAfter: 4, restRegen: 3,
-    charge: 60, chargeRegen: 9, chargeOnHit: 3, magnet: 14,
+    charge: 30, chargeRegen: 4.5, magnet: 14,
   },
 
   // Mining: the ore tile's nearest edge must be within `reach` of the feet
@@ -167,8 +167,10 @@ const T = {
     { id: 'starmetal', name: 'Starmetal', tier: 6, hardness: 4.0 },
   ],
   // Exotic materials: dropped by elites (and now and then anything else).
-  // Worked into a forging, each does one thing: gives a weapon or focus an
-  // element, guarantees an affix family, or raises the rarity a step.
+  // Each does one thing: an elemental one is forged into its Element stone
+  // (and worked into a caster, one comes out with it); the others, worked
+  // into a forging, guarantee an affix family, raise the rarity a step, or
+  // forge it a tier higher.
   exotics: [
     { id: 'voltaic', name: 'Voltaic crystal', element: 'shock' },
     { id: 'frostglass', name: 'Frostglass', element: 'frost' },
@@ -189,25 +191,13 @@ const T = {
   ],
   levelPerBiome: 4,
 
-  // Melee. Taps chain a combo, by the weapon's style: each swing hits
-  // everything within range in an arc (cos of the half-angle) round the
-  // aim, which is the nearest enemy within autoAim, else straight ahead.
-  // combo: [damage ×, cooldown, arc cos, knockback px/s, lunge px, swing
-  // time]; the last is heavy and staggers (a hammer's every blow is heavy).
-  // Another tap within comboWindow carries the combo on. Holding the button
-  // chargeStart past a swing starts a charge; let go once it's past
-  // chargeFull for the style's charged move: a blade spins, a spear lunges
-  // (reach px over time s), a hammer slams the ground, a whip drags enemies
-  // in. fist: an empty main hand's damage.
-  melee: {
-    autoAim: 52, fist: 3, comboWindow: 0.6, chargeStart: 0.25, chargeFull: 0.7,
-    styles: {
-      blade: { range: 22, combo: [[1, 0.24, 0.3, 70, 4, 0.12], [1, 0.24, 0.3, 70, 4, 0.12], [1.7, 0.45, -0.1, 160, 9, 0.18]], charged: { move: 'spin', mult: 2.4, knock: 180, radius: 28, time: 0.25 } },
-      spear: { range: 36, combo: [[1, 0.27, 0.8, 90, 6, 0.12], [1, 0.27, 0.8, 90, 6, 0.12], [1.6, 0.42, 0.75, 180, 12, 0.16]], charged: { move: 'lunge', mult: 2.3, knock: 160, reach: 64, time: 0.2 } },
-      hammer: { range: 25, heavy: true, combo: [[1, 0.62, -0.2, 160, 3, 0.2], [1, 0.62, -0.2, 160, 3, 0.2], [1.5, 0.85, -0.5, 240, 6, 0.26]], charged: { move: 'slam', mult: 2.2, knock: 260, radius: 44, time: 0.3 } },
-      whip: { range: 34, combo: [[1, 0.28, -0.3, 40, 0, 0.14], [1, 0.28, -0.3, 40, 0, 0.14], [1.5, 0.42, -0.55, 70, 0, 0.18]], charged: { move: 'drag', mult: 2.2, knock: 0, radius: 52, time: 0.22 } },
-    },
-  },
+  // The hands. Each has its own button: a press casts its caster's whole
+  // circuit, holding past chargeStart charges it, and letting go once it's
+  // past chargeFull casts it charged. Close Forms aim at the nearest enemy
+  // within autoAim, else straight ahead; another press within comboWindow
+  // carries an Arc's combo on. fist: an empty main hand's power (it casts a
+  // free Arc).
+  hands: { autoAim: 52, comboWindow: 0.6, chargeStart: 0.25, chargeFull: 0.7, fist: 3 },
   // A dash: a burst of speed with a moment of untouchability. A flick of
   // the move thumb (flickPx in flickMs) dashes too.
   dash: { speed: 230, time: 0.13, invuln: 0.22, cooldown: 0.55, flickPx: 26, flickMs: 90 },
@@ -217,34 +207,76 @@ const T = {
   // can be tried again.
   impact: { hitstop: 0.045, heavyStop: 0.09, stopGap: 0.15, shake: 0, heavyShake: 0, hurtShake: 0, knockDecay: 9 },
 
-  // Spells: an empty focus casts spark; socketed cores cast their own.
-  // power is the focus's power; damage = power × mult. Holding to charge
-  // casts at chargedMult the power for chargedCost the charge. A blade fires
-  // its cores on every procEvery-th hit at procMult, for no charge.
-  spells: {
-    castCooldown: 0.3, procEvery: 3, procMult: 0.6, aimRange: 140, chargedMult: 1.8, chargedCost: 1.5,
-    // a gauntlet casts at gauntletCost the charge, but only within gauntletRange;
-    // a staff reaches staffRange, and its charged cast (three of everything)
-    // costs staffChargedCost
-    gauntletCost: 0.9, gauntletRange: 70, staffRange: 180, staffChargedCost: 2.4,
-    spark: { cost: 5, mult: 0.6, speed: 170 },
-    bolt: { cost: 8, mult: 1.0, speed: 170 },
-    nova: { cost: 18, mult: 1.3, radius: 34 },
-    pull: { cost: 14, mult: 0.5, radius: 72, stun: 0.7, speed: 160 },
-    ward: { cost: 20, mult: 2.5, time: 5 },
-    frost: { cost: 12, mult: 1.1, speed: 210, pierce: 4 },
-    ember: { cost: 16, mult: 1.0, speed: 120, radius: 26, burnTime: 2.5, burn: 0.35 },
-    chain: { cost: 14, mult: 0.85, range: 120, jumps: 4, jumpRange: 54, falloff: 0.85 },
-    thorns: { cost: 18, mult: 0.45, radius: 24, time: 3, every: 0.5 },
-    blink: { cost: 10, mult: 0, reach: 60, invuln: 0.25 },
-    well: { cost: 18, mult: 0.3, radius: 56, time: 2.5, pull: 70, every: 0.5 },
-    phase: { cost: 12, mult: 1.0, reach: 52, invuln: 0.3 },
+  // Circuits (circuits.js): a caster's row of slots, read left to right.
+  // A Form starts a spell, Elements after it set its damage type, Glyphs
+  // change it. The charge a cast costs is the sum of its Forms' costs, each
+  // times its glyphs' costs (at least 1). Damage is the caster's power ×
+  // the Form's mult × its stone's growth (stoneGrowth a tier past the first;
+  // otherGrowth for each Element and Glyph stone with it) × (1 + spell
+  // damage %, + close damage % for close Forms).
+  //   charged (held): chargedMult the damage for chargedCost the charge;
+  //     bolts and lances are bigger and pass through chargedPierce more.
+  //   aimRange: how far a cast looks for something to aim at.
+  //   spark: what a caster with no Form casts (a weak bolt).
+  //   bases: slots, by the anvil's quality (rough, fair, fine, masterwork);
+  //     cd, a share of the hand's wait; area, a share of every reach;
+  //     closeCost, charge off each close Form; aim, its aimRange.
+  //   forms: cost, mult and cd (seconds the hand waits) for each, and:
+  //     arc: combo [damage ×, cooldown, arc cos, knockback px/s, lunge px]
+  //       (the last is heavy and staggers); range px; heldMult, the damage
+  //       of the Nova it bursts into when held (instead of chargedMult).
+  //     glaive: blades circling at radius px for time s, spin rad/s; each
+  //       cuts what's within reach px of it, the same foe again after
+  //       `again` s; at most `most` glaives at once.
+  //     bolt, lance, orb: speed px/s, life s; lance pierces `pierce`; orb
+  //       pulses every `every` s, hurting within radius px.
+  //     nova: radius. well: radius, time, pull px/s, a tick every `every`,
+  //       a first yank px/s and stun s; ahead: px out when nothing's in aim.
+  //     ward: soak (× power) for time s; thorns (× power) to what strikes it.
+  //     close: it refunds `refund` charge for each foe it hits, for at most
+  //       refundMost foes a cast. field: the radius of a Linger's field.
+  //   glyphs: cost, times the Form's (each stone of it). split: n each at
+  //     mult, spread rad apart (closeSpread for an Arc's sweeps). amplify:
+  //     area ×, damage ×. quicken: cd ×. chain: jumps a stone, within range
+  //     px, each falloff × the last. echo: again after delay at mult.
+  //     pierce: more foes passed through. linger: a field of its element
+  //     for time s, hurting dps × the hit a second. trigger: no numbers.
+  //   force: what Force adds: knockback ×.
+  //   stones: what forging one takes: ore, parts (creature parts) or an
+  //     exotic. A fine forge or better makes it a tier higher.
+  circuits: {
+    chargedMult: 1.8, chargedCost: 1.5, chargedPierce: 3, aimRange: 140,
+    stoneGrowth: 0.25, otherGrowth: 0.05,
+    spark: { cost: 3, mult: 0.6, cd: 0.3, speed: 170, life: 1.2 },
+    bases: {
+      wand: { slots: [3, 3, 4, 4], cd: 0.85, area: 1, aim: 140 },
+      gauntlet: { slots: [3, 3, 4, 4], cd: 1, area: 1, closeCost: 1, aim: 130 },
+      staff: { slots: [4, 5, 5, 6], cd: 1.3, area: 1.3, aim: 170 },
+    },
+    forms: {
+      arc: { cost: 3, mult: 0.9, close: true, refund: 2, refundMost: 3, range: 22, heldMult: 2.2, field: 14,
+        combo: [[1, 0.24, 0.3, 70, 4], [1, 0.24, 0.3, 70, 4], [1.7, 0.45, -0.1, 160, 9]] },
+      glaive: { cost: 6, mult: 0.5, close: true, refund: 1, refundMost: 4, cd: 0.4, blades: 2, radius: 20, reach: 7, time: 3, spin: 7, again: 0.35, most: 3, field: 20 },
+      bolt: { cost: 4, mult: 1.0, cd: 0.3, speed: 170, life: 1.2, field: 12 },
+      lance: { cost: 6, mult: 1.1, cd: 0.35, speed: 210, life: 0.9, pierce: 4, field: 12 },
+      orb: { cost: 7, mult: 0.4, cd: 0.45, speed: 42, life: 3, every: 0.45, radius: 18, field: 18 },
+      nova: { cost: 10, mult: 1.3, cd: 0.4, radius: 34, field: 26 },
+      well: { cost: 10, mult: 0.3, cd: 0.45, radius: 56, time: 2.5, pull: 70, every: 0.5, yank: 120, stun: 0.5, ahead: 50, field: 30 },
+      ward: { cost: 9, mult: 0, cd: 0.45, soak: 2.5, time: 5, thorns: 0.6, field: 20 },
+    },
+    glyphs: {
+      split: { cost: 1.3, n: 3, mult: 0.6, spread: 0.28, closeSpread: 1.2 },
+      amplify: { cost: 1.2, area: 1.5, dmg: 1.2 },
+      quicken: { cost: 0.67, cd: 0.7 },
+      chain: { cost: 1.2, jumps: 2, range: 54, falloff: 0.7 },
+      echo: { cost: 1.25, delay: 0.4, mult: 0.6 },
+      pierce: { cost: 1.1, more: 3 },
+      linger: { cost: 1.2, time: 3, dps: 0.35, every: 0.5 },
+      trigger: { cost: 1 },
+    },
+    force: { knock: 1.3 },
+    stones: { form: { ore: 6, parts: 2 }, element: { ore: 4, exotic: 1 }, glyph: { ore: 5, parts: 3 } },
   },
-  // Modifiers: split fires three at splitMult each; amplify widens by
-  // amplifyArea and hits amplifyDmg harder; quicken costs quickenCost and
-  // cools down quickenCd faster; chain adds chainJumps; echo recasts after
-  // echoDelay at echoMult.
-  mods: { splitMult: 0.6, splitSpread: 0.28, amplifyArea: 1.5, amplifyDmg: 1.2, quickenCost: 0.67, quickenCd: 0.7, chainJumps: 2, echoDelay: 0.4, echoMult: 0.6 },
   // How a cast looks (castfx.js; cosmetic only: the spell still fires on the
   // tap, and nothing here changes what it does). Sizes are world px, times
   // seconds, light radii tiles.
@@ -260,17 +292,18 @@ const T = {
   //     rise round the diver, and for how long.
   //   shapes: what a spell does about the diver, by its shape (castFxFor),
   //     so a new spell takes its shape's look: projectile (drawn from the
-  //     bolts themselves); sweep (a close ring in front), burst (a ring swept
+  //     bolts themselves); sweep (an Arc's crescent of light across the aim,
+  //     time s, heavyTime for the heavy third, sparks thrown off it), burst (a ring swept
   //     out from the diver, or in), placed (swept in where it lands, with a
   //     rune circle, glyph: [radius from, to as a share of the reach,
   //     seconds]), guard (a ring drawing in round the diver: ring [from, to],
   //     motes rising), move (ghosts afterimages, alpha, ends: a ring at each
-  //     end [small, big radius, seconds]). from: the radius a sweep starts
+  //     end [small, big radius, seconds]). from: the radius a burst starts
   //     at (or ends at, inwards); time: its seconds; dust: motes of dust it
   //     pushes; scatter: bits of its element thrown out; bloom: [light
   //     radius as a share of the reach (move: tiles), light, seconds]; big:
   //     its cast has the big rune circle.
-  //   shapeOf: today's spells' shapes.
+  //   shapeOf: each Form's shape (and a spark's).
   //   bolt: originT, how long a bolt takes to leave the fist for its true
   //     path; trail: dots behind it; every: seconds between the motes it
   //     sheds. impact: [sparks, light radius, light, seconds]; decal:
@@ -289,23 +322,23 @@ const T = {
     glyph: [6, 10, 0.32], glyphBig: [9, 16, 0.5], motes: 6, moteTime: 0.55,
     shapes: {
       projectile: {},
-      sweep: { from: 3, time: 0.2, dust: 6, bloom: [1, 0.8, 0.2] },
+      sweep: { time: 0.16, heavyTime: 0.24, sparks: 10, dust: 6, bloom: [1, 0.8, 0.2] },
       burst: { from: 4, time: 0.32, dust: 12, scatter: 12, bloom: [1.2, 1.1, 0.3], big: true },
       placed: { from: 4, time: 0.42, dust: 10, glyph: [0.5, 0.3, 0.7], bloom: [1.2, 1.1, 0.3], big: true },
       guard: { ring: [18, 9], time: 0.32, motes: 10, bloom: [1.2, 0.9, 0.3], big: true },
       move: { ghosts: 6, time: 0.3, alpha: 0.4, ends: [3, 12, 0.18], bloom: [2, 1.2, 0.25] },
     },
-    shapeOf: { spark: 'projectile', bolt: 'projectile', frost: 'projectile', ember: 'projectile', chain: 'projectile', nova: 'burst', pull: 'burst', thorns: 'burst', well: 'placed', ward: 'guard', blink: 'move', phase: 'move' },
+    shapeOf: { spark: 'projectile', bolt: 'projectile', lance: 'projectile', orb: 'projectile', arc: 'sweep', glaive: 'burst', nova: 'burst', well: 'placed', ward: 'guard' },
     bolt: { originT: 0.07, trail: 5, every: 0.035 }, impact: [7, 1.1, 1.1, 0.16], decal: [1.6, 16],
     charge: { motes: 40, glyph: [5, 13] },
     echo: 0.3,
     cap: 180, flares: 10, day: 0.33,
   },
-  // Elements a weapon or focus carries. shock: this share of hits arcs on;
-  // frost: hits chill, and a heavy hit on the chilled shatters for `shatter`
-  // times; ember: hits burn for burnTime, `burn` of the hit a second; blight:
-  // poison for blightTime, `blight` of the hit a second, spreading within
-  // blightSpread px when its host falls.
+  // What each element does on a hit (its stone sets a Form's). shock: this
+  // share of hits arcs on; frost: hits chill, and a heavy hit on the
+  // chilled shatters for `shatter` times; ember: hits burn for burnTime,
+  // `burn` of the hit a second; blight: poison for blightTime, `blight` of
+  // the hit a second, spreading within blightSpread px when its host falls.
   elements: { shockChance: 0.3, shatter: 1.6, burn: 0.35, burnTime: 3, blight: 0.22, blightTime: 4, blightSpread: 40 },
   // shock arcs to the nearest other enemy within shockRange for shockMult;
   // chill slows by chillSlow for chillTime.
@@ -366,15 +399,14 @@ const T = {
   // (a pick is made from the ore it's named for, and breaks the next one).
   items: {
     tierGrowth: 1.45, affixGrowth: 0.3, gradeBoost: 0.2, // a part's grade over 1 strengthens what it binds
-    blade: { dmg: 6, cost: 8 }, focus: { power: 6, cost: 8 },
+    caster: { power: 6 },
     armor: { armor: 4, armorGrowth: 0.75, hp: 16, hpGrowth: 1.5, cost: 10 },
-    charm: { cost: 6 }, pick: { speedGrowth: 0.12, cost: 12 }, core: { cost: 10, growth: 0.25 },
+    charm: { cost: 6 }, pick: { speedGrowth: 0.12, cost: 12 },
     affixes: { common: 1, magic: 2, rare: 3, legendary: 3, set: 2 },
-    socket: { blade: 0.35, focus: 1, secondFocus: 0.5 },
     armorK: 50, // damage taken × armorK / (armorK + armor)
   },
   // Caps on what affixes can add up to.
-  caps: { crit: 50, atkSpeed: 100, moveSpeed: 50, leech: 15, shock: 60, chill: 60, oreLuck: 100, mineSpeed: 200 },
+  caps: { crit: 50, castSpeed: 100, moveSpeed: 50, leech: 15, shock: 60, chill: 60, oreLuck: 100, mineSpeed: 200 },
 
   // The rune bench, in ore of the item's tier. add also raises the rarity.
   runes: { reroll: 4, upgrade: 6, upgradeBy: 0.2, add: 10 },
@@ -415,7 +447,7 @@ const T = {
   attune: {
     vitality: { name: 'Vitality', text: '+15 max health', max: 5, maxHp: 15 },
     capacity: { name: 'Capacity', text: '+6 cargo', max: 5, cargo: 6 },
-    might: { name: 'Might', text: '+8% melee damage', max: 5, meleeDmg: 8 },
+    proximity: { name: 'Proximity', text: '+8% close spell damage', max: 5, closeDmg: 8 },
     clarity: { name: 'Clarity', text: '+8% spell damage', max: 5, spellDmg: 8 },
     stride: { name: 'Stride', text: '+5% move speed', max: 5, moveSpeed: 5 },
   },

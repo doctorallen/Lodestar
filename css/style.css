@@ -406,3 +406,41 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .btn.rune-btn small { font-size: 11px; }
 .rune-btn:disabled { opacity: 0.75; color: var(--dim); }
 .rune-btn.short small { color: var(--danger); }
+
+/* circuits: a stone as a tile. A Form's is stone with a heavy rim, an
+   Element's filled with its colour, a Glyph's etched with a dashed rim; an
+   empty slot is dotted. --c is the stone's colour */
+.tile { --c: var(--ink); flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  width: 50px; min-height: 64px; padding: 3px 0; background: #0b0c10; border: 2px solid var(--c); color: var(--c); font: inherit; font-size: 11px; letter-spacing: 0.04em; }
+.tile img { width: 40px; height: 40px; image-rendering: pixelated; pointer-events: none; }
+.tile b { font-weight: bold; line-height: 1; }
+.tile small { font-size: 9px; color: var(--dim); line-height: 1; }
+.tile.t-form { border-width: 3px; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.5); }
+.tile.t-element { background: color-mix(in srgb, var(--c) 16%, #0b0c10); }
+.tile.t-glyph { border-style: dashed; }
+.tile.t-empty { --c: #3a3f4c; border-style: dotted; color: var(--dim); }
+.tile.t-empty b { font-size: 18px; }
+.tile.sel { outline: 2px solid var(--gold); outline-offset: 2px; }
+.tile.mini { width: auto; min-width: 30px; min-height: 0; height: 20px; padding: 0 3px; border-width: 1px; font-size: 10px; }
+.tile.mini.t-form { border-width: 2px; box-shadow: none; }
+.tile.mini.t-empty b { font-size: 11px; }
+.mini-circuit { display: flex; gap: 3px; margin-top: 4px; }
+/* a caster's circuit: its slots in a row, joined */
+.circuit { display: flex; align-items: center; flex-wrap: nowrap; gap: 0; margin: 6px 0 4px; }
+.circuit .tile { width: 48px; }
+.circuit .link { flex: 1 1 4px; min-width: 3px; max-width: 10px; height: 2px; background: #3a3f4c; }
+.circuit-cost { font-size: 12px; margin: 4px 0; color: var(--dim); }
+.circuit-cost b { color: var(--gold); font-weight: normal; }
+.readout { padding: 6px 8px; border-left: 2px solid var(--gold); background: var(--panel2); font-size: 12px; }
+.readout p { margin: 3px 0; }
+.readout .warn { color: #ffb0a0; }
+/* the drawer of stones to socket, grouped by kind */
+.drawer { margin: 10px 0 4px; padding: 8px; border: 1px solid var(--line); background: #0b0c10; }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11px; letter-spacing: 0.12em; color: var(--gold); }
+.drawer-head .mini { margin: 0; }
+.drawer-grp { margin-top: 8px; }
+.drawer-grp .gl { font-size: 10px; letter-spacing: 0.16em; color: var(--dim); margin-bottom: 4px; }
+.drawer-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.drawer .note { margin: 4px 0 0; }
+.forge-tabs { margin-bottom: 6px; }
+.forge-tabs .chip { flex: 1; min-width: 0; padding: 8px 4px; }

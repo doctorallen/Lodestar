@@ -658,7 +658,7 @@ function renderFrame() {
     lights.push({ x: sx, y: sy, r: TILE, i: 0.6, c: rgb01(shotCol) });
   }
   for (const pu of d.puddles) {
-    const k = Math.min(1, pu.t / 0.6), cx = vx(pu.x), cy = vy(pu.y), col = pu.mine ? ELEMENT_COLS.ember : PLANT_GLOW;
+    const k = Math.min(1, pu.t / 0.6), cx = vx(pu.x), cy = vy(pu.y), col = pu.mine ? pu.col || ELEMENT_COLS.ember : PLANT_GLOW;
     for (let n = 0; n < 20; n++) {
       const a = n * 2.4 + pu.max, r = (n % 5) / 5 * pu.r * AP;
       dot(Math.round(cx + Math.cos(a + Game.realT * 0.6) * r), Math.round(cy + Math.sin(a) * r * 0.7 - (pu.mine ? (Game.realT * 8 + n) % ap(4) : 0)), n % 3 ? mix(col, '#000000', 0.4) : col, true, 0.55 * k);
@@ -667,28 +667,21 @@ function renderFrame() {
     else lights.push({ x: cx, y: cy, r: TILE * 1.1, i: 0.4 * k, c: rgb01(col) });
   }
   for (const g of d.globs) {
-    if (g.mine) { drawCastGlob(g, ox, oy, tick, lights); continue; }
-    const gx = vx(g.x), gy = vy(g.y), col = g.mine ? ELEMENT_COLS.ember : PLANT_GLOW;
+    const gx = vx(g.x), gy = vy(g.y), col = PLANT_GLOW;
     for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]]) dot(gx + i, gy + j, j < 0 || i < 0 ? '#ffd0a0' : col, true);
     lights.push({ x: gx, y: gy, r: TILE, i: 0.6, c: rgb01(col) });
   }
   for (const au of d.auras) {
     const cx = vx(au.x), cy = vy(au.y - (au.follow ? 6 : 0)), k = Math.min(1, au.t / 0.4), R = au.r * AP;
-    if (au.kind === 'thorns') {
-      // thorns turning round the diver
-      for (let n = 0, N = Math.round(28 * AP); n < N; n++) {
-        const a = (n / N) * Math.PI * 2 + Game.realT * 2, spike = n % 2 === 0, x = Math.round(cx + Math.cos(a) * R), y = Math.round(cy + Math.sin(a) * R * 0.75);
-        dot(x, y, spike ? ELEMENT_COLS.blight : '#4a5a30', spike, k);
-        if (spike) dot(Math.round(x + Math.cos(a) * ap(2)), Math.round(y + Math.sin(a) * ap(1.5)), '#d8f0a0', true, k);
-      }
-      cfxLight(lights, cx, cy, au.r * 1.2, 0.35 * k, rgb01(ELEMENT_COLS.blight));
-    } else {
-      // a gravity well: a dark spiral drawing in
+    if (au.kind === 'glaive') drawCastGlaive(au, ox, oy, tick, lights);
+    else {
+      // a gravity well: a dark spiral drawing in, lit in its element
+      const col = au.col || ART.forms.well;
       for (let n = 0, N = Math.round(24 * AP); n < N; n++) {
         const a = n * 0.7 - Game.realT * 5, r = ((n * 3 + Game.realT * 30 * AP) % R);
-        dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.75), n % 3 ? '#2a1848' : ART.cores.well, true, k * (1 - r / R));
+        dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.75), n % 3 ? '#2a1848' : col, true, k * (1 - r / R));
       }
-      cfxLight(lights, cx, cy, au.r, 0.5 * k, rgb01(ART.cores.well));
+      cfxLight(lights, cx, cy, au.r, 0.5 * k, rgb01(col));
     }
   }
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
@@ -775,7 +768,7 @@ function renderFrame() {
 // The people in it
 // ---------------------------------------------------------------------------
 const ELITE_COLS = { fast: '#7fe8ff', tough: '#ffd34d', volatile: '#ff5a3a' };
-const ELEMENT_COLS = { shock: '#7fe8ff', frost: '#c8f0ff', ember: '#ff8a3a', blight: '#9ad04a' };
+const ELEMENT_COLS = { force: '#e4dcf4', shock: '#7fe8ff', frost: '#c8f0ff', ember: '#ff8a3a', blight: '#9ad04a' };
 // Which flora piece each biome's fighting plants look like.
 const PLANT_LOOKS = {
   rim: { snapjaw: 'Pitcher', spitter: 'Puffballs' },
@@ -833,12 +826,12 @@ function drawProspector(d, ox, oy, tick, lights) {
   const walking = p.walkT > 0;
   const frame = walking ? 1 + (Math.floor(p.walkT * 10) % 4) : 0;
   // casting: the pose, turned to the aim and leaning into it (castfx.js);
-  // the legs keep walking. Charging a focus, the pose is held, gathering.
-  let cast = p.cast && p.cast.t > 0 && p.cast.a !== undefined && !p.swing && !(p.mine && !p.mine.refused) ? p.cast : null;
-  if (!cast && !p.swing && !(p.mine && !p.mine.refused))
+  // the legs keep walking. Charging a caster, the pose is held, gathering.
+  let cast = p.cast && p.cast.t > 0 && p.cast.a !== undefined && !(p.mine && !p.mine.refused) ? p.cast : null;
+  if (!cast && !(p.mine && !p.mine.refused))
     for (const slot of ['main', 'off']) {
       const h = p.hands[slot], it = Save.data.equip[slot];
-      if (h.holding && handKind(it) === 'focus' && chargeLevel(h) > 0) { cast = { a: castFxAim(d), slot, style: (bpOf(it) || {}).style || 'wand', t: 1, max: 1, charging: true }; break; }
+      if (h.holding && isCaster(it) && chargeLevel(h) > 0) { cast = { a: castFxAim(d), slot, style: (bpOf(it) || {}).style || 'wand', t: 1, max: 1, charging: true }; break; }
     }
   p.castPose = cast;
   const face = cast ? { x: Math.cos(cast.a), y: Math.sin(cast.a) } : { x: p.fx, y: p.fy };
@@ -848,22 +841,21 @@ function drawProspector(d, ox, oy, tick, lights) {
   drawShadow(fx, fy, 5);
   // a hand on the far side, or both facing away, is drawn behind the body;
   // casting, the other hand is where the pose puts it
-  const side = Math.abs(face.x) > Math.abs(face.y) + 0.2, away = face.y < -0.3 && !(p.swing && p.swing.spin);
+  const side = Math.abs(face.x) > Math.abs(face.y) + 0.2, away = face.y < -0.3;
   const behind = (slot) => (cast ? slot !== cast.slot && spr.restBehind : away || (side && slot === 'off'));
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => behind(slot), face);
   // blink while hurt; fall still while dying
   if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(spr, sx, sy);
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot), face);
-  if (p.ward > 0) ringDots(fx, fy - ap(10), 12 * AP, ART.cores.ward, 0.5 + 0.3 * Math.sin(Game.realT * 6), true);
-  // a charging hand gathers light, and flashes when it's full (a focus's
-  // circle is on the ground, its motes drawn in: castfx.js)
+  if (p.ward > 0) ringDots(fx, fy - ap(10), 12 * AP, p.wardS ? p.wardS.col : ART.forms.ward, 0.5 + 0.3 * Math.sin(Game.realT * 6), true);
+  // a charging hand gathers light, and flashes when it's full (its circle
+  // is on the ground, its motes drawn in: castfx.js; an empty fist rings)
   for (const slot of ['main', 'off']) {
     const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0, it = Save.data.equip[slot];
     if (lv <= 0) continue;
-    const focus = handKind(it) === 'focus', col = focus ? castFxCol(it) : '#fff2c8';
-    if (!focus) ringDots(fx, fy - ap(10), (15 - lv * 5) * AP, col, lv >= 1 ? (tick % 2 ? 1 : 0.5) : 0.25 + lv * 0.5, true);
-    if (focus) cfxLight(lights, fx, fy - ap(10), TILE * (0.8 + lv), 0.3 + lv * 0.6, rgb01(col));
-    else lights.push({ x: fx, y: fy - ap(10), r: TILE * (0.8 + lv), i: 0.3 + lv * 0.6, c: rgb01(col) });
+    const col = castFxCol(it);
+    if (!isCaster(it)) ringDots(fx, fy - ap(10), (15 - lv * 5) * AP, col, lv >= 1 ? (tick % 2 ? 1 : 0.5) : 0.25 + lv * 0.5, true);
+    cfxLight(lights, fx, fy - ap(10), TILE * (0.8 + lv), 0.3 + lv * 0.6, rgb01(col));
   }
   if (p.mine && !p.mine.refused && d.target) {
     const phase = tick % 4, striking = phase >= 2, hand = handOf(p, spr, sx, sy, 'main');
@@ -918,71 +910,15 @@ function handOf(p, spr, sx, sy, slot, face = { x: p.fx, y: p.fy }) {
   return { x: sx + spr.w - 1 - h.x, y: sy + h.y };
 }
 
-// The weapons in hand: a blade (swinging through its arc, with a slash of
-// light behind it), or a focus (drawFocusHeld). which(slot): whether to
-// draw that hand now (behind the body, or in front); face: the way the
-// diver faces. Lengths are in world px, stepped along in art px.
+// The casters in hand (drawFocusHeld). which(slot): whether to draw that
+// hand now (behind the body, or in front); face: the way the diver faces.
 function drawHeld(d, spr, sx, sy, tick, lights, which, face = { x: d.p.fx, y: d.p.fy }) {
   const p = d.p, eq = Save.data.equip;
   if (p.mine && !p.mine.refused) return;
   for (const slot of ['main', 'off']) {
     const it = eq[slot];
-    if (!which(slot) || (!it && slot === 'off')) continue;
-    const hand = handOf(p, spr, sx, sy, slot, face), sw = p.swing && p.swing.slot === slot ? p.swing : null;
-    if (handKind(it) === 'focus') { drawFocusHeld(d, it, hand, lights, slot, tick); continue; }
-    if (!it) continue;
-    const ramp = it.tier >= 1 ? ART.ores[oreOfTier(it.tier).id] : ART.pal.steel;
-    const faceA = Math.atan2(face.y, face.x);
-    let a, len = 10;
-    if (sw) {
-      const k = 1 - sw.t / sw.max;
-      if (sw.spin) a = sw.a + k * Math.PI * 2;
-      else { const reach = sw.heavy ? 1.6 : 1.2; a = sw.a + sw.side * (-reach + 2 * reach * k); }
-      len = sw.heavy ? 12 : 11;
-      // the slash of light behind the edge
-      const steps = 7;
-      for (let n = 1; n <= steps; n++) {
-        const b = sw.spin ? a - n * 0.35 : a - sw.side * n * 0.16 * (sw.heavy ? 1.4 : 1);
-        for (const r of [len - 2, len - 1, len, len + 1, len + 2]) dot(Math.round(hand.x + Math.cos(b) * r * AP), Math.round(hand.y + Math.sin(b) * r * AP * 0.85), r === len ? ramp[3] : ramp[2], true, (1 - n / (steps + 1)) * (r === len - 1 || r === len + 1 ? 0.45 : 0.7));
-      }
-      lights.push({ x: hand.x + Math.cos(a) * 8 * AP, y: hand.y + Math.sin(a) * 7 * AP, r: TILE * 1.2, i: 0.6, c: rgb01(ramp[3]) });
-    } else a = faceA + (slot === 'main' ? 1 : -1) * 1.1 + Math.sin(Game.realT * 2) * 0.05;
-    const c = Math.cos(a), sn = Math.sin(a), style = (bpOf(it) || {}).style || 'blade';
-    const glow = it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'rare';
-    const elem = it.element ? ELEMENT_COLS[it.element] : null;
-    // a point r along the weapon and side across it (world px), on the view
-    const at = (r, side = 0) => ({ x: Math.round(hand.x + (c * r - sn * side) * AP), y: Math.round(hand.y + (sn * r + c * side) * AP * 0.85) });
-    // r from r0 to r1 in art px steps
-    const along = (r0, r1, fn) => { for (let R = Math.round(r0 * AP); R <= Math.round(r1 * AP); R++) fn(R / AP); };
-    if (style === 'spear') {
-      // a long shaft, a narrow head
-      along(-3, len + 4, (r) => { const q = at(r); dot(q.x, q.y, r > len ? ramp[3] : r > len - 4 ? ramp[2] : ART.pal.wood[2], (glow || elem) && r > len, 1); });
-      along(len - 3, len + 1, (r) => { const q = at(r, 1 / AP); dot(q.x, q.y, ramp[1]); });
-    } else if (style === 'hammer') {
-      // a haft, and a heavy head across it
-      along(-1, len - 3, (r) => { const q = at(r); dot(q.x, q.y, ART.pal.wood[2]); });
-      along(len - 4, len, (r) => { for (let S = -ap(2); S <= ap(2); S++) { const q = at(r, S / AP); dot(q.x, q.y, S === -ap(2) || r >= len - 0.5 / AP ? ramp[3] : ramp[1 + (Math.round(r * AP) + S) % 2]); } });
-      if (elem || glow) { const q = at(len - 2); dot(q.x, q.y, elem || ramp[3], true); dot(q.x + 1, q.y, elem || ramp[3], true); }
-    } else if (style === 'whip') {
-      // a grip, then a chain curling out to a blade tip
-      along(-1, 0, (r) => { const q = at(r); dot(q.x, q.y, ART.pal.leather[2]); });
-      const reach = sw ? 18 : 9;
-      along(1, reach, (r) => {
-        const curl = Math.sin(r * 0.5 + Game.realT * (sw ? 20 : 3)) * (sw ? 1 : 2.5) * (r / reach), q = at(r, curl);
-        dot(q.x, q.y, Math.round(r * AP) % 3 ? ramp[2] : ramp[1]);
-      });
-      const tip = at(reach + 1); dot(tip.x, tip.y, elem || ramp[3], !!elem || glow); dot(tip.x + 1, tip.y, elem || ramp[3], !!elem || glow);
-    } else {
-      // the grip and guard, then the blade, its edge catching the light
-      along(-1, 0, (r) => { const q = at(r); dot(q.x, q.y, ART.pal.leather[2]); });
-      along(-2, 2, (g) => { const q = at(1.5, g * 0.8); dot(q.x, q.y, ART.pal.metal[3]); });
-      along(2, len, (r) => {
-        const q = at(r), lit = (glow || elem) && r > len - 3;
-        dot(q.x, q.y, r > len - 0.5 / AP ? ramp[3] : elem && r > len - 3 ? elem : ramp[2], lit, lit ? 0.9 : 1);
-        const e = at(r, 1 / AP); dot(e.x, e.y, ramp[1]);
-      });
-    }
-    if (elem) lights.push({ x: hand.x + c * len * 0.7 * AP, y: hand.y + sn * len * 0.6 * AP, r: TILE * 0.8, i: 0.35, c: rgb01(elem) });
+    if (!which(slot) || !isCaster(it)) continue;
+    drawFocusHeld(d, it, handOf(p, spr, sx, sy, slot, face), lights, slot, tick);
   }
 }
 
@@ -1147,7 +1083,7 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     dot(Math.round(lerp(cx, sx, t * t) + wob), Math.round(lerp(cy, sy, t)), ART.pal.star[t > 0.8 ? 3 : 2], true);
   } else if (fx.kind === 'nova') {
     // (its ring is swept over the ground: castFxBig)
-    cfxLight(lights, cx, cy, fx.r * 1.3, k, rgb01(ART.cores.nova));
+    cfxLight(lights, cx, cy, fx.r * 1.3, k, rgb01(fx.col || ART.forms.nova));
   } else if (fx.kind === 'arc') drawCastArc(fx, ox, oy, lights); else if (fx.kind === 'blast') {
     ringDots(cx, cy, fx.r * (1 - k * 0.6) * AP, '#ff7a3a', k, true);
     lights.push({ x: cx, y: cy, r: fx.r * 1.5, i: 1.2 * k, c: [1, 0.5, 0.25] });

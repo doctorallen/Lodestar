@@ -1,12 +1,12 @@
 'use strict';
 // The whole loop through the real controls. On a phone, upright: the
-// Lodestar, DESCEND and a biome, walking with the joystick, swinging at an
+// Lodestar, DESCEND and a biome, walking with the joystick, an Arc at an
 // enemy, mining with MINE held, a vein the pick is too weak for, a portal
 // to the next site, pausing, the cargo screen, the lodeline home and the haul in the
 // stash; the forge, equipping what it makes, a reroll at the rune bench,
 // feeding the star; then a death that loses the cargo but not what's worn.
 // Held sideways, the decks sit either side of the view. On a desktop: WASD,
-// J to swing, Space to mine, Esc to pause. No page errors anywhere;
+// J to cast, Space to mine, Esc to pause. No page errors anywhere;
 // screenshots go to test/out/.
 const { launch, openGame, shot, finish, PHONE, DESKTOP } = require('./lib');
 // The whole loop, from the outpost: the ledge, a dive, the forge and its
@@ -113,7 +113,9 @@ async function phone(browser) {
   const blocked = await page.evaluate(() => rockAt(Game.dive.floor, Game.dive.p.x + 8, Game.dive.p.y));
   check(after[0] > before[0] + 4 || blocked, `phone: the joystick didn't walk right (${before} → ${after})`);
 
-  // SWING hits an enemy beside the diver
+  // the main hand's button is the gauntlet's Arc, and it hurts an enemy
+  // beside the diver
+  check(await page.evaluate(() => /ARC/.test($('btn-main').textContent) && /BOLT/.test($('btn-off').textContent)), 'phone: the hands\' buttons do not show ARC and BOLT');
   const hit = await page.evaluate(() => {
     const d = Game.dive, e = makeEnemy('crawler', d.p.x + 10, d.p.y, 1, null);
     e.aggro = true; d.enemies.push(e);
@@ -121,7 +123,7 @@ async function phone(browser) {
   });
   await hold(page, '#btn-main', 0.5);
   const left = await page.evaluate(() => Game.dive.enemies[Game.dive.enemies.length - 1].hp);
-  check(left < hit, `phone: SWING didn't hurt the crawler beside it (${hit} → ${left})`);
+  check(left < hit, `phone: ARC didn't hurt the crawler beside it (${hit} → ${left})`);
   await shot(page, 'smoke-fight');
   await page.evaluate(calm);
 
@@ -177,7 +179,7 @@ async function phone(browser) {
   check(await page.evaluate((t0) => Game.dive.time === t0, t0), 'phone: the dive ran on while paused');
   await tap(page, '#pause-resume');
   check(!(await page.evaluate(() => Game.modal)), 'phone: RESUME did not close the pause');
-  await page.evaluate(() => { Game.dive.items.push(makeItem(new Rng(5), 'blade', 2, { rarity: 'rare' })); Game.dive.items.push(makeItem(new Rng(6), 'armor', 1, { rarity: 'magic' })); });
+  await page.evaluate(() => { Game.dive.items.push(makeItem(new Rng(5), 'caster', 2, { rarity: 'rare', bp: 'wand' })); Game.dive.items.push(makeItem(new Rng(6), 'armor', 1, { rarity: 'magic' })); });
   await tap(page, '#btn-cargo');
   check(await visible(page, '#screen-cargo'), 'phone: CARGO did not open');
   check(await page.evaluate(() => document.querySelectorAll('#cargo-body [data-act=cardCargo]').length === 2), 'phone: the found gear is not in the cargo');
@@ -229,7 +231,7 @@ async function phone(browser) {
   await run(page, 1.2);
   check(await visible(page, '#screen-report'), 'phone: EXTRACT did not report the dive');
   check(/BANKED/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the haul');
-  const banked = await page.evaluate(() => [Object.values(Save.data.stash).reduce((a, b) => a + b, 0) + Save.data.items.length * T.cargo.itemWeight, JSON.parse(localStorage.getItem('lodestar.save.v2')), Save.data.star]);
+  const banked = await page.evaluate(() => [Object.values(Save.data.stash).reduce((a, b) => a + b, 0) + Save.data.items.length * T.cargo.itemWeight, JSON.parse(localStorage.getItem('lodestar.save.v3')), Save.data.star]);
   check(banked[0] === carried, `phone: banked ${banked[0]} of ${carried}`);
   check(banked[1].items.length === 2, 'phone: the found gear was not banked and saved');
   const fedWant = await page.evaluate(() => T.star.extractStar * 4);
@@ -245,10 +247,10 @@ async function phone(browser) {
   check(await page.evaluate(() => $('btn-act').textContent === 'FORGE'), 'phone: no FORGE at the forge');
   await tap(page, '#btn-act');
   await run(page, 0.05);
-  await tap(page, '#forge-body [data-act=forgeBp][data-arg=blade]');
+  await tap(page, '#forge-body [data-act=forgeBp][data-arg=gauntlet]');
   await shot(page, 'smoke-forge');
   await tap(page, '#forge-body [data-act=craft]');
-  check(await page.evaluate(() => Save.data.stash.ferrite === 32 && !Save.data.stash.cog1), 'phone: forging a blade did not cost 8 Ferrite and 2 cogs');
+  check(await page.evaluate(() => Save.data.stash.ferrite === 31 && !Save.data.stash.cog1), 'phone: forging a gauntlet did not cost 9 Ferrite and 2 cogs');
   await shot(page, 'smoke-anvil');
   const [ax, ay] = await center(page, '#anvil-canvas');
   for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.touchscreen.tap(ax, ay); await sleep(60); }
@@ -259,8 +261,9 @@ async function phone(browser) {
   check(await visible(page, '#card'), 'phone: the reveal did not open the card');
   await shot(page, 'smoke-forged');
   await tap(page, '#card [data-act=equip][data-arg=main]');
-  check(await page.evaluate(() => Save.data.equip.main.name !== 'Scrap Blade' && Save.data.items.some((i) => i.name === 'Scrap Blade')), 'phone: the forged blade is not in the main hand');
-  check(await page.evaluate(() => Save.data.equip.main.affixes.some((a) => AFFIXES[a.id].family === 'melee')), 'phone: a blade bound with cogs has no melee affix');
+  check(await page.evaluate(() => Save.data.equip.main.name !== 'Scrap Gauntlet' && Save.data.items.some((i) => i.name === 'Scrap Gauntlet')), 'phone: the forged gauntlet is not in the main hand');
+  check(await page.evaluate(() => Save.data.equip.main.affixes.some((a) => AFFIXES[a.id].family === 'close')), 'phone: a gauntlet bound with cogs has no close affix');
+  check(await page.evaluate(() => Save.data.equip.main.slots[0] && Save.data.equip.main.slots[0].stone === 'arc'), 'phone: the empty gauntlet did not take the old one\'s circuit');
   await tap(page, '#screen-forge [data-act=back]');
 
   // the rune bench rerolls an affix on what's worn
@@ -272,10 +275,32 @@ async function phone(browser) {
   await tap(page, '#gear-body [data-act=cardEquip][data-arg=main]');
   if (await page.evaluate(() => Save.data.equip.main.affixes.length > 0)) {
     await tap(page, '#card [data-act=reroll][data-arg="0"]');
-    check(await page.evaluate(() => Save.data.stash.ferrite === 32 - T.runes.reroll), 'phone: a reroll did not cost Ferrite');
+    check(await page.evaluate(() => Save.data.stash.ferrite === 31 - T.runes.reroll), 'phone: a reroll did not cost Ferrite');
   }
   await tap(page, '#card [data-act=closeCard]');
   await shot(page, 'smoke-gear');
+  await tap(page, '#screen-gear [data-act=back]');
+
+  // the locker: a stone set in a caster's slot from the drawer, free, and
+  // the circuit's words and cost follow it
+  const fe0 = await page.evaluate(() => { Save.data.items.push(makeStone('shock', 1), makeStone('split', 1)); return Save.data.stash.ferrite; });
+  await page.evaluate(atStation, 'locker');
+  await run(page, 0.05);
+  await tap(page, '#btn-act');
+  await run(page, 0.05);
+  await tap(page, '#gear-body [data-act=cardEquip][data-arg=off]');
+  check(await visible(page, '#card .circuit'), 'phone: a caster\'s card shows no circuit');
+  await tap(page, '#card [data-act=slotPick][data-arg="1"]');
+  await tap(page, '#card [data-act=slotPut][data-arg="shock:1"]');
+  await tap(page, '#card [data-act=slotPut][data-arg="split:1"]');
+  const circ = await page.evaluate(() => [Save.data.equip.off.slots.map((x) => x && x.stone).join(), circuitCost(Save.data.equip.off), $('card-body').textContent, Save.data.stash.ferrite, Math.round(T.circuits.forms.bolt.cost * T.circuits.glyphs.split.cost * 10) / 10]);
+  check(circ[0] === 'bolt,shock,split', `phone: socketing gave the wand ${circ[0]}`);
+  check(circ[1] === circ[4] && /Shock damage/.test(circ[2]) && /three at once/.test(circ[2]), 'phone: the readout or the cost did not follow the circuit');
+  check(circ[3] === fe0, 'phone: socketing cost something');
+  await tap(page, '#card [data-act=slotPick][data-arg="1"]');
+  await tap(page, '#card [data-act=slotPick][data-arg="1"]');
+  check(await page.evaluate(() => !Save.data.equip.off.slots[1] && Save.data.items.some((x) => x.stone === 'shock')), 'phone: tapping a chosen slot again did not empty it');
+  await tap(page, '#card [data-act=closeCard]');
   await tap(page, '#screen-gear [data-act=back]');
 
   // feeding the star at the altar: back out to watch it drink
@@ -355,7 +380,7 @@ async function phone(browser) {
       UI.close(); abandonDive(); UI.close();
     }
     [T.rifts.chance, T.rifts.kinds] = was;
-    out.tier = forgeItem(Save.rng(), 'blade', 'ferrite', 'cog1', 'riftglass', 1).tier;
+    out.tier = forgeItem(Save.rng(), 'gauntlet', 'ferrite', 'cog1', 'riftglass', 1).tier;
     return out;
   });
   check(rifts.bloom === true && rifts.graft === true, `phone: sealing a tear did not leave riftglass (${JSON.stringify(rifts)})`);
@@ -485,7 +510,7 @@ async function desktop(browser) {
   await page.keyboard.down('KeyJ');
   await run(page, 0.3);
   await page.keyboard.up('KeyJ');
-  check(await page.evaluate((hp) => Game.dive.enemies[Game.dive.enemies.length - 1].hp < hp, hp), 'desktop: J did not swing');
+  check(await page.evaluate((hp) => Game.dive.enemies[Game.dive.enemies.length - 1].hp < hp, hp), 'desktop: J did not cast');
   await page.evaluate(calm);
   await page.evaluate(standByOre, 'ok');
   await page.keyboard.down('Space');

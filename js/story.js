@@ -13,6 +13,10 @@
 // before, found in the depths and read at the wreck.
 // ---------------------------------------------------------------------------
 
+// Said once, before the opening, to a player whose save came from before
+// circuits.
+const FRESH_START_LINE = 'Spells are now circuits you build from stones, and blades are gone, so your outpost starts afresh.';
+
 const STORY_INTRO = [
   'The Meridian was three days out when every instrument died at once.',
   'Something below had a pull no engine could fight. We fell out of the sky towards a light.',
@@ -108,7 +112,9 @@ const Story = {
   // The opening, the first time the game is played.
   intro() {
     if (Save.data.introSeen) return false;
-    UI.openStory(STORY_INTRO, () => { Save.data.introSeen = true; Save.save(); UI.tip('hub', 'Walk to the portal under the star to set out'); });
+    // a save from before circuits started over: one line to say why
+    const lines = Save.data.freshStart ? [FRESH_START_LINE].concat(STORY_INTRO) : STORY_INTRO;
+    UI.openStory(lines, () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); UI.tip('hub', 'Walk to the portal under the star to set out'); });
     return true;
   },
 

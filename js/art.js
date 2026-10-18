@@ -67,11 +67,11 @@ const ART = {
   exotics: { voltaic: '#7fe8ff', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890', riftglass: '#c060ff', emberglass: '#ff8a3a', blightcap: '#9ad04a' },
   // creature parts, until they have their own art: a colour a kind
   parts: { chitin: '#8a6a7a', ether: '#9fd8ff', cog: '#b89a58', fiber: '#8ab86a', spore: '#c87ab0', heart: '#ff6a4a' },
-  cores: {
-    bolt: '#62f0ff', nova: '#ffb347', pull: '#ffd890', ward: '#8fb4ff', frost: '#c8f0ff', ember: '#ff8a3a', chain: '#7fe8ff',
-    thorns: '#9ad04a', blink: '#c9a2ff', well: '#8a5ad0', phase: '#e8e0ff',
-    split: '#ffd34d', amplify: '#ff8a3d', quicken: '#7fe8ff', chainmod: '#62f0ff', echo: '#c9a2ff',
-  },
+  // a Form's colour (when it has no Element), and each Glyph's; a Glyph's
+  // stone and tile are etched in glyphTeal
+  forms: { arc: '#fff0c0', glaive: '#e8e0ff', bolt: '#62f0ff', lance: '#d8e8ff', orb: '#c9a2ff', nova: '#ffb347', well: '#8a5ad0', ward: '#8fb4ff' },
+  glyphs: { split: '#ffd34d', amplify: '#ff8a3d', quicken: '#7fe8ff', chain: '#62f0ff', echo: '#c9a2ff', pierce: '#e8e0ff', linger: '#9ad04a', trigger: '#ffd890' },
+  glyphTeal: '#5ff2d0',
   ores: {
     ferrite: ['#3b170d', '#743828', '#c46444', '#ffb08a'],
     lumenite: ['#0a302c', '#2a6e64', '#4ec9b1', '#c2fff2'],
@@ -830,19 +830,8 @@ function buildEnemySprites(biomeId) {
 // ---------------------------------------------------------------------------
 // Item icons, drawn in the item's ore: steel and plate take its colours.
 // ---------------------------------------------------------------------------
-function bladeIconRows() {
-  const g = Array.from({ length: 20 }, () => new Array(20).fill('.'));
-  const set = (x, y, ch) => { if (x >= 0 && y >= 0 && x < 20 && y < 20) g[y][x] = ch; };
-  set(19, 0, 'W');
-  for (let i = 0; i < 12; i++) { const x = 18 - i, y = 1 + i; set(x - 1, y, 'W'); set(x, y, i < 10 ? 'A' : 'W'); set(x + 1, y, 'w'); }
-  for (let k = -3; k <= 3; k++) set(6 + k, 13 + k, k === 0 ? 'O' : 'M');
-  for (let k = 0; k < 4; k++) { set(5 - k, 14 + k, 'B'); set(4 - k, 14 + k, k % 2 ? 'M' : 'B'); }
-  set(1, 18, 'M'); set(0, 18, 'M'); set(0, 19, 'O'); set(1, 19, 'M');
-  return g.map((r) => r.join(''));
-}
 const ICON_ROWS = {
-  blade: bladeIconRows(),
-  focus: [
+  caster: [
     '......M..M..M.......',
     '.....GM.GM.GM.......',
     '.....GM.GM.GM.......',
@@ -911,18 +900,6 @@ const ICON_ROWS = {
     '....MOOM....',
     '.....MM.....',
   ],
-  core: [
-    '....MMMM....',
-    '..MMRRRRMM..',
-    '.MRRAAAARRM.',
-    '.MRAAQQAARM.',
-    'MRAAQQQQAARM',
-    'MRAAQQQQAARM',
-    '.MRAAQQAARM.',
-    '.MRRAAAARRM.',
-    '..MMRRRRMM..',
-    '....MMMM....',
-  ],
   relic: [
     '.MMMMMMMMMMMM.',
     'MDDDDDDDDDDDDM',
@@ -945,19 +922,18 @@ function art2Sprite(rows, pal, opts) {
 }
 
 function itemIconUrl(item) {
-  const isMod = item.kind === 'core' && CORES[item.core] && CORES[item.core].mod;
-  const style = isMod ? 'modifier' : item.kind === 'core' || item.kind === 'relic' ? item.kind : ((typeof bpOf === 'function' && bpOf(item)) || {}).style;
+  if (item.kind === 'stone') return stoneIconUrl(item.stone, item.tier);
+  const style = item.kind === 'relic' ? item.kind : ((typeof bpOf === 'function' && bpOf(item)) || {}).style;
   const own = ICON_ROWS2[style] && !ICON_ROWS[style];
   const rows = own ? ICON_ROWS2[style] : ICON_ROWS[item.kind];
-  const key = item.kind + '/' + style + '/' + item.tier + '/' + (item.core || '') + '/' + item.rarity;
+  const key = item.kind + '/' + style + '/' + item.tier + '/' + item.rarity;
   let url = _iconCache.get(key);
   if (url) return url;
   const pal = {};
-  if (item.tier >= 1 && item.kind !== 'core' && item.kind !== 'relic') {
+  if (item.tier >= 1 && item.kind !== 'relic') {
     const r = ART.ores[oreOfTier(item.tier).id];
     pal.steel = r; pal.plate = r; pal.tool = r;
   }
-  if (item.kind === 'core') { pal.arcane = [ART.cores[item.core]]; pal.rune = [isMod ? ART.cores[item.core] : mix(ART.cores[item.core], '#000000', 0.3)]; }
   if (item.kind === 'relic') pal.arcane = [ART.rarity.relic];
   const s = own ? art2Sprite(rows, pal) : buildArtSprite(rows, pal);
   url = s.c.toDataURL();

@@ -40,7 +40,7 @@ function newWorld(fields) {
     p: {
       x: 0, y: 0, fx: 0, fy: 1, walkT: 0, mine: null,
       hp: stats.maxHp, charge: stats.maxCharge, ward: 0, wardT: 0, invuln: 0, hurtT: 0, restT: 0, lowCharge: 0,
-      dashT: 0, dashCd: 0, dashX: 0, dashY: 0, swing: null, cast: null,
+      dashT: 0, dashCd: 0, dashX: 0, dashY: 0, strikeT: 0, cast: null,
       hands: { main: newHand(), off: newHand() },
     },
   }, fields);
@@ -74,7 +74,7 @@ function enterHub(report) {
   else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk to the portal under the star to set out');
 }
 
-function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0, hits: 0 }; }
+function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0 }; }
 
 // An expedition's site: `depth` is which (1 to T.expedition.sites), zone
 // what kind of place, clime what country (rolled with the way to it). Each
@@ -207,12 +207,11 @@ function updateDive(dtReal, dt) {
   p.invuln = Math.max(0, p.invuln - dtReal);
   p.hurtT = Math.max(0, p.hurtT - dtReal);
   p.lowCharge = Math.max(0, p.lowCharge - dtReal);
-  if (p.wardT > 0 && (p.wardT -= dtReal) <= 0) p.ward = 0;
+  if (p.wardT > 0 && (p.wardT -= dtReal) <= 0) { p.ward = 0; wardGone(p); }
   p.restT += dtReal;
   const rest = p.restT > T.player.restAfter ? T.player.restRegen : 0;
   p.hp = Math.min(st.maxHp, p.hp + (st.regen + rest) * dtReal);
   p.charge = Math.min(st.maxCharge, p.charge + T.player.chargeRegen * (1 + st.chargeRegen / 100) * dtReal);
-  if (p.swing && (p.swing.t -= dtReal) <= 0) p.swing = null;
   if (p.cast && (p.cast.t -= dtReal) <= 0) p.cast = null;
   for (const n of d.nums) { n.t -= dtReal; n.y -= 14 * dtReal; }
   d.nums = d.nums.filter((n) => n.t > 0);
@@ -221,10 +220,10 @@ function updateDive(dtReal, dt) {
     const mv = Input.move, m = Math.hypot(mv.x, mv.y);
     let vx = 0, vy = 0;
     if (m > 0.05) {
-      // slower mid-swing, so a swing commits
-      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.swing ? 0.45 : 1);
+      // slower mid-strike, so an Arc commits
+      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.strikeT > 0 ? 0.45 : 1);
       vx = (mv.x / m) * sp; vy = (mv.y / m) * sp;
-      if (!p.swing) { p.fx = mv.x / m; p.fy = mv.y / m; }
+      if (!(p.strikeT > 0)) { p.fx = mv.x / m; p.fy = mv.y / m; }
       p.walkT += dtReal;
     } else p.walkT = 0;
     // pools slow the step and ice carries it on (hazards.js)

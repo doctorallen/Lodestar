@@ -168,7 +168,7 @@ function lifeWallSpots(f) {
 // ---------------------------------------------------------------------------
 function lifeThreats(d) {
   const p = d.p, out = [];
-  const loud = p.dashT > 0 || p.swing || p.cast || p.mine || d.channel;
+  const loud = p.dashT > 0 || p.strikeT > 0 || p.cast || p.mine || d.channel;
   out.push({ x: p.x, y: p.y, r: loud ? 60 : p.walkT > 0 ? 30 : 16 });
   for (const e of d.enemies) if (!e.dead) out.push({ x: e.x, y: e.y, r: e.aggro ? 44 : 22 });
   for (const fx of d.fx) out.push({ x: fx.x, y: fx.y, r: 64 });

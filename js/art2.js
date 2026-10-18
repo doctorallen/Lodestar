@@ -10,6 +10,8 @@
 //   ICON_ROWS2: item icons. W/w steel, G plate and T/t tool take the ore's
 //     colours the way ICON_ROWS do (itemIconUrl overrides steel, plate and
 //     tool with the ore's ramp).
+//   Stones (stoneIconUrl): a pebble for a Form, a cut gem for an Element, a
+//     tablet for a Glyph, in its ore's colours, its rune glowing in its own.
 //   PART_ROWS: creature parts; PART_PAL[part][tier - 1] recolours one for the
 //     biome it came from (1 Rim, 2 Choir, 3 Underforge).
 //   WRECK_ROWS: the Meridian, beacon dark and lit, for the outpost.
@@ -23,69 +25,6 @@ const ART2_GLOWS = ["shardglow","shardwarm","ether","sporeglow","beacon","fleshg
 const ART2_PAL = {"fiber":["#151a10","#2e3a22","#4a5c34","#6c8048"],"chitin":["#140e14","#2c2030","#4a3850","#6e5878"],"shardglow":["#fff6dc"],"shardwarm":["#ffc860"],"ether":["#9fe8ff"],"print":["#0c1424","#18284a","#284470","#4a70a8"],"spore":["#1e1218","#492b3c","#75465b","#a46b7f"],"sporeglow":["#d8e890"],"hull":["#0e1014","#1c2028","#2e3440","#4a5262"],"beacon":["#fff0c0"],"lens":["#0a0c10","#1a1e26","#2a303c"],"moss":["#121a10","#2b3c23","#445e37","#638249"],"flesh":["#1e1218","#492b3c","#75465b","#a46b7f"],"fleshglow":["#a6c84a"],"slag":["#1a1210","#3a2823","#5b3e37","#7f584b"],"magma":["#ff7a2a"],"bone":["#2a2620","#5d5544","#8f8568","#c3b692"]};
 
 const ICON_ROWS2 = {
-  spear: [
-    ".................W",
-    "...............WW.",
-    "..............WWR.",
-    ".............WWRW.",
-    ".............WRww.",
-    "............MWww..",
-    "............MM....",
-    "...........DD.....",
-    "..........DD......",
-    ".........DD.......",
-    "........DD........",
-    ".......DD.........",
-    "......DB..........",
-    ".....DB...........",
-    "....DB............",
-    "...DD.............",
-    "..DD..............",
-    "MDD...............",
-    "MM................",
-  ],
-  hammer: [
-    ".WWWWGWWWWWWGWWWW.",
-    "wWWWWGWWRRWWGWWWWw",
-    "wWWWWGWRRRRWGWWWWw",
-    "wWWWWGWWRRWWGWWWWw",
-    "wWWWWGWWWWWWGWWWWw",
-    ".wwwwGwwwwwwGwwww.",
-    ".......MMMM.......",
-    "........DD........",
-    "........DD........",
-    "........DD........",
-    "........DD........",
-    "........DD........",
-    "........BB........",
-    "........BB........",
-    "........BB........",
-    "........BB........",
-    "........DD........",
-    "........DD........",
-    ".......MMMM.......",
-  ],
-  whip: [
-    ".................W",
-    "................WW",
-    "...............WW.",
-    "..............WWR.",
-    "............tTWwW.",
-    "..........tT...W..",
-    ".........T........",
-    ".........T........",
-    "..........T.......",
-    "...........T......",
-    "...........T......",
-    ".........tT.......",
-    ".......tTT........",
-    ".....TT...........",
-    "...MM.............",
-    "...BBM............",
-    "..BB..............",
-    ".BB...............",
-    "BB................",
-  ],
   staff: [
     "............AAAA..",
     "...........AAQQAA.",
@@ -228,20 +167,6 @@ const ICON_ROWS2 = {
     "....UzzzUzU..",
     ".....UzzUU...",
     "......UU.....",
-  ],
-  modifier: [
-    "....MMMM....",
-    "..MMGGGGMM..",
-    ".MGGGGGGGGM.",
-    ".MGGGRRGGGM.",
-    "MGGGRGGRGGGM",
-    "MGGRGGGGRGGM",
-    "MGGRRRRRRGGM",
-    "MGGGGGGGGGGM",
-    ".MGGGGGGGGM.",
-    ".MGGGGGGGGM.",
-    "..MMGGGGMM..",
-    "....MMMM....",
   ],
 };
 
@@ -543,3 +468,67 @@ const KEEPER_ROWS = {
   ],
 };
 const KEEPER_PAL = {"rim":{"shell":["#0c0a0c","#1a161a","#2c242c","#443844"],"legs":["#060407"],"flesh":["#1e1218","#492b3c","#75465b","#a46b7f"],"fleshglow":["#a6c84a"],"moss":["#121a10","#2b3c23","#445e37","#638249"]},"choir":{"shell":["#0a0a18","#16162c","#262848","#3c4068"],"bone":["#2a2420","#5f5346","#94826b","#d0b997"],"flesh":["#22141c","#502d49","#7d4970","#ae689f"],"fleshglow":["#d0609e"]},"underforge":{"slag":["#140c0a","#2e1c18","#4a2e28","#6a443a"],"plate":["#1c1210","#34221c","#523830","#7a5648"],"metal":["#1a1210","#402b21","#65442f","#8f603e"],"magma":["#ff7a2a"]}};
+
+// ---------------------------------------------------------------------------
+// The stones a circuit is built from. Each is drawn at the art's size, 18 px
+// square (20 with its sel-out, shown at 2× on the screens): its shape says
+// its kind, its rune which it is (7 px square, carved: a dark step under and
+// right of every stroke), its body is its ore's ramp and its rune glows in
+// its own colour (stoneCol).
+// ---------------------------------------------------------------------------
+const STONE_RUNES = {
+  arc: ['.......', '..###..', '.#...#.', '#.....#', '#.....#', '.......', '.......'],
+  glaive: ['#.....#', '.#...#.', '..#.#..', '...#...', '..#.#..', '.#...#.', '#.....#'],
+  bolt: ['.......', '....#..', '.....#.', '#######', '.....#.', '....#..', '.......'],
+  lance: ['....###', '.....##', '....#.#', '...#...', '..#....', '.#.....', '#......'],
+  orb: ['..###..', '.#...#.', '#.....#', '#..#..#', '#.....#', '.#...#.', '..###..'],
+  nova: ['#..#..#', '.......', '...#...', '#.###.#', '...#...', '.......', '#..#..#'],
+  well: ['.#####.', '#.....#', '#.###.#', '#.#.#.#', '#.#...#', '#.####.', '#......'],
+  ward: ['#######', '#.....#', '#.....#', '#.....#', '.#...#.', '..#.#..', '...#...'],
+  force: ['.......', '.#####.', '.#...#.', '.#.#.#.', '.#...#.', '.#####.', '.......'],
+  shock: ['....##.', '...##..', '..##...', '.#####.', '...##..', '..##...', '.##....'],
+  frost: ['...#...', '.#.#.#.', '..###..', '###.###', '..###..', '.#.#.#.', '...#...'],
+  ember: ['...#...', '..##...', '..###..', '.####..', '.#####.', '.##.##.', '..###..'],
+  blight: ['...#...', '..###..', '.#####.', '.##.##.', '.#####.', '..###..', '.......'],
+  split: ['#..#..#', '#..#..#', '.#.#.#.', '..###..', '...#...', '...#...', '...#...'],
+  amplify: ['...#...', '..#.#..', '.#...#.', '...#...', '..#.#..', '.#...#.', '.......'],
+  quicken: ['.......', '#..#...', '.#..#..', '..#..#.', '.#..#..', '#..#...', '.......'],
+  chain: ['.##....', '#..#...', '#..#...', '.####..', '...#..#', '...#..#', '....##.'],
+  echo: ['.#..#..', '..#..#.', '..#..#.', '..#..#.', '..#..#.', '.#..#..', '.......'],
+  pierce: ['...#...', '...#...', '#.###.#', '...#...', '...#...', '..###..', '...#...'],
+  linger: ['.......', '.#...#.', '#.#.#.#', '...#...', '.#...#.', '#.#.#.#', '...#...'],
+  trigger: ['...#...', '.#####.', '.#...#.', '###.###', '.#...#.', '.#####.', '...#...'],
+};
+// The rows of a stone: its body by its kind's shape, its rune carved in.
+const _stoneRows = new Map();
+function stoneRows(stone) {
+  let rows = _stoneRows.get(stone);
+  if (rows) return rows;
+  const N = 18, c = (N - 1) / 2, kind = stoneKind(stone), g = [];
+  for (let y = 0; y < N; y++) {
+    g.push([]);
+    for (let x = 0; x < N; x++) {
+      const dx = Math.abs(x - c), dy = Math.abs(y - c);
+      const inside = kind === 'form' ? dx * dx + dy * dy * 1.1 <= 8.9 * 8.9
+        : kind === 'element' ? dx <= 7.5 && dy <= 8.5 && dx * 1.0 + dy * 0.62 <= 8.6
+        : dx <= 7.5 && dy <= 7.5 && dx + dy <= 13;
+      g[y].push(inside ? 'W' : '.');
+    }
+  }
+  const R = STONE_RUNES[stone] || STONE_RUNES.force, o = Math.round(c - 3);
+  for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) if (R[y][x] === '#') g[o + y][o + x] = 'R';
+  // carved: the stone's darkest step under and to the right of each stroke
+  for (let y = 0; y < N - 1; y++) for (let x = 0; x < N - 1; x++) if (g[y][x] === 'R') for (const [i, j] of [[1, 1], [0, 1]]) if (g[y + j][x + i] === 'W') g[y + j][x + i] = 'w';
+  rows = artNative(g.map((r) => r.join('')), 1);
+  _stoneRows.set(stone, rows);
+  return rows;
+}
+function stoneIconUrl(stone, tier = 1) {
+  const key = 'stone/' + stone + '/' + tier;
+  let url = _iconCache.get(key);
+  if (!url) {
+    url = buildArtSprite(stoneRows(stone), { steel: ART.ores[oreOfTier(tier).id], rune: [stoneCol(stone)] }, undefined, undefined, { scale: 1 }).c.toDataURL();
+    _iconCache.set(key, url);
+  }
+  return url;
+}
