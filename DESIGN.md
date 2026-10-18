@@ -15,21 +15,34 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 
 ## The story
 
-**Stranded.** The *Meridian* was dragged out of the sky by the pull of a fallen star and broke on the rim of the sinkhole beneath it.
-- **The way home:** the ship's beacon still works, but it needs power, and the only power here is the Lodestar.
-- **The problem:** the star is dying. Its heart was shattered, and the Hollow carried the shards into the dark.
-- **The goal:** a **Shard Keeper** guards one shard at the bottom of each biome:
-  - the Rim's at depth 5, a fungal crawler-queen that calls its brood;
-  - the Choir's at depth 6, a towering tube-worm;
-  - the Underforge's at depth 7, a slag colossus that leaves magma where it charges.
+**The Kindler.** You're a Kindler of the Lodestar Charter. The Charter sends seed-stars to dead worlds, and a Kindler rides down with each one to plant it and carry its light outward, spire by spire, until a colony can land.
+- **The landing:** this seed struck wrong, cracked, and sank into a sinkhole. You and Wick climb out of the landing capsule onto the rim, where its light reaches only a few steps. It's a planned landing gone wrong, not a crash.
+- **The *Meridian*** is the colony ship waiting in orbit with its settlers asleep. For every 3 territories kindled it can send a lander, and the outpost becomes a settlement.
+- **Why take ground:** it's the job. Every spire carries the star's light further, and the dark is thicker where the light has never been.
+
+| Act | What happens |
+|---|---|
+| Ring 1 | Plant spires and the land wakes up. The first landers come down and the settlers arrive. The star speaks as it grows. |
+| Ring 2 (the turn) | The echoes, logs of earlier Kindlers, show that the world wasn't dead. The dark is the world's own living night, and the Hollow is what grows in it. The Keepers are earlier seed-stars that went dark. |
+| Ring 3 | Each Keeper holds a shard of its dead star. Set the shards in yours and your light reaches further. |
+| The Edge | The heart of the dark. You choose: **kindle it** (the world becomes a garden and the Hollow is gone) or **leave it** (the world keeps a night, the colony lives in the light, and the Hollow keeps to the dark). The game goes on after either. |
+
+- **The shards:** a Keeper waits at the end of an expedition in each biome:
+  - the Rim's, a fungal crawler-queen that calls its brood;
+  - the Choir's, a towering tube-worm;
+  - the Underforge's, a slag colossus that leaves magma where it charges.
 - **Bringing them back:** a taken shard is bound to you and safe from any fall. Set it in the star at the altar, which feeds the star 400.
-- **The end:** with all three set, the beacon can be lit at the wreck. The ending plays, and the game goes on after.
+- **Calling the colony down:** at the Meridian uplink, once all three shards are set and there's ground for 5 landers (15 territories kindled). Until the world map exists, the shards alone will do, and calling plays the "kindle" ending, as lighting the old beacon did.
 
 How it's told:
 - **An opening** of five panels on a new game.
-- **Wick**, your drone, says a line or two the first time things happen: the first dive, parts, a blueprint, the anvil, the pull fading, a new biome, a Keeper, a shard.
-- **The star speaks** as it grows, and as its heart comes back.
-- **Eight echoes:** logs of the crews it pulled down before. They're found by ancient forges, from elites now and then, and from every Keeper, and read at the wreck.
+- **Wick**, your drone, dry and kind, says a line the first time things happen: the first dive, parts, a blueprint, the anvil, the light thinning, a new biome, a Keeper, a shard, the first spire, the first territory kindled, the first dark tide, the first Deep, each ring, the Edge, the first settlers.
+- **The star speaks** as it grows, a seed-star waking where it fell, and as each shard is set.
+- **Eight echoes:** logs of the Kindlers before, found by ancient forges, from elites now and then, and from every Keeper, and read at the uplink in the order found. The early ones are hopeful, the middle ones uneasy, and the later ones carry the turn.
+- **Settlers** at the outpost, one for each lander down, stroll the plaza among tents and lanterns and say a line when you pass. After the turn, they've heard.
+- **The log:** one line for each territory kindled, by its clime.
+- **Never say it outright.** No line says the dark is alive or that the Keepers were stars. The echoes, the star and the settlers let it show.
+- **The tone:** plain, warm and a little lonely, hopeful with unease. Short lines that read on a phone.
 
 ## The Lodestar (the base)
 
@@ -322,6 +335,7 @@ Salvaging a legendary at home writes its power into the forge's **Codex**. Any l
 Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's rim, every station a few steps apart:
 - **The Lodestar** hangs over the pit, bobbing. Its lodelines run down into the dark, one more for every magnitude, and it grows bigger as it grows stronger.
 - **Lanterns** round the plaza light up, one for every magnitude.
+- **The settlement.** For each lander the *Meridian* sends (one for every 3 territories kindled), a settler, a tent and a lantern join the plaza, up to six; all of them once the colony's called.
 - **The stations:** walk up to one and the contextual button names it.
 
 | Station | What it does |
@@ -332,7 +346,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 | The locker (GEAR) | What's worn, the stash and its stones, stats; equip, build circuits (free), salvage, unseal relics |
 | The star's altar (THE STAR) | Feed it ore, and spend attunements. Feeding sends you back out to watch the ore stream up into the star as it pulses and grows |
 | The practice target | A construct that takes every hit and never falls, for trying combos |
-| The *Meridian* (wreck) | The star's heart (shards found and set), the echoes, and lighting the beacon |
+| The uplink (THE UPLINK) | A relay mast to the *Meridian* in orbit: the landers it can send, the shards set, the echoes, and calling the colony down |
 
 - **The anvil.** Each forge is three hammer strikes: a marker sweeps a bar, faster each time and dragging as it crosses the glowing zone, and you tap while it's in the zone.
   - A strike in the zone is good, and one in its marked middle is perfect.
