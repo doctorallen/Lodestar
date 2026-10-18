@@ -72,7 +72,7 @@ function startSortie(at) {
 
 // What's cleared whenever the diver arrives somewhere new.
 function resetFloorState(d) {
-  Object.assign(d, { target: null, shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], auras: [], later: [], flowAt: -1, keeper: null, rift: null, hold: null,
+  Object.assign(d, { target: null, shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], auras: [], later: [], snares: [], drag: null, flowAt: -1, keeper: null, rift: null, hold: null,
     seen: null, beacon: null, compass: null, oreNear: null, toolT: 0, strike: null, stormT: undefined, channel: null, padDark: false, warp: null, fieldForge: null });
   d.p.mine = null;
 }

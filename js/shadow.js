@@ -255,7 +255,7 @@ function drawLampShadows(d, ox, oy) {
   const near = (wx, wy) => { const ax = wx * AP, ay = wy * AP; return ax > x0 && ax < x1 && ay > y0 && ay < y1; };
   for (const c of shadowFlora()) if (near(c.x, c.y) && !(c.fl.anchorT >= 0 && !TILE_SOLID[f.tiles[c.fl.anchorT]])) C.push(c.x * AP + c.cx, c.y * AP, c.hw, c.h);
   for (const e of d.enemies) {
-    if (e.dead || !near(e.x, e.y)) continue;
+    if (e.dead || e.hid || !near(e.x, e.y)) continue;
     const spr = enemySprite(d, e.type);
     C.push(e.x * AP, e.y * AP, Math.max(ap(3), e.r * AP), spr.h);
   }

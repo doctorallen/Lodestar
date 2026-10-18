@@ -104,6 +104,7 @@ Every territory and every site of a Deep is also a **clime**: the kind of countr
 - **Climes change generation a little, never its danger:** the Frost Steppe keeps fewer pillars and the Cinder Waste more, the Bloomfen, Rootdeep and Magma Tubes wander differently, but none has more, bigger or more open caverns (which meant more enemies at once, and more falls in the bot's runs). The hazards are laid over the ground afterwards from a generator of their own, so the tiles don't change.
 - **A rift's graft** brings another clime's ground with it: a patch of Frost Steppe snow in a cave, or Magma Tubes basalt under the sky.
 - The fighting flora dress as the clime's own plants, glow gone red.
+- Each clime has a creature of its own (Enemies).
 
 ## The weather
 
@@ -119,7 +120,7 @@ Three small goals are always posted at the portal, so every sortie, even a short
 - kindle a territory;
 - go down into a Deep.
 
-Each pays the star (25 × magnitude) and leaves an exotic, three parts or a riftglass, and a new one takes its place. Progress shows in the cargo screen mid-sortie.
+Each pays the star (25 × magnitude) and leaves an exotic, three parts, a riftglass or a resonance stone (while the Codex has pages to fill), and a new one takes its place. Progress shows in the cargo screen mid-sortie.
 
 The board keeps moving: never two of a kind; 70% of hauls are set in the furthest region reached; one that has stood for 3 sorties is replaced; one may be swapped for free each time home; and meeting all three in one sortie pays the star twice.
 
@@ -167,6 +168,47 @@ Only two enemies can wind up at once, plus one more every three floors down. The
 - **Fast:** moves half again as fast.
 - **Tough:** extra health.
 - **Volatile:** bursts a moment after it dies.
+- **Insulated:** all but shrugs off Shock (×0.25).
+- **Fireproof:** all but shrugs off Ember (×0.25).
+- **Warded:** resists everything inside a shell of pale light, until three Force hits (a heavy one counts two) crack it open. Something blunt is always worth carrying.
+- **Shifting:** its weakness moves to the next element every 6 s, and its pip and mark change colour with it.
+
+**Weak and resistant** (natures.js). Every kind is weak to some elements and resists others, by what it's made of: weak takes ×1.5, resistant ×0.5, very resistant ×0.25. Nothing is ever immune.
+
+| Kind | Force | Shock | Frost | Ember | Blight | Why |
+|---|---|---|---|---|---|---|
+| Crawler | | | | W | | a chitin shell, dry inside |
+| Wisp | R | R | | | I | no body, all ether |
+| Construct | | W | | | I | an armoured machine |
+| Snapjaw, spitter | | | R | W | R | living plants |
+| The Hollow | R | R | R | R | R | the living dark; in a lit lodeline's light it loses them all |
+| The warden, the Keepers | one W and one R by region: the Rim Ember W, Blight R; the Choir Force W, Frost R; the Underforge Frost W, Ember R | | | | | |
+
+- **Climes shift it a step** (W to neither, neither to R, R to I, or back): the Frost Steppe more resistant to Frost and weaker to Ember; the Cinder Waste and the Magma Tubes to Ember and Frost; the Flooded Grotto to Ember and Shock; the Bloomfen and the Rootdeep to Blight and Ember; the Clockwork Vault to Force and Shock.
+- **Force is mostly neutral:** it's every spell's element when it has none, so only the wisp (no body to strike), the Hollow and two armoured clime creatures (the Slag Crab and the Gear Hound) resist it. The Slag Crab's shell stands in for its resistances while it's shut (35% gets through, rather than 35% of a half), and what it fears still counts.
+- **No marks over what's hidden:** a skink under the sand, an eel under the water, a dropper on the roof or a wraith in its fissure shows none until it comes out.
+- **Wick learns it.** The first hit of an element on a kind tells Wick its verdict, kept in the save. Over each awake foe, a mark for each verdict Wick knows: ▲ in the element's colour for weak, ▼ for resistant, a bar for very resistant, and "?" while some are still unknown; three at most, what it fears first, then what it resists most. An elite's affix always shows.
+- **The numbers carry it:** a weak hit pops bigger and green, a resisted one small and grey; WEAK or RESIST under it at most once every 0.8 s over a foe, and not when a reaction's name shows for that hit. A reaction's name stands over the foe above where its numbers rise, never over them. Wick says so the first time each happens.
+
+### Each clime's own creature
+
+Every clime has a creature found nowhere else: about 30% of what a room holds in its clime, and elsewhere only where a rift's graft of that clime brings one or two (not the eel or the dropper, which need their water or a roof). The crawler, wisp, construct and the fighting flora are the rest, everywhere. Each has its own attack, tied to its clime and its hazard, and like every enemy it shows its attack first (a red line, ring or mark, and it glows brighter as it winds up), a dash crosses every one, and it takes its turn with the others. Each leaves the creature part that suits it, can be an elite, and grows with the level like the rest. Wick says a word on each the first time it shows itself, and a hunt contract can name one (from a clime that leans to an open biome, or to none).
+
+| Clime | Creature | Attack | Tell | Nature (weak / resists) | Part |
+|---|---|---|---|---|---|
+| Badlands | Dune Skink | Swims under the sand (a mound with eyes), bursts up under you and bites; then it's up a moment, scuttling, before it digs back under | A ring of sand under you, its reach in red | Frost / Ember | chitin |
+| Frost Steppe | Tusker | A heavy charge; it slides on, can't turn, and on ice slides on until the rock stops it, dazed for longer | Its whole run in red, a ring where it will slam | Ember / Frost | chitin |
+| Cinder Waste | Ash Wraith | Rises from a smouldering fissure, drifts in and bursts into embers, leaving burning ground; then it's a spent cinder | It swells and glows, its reach in a red ring | Frost / Ember | ether |
+| Bloomfen | Bog Lurker | Sunk to its stalked eyes in its mire; its tongue lashes along a line and drags you a tile in | Its mouth opens, the line marked in red | Ember / Blight | spore |
+| Caverns | Ceiling Dropper | Clings to the roof; drops on you, then fights like a squat crawler | Its shadow grows on the floor, following you a moment, then holding, ringed in red | Force / Shock | chitin |
+| Flooded Grotto | Pool Eel | Swims in the pools (a fin and ripples), rears and lunges; on dry ground without a bite it's stranded | It rears, its line in red | Shock / Ember | fibre |
+| Magma Tubes | Slag Crab | Sidesteps and pinches; its shell turns most of a blow until it's chilled or cracked by a heavy hit (its seams light); lava doesn't burn it | Claws up, a short red line | Frost / Ember and Force | cog |
+| Rootdeep | Rootweaver | Keeps off and spits; strings root snares between the walls across your way, which hold your feet (a dash crosses) | A red line from its mouth; the snare's line in red | Ember / Blight | fibre |
+| Archive | Sentinel Eye | Floats and sweeps a beam through an arc; rock stops it, so a pillar is cover | The arc it will sweep, and the line it starts from | Shock / Blight | ether |
+| Overgrown Temple | Moss Idol | Moves only out of the light (the heart of the lamp's reach, or a shaft of daylight), and pounces from the dark; lit, it's stone | Arms up, eyes lit, its line in red | Force / Frost | spore |
+| Clockwork Vault | Gear Hound | Winds its key, then runs in straight lines, glancing off the walls twice; then it's spent | The key turning, the whole run shown with a ring at each wall | Shock / Force | cog |
+
+While a skink is under the sand, an eel under the water or a dropper on the roof, nothing can strike it or aim at it. A stranded eel, a spent wraith or hound and a dropper that has just landed take half again as much, as a dazed construct does.
 
 ## Mining and ore
 
@@ -219,13 +261,15 @@ Finished gear comes from the forge. Enemies leave the materials to make it, not 
 
 Parts come in three grades, Rim, Choir and Forge, one per biome. Deeper biomes give stronger bindings.
 
-| Element | Exotic | On hit |
-|---|---|---|
-| Force | none | Knocks back harder; heavy hits stagger |
-| Shock | Voltaic crystal | Arcs to the next enemy |
-| Frost | Frostglass | Chills; a heavy hit on the chilled shatters for more |
-| Ember | Emberglass | Burns |
-| Blight | Blightcap | Poisons, spreading when its host falls |
+| Element | Exotic | On hit | Stacked on itself |
+|---|---|---|---|
+| Force | none | Knocks back harder; heavy hits stagger | a second heavy hit stuns |
+| Shock | Voltaic crystal | Arcs to the next enemy | five overload it, stunning |
+| Frost | Frostglass | Chills (slows) | three freeze it solid |
+| Ember | Emberglass | Burns | burns stack, and spread |
+| Blight | Blightcap | Poisons, spreading when its host falls | poison spreads on a hit |
+
+Shock is drawn in its stone's yellow everywhere in play (bolts, arcs, bursts, numbers), never cyan, which is the Glyphs' teal and the diver's circuits; the Voltaic crystal is yellow to match.
 
 Bloodresin guarantees a leech affix, and a Lodestone shard raises the rarity.
 
@@ -304,8 +348,50 @@ Salvaging a legendary at home writes its power into the forge's **Codex**. Any l
 | Trigger | 1 | The next Form fires from where this one hits or ends |
 
 - Two of a glyph stack: two Splits fire five, two Echoes cast twice more, and so on.
-- **Resonances** (proposed, phase 3): exact circuits that fill a caster and wake into named spells (Thunderhead, Shatterglass, Kindling Arc, Wildfire, Stormglaive, Starfall). The engine already recognises them; nothing acts on them yet.
-- **(proposed, phase 2)** Reactions between two elements' statuses, enemies' resistances and weaknesses with pips over them, ore affinity, linked slots, and the Lode and Rift elements with more Forms and Glyphs.
+- **Reactions** (reactions.js). Every element leaves its status on a foe for 3 s. A second element hitting a foe that still carries another's reacts, in either order, and two elements on one Form react on their own. Each reaction's name flashes over its target in the pixel hand, and Wick explains it the first time.
+
+  | Reaction | Elements | What it does |
+  |---|---|---|
+  | Shatter | Force + Frost | ×1.6 on the chilled; a frozen foe bursts, hurting what's round it |
+  | Conduct | Frost + Shock | the shock leaps to every chilled foe within 5 tiles |
+  | Steam | Frost + Ember | a cloud: foes in it lose the diver for 2 s |
+  | Brittle | Frost + Blight | +25% from everything for 3 s |
+  | Pyre | Ember + Blight | the poison left bursts at once |
+  | Flare | Ember + Shock | blinds, and breaks wind-ups |
+  | Scatter | Ember + Force | burning ground flung the way of the knock |
+  | Jolt | Force + Shock | the stagger adds 2 overload |
+  | Overload | Shock ×5 | stunned for 1 s |
+  | Freeze | Frost ×3 | frozen solid |
+  | Inferno | Ember on the burning | burns stack, and at three they spread |
+  | Plague | Blight on the poisoned | the poison spreads at once |
+  | Stun | a second heavy Force hit | stunned for 1 s |
+
+  A boss takes a third of a stun, freeze, blinding or loss; the Hollow none.
+- **Ore affinity.** A caster's ore (the one it's named for) favours an element. A spell of it is attuned: 25% harder (by its share of the spell's elements) and its status lasts half again as long. Each ore has a way of its own, shown on the caster's card and its readout:
+
+  | Ore | Attuned to | And |
+  |---|---|---|
+  | Ferrite | Force | Glaives cost 1 less |
+  | Lumenite | Shock | casts 10% faster |
+  | Resonite | nothing | resonances 25% stronger |
+  | Aetherglass | Frost | Lances reach 35% further |
+  | Sigilite | Ember | Glyphs 10% stronger |
+  | Starmetal | nothing | one slot more than its base |
+
+- **Linked slots.** A masterwork caster has an even chance of a linked pair of slots, a gold chain between them. A Glyph in either counts twice, in what it does and what it costs.
+- **Resonances** (resonance.js): exact circuits that wake into named spells. One must fill its caster exactly, so a 3-slot wand is worth keeping and a 5-slot staff is a find. A resonant circuit hits 50% harder (Resonite more), and does something its parts alone don't:
+
+  | Resonance | Circuit | What it does |
+  |---|---|---|
+  | Thunderhead | ORB SHOCK LINGER | the orb stops overhead and becomes a stormcloud, drifting over the nearest foe and striking it every 0.4 s for 4 s |
+  | Shatterglass | LANCE FROST ECHO | the echo lance shatters the chilled along its line for double, flinging shards to either side |
+  | Kindling Arc | ARC EMBER QUICKEN | every third arc sets the ground in front alight in a crescent |
+  | Wildfire | ORB EMBER SPLIT LINGER | three orbs leave burning trails; plants catch, and the fire runs through them (for show) |
+  | Stormglaive | GLAIVE SHOCK CHAIN AMPLIFY | the blades arc lightning to every foe within reach |
+  | Starfall | BOLT FORCE SPLIT TRIGGER NOVA | three bolts rise and meet as a falling star: a crater, a stun, a ring of light |
+
+  The forge's **Codex** shows each as a silhouette with its slot count (`ORB · ? · LINGER`); **resonance stones** show its parts one at a time: elites drop them now and then, they lie by ancient forges, and contracts pay them. Kindling Arc is known from the start, and building or casting one fills in its page. At the locker, a circuit a stone away from one on a caster of the right size says *resonance stirs…*, and a live one wears a gold banner with its name.
+- **(proposed)** The Lode and Rift elements, with more Forms, Glyphs and resonances.
 - **The dash** is a quick burst that nothing can touch, from DASH or a flick of the move thumb. It's how you get out of a lunge or a charge.
 - **Impact:**
   - a hit stops the world for an instant (the view doesn't shake: the designer found it unpleasant);

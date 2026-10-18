@@ -130,6 +130,8 @@ function placeFieldForge(d) {
   const leave = (thing) => d.drops.push(Object.assign({ x: (d.fieldForge.x + 1.5) * TILE, y: (d.fieldForge.y + 0.5) * TILE, t: 0 }, thing));
   if (rng.chance(T.fieldForge.blueprint)) dropBlueprint(d, leave);
   if (rng.chance(T.story.echoForge)) leave({ echo: true });
+  // and a resonance stone, now and then, by the old forges
+  if (rng.chance(T.circuits.resonance.forge) && !codexAllWhole()) leave({ resStone: true });
 }
 
 // The outfit changed mid-dive.

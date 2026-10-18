@@ -88,6 +88,23 @@ function installBot() {
     return bd < 40 ? best : null;
   }
 
+  // How well a hand's circuit does against a foe: its first group's
+  // elements against the foe's nature (as Wick would show it, or the truth
+  // once hit), twice as good for Force against a warded shell.
+  function handScore(it, foe) {
+    const P = it ? parseCircuit(it.slots, it.links) : null, g = P && P.groups[0], els = g && g.els.length ? g.els : ['force'];
+    let k = elementMult(foe, els);
+    if (foe.ward > 0 && els.includes('force')) k *= 2;
+    return k;
+  }
+
+  // what last hurt the diver, for the report of a fall
+  if (!window.__botHurt) {
+    window.__botHurt = true;
+    const orig = window.hurtPlayer;
+    window.hurtPlayer = function (dmg, from) { Bot.lastHurt = from && from.type ? from.type + (from.elite ? '*' : '') : from && from.vx !== undefined ? 'shot' : 'other'; return orig(dmg, from); };
+  }
+
   // The world's next step out: the dark territory next to lit land (the
   // outpost or a kindled territory) with the lowest enemy level, and where
   // to set out from to reach it: walking out of the outpost, or a spire
@@ -135,7 +152,8 @@ function installBot() {
     const wantDeep = ready && (P.deep || Math.random() < deepOdds);
     const skipOre = new Set(), skipFoe = new Set();
     let progressT = 0, progress = '', aim = null;
-    const result = () => ({ target, ring: terrOf(target).ring, level: terrLevel(terrOf(target)), clime: terrOf(target).clime, kills: d.kills, cargo: cargoUsed(d) + Object.values((d.banked && d.banked.stuff) || {}).reduce((a, b) => a + b, 0), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t), deep: !!(d.tally && d.tally.deeps), kindled: kindledCount() - kindled0 });
+    Bot.lastHurt = null;
+    const result = () => ({ target, ring: terrOf(target).ring, level: terrLevel(terrOf(target)), clime: terrOf(target).clime, kills: d.kills, cargo: cargoUsed(d) + Object.values((d.banked && d.banked.stuff) || {}).reduce((a, b) => a + b, 0), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t), deep: !!(d.tally && d.tally.deeps), kindled: kindledCount() - kindled0, lastHurt: Bot.lastHurt, hollow: d.enemies.some((e) => e.type === 'hollow' && !e.dead) });
     const at = (x, y) => { const w = d.floor.w; return y * w + x; };
     while (t < maxTime) {
       if (Game.dive !== d) { ended = UI.report && UI.report.recalled ? 'recalled' : UI.report && UI.report.banked ? 'home' : 'died'; break; }
@@ -147,7 +165,8 @@ function installBot() {
       if (now !== progress) { progress = now; progressT = t; }
       else if (t - progressT > 20 && aim) { (aim.ore !== undefined ? skipOre.add(aim.ore) : skipFoe.add(aim.foe)); aim = null; progressT = t; }
       const hollow = d.enemies.find((e) => !e.dead && e.type === 'hollow');
-      const foe = d.enemies.filter((e) => !e.dead && !skipFoe.has(e) && e.type !== 'hollow' && dist(e.x, e.y, p.x, p.y) < (e.aggro ? 110 : 70) && steps.plain[at(Math.floor(e.x / TILE), Math.floor(e.y / TILE))] >= 0)
+      // (what's under the sand, the water or on the roof can't be fought yet)
+      const foe = d.enemies.filter((e) => !e.dead && !e.hid && !skipFoe.has(e) && e.type !== 'hollow' && dist(e.x, e.y, p.x, p.y) < (e.aggro ? 110 : 70) && steps.plain[at(Math.floor(e.x / TILE), Math.floor(e.y / TILE))] >= 0)
         .sort((a, b) => dist(a.x, a.y, p.x, p.y) - dist(b.x, b.y, p.x, p.y))[0];
       const foeM = foe ? dist(foe.x, foe.y, p.x, p.y) : 1e9, close = foe && (foeM < 40 || (foe.state === 'windup' && foeM < 70));
       // dim: no more light than the walk back to lit land takes, and a bit
@@ -217,10 +236,19 @@ function installBot() {
         const m = dist(foe.x, foe.y, p.x, p.y);
         aim = { foe };
         if (m > 14) goTile(d, steps, Math.floor(foe.x / TILE), Math.floor(foe.y / TILE));
+        // tap, don't hold: alternate presses make combos; dash out of a tell.
+        // With the choice, not the hand whose elements the foe resists (and
+        // Force for a warded shell)
         const tap = (iter++ & 1) === 0, mf = firstForm(Save.data.equip.main), mainClose = !Save.data.equip.main || mf === 'arc' || mf === 'glaive';
-        Input.bot.main = tap && (mainClose ? m < 30 : m < 120);
-        Input.bot.off = !tap && m < 120 && !!Save.data.equip.off;
-        if (d.enemies.some((e) => !e.dead && e.state === 'windup' && dist(e.x, e.y, p.x, p.y) < 50) && p.dashCd <= 0) { const a = norm(p.x - foe.x, p.y - foe.y); Input.bot.x = -a.y; Input.bot.y = a.x; Input.bot.dash = true; }
+        const inMain = mainClose ? m < 30 : m < 120, inOff = m < 120 && !!Save.data.equip.off;
+        const sm = handScore(Save.data.equip.main, foe), so = handScore(Save.data.equip.off, foe);
+        // (a hand the foe shrugs off rests while the other can reach it)
+        const skip = inMain && inOff ? (sm < 0.8 && so > sm * 1.3 ? 'main' : so < 0.8 && sm > so * 1.3 ? 'off' : null) : null;
+        // (still a tap at a time: a button down two turns running is a hold,
+        // which charges)
+        Input.bot.main = inMain && skip !== 'main' && tap;
+        Input.bot.off = inOff && skip !== 'off' && !tap;
+        if (d.enemies.some((e) => !e.dead && e.state === 'windup' && (e.hid ? dist(e.aimX, e.aimY, p.x, p.y) : dist(e.x, e.y, p.x, p.y)) < 50) && p.dashCd <= 0) { const a = norm(p.x - foe.x, p.y - foe.y); Input.bot.x = -a.y; Input.bot.y = a.x; Input.bot.dash = true; }
       } else {
         const ore = mine && !full && !d.kindled && oreToMine(d, steps, skipOre);
         if (ore && !act && (!goal || steps[at(ore.sx, ore.sy)] < 6)) {
@@ -234,6 +262,9 @@ function installBot() {
           else goTile(d, steps, goal.x, goal.y);
         }
       }
+      // a ring or a shadow on the ground underfoot (a skink, a dropper): out
+      const under = d.enemies.find((e) => !e.dead && e.hid && e.state === 'windup' && dist(e.aimX, e.aimY, p.x, p.y) < 22);
+      if (under && p.dashCd <= 0 && !d.channel) { const a = norm(p.x - under.aimX + 0.01, p.y - under.aimY); Input.bot.x = a.x; Input.bot.y = a.y; Input.bot.dash = true; }
       // grab drops nearby
       const drop = !hollow && d.drops.find((dr) => dist(dr.x, dr.y, p.x, p.y) < 80 && !dr.warned && steps.plain[at(Math.floor(dr.x / TILE), Math.floor(dr.y / TILE))] >= 0);
       if (drop && !foe && !d.channel && !act && !back && !goal) {
@@ -333,7 +364,10 @@ function installBot() {
       main: ['arc', 'el', 'quicken', 'amplify', 'chain', 'linger'],
       off: [s.blueprints.includes('form_lance') ? 'lance' : 'bolt', 'el', s.blueprints.includes('form_lance') ? 'split' : 'pierce', 'amplify', 'echo', 'chain'],
     };
-    const elements = ['shock', 'frost', 'ember', 'blight'];
+    // the elements, best first: by how often the kinds it meets fear them
+    // and how seldom they shrug them off
+    const worth = (el) => ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'].reduce((n, t) => { const v = (natureTable(t) || {})[el]; return n + T.enemies[t].weight * (v ? T.circuits.resist[v] : 1); }, 0);
+    const elements = ['shock', 'frost', 'ember', 'blight'].sort((a, b) => worth(b) - worth(a));
     const have = (id) => s.items.filter((x) => x.kind === 'stone' && x.stone === id).concat(['main', 'off'].flatMap((k) => (s.equip[k] ? s.equip[k].slots.filter((x) => x && x.stone === id) : [])));
     // (keeping back what the next pick takes)
     const pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));

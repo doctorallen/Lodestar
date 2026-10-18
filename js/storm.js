@@ -100,7 +100,7 @@ function updateRiftSpawns(d, dt) {
   r.spawnT = R.spawnEvery;
   if (d.enemies.filter((e) => e.riftTouched && !e.dead).length >= R.spawnMax) return;
   const type = d.rng.pick(['crawler', 'wisp', 'construct']);
-  const e = makeEnemy(type, (r.x + 0.5) * TILE, (r.y + 1.2) * TILE, floorLevel(d) + 1, d.rng.pick(ELITE_AFFIXES));
+  const e = makeEnemy(type, (r.x + 0.5) * TILE, (r.y + 1.2) * TILE, floorLevel(d) + 1, rollEliteAffix(d.rng));
   e.riftTouched = true;
   if (bodyHits(d.floor, e.x, e.y, e.r)) e.y = (r.y + 0.5) * TILE;
   d.enemies.push(e);

@@ -53,7 +53,7 @@ const CFX_ELEMENTS = {
 const cfxEl = (el) => CFX_ELEMENTS[el] || CFX_ELEMENTS.force;
 // How a projectile flies, by its Form: a spark wobbles, a lance is a shard
 // with a glint, an orb a pulsing ball; the rest are small stars that turn.
-const CFX_BOLT_LOOK = { spark: 'wobble', lance: 'lance', orb: 'orb' };
+const CFX_BOLT_LOOK = { spark: 'wobble', lance: 'lance', orb: 'orb', shard: 'lance' };
 // A projectile's colour: its group's (its element's, else its Form's).
 const cfxBoltCol = (b) => b.col || (b.element ? cfxEl(b.element).col : CFX_ELEMENTS.force.col);
 const cfxBoltEl = (b) => b.element || null;
@@ -336,6 +336,7 @@ function updateCastFx(dt) {
     b.cfx.emit = C.bolt.every / (b.big ? 2 : 1);
     cfxShed(b.x, b.y, cfxBoltEl(b), cfxBoltCol(b), b.cfx.n++, b.vx, b.vy);
   }
+  updateResonanceFx(dt);
   // a caster being charged draws motes in
   for (const slot of ['main', 'off']) {
     const h = p.hands[slot], it = Save.data.equip[slot];
@@ -700,7 +701,8 @@ function drawCastBolt(b, ox, oy, tick, lights) {
   const x = Math.round(bx * AP) + ox - Math.round(uy * wob), y = Math.round(by * AP) + oy + Math.round(ux * wob);
   if (look === 'orb') { cfxDrawOrb(b, x, y, tick, col, lights); return; }
   if (look === 'lance') {
-    const n = ap(6), glint = Math.floor(Game.realT * 30) % (n + 3);
+    // (a Shatterglass shard is a short one)
+    const n = ap(b.kind === 'shard' ? 3 : 6), glint = Math.floor(Game.realT * 30) % (n + 3);
     for (let k = 0; k < n; k++) dot(Math.round(x - ux * k), Math.round(y - uy * k), k === glint || k < ap(2) ? '#ffffff' : col, true, 1 - (k / AP) * 0.12);
     // its sides, a pixel either way at the middle: a shard, not a line
     for (const s of [-1, 1]) dot(Math.round(x - ux * ap(2) - uy * s), Math.round(y - uy * ap(2) + ux * s), mix(col, '#5a8aa8', 0.4), true, 0.75);
@@ -734,7 +736,7 @@ function drawCastBolt(b, ox, oy, tick, lights) {
 // jumping anew each frame; its ends flash.
 function drawCastArc(fx, ox, oy, lights) {
   const k = fx.t / fx.max, x0 = Math.round(fx.x * AP) + ox, y0 = Math.round(fx.y * AP) + oy, x1 = Math.round(fx.x2 * AP) + ox, y1 = Math.round(fx.y2 * AP) + oy;
-  const n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / 8)), col = fx.col || ART.exotics.voltaic, a = cfxBand(k);
+  const n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / 8)), col = fx.col || ELEMENT_COLS.shock, a = cfxBand(k);
   let px = x0, py = y0;
   for (let s = 1; s <= n; s++) {
     const tx = Math.round(x0 + ((x1 - x0) * s) / n + (s < n ? FX_R.i(-3, 3) : 0)), ty = Math.round(y0 + ((y1 - y0) * s) / n + (s < n ? FX_R.i(-3, 3) : 0));

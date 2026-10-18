@@ -49,6 +49,41 @@ const WICK = {
   shardHome: 'Set it in the star, at the altar.',
   allShards: 'All three. The star is whole again. The beacon on the Meridian will take its light now.',
   echo: 'An echo: a log from a crew that fell before us. I will keep it at the wreck.',
+  // natures (natures.js)
+  weakHit: "It hates that. I'll mark what each kind fears over its head: a point up for what hurts it, down for what it shrugs off.",
+  resistHit: "That barely touched it. Some things shrug an element off. Try the other hand.",
+  warded: "That one's warded. Only something blunt will crack its shell.",
+  wardBroken: 'The ward is down. Everything works on it now.',
+  shifting: 'Its colour keeps changing, and so does what it fears. Watch the mark.',
+  // reactions (reactions.js), the first time each happens
+  react_shatter: 'Shatter! Ice breaks under a blow. Chill them, then hit them hard.',
+  react_conduct: 'Conduct! Shock runs through everything that is chilled.',
+  react_steam: "Steam. Fire on ice: whatever's in it can't see us for a moment.",
+  react_brittle: 'Brittle. Chilled and poisoned, it cracks at anything.',
+  react_pyre: 'Pyre! Fire set the poison off all at once.',
+  react_flare: 'Flare. Fire and lightning blind, and break whatever it was winding up.',
+  react_scatter: 'Scatter. A blow flings its fire across the ground.',
+  react_jolt: 'Jolt. A heavy blow drives the charge in deeper.',
+  react_overload: 'Overload! Enough shock, and it locks up.',
+  react_freeze: 'Frozen solid. Hit it hard and it will shatter.',
+  react_inferno: 'Inferno. Burns pile up, and the fire jumps to its neighbours.',
+  react_plague: 'Plague. Poison on the poisoned spreads to everything near.',
+  react_stun: 'Stunned. Two heavy blows in a row, and it reels.',
+  // resonances (resonance.js)
+  resonance: "The stones are singing together. That's a resonance: the whole circuit woke into one spell.",
+  resStone: 'A resonance stone. It remembers part of a circuit that sings. I put it in the Codex at the forge.',
+  // each clime's own creature, the first time it shows itself (foes.js)
+  foe_skink: "Something's swimming under the sand. Where it rings under you, step off.",
+  foe_tusker: "That one charges, and on ice it can't stop. Step aside and let the rock have it.",
+  foe_wraith: "Ash, walking. It glows before it bursts. Don't be beside it then.",
+  foe_lurker: 'Eyes in the mire. Its tongue reaches further than you think. Stay off the line it marks.',
+  foe_dropper: 'Something was on the roof. Watch the floor for its shadow.',
+  foe_eel: "A fin in the water. If it lunges and misses, it's stuck on dry ground for a moment.",
+  foe_crab: 'Its shell turns most of what we throw. Freeze it, or crack it with a heavy blow.',
+  foe_weaver: "It strings roots across the way. They'll hold your feet; dash through them.",
+  foe_sentinel: 'A sentry. Its beam sweeps the hall. Put rock between us and it.',
+  foe_idol: 'That statue moved. Only out of the light, I think. Keep it in the lamp.',
+  foe_hound: "A wind-up hound. When the key stops, it runs, off the walls and all. After that it's spent.",
 };
 
 // The star, as it grows, and as its heart comes back.

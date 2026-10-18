@@ -41,7 +41,7 @@ const STONE_ORDER = Object.keys(CIRCUIT_FORMS).concat(Object.keys(CIRCUIT_ELEMEN
 // with its colour, a Glyph's etched with a dashed rim; or an empty slot.
 // st: a stone, or { stone, tier }; opts: { act, arg, sel, mini, count }.
 function stoneTile(st, opts = {}) {
-  const tag = opts.act ? 'button' : 'span', cls = `${opts.sel ? ' sel' : ''}${opts.mini ? ' mini' : ''}`;
+  const tag = opts.act ? 'button' : 'span', cls = `${opts.sel ? ' sel' : ''}${opts.mini ? ' mini' : ''}${opts.linked ? ' linked' : ''}`;
   const attrs = opts.act ? ` data-act="${opts.act}" data-arg="${opts.arg}"` : '';
   if (!st) return `<${tag} class="tile t-empty${cls}"${attrs} aria-label="Empty slot"><b>·</b>${opts.mini ? '' : '<small>EMPTY</small>'}</${tag}>`;
   const W = stoneWords(st.stone), k = stoneKind(st.stone);
@@ -65,11 +65,16 @@ function groupStones(items) {
 // does in words; and at home, the drawer to socket stones from (free).
 function circuitPanel(it, edit, c) {
   if (edit && (typeof c.slot !== 'number' || c.slot >= it.slots.length)) c.slot = Math.max(0, it.slots.indexOf(null));
-  const R = circuitReadout(it);
-  const tiles = it.slots.map((st, i) => (i ? '<span class="link" aria-hidden="true"></span>' : '') + stoneTile(st, edit ? { act: 'slotPick', arg: i, sel: c.slot === i } : {})).join('');
-  let h = `<h3>CIRCUIT · ${it.slots.length} SLOTS</h3><div class="circuit">${tiles}</div>`;
+  const R = circuitReadout(it), links = it.links || [];
+  // a linked pair: a chain drawn between its two tiles
+  const tiles = it.slots.map((st, i) => (i ? `<span class="link${links.includes(i - 1) ? ' linked' : ''}" aria-hidden="true"></span>` : '') + stoneTile(st, Object.assign(edit ? { act: 'slotPick', arg: i, sel: c.slot === i } : {}, { linked: slotLinked(links, i) }))).join('');
+  let h = `<h3>CIRCUIT · ${it.slots.length} SLOTS${links.length ? ' · 2 LINKED' : ''}</h3><div class="circuit${it.slots.length > 5 ? ' long' : ''}">${tiles}</div>`;
+  // a resonance: a gold banner when it's live; a stir when it's a stone away
+  const near = resonanceNear(it);
+  if (near && near.live) h += `<div class="res-banner on">✦ RESONANCE · ${esc(near.live.name.toUpperCase())}</div><p class="res-text">${esc(capFirst(near.live.text))}. It hits ${Math.round((resonanceMult(it) - 1) * 100)}% harder.</p>`;
+  else if (near && near.stir) h += `<div class="res-banner stir">Resonance stirs…${codexWhole(near.stir) ? ` one stone from ${esc(near.stir.name)}` : ''}</div>`;
   h += `<p class="circuit-cost">Costs <b>${R.cost} charge</b> a cast · held, <b>${R.held} charge</b>${R.close ? ' · close Forms give charge back' : ''}</p>`;
-  h += `<div class="readout">${R.lines.map((l) => `<p${l.warn ? ' class="warn"' : ''}>${esc(l.text)}</p>`).join('')}</div>`;
+  h += `<div class="readout">${R.lines.map((l) => `<p${l.warn ? ' class="warn"' : l.ore ? ' class="ore"' : l.link ? ' class="linked"' : ''}>${esc(l.text)}</p>`).join('')}</div>`;
   if (!edit) return h + (c.where === 'cargo' || c.where === 'worn' ? '<p class="note">Its stones can be changed at home, at the locker.</p>' : '');
   const sel = it.slots[c.slot], have = groupStones(Save.data.items);
   const grp = (kind, label, none) => {
@@ -276,7 +281,7 @@ const UI = {
     const eq = Save.data.equip;
     for (const slot of ['main', 'off']) {
       // each hand's button shows its circuit's first Form
-      const it = eq[slot], P = isCaster(it) ? parseCircuit(it.slots) : null, g = P && P.groups[0];
+      const it = eq[slot], P = isCaster(it) ? parseCircuit(it.slots, it.links) : null, g = P && P.groups[0];
       const form = it ? (g ? g.form : null) : 'arc', tier = g ? g.tier : 1, btn = $('btn-' + slot), key = `${it ? it.uid : 'fist'}:${form}:${tier}`;
       if (btn.dataset.key !== key) {
         btn.dataset.key = key;
@@ -410,7 +415,7 @@ function imprintCost(src) {
 function forgeSource() { return UI.forge.field && Game.dive ? Game.dive.cargo : Save.data.stash; }
 
 // The forge's tabs: gear (casters first), then each kind of stone.
-const FORGE_TABS = [['GEAR', 'gear'], ['FORMS', 'form'], ['ELEMENTS', 'element'], ['GLYPHS', 'glyph']];
+const FORGE_TABS = [['GEAR', 'gear'], ['FORMS', 'form'], ['ELEMENTS', 'element'], ['GLYPHS', 'glyph'], ['CODEX', 'codex']];
 const FORGE_ORDER = ['caster', 'armor', 'charm', 'pick'];
 const forgeTabOf = (id) => BLUEPRINTS[id].stoneKind || 'gear';
 
@@ -428,7 +433,8 @@ function drawForge() {
   const stash = forgeSource(), F = UI.forge, known = Save.data.blueprints;
   $('forge-title').textContent = F.field ? 'AN ANCIENT FORGE' : 'THE FORGE';
   if (!F.bp || !known.includes(F.bp)) F.bp = known.find((id) => BLUEPRINTS[id].kind === 'caster') || known[0];
-  F.tab = forgeTabOf(F.bp);
+  F.tab = F.codex ? 'codex' : forgeTabOf(F.bp);
+  if (F.codex) { drawCodex(); return; }
   const bp = BLUEPRINTS[F.bp], stone = bp.kind === 'stone';
   // what this blueprint can be made from, of what's to hand
   const ores = T.ores.filter((o) => (stash[o.id] || 0) > 0);
@@ -510,6 +516,22 @@ function drawForge() {
   // keep the chosen blueprint in sight in the strip
   const on = document.querySelector('#forge-body .bp.on');
   if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'center' });
+}
+
+// The Codex: every resonance as a silhouette, its slot count and the parts
+// resonance stones have shown; the whole of one, what it does.
+function drawCodex() {
+  const tabs = `<div class="chips forge-tabs">${FORGE_TABS.map(([label, tab]) => `<button class="chip ${tab === 'codex' ? 'on' : ''}" data-act="forgeTab" data-arg="${tab}">${label}</button>`).join('')}</div>`;
+  const whole = RESONANCES.filter(codexWhole).length;
+  const cards = RESONANCES.map((r) => {
+    const shown = codexShown(r), all = codexWhole(r);
+    const seq = r.seq.map((id, i) => (shown.includes(i) ? stoneTile({ stone: id, tier: 1 }, { mini: true }) : '<span class="tile mini t-unknown" aria-label="Not yet known"><b>?</b></span>')).join('');
+    return `<div class="rcard${all ? ' whole' : ''}"><div class="rc-head"><b>${esc(r.name.toUpperCase())}</b><span>${r.seq.length} SLOTS</span></div><div class="mini-circuit">${seq}</div>
+      <p class="note">${all ? esc(capFirst(r.text)) + '.' : `${shown.length} of ${r.seq.length} parts known. Resonance stones show the rest.`}</p></div>`;
+  }).join('');
+  $('forge-body').innerHTML = `<h3>THE CODEX · RESONANCES <span class="dim">· ${whole} OF ${RESONANCES.length} WHOLE</span></h3>${tabs}
+    <p class="note">A resonance is an exact circuit that wakes into one spell. It must fill its caster exactly: a ${RESONANCES[0].seq.length}-part one needs a ${RESONANCES[0].seq.length}-slot caster. Resonance stones show their parts: elites drop them now and then, they lie by ancient forges, and contracts pay them.</p>
+    <div class="codex">${cards}</div>`;
 }
 
 function drawGear() {
@@ -766,8 +788,12 @@ UI.acts = {
 
   forgeOre: (id) => { UI.forge.ore = id; UI.redraw(); },
   forgeExotic: (id) => { UI.forge.exotic = UI.forge.exotic === id ? null : id; UI.redraw(); },
-  forgeBp: (id) => { UI.forge.bp = id; UI.forge.part = null; UI.redraw(); },
-  forgeTab: (tab) => { const id = Save.data.blueprints.find((b) => forgeTabOf(b) === tab); if (id) { UI.forge.bp = id; UI.forge.part = null; UI.redraw(); } },
+  forgeBp: (id) => { UI.forge.bp = id; UI.forge.part = null; UI.forge.codex = false; UI.redraw(); },
+  forgeTab: (tab) => {
+    if (tab === 'codex') { UI.forge.codex = true; UI.redraw(); return; }
+    const id = Save.data.blueprints.find((b) => forgeTabOf(b) === tab);
+    if (id) { UI.forge.bp = id; UI.forge.part = null; UI.forge.codex = false; UI.redraw(); }
+  },
   forgePart: (id) => { UI.forge.part = id; UI.redraw(); },
   forgeImprint: (id) => { UI.forge.imprint = UI.forge.imprint === id ? null : id; UI.redraw(); },
   craft: () => {
@@ -866,6 +892,10 @@ UI.acts = {
     it.slots[c.slot] = st;
     const next = it.slots.indexOf(null);
     if (next >= 0) c.slot = next;
+    // a resonance built: its page in the Codex fills in
+    const res = circuitResonance(it.slots);
+    if (res && codexFill(res.id)) UI.toast(`Resonance: ${res.name}. The Codex fills in`, 'legendary');
+    if (res) Story.say('resonance');
     afterChange();
   },
   slotEmpty: () => { const c = UI.card, it = c.item, st = it.slots[c.slot]; if (!st) return; it.slots[c.slot] = null; Save.data.items.push(st); afterChange(); },

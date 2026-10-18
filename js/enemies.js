@@ -15,13 +15,18 @@
 //   snapjaw: a rooted plant that glows red and snaps at what comes close.
 //   spitter: a rooted plant that lobs globs, leaving spores on the ground.
 //   hollow: what comes when the star's pull on a floor is gone; it hunts.
+// And each clime's own creature, a share of what's met there (foes.js).
 // Only a couple wind up at once; the rest circle, waiting their turn. Hits
 // knock them back, and heavy ones stagger them out of an attack. All of
 // them run on world time (dt × Game.timeScale).
 // ---------------------------------------------------------------------------
 
-const ELITE_AFFIXES = ['fast', 'tough', 'volatile'];
-const ELITE_NAMES = { fast: 'Fast', tough: 'Tough', volatile: 'Volatile' };
+// Elites' affixes (T.enemies.elites: how often each). Insulated and
+// Fireproof shrug off Shock and Ember, a Warded one resists everything until
+// Force cracks its shell, a Shifting one's weakness moves on (natures.js).
+const ELITE_AFFIXES = Object.keys(T.enemies.elites);
+const ELITE_NAMES = { fast: 'Fast', tough: 'Tough', volatile: 'Volatile', insulated: 'Insulated', fireproof: 'Fireproof', warded: 'Warded', shifting: 'Shifting' };
+function rollEliteAffix(rng) { return rng.weighted(ELITE_AFFIXES.map((id) => [T.enemies.elites[id], id])); }
 
 function floorLevel(d) { return d.biome * T.levelPerBiome + d.depth + (d.zone === 'lair' ? 1 : 0); }
 
@@ -29,13 +34,16 @@ function makeEnemy(type, x, y, level, elite) {
   const E = T.enemies, def = E[type];
   const hpMul = Math.pow(E.hpGrowth, level - 1) * (elite ? E.eliteHp * (elite === 'tough' ? E.tough : 1) : 1);
   const hp = Math.round(def.hp * hpMul);
-  return {
+  const e = {
     type, x, y, hp, maxHp: hp, r: def.radius, level, elite, boss: type === 'warden' || type === 'keeper',
     dmg: def.dmg * Math.pow(E.dmgGrowth, level - 1) * (elite ? E.eliteDmg : 1),
     speed: def.speed * (elite === 'fast' ? E.fast : 1),
     state: 'idle', t: 0, cd: 0, aggro: false, flash: 0, slowT: 0, stunT: 0, kx: 0, ky: 0, kvx: 0, kvy: 0, hitDone: false, bob: 0,
     burst: false, dead: false, orbit: (Math.floor(x + y) & 1) * 2 - 1,
   };
+  natureAffixStart(e);
+  if (FOE_NAMES[type]) foeInit(e);
+  return e;
 }
 
 function spawnEnemies(d) {
@@ -46,6 +54,8 @@ function spawnEnemies(d) {
   const types = ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'].filter((t) => !E[t].minDepth || d.depth >= E[t].minDepth);
   const zoneWeight = (T.zones[d.zone] && T.zones[d.zone].enemies) || {};
   const eliteChance = Math.min(E.eliteMax, E.eliteBase + E.eliteDepth * d.depth);
+  // the clime's own creature takes a share of each room
+  const sig = foeOfClime(d.clime);
   // the warden takes a side room: not the entry, a portal's or the lodeline's
   let bossRoom = null;
   const wardenChance = d.zone === 'deep' ? T.zones.deep.warden : d.depth >= E.bossDepth && d.zone !== 'lair' ? E.bossChance : 0;
@@ -72,14 +82,20 @@ function spawnEnemies(d) {
     }
     const n = clamp(Math.round(E.perRoom + E.perDepth * d.depth) + rng.i(-1, 1), 0, E.maxPerRoom);
     for (let k = 0; k < n; k++) {
-      const type = rng.weighted(types.map((t) => [E[t].weight * (zoneWeight[t] || 1), t]));
-      const elite = rng.chance(eliteChance) ? rng.pick(ELITE_AFFIXES) : null;
+      // (a signature that needs what the room hasn't got, its water, is
+      // one of the common kind instead)
+      const at = sig && rng.chance(E.signatureShare) ? foeSpot(d, sig, r, rng) : null;
+      const type = at ? sig : rng.weighted(types.map((t) => [E[t].weight * (zoneWeight[t] || 1), t]));
+      const elite = rng.chance(eliteChance) ? rollEliteAffix(rng) : null;
       const e = makeEnemy(type, 0, 0, level, elite);
+      if (at) { e.x = at.x; e.y = at.y; }
       // on clear ground, not half in a wall
-      for (let tries = 0; tries < 8; tries++) { const at = inRoom(r); e.x = at.x; e.y = at.y; if (!bodyHits(f, e.x, e.y, e.r) && !hazardNear(f, Math.floor(at.x / TILE), Math.floor(at.y / TILE), 0)) break; }
+      else for (let tries = 0; tries < 8; tries++) { const at = inRoom(r); e.x = at.x; e.y = at.y; if (!bodyHits(f, e.x, e.y, e.r) && !hazardNear(f, Math.floor(at.x / TILE), Math.floor(at.y / TILE), 0)) break; }
       d.enemies.push(e);
     }
   }
+  // a rift's graft brings a few of its own clime's creature with it
+  graftFoes(d, rng, level, eliteChance);
 }
 
 const roomHas = (r, t) => t.x >= r.x && t.x < r.x + r.w && t.y >= r.y && t.y < r.y + r.h;
@@ -128,18 +144,22 @@ function norm(x, y) { const m = Math.hypot(x, y) || 1; return { x: x / m, y: y /
 // ---------------------------------------------------------------------------
 // Each step
 // ---------------------------------------------------------------------------
-const ATTACKING = new Set(['windup', 'lunge', 'charge']);
+const ATTACKING = new Set(['windup', 'lunge', 'charge', 'slide', 'sweep']);
 
 function updateEnemies(dt) {
   const d = Game.dive, f = d.floor, p = d.p, E = T.enemies;
   updateFlow(d);
   if ((d.pruneT = (d.pruneT || 1) - dt) <= 0) { d.pruneT = 1; d.enemies = d.enemies.filter((e) => !e.dead); }
   let attackers = d.enemies.filter((e) => !e.dead && ATTACKING.has(e.state)).length;
+  updateFoeWorld(d, dt);
   const knockFade = Math.exp(-T.impact.knockDecay * dt);
   for (const e of d.enemies) {
     if (e.dead) continue;
     e.flash = Math.max(0, e.flash - dt);
     e.slowT = Math.max(0, e.slowT - dt);
+    // statuses wearing off (reactions.js), a shifting weakness (natures.js)
+    reactTick(e, dt);
+    natureAffixTick(e, dt);
     // burning and blight eat at them, a number now and then
     for (const k of ['burn', 'blight']) {
       const dot = e[k];
@@ -154,7 +174,7 @@ function updateEnemies(dt) {
     e.cd = Math.max(0, e.cd - dt);
     e.bob += dt;
     // knocked back
-    if (T.enemies[e.type].rooted) e.kvx = e.kvy = 0;
+    if (T.enemies[e.type].rooted || T.enemies[e.type].anchored || e.hid) e.kvx = e.kvy = 0;
     if (Math.abs(e.kvx) + Math.abs(e.kvy) > 1) { moveBody(f, e, e.kvx * dt, e.kvy * dt, e.r); e.kvx *= knockFade; e.kvy *= knockFade; }
     const pd = dist(e.x, e.y, p.x, p.y);
     if (!e.aggro && !d.dying && pd < E.aggro && clearLine(f, e.x, e.y, p.x, p.y - 6)) wake(d, e);
@@ -166,6 +186,12 @@ function updateEnemies(dt) {
       continue;
     }
     if (!e.aggro || d.dying || e.type === 'dummy') continue;
+    // lost in steam, or blinded: it wanders, and doesn't attack
+    if (e.lostT > 0) {
+      e.lostT -= dt;
+      if (!T.enemies[e.type].rooted) moveBody(f, e, Math.cos(e.bob * 1.7 + e.orbit) * e.speed * 0.35 * dt, Math.sin(e.bob * 1.3) * e.speed * 0.35 * dt, e.r);
+      continue;
+    }
     if (e.state === 'stagger' || e.state === 'dazed') { if ((e.t -= dt) <= 0) { e.state = 'chase'; e.cd = Math.max(e.cd, 0.3); } continue; }
     const slow = (e.slowT > 0 ? 1 - T.onHit.chillSlow : 1) * hazardSlow(f, e);
     const sp = e.speed * slow * dt, free = attackers < E.attackers + Math.floor(E.attackersPerDepth * d.depth) || ATTACKING.has(e.state);
@@ -175,6 +201,7 @@ function updateEnemies(dt) {
     else if (e.type === 'snapjaw' || e.type === 'spitter') updatePlant(d, e, pd, dt);
     else if (e.type === 'hollow') updateHollow(d, e, pd, sp);
     else if (e.type === 'keeper') updateKeeper(d, e, pd, sp, dt, free);
+    else if (FOE_NAMES[e.type]) updateFoe(d, e, pd, sp, dt, free);
     else updateCharger(d, e, pd, sp, dt, free);
     if (!was && ATTACKING.has(e.state)) attackers++;
   }
@@ -183,7 +210,7 @@ function updateEnemies(dt) {
   for (let i = 0; i < L.length; i++)
     for (let j = i + 1; j < L.length; j++) {
       const a = L[i], b = L[j];
-      if (a.dead || b.dead) continue;
+      if (a.dead || b.dead || a.hid || b.hid) continue;
       const dx = b.x - a.x, dy = b.y - a.y, m = Math.hypot(dx, dy), min = a.r + b.r;
       if (m > 0.01 && m < min) {
         const push = (min - m) / 2;
@@ -199,6 +226,7 @@ function updateEnemies(dt) {
 function wake(d, e) {
   if (e.aggro) return;
   e.aggro = true;
+  if (e.elite === 'warded' || e.elite === 'shifting') Story.say(e.elite);
   e.cd = Math.max(e.cd, 0.3);
   for (const o of d.enemies) if (!o.aggro && !o.dead && dist(o.x, o.y, e.x, e.y) < 3 * TILE) { o.aggro = true; o.cd = Math.max(o.cd, 0.5); }
 }
@@ -214,8 +242,10 @@ function orbitMove(d, e, r, sp) {
   if (Math.hypot(e.x - ox, e.y - oy) < sp * 0.3) e.orbit = -e.orbit;
 }
 
-function updateCrawler(d, e, pd, sp, dt, free) {
-  const def = T.enemies.crawler, p = d.p, f = d.floor;
+// (a Ceiling Dropper and a Slag Crab fight this way too, with their own
+// numbers: def; side, how fast they circle)
+function updateCrawler(d, e, pd, sp, dt, free, def = T.enemies.crawler) {
+  const p = d.p, f = d.floor;
   e.t -= dt;
   if (e.state === 'windup') {
     if (e.t <= 0) {
@@ -240,7 +270,7 @@ function updateCrawler(d, e, pd, sp, dt, free) {
   const sees = clearLine(f, e.x, e.y, p.x, p.y);
   if (pd > def.circle + 14 || !sees) { e.state = 'chase'; const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); return; }
   if (e.state !== 'circle') { e.state = 'circle'; e.t = 0.4 + (e.bob % 0.8); }
-  orbitMove(d, e, def.circle, sp * 0.8);
+  orbitMove(d, e, def.circle, sp * (def.side || 0.8));
   if (e.t <= 0 && free && e.cd <= 0) { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; }
 }
 
@@ -388,8 +418,8 @@ function updateGlobs(dt) {
 // ---------------------------------------------------------------------------
 // Their shots
 // ---------------------------------------------------------------------------
-function fireEnemyShot(d, x, y, vx, vy, dmg) {
-  d.shots.push({ x, y, vx, vy, dmg, t: 4 });
+function fireEnemyShot(d, x, y, vx, vy, dmg, col) {
+  d.shots.push({ x, y, vx, vy, dmg, t: 4, col });
 }
 
 function updateEnemyShots(dt) {

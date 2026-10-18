@@ -24,12 +24,18 @@ function newContract(rng, without = []) {
     const b = rng.chance(C.newest) ? newest : rng.pick(open), ores = T.biomes[b].ores;
     c.ore = rng.chance(0.4) ? ores[ores.length - 1] : ores[0];
     c.n = c.ore === ores[0] ? rng.i(12, 20) : rng.i(4, 8);
-  } else if (kind === 'hunt') { c.type = rng.pick(CONTRACT_HUNTS); c.n = rng.i(5, 10); }
+  } else if (kind === 'hunt') {
+    // now and then a clime's own creature, one of the climes the open
+    // biomes lean to (or a clime that leans to none): fewer of them
+    const sig = Object.keys(T.enemies.signature).filter((cl) => { const lean = T.climes[cl].lean; return !lean || open.some((i) => lean[T.biomes[i].id]); }).map((cl) => T.enemies.signature[cl]);
+    if (sig.length && rng.chance(C.huntSignature)) { c.type = rng.pick(sig); c.n = rng.i(C.huntN[0], C.huntN[1]); }
+    else { c.type = rng.pick(CONTRACT_HUNTS); c.n = rng.i(5, 10); }
+  }
   else if (kind === 'reach') c.ring = Math.min(T.world.rings.length - 1, newest + 1 + (rng.chance(0.4) ? 1 : 0));
   else c.n = 1;
   // what it pays: the star, and a thing
   c.star = C.star * mag;
-  c.reward = rng.weighted([[3, 'exotic'], [2, 'parts'], [1, 'riftglass']]);
+  c.reward = rng.weighted([[codexAllWhole() ? 0 : T.circuits.resonance.contract, 'resonance'], [3, 'exotic'], [2, 'parts'], [1, 'riftglass']]);
   if (c.reward === 'exotic') c.exotic = randomExotic(rng);
   if (c.reward === 'parts') { c.part = partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), (rng.pick(open) || 0) + 1); c.parts = 3; }
   return c;
@@ -67,6 +73,7 @@ function swapContract(id) {
 
 function contractText(c) {
   if (c.kind === 'haul') return `Bring home ${c.n} ${stuffName(c.ore)}`;
+  if (c.kind === 'hunt' && FOE_NAMES[c.type]) return `Bring down ${c.n} ${c.n > 1 ? FOE_NAMES[c.type][1] : FOE_NAMES[c.type][0].toLowerCase()} (${climeName(climeOfFoe(c.type))}), and come home`;
   if (c.kind === 'hunt') return `Bring down ${c.n} ${c.type}${c.n > 1 ? 's' : ''}, and come home`;
   if (c.kind === 'reach') return `Walk into ring ${c.ring}, and come home`;
   if (c.kind === 'seal') return 'Seal a rift, and come home';
@@ -74,7 +81,7 @@ function contractText(c) {
   return 'Go down into a Deep, and come home';
 }
 function contractRewardText(c) {
-  const thing = c.reward === 'exotic' ? stuffName(c.exotic) : c.reward === 'parts' ? `${c.parts} ${partName(c.part).toLowerCase()}` : 'riftglass';
+  const thing = c.reward === 'exotic' ? stuffName(c.exotic) : c.reward === 'parts' ? `${c.parts} ${partName(c.part).toLowerCase()}` : c.reward === 'resonance' ? 'a resonance stone (the Codex)' : 'riftglass';
   return `+${c.star} to the star, and ${thing}`;
 }
 
@@ -113,6 +120,7 @@ function settleContracts(d, banked) {
     if (!ok) continue;
     done.push(c);
     s.star += c.star;
+    if (c.reward === 'resonance') { revealResonancePart(Save.rng()); continue; }
     const key = c.reward === 'exotic' ? c.exotic : c.reward === 'parts' ? c.part : 'riftglass';
     s.stash[key] = (s.stash[key] || 0) + (c.reward === 'parts' ? c.parts : 1);
   }
