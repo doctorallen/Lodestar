@@ -29,6 +29,8 @@
 //             the beam, so a pillar is cover.
 //   idol      Overgrown Temple: moves only out of the light; in the lamp's
 //             heart (or a shaft of daylight) it's stone.
+//   hound     Clockwork Vault: winds its key, then runs, glancing off the
+//             walls twice, the way it showed; then it's spent.
 // While under the sand or the water or on the roof (e.hid) nothing can
 // strike it or aim at it. Numbers in T.enemies; looks in foesart.js.
 // ---------------------------------------------------------------------------
@@ -37,7 +39,7 @@
 const FOE_NAMES = {
   skink: ['Dune Skink', 'dune skinks'], tusker: ['Tusker', 'tuskers'], wraith: ['Ash Wraith', 'ash wraiths'], lurker: ['Bog Lurker', 'bog lurkers'],
   dropper: ['Ceiling Dropper', 'ceiling droppers'], eel: ['Pool Eel', 'pool eels'], crab: ['Slag Crab', 'slag crabs'], weaver: ['Rootweaver', 'rootweavers'],
-  sentinel: ['Sentinel Eye', 'sentinel eyes'], idol: ['Moss Idol', 'moss idols'],
+  sentinel: ['Sentinel Eye', 'sentinel eyes'], idol: ['Moss Idol', 'moss idols'], hound: ['Gear Hound', 'gear hounds'],
 };
 // The states in which one is open to a counter (T.enemies.exposed).
 const FOE_EXPOSED = new Set(['stranded', 'spent', 'landed']);
@@ -465,7 +467,58 @@ function foeLit(d, e) {
   return clearLine(f, p.x, p.y - 6, e.x, e.y - 6);
 }
 
-const FOE_UPDATE = { skink: updateSkink, tusker: updateTusker, wraith: updateWraith, lurker: updateLurker, dropper: updateDropper, eel: updateEel, crab: updateCrab, weaver: updateWeaver, sentinel: updateSentinel, idol: updateIdol };
+// The Gear Hound: winds its key (its whole run shows, bounces and all),
+// runs, glances off the walls, and runs down, spent.
+function updateHound(d, e, pd, sp, dt, free) {
+  const def = T.enemies.hound, p = d.p, f = d.floor;
+  if (e.state === 'charge') {
+    const r = houndStep(f, e, dt);
+    if (r === 'bounce') d.fx.push({ kind: 'foeBurst', x: e.x, y: e.y, r: 6, t: 0.2, max: 0.2, col: FOE_PAL.hound.horn[3], glow: true });
+    if (!e.hitDone && dist(e.x, e.y, p.x, p.y) < e.r + T.player.radius + 3) { e.hitDone = true; hurtPlayer(e.dmg, e); }
+    if (r === 'done') { e.state = 'spent'; e.t = def.spent; }
+    return;
+  }
+  e.t -= dt;
+  if (e.state === 'windup') {
+    if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.dashSpeed; e.vy = a.y * def.dashSpeed; e.bounces = 0; e.state = 'charge'; e.t = def.dashTime; e.hitDone = false; }
+    return;
+  }
+  if (e.state === 'spent') { if (e.t <= 0) { e.state = 'chase'; e.cd = def.cooldown; } return; }
+  e.state = 'chase';
+  if (pd < def.range && e.cd <= 0 && free && clearLine(f, e.x, e.y, p.x, p.y)) {
+    e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y;
+    e.path = houndPath(f, e);
+    return;
+  }
+  if (pd > e.r + 10) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
+}
+// One step of a hound's run, for the hound or for the run it shows: b { x,
+// y, r, vx, vy, t, bounces }. Into the rock it glances off (the wall's
+// normal felt round its body) until it has `bounces` times: then 'done', as
+// when its time is up; 'bounce' when it glances.
+function houndStep(f, b, dt) {
+  const def = T.enemies.hound;
+  if ((b.t -= dt) <= 0) return 'done';
+  const nx = b.x + b.vx * dt, ny = b.y + b.vy * dt;
+  if (!bodyHits(f, nx, ny, b.r)) { b.x = nx; b.y = ny; return null; }
+  if (b.bounces >= def.bounces) return 'done';
+  let wx = 0, wy = 0;
+  for (const [c, s] of BODY_RING) if (rockAt(f, nx + c * b.r, ny + s * b.r)) { wx -= c; wy -= s; }
+  const m = Math.hypot(wx, wy), dot = m > 0.01 ? (b.vx * wx + b.vy * wy) / m : 0;
+  if (dot < 0) { b.vx -= (2 * dot * wx) / m; b.vy -= (2 * dot * wy) / m; } else { b.vx = -b.vx; b.vy = -b.vy; }
+  b.bounces++;
+  return 'bounce';
+}
+// The run a hound will make: its corners (start, each bounce, the end).
+function houndPath(f, e) {
+  const def = T.enemies.hound, a = norm(e.aimX - e.x, e.aimY - e.y);
+  const b = { x: e.x, y: e.y, r: e.r, vx: a.x * def.dashSpeed, vy: a.y * def.dashSpeed, t: def.dashTime, bounces: 0 }, pts = [b.x, b.y], hits = [];
+  for (let n = 0; n < 200; n++) { const r = houndStep(f, b, 1 / 60); if (r === 'bounce') { pts.push(b.x, b.y); hits.push(b.x, b.y); } if (r === 'done') break; }
+  pts.push(b.x, b.y);
+  return { pts, hits };
+}
+
+const FOE_UPDATE = { skink: updateSkink, tusker: updateTusker, wraith: updateWraith, lurker: updateLurker, dropper: updateDropper, eel: updateEel, crab: updateCrab, weaver: updateWeaver, sentinel: updateSentinel, idol: updateIdol, hound: updateHound };
 
 // ---------------------------------------------------------------------------
 // How they look (render.js drawEnemy asks foeLook, then draws the tells)

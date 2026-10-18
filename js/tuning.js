@@ -379,7 +379,7 @@ const T = {
     // creature part it leaves. knock: how far hits push it (1 a crawler).
     // barY: how high its health bar sits (world px over its feet).
     signatureShare: 0.3, graftFoes: [1, 2], exposed: 1.5,
-    signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker', caverns: 'dropper', grotto: 'eel', magma: 'crab', rootdeep: 'weaver', archive: 'sentinel', temple: 'idol' },
+    signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker', caverns: 'dropper', grotto: 'eel', magma: 'crab', rootdeep: 'weaver', archive: 'sentinel', temple: 'idol', vault: 'hound' },
     // the Dune Skink (Badlands) swims under the sand (its speed), shows a
     // ring where it will burst up once within `strike` px, and bursts there
     // after windup s, biting within `burst` px; it stays up for `up` s,
@@ -432,12 +432,17 @@ const T = {
     // daylight (shaftReach of its radius). Unlit, within `pounce` px, it
     // winds up and lunges
     idol: { hp: 56, dmg: 15, speed: 56, radius: 6, pounce: 56, windup: 0.65, lungeSpeed: 150, lungeTime: 0.32, recover: 0.6, litReach: 0.6, shaftReach: 0.7, cooldown: 1.4, knock: 0.5, part: 'spore', barY: 22 },
+    // the Gear Hound (Clockwork Vault) winds its key for windup s, showing
+    // its run and where it will glance off the walls, then runs at
+    // dashSpeed for at most dashTime s, ricocheting `bounces` times; then
+    // it's spent for `spent` s
+    hound: { hp: 34, dmg: 12, speed: 30, radius: 5, range: 96, windup: 0.9, dashSpeed: 165, dashTime: 1.4, bounces: 2, spent: 1.8, cooldown: 0.8, part: 'cog', barY: 17 },
     // their natures (the resistance and weakness system reads these):
     // W weak, R resists, I immune
     resist: {
       skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', frost: 'R' }, wraith: { frost: 'W', ember: 'R' }, lurker: { ember: 'W', blight: 'R' },
       dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', ember: 'R' }, crab: { frost: 'W', ember: 'R', force: 'R' }, weaver: { ember: 'W', blight: 'R' },
-      sentinel: { shock: 'W', blight: 'R' }, idol: { force: 'W', frost: 'R' },
+      sentinel: { shock: 'W', blight: 'R' }, idol: { force: 'W', frost: 'R' }, hound: { shock: 'W', force: 'R' },
     },
     // the Hollow: what comes when the star's pull is gone. It can't be
     // staggered, and it doesn't stop
