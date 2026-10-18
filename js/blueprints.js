@@ -41,6 +41,19 @@ const BLUEPRINTS = {
   core_nova: { name: 'Nova', kind: 'core', core: 'nova', ore: 6, parts: 2, partKinds: ['ether', 'heart'] },
   core_pull: { name: 'Lodestone Pull', kind: 'core', core: 'pull', ore: 6, parts: 2, partKinds: ['ether', 'heart'] },
   core_ward: { name: 'Ward Pulse', kind: 'core', core: 'ward', ore: 6, parts: 2, partKinds: ['ether', 'heart'] },
+  core_frost: { name: 'Frost Lance', kind: 'core', core: 'frost', ore: 7, parts: 2, partKinds: ['ether', 'heart'] },
+  core_ember: { name: 'Ember Burst', kind: 'core', core: 'ember', ore: 7, parts: 2, partKinds: ['ether', 'heart'] },
+  core_chain: { name: 'Chain Lightning', kind: 'core', core: 'chain', ore: 7, parts: 2, partKinds: ['ether', 'heart'] },
+  core_thorns: { name: 'Thorn Ring', kind: 'core', core: 'thorns', ore: 7, parts: 2, partKinds: ['ether', 'fiber', 'heart'] },
+  core_blink: { name: 'Blink', kind: 'core', core: 'blink', ore: 6, parts: 2, partKinds: ['ether', 'heart'] },
+  core_well: { name: 'Gravity Well', kind: 'core', core: 'well', ore: 8, parts: 2, partKinds: ['ether', 'cog', 'heart'] },
+  core_phase: { name: 'Phase Step', kind: 'core', core: 'phase', ore: 6, parts: 2, partKinds: ['ether', 'heart'] },
+  // modifiers: socketed beside a spell, they change every spell in the piece
+  mod_split: { name: 'Split', kind: 'core', core: 'split', ore: 5, parts: 3, partKinds: ['ether', 'spore', 'heart'] },
+  mod_amplify: { name: 'Amplify', kind: 'core', core: 'amplify', ore: 5, parts: 3, partKinds: ['ether', 'chitin', 'heart'] },
+  mod_quicken: { name: 'Quicken', kind: 'core', core: 'quicken', ore: 5, parts: 3, partKinds: ['ether', 'cog', 'heart'] },
+  mod_chain: { name: 'Chain', kind: 'core', core: 'chainmod', ore: 5, parts: 3, partKinds: ['ether', 'heart'] },
+  mod_echo: { name: 'Echo', kind: 'core', core: 'echo', ore: 5, parts: 3, partKinds: ['ether', 'heart'] },
 };
 const BP_IDS = Object.keys(BLUEPRINTS);
 // what a piece made before blueprints is
@@ -49,9 +62,9 @@ const bpOf = (item) => BLUEPRINTS[item.bp || KIND_BLUEPRINT[item.kind]] || null;
 
 // Where each blueprint tends to turn up.
 const BLUEPRINT_BIOME = {
-  rim: ['spear', 'whip', 'weave', 'lantern', 'core_nova', 'core_ward'],
-  choir: ['staff', 'gauntlet', 'hammer', 'core_pull'],
-  underforge: ['shell', 'drill', 'hammer', 'gauntlet'],
+  rim: ['spear', 'whip', 'weave', 'lantern', 'core_nova', 'core_ward', 'core_thorns', 'core_blink', 'mod_split'],
+  choir: ['staff', 'gauntlet', 'hammer', 'core_pull', 'core_frost', 'core_chain', 'core_well', 'mod_chain', 'mod_amplify'],
+  underforge: ['shell', 'drill', 'hammer', 'gauntlet', 'core_ember', 'core_phase', 'mod_echo', 'mod_quicken'],
 };
 
 // Creature parts. family: the affixes a part binds in. heart: the warden's;

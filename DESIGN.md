@@ -177,11 +177,31 @@ Bloodresin guarantees a leech affix, and a Lodestone shard raises the rarity.
   - **In a focus,** casting fires every core socketed in it, for charge. An empty focus casts a weak spark.
   - **In a blade,** its cores fire free on every third hit, at reduced power, so pure melee builds use cores too.
 - **Charge** is the mana. It refills on its own, and melee hits refill it faster, which rewards hybrid play.
-- **The spell cores:**
-  - **Arc Bolt:** a fast bolt at the nearest enemy.
-  - **Nova:** a burst all around you.
-  - **Lodestone Pull:** drags enemies in and stuns them.
-  - **Ward Pulse:** a shield that soaks damage for 5 seconds.
+- **The spell cores** (Arc Bolt is known from the start; the rest are blueprints to find):
+
+| Core | What it does |
+|---|---|
+| Arc Bolt | A fast bolt at the nearest enemy |
+| Nova | A burst all around you |
+| Lodestone Pull | Drags enemies in and stuns them |
+| Ward Pulse | A shield that soaks damage for 5 seconds |
+| Frost Lance | A lance of ice through a line of enemies; chills |
+| Ember Burst | A lobbed ember that bursts and leaves burning ground |
+| Chain Lightning | Leaps from enemy to enemy |
+| Thorn Ring | Blighted thorns turning round you, cutting what comes close |
+| Blink | Step through space a short way, untouchable as you go |
+| Gravity Well | A knot of gravity that drags enemies into it |
+| Phase Step | Dash through enemies, cutting each one you pass |
+
+- **Modifiers** take a socket beside the spells and change every spell in the piece. More sockets (a staff) make room for combinations:
+
+| Modifier | Effect |
+|---|---|
+| Split | Bolts, lances and embers fly three at once, a little weaker |
+| Amplify | Wider and 20% harder |
+| Quicken | A third less charge, and faster |
+| Chain | Bolts and lightning jump to two more enemies |
+| Echo | Everything casts again a moment later, weaker |
 - **(proposed)** A ward for the off hand, and more cores.
 - **The player is the circuit diver.**
   - A sleek suit with glowing teal circuits, under a glass dome with a violet light inside. The dome is the lamp you see by.

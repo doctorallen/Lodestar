@@ -64,11 +64,25 @@ const SETS = {
   },
 };
 
+// Spell cores, and the modifiers socketed beside them (mod: true), which
+// change every spell in the same piece.
 const CORES = {
   bolt: { name: 'Arc Bolt', text: 'A fast bolt at the nearest enemy' },
   nova: { name: 'Nova', text: 'A burst of force all around you' },
   pull: { name: 'Lodestone Pull', text: 'Drags nearby enemies in and stuns them' },
   ward: { name: 'Ward Pulse', text: 'A shield that soaks up damage for a few seconds' },
+  frost: { name: 'Frost Lance', text: 'A lance of ice that pierces a line of enemies and chills them' },
+  ember: { name: 'Ember Burst', text: 'A lobbed ember that bursts and leaves the ground burning' },
+  chain: { name: 'Chain Lightning', text: 'Lightning that leaps from enemy to enemy' },
+  thorns: { name: 'Thorn Ring', text: 'A ring of blighted thorns round you, cutting what comes close' },
+  blink: { name: 'Blink', text: 'Step through space a short way: nothing can touch you as you go' },
+  well: { name: 'Gravity Well', text: 'A knot of gravity that drags enemies into it' },
+  phase: { name: 'Phase Step', text: 'Dash through enemies, cutting each one you pass' },
+  split: { name: 'Split', mod: true, text: 'Bolts, lances and embers fly three at once, each a little weaker' },
+  amplify: { name: 'Amplify', mod: true, text: 'Spells reach wider and hit 20% harder' },
+  quicken: { name: 'Quicken', mod: true, text: 'Spells cost a third less charge and come back faster' },
+  chainmod: { name: 'Chain', mod: true, text: 'Bolts and lightning jump to two more enemies' },
+  echo: { name: 'Echo', mod: true, text: 'Every spell casts again a moment later, weaker' },
 };
 const CORE_IDS = Object.keys(CORES);
 
@@ -217,14 +231,14 @@ function itemBaseLine(item) {
   if (item.kind === 'focus') return `${b.power} spell power`;
   if (item.kind === 'armor') return `${b.armor} armor, +${b.hp} max health`;
   if (item.kind === 'pick') { const top = T.ores.filter((o) => o.tier <= b.power).pop(); return `Breaks up to ${top ? top.name : 'nothing'}, ${b.speed}× speed`; }
-  if (item.kind === 'core') return `${CORES[item.core].text}. Tier ${item.tier}.`;
+  if (item.kind === 'core') return `${CORES[item.core].text}.${CORES[item.core].mod ? ' A modifier: it changes the spells socketed with it.' : ` Tier ${item.tier}.`}`;
   if (item.kind === 'relic') return `Tier ${item.tier}. The Lodestar's light will open it.`;
   return '';
 }
 
 function itemKindLine(item) {
   if (item.kind === 'relic') return 'Sealed relic';
-  if (item.kind === 'core') return 'Spell core';
+  if (item.kind === 'core') return CORES[item.core].mod ? 'Spell modifier' : 'Spell core';
   const bp = bpOf(item);
   return `${RARITY_NAMES[item.rarity]} ${(bp ? bp.name : KIND_NAMES[item.kind]).toLowerCase()} · tier ${item.tier}`;
 }

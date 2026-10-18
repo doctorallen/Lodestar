@@ -157,13 +157,14 @@ function afterMelee(item, h, hit, heavy) {
 
 function castFocus(item, h, charged) {
   const d = Game.dive, p = d.p, S = T.spells, style = (bpOf(item) || {}).style || 'wand';
-  const cores = (item.sockets || []).filter(Boolean);
+  const cores = (item.sockets || []).filter((c) => c && !CORES[c.core].mod), mods = socketMods(item);
   let cost = cores.length ? cores.reduce((a, c) => a + S[c.core].cost, 0) : S.spark.cost;
   if (style === 'gauntlet') cost *= S.gauntletCost;
+  if (mods.quicken) cost *= T.mods.quickenCost;
   if (charged) cost *= style === 'staff' ? S.staffChargedCost : S.chargedCost;
   if (p.charge < cost) { p.lowCharge = 0.4; return; }
   p.charge -= cost;
-  h.cd = S.castCooldown;
+  h.cd = S.castCooldown * (mods.quicken ? T.mods.quickenCd : 1);
   p.cast = { t: 0.15, max: 0.15, charged };
   d.castElement = item.element || null;
   d.castRange = style === 'gauntlet' ? S.gauntletRange : style === 'staff' ? S.staffRange : S.aimRange;
@@ -172,21 +173,30 @@ function castFocus(item, h, charged) {
   const times = charged && style === 'staff' ? 3 : 1;
   for (let k = 0; k < times; k++) {
     const spread = times > 1 ? (k - 1) * 0.3 : 0;
-    if (!cores.length) castSpell('spark', power * S.spark.mult, spread, charged && times === 1);
+    if (!cores.length) castSpell('spark', power * S.spark.mult, spread, charged && times === 1, mods);
     else castCores(item, power, charged && times === 1, spread);
   }
   d.castElement = null;
 }
 
-// Fires every core in an item (twice with the Twice-Told). spread: an angle
-// to fan bolts out by.
+// The modifiers socketed in a piece, as { split: true, ... }.
+function socketMods(item) {
+  const m = {};
+  for (const c of (item && item.sockets) || []) if (c && CORES[c.core].mod) m[c.core] = true;
+  return m;
+}
+
+// Fires every spell core in an item (twice with the Twice-Told), changed by
+// the modifiers beside them; with Echo, all again a moment later. spread: an
+// angle to fan bolts out by.
 function castCores(item, power, charged = false, spread = 0) {
-  const st = Game.dive.stats;
+  const d = Game.dive, st = d.stats, mods = socketMods(item);
   const times = st.powers.echo && item.power === 'echo' ? 2 : 1;
   for (const c of item.sockets || []) {
-    if (!c || !T.spells[c.core]) continue;
+    if (!c || CORES[c.core].mod || !T.spells[c.core]) continue;
     const p = power * (1 + T.items.core.growth * (c.tier - 1)) * T.spells[c.core].mult;
-    for (let k = 0; k < times; k++) castSpell(c.core, p, spread + k * 0.25, charged);
+    for (let k = 0; k < times; k++) castSpell(c.core, p, spread + k * 0.25, charged, mods);
+    if (mods.echo) d.later.push({ t: T.mods.echoDelay, fn: () => castSpell(c.core, p * T.mods.echoMult, spread, false, Object.assign({}, mods, { echo: false })), el: d.castElement });
   }
 }
 
@@ -217,41 +227,130 @@ function updateDash(dt) {
 function shakeView(n) { View.shake = Math.max(View.shake || 0, n); }
 
 // spread: an angle to fan a second bolt out by; charged: bolts are bigger
-// and go through what they hit
-function castSpell(kind, power, spread = 0, charged = false) {
-  const d = Game.dive, p = d.p, st = d.stats, S = T.spells;
-  const dmg = power * (1 + st.spellDmg / 100);
-  if (kind === 'spark' || kind === 'bolt') {
-    const target = nearestEnemy(d, d.castRange || S.aimRange);
-    let a = target ? Math.atan2(target.y - 4 - (p.y - 8), target.x - p.x) : Math.atan2(p.fy, p.fx);
-    a += spread;
-    const sp = S[kind].speed;
-    d.bolts.push({ x: p.x, y: p.y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg, kind, t: 1.2, chain: kind === 'bolt' && st.powers.stormcaller ? 2 : 0, hitIds: [], big: charged, pierce: charged ? 3 : 0, element: d.castElement || null });
+// and go through what they hit; mods: the modifiers socketed beside it.
+function castSpell(kind, power, spread = 0, charged = false, mods = {}) {
+  const d = Game.dive, p = d.p, st = d.stats, S = T.spells, M = T.mods;
+  const area = mods.amplify ? M.amplifyArea : 1;
+  const dmg = power * (1 + st.spellDmg / 100) * (mods.amplify ? M.amplifyDmg : 1);
+  const el = d.castElement || null;
+  const aimAt = (range) => {
+    const target = nearestEnemy(d, range || d.castRange || S.aimRange);
+    return { target, a: target ? Math.atan2(target.y - 4 - (p.y - 8), target.x - p.x) : Math.atan2(p.fy, p.fx) };
+  };
+  // bolts, lances and embers: three at once with Split
+  const fan = (fn) => {
+    if (!mods.split) { fn(0, 1); return; }
+    for (const k of [-1, 0, 1]) fn(k * M.splitSpread, M.splitMult);
+  };
+  const chainMore = mods.chainmod ? M.chainJumps : 0;
+  if (kind === 'spark' || kind === 'bolt' || kind === 'frost') {
+    const { a } = aimAt();
+    fan((off, mult) => {
+      const sp = S[kind].speed, ang = a + spread + off;
+      d.bolts.push({
+        x: p.x, y: p.y - 8, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, dmg: dmg * mult, kind, t: kind === 'frost' ? 0.9 : 1.2,
+        chain: (kind === 'bolt' && st.powers.stormcaller ? 2 : 0) + chainMore, hitIds: [], big: charged,
+        pierce: kind === 'frost' ? S.frost.pierce + (charged ? 3 : 0) : charged ? 3 : 0,
+        element: kind === 'frost' ? 'frost' : el,
+      });
+    });
+    return;
+  }
+  if (kind === 'ember') {
+    const { target, a } = aimAt();
+    fan((off, mult) => {
+      const reach = target ? Math.min(dist(p.x, p.y, target.x, target.y), 150) : 70, ang = a + spread + off;
+      const x1 = p.x + Math.cos(ang) * reach, y1 = p.y + Math.sin(ang) * reach;
+      d.globs.push({ x: p.x, y: p.y - 10, x0: p.x, y0: p.y - 10, x1, y1, t: 0, max: reach / S.ember.speed, dmg: dmg * mult * (charged ? 1.5 : 1), mine: true, r: S.ember.radius * area });
+    });
+    return;
+  }
+  if (kind === 'chain') {
+    let from = { x: p.x, y: p.y - 8 }, cur = nearestEnemy(d, S.chain.range * area), hit = [], k = dmg;
+    for (let j = 0; cur && j <= S.chain.jumps + chainMore + (charged ? 2 : 0); j++) {
+      d.fx.push({ kind: 'arc', x: from.x, y: from.y, x2: cur.x, y2: cur.y - 5, t: 0.2, max: 0.2 });
+      hurtEnemy(cur, k, { spell: true, element: 'shock', noProc: true });
+      hit.push(cur); from = { x: cur.x, y: cur.y - 5 }; k *= S.chain.falloff;
+      cur = d.enemies.filter((e) => !e.dead && !hit.includes(e) && dist(e.x, e.y, from.x, from.y) < S.chain.jumpRange * area).sort((a2, b) => dist(a2.x, a2.y, from.x, from.y) - dist(b.x, b.y, from.x, from.y))[0];
+    }
     return;
   }
   if (kind === 'nova') {
-    d.fx.push({ kind: 'nova', x: p.x, y: p.y - 6, r: S.nova.radius, t: 0.3, max: 0.3 });
-    for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < S.nova.radius + e.r) hurtEnemy(e, dmg, { spell: true, element: d.castElement });
+    const r = S.nova.radius * area;
+    d.fx.push({ kind: 'nova', x: p.x, y: p.y - 6, r, t: 0.3, max: 0.3 });
+    for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < r + e.r) hurtEnemy(e, dmg, { spell: true, element: el });
     return;
   }
   if (kind === 'pull') {
-    d.fx.push({ kind: 'pull', x: p.x, y: p.y - 6, r: S.pull.radius, t: 0.35, max: 0.35 });
+    const r = S.pull.radius * area;
+    d.fx.push({ kind: 'pull', x: p.x, y: p.y - 6, r, t: 0.35, max: 0.35 });
     for (const e of d.enemies) {
       if (e.dead || e.boss) continue;
       const m = dist(e.x, e.y, p.x, p.y);
-      if (m > S.pull.radius || m < 1) continue;
+      if (m > r || m < 1) continue;
       const k = Math.min(S.pull.speed, (m - 10) * 4);
       e.kx = ((p.x - e.x) / m) * k; e.ky = ((p.y - e.y) / m) * k;
       e.stunT = S.pull.stun; e.state = 'chase';
-      hurtEnemy(e, dmg, { spell: true });
+      hurtEnemy(e, dmg, { spell: true, element: el });
     }
     return;
   }
   if (kind === 'ward') {
-    p.ward = Math.max(p.ward, dmg);
+    p.ward = Math.max(p.ward, dmg * (mods.amplify ? M.amplifyArea : 1));
     p.wardT = S.ward.time;
     d.fx.push({ kind: 'ward', x: p.x, y: p.y - 6, t: 0.3, max: 0.3 });
+    return;
   }
+  if (kind === 'thorns') {
+    // a ring that goes with you, cutting what comes close
+    d.auras.push({ kind: 'thorns', r: S.thorns.radius * area, t: S.thorns.time * (charged ? 1.6 : 1), max: S.thorns.time * (charged ? 1.6 : 1), tick: 0, dmg, follow: true });
+    return;
+  }
+  if (kind === 'well') {
+    const { target, a } = aimAt();
+    const x = target ? target.x : p.x + Math.cos(a) * 50, y = target ? target.y : p.y + Math.sin(a) * 50;
+    d.auras.push({ kind: 'well', x, y, r: S.well.radius * area, t: S.well.time, max: S.well.time, tick: 0, dmg, el });
+    return;
+  }
+  if (kind === 'blink' || kind === 'phase') {
+    // along the stick if it's held, else the way the diver faces
+    const mv = Input.move, dir = Math.hypot(mv.x, mv.y) > 0.2 ? norm(mv.x, mv.y) : norm(p.fx, p.fy), reach = S[kind].reach * area;
+    const x0 = p.x, y0 = p.y, steps = 12;
+    for (let k = 0; k < steps; k++) moveBody(d.floor, p, (dir.x * reach) / steps, (dir.y * reach) / steps, T.player.radius);
+    p.invuln = Math.max(p.invuln, S[kind].invuln);
+    for (let k = 0; k < 4; k++) d.fx.push({ kind: 'ghost', x: lerp(x0, p.x, k / 4), y: lerp(y0, p.y, k / 4), fx: dir.x, fy: dir.y, t: 0.25, max: 0.25 });
+    if (kind === 'phase') {
+      const vx = p.x - x0, vy = p.y - y0, L2 = vx * vx + vy * vy || 1;
+      for (const e of d.enemies) {
+        if (e.dead) continue;
+        const t2 = clamp(((e.x - x0) * vx + (e.y - y0) * vy) / L2, 0, 1);
+        if (dist(e.x, e.y, x0 + vx * t2, y0 + vy * t2) < e.r + 8) hurtEnemy(e, dmg, { spell: true, element: el, knock: { x: dir.x * 80, y: dir.y * 80 } });
+      }
+    }
+  }
+}
+
+// Auras: a thorn ring round the diver, gravity wells where they fell; and
+// whatever an Echo has waiting to cast again.
+function updateAuras(dt) {
+  const d = Game.dive, p = d.p, S = T.spells;
+  for (const au of d.auras) {
+    au.t -= dt;
+    if (au.follow) { au.x = p.x; au.y = p.y; }
+    if (au.kind === 'well')
+      for (const e of d.enemies) {
+        if (e.dead || e.boss || e.type === 'hollow' || T.enemies[e.type].rooted) continue;
+        const m = dist(e.x, e.y, au.x, au.y);
+        if (m < au.r && m > 3) moveBody(d.floor, e, ((au.x - e.x) / m) * S.well.pull * dt, ((au.y - e.y) / m) * S.well.pull * dt, e.r);
+      }
+    if ((au.tick -= dt) <= 0) {
+      au.tick = S[au.kind].every;
+      for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, au.x, au.y) < au.r + e.r) hurtEnemy(e, au.dmg, { spell: true, noProc: true, element: au.kind === 'thorns' ? 'blight' : au.el });
+    }
+  }
+  d.auras = d.auras.filter((au) => au.t > 0);
+  for (const l of d.later) if ((l.t -= dt) <= 0 && !l.done) { l.done = true; const was = d.castElement; d.castElement = l.el; l.fn(); d.castElement = was; }
+  d.later = d.later.filter((l) => !l.done);
 }
 
 function updateBolts(dt) {
@@ -267,7 +366,7 @@ function updateBolts(dt) {
       b.hitIds.push(e);
       if (b.pierce > 0) { b.pierce--; continue; }
       // Stormcaller: on to the next nearest
-      const next = b.chain > 0 && nearestEnemy(d, T.onHit.shockRange * 1.5, e, null);
+      const next = b.chain > 0 && d.enemies.filter((o) => !o.dead && !b.hitIds.includes(o) && dist(o.x, o.y, e.x, e.y) < T.onHit.shockRange * 1.5).sort((o1, o2) => dist(o1.x, o1.y, e.x, e.y) - dist(o2.x, o2.y, e.x, e.y))[0];
       if (next && !b.hitIds.includes(next)) {
         b.chain--;
         const a = norm(next.x - b.x, next.y - 4 - b.y), sp = Math.hypot(b.vx, b.vy);

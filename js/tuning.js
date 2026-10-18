@@ -131,7 +131,19 @@ const T = {
     nova: { cost: 18, mult: 1.3, radius: 34 },
     pull: { cost: 14, mult: 0.5, radius: 72, stun: 0.7, speed: 160 },
     ward: { cost: 20, mult: 2.5, time: 5 },
+    frost: { cost: 12, mult: 1.1, speed: 210, pierce: 4 },
+    ember: { cost: 16, mult: 1.2, speed: 120, radius: 26, burnTime: 2.5, burn: 0.35 },
+    chain: { cost: 14, mult: 0.85, range: 120, jumps: 4, jumpRange: 54, falloff: 0.85 },
+    thorns: { cost: 18, mult: 0.45, radius: 24, time: 3, every: 0.5 },
+    blink: { cost: 10, mult: 0, reach: 60, invuln: 0.25 },
+    well: { cost: 18, mult: 0.3, radius: 56, time: 2.5, pull: 70, every: 0.5 },
+    phase: { cost: 12, mult: 1.0, reach: 52, invuln: 0.3 },
   },
+  // Modifiers: split fires three at splitMult each; amplify widens by
+  // amplifyArea and hits amplifyDmg harder; quicken costs quickenCost and
+  // cools down quickenCd faster; chain adds chainJumps; echo recasts after
+  // echoDelay at echoMult.
+  mods: { splitMult: 0.6, splitSpread: 0.28, amplifyArea: 1.5, amplifyDmg: 1.2, quickenCost: 0.67, quickenCd: 0.7, chainJumps: 2, echoDelay: 0.4, echoMult: 0.6 },
   // Elements a weapon or focus carries. shock: this share of hits arcs on;
   // frost: hits chill, and a heavy hit on the chilled shatters for `shatter`
   // times; ember: hits burn for burnTime, `burn` of the hit a second; blight:

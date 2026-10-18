@@ -35,7 +35,11 @@ const ART = {
   exotics: { voltaic: '#7fe8ff', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890', emberglass: '#ff8a3a', blightcap: '#9ad04a' },
   // creature parts, until they have their own art: a colour a kind
   parts: { chitin: '#8a6a7a', ether: '#9fd8ff', cog: '#b89a58', fiber: '#8ab86a', spore: '#c87ab0', heart: '#ff6a4a' },
-  cores: { bolt: '#62f0ff', nova: '#ffb347', pull: '#ffd890', ward: '#8fb4ff' },
+  cores: {
+    bolt: '#62f0ff', nova: '#ffb347', pull: '#ffd890', ward: '#8fb4ff', frost: '#c8f0ff', ember: '#ff8a3a', chain: '#7fe8ff',
+    thorns: '#9ad04a', blink: '#c9a2ff', well: '#8a5ad0', phase: '#e8e0ff',
+    split: '#ffd34d', amplify: '#ff8a3d', quicken: '#7fe8ff', chainmod: '#62f0ff', echo: '#c9a2ff',
+  },
   ores: {
     ferrite: ['#3b170d', '#743828', '#c46444', '#ffb08a'],
     lumenite: ['#0a302c', '#2a6e64', '#4ec9b1', '#c2fff2'],
@@ -481,7 +485,8 @@ function art2Sprite(rows, pal) {
 }
 
 function itemIconUrl(item) {
-  const style = item.kind === 'core' || item.kind === 'relic' ? item.kind : ((typeof bpOf === 'function' && bpOf(item)) || {}).style;
+  const isMod = item.kind === 'core' && CORES[item.core] && CORES[item.core].mod;
+  const style = isMod ? 'modifier' : item.kind === 'core' || item.kind === 'relic' ? item.kind : ((typeof bpOf === 'function' && bpOf(item)) || {}).style;
   const own = ICON_ROWS2[style] && !ICON_ROWS[style];
   const rows = own ? ICON_ROWS2[style] : ICON_ROWS[item.kind];
   const key = item.kind + '/' + style + '/' + item.tier + '/' + (item.core || '') + '/' + item.rarity;
@@ -492,7 +497,7 @@ function itemIconUrl(item) {
     const r = ART.ores[oreOfTier(item.tier).id];
     pal.steel = r; pal.plate = r; pal.tool = r;
   }
-  if (item.kind === 'core') { pal.arcane = [ART.cores[item.core]]; pal.rune = [mix(ART.cores[item.core], '#000000', 0.3)]; }
+  if (item.kind === 'core') { pal.arcane = [ART.cores[item.core]]; pal.rune = [isMod ? ART.cores[item.core] : mix(ART.cores[item.core], '#000000', 0.3)]; }
   if (item.kind === 'relic') pal.arcane = [ART.rarity.relic];
   const s = own ? art2Sprite(rows, pal) : buildArtSprite(rows, pal);
   url = s.c.toDataURL();

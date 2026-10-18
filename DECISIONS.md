@@ -85,3 +85,4 @@ The designer found that so much loot made forging pointless, and that forged ite
 - **Materials, not gear.** Enemies drop their own parts, graded by biome, so the forge is where gear comes from and different recipes send you hunting different creatures.
 - **Elements from exotics:** shock, frost (which shatters), ember (which burns) and blight (which spreads).
 - **Blueprints must be carried home** to be learned. Finding one is a push-your-luck moment.
+- **More spells, and modifiers to combine them**: elemental (Frost Lance, Ember Burst, Chain Lightning, Thorn Ring), movement (Blink, Gravity Well, Phase Step), and modifier cores (Split, Amplify, Quicken, Chain, Echo) that share sockets with the spells, so a piece's sockets are a choice between more spells and better ones.

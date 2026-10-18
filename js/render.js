@@ -376,6 +376,13 @@ function renderFrame() {
   }
   for (const b of d.bolts) {
     const col = b.element ? ELEMENT_COLS[b.element] : b.kind === 'bolt' ? ART.cores.bolt : '#e8f4ff';
+    // a frost lance: a long shard of ice
+    if (b.kind === 'frost') {
+      const sp = Math.hypot(b.vx, b.vy) || 1;
+      for (let k = 0; k < 6; k++) dot(Math.round(b.x + ox - (b.vx / sp) * k), Math.round(b.y + oy - (b.vy / sp) * k), k < 2 ? '#ffffff' : ELEMENT_COLS.frost, true, 1 - k * 0.12);
+      lights.push({ x: b.x + ox, y: b.y + oy, r: TILE, i: 0.6, c: rgb01(ELEMENT_COLS.frost) });
+      continue;
+    }
     dot(Math.round(b.x + ox - b.vx * 0.012), Math.round(b.y + oy - b.vy * 0.012), col, true, 0.5);
     const pts = b.big ? [[0, -1], [-1, 0], [0, 0], [1, 0], [0, 1], [-1, -1], [1, 1], [1, -1], [-1, 1], [2, 0], [-2, 0], [0, 2], [0, -2]] : [[0, 0], [1, 0], [0, 1], [1, 1]];
     for (const [i, j] of pts) dot(Math.round(b.x + ox) + i - (b.big ? 0 : 1), Math.round(b.y + oy) + j - (b.big ? 0 : 1), i === 0 && j === 0 && b.big ? '#ffffff' : col, true);
@@ -388,17 +395,36 @@ function renderFrame() {
     lights.push({ x: sx, y: sy, r: TILE, i: 0.6, c: rgb01(shotCol) });
   }
   for (const pu of d.puddles) {
-    const k = Math.min(1, pu.t / 0.6), cx = Math.round(pu.x + ox), cy = Math.round(pu.y + oy);
+    const k = Math.min(1, pu.t / 0.6), cx = Math.round(pu.x + ox), cy = Math.round(pu.y + oy), col = pu.mine ? ELEMENT_COLS.ember : PLANT_GLOW;
     for (let n = 0; n < 14; n++) {
       const a = n * 2.4 + pu.max, r = (n % 4) / 4 * pu.r;
-      dot(Math.round(cx + Math.cos(a + Game.realT * 0.6) * r), Math.round(cy + Math.sin(a) * r * 0.7), n % 3 ? mix(PLANT_GLOW, '#000000', 0.4) : PLANT_GLOW, true, 0.55 * k);
+      dot(Math.round(cx + Math.cos(a + Game.realT * 0.6) * r), Math.round(cy + Math.sin(a) * r * 0.7 - (pu.mine ? (Game.realT * 8 + n) % 4 : 0)), n % 3 ? mix(col, '#000000', 0.4) : col, true, 0.55 * k);
     }
-    lights.push({ x: cx, y: cy, r: TILE * 1.1, i: 0.4 * k, c: rgb01(PLANT_GLOW) });
+    lights.push({ x: cx, y: cy, r: TILE * 1.1, i: 0.4 * k, c: rgb01(col) });
   }
   for (const g of d.globs) {
-    const gx = Math.round(g.x + ox), gy = Math.round(g.y + oy);
-    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]]) dot(gx + i, gy + j, j < 0 || i < 0 ? '#ffd0a0' : PLANT_GLOW, true);
-    lights.push({ x: gx, y: gy, r: TILE, i: 0.6, c: rgb01(PLANT_GLOW) });
+    const gx = Math.round(g.x + ox), gy = Math.round(g.y + oy), col = g.mine ? ELEMENT_COLS.ember : PLANT_GLOW;
+    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]]) dot(gx + i, gy + j, j < 0 || i < 0 ? '#ffd0a0' : col, true);
+    lights.push({ x: gx, y: gy, r: TILE, i: 0.6, c: rgb01(col) });
+  }
+  for (const au of d.auras) {
+    const cx = Math.round(au.x + ox), cy = Math.round(au.y + oy - (au.follow ? 6 : 0)), k = Math.min(1, au.t / 0.4);
+    if (au.kind === 'thorns') {
+      // thorns turning round the diver
+      for (let n = 0; n < 28; n++) {
+        const a = (n / 28) * Math.PI * 2 + Game.realT * 2, spike = n % 2 === 0, x = Math.round(cx + Math.cos(a) * au.r), y = Math.round(cy + Math.sin(a) * au.r * 0.75);
+        dot(x, y, spike ? ELEMENT_COLS.blight : '#4a5a30', spike, k);
+        if (spike) dot(Math.round(x + Math.cos(a) * 2), Math.round(y + Math.sin(a) * 1.5), '#d8f0a0', true, k);
+      }
+      lights.push({ x: cx, y: cy, r: au.r * 1.2, i: 0.35 * k, c: rgb01(ELEMENT_COLS.blight) });
+    } else {
+      // a gravity well: a dark spiral drawing in
+      for (let n = 0; n < 24; n++) {
+        const a = n * 0.7 - Game.realT * 5, r = ((n * 3 + Game.realT * 30) % au.r);
+        dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.75), n % 3 ? '#2a1848' : ART.cores.well, true, k * (1 - r / au.r));
+      }
+      lights.push({ x: cx, y: cy, r: au.r, i: 0.5 * k, c: rgb01(ART.cores.well) });
+    }
   }
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
   if (d.hub) { drawHubOver(d, ox, oy, lights); if (d.feedT > 0) d.feedT = Math.max(0, d.feedT - 1 / 60); }
