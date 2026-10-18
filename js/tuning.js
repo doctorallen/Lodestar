@@ -591,6 +591,29 @@ const T = {
     ambient: 0.45, hubAmbient: 0.85, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]],
+    // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
+    // baked: and the floor's fixed lights (lava, vents, glowing plants).
+    // eye: the dome's height over the feet (world px), where the lamp's
+    // light is centred; its shadows are cast from under it. rays: how many
+    // rays for each cell round the edge of the light's reach; step: art px
+    // a ray moves at a time through the wall line; reach: world px past
+    // where a ray strikes rock that's still lit (the skin of rock it
+    // strikes); top: what a rock top it doesn't reach keeps of it.
+    // props: what big things (big plants, enemies, portals) cast from the
+    // lamp. steps: the lamp's share of the light at a foot from which the
+    // rim, then the core, shows; dark: what's left of the ground's colour
+    // in the rim and in the core; core: the core's width and length, as
+    // shares of the shadow's; len: [world px at the foot, more for each
+    // world px from the lamp, most]; tall: the height (world px) that casts
+    // it that long, size: [least, most] the share for other heights; crown:
+    // a plant's shadow is at least this share of its whole width across
+    // (its crown's, not just its foot's); back: how far it rounds behind the
+    // foot (a share of its width); fray: how ragged its edges (in clusters
+    // of 2 art px); portal: a portal's half width (world px).
+    shadow: {
+      walls: true, baked: true, eye: 17, rays: 1.25, step: 2, reach: 3, top: 0,
+      props: { steps: [0.2, 0.38], dark: [0.66, 0.48], core: [0.62, 0.6], len: [9, 0.12, 18], tall: 30, size: [0.6, 1.3], crown: 0.3, back: 0.35, fray: 0.35, portal: 9 },
+    },
   },
 
   ui: { tapGuard: 0.4 }, // seconds a new screen ignores taps
