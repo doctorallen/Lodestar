@@ -361,14 +361,14 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 
 ## Presentation
 
-- Top-down pixel art with 16 px tiles. The view always shows at least 176 game pixels on its shorter side (about 11–12 tiles), scaled up by whole device pixels.
+- Top-down pixel art with 24 px tiles. The world is measured in world px (16 to a tile: every body, reach and speed); the art is drawn at 1.5 art px to each (`T.art.px`), so the extra detail is real pixels, never enlarged ones. One pixel size for everything drawn in the world. The view shows about 176 world px (264 art px, 11–12 tiles) on its shorter side, scaled up by whole device pixels: at least that, or a whole scale closer to it if it still shows nine tenths of it.
 - **Art style: "Glow + Detail", drawn to the A+ rules** (DECISIONS.md; the knobs are in `T.art`).
   - A grim palette in short ramps, hue-shifted: shadows lean to violet, lights to warm gold. At most 3–4 tones of a material on one thing, chosen by its form, lit from the top left.
   - Texture in clusters of light and dark, never speckle. No dithering on creatures, sprites or props; a little at the edges of large ground gradients only.
   - Black outlines on creatures (the diver, enemies, critters); sel-outs, a much darker shade of the colour inside, on flora and props.
   - Darkness, where only magitech gives off light: the helmet lamp, ore glints, runes, glowing fungus, singing crystals, magma, enemies' eyes and cores, the lodelines and the Lodestar.
   - Light comes in a few hard bands, dithered only just at each step's edge, and glowing things bloom.
-  - The plan: these rules on today's 16 px art, then 24 px tiles by enlarging the letter grids 1.5× before shading, then a hand redraw.
+  - The plan: these rules on the 16 px art (done), then 24 px tiles by enlarging the letter grids 1.5× before shading (done), then a hand redraw where the enlargement falls short.
 - **Readability rule.** Rock tops are always darker than the floor, with lit rims and front faces where they meet it.
 - **Biome looks.** Each biome changes its enemies' colours, and in its own climes (Badlands, Caverns, Archive) its floor, rock and light colours; the other climes bring their own (see Climes). Each also has its own strange flora (flora.js), as sprites that stand on the floor, grow at the foot of walls, or hang from wall faces. Some sway or pulse:
   - **the Rim:** jelly caps trailing beads of light, frilled stalks, shelf fungus, split puffballs, blinking eye stalks, a lit pitcher, hanging roots, dripstone;
