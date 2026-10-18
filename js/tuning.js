@@ -77,6 +77,11 @@ const T = {
   // newest: the share of hauls and reaches set in the newest biome open;
   // stale: how many expeditions one stands before it's replaced.
   contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, ride: 2 }, star: 25, newest: 0.7, stale: 3 },
+  // A Lodestorm: the chance an expedition sets out under one; on the
+  // surface a strike every `every` s (the first after `first`), within
+  // `near` tiles of the diver, marked `warn` s ahead, hurting within
+  // `radius` px; onOre: the chance it seeks out a vein.
+  storm: { chance: 0.35, first: 8, every: 20, near: 6, warn: 1.1, radius: 20, dmg: 14, onOre: 0.4 },
   // Rifts: the chance of one at each site; how often each kind; a graft's
   // radius and the veins it brings; an ore wake's radius, veins and share of
   // the better ore; how near a tear you must stand (px), how long sealing
@@ -86,6 +91,9 @@ const T = {
     kinds: { graft: 3, bloom: 3, gate: 2, inversion: 2 },
     graftR: 6, graftOre: 4, bloomR: 4, bloomOre: 8, bloomRich: 0.5,
     touch: 12, seal: 2.5, glass: [1, 2], inversionR: 7, tintR: 4.5,
+    // an open tear sends out a rift-touched elite every spawnEvery s, no
+    // more than spawnMax alive
+    spawnEvery: 25, spawnMax: 3,
   },
   // Tools: the magnitude each can be made at, and what it costs from the
   // stash (a part's kind takes parts of any grade, the lowest first).

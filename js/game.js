@@ -50,7 +50,7 @@ function startDive(biome = 0) {
   Save.data.dives++;
   // the dive's seed may come from anywhere; everything built from it is seeded
   const seed = (Math.random() * 4294967296) >>> 0;
-  Game.dive = newWorld({ seed, biome, rng: new Rng(hashInts(seed, 0x5eed)), tool: Save.data.tool || 'compass' });
+  Game.dive = newWorld({ seed, biome, rng: new Rng(hashInts(seed, 0x5eed)), tool: Save.data.tool || 'compass', storm: new Rng(hashInts(seed, 0x5707)).chance(T.storm.chance) });
   Game.scene = 'dive';
   enterFloor(1, 'surface');
   Story.say('firstDive');
@@ -104,7 +104,8 @@ function enterFloor(depth, zone = 'cave') {
   d.pull = 1; d.pullTime = Math.max(P.min, P.time + P.perDepth * (depth - 1)); d.waveT = P.waveEvery; d.channel = null;
   // a lair's lodeline is dark until its Keeper falls
   d.padDark = zone === 'lair' && !!d.keeper;
-  d.seen = null; d.beacon = null; d.compass = null; d.oreNear = null; d.toolT = 0;
+  d.seen = null; d.beacon = null; d.compass = null; d.oreNear = null; d.toolT = 0; d.strike = null; d.stormT = undefined;
+  if (stormHere(d)) { UI.toast('A lodestorm is passing over', 'legendary'); Story.say('storm'); }
   if (d.floor.pad && !d.padDark) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
   UI.toast(`${T.biomes[d.biome].name} · ${T.zones[zone].name} · site ${depth} of ${X.sites}${d.floor.pad || zone === 'lair' ? '' : ': no lodeline reaches here'}`);
   if (!d.floor.pad) Story.say('noPad');
@@ -127,7 +128,7 @@ function saveRun(d) {
     cargo: d.cargo, items: d.items, blueprints: d.blueprints, pocket: d.pocket,
     hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, kills: d.kills, time: d.time, mined: d.mined || [],
     gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b ? { x: b.x, y: b.y, t: b.t, landed: b.landed } : null,
-    sealed: !!(d.rift && !d.rift.open), tally: d.tally || {}, keeperDown: !!(d.zone === 'lair' && d.keeper && d.keeper.dead), pullTime: d.pullTime,
+    sealed: !!(d.rift && !d.rift.open), storm: !!d.storm, tally: d.tally || {}, keeperDown: !!(d.zone === 'lair' && d.keeper && d.keeper.dead), pullTime: d.pullTime,
   };
   // only what a dive changes: the run, what's worn, the craft counter
   Save.saveField('run'); Save.saveField('equip'); Save.saveField('crafts');
@@ -136,7 +137,7 @@ function saveRun(d) {
 function resumeRun() {
   const r = Save.data.run;
   if (!r) return;
-  Game.dive = newWorld({ seed: r.seed, biome: r.biome, rng: new Rng(hashInts(r.seed, 0x5eed, r.depth, r.kills)), tool: r.tool || 'compass' });
+  Game.dive = newWorld({ seed: r.seed, biome: r.biome, rng: new Rng(hashInts(r.seed, 0x5eed, r.depth, r.kills)), tool: r.tool || 'compass', storm: !!r.storm });
   const d = Game.dive;
   enterFloor(r.depth, r.zone);
   const f = d.floor;
@@ -226,7 +227,7 @@ function updateDive(dtReal, dt) {
   updateBolts(dt);
   updateAuras(dt);
   updateCombatFx(dt);
-  if (!d.hub) updateLife(d, dt);
+  if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); }
   updatePickups(dtReal);
   if (Input.consumeAct()) {
     const a = actionHere();

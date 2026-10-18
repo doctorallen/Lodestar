@@ -629,6 +629,7 @@ function renderFrame() {
   if (d.hub) drawHubOver(d, ox, oy, lights);
   for (const s of Sparks) dot(Math.round(s.x + ox), Math.round(s.y + oy), s.col, true);
   drawLifeAir(d, ox, oy, lights);
+  if (!d.hub) drawStorm(d, ox, oy, lights);
   const fx = Math.round(p.x + ox), fy = Math.round(p.y + oy);
 
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
@@ -696,7 +697,7 @@ function renderFrame() {
   }
   // the tools' marks and the outpost's labels too
   View.ctx = o;
-  try { drawToolHud(d, ox, oy); if (d.hub) drawStationLabels(d, ox, oy); } finally { View.ctx = x; }
+  try { drawToolHud(d, ox, oy); if (d.hub) drawStationLabels(d, ox, oy); else drawStormMark(d, ox, oy); } finally { View.ctx = x; }
 }
 
 // ---------------------------------------------------------------------------

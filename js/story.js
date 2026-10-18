@@ -35,6 +35,8 @@ const WICK = {
   rift_inversion: "Daylight, down here. It's coming out of the tear.",
   riftGate: 'I will never get used to that.',
   riftSealed: 'Riftglass. Forge with it, and the piece comes out a tier above its ore.',
+  storm: "A lodestorm. Watch the ground: where it flickers, the sky is about to hit. It charges ore, if we let it.",
+  riftSpawn: "Something came through the tear. It'll keep coming until we seal it.",
   pullFading: "The star's grip is slipping on this floor. We shouldn't stay much longer.",
   choir: 'The Choir. Everything here hums when it is struck. Even you.',
   underforge: "The Underforge. These ruins were built by someone. They didn't leave.",

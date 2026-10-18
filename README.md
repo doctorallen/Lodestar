@@ -58,6 +58,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
 | `js/combat.js` | Swings, spells, damage, kills and drops, pickups, cargo |
 | `js/rifts.js` | Rifts: grafts, ore wakes, gates, inversions; sealing for riftglass |
+| `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
 | `js/contracts.js` | The three posted contracts, their tallies and rewards |
 | `js/tools.js` | The carried tools: compass, ore sense, radar, map, satchel, beacon |
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |

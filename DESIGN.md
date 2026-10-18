@@ -82,6 +82,10 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room from depth 4. It charges and fires rings of orbs. It's never needed for progression, and it drops three rare-or-better pieces and often a relic.
 
+## The weather
+
+About a third of expeditions set out under a **Lodestorm**. On the surface, every 20 s a strike falls within 6 tiles of the diver, marked by a tightening, flickering ring a second before. It hurts whatever stands in it (diver and enemies alike, the enemies with shock), and when it finds an ore vein it charges it into the biome's better ore. A storm is a hazard to dodge and a reason to stand near a vein when the ring appears.
+
 ## Contracts
 
 Three small goals are always posted at the ledge, so every expedition, even a short one, works towards something. Each is settled when you come home by a lodeline or a recall, never after a fall:
@@ -115,6 +119,8 @@ Tears in the world, where the star's fall cracked more than the ground. A site m
 - **Ore wake:** the rock round the tear has woken into ore, half of it the site's better ore.
 - **Gate:** two tears in different rooms, one place. Step into one, out of the other: a shortcut, or an escape.
 - **Inversion** (underground only): noon pours out of the tear and lights the dark around it, for as long as the tear is open.
+
+**A tear doesn't wait.** Every 25 s an open tear (not a gate) sends out a rift-touched elite, three at most, and sealing it leaves one more riftglass for each still alive. Seal early and safely, or late and rich.
 
 Ground near an open tear washes violet with flickers of the rift's colours. **SEAL THE TEAR** (any but a gate) is a 2.5 s channel in a light that wakes everything near, like extracting. It leaves 1–2 **riftglass**, an exotic found nowhere else: a piece forged with it comes out a tier above its ore. What a graft or an ore wake changed stays changed.
 
