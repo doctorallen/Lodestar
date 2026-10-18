@@ -76,7 +76,7 @@ const UI = {
   },
 
   redraw() {
-    const r = { 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawWreck_, 'screen-descend': drawDescend, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
+    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawWreck_, 'screen-descend': drawDescend, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
     if (r) r();
     if (UI.card) drawCard();
   },
@@ -213,6 +213,13 @@ const UI = {
 // ---------------------------------------------------------------------------
 
 // The story, a panel at a time.
+function drawResume() {
+  const r = Save.data.run;
+  if (!r) return;
+  const n = Object.values(r.cargo || {}).reduce((a, b) => a + b, 0) + (r.items || []).length;
+  $('resume-text').textContent = `An expedition into ${T.biomes[r.biome].name} was under way: ${T.zones[r.zone].name}, site ${r.depth} of ${T.expedition.sites}, carrying ${n ? n + ' things' : 'nothing yet'}. Carry on from that site's start, or give it up and lose the cargo (the pocket comes home).`;
+}
+
 function drawStory() {
   const st = UI.story;
   if (!st) return;
@@ -521,6 +528,8 @@ UI.acts = {
     UI.report = null; UI.close();
     Story.starGrew();
   },
+  resumeRun: () => { UI.close(); resumeRun(); },
+  dropRun: () => { UI.close(); resumeRun(); abandonDive(); },
   storyNext: () => {
     const st = UI.story;
     if (!st) return;

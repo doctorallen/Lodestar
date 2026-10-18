@@ -153,7 +153,7 @@ function setupInput() {
     if (e.repeat) return;
     if ((e.code === 'Escape' || e.code === 'KeyP') && Game.dive) {
       if (Game.modal === 'screen-report') UI.acts.closeReport();
-      else if (Game.modal === 'screen-anvil' || Game.modal === 'screen-reveal' || Game.modal === 'screen-story') { /* these finish themselves */ }
+      else if (Game.modal === 'screen-anvil' || Game.modal === 'screen-reveal' || Game.modal === 'screen-story' || Game.modal === 'screen-resume') { /* these finish themselves, or need an answer */ }
       else if (Game.modal) UI.close();
       else UI.openPause();
       return;

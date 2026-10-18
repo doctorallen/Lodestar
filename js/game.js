@@ -103,6 +103,45 @@ function enterFloor(depth, zone = 'cave') {
   UI.toast(`${T.biomes[d.biome].name} · ${T.zones[zone].name} · site ${depth} of ${X.sites}${d.floor.pad || zone === 'lair' ? '' : ': no lodeline reaches here'}`);
   if (!d.floor.pad) Story.say('noPad');
   noticeRift(d);
+  d.mined = [];
+  saveRun(d);
+}
+
+// ---------------------------------------------------------------------------
+// An expedition under way is saved on arriving at each site and whenever the
+// page is hidden, so a phone that drops the tab doesn't lose it. It comes
+// back at the entry of the site it was at, with what was carried, the
+// health it had, the pull as it was, and the veins it had mined still gone.
+// ---------------------------------------------------------------------------
+function saveRun(d) {
+  if (!d || d.hub || d.dying) return;
+  const b = d.beacon;
+  Save.data.run = {
+    seed: d.seed, biome: d.biome, depth: d.depth, zone: d.zone, tool: d.tool,
+    cargo: d.cargo, items: d.items, blueprints: d.blueprints, pocket: d.pocket,
+    hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, kills: d.kills, time: d.time, mined: d.mined || [],
+    gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b && b.landed ? { x: b.x, y: b.y } : null,
+    sealed: !!(d.rift && !d.rift.open),
+  };
+  // only what a dive changes: the run, what's worn, the craft counter
+  Save.saveField('run'); Save.saveField('equip'); Save.saveField('crafts');
+}
+
+function resumeRun() {
+  const r = Save.data.run;
+  if (!r) return;
+  Game.dive = newWorld({ seed: r.seed, biome: r.biome, rng: new Rng(hashInts(r.seed, 0x5eed, r.depth, r.kills)), tool: r.tool || 'compass' });
+  const d = Game.dive;
+  enterFloor(r.depth, r.zone);
+  const f = d.floor;
+  for (const i of r.mined || []) if (f.tiles[i] === TILE_ORE) { f.tiles[i] = TILE_FLOOR; f.ore[i] = 0; }
+  d.mined = (r.mined || []).slice();
+  Object.assign(d, { cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], kills: r.kills || 0, time: r.time || 0, gotShard: r.gotShard, echoes: r.echoes, beaconUsed: r.beaconUsed });
+  d.p.hp = Math.min(d.stats.maxHp, r.hp || d.stats.maxHp);
+  d.pull = Math.max(0.05, r.pull === undefined ? 1 : r.pull);
+  if (r.beacon) { if (f.pad) f.tiles[f.pad.y * f.w + f.pad.x] = TILE_FLOOR; f.tiles[r.beacon.y * f.w + r.beacon.x] = TILE_PAD; f.pad = { x: r.beacon.x, y: r.beacon.y }; d.padDark = false; d.beacon = { x: r.beacon.x, y: r.beacon.y, landed: true, t: 0 }; }
+  if (r.sealed && d.rift) { d.rift.open = false; f.riftShift = null; }
+  saveRun(d);
 }
 
 // Which way on the diver stands at, if any.
@@ -373,6 +412,7 @@ function updateMining(dt) {
 function breakOre(tgt, o) {
   const d = Game.dive, f = d.floor, st = d.stats;
   f.tiles[tgt.i] = TILE_FLOOR;
+  if (d.mined) d.mined.push(tgt.i);
   f.ore[tgt.i] = 0;
   let n = d.rng.i(T.mine.yield[0], T.mine.yield[1]);
   if (d.rng.f(100) < st.oreLuck) n *= 2;
@@ -403,6 +443,7 @@ function noteDeepest(d) {
 // the depth: extractStar × depth² points.
 // Everything in the pocket goes home, whatever happens.
 function bankPocket(d) {
+  Save.data.run = null;
   const s = Save.data.stash, kept = { stuff: {}, items: [], blueprints: [] };
   for (const e of d.pocket) {
     if (e.item) { Save.data.items.push(e.item); kept.items.push(e.item); }

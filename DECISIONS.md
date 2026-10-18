@@ -118,3 +118,7 @@ The designer asked for dimensional shifts and rifts that cause strange changes a
 - **Sealing is the push-your-luck moment,** for riftglass, which forges a piece a tier above its ore. That's a reason to engage with a rift rather than walk past.
 - **Placed from the dive's seed after generation,** so floors still rebuild exactly and the golden hashes are untouched.
 - **Not adopted yet** from the designer's longer list: phase seams (walls that flicker), negative space, gravity wells, time slips. They're harder to read on a phone screen; worth a second round.
+
+## 2026-10-18: an expedition survives the tab closing (overnight team, round 1)
+
+Phones drop background tabs often. The run is now saved on arriving at each site and whenever the page is hidden, and offered back at the outpost on the next load: CARRY ON (from that site's entry, with the cargo, health and pull it had, and mined veins still gone) or GIVE IT UP (the cargo is lost, the pocket comes home). Enemies and drops on the site come back fresh. Since health and pull are saved too, closing the tab mid-fight doesn't buy much.

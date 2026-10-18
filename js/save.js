@@ -72,7 +72,7 @@ const Save = {
   saveField(key) {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return;
+      if (!raw) { this.save(); return; }
       const stored = JSON.parse(raw);
       stored[key] = this.data[key];
       localStorage.setItem(SAVE_KEY, JSON.stringify(stored));

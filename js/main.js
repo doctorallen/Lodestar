@@ -79,12 +79,14 @@ function boot() {
   if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
   // leaving the tab pauses a dive
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && Game.dive && !Game.dive.hub && !Game.modal) UI.openPause();
+    if (document.hidden && Game.dive && !Game.dive.hub) { saveRun(Game.dive); if (!Game.modal) UI.openPause(); }
   });
   Game.step = step;
   Game.render = renderFrame;
   Game.ready = true;
   enterHub();
+  window.addEventListener('pagehide', () => { if (Game.dive && !Game.dive.hub) saveRun(Game.dive); });
+  if (Save.data.run && !Save.unread) UI.show('screen-resume');
   if (Save.unread) UI.toast("The old save couldn't be read. It's been kept aside, and this is a new start");
   requestAnimationFrame((t) => { _last = t; frame(t); });
 }
