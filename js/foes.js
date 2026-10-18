@@ -11,13 +11,18 @@
 //             burst up under you; then it's up for a moment.
 //   tusker    Frost Steppe: a heavy charge; on ice it slides on past you,
 //             can't turn, and slams into the rock, dazed.
+//   wraith    Cinder Waste: rises from a fissure, drifts in, glows and
+//             bursts into embers that leave the ground burning; then it's a
+//             spent cinder for a moment.
+//   lurker    Bloomfen: sunk to its eyes in its mire; its tongue lashes
+//             along a marked line and drags you a tile in.
 // While under the sand or the water or on the roof (e.hid) nothing can
 // strike it or aim at it. Numbers in T.enemies; looks in foesart.js.
 // ---------------------------------------------------------------------------
 
 // [name, plural] for the screens and contracts
 const FOE_NAMES = {
-  skink: ['Dune Skink', 'dune skinks'], tusker: ['Tusker', 'tuskers'],
+  skink: ['Dune Skink', 'dune skinks'], tusker: ['Tusker', 'tuskers'], wraith: ['Ash Wraith', 'ash wraiths'], lurker: ['Bog Lurker', 'bog lurkers'],
 };
 // The states in which one is open to a counter (T.enemies.exposed).
 const FOE_EXPOSED = new Set(['stranded', 'spent', 'landed']);
@@ -198,7 +203,58 @@ function tuskerPath(f, e) {
   return { pts, wall: end === 'wall' };
 }
 
-const FOE_UPDATE = { skink: updateSkink, tusker: updateTusker };
+// The Ash Wraith: rises from its fissure when the diver comes near, drifts
+// in, glows and bursts, leaving the ground burning; then it's spent.
+function updateWraith(d, e, pd, sp, dt, free) {
+  const def = T.enemies.wraith, p = d.p, f = d.floor;
+  e.t -= dt;
+  if (e.state === 'dormant') {
+    if (e.aggro && pd < def.notice && clearLine(f, e.x, e.y, p.x, p.y)) { e.hid = false; e.state = 'rise'; e.t = def.rise; }
+    return;
+  }
+  if (e.state === 'rise') { if (e.t <= 0) { e.state = 'drift'; e.cd = Math.max(e.cd, 0.4); } return; }
+  if (e.state === 'windup') {
+    if (e.t <= 0) {
+      if (dist(e.x, e.y, p.x, p.y) < def.burst + T.player.radius) hurtPlayer(e.dmg, e);
+      d.puddles.push({ x: e.x, y: e.y, r: def.ashR, t: def.ashTime, max: def.ashTime, dps: e.dmg * def.ash, col: FOE_PAL.wraith.core[0] });
+      d.fx.push({ kind: 'foeBurst', x: e.x, y: e.y, r: def.burst, t: 0.4, max: 0.4, col: FOE_PAL.wraith.flame[0], glow: true });
+      e.state = 'spent'; e.t = def.spent;
+    }
+    return;
+  }
+  if (e.state === 'spent') { if (e.t <= 0) { e.state = 'drift'; e.cd = def.cooldown; } return; }
+  e.state = 'drift';
+  if (pd > def.burstAt * 0.6) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
+  if (pd < def.burstAt && free && e.cd <= 0) { e.state = 'windup'; e.t = def.windup; }
+}
+
+// The Bog Lurker: marks a line, then its tongue lashes along it and drags
+// what it catches a tile in. It never leaves its mire.
+function updateLurker(d, e, pd, sp, dt, free) {
+  const def = T.enemies.lurker, p = d.p, f = d.floor;
+  e.t -= dt;
+  if (e.state === 'windup') {
+    if (e.t > 0) return;
+    const a = norm(e.aimX - e.x, e.aimY - e.y), x1 = e.x + a.x * e.reach, y1 = e.y + a.y * e.reach;
+    d.fx.push({ kind: 'foeTongue', x: e.x, y: e.y, x2: x1, y2: y1, t: 0.25, max: 0.25 });
+    if (p.invuln <= 0 && !d.dying && foeSegDist(p.x, p.y, e.x, e.y, x1, y1) < def.width + T.player.radius) {
+      hurtPlayer(e.dmg, e);
+      const m = dist(p.x, p.y, e.x, e.y), pull = clamp(m - e.r - T.player.radius - 4, 0, def.drag), b = norm(e.x - p.x, e.y - p.y);
+      d.drag = { vx: (b.x * pull) / def.dragTime, vy: (b.y * pull) / def.dragTime, t: def.dragTime };
+    }
+    e.state = 'lurk'; e.cd = def.cooldown; e.lashT = 0.3;
+    return;
+  }
+  e.state = 'lurk';
+  e.lashT = Math.max(0, (e.lashT || 0) - dt);
+  if (e.aggro && e.cd <= 0 && free && pd < def.range && clearLine(f, e.x, e.y, p.x, p.y)) {
+    const a = norm(p.x - e.x, p.y - e.y);
+    e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y;
+    e.reach = foeRay(f, e.x, e.y, a.x, a.y, def.range);
+  }
+}
+
+const FOE_UPDATE = { skink: updateSkink, tusker: updateTusker, wraith: updateWraith, lurker: updateLurker };
 
 // ---------------------------------------------------------------------------
 // How they look (render.js drawEnemy asks foeLook, then draws the tells)

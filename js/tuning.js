@@ -379,7 +379,7 @@ const T = {
     // creature part it leaves. knock: how far hits push it (1 a crawler).
     // barY: how high its health bar sits (world px over its feet).
     signatureShare: 0.3, graftFoes: [1, 2], exposed: 1.5,
-    signature: { badlands: 'skink', frost: 'tusker' },
+    signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker' },
     // the Dune Skink (Badlands) swims under the sand (its speed), shows a
     // ring where it will burst up once within `strike` px, and bursts there
     // after windup s, biting within `burst` px; it stays up for `up` s,
@@ -390,10 +390,21 @@ const T = {
     // ice it goes on until the rock stops it); it can't turn, and into rock
     // it's dazed (slam s, from a slide on ice). stopAt: px/s it stops at
     tusker: { hp: 64, dmg: 15, speed: 18, radius: 8, range: 88, windup: 0.85, cooldown: 2.4, chargeSpeed: 150, chargeTime: 0.45, grip: 9, iceGrip: 0.7, stopAt: 16, dazed: 1.4, slam: 2.2, knock: 0.3, part: 'chitin', barY: 22 },
+    // the Ash Wraith (Cinder Waste) waits in a fissure until the diver is
+    // within `notice` px, takes `rise` s to rise, drifts in, and within
+    // burstAt px glows for windup s and bursts, hurting within `burst` px
+    // and leaving burning ground (ashR px, ashTime s, ash × its damage a
+    // second); then it's a spent cinder for `spent` s
+    wraith: { hp: 22, dmg: 17, speed: 30, radius: 5, notice: 64, rise: 0.7, burstAt: 20, windup: 0.8, burst: 20, ashR: 13, ashTime: 2.4, ash: 0.35, spent: 1.8, cooldown: 1.6, flies: true, part: 'ether', barY: 22 },
+    // the Bog Lurker (Bloomfen) sits half-sunk in its mire and never moves;
+    // it marks a line `range` px long, then lashes its tongue along it
+    // (`width` px either side), dragging what it catches `drag` px towards
+    // itself over dragTime s
+    lurker: { hp: 40, dmg: 12, speed: 0, radius: 6, range: 74, width: 5, windup: 0.75, cooldown: 2.2, drag: 16, dragTime: 0.18, anchored: true, part: 'spore', barY: 12 },
     // their natures (the resistance and weakness system reads these):
     // W weak, R resists, I immune
     resist: {
-      skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', frost: 'R' },
+      skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', frost: 'R' }, wraith: { frost: 'W', ember: 'R' }, lurker: { ember: 'W', blight: 'R' },
      
      
     },

@@ -30,13 +30,51 @@ const FOE_PAL = {
   skink: { hide: ['#200c0c', '#521c18', '#8a3222', '#c05a32'], belly: ['#5a4a30', '#a08a5a', '#d0bc84', '#f4e6b0'], horn: ['#6a5a40', '#c8b890', '#e8dcb8', '#fff8e0'], sand: ['#3a2216', '#6e4630', '#8e6040', '#b08458'], maw: ['#140806'], eye: ['#ffb02a'] },
   // shaggy dusk-violet fur, a frosted muzzle, ivory tusks, ice-blue eyes
   tusker: { hide: ['#120e1c', '#2a2238', '#463a56', '#6a5a7a'], belly: ['#5a6080', '#9aa4c4', '#c8d0e6', '#eef2ff'], horn: ['#4a4030', '#9a8a68', '#d0c4a0', '#fff6dc'], eye: ['#8fe4ff'], white: ['#e8fcff'] },
+  // pale ash over a dark face, an ember heart
+  wraith: { hide: ['#2a2224', '#5a4a48', '#8a7670', '#b8a498'], maw: ['#0a0406'], eye: ['#ffb040'], core: ['#ff6a1a'], flame: ['#ffd060'], white: ['#fff4d0'] },
+  // peat-violet, mossy spots, a pale throat, chartreuse eyes
+  lurker: { hide: ['#160c16', '#342034', '#56385a', '#7c5a7e'], moss: ['#1c220e', '#3c4a1c', '#62762e', '#8ea044'], belly: ['#4a3a2c', '#8a7058', '#b89a78', '#dcc4a0'], maw: ['#100408'], eye: ['#d8ff5a'], core: ['#ff6a8a'] },
 };
 // what each one's eyes or core light the floor with
-const FOE_GLOW = { skink: '#ffb02a', tusker: '#8fe4ff' };
+const FOE_GLOW = { skink: '#ffb02a', tusker: '#8fe4ff', wraith: '#ff6a1a', lurker: '#d8ff5a' };
 
 // A frame that's another with some of its rows redrawn: { row: 'pixels' }.
 function foeRowsFrom(base, rows) { return base.map((r, i) => (rows[i] !== undefined ? rows[i] : r)); }
 
+const FOE_WRAITH_IDLE = [
+  '.......HHH.......',
+  '.....HHHHHHH.....',
+  '....HHHHHHHHH....',
+  '...HHHHDDDHHHH...',
+  '...HHHDDDDDHHH...',
+  '..HHHDEDDDEDHHH..',
+  '..HHHDDDDDDDHHH..',
+  '.HHHHHDDDDDHHHHH.',
+  '.HHhHHHHFHHHHhHH.',
+  'HHHhHHHFCFHHHhHHH',
+  'HHhHHHHHFHHHHHhHH',
+  'H.HhHHHHHHHHHhH.H',
+  'H..HhHHHHHHHhH..H',
+  '....HhHHHHHhH....',
+  '.....HHhHhHH.....',
+  '......HHHHH......',
+  '.......HHH.......',
+  '........H........',
+];
+const FOE_LURKER_UP = [
+  '..EE...........EE..',
+  '..EE...........EE..',
+  '...j...........j...',
+  '...jHHHHHHHHHHHj...',
+  '..HHHHHHHHHHHHHHH..',
+  '.HHHhHHHMHHHMHHhHH.',
+  'HHHMHHHHHHHHHHHHMHH',
+  'HHHHHHHHHHHHHHHHHHH',
+  'HDDDDDDDDCDDDDDDDDH',
+  'HHDDDDDDDDDDDDDDDHH',
+  '.HHBBBBBBBBBBBBBHH.',
+  '..HHBBBBBBBBBBBHH..',
+];
 
 // Each creature's frames, by name. foes.js picks one by its state.
 const FOE_ROWS = {
@@ -263,6 +301,82 @@ const FOE_ROWS = {
       '....hhh......hhh....hhh..hhh......',
       '..................................',
     ],
+  },
+  // the Ash Wraith: a hooded drift of pale ash round a dark face and an
+  // ember heart; rising out of its fissure; swelling and cracking with
+  // heat before it bursts; a spent cinder after
+  wraith: {
+    idle: FOE_WRAITH_IDLE,
+    move: foeRowsFrom(FOE_WRAITH_IDLE, {
+      11: '.HHhHHHHHHHHHhH.H', 12: '.H.HhHHHHHHHhHH..', 13: '....HhHHHHHhH....', 14: '....HHhHHhHHH....', 15: '......HHHHH......', 16: '......HHH........', 17: '......H..........',
+    }),
+    windup: [
+      '.......HHH.......',
+      '.....HHHHHHH.....',
+      '....HHHHHHHHH....',
+      '...HHHHDDDHHHH...',
+      '...HHHDDDDDHHH...',
+      '..HHHDWDDDWDHHH..',
+      '..HHHDDDDDDDHHH..',
+      '.HHHFHDDDDDHFHHH.',
+      '.HHhFHHFFFHHFhHH.',
+      'HHHFHHFCCCFHHFHHH',
+      'HHFHHHFCWCFHHHFHH',
+      'H.HFHHFCCCFHHFH.H',
+      'H..HFHHFFFHHFH..H',
+      '....HFHHHHHFH....',
+      '.....HHFHFHH.....',
+      '......HHFHH......',
+      '.......HFH.......',
+      '........F........',
+    ],
+    rise: [
+      '.......HHH.......',
+      '.....HHHHHHH.....',
+      '....HHHDDDHHH....',
+      '....HHDEDEDHH....',
+      '....HHHDDDHHH....',
+      '.....HhHFHhH.....',
+      '......HFFFH......',
+      '.......FFF.......',
+      '........F........',
+    ],
+    spent: [
+      '....HHH....',
+      '..HHHHHHH..',
+      '.HHhHCHhHH.',
+      'HHHHHFHHHHH',
+      '.hHHhHhHHh.',
+    ],
+  },
+  // the Bog Lurker: sunk to the eyes in its mire (the rest is under the
+  // water line), its stalked eyes up; risen, its wide mouth glowing; then
+  // gaping as the tongue goes out
+  lurker: {
+    idle: [
+      '....EE.......EE....',
+      '....EE.......EE....',
+      '.....j.......j.....',
+      '.....j.......j.....',
+      '...HHHHHHHHHHHHH...',
+      '..HHHhHHHMHHHhHHH..',
+      '.HHMHHHHHHHHHHHMHH.',
+      'HHHHHHHMHHHHMHHHHHH',
+    ],
+    blink: [
+      '...................',
+      '....EE.......EE....',
+      '.....j.......j.....',
+      '.....j.......j.....',
+      '...HHHHHHHHHHHHH...',
+      '..HHHhHHHMHHHhHHH..',
+      '.HHMHHHHHHHHHHHMHH.',
+      'HHHHHHHMHHHHMHHHHHH',
+    ],
+    windup: FOE_LURKER_UP,
+    attack: foeRowsFrom(FOE_LURKER_UP, {
+      7: 'HDDDDDDDDDDDDDDDDDH', 8: 'HDDDDDDDCCCDDDDDDDH', 9: 'HDDDDDDDDCDDDDDDDDH', 10: 'HHDDDDDDDDDDDDDDDHH', 11: '.HHBBBBBBBBBBBBBHH.',
+    }),
   },
 };
 for (const k in FOE_ROWS) for (const f in FOE_ROWS[k]) artNative(FOE_ROWS[k][f]);

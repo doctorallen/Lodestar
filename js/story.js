@@ -52,6 +52,8 @@ const WICK = {
   // each clime's own creature, the first time it shows itself (foes.js)
   foe_skink: "Something's swimming under the sand. Where it rings under you, step off.",
   foe_tusker: "That one charges, and on ice it can't stop. Step aside and let the rock have it.",
+  foe_wraith: "Ash, walking. It glows before it bursts. Don't be beside it then.",
+  foe_lurker: 'Eyes in the mire. Its tongue reaches further than you think. Stay off the line it marks.',
 };
 
 // The star, as it grows, and as its heart comes back.
