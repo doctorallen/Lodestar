@@ -159,11 +159,20 @@ function floraLights(list) {
   });
 }
 
-// The floor's rock, pixel by pixel, from the smooth wall line.
+// The floor's rock, pixel by pixel, from the smooth wall line. Between
+// four tile centres that are all rock or all open there's no line to find,
+// so only the blocks it crosses ask rockAt pixel by pixel.
 function fillRockField(f, x0, y0, x1, y1) {
-  const W = f.w * TILE, R = View.rockPx;
-  for (let y = Math.max(0, y0); y < Math.min(f.h * TILE, y1); y++)
-    for (let x = Math.max(0, x0); x < Math.min(W, x1); x++) R[y * W + x] = rockAt(f, x, y) ? 1 : 0;
+  const W = f.w * TILE, R = View.rockPx, H = TILE / 2;
+  x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(f.h * TILE, y1);
+  const solid = (i, j) => (TILE_SOLID[floorTile(f, i, j)] ? 1 : 0);
+  for (let ty = Math.floor((y0 - H) / TILE); ty * TILE + H < y1; ty++)
+    for (let tx = Math.floor((x0 - H) / TILE); tx * TILE + H < x1; tx++) {
+      const bx0 = Math.max(x0, tx * TILE + H), bx1 = Math.min(x1, tx * TILE + H + TILE), by0 = Math.max(y0, ty * TILE + H), by1 = Math.min(y1, ty * TILE + H + TILE);
+      const a = solid(tx, ty);
+      if (a === solid(tx + 1, ty) && a === solid(tx, ty + 1) && a === solid(tx + 1, ty + 1)) { for (let y = by0; y < by1; y++) R.fill(a, y * W + bx0, y * W + bx1); continue; }
+      for (let y = by0; y < by1; y++) for (let x = bx0; x < bx1; x++) R[y * W + x] = rockAt(f, x, y) ? 1 : 0;
+    }
 }
 
 function paintFloor(f) {
@@ -184,12 +193,23 @@ function paintFloor(f) {
   View.bakedFrom = null;
 }
 
+// A tile's own generator: mulberry32, as an Rng would be, but one function
+// for every tile, which is much faster to call a pixel at a time.
+let _tileSeed = 0;
+function tileRnd() {
+  let a = (_tileSeed = (_tileSeed + 0x6D2B79F5) | 0);
+  let t = Math.imul(a ^ (a >>> 15), 1 | a);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
 function paintTileArt(f, tx, ty) {
   const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, b = tileArt(f, tx, ty), t = floorTile(f, tx, ty), ox = tx * TILE, oy = ty * TILE;
-  const r = new Rng(hashInts(f.seed, f.depth, tx, ty)), rnd = () => r.next();
+  _tileSeed = hashInts(f.seed, f.depth, tx, ty) | 0;
+  const rnd = tileRnd;
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
   if (t === TILE_PIT) { paintPitTile(P, rock, ox, oy, b, rnd); return; }
-  paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth);
+  paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
   if (t === TILE_PAD) paintDish(P, ox, oy, b, 'pad');
   else if (t === TILE_SHAFT) paintDish(P, ox, oy, b, 'shaft');
   else if (t === TILE_ORE) {

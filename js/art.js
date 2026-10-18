@@ -198,27 +198,54 @@ function paintShard(P, x, y, h, w, r, glow, glintGlow) {
 // the ground above or beside it, and a lit face where the ground is below
 // it.
 const FACE_H = 6;
-function paintCaveTile(P, rock, ox, oy, b, rnd, seedH) {
-  const f = b.floor, r = b.rock, fr = b.front;
+// A ramp as [r, g, b] colours, and a rock ramp's shaded rim, worked out once.
+const _rampRgbs = new WeakMap(), _rimRgbs = new WeakMap();
+function rampRgb(ramp) {
+  let v = _rampRgbs.get(ramp);
+  if (!v) { v = ramp.map(rgbOf); _rampRgbs.set(ramp, v); }
+  return v;
+}
+function rimRgb(rock) {
+  let v = _rimRgbs.get(rock);
+  if (!v) { v = rgbOf(mix(rock[3], rock[2], 0.45)); _rimRgbs.set(rock, v); }
+  return v;
+}
+// The rock round a tile being painted, read once: CAVE_MW × CAVE_MH pixels from
+// (ox - 7, oy - 10), as far as a tile's pixels look. field: the floor's rock
+// pixels (P.w × P.h, 1 for rock), if at hand, read straight instead of
+// through rock().
+const CAVE_MW = TILE + 8, CAVE_MH = TILE + 10 + FACE_H, _caveMask = new Uint8Array(CAVE_MW * CAVE_MH);
+function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
+  const f = rampRgb(b.floor), r = rampRgb(b.rock), fr = rampRgb(b.front), rim = rimRgb(b.rock), C = P.col, E = P.em, M = _caveMask;
+  const paving = !!b.paving, sun = !!b.sun;
+  for (let j = 0; j < CAVE_MH; j++) {
+    const y = oy - 10 + j, x0 = ox - 7;
+    if (field && y >= 0 && y < P.h && x0 >= 0 && x0 + CAVE_MW <= P.w) for (let i = 0, k = y * P.w + x0; i < CAVE_MW; i++) M[j * CAVE_MW + i] = field[k + i];
+    else for (let i = 0; i < CAVE_MW; i++) M[j * CAVE_MW + i] = rock(x0 + i, y) ? 1 : 0;
+  }
   for (let y = oy; y < oy + TILE; y++)
     for (let x = ox; x < ox + TILE; x++) {
-      const t = bayerAt(x, y), q = rnd();
-      if (!rock(x, y)) {
-        let shade = clamp(Math.floor((0.5 + (q - 0.5) * 0.7) * 3 + t - 0.5), 0, 2);
+      const t = (BAYER4[((y & 3) << 2) | (x & 3)] + 0.5) / 16, q = rnd(), m = (y - oy + 10) * CAVE_MW + x - ox + 7;
+      let c, n;
+      if (!M[m]) {
+        n = Math.floor((0.5 + (q - 0.5) * 0.7) * 3 + t - 0.5);
+        let shade = n < 0 ? 0 : n > 2 ? 2 : n;
         // flagstones: dark seams, each row of stones set off from the last
-        if (b.paving && (y % 9 === 0 || (x + ((y / 9) | 0) * 5) % 11 === 0)) shade = 0;
-        if (rock(x, y - 1) || rock(x, y - 2) || (rock(x, y - 3) && t < 0.5)) shade = 0;
-        else if (b.sun && (rock(x - 3, y - 4) || rock(x - 5, y - 7) || (rock(x - 7, y - 10) && t < 0.5))) shade = 0;
-        putPx(P, x, y, f[shade]);
-        continue;
+        if (paving && (y % 9 === 0 || (x + ((y / 9) | 0) * 5) % 11 === 0)) shade = 0;
+        if (M[m - CAVE_MW] || M[m - 2 * CAVE_MW] || (M[m - 3 * CAVE_MW] && t < 0.5)) shade = 0;
+        else if (sun && (M[m - 4 * CAVE_MW - 3] || M[m - 7 * CAVE_MW - 5] || (M[m - 10 * CAVE_MW - 7] && t < 0.5))) shade = 0;
+        c = f[shade];
+      } else {
+        let below = 0;
+        for (let k = 1; k <= FACE_H; k++) if (!M[m + k * CAVE_MW]) { below = k; break; }
+        if (below === FACE_H) c = r[3];
+        else if (below) { n = Math.floor((below / FACE_H) * 2.2 + t - 0.5); c = fr[n < 0 ? 0 : n > 2 ? 2 : n]; }
+        else if (!M[m - 1] || !M[m - CAVE_MW]) c = r[3];
+        else if (!M[m + 1]) c = rim;
+        else { n = Math.floor((0.5 + (q - 0.5) * 0.6) * 3 + t - 0.5); c = r[n < 0 ? 0 : n > 2 ? 2 : n]; }
       }
-      let below = 0;
-      for (let k = 1; k <= FACE_H; k++) if (!rock(x, y + k)) { below = k; break; }
-      if (below === FACE_H) putPx(P, x, y, r[3]);
-      else if (below) putPx(P, x, y, fr[clamp(Math.floor((below / FACE_H) * 2.2 + t - 0.5), 0, 2)]);
-      else if (!rock(x - 1, y) || !rock(x, y - 1)) putPx(P, x, y, r[3]);
-      else if (!rock(x + 1, y)) putPx(P, x, y, mix(r[3], r[2], 0.45));
-      else putPx(P, x, y, r[clamp(Math.floor((0.5 + (q - 0.5) * 0.6) * 3 + t - 0.5), 0, 2)]);
+      const k = (y * P.w + x) * 4;
+      C[k] = c[0]; C[k + 1] = c[1]; C[k + 2] = c[2]; C[k + 3] = 255; E[k + 3] = 0;
     }
 }
 
