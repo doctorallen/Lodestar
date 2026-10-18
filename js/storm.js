@@ -46,10 +46,14 @@ function updateStorm(d, dt) {
     for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, s.x, s.y) < S.radius + e.r) hurtEnemy(e, S.dmg * 2, { spell: true, element: 'shock', noProc: true });
     // a vein struck is charged into the better ore
     if (s.vein && floorTile(f, s.vein.x, s.vein.y) === TILE_ORE) {
-      const ores = T.biomes[d.biome].ores;
-      f.ore[s.vein.y * f.w + s.vein.x] = ORE_INDEX[ores[ores.length - 1]] + 1;
-      repaintAround(f, s.vein.x, s.vein.y);
-      UI.toast('The strike charged a vein', 'legendary');
+      // into the best of the biome's ores the pick can break, if that's better
+      const i = s.vein.y * f.w + s.vein.x, pick = Save.data.equip.pick ? Save.data.equip.pick.base.power : 1;
+      const best = T.biomes[d.biome].ores.map((id) => T.ores[ORE_INDEX[id]]).filter((o) => o.tier <= pick).pop();
+      if (best && best.tier > T.ores[f.ore[i] - 1].tier) {
+        f.ore[i] = ORE_INDEX[best.id] + 1;
+        repaintAround(f, s.vein.x, s.vein.y);
+        UI.toast(`The strike charged a vein into ${best.name}`, 'legendary');
+      }
     }
   }
 }
@@ -81,8 +85,8 @@ function drawStormMark(d, ox, oy) {
   const on = Math.floor(Game.realT * (6 + k * 18)) % 2 === 0;
   for (let i = 0; i < 32; i++) {
     const a = (i / 32) * Math.PI * 2, cx = Math.cos(a), cy = Math.sin(a) * 0.6;
-    c.fillStyle = '#2a1208'; c.fillRect(Math.round(x + cx * (r + 1)), Math.round(y + cy * (r + 1)), 1, 1);
-    if (on || i % 2) { c.fillStyle = k > 0.6 ? '#ffffff' : '#fff2a0'; c.fillRect(Math.round(x + cx * r), Math.round(y + cy * r), 1, 1); }
+    c.fillStyle = '#2a1208'; c.fillRect(Math.round(x + cx * (r + 1)), Math.round(y + cy * (r + 1)), 1, 1); c.fillRect(Math.round(x + cx * (r - 2)), Math.round(y + cy * (r - 2)), 1, 1);
+    if (on || i % 2) { c.fillStyle = k > 0.6 ? '#ffffff' : '#ffe060'; c.fillRect(Math.round(x + cx * r), Math.round(y + cy * r), 1, 1); c.fillRect(Math.round(x + cx * (r - 1)), Math.round(y + cy * (r - 1)), 1, 1); }
   }
   c.fillStyle = on ? '#ffffff' : '#2a1208'; c.fillRect(x, y, 1, 1);
 }

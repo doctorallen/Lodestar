@@ -921,6 +921,10 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
     for (let k = 0; k < 3; k++) { const a = Game.realT * 6 + (k * Math.PI * 2) / 3; dot(Math.round(fx + Math.cos(a) * 6), Math.round(sy - 2 + Math.sin(a) * 2), '#fff2c8', true); }
   // an elite wears a pip of its affix's colour; a chilled one, a pale one
   if (e.elite) for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, sy - 3 + j, ELITE_COLS[e.elite], true);
+  // through a tear: violet and cyan motes drift off it
+  if (e.riftTouched) for (let k = 0; k < 3; k++) { const ph = (Game.realT * 0.8 + k / 3) % 1; dot(Math.round(fx + Math.sin(k * 2.1 + Game.realT * 2) * 6), Math.round(fy - 4 - ph * 14), k % 2 ? RIFT_PAL.riftcyan[0] : RIFT_PAL.riftedge[0], true, 1 - ph); }
+  // a raging Keeper burns
+  if (e.enraged) { for (let k = 0; k < 4; k++) dot(fx + FX_R.i(-10, 10), fy - FX_R.i(4, 26), k % 2 ? '#ff4a2a' : '#ffb04a', true, 0.8); lights.push({ x: fx, y: fy - 12, r: TILE * 2, i: 0.6, c: [1, 0.35, 0.2] }); }
   if (e.slowT > 0) dot(fx + 3, sy - 2, '#c8f0ff', true);
   if (e.burn && tick % 2) dot(fx + FX_R.i(-4, 4), fy - FX_R.i(2, 12), ELEMENT_COLS.ember, true);
   if (e.blight && tick % 3 === 0) dot(fx + FX_R.i(-4, 4), fy - FX_R.i(0, 8), ELEMENT_COLS.blight, true);

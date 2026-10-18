@@ -71,7 +71,7 @@ function enterHub(report) {
   Game.scene = 'hub';
   UI.close();
   if (report) UI.openReport(report);
-  else if (!Story.intro()) UI.tip('hub', 'Walk to the ledge under the star to descend');
+  else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk to the ledge under the star to descend');
 }
 
 function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0, hits: 0 }; }
@@ -128,7 +128,8 @@ function saveRun(d) {
     cargo: d.cargo, items: d.items, blueprints: d.blueprints, pocket: d.pocket,
     hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, kills: d.kills, time: d.time, mined: d.mined || [],
     gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b ? { x: b.x, y: b.y, t: b.t, landed: b.landed } : null,
-    sealed: !!(d.rift && !d.rift.open), storm: !!d.storm, tally: d.tally || {}, keeperDown: !!(d.zone === 'lair' && d.keeper && d.keeper.dead), pullTime: d.pullTime,
+    sealed: !!(d.rift && !d.rift.open), storm: !!d.storm, tally: d.tally || {}, keeperDown: !!(d.zone === 'lair' && d.keeper && d.keeper.dead), pullTime: d.pullTime, lairT: d.lairT || 0,
+    drops: d.drops.filter((x) => !x.mote && !x.gone).map((x) => Object.assign({}, x, { t: 0 })),
   };
   // only what a dive changes: the run, what's worn, the craft counter
   Save.saveField('run'); Save.saveField('equip'); Save.saveField('crafts');
@@ -148,10 +149,11 @@ function resumeRun() {
   d.pull = r.pull === undefined ? 1 : r.pull;
   if (r.pullTime) d.pullTime = r.pullTime;
   // a lair whose Keeper had fallen: still fallen, its shard still there
-  if (r.keeperDown && d.keeper) {
-    d.keeper.dead = true; d.padDark = false;
-    if (!r.gotShard) d.drops.push({ x: d.keeper.x, y: d.keeper.y, t: 0, shard: d.biome });
-  }
+  if (r.keeperDown && d.keeper) { d.keeper.dead = true; d.padDark = false; }
+  if (r.lairT) { d.lairT = r.lairT; if (d.keeper && r.lairT >= T.enemies.keeper.enrageAt) d.keeper.enraged = true; }
+  // what was left lying on the site is still there
+  if (r.drops) d.drops = r.drops.slice();
+  else if (r.keeperDown && !r.gotShard && d.keeper) d.drops.push({ x: d.keeper.x, y: d.keeper.y, t: 0, shard: d.biome });
   if (r.beacon && r.beacon.landed) { d.beacon = { x: r.beacon.x, y: r.beacon.y, t: 0 }; landBeacon(d, true); }
   else if (r.beacon) d.beacon = { x: r.beacon.x, y: r.beacon.y, t: r.beacon.t || 0, landed: false };
   if (d.pull <= 0) { d.pull = 0; theDarkComes(d); }

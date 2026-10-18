@@ -149,3 +149,20 @@ All shipped and pushed:
 - More rift kinds (phase seams, gravity wells, time slips).
 - Attunement pairs with free respec.
 - A Daily Trace.
+
+## Round 3 (final QA pass)
+
+QA re-tested everything round 2 changed, on a snapshot at `2f57398`, at four screen sizes. There were no script errors anywhere. Its findings, all fixed in the commit after this log entry:
+- **The smoke test was flaky under load.** It restored the lodeline odds before the next site was built. A slow CI runner could have blocked a deploy.
+- **An imprint was silently dropped** when the binding used the only heart. The cost is now counted after the binding, so the chip greys out instead. Riftglass is spent before a heart.
+- **Resuming in a lair** now keeps the Keeper's rage, and whatever lay on the ground (an echo, a blueprint, loot) is still there.
+- **Smaller fixes:**
+  - GIVE IT UP asks first.
+  - A swap never hands back the same kind of contract, and the board says one swap a trip.
+  - A storm only charges a vein into ore the pick can break.
+  - Rift-touched elites trail violet and cyan motes; a raging Keeper burns.
+  - The storm's warning ring is bolder.
+  - The outpost tip no longer shows over the resume screen.
+- **Left as it is:** an imprinted piece keeps its rolled rarity, with the legendary's name in that rarity's colour. Making imprinting turn a piece legendary would be a design call.
+
+**Verified working** (from the report): the lair finale end to end; lodeline odds measured at 100/74/61/44% on generated floors; recall easing; contracts with no duplicates, staleness, swap and the whole-board bonus; imprint odds; the storm; rift spawns and the extra riftglass; the stacked canvases at every size, including mid-rotation; critters never blocking; every earlier QA fix.

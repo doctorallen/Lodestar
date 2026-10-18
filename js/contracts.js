@@ -58,8 +58,8 @@ function swapContract(id) {
   if (s.swapped) return false;
   const i = s.contracts.findIndex((c) => c.id === Number(id));
   if (i < 0) return false;
-  s.contracts.splice(i, 1);
-  fillContracts();
+  const [gone] = s.contracts.splice(i, 1);
+  s.contracts.push(newContract(Save.rng(), s.contracts.map((c) => c.kind).concat(gone.kind)));
   s.swapped = true;
   Save.save();
   return true;

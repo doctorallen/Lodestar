@@ -297,7 +297,7 @@ function drawDescend() {
     const ores = b.ores.map((id) => T.ores[ORE_INDEX[id]].name).join(' and ');
     return `<button class="row biome" data-act="dive" data-arg="${i}" ${open ? '' : 'disabled'}>
       <span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${open ? `${ores}${deep ? ` · furthest: site ${deep}` : ''} · ${(s.shards || []).includes(i) ? 'shard recovered' : 'its Keeper waits at the last site'}` : `The star's lines reach here at magnitude ${T.star.biomeAt[i]}`}</span></span></button>`;
-  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it starts on the surface, and at every exit two ways lead on to somewhere else. Odds of a lodeline at each site: ${[1, 2, 3, 4].map((k) => Math.round(lodelineOdds(k) * 100) + '%').join(', ')}. Where none reaches, go on or recall.</p>` + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME</h3>${contractRows(null)}` + drawToolRows();
+  }).join('') + `<p class="note">An expedition is ${T.expedition.sites} sites: it starts on the surface, and at every exit two ways lead on to somewhere else. Odds of a lodeline at each site: ${[1, 2, 3, 4].map((k) => Math.round(lodelineOdds(k) * 100) + '%').join(', ')}. Where none reaches, go on or recall.</p>` + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME${Save.data.swapped ? '' : ' · ONE SWAP A TRIP'}</h3>${contractRows(null)}` + drawToolRows();
 }
 
 // The tools, under the biomes: the one carried, the others to carry or make.
@@ -314,8 +314,8 @@ function drawToolRows() {
 // What an imprint costs from here: a heart of the lowest grade there is,
 // or riftglass. Null if neither.
 function imprintCost(src) {
-  for (const g of [1, 2, 3]) if ((src[partId('heart', g)] || 0) > 0) return { id: partId('heart', g), n: 1 };
   if ((src.riftglass || 0) >= T.imprint.glass) return { id: 'riftglass', n: T.imprint.glass };
+  for (const g of [1, 2, 3]) if ((src[partId('heart', g)] || 0) > 0) return { id: partId('heart', g), n: 1 };
   return null;
 }
 
@@ -354,7 +354,11 @@ function drawForge() {
   // powers the forge remembers, for this kind of piece (at home only)
   const known2 = (Save.data.codex || []).filter((k) => LEGENDARIES[k] && LEGENDARIES[k].kinds.includes(bp.kind));
   if (F.imprint && !known2.includes(F.imprint)) F.imprint = null;
-  const canPay = !!imprintCost(stash);
+  // paid from what's left once the binding is taken
+  const left = Object.assign({}, stash);
+  if (F.part) left[F.part] = (left[F.part] || 0) - bp.parts;
+  const canPay = !!imprintCost(left);
+  if (F.imprint && !canPay) F.imprint = null;
   const impChips = F.field || bp.kind === 'core' ? '' : known2.map((k) => chip('forgeImprint', k, `${esc(LEGENDARIES[k].name)}<small>${esc(LEGENDARIES[k].text.toLowerCase())}</small>`, k === F.imprint, canPay)).join('');
   const exWhat = (x) => (x.element ? ELEMENTS[x.element].name.toLowerCase() : x.family ? x.family : x.rarity ? 'rarity +1' : x.tierUp ? 'tier +1' : '');
   const exChips = exotics.map((x) => chip('forgeExotic', x.id, `${esc(x.name)}<small>have ${stash[x.id]} · ${exWhat(x)}</small>`, x.id === F.exotic)).join('');
@@ -653,6 +657,7 @@ UI.acts = {
   craft: () => {
     const F = UI.forge, src = forgeSource(), bp = BLUEPRINTS[F.bp];
     if ((src[F.ore] || 0) < bp.ore || !F.part || (src[F.part] || 0) < bp.parts) return;
+    if (F.imprint && !F.field) { const left = Object.assign({}, src); left[F.part] -= bp.parts; if (!imprintCost(left)) return; }
     const take = (id, n) => { src[id] -= n; if (!src[id]) delete src[id]; };
     take(F.ore, bp.ore);
     take(F.part, bp.parts);

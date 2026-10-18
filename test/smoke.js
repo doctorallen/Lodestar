@@ -152,6 +152,7 @@ async function phone(browser) {
   // (past the first site a lodeline is a coin toss; this test wants one)
   await page.evaluate(() => { window._padOdds = T.floor.padOdds; T.floor.padOdds = [1, 1, 1, 1]; });
   await tap(page, '#btn-act');
+  await page.waitForFunction(() => Game.dive.depth === 2, { timeout: 5000 }).catch(() => {});
   await page.evaluate(() => { T.floor.padOdds = window._padOdds; });
   await run(page, 0.1);
   check(await page.evaluate(() => Game.dive.depth === 2), 'phone: the way on did not lead on');
