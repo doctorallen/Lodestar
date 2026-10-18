@@ -67,9 +67,12 @@ const LIFE_MIX = {
   ruin: { scurrier: [3, 5], moth: [1, 3] },
 };
 
+// A critter's colours: its clime's (climes.js CLIME_LIFE), else its region's.
+function lifePal(kind, L) { return (CLIME_LIFE[L.key] && CLIME_LIFE[L.key][kind]) || LIFE_PAL[kind][L.biome]; }
+
 const _critSprites = {};
-function critSprite(kind, biome, frame, dir) {
-  const key = kind + '/' + biome + '/' + frame + '/' + dir;
+function critSprite(kind, L, frame, dir) {
+  const key = kind + '/' + L.key + '/' + frame + '/' + dir;
   if (_critSprites[key]) return _critSprites[key];
   let rows = LIFE_ROWS[kind][frame];
   // north and south: the east rows turned a quarter
@@ -78,7 +81,7 @@ function critSprite(kind, biome, frame, dir) {
     for (let x = 0; x < w; x++) { let r = ''; for (let y = 0; y < h; y++) r += dir === 'n' ? rows[h - 1 - y][w - 1 - x] : rows[y][x]; out.push(r); }
     rows = out;
   }
-  let c = spriteFrom(rows, LIFE_PAL[kind][biome]);
+  let c = spriteFrom(rows, lifePal(kind, L));
   if (dir === 'w') c = flipped(c);
   let ec = kind === 'scurrier' ? spriteFrom(rows.map((r) => r.replace(/[^E]/g, '.')), { E: LIFE_EYESHINE }) : makeCanvas(c.width, c.height)[0];
   if (dir === 'w') ec = flipped(ec);
@@ -93,8 +96,10 @@ function placeLife(d) {
   const f = d.floor;
   d.life = null;
   if (d.hub || !f.rooms || !f.rooms.length) return;
-  const rng = new Rng(hashInts(d.seed, d.depth, 0x11fe)), mix = LIFE_MIX[d.zone] || LIFE_MIX.cave;
-  const biome = T.biomes[d.biome].id, L = { crits: [], flocks: [], biome, wallSpots: lifeWallSpots(f), drips: [], motes: [], gust: null, gustT: 4 + rng.f(8) };
+  const cl = CLIME_LIFE[d.clime], rng = new Rng(hashInts(d.seed, d.depth, 0x11fe)), mix = (cl && cl.mix) || LIFE_MIX[d.zone] || LIFE_MIX.cave;
+  const biome = T.biomes[d.biome].id, L = { crits: [], flocks: [], biome, key: cl ? d.clime : biome, wallSpots: lifeWallSpots(f), drips: [], motes: [], flakes: [], gust: null, gustT: 4 + rng.f(8) };
+  // a clime's weather, the colour of its gusts, its moths (fireflies blink)
+  if (cl) Object.assign(L, { weather: cl.weather, gustCol: cl.gust, moth: cl.moth, firefly: !!cl.firefly });
   d.life = L;
   const clear = (x, y) => !bodyHits(f, x, y, 2.5);
   // a clear spot in some room, away from the entry
@@ -396,6 +401,7 @@ function updateWeather(d, dt) {
       c.x = ((c.x + L.wind.x * S * dt + 150) % W + W) % W - 150;
       c.y = ((c.y + L.wind.y * S * dt + 150) % H + H) % H - 150;
     }
+    lifeFlakes(d, dt, vw, vh);
     // now and then a gust of dust along the wind
     if (L.gust) {
       L.gust.t += dt;
@@ -408,10 +414,13 @@ function updateWeather(d, dt) {
       L.gust = { t: 0, max: (vw + 260) / 110, dir, bits };
     }
   } else {
-    // drips off the walls near the diver, and dust in the lamp
+    // drips off the walls near the diver, and dust in the lamp (where
+    // there's lava, sparks rise instead)
+    lifeFlakes(d, dt, vw, vh);
     for (const k of L.drips) k.t += dt;
     L.drips = L.drips.filter((k) => k.t < k.fall + 0.3);
-    if (Math.random() < dt * 0.7 && L.drips.length < 3) {
+    const wet = L.weather === 'drips' ? 3 : L.weather === 'heat' ? 0 : 1;
+    if (Math.random() < dt * 0.7 * wet && L.drips.length < 3 * wet) {
       const near = L.wallSpots.filter((w) => Math.abs(w.x - p.x) < vw / 2 && Math.abs(w.y - p.y) < vh / 2);
       const w = near[Math.floor(Math.random() * near.length)];
       if (w) L.drips.push({ x: w.x + Math.round((Math.random() - 0.5) * 10), y0: w.y - 9, y1: w.y + 1 + Math.random() * 3, t: 0, fall: 0.35 });
@@ -423,6 +432,26 @@ function updateWeather(d, dt) {
       if (Math.abs(m.x - p.x) > 70) m.x = p.x - Math.sign(m.x - p.x) * 69;
       if (Math.abs(m.y - p.y + 10) > 50) m.y = p.y - 10 - Math.sign(m.y - p.y + 10) * 49;
     }
+  }
+}
+
+// A clime's weather in the air round the diver: snow, falling embers,
+// pollen, or sparks rising off lava. Kept in a box about the view.
+const LIFE_FLAKES = { snow: 46, embers: 18, pollen: 22, heat: 14 };
+function lifeFlakes(d, dt, vw, vh) {
+  const L = d.life, n = LIFE_FLAKES[L.weather];
+  if (!n) return;
+  const p = d.p, w = L.wind || { x: 0.3, y: 0 }, bx = vw / 2 + 12, by = vh / 2 + 12, cy = p.y - 20;
+  while (L.flakes.length < n) L.flakes.push({ x: p.x + (Math.random() * 2 - 1) * bx, y: cy + (Math.random() * 2 - 1) * by, ph: Math.random() * 6, s: 0.6 + Math.random() * 0.8, t: Math.random() * 3 });
+  for (const k of L.flakes) {
+    k.t += dt;
+    if (L.weather === 'snow') { k.x += (w.x * 10 + Math.sin(k.t * 1.5 + k.ph) * 6) * dt * k.s; k.y += 16 * k.s * dt; }
+    else if (L.weather === 'embers') { k.x += (w.x * 6 + Math.sin(k.t + k.ph) * 4) * dt; k.y += 6 * k.s * dt; }
+    else if (L.weather === 'pollen') { k.x += (w.x * 8 + Math.sin(k.t * 0.7 + k.ph) * 5) * dt; k.y += Math.cos(k.t * 0.9 + k.ph) * 4 * dt; }
+    else { k.x += Math.sin(k.t * 2 + k.ph) * 4 * dt; k.y -= 14 * k.s * dt; if (k.t > 2.5) { k.t = 0; k.x = p.x + (Math.random() * 2 - 1) * 70; k.y = p.y + Math.random() * 30; } }
+    // round the box
+    if (k.x < p.x - bx) k.x += 2 * bx; else if (k.x > p.x + bx) k.x -= 2 * bx;
+    if (k.y < cy - by) k.y += 2 * by; else if (k.y > cy + by) k.y -= 2 * by;
   }
 }
 
@@ -445,12 +474,12 @@ function drawCritter(d, c, ox, oy) {
     x.fillStyle = 'rgba(0,0,0,0.3)';
     if (c.z > 3) { x.fillRect(fx - 1 + Math.round(c.z * 0.15), fy, 3, 1); return; }
     x.fillRect(fx - 2, fy, 4, 1);
-    const s = critSprite('bird', d.life.biome, c.peck > 0 ? 1 : 0, c.dir);
+    const s = critSprite('bird', d.life, c.peck > 0 ? 1 : 0, c.dir);
     drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + 1 - Math.round(c.z));
     return;
   }
   const moving = c.state === 'flee' || c.state === 'dart' || c.state === 'run';
-  const s = critSprite(c.crit, d.life.biome, moving ? Math.floor(Game.realT * 14) % 2 : 0, c.dir);
+  const s = critSprite(c.crit, d.life, moving ? Math.floor(Game.realT * 14) % 2 : 0, c.dir);
   if (c.state === 'hiding') {
     // into a crack: drawn shrinking into the wall's foot
     const k = 1 - c.hide;
@@ -467,7 +496,7 @@ function drawLifeAir(d, ox, oy, lights) {
   if (!L) return;
   for (const fl of L.flocks) {
     if (fl.state !== 'fly' && fl.state !== 'land') continue;
-    const col = LIFE_PAL.bird[L.biome].D;
+    const col = lifePal('bird', L).D;
     for (const b of fl.birds) {
       if (b.z <= 3) continue;
       const bx = Math.round(b.x + ox), by = Math.round(b.y + oy - b.z);
@@ -477,10 +506,19 @@ function drawLifeAir(d, ox, oy, lights) {
     }
   }
   if (L.moths.length) {
-    const col = LIFE_MOTH[L.biome], dim = mix(col, '#000000', 0.45);
+    const col = L.moth || LIFE_MOTH[L.biome], dim = mix(col, '#000000', 0.45);
     for (const m of L.moths) {
       const mx = Math.round(m.x + ox), my = Math.round(m.y + oy);
       if (mx < -4 || my < -4 || mx > View.w + 4 || my > View.h + 4) continue;
+      // a firefly: only its light, blinking slowly
+      if (L.firefly) {
+        const k = clamp(Math.sin(Game.realT * 1.7 + m.orbit * 3) * 1.6 + 0.4, 0, 1);
+        if (k <= 0) continue;
+        dot(mx, my, col, true, k); dot(mx, my + 1, dim, true, k * 0.6);
+        if (k > 0.6) for (const [i, j] of [[-1, 0], [1, 0], [0, -1]]) dot(mx + i, my + j, dim, true, k * 0.5);
+        lights.push({ x: mx, y: my, r: 16, i: 0.45 * k, c: rgb01(col) });
+        continue;
+      }
       const open = Math.floor(m.wing) % 2 === 0;
       dot(mx, my, col, true); dot(mx, my + 1, dim, true);
       if (open) for (const [i, j] of [[-1, -1], [1, -1], [-2, -1], [2, -1], [-1, 0], [1, 0]]) dot(mx + i, my + j, j < 0 && (i === -1 || i === 1) ? col : dim, true);
@@ -488,10 +526,20 @@ function drawLifeAir(d, ox, oy, lights) {
       lights.push({ x: mx, y: my, r: 12, i: 0.3, c: rgb01(col) });
     }
   }
+  if (L.flakes.length) {
+    const W = L.weather;
+    for (const k of L.flakes) {
+      const fx = Math.round(k.x + ox), fy = Math.round(k.y + oy);
+      if (fx < 0 || fy < 0 || fx >= View.w || fy >= View.h) continue;
+      if (W === 'snow') { dot(fx, fy, '#f4f8ff', false, 0.85); if (k.s > 1.15) dot(fx + 1, fy, '#dce6f4', false, 0.6); }
+      else if (W === 'pollen') dot(fx, fy, '#f0f0a8', true, 0.35 + 0.25 * Math.sin(k.t * 3 + k.ph));
+      else { const a = W === 'heat' ? 1 - k.t / 2.5 : 0.5 + 0.5 * Math.sin(k.t * 6 + k.ph); dot(fx, fy, k.ph > 3 ? '#ffb040' : '#ff6a20', true, clamp(a, 0, 1)); }
+    }
+  }
   const x = View.ctx;
   if (L.gust) {
     const g = L.gust, k = Math.min(1, g.t * 2, (g.max - g.t) * 2);
-    x.fillStyle = '#e8cc98';
+    x.fillStyle = L.gustCol || '#e8cc98';
     for (const b of g.bits) {
       const bx = Math.round(b.x + ox), by = Math.round(b.y + oy + Math.sin(g.t * 5 + b.ph) * 2);
       if (bx < -4 || bx > View.w + 4 || by < 0 || by > View.h) continue;

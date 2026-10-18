@@ -52,7 +52,7 @@ function startDive(biome = 0) {
   const seed = (Math.random() * 4294967296) >>> 0;
   Game.dive = newWorld({ seed, biome, rng: new Rng(hashInts(seed, 0x5eed)), tool: Save.data.tool || 'compass', storm: new Rng(hashInts(seed, 0x5707)).chance(T.storm.chance) });
   Game.scene = 'dive';
-  enterFloor(1, 'surface');
+  enterFloor(1, 'surface', rollClime(seed, biome, 'surface', 1, 0));
   Story.say('firstDive');
   if (biome === 1) Story.say('choir');
   if (biome === 2) Story.say('underforge');
@@ -77,12 +77,13 @@ function enterHub(report) {
 function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0, hits: 0 }; }
 
 // An expedition's site: `depth` is which (1 to T.expedition.sites), zone
-// what kind of place. Each exit's ways lead to zones other than this one; at
-// the last exit, one leads to the Keeper's Lair while its shard is still
-// there, else to a Deep Vein.
-function enterFloor(depth, zone = 'cave') {
+// what kind of place, clime what country (rolled with the way to it). Each
+// exit's ways lead to zones other than this one; at the last exit, one
+// leads to the Keeper's Lair while its shard is still there, else to a
+// Deep Vein.
+function enterFloor(depth, zone = 'cave', clime = null) {
   const d = Game.dive, p = d.p, X = T.expedition;
-  d.depth = depth; d.zone = zone;
+  d.depth = depth; d.zone = zone; d.clime = clime && climesOf(zone).includes(clime) ? clime : climesOf(zone)[0] || null;
   const rng = new Rng(hashInts(d.seed, depth, 0xa7a7));
   const last = depth >= X.sites || zone === 'lair' || zone === 'deep';
   d.ways = [];
@@ -92,7 +93,8 @@ function enterFloor(depth, zone = 'cave') {
     if (depth === X.sites - 1) d.ways = [(Save.data.shards || []).includes(d.biome) ? 'deep' : 'lair', others[0]];
     else d.ways = others.slice(0, X.ways);
   }
-  d.floor = generateFloor(d.seed, depth, d.biome, lodelineOdds(depth), zone, d.ways.length);
+  d.wayClimes = d.ways.map((z, i) => rollClime(d.seed, d.biome, z, depth + 1, i));
+  d.floor = generateFloor(d.seed, depth, d.biome, lodelineOdds(depth), zone, d.ways.length, d.clime);
   const e = d.floor.entry;
   p.x = (e.x + 0.5) * TILE; p.y = (e.y + 0.5) * TILE; p.mine = null;
   d.target = null; d.shots = []; d.bolts = []; d.drops = []; d.fx = []; d.nums = []; d.globs = []; d.puddles = []; d.auras = []; d.later = []; d.flowAt = -1; d.keeper = null;
@@ -107,7 +109,7 @@ function enterFloor(depth, zone = 'cave') {
   d.seen = null; d.beacon = null; d.compass = null; d.oreNear = null; d.toolT = 0; d.strike = null; d.stormT = undefined;
   if (stormHere(d)) { UI.toast('A lodestorm is passing over', 'legendary'); Story.say('storm'); }
   if (d.floor.pad && !d.padDark) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
-  UI.toast(`${T.biomes[d.biome].name} · ${T.zones[zone].name} · site ${depth} of ${X.sites}${d.floor.pad || zone === 'lair' ? '' : ': no lodeline reaches here'}`);
+  UI.toast(`${T.biomes[d.biome].name} · ${placeName(zone, d.clime)} · site ${depth} of ${X.sites}${d.floor.pad || zone === 'lair' ? '' : ': no lodeline reaches here'}`);
   if (!d.floor.pad) Story.say('noPad');
   noticeRift(d);
   d.mined = [];
@@ -124,7 +126,7 @@ function saveRun(d) {
   if (!d || d.hub || d.dying) return;
   const b = d.beacon;
   Save.data.run = {
-    seed: d.seed, biome: d.biome, depth: d.depth, zone: d.zone, tool: d.tool,
+    seed: d.seed, biome: d.biome, depth: d.depth, zone: d.zone, clime: d.clime, tool: d.tool,
     cargo: d.cargo, items: d.items, blueprints: d.blueprints, pocket: d.pocket,
     hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, kills: d.kills, time: d.time, mined: d.mined || [],
     gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b ? { x: b.x, y: b.y, t: b.t, landed: b.landed } : null,
@@ -140,7 +142,7 @@ function resumeRun() {
   if (!r) return;
   Game.dive = newWorld({ seed: r.seed, biome: r.biome, rng: new Rng(hashInts(r.seed, 0x5eed, r.depth, r.kills)), tool: r.tool || 'compass', storm: !!r.storm });
   const d = Game.dive;
-  enterFloor(r.depth, r.zone);
+  enterFloor(r.depth, r.zone, r.clime);
   const f = d.floor;
   for (const i of r.mined || []) if (f.tiles[i] === TILE_ORE) { f.tiles[i] = TILE_FLOOR; f.ore[i] = 0; }
   d.mined = (r.mined || []).slice();
@@ -177,6 +179,8 @@ function placeFieldForge(d) {
   if (!rooms.length) return;
   const r = rng.pick(rooms), i = rng.pick(r.cells);
   d.fieldForge = { x: i % f.w, y: Math.floor(i / f.w) };
+  // never standing in a clime's pool or lava, nor on a vent
+  if (hazardNear(f, d.fieldForge.x, d.fieldForge.y, 1)) { const dry = r.cells.filter((c) => !hazardNear(f, c % f.w, Math.floor(c / f.w), 1)); if (dry.length) { const j = dry[(i >>> 0) % dry.length]; d.fieldForge = { x: j % f.w, y: Math.floor(j / f.w) }; } }
   // whoever worked it left a schematic behind, now and then
   const leave = (thing) => d.drops.push(Object.assign({ x: (d.fieldForge.x + 1.5) * TILE, y: (d.fieldForge.y + 0.5) * TILE, t: 0 }, thing));
   if (rng.chance(T.fieldForge.blueprint)) dropBlueprint(d, leave);
@@ -216,13 +220,16 @@ function updateDive(dtReal, dt) {
 
   if (!updateDash(dtReal)) {
     const mv = Input.move, m = Math.hypot(mv.x, mv.y);
+    let vx = 0, vy = 0;
     if (m > 0.05) {
       // slower mid-swing, so a swing commits
-      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.swing ? 0.45 : 1) * dtReal;
-      moveBody(d.floor, p, (mv.x / m) * sp, (mv.y / m) * sp, T.player.radius);
+      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.swing ? 0.45 : 1);
+      vx = (mv.x / m) * sp; vy = (mv.y / m) * sp;
       if (!p.swing) { p.fx = mv.x / m; p.fy = mv.y / m; }
       p.walkT += dtReal;
     } else p.walkT = 0;
+    // pools slow the step and ice carries it on (hazards.js)
+    stepDiver(d, p, vx, vy, dtReal);
   }
   updateHands(dtReal);
   updateMining(dtReal);
@@ -236,7 +243,7 @@ function updateDive(dtReal, dt) {
   if (Input.consumeAct()) {
     const a = actionHere();
     if (d.hub) { if (a) UI.useStation(a); }
-    else if (a === 'way') { const i = wayHere(d); enterFloor(d.depth + 1, d.ways[i]); }
+    else if (a === 'way') { const i = wayHere(d); enterFloor(d.depth + 1, d.ways[i], d.wayClimes && d.wayClimes[i]); }
     else if (a === 'extract') startChannel('extract');
     else if (a === 'rift') useRift(d);
     else if (a === 'forge') UI.useStation('fieldForge');

@@ -10,6 +10,7 @@
 // ---------------------------------------------------------------------------
 
 function updateWorld(d, dt) {
+  updateHazards(d, dt);
   updateStorm(d, dt);
   updateRiftSpawns(d, dt);
 }

@@ -209,9 +209,9 @@ const UI = {
     if ($('btn-off').hidden !== !eq.off) $('btn-off').hidden = !eq.off;
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
-    const way = a === 'way' ? d.ways[wayHere(d)] : null;
+    const way = a === 'way' ? wayPlaceName(d, wayHere(d)) : null;
     const rh = a === 'rift' && riftHere(d);
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'STEP THROUGH' : 'SEAL THE TEAR') : way ? 'ON: ' + T.zones[way].name.toUpperCase() : { descend: 'SET OUT', extract: 'EXTRACT', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'BOARD THE MERIDIAN' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'STEP THROUGH' : 'SEAL THE TEAR') : way ? 'ON: ' + way.toUpperCase() : { descend: 'SET OUT', extract: 'EXTRACT', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'BOARD THE MERIDIAN' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : d.channel.kind === 'seal' ? 'SEALING…' : 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
   },
@@ -226,7 +226,7 @@ function drawResume() {
   const r = Save.data.run;
   if (!r) return;
   const n = Object.values(r.cargo || {}).reduce((a, b) => a + b, 0) + (r.items || []).length;
-  $('resume-text').textContent = `An expedition into ${T.biomes[r.biome].name} was under way: ${T.zones[r.zone].name}, site ${r.depth} of ${T.expedition.sites}, carrying ${n ? n + ' things' : 'nothing yet'}. Carry on from that site's start, or give it up and lose the cargo (the pocket comes home).`;
+  $('resume-text').textContent = `An expedition into ${T.biomes[r.biome].name} was under way: ${placeName(r.zone, r.clime)}, site ${r.depth} of ${T.expedition.sites}, carrying ${n ? n + ' things' : 'nothing yet'}. Carry on from that site's start, or give it up and lose the cargo (the pocket comes home).`;
 }
 
 function drawStory() {

@@ -32,10 +32,11 @@ function floorTile(f, tx, ty) {
 // caverns, broad passes), 'ruin' (rectangular halls and straight
 // corridors), 'lair' (a Keeper's great arena) or 'deep' (a cave rich in the
 // deeper ore). ways: how many shafts lead on (each a TILE_SHAFT, listed in
-// f.ways, furthest first).
-function generateFloor(seed, depth, biome, padChance = 1, zone = 'cave', ways = 1) {
-  if (zone === 'ruin') return generateRuin(seed, depth, biome, padChance, ways);
-  const F = Object.assign({}, T.floor, T.zones[zone] && T.zones[zone].gen), B = T.biomes[biome];
+// f.ways, furthest first). clime: its country (T.climes), which may change
+// the generator and lays its hazard over the ground (placeHazards).
+function generateFloor(seed, depth, biome, padChance = 1, zone = 'cave', ways = 1, clime = null) {
+  if (zone === 'ruin') return generateRuin(seed, depth, biome, padChance, ways, clime);
+  const F = Object.assign({}, T.floor, T.zones[zone] && T.zones[zone].gen, climeGen(clime)), B = T.biomes[biome];
   const rng = new Rng(hashInts(seed, depth, biome, ZONE_SALT[zone] || 0x10de));
   const w = F.w, h = F.h;
   const tiles = new Uint8Array(w * h).fill(TILE_ROCK), ore = new Uint8Array(w * h);
@@ -151,8 +152,11 @@ function generateFloor(seed, depth, biome, padChance = 1, zone = 'cave', ways = 
     }
   }
 
-  return { seed, depth, biome, zone, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: shafts, shaft: shafts[0] || null, pad, arena: rooms.find((r) => r.arena) || null };
+  return placeHazards({ seed, depth, biome, zone, clime, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: shafts, shaft: shafts[0] || null, pad, arena: rooms.find((r) => r.arena) || null });
 }
+
+// A clime's overrides of the generator, if any.
+function climeGen(clime) { return (clime && T.climes[clime] && T.climes[clime].gen) || null; }
 
 const ZONE_SALT = { cave: 0x10de, surface: 0x5a11, ruin: 0x7111, lair: 0x1a17, deep: 0xdee9 };
 
@@ -177,8 +181,8 @@ function placeExits(tiles, w, rooms, steps, rng, padChance, ways, zone) {
 
 // A ruin: rectangular halls kept apart, joined by straight corridors two
 // wide, with fewer veins.
-function generateRuin(seed, depth, biome, padChance, ways) {
-  const F = Object.assign({}, T.floor, T.zones.ruin.gen), B = T.biomes[biome];
+function generateRuin(seed, depth, biome, padChance, ways, clime) {
+  const F = Object.assign({}, T.floor, T.zones.ruin.gen, climeGen(clime)), B = T.biomes[biome];
   const rng = new Rng(hashInts(seed, depth, biome, ZONE_SALT.ruin));
   const w = F.w, h = F.h;
   const tiles = new Uint8Array(w * h).fill(TILE_ROCK), ore = new Uint8Array(w * h);
@@ -228,18 +232,118 @@ function generateRuin(seed, depth, biome, padChance, ways) {
       i = rng.pick(next);
     }
   }
-  return { seed, depth, biome, zone: 'ruin', wallNoise: 0.03, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: shafts, shaft: shafts[0] || null, pad, arena: null };
+  return placeHazards({ seed, depth, biome, zone: 'ruin', clime, wallNoise: 0.03, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: shafts, shaft: shafts[0] || null, pad, arena: null });
+}
+
+// ---------------------------------------------------------------------------
+// Hazards: a clime's one quirk, laid over the open ground after the layout
+// is made, from a generator of its own, so the tiles don't change. Area
+// hazards (pools, ice, lava) mark f.haz with their code; vents and spore
+// pods are points in f.hazPts. Nothing goes in the entry's cavern, on a
+// way or the lodeline or beside them, and lava never cuts ground off.
+// ---------------------------------------------------------------------------
+const HAZ_CODES = { pool: 1, slick: 2, burn: 3 };
+function placeHazards(f) {
+  const C = f.clime && T.climes[f.clime];
+  f.haz = null; f.hazPts = null; f.hazKind = null; f.hazCode = 0;
+  if (!C || !C.hazard) return f;
+  const kind = C.hazard, H = Object.assign({}, T.hazards[kind], C.haz), w = f.w, tiles = f.tiles;
+  const rng = new Rng(hashInts(f.seed, f.depth, f.biome, ZONE_SALT[f.zone] || 0, hashString(f.clime)));
+  const banned = new Uint8Array(w * f.h);
+  const ban = (x, y, r) => { for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const i = (y + dy) * w + x + dx; if (i >= 0 && i < banned.length) banned[i] = 1; } };
+  for (const i of f.rooms[0].cells || []) banned[i] = 1;
+  ban(f.entry.x, f.entry.y, 4);
+  for (const t of f.ways) ban(t.x, t.y, 2);
+  if (f.pad) ban(f.pad.x, f.pad.y, 2);
+  const open = (i) => tiles[i] === TILE_FLOOR && !banned[i];
+  const rooms = f.rooms.slice(1).filter((r) => !r.arena && r.cells && r.cells.length > 6);
+  if (!rooms.length) return f;
+  f.hazKind = kind;
+  if (HAZ_CODES[kind]) {
+    const code = (f.hazCode = HAZ_CODES[kind]), haz = (f.haz = new Uint8Array(w * f.h));
+    // a lumpy blob of it round a tile
+    const blob = (cx, cy, rad, mark) => {
+      const p1 = rng.f(7), out = [];
+      for (let ty = Math.floor(cy - rad - 1); ty <= Math.ceil(cy + rad + 1); ty++)
+        for (let tx = Math.floor(cx - rad - 1); tx <= Math.ceil(cx + rad + 1); tx++) {
+          const i = ty * w + tx, a = Math.atan2(ty - cy, tx - cx);
+          if (tx > 0 && ty > 0 && tx < w - 1 && ty < f.h - 1 && Math.hypot(tx - cx, ty - cy) <= rad * (1 + 0.25 * Math.sin(3 * a + p1)) && open(i) && !haz[i]) { haz[i] = mark; out.push(i); }
+        }
+      return out;
+    };
+    if (kind === 'burn') {
+      // channels that wander across a cavern, and a pool or two; any that
+      // would cut ground off from the entry are taken back
+      const keepsAll = () => {
+        const steps = floorDistances(tiles, w, f.h, f.entry.x, f.entry.y, haz);
+        for (let i = 0; i < tiles.length; i++) if (!TILE_SOLID[tiles[i]] && !haz[i] && steps[i] < 0) return false;
+        return true;
+      };
+      const undo = (cells) => { for (const i of cells) haz[i] = 0; };
+      for (let n = rng.i(H.channels[0], H.channels[1]); n > 0; n--) {
+        const r = rng.pick(rooms), start = rng.pick(r.cells), cells = [];
+        let x = start % w, y = Math.floor(start / w), head = rng.f(Math.PI * 2);
+        for (let k = rng.i(H.len[0], H.len[1]); k > 0; k--) {
+          const i = y * w + x;
+          if (open(i) && !haz[i]) { haz[i] = code; cells.push(i); }
+          head += rng.f(-0.7, 0.7);
+          const nx = x + Math.round(Math.cos(head)), ny = y + Math.round(Math.sin(head));
+          if (TILE_SOLID[floorTile(f, nx, ny)]) { head += Math.PI / 2; continue; }
+          x = nx; y = ny;
+        }
+        if (!keepsAll()) undo(cells);
+      }
+      for (let n = rng.i(H.pools[0], H.pools[1]); n > 0; n--) {
+        const r = rng.pick(rooms), c = rng.pick(r.cells), cells = blob(c % w, Math.floor(c / w), rng.f(1, 1.7), code);
+        if (!keepsAll()) undo(cells);
+      }
+    } else {
+      for (let n = rng.i(H.blobs[0], H.blobs[1]); n > 0; n--) {
+        const r = rng.pick(rooms), c = rng.pick(r.cells);
+        blob(c % w, Math.floor(c / w), rng.f(H.r[0], H.r[1]), code);
+      }
+    }
+    return f;
+  }
+  // vents and pods: out in the open (never in a passage), a few tiles apart
+  const pts = (f.hazPts = []);
+  const cand = [];
+  for (const r of rooms) for (const i of r.cells) {
+    if (!open(i)) continue;
+    let n = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (tiles[i + dy * w + dx] === TILE_FLOOR) n++;
+    if (n === 9) cand.push(i);
+  }
+  for (let n = rng.i(H.n[0], H.n[1]), tries = 0; pts.length < n && cand.length && tries < 200; tries++) {
+    const i = rng.pick(cand), x = i % w, y = Math.floor(i / w);
+    if (pts.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < 5)) continue;
+    pts.push({ x, y, ph: rng.f(1) });
+  }
+  return f;
+}
+
+// The hazard's code at world pixel x, y (0 for none), along a smooth edge
+// like the walls'.
+function hazardAt(f, x, y) {
+  const H = f.haz;
+  if (!H) return 0;
+  const gx = x / TILE - 0.5, gy = y / TILE - 0.5, tx = Math.floor(gx), ty = Math.floor(gy), u = gx - tx, v = gy - ty;
+  const s = (i, j) => (i < 0 || j < 0 || i >= f.w || j >= f.h || !H[j * f.w + i] ? 0 : 1);
+  const a = s(tx, ty), b = s(tx + 1, ty), c = s(tx, ty + 1), d = s(tx + 1, ty + 1);
+  if (a === b && b === c && c === d) return a ? f.hazCode : 0;
+  return lerp(lerp(a, b, u), lerp(c, d, u), v) + 0.16 * wallNoise(x + 131, y + 57, 5) > 0.5 ? f.hazCode : 0;
 }
 
 // Steps on foot from x, y to every open tile (-1 where it can't be reached).
-function floorDistances(tiles, w, h, x, y) {
+// avoid: tiles not to step on (non-zero), if any.
+function floorDistances(tiles, w, h, x, y, avoid) {
   const d = new Int16Array(w * h).fill(-1), q = [y * w + x];
   d[q[0]] = 0;
   for (let qi = 0; qi < q.length; qi++) {
     const i = q[qi], cx = i % w, cy = (i - cx) / w;
     for (const [dx, dy] of DIRS4) {
       const j = (cy + dy) * w + cx + dx;
-      if (d[j] < 0 && !TILE_SOLID[tiles[j]]) { d[j] = d[i] + 1; q.push(j); }
+      if (d[j] < 0 && !TILE_SOLID[tiles[j]] && !(avoid && avoid[j])) { d[j] = d[i] + 1; q.push(j); }
     }
   }
   return d;
@@ -275,6 +379,8 @@ function rockAt(f, x, y) {
 function floorHash(f) {
   let h = hashInts(f.w, f.h, f.entry.x, f.entry.y);
   for (let i = 0; i < f.tiles.length; i++) h = hashInts(h, f.tiles[i] * 16 + f.ore[i]);
+  if (f.haz) for (let i = 0; i < f.haz.length; i++) if (f.haz[i]) h = hashInts(h, i, f.haz[i]);
+  for (const p of f.hazPts || []) h = hashInts(h, p.x, p.y);
   return h;
 }
 

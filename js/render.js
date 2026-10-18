@@ -83,10 +83,13 @@ function facingIndex(fx, fy) { return (Math.round(Math.atan2(fy, fx) / (Math.PI 
 // ---------------------------------------------------------------------------
 // The floor
 // ---------------------------------------------------------------------------
-// A floor's look: the outpost's; a surface site's (the region's sunlit
-// badlands); a ruin's (its region's, paved); else its region's caves.
+// A floor's look: the outpost's; its clime's (climes.js), if it isn't its
+// zone's own; a surface site's (the region's sunlit badlands); a ruin's (its
+// region's, paved); else its region's caves.
 const artBiome = (f) => {
   if (f.hub) return ART.biomes.outpost;
+  const cl = climeArt(f);
+  if (cl) return cl;
   const id = T.biomes[f.biome].id;
   if (f.zone === 'surface') return ART.surface[id];
   if (f.zone === 'ruin') return Object.assign({}, ART.biomes[id], { paving: true });
@@ -104,14 +107,15 @@ const rgb01 = (hex) => rgbOf(hex).map((v) => v / 255);
 const _floraSprites = {};
 function floraSprite(set, piece, frame) {
   const key = set + '/' + piece.name + '/' + frame;
-  if (!_floraSprites[key]) _floraSprites[key] = set === 'surface' ? buildArtSprite(piece.frames[frame], SURFACE_PAL, SURFACE_LETTERS, SURFACE_GLOWS) : buildArtSprite(piece.frames[frame], FLORA_PAL[set], FLORA_LETTERS, FLORA_GLOWS);
+  if (!_floraSprites[key]) { const k = floraKit(set); _floraSprites[key] = buildArtSprite(piece.frames[frame], k.pal, k.letters, k.glows); }
   return _floraSprites[key];
 }
-// Which plants grow on a floor: the surface's under the sky, else its biome's.
-function floraSetOf(f) { return f.hub ? 'rim' : f.zone === 'surface' ? 'surface' : T.biomes[f.biome].id; }
+// Which plants grow on a floor: its clime's own, if it has them; else the
+// surface's under the sky, or its biome's.
+function floraSetOf(f) { return f.hub ? 'rim' : f.clime && CLIME_FLORA[f.clime] ? f.clime : f.zone === 'surface' ? 'surface' : T.biomes[f.biome].id; }
 
 function placeFlora(f, set) {
-  const out = [], pieces = set === 'surface' ? SURFACE_FLORA : FLORA[set], L = T.light, keep = new Set();
+  const kit = floraKit(set), out = [], pieces = kit.pieces, L = T.light, keep = new Set();
   const mark = (x, y) => keep.add(y * f.w + x);
   if (f.entry) mark(f.entry.x, f.entry.y);
   if (f.shaft) mark(f.shaft.x, f.shaft.y);
@@ -125,12 +129,12 @@ function placeFlora(f, set) {
   };
   for (let ty = 1; ty < f.h - 1; ty++)
     for (let tx = 1; tx < f.w - 1; tx++) {
-      if (floorTile(f, tx, ty) !== TILE_FLOOR || keep.has(ty * f.w + tx)) continue;
+      if (floorTile(f, tx, ty) !== TILE_FLOOR || keep.has(ty * f.w + tx) || hazardNear(f, tx, ty, 0)) continue;
       const h = hashInts(f.seed, f.depth, tx, ty, 0xf10a), roll = (h >>> 8) % 1000 / 1000;
       const wallAbove = TILE_SOLID[floorTile(f, tx, ty - 1)] && floorTile(f, tx, ty - 1) !== TILE_PIT;
       let walls = 0;
       for (const [dx, dy] of DIRS4) if (TILE_SOLID[floorTile(f, tx + dx, ty + dy)]) walls++;
-      const scale = f.hub ? 0.4 : set === 'surface' ? 2 : 1;
+      const scale = f.hub ? 0.4 : kit.sky ? 2 : 1;
       let piece = null, x = (tx + 0.5) * TILE + ((h >>> 20) % 7) - 3, y;
       if (wallAbove && roll < L.floraCeiling * scale) { piece = pick('ceiling', h); y = ty * TILE - 1; }
       else if (wallAbove && roll < (L.floraCeiling + L.floraWall) * scale) { piece = pick('wall', h); if (piece) y = ty * TILE + piece.h - 2; }
@@ -153,9 +157,9 @@ function drawFlora(d, fl, ox, oy, lights) {
 // The plants' glow, baked with the floor's lights. Under the sky the plants
 // don't glow; only pollen catches the light.
 function floraLights(list) {
-  return list.filter((fl) => fl.set !== 'surface').map((fl) => {
+  return list.filter((fl) => !floraKit(fl.set).sky).map((fl) => {
     const spr = floraSprite(fl.set, fl.piece, 0), sx = Math.round(fl.x - spr.w / 2), sy = Math.round(fl.top ? fl.y : fl.y - spr.h + 1);
-    return { x: sx + spr.w / 2, y: sy + spr.h * (fl.top ? 0.8 : 0.35), r: TILE * 1.1, i: T.light.flora, c: rgb01(FLORA_PAL[fl.set].glow[0]) };
+    return { x: sx + spr.w / 2, y: sy + spr.h * (fl.top ? 0.8 : 0.35), r: TILE * 1.1, i: T.light.flora, c: rgb01(floraKit(fl.set).pal.glow[0]) };
   });
 }
 
@@ -210,6 +214,7 @@ function paintTileArt(f, tx, ty) {
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
   if (t === TILE_PIT) { paintPitTile(P, rock, ox, oy, b, rnd); return; }
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
+  if (f.clime) paintClimeTile(P, f, tx, ty, ox, oy, b);
   if (t === TILE_PAD) paintDish(P, ox, oy, b, 'pad');
   else if (t === TILE_SHAFT) paintDish(P, ox, oy, b, 'shaft');
   else if (t === TILE_ORE) {
@@ -238,7 +243,7 @@ function floorLights(f) {
   for (let ty = 0; ty < f.h; ty++)
     for (let tx = 0; tx < f.w; tx++)
       if (floorTile(f, tx, ty) === TILE_ORE) L.push({ x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE, r: Lt.ore[0] * TILE, i: Lt.ore[1], c: rgb01(ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][2]) });
-  return L;
+  return f.clime ? L.concat(hazardLights(f), climeLights(f)) : L;
 }
 
 // ---------------------------------------------------------------------------
@@ -551,7 +556,8 @@ function renderFrame() {
   }
 
   if (d.hub) drawHubUnder(d, ox, oy, tick, lights);
-  (f.ways || []).forEach((w, i) => drawSignpost(d.ways[i], (w.x + 0.5) * TILE + ox, (w.y + 0.5) * TILE + oy, tick, lights));
+  if (!d.hub) drawHazardsUnder(d, ox, oy, tick, lights);
+  (f.ways || []).forEach((w, i) => drawSignpost(d.ways[i], (w.x + 0.5) * TILE + ox, (w.y + 0.5) * TILE + oy, tick, lights, waySignCol(d, i)));
   if (d.fieldForge) {
     const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * TILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * TILE + oy - spr.ay + 6);
     drawArtSprite(spr, x, y);
@@ -628,14 +634,16 @@ function renderFrame() {
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
   if (d.hub) drawHubOver(d, ox, oy, lights);
   for (const s of Sparks) dot(Math.round(s.x + ox), Math.round(s.y + oy), s.col, true);
+  if (!d.hub) drawHazardsAir(d, ox, oy, lights);
   drawLifeAir(d, ox, oy, lights);
   if (!d.hub) drawStorm(d, ox, oy, lights);
   const fx = Math.round(p.x + ox), fy = Math.round(p.y + oy);
 
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
-  const zl = !d.hub && T.zones[d.zone] && T.zones[d.zone].light;
-  const ambLevel = d.hub ? Lt.hubAmbient : zl ? lerp(zl.dusk, zl.day, clamp(d.pull, 0, 1)) : Lt.ambient;
-  const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(d.pull * 1.5, 0, 1))) : Lt.tint;
+  // a clime may set its own sun, or its own dark (T.climes)
+  const cl = climeLight(f), zl0 = !d.hub && T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
+  const ambLevel = d.hub ? Lt.hubAmbient : zl ? lerp(zl.dusk, zl.day, clamp(d.pull, 0, 1)) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
+  const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(d.pull * 1.5, 0, 1))) : (cl && cl.tint) || Lt.tint;
   const L = View.light;
   if (View.bakedFrom !== View.lights) bakeFloorLights(f);
   startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
@@ -715,6 +723,18 @@ const PLANT_GLOW = '#ff4a3a';
 const _enemySprites = {};
 function enemySprite(d, type) {
   const id = d.hub ? 'rim' : T.biomes[d.biome].id;
+  // the fighting flora dress as the plants of the clime they're in
+  if ((type === 'snapjaw' || type === 'spitter') && !d.hub && d.floor.clime && CLIME_FLORA[d.floor.clime]) {
+    const set = d.floor.clime, key = 'plant/' + set + '/' + type;
+    if (!_enemySprites[key]) {
+      const kit = floraKit(set), piece = kit.pieces.find((p) => p.name === kit.looks[type]) || kit.pieces[0], pal = Object.assign({}, kit.pal);
+      for (const g of kit.glows) pal[g] = [g === 'glow2' ? mix(PLANT_GLOW, '#ffd0a0', 0.4) : PLANT_GLOW];
+      const spr = buildArtSprite(piece.frames[piece.frames.length - 1], pal, kit.letters, kit.glows);
+      spr.flash = tinted(spr.c, '#ffffff'); spr.ax = spr.w / 2; spr.ay = spr.h - 1.5;
+      _enemySprites[key] = spr;
+    }
+    return _enemySprites[key];
+  }
   if (type === 'keeper') {
     const key = 'keeper/' + id;
     if (!_enemySprites[key]) { const s = art2Sprite(KEEPER_ROWS[id], KEEPER_PAL[id]); s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - 2; _enemySprites[key] = s; }
@@ -1041,12 +1061,14 @@ function drawNumber(v, cx, cy, col, alpha) {
 
 // A way on's signpost: a post, and a glowing sign of where it leads.
 const ZONE_SIGNS = { surface: '#ffd25a', cave: '#6ad8c8', ruin: '#b8b0a0', lair: '#ff4a3a', deep: '#b08cff' };
-function drawSignpost(zone, x, y, tick, lights) {
+// sign: the colour of the clime it leads to, a band under the plate.
+function drawSignpost(zone, x, y, tick, lights, sign) {
   const col = ZONE_SIGNS[zone] || '#ffffff', px = Math.round(x + 10), py = Math.round(y);
   for (let j = 0; j < 12; j++) dot(px, py - j, ART.pal.wood[j < 2 ? 1 : 2]);
   // the sign: a little plate with a glyph for the zone
   for (let j = -15; j <= -11; j++) for (let i = -3; i <= 3; i++) dot(px + i, py + j, i === -3 || i === 3 || j === -15 || j === -11 ? ART.pal.metal[1] : '#16141a');
   const glyph = { surface: [[0, -13], [-1, -13], [1, -13], [0, -14], [0, -12]], cave: [[-1, -12], [0, -13], [1, -12], [0, -14]], ruin: [[-1, -14], [-1, -13], [-1, -12], [1, -14], [1, -13], [1, -12]], lair: [[-1, -13], [1, -13], [0, -12]], deep: [[0, -14], [-1, -13], [1, -13], [0, -12]] }[zone] || [];
   for (const [i, j] of glyph) dot(px + i, py + j, col, true, tick % 8 < 6 ? 1 : 0.7);
+  if (sign) for (let i = -3; i <= 3; i++) { dot(px + i, py - 10, sign, true, 0.9); dot(px + i, py - 9, mix(sign, '#000000', 0.5)); }
   lights.push({ x: px, y: py - 13, r: TILE * 0.8, i: 0.35, c: rgb01(col) });
 }

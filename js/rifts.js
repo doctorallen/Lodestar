@@ -33,7 +33,7 @@ function riftSpot(f, r) {
   let best = null, bd = 1e9;
   for (const i of r.cells) {
     const x = i % f.w, y = Math.floor(i / f.w);
-    if (f.tiles[i] !== TILE_FLOOR) continue;
+    if (f.tiles[i] !== TILE_FLOOR || hazardNear(f, x, y, 1)) continue;
     const m = (x - r.cx) * (x - r.cx) + (y - r.cy) * (y - r.cy);
     if (m < bd) { bd = m; best = { x, y }; }
   }

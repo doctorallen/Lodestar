@@ -76,7 +76,7 @@ function spawnEnemies(d) {
       const elite = rng.chance(eliteChance) ? rng.pick(ELITE_AFFIXES) : null;
       const e = makeEnemy(type, 0, 0, level, elite);
       // on clear ground, not half in a wall
-      for (let tries = 0; tries < 8; tries++) { const at = inRoom(r); e.x = at.x; e.y = at.y; if (!bodyHits(f, e.x, e.y, e.r)) break; }
+      for (let tries = 0; tries < 8; tries++) { const at = inRoom(r); e.x = at.x; e.y = at.y; if (!bodyHits(f, e.x, e.y, e.r) && !hazardNear(f, Math.floor(at.x / TILE), Math.floor(at.y / TILE), 0)) break; }
       d.enemies.push(e);
     }
   }
@@ -167,7 +167,7 @@ function updateEnemies(dt) {
     }
     if (!e.aggro || d.dying || e.type === 'dummy') continue;
     if (e.state === 'stagger' || e.state === 'dazed') { if ((e.t -= dt) <= 0) { e.state = 'chase'; e.cd = Math.max(e.cd, 0.3); } continue; }
-    const slow = e.slowT > 0 ? 1 - T.onHit.chillSlow : 1;
+    const slow = (e.slowT > 0 ? 1 - T.onHit.chillSlow : 1) * hazardSlow(f, e);
     const sp = e.speed * slow * dt, free = attackers < E.attackers + Math.floor(E.attackersPerDepth * d.depth) || ATTACKING.has(e.state);
     const was = ATTACKING.has(e.state);
     if (e.type === 'crawler') updateCrawler(d, e, pd, sp, dt, free);
