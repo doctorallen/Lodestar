@@ -3,7 +3,7 @@
 // Floor generation. generateFloor(seed, depth, biome) always builds the same
 // floor for the same arguments: caverns with ragged, rounded edges, joined
 // by tunnels that wander like rivers, ore veins running into the walls, the
-// entry, the shaft down and (on most floors) a lodeline out. It draws only
+// entry, the portals on and (on most floors) a lodeline out. It draws only
 // from its own Rng, never Math.random.
 //
 // The floor is a grid of tiles, but its walls are drawn and felt along a
@@ -12,7 +12,7 @@
 // pixels. Bodies collide with that line, not with the tiles' squares.
 // ---------------------------------------------------------------------------
 
-const TILE_FLOOR = 0, TILE_ROCK = 1, TILE_ORE = 2, TILE_EDGE = 3, TILE_PAD = 4, TILE_SHAFT = 5, TILE_PIT = 6;
+const TILE_FLOOR = 0, TILE_ROCK = 1, TILE_ORE = 2, TILE_EDGE = 3, TILE_PAD = 4, TILE_PORTAL = 5, TILE_PIT = 6;
 // Indexed by tile type: does it stop a body? (The pit is the sinkhole under
 // the Lodestar: it can't be walked into.)
 const TILE_SOLID = [false, true, true, true, false, false, true];
@@ -31,9 +31,10 @@ function floorTile(f, tx, ty) {
 // wandering tunnels), 'surface' (the open badlands in sunlight: wider
 // caverns, broad passes), 'ruin' (rectangular halls and straight
 // corridors), 'lair' (a Keeper's great arena) or 'deep' (a cave rich in the
-// deeper ore). ways: how many shafts lead on (each a TILE_SHAFT, listed in
-// f.ways, furthest first). clime: its country (T.climes), which may change
-// the generator and lays its hazard over the ground (placeHazards).
+// deeper ore). ways: how many portals lead on (each stands on a
+// TILE_PORTAL, listed in f.ways, furthest first; portals.js draws them).
+// clime: its country (T.climes), which may change the generator and lays
+// its hazard over the ground (placeHazards).
 function generateFloor(seed, depth, biome, padChance = 1, zone = 'cave', ways = 1, clime = null) {
   if (zone === 'ruin') return generateRuin(seed, depth, biome, padChance, ways, clime);
   const F = Object.assign({}, T.floor, T.zones[zone] && T.zones[zone].gen, climeGen(clime)), B = T.biomes[biome];
@@ -130,7 +131,7 @@ function generateFloor(seed, depth, biome, padChance = 1, zone = 'cave', ways = 
     r.x = Math.floor(r.cx - r.rx); r.y = Math.floor(r.cy - r.ry); r.w = Math.ceil(2 * r.rx) + 1; r.h = Math.ceil(2 * r.ry) + 1;
   }
 
-  const { shafts, pad } = placeExits(tiles, w, rooms, steps, rng, padChance, ways, zone);
+  const { portals, pad } = placeExits(tiles, w, rooms, steps, rng, padChance, ways, zone);
 
   // ore veins: each starts in the wall of a cavern and wanders into the rock
   const deep = zone === 'deep' ? T.oreDeep.max : Math.min(T.oreDeep.max, T.oreDeep.base + T.oreDeep.perFloor * (depth - 1));
@@ -152,7 +153,7 @@ function generateFloor(seed, depth, biome, padChance = 1, zone = 'cave', ways = 
     }
   }
 
-  return placeHazards({ seed, depth, biome, zone, clime, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: shafts, shaft: shafts[0] || null, pad, arena: rooms.find((r) => r.arena) || null });
+  return placeHazards({ seed, depth, biome, zone, clime, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: portals, portal: portals[0] || null, pad, arena: rooms.find((r) => r.arena) || null });
 }
 
 // A clime's overrides of the generator, if any.
@@ -160,23 +161,23 @@ function climeGen(clime) { return (clime && T.climes[clime] && T.climes[clime].g
 
 const ZONE_SALT = { cave: 0x10de, surface: 0x5a11, ruin: 0x7111, lair: 0x1a17, deep: 0xdee9 };
 
-// The ways on (shafts) in the caverns furthest from the entry on foot, and
+// The ways on (portals) in the caverns furthest from the entry on foot, and
 // the lodeline (if the chance comes up) in another. A lair's
 // lodeline is in its arena (it lights when the Keeper falls).
 function placeExits(tiles, w, rooms, steps, rng, padChance, ways, zone) {
   const far = rooms.slice(1).map((r) => [steps[r.cy * w + r.cx], r]).filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).map(([, r]) => r);
-  const shafts = [];
-  for (let k = 0; k < ways && k < far.length; k++) { const r = far[k]; tiles[r.cy * w + r.cx] = TILE_SHAFT; shafts.push({ x: r.cx, y: r.cy }); }
+  const portals = [];
+  for (let k = 0; k < ways && k < far.length; k++) { const r = far[k]; tiles[r.cy * w + r.cx] = TILE_PORTAL; portals.push({ x: r.cx, y: r.cy }); }
   let pad = null;
   const arena = rooms.find((r) => r.arena);
-  if (arena) { pad = { x: arena.cx, y: arena.cy + 3 }; tiles[pad.y * w + pad.x] = TILE_PAD; return { shafts, pad }; }
-  const rest = far.slice(shafts.length);
+  if (arena) { pad = { x: arena.cx, y: arena.cy + 3 }; tiles[pad.y * w + pad.x] = TILE_PAD; return { portals, pad }; }
+  const rest = far.slice(portals.length);
   if (rest.length && rng.chance(padChance)) {
     const r = rest[rng.i(0, Math.min(rest.length - 1, 1))];
     pad = { x: r.cx, y: r.cy };
     tiles[r.cy * w + r.cx] = TILE_PAD;
   }
-  return { shafts, pad };
+  return { portals, pad };
 }
 
 // A ruin: rectangular halls kept apart, joined by straight corridors two
@@ -216,7 +217,7 @@ function generateRuin(seed, depth, biome, padChance, ways, clime) {
     r.cells = [];
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (tiles[y * w + x] === TILE_FLOOR) r.cells.push(y * w + x);
   }
-  const { shafts, pad } = placeExits(tiles, w, rooms, steps, rng, padChance, ways, 'ruin');
+  const { portals, pad } = placeExits(tiles, w, rooms, steps, rng, padChance, ways, 'ruin');
   const deep = Math.min(T.oreDeep.max, T.oreDeep.base + T.oreDeep.perFloor * (depth - 1));
   for (const r of rooms.slice(1)) {
     if (!rng.chance(F.veinChance)) continue;
@@ -232,7 +233,7 @@ function generateRuin(seed, depth, biome, padChance, ways, clime) {
       i = rng.pick(next);
     }
   }
-  return placeHazards({ seed, depth, biome, zone: 'ruin', clime, wallNoise: 0.03, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: shafts, shaft: shafts[0] || null, pad, arena: null });
+  return placeHazards({ seed, depth, biome, zone: 'ruin', clime, wallNoise: 0.03, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: portals, portal: portals[0] || null, pad, arena: null });
 }
 
 // ---------------------------------------------------------------------------
@@ -391,7 +392,7 @@ function floorHash(f) {
 // ---------------------------------------------------------------------------
 const HUB_W = 22, HUB_H = 24;
 const HUB_STATIONS = [
-  { id: 'descend', x: 11, y: 11 },
+  { id: 'setout', x: 11, y: 11 },
   { id: 'altar', x: 6, y: 10 }, { id: 'locker', x: 16, y: 10 },
   { id: 'forge', x: 6, y: 15 }, { id: 'runes', x: 16, y: 15 },
   { id: 'wreck', x: 11, y: 19 },
@@ -413,5 +414,5 @@ function makeHubFloor() {
   for (let y = 0; y < h; y++) { tiles[y * w] = TILE_EDGE; tiles[y * w + w - 1] = TILE_EDGE; }
   for (const s of HUB_STATIONS) tiles[s.y * w + s.x] = TILE_FLOOR;
   const start = { x: 11, y: 14 };
-  return { seed: 0x10de57a, depth: 0, biome: 0, hub: true, w, h, tiles, ore: new Uint8Array(w * h), rooms: [], entry: start, shaft: { x: -9, y: -9 }, pad: null };
+  return { seed: 0x10de57a, depth: 0, biome: 0, hub: true, w, h, tiles, ore: new Uint8Array(w * h), rooms: [], entry: start, portal: null, pad: null };
 }

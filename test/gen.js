@@ -43,7 +43,7 @@ for (const [seed, biome, depth, zone, clime] of cases) {
         if (f.ways.length !== ways) fail(`${at}: ${f.ways.length} ways on, not ${ways}`);
         for (const wy of f.ways) {
           if (steps[wy.y * w + wy.x] < 0) fail(`${at}: a way on can't be reached`);
-          if (tiles[wy.y * w + wy.x] !== G.TILE_SHAFT) fail(`${at}: no shaft at a way on`);
+          if (tiles[wy.y * w + wy.x] !== G.TILE_PORTAL) fail(`${at}: no portal's tile at a way on`);
         }
         if (f.pad && steps[f.pad.y * w + f.pad.x] < 0) fail(`${at}: the lodeline can't be reached`);
         if (zone === 'lair' && (!f.arena || !f.pad)) fail(`${at}: a lair without its arena or lodeline`);

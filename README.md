@@ -15,12 +15,12 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Off hand | The blue button | K |
 | Dash | DASH, or flick the move thumb | Shift / U |
 | Mine | MINE, held | Space / L |
-| Descend / extract | The button that appears on a shaft or in a lodeline | E / Enter |
+| Set out / step through / extract | The button that appears at a portal or in a lodeline | E / Enter |
 | Cargo | CARGO in the top bar | I |
 | Pause | II | Esc / P |
 
 The loop:
-1. Descend into a biome the Lodestar reaches.
+1. Set out through the outpost's portal into a biome the Lodestar reaches; at each site's exit, step through one of two portals to the next.
 2. Mine ore and fight what finds you.
 3. Watch the gold meter: the star's pull on each floor fades, and when it's gone the lodeline goes dark and something hunts you.
 4. Stand still in a lodeline's gold beam and EXTRACT to bank your cargo, or use an emergency recall from anywhere and lose part of it.
@@ -31,7 +31,7 @@ At home, walk the outpost's stations:
 - the rune bench: rework affixes;
 - the locker: your gear;
 - the star's altar: feed it ore to grow it and open deeper biomes;
-- the ledge: jump back in.
+- the portal: set out again.
 
 ## Files
 
@@ -43,7 +43,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/version.js` | The build stamp, written by `.githooks/pre-commit` |
 | `js/tuning.js` | Every gameplay number, the ores, exotics and biomes |
 | `js/save.js` | The save in localStorage |
-| `js/floor.js` | Seeded floor generation: rooms, corridors, veins, shaft, lodeline |
+| `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
 | `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards and the beacon |
@@ -58,13 +58,14 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
 | `js/combat.js` | Swings, spells, damage, kills and drops, pickups, cargo |
 | `js/rifts.js` | Rifts: grafts, ore wakes, gates, inversions; sealing for riftglass |
+| `js/portals.js` | The portals: each way on and the outpost's, drawn in their destination's colour; stepping through |
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
 | `js/contracts.js` | The three posted contracts, their tallies and rewards |
 | `js/tools.js` | The carried tools: compass, ore sense, radar, map, satchel, beacon |
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |
 | `js/render.js` | The pixel view, the floor canvas, lighting and bloom, sparks |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
-| `js/ui.js` | The Lodestar, descend, forge, gear, star, cargo and pause screens, the item card, the top bar |
+| `js/ui.js` | The Lodestar, set out, forge, gear, star, cargo and pause screens, the item card, the top bar |
 | `js/main.js` | Boot, the fixed-step loop, the upright and sideways layouts |
 | `test/` | Static checks, floor generation with golden hashes, the loot tables, a headless smoke run, and the autopilot (`botlib.js`) playing careers |
 

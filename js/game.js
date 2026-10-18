@@ -1,8 +1,8 @@
 'use strict';
 // ---------------------------------------------------------------------------
 // The game's state and the dive: starting one in a biome, each floor,
-// walking, fighting, mining, picking things up, going down the shaft, and
-// leaving by a lodeline, by dying, or by giving up. Everything here runs
+// walking, fighting, mining, picking things up, stepping through a portal
+// to the next site, and leaving by a lodeline, by dying, or by giving up. Everything here runs
 // inside Game.step, one fixed 1/60 s step at a time. The diver runs on
 // real time; the world runs on dt × Game.timeScale.
 //
@@ -71,7 +71,7 @@ function enterHub(report) {
   Game.scene = 'hub';
   UI.close();
   if (report) UI.openReport(report);
-  else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk to the ledge under the star to descend');
+  else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk to the portal under the star to set out');
 }
 
 function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0, hits: 0 }; }
@@ -106,6 +106,8 @@ function enterFloor(depth, zone = 'cave', clime = null) {
   d.pull = 1; d.pullTime = Math.max(P.min, P.time + P.perDepth * (depth - 1)); d.waveT = P.waveEvery; d.channel = null;
   // a lair's lodeline is dark until its Keeper falls
   d.padDark = zone === 'lair' && !!d.keeper;
+  // through a portal: the view opens on the new site
+  d.arrive = { t: 0, zone };
   d.seen = null; d.beacon = null; d.compass = null; d.oreNear = null; d.toolT = 0; d.strike = null; d.stormT = undefined;
   if (stormHere(d)) { UI.toast('A lodestorm is passing over', 'legendary'); Story.say('storm'); }
   if (d.floor.pad && !d.padDark) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
@@ -163,12 +165,6 @@ function resumeRun() {
   saveRun(d);
 }
 
-// Which way on the diver stands at, if any.
-function wayHere(d) {
-  const tx = Math.floor(d.p.x / TILE), ty = Math.floor(d.p.y / TILE);
-  return (d.floor.ways || []).findIndex((w) => w.x === tx && w.y === ty);
-}
-
 function placeFieldForge(d) {
   const f = d.floor, rng = new Rng(hashInts(d.seed, d.depth, 0xf0e6));
   d.fieldForge = null;
@@ -204,6 +200,9 @@ function updateDive(dtReal, dt) {
     if (d.dying <= 0) loseDive(true);
     return;
   }
+  if (d.arrive && d.arrive.t < T.portal.arrive) d.arrive.t += dtReal;
+  // stepping through a portal: everything holds still until it's done
+  if (updateWarp(d, dtReal)) return;
   if (!d.hub) updateTools(dtReal);
   p.invuln = Math.max(0, p.invuln - dtReal);
   p.hurtT = Math.max(0, p.hurtT - dtReal);
@@ -243,7 +242,7 @@ function updateDive(dtReal, dt) {
   if (Input.consumeAct()) {
     const a = actionHere();
     if (d.hub) { if (a) UI.useStation(a); }
-    else if (a === 'way') { const i = wayHere(d); enterFloor(d.depth + 1, d.ways[i], d.wayClimes && d.wayClimes[i]); }
+    else if (a === 'way') stepThrough(d, wayHere(d));
     else if (a === 'extract') startChannel('extract');
     else if (a === 'rift') useRift(d);
     else if (a === 'forge') UI.useStation('fieldForge');
@@ -260,16 +259,16 @@ function startDying() {
 }
 
 // What the contextual button does where the diver stands: a station in
-// the outpost; in a dive, the shaft, a lodeline or an ancient forge.
+// the outpost; in a dive, a portal, a lodeline, an ancient forge or a tear.
 function actionHere() {
   const d = Game.dive;
-  if (!d || d.dying) return null;
+  if (!d || d.dying || d.warp) return null;
   const near = (tx, ty, r) => dist(d.p.x, d.p.y, (tx + 0.5) * TILE, (ty + 0.5) * TILE) < r;
   if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && near(s.x, s.y, s.id === 'wreck' ? 30 : 20)); return s ? s.id : null; }
   const t = floorTile(d.floor, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
   if (t === TILE_PAD && !d.padDark && !d.channel) return 'extract';
   if (d.fieldForge && near(d.fieldForge.x, d.fieldForge.y, 20)) return 'forge';
-  if (t === TILE_SHAFT && wayHere(d) >= 0) return 'way';
+  if (wayHere(d) >= 0) return 'way';
   if (!d.channel && riftHere(d)) return 'rift';
   return null;
 }

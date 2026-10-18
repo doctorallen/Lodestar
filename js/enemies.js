@@ -46,7 +46,7 @@ function spawnEnemies(d) {
   const types = ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'].filter((t) => !E[t].minDepth || d.depth >= E[t].minDepth);
   const zoneWeight = (T.zones[d.zone] && T.zones[d.zone].enemies) || {};
   const eliteChance = Math.min(E.eliteMax, E.eliteBase + E.eliteDepth * d.depth);
-  // the warden takes a side room: not the entry, the shaft's or the lodeline's
+  // the warden takes a side room: not the entry, a portal's or the lodeline's
   let bossRoom = null;
   const wardenChance = d.zone === 'deep' ? T.zones.deep.warden : d.depth >= E.bossDepth && d.zone !== 'lair' ? E.bossChance : 0;
   if (rng.chance(wardenChance)) {
@@ -54,7 +54,7 @@ function spawnEnemies(d) {
     if (side.length) bossRoom = rng.pick(side);
   }
   // the biome's Keeper, at its depth, until its shard is taken: it guards
-  // the shaft
+  // its arena
   const id = T.biomes[d.biome].id;
   if (d.zone === 'lair' && f.arena && !(Save.data.shards || []).includes(d.biome)) {
     const k = makeEnemy('keeper', (f.arena.cx + 0.5) * TILE, (f.arena.cy - 1.5) * TILE, level + 1, null);

@@ -118,7 +118,8 @@ function placeFlora(f, set) {
   const kit = floraKit(set), out = [], pieces = kit.pieces, L = T.light, keep = new Set();
   const mark = (x, y) => keep.add(y * f.w + x);
   if (f.entry) mark(f.entry.x, f.entry.y);
-  if (f.shaft) mark(f.shaft.x, f.shaft.y);
+  // the ground round a portal and its plinth stays clear
+  for (const w of f.ways || []) for (let dy = -2; dy <= 0; dy++) for (let dx = -1; dx <= 1; dx++) mark(w.x + dx, w.y + dy);
   if (f.pad) mark(f.pad.x, f.pad.y);
   if (f.hub) for (const s of HUB_STATIONS) for (let dy = -1; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) mark(s.x + dx, s.y + dy);
   const pick = (anchor, h) => {
@@ -215,8 +216,7 @@ function paintTileArt(f, tx, ty) {
   if (t === TILE_PIT) { paintPitTile(P, rock, ox, oy, b, rnd); return; }
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
   if (f.clime) paintClimeTile(P, f, tx, ty, ox, oy, b);
-  if (t === TILE_PAD) paintDish(P, ox, oy, b, 'pad');
-  else if (t === TILE_SHAFT) paintDish(P, ox, oy, b, 'shaft');
+  if (t === TILE_PAD) paintDish(P, ox, oy);
   else if (t === TILE_ORE) {
     const front = !TILE_SOLID[floorTile(f, tx, ty + 1)];
     paintOre(P, ox, oy, b, rnd, ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id], front ? TILE - FACE_H : TILE, front ? FACE_H : 0);
@@ -557,7 +557,6 @@ function renderFrame() {
 
   if (d.hub) drawHubUnder(d, ox, oy, tick, lights);
   if (!d.hub) drawHazardsUnder(d, ox, oy, tick, lights);
-  (f.ways || []).forEach((w, i) => drawSignpost(d.ways[i], (w.x + 0.5) * TILE + ox, (w.y + 0.5) * TILE + oy, tick, lights, waySignCol(d, i)));
   if (d.fieldForge) {
     const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * TILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * TILE + oy - spr.ay + 6);
     drawArtSprite(spr, x, y);
@@ -566,13 +565,14 @@ function renderFrame() {
 
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) drawDrop(dr, ox, oy, lights);
-  const props = d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : riftProps(d).concat(lifeActors(d));
+  const props = (d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : riftProps(d).concat(lifeActors(d))).concat(portalProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], View.flora || [], props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
     if (a === p) drawProspector(d, ox, oy, tick, lights);
     else if (a.wreck) drawWreck(d, ox, oy, lights);
     else if (a.tear) drawRift(d, a, ox, oy, lights);
+    else if (a.portal) drawPortal(d, a, ox, oy, lights);
     else if (a.piece) drawFlora(d, a, ox, oy, lights);
     else if (a.crit) drawCritter(d, a, ox, oy);
     else drawEnemy(d, a, ox, oy, tick, lights);
@@ -706,6 +706,8 @@ function renderFrame() {
   // the tools' marks and the outpost's labels too
   View.ctx = o;
   try { drawToolHud(d, ox, oy); if (d.hub) drawStationLabels(d, ox, oy); else drawStormMark(d, ox, oy); } finally { View.ctx = x; }
+  // stepping through a portal, or just through one: over everything
+  drawPortalIris(d, ox, oy);
 }
 
 // ---------------------------------------------------------------------------
@@ -1057,18 +1059,4 @@ function drawNumber(v, cx, cy, col, alpha) {
       for (let j = 0; j < 5; j++) for (let i = 0; i < 3; i++) if (g[j * 3 + i] === '1') x.fillRect(x0 + k * 4 + i + off, cy + j + off, 1, 1);
     }
   x.globalAlpha = 1;
-}
-
-// A way on's signpost: a post, and a glowing sign of where it leads.
-const ZONE_SIGNS = { surface: '#ffd25a', cave: '#6ad8c8', ruin: '#b8b0a0', lair: '#ff4a3a', deep: '#b08cff' };
-// sign: the colour of the clime it leads to, a band under the plate.
-function drawSignpost(zone, x, y, tick, lights, sign) {
-  const col = ZONE_SIGNS[zone] || '#ffffff', px = Math.round(x + 10), py = Math.round(y);
-  for (let j = 0; j < 12; j++) dot(px, py - j, ART.pal.wood[j < 2 ? 1 : 2]);
-  // the sign: a little plate with a glyph for the zone
-  for (let j = -15; j <= -11; j++) for (let i = -3; i <= 3; i++) dot(px + i, py + j, i === -3 || i === 3 || j === -15 || j === -11 ? ART.pal.metal[1] : '#16141a');
-  const glyph = { surface: [[0, -13], [-1, -13], [1, -13], [0, -14], [0, -12]], cave: [[-1, -12], [0, -13], [1, -12], [0, -14]], ruin: [[-1, -14], [-1, -13], [-1, -12], [1, -14], [1, -13], [1, -12]], lair: [[-1, -13], [1, -13], [0, -12]], deep: [[0, -14], [-1, -13], [1, -13], [0, -12]] }[zone] || [];
-  for (const [i, j] of glyph) dot(px + i, py + j, col, true, tick % 8 < 6 ? 1 : 0.7);
-  if (sign) for (let i = -3; i <= 3; i++) { dot(px + i, py - 10, sign, true, 0.9); dot(px + i, py - 9, mix(sign, '#000000', 0.5)); }
-  lights.push({ x: px, y: py - 13, r: TILE * 0.8, i: 0.35, c: rgb01(col) });
 }

@@ -8,7 +8,7 @@
 //   CLIME_ART: a palette in the shape of ART.biomes (sun: under the sky;
 //     paving: ruin flagstones), plus haz (the hazard's own ramp: deep, mid,
 //     light, edge), decor (what's painted over the ground here and there),
-//     vent ('fire' or 'steam') and sign (the colour its signposts glow).
+//     vent ('fire' or 'steam') and sign (the colour of the motes round a portal that leads to it).
 //   CLIME_FLORA: each clime's plants in the FLORA format, built with
 //     buildArtSprite(rows, pal, CLIME_LETTERS, CLIME_GLOWS). sky: they
 //     don't glow under the sun. looks: which pieces the fighting flora wear.
@@ -928,11 +928,8 @@ function placeName(zone, clime) {
   return zone === 'deep' ? `${T.zones.deep.name} · ${climeName(clime)}` : climeName(clime);
 }
 
-// Where a way on leads, by name (its signpost's and its button's).
+// Where a way on leads, by name (on its button).
 function wayPlaceName(d, i) { return placeName(d.ways[i], d.wayClimes && d.wayClimes[i]); }
-
-// The colour a way's signpost glows: its clime's, else its zone's.
-function waySignCol(d, i) { const c = d.wayClimes && CLIME_ART[d.wayClimes[i]]; return c ? c.sign : null; }
 
 // A floor's clime look, if it isn't its zone's own.
 function climeArt(f) { return (!f.hub && f.clime && CLIME_ART[f.clime]) || null; }

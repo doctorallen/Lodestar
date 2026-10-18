@@ -73,7 +73,7 @@ const T = {
   // the Keeper's Lair (if its shard is still held there) or a Deep Vein.
   expedition: { sites: 4, ways: 2 },
   // Climes: the kind of country a site is, rolled when the way to it is
-  // made (so its signpost can name it). zones: where it can turn up; weight:
+  // made (so its portal can name it). zones: where it can turn up; weight:
   // how often, times lean[region] in a region it leans to (every clime can
   // turn up in every region). The first of each zone is today's look and
   // has no hazard. gen: overrides of the floor's generator. light: a
@@ -113,6 +113,11 @@ const T = {
     vent: { n: [6, 9], every: 5, tell: 1.2, burst: 0.6, r: 11, dmg: 9 },
     spores: { n: [5, 8], every: 7, life: 8, r: 12, dps: 3, drift: 5 },
   },
+  // A portal (portals.js), each way on: stepping in takes `enter` seconds
+  // (the world holds still), and the view opens over `arrive` on the other
+  // side. reach: how near its threshold (px) the diver must stand. light:
+  // [radius in tiles, strength], times sunLight under the sky.
+  portal: { enter: 0.45, arrive: 0.7, reach: 11, light: [2.6, 1.0], sunLight: 0.55 },
   // Contracts: how many are posted, how often each kind comes up, and the
   // star points each pays per magnitude.
   // newest: the share of hauls and reaches set in the newest biome open;

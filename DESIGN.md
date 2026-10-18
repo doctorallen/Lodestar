@@ -51,7 +51,7 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
    - socket cores, unseal relics, feed the star and spend attunements.
 2. **Set out:** pick one of the biomes the star reaches. An expedition is a chain of up to 4 sites, starting on the sunlit surface.
 3. **Explore each site:** mine ore veins, fight, and pick up loot. Your cargo is limited.
-4. **Push or leave:** each site has two Ways On, each signposted with the zone it leads to, and some have a lodeline home.
+4. **Push or leave:** each site has two portals on, each in the colour of the zone it leads to, and some have a lodeline home.
 5. **Extract or fall:** if you extract, everything in your cargo is banked. If you fall, what you wear is safe, but everything in the cargo is lost (ore, exotics, gear and relics).
 
 ## Expeditions
@@ -69,13 +69,14 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
   - **Ruin:** rectangular halls and pillars left by someone before, paved floors, more ancient forges, constructs.
   - **Deep Vein:** at the last site, rich in ore, likelier to hold the warden.
   - **Keeper's Lair:** at the last site, while the biome's heart-shard is still missing. An arena; the Keeper holds the shard, and the lodeline only lights when it falls. While the Keeper lives the star's pull doesn't fade (the Keeper holds the dark off), but after 90 s it rages: faster, with twice the ring of orbs. When it falls, its lodeline lights and a short 30 s pull begins: take the shard and go.
+- **Portals.** The ways on are standing rings of lodestone, not holes, since the next site may be up on the surface as easily as further down. Each portal's face swirls in the colour of where it leads (warm daylight for the surface, cool blue for a cave, amber for a ruin, red for a Keeper's Lair, green for a Deep Vein), its runes glow in it, and its keystone carries that zone's glyph. They're dark stone, and their colours are never a rift's violet, magenta or cyan. STEP THROUGH: the world holds still while the view closes on the portal's face in its colour, then opens round the diver at the next site. No shake. The outpost has one too, its face the surface's daylight, and every expedition sets out through it.
 - **The chain has 4 sites.** The player decides how far to go along it, not how deep. A site's lodeline is certain at the first, then 80%, 60% and 40% (5% more for each magnitude past the first, to at most 90%, 75% and 55%), so pushing on stays a gamble. The star's growth also softens the emergency recall (2% less lost for each magnitude).
 - **Danger rises with each site.** A site's enemy level is 4 × the biome's index plus the site (one more in a lair). Each level raises enemy health by 16% and damage by 8%. Deeper floors also have more enemies, more elites, and more of the biome's better ore and loot.
 - **Cargo is limited** (40 units, more from attunements and affixes). Ore and exotics weigh 1, gear and relics 3. You can drop gear mid-dive to make room.
 - **The pocket.** A few cargo slots whose contents survive a fall: 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
 - **The star's pull on each floor.** A gold meter under the health bar, full on arrival, fades over about 75 seconds (a little less at each site).
   - **Half gone:** your lamp dims, and more enemies stir in the dark every so often.
-  - **Gone:** the floor's lodeline goes dark and the Hollow comes, a shadow that hunts you and can't be staggered. The way out is a Way On, or the recall.
+  - **Gone:** the floor's lodeline goes dark and the Hollow comes, a shadow that hunts you and can't be staggered. The way out is a portal on, or the recall.
 - **Leaving takes a moment.** EXTRACT in a lodeline is 1.5 s of standing still. Moving or being hit breaks it, and its light wakes anything nearby.
 - **Emergency recall** (pause or cargo screen) works anywhere: 4 s standing still. The dark keeps a share of the cargo, 15% plus 6% a site, to 70% at most, but the pocket is safe.
 - **Saved as you go.** The expedition is saved at every site and whenever the page is hidden; reopening the game offers to carry on from that site's start.
@@ -88,7 +89,7 @@ About a third of expeditions set out under a **Lodestorm**. On the surface, ever
 
 ## Contracts
 
-Three small goals are always posted at the ledge, so every expedition, even a short one, works towards something. Each is settled when you come home by a lodeline or a recall, never after a fall:
+Three small goals are always posted at the portal, so every expedition, even a short one, works towards something. Each is settled when you come home by a lodeline or a recall, never after a fall:
 - bring home some ore (a common amount of the lower ore, a few of the better);
 - bring down some creatures of a kind;
 - reach a site in a biome;
@@ -101,14 +102,14 @@ The board keeps moving: never two of a kind; 70% of hauls and reaches are set in
 
 ## Tools
 
-The diver carries one tool, chosen at the ledge before setting out. Each changes what you can see or do down there, so the choice shapes the expedition. The Compass is carried from the start; the rest are made once, from the stash, as the star grows.
+The diver carries one tool, chosen at the portal before setting out. Each changes what you can see or do down there, so the choice shapes the expedition. The Compass is carried from the start; the rest are made once, from the stash, as the star grows.
 
 | Tool | From magnitude | What it does |
 |---|---|---|
-| Lodeline Compass | 1 | An arrow round the diver to the nearest lit lodeline, or where none reaches, to the nearest way on (in its zone's colour). |
+| Lodeline Compass | 1 | An arrow round the diver to the nearest lit lodeline, or where none reaches, to the nearest portal on (in its zone's colour). |
 | Ore Sense | 2 | Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the pick can break. |
 | Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
-| Surveyor's Map | 3 | A map of each site, drawn as you walk it, in the view's corner, with ways, lodeline and ancient forge once seen. |
+| Surveyor's Map | 3 | A map of each site, drawn as you walk it, in the view's corner, with portals, lodeline and ancient forge once seen. |
 | Deep Satchel | 3 | One more pocket slot. |
 | Lode Beacon | 2 | Once an expedition, from the pause menu: call a lodeline down where you stand, where no lit one reaches. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
 
@@ -288,7 +289,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 
 | Station | What it does |
 |---|---|
-| The ledge (DESCEND) | Pick a biome and jump |
+| The portal (SET OUT) | Pick a biome, a tool, and step through onto its surface |
 | The forge (FORGE) | Make blades, foci, plate, charms, picks and spell cores from banked ore, with one exotic worked in. Every forge is played on the anvil |
 | The rune bench (RUNES) | Rework affixes on any piece: reroll, raise, add |
 | The locker (GEAR) | What's worn, the stash, stats; equip, socket cores, salvage, unseal relics |
@@ -323,7 +324,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
   - the off hand;
   - DASH;
   - MINE, held to dig;
-  - the contextual DESCEND or EXTRACT above them.
+  - the contextual SET OUT, STEP THROUGH or EXTRACT above them.
 - **Sideways:** the view stands in the middle with the controls either side, as in NEO.
 - Swings aim at the nearest enemy in reach, and spells at the nearest in sight. Mining targets the ore you're facing.
 - CARGO in the top bar shows what you carry, ore and exotics included. Tap anything to equip it or drop it mid-dive. Dropped ore lies on the floor as a glowing heap you can pick back up.

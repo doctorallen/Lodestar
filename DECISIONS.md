@@ -135,3 +135,13 @@ From the lead designer's measured review and the QA pass:
 - **The beacon at magnitude 2,** where it matters, and never over a lit lodeline. Tool costs take parts of any grade.
 - **Contracts keep moving:** no duplicates, mostly in the newest biome, stale ones replaced after 3 expeditions, a free swap each time home, a bonus for the whole board.
 - **Imprinting** (the designer's crafting proposal): legendaries salvaged at home teach the forge their power; a heart or 2 riftglass imprints it on a new piece. It turns lucky finds into recipes and gives hearts and riftglass a purpose.
+
+## 2026-10-18: portals, not holes
+
+The designer found that holes down to the next site didn't make sense now that a way on can lead up to the surface, and suggested portals.
+- **Every way on is a portal:** a standing ring of lodestone on the site's exit tile, its face swirling in its destination's colour (warm daylight for the surface, cool blue for a cave, amber for a ruin, red for a Keeper's Lair, green for a Deep Vein), with the zone's glyph on its keystone in place of the old signpost. Dark stone, and colours that are never violet, magenta or cyan, keep it apart from a rift's tears; the Deep Vein's sign moved from violet to green for the same reason.
+- **Stepping through is a moment, not a fall.** The world holds still for 0.45 s while the view closes on the portal's face in its colour, then opens round the diver at the next site. No shake, as ever.
+- **The words follow.** The portal's button is STEP THROUGH: and its zone; the rift gate's became ENTER THE TEAR, so the two never share words. Wick says "Through we go".
+- **The outpost sets out through a portal too,** where the sinkhole's ledge was. Every expedition starts on the sunlit surface, so jumping into the pit and landing under the sky made no sense. The pit stays: the star hangs over it, and its lodelines still run down into it and bring you home.
+- **Generation is untouched.** A portal stands on the tile the shaft did (renamed TILE_PORTAL, the same value), so the golden hashes didn't change.
+

@@ -24,7 +24,7 @@ function sandbox(files) {
   // tests need
   if (files.some((f) => f.endsWith('items.js')) && !files.includes('js/blueprints.js')) files = files.slice(0, -1).concat(['js/blueprints.js', files[files.length - 1]]);
   const src = files.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n');
-  const expose = '\n;globalThis.__game = { T, Rng, hashInts, generateFloor, floorHash, floorDistances, floorTile, ORE_INDEX, TILE_FLOOR, TILE_ROCK, TILE_ORE, TILE_EDGE, TILE_PAD, TILE_SHAFT, TILE_SOLID, TILE,'
+  const expose = '\n;globalThis.__game = { T, Rng, hashInts, generateFloor, floorHash, floorDistances, floorTile, ORE_INDEX, TILE_FLOOR, TILE_ROCK, TILE_ORE, TILE_EDGE, TILE_PAD, TILE_PORTAL, TILE_SOLID, TILE,'
     + (files.some((f) => f.endsWith('items.js')) ? ' AFFIXES, KIND_FAMILIES, LEGENDARIES, SETS, CORES, RARITIES, makeItem, makeCore, makeRelic, rollRarity, unsealRelic, BLUEPRINTS, BP_IDS, PARTS, PART_STACK_IDS, parsePart, partId, bindsWith, ELEMENTS, BLUEPRINT_BIOME, forgeItem, rerollAffix, upgradeAffix, addAffix, salvageYield, computeStats, startingGear, magnitudeOf, attunePointsLeft, biomeOpen, fmtAffix, itemBaseLine, itemWorth, compareLines, affixRoll,' : '')
     + ' };';
   vm.runInContext(src + expose, ctx, { filename: 'lodestar-sandbox.js' });
