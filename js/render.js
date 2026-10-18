@@ -87,7 +87,11 @@ function buildSprites() {
     s.flash = tinted(s.c, '#ffffff');
     return s;
   }));
+  Sprites.drone = buildArtSprite(DRONE_ROWS, DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS, ART_CREATURE);
 }
+// The drone's body, drawn by hand at the art's size (artNative): a disc of
+// plate with its antenna. Its eye is drawn over it, the way the diver looks.
+const DRONE_ROWS = artNative(['....M..', '...M...', '..GGG..', '.GGGGG.', 'GGGGGGG', 'GGGGGGG', 'GGGGGGG', '.GGGGG.', '..GGG..']);
 
 // Which of the eight facings a direction is.
 function facingIndex(fx, fy) { return (Math.round(Math.atan2(fy, fx) / (Math.PI / 4)) + 8) % 8; }
@@ -842,7 +846,7 @@ function drawProspector(d, ox, oy, tick, lights) {
 
 // The diver's drone: a little orb that drifts after it, over its back
 // shoulder, bobbing, its eye turned the way the diver looks. Its body is a
-// disc of plate, lit from the top left, outlined.
+// disc of plate, lit from the top left, outlined (Sprites.drone).
 function drawDrone(d, fx, fy, lights) {
   const p = d.p, dt = clamp(Game.realT - (d.droneT || Game.realT), 0, 0.1);
   d.droneT = Game.realT;
@@ -851,18 +855,12 @@ function drawDrone(d, fx, fy, lights) {
   const k = 1 - Math.exp(-5 * dt);
   d.drone.x += (tx - d.drone.x) * k; d.drone.y += (ty - d.drone.y) * k;
   const x = Math.round((d.drone.x - p.x) * AP) + fx, y = Math.round((d.drone.y - p.y + Math.sin(Game.realT * 3) * 1.5) * AP) + fy;
-  const plate = DIVER_PAL.plate, eye = DIVER_PAL.tip[0], under = DIVER_PAL.chest[0], R = 2.15 * AP, in_ = (i, j) => i * i * 0.8 + j * j <= R * R;
-  const n = Math.ceil(R) + 1;
-  for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) {
-    if (in_(i, j)) {
-      const u = (i + j * 1.3) / R, c = j > R * 0.45 ? plate[1] : u < -0.7 ? plate[3] : plate[2];
-      dot(x + i, y + j, c);
-    } else if (in_(i - 1, j) || in_(i + 1, j) || in_(i, j - 1) || in_(i, j + 1)) dot(x + i, y + j, '#050407');
-  }
-  dot(x - 1, y - ap(3), DIVER_PAL.metal[3]); dot(x + 1, y - ap(3) - 1, DIVER_PAL.metal[2]);
+  const eye = DIVER_PAL.tip[0], under = DIVER_PAL.chest[0];
+  // (the disc's middle is the grid's (3, 5), past its outline)
+  drawArtSprite(Sprites.drone, x - 4, y - 6);
   const ex = x + Math.round(p.fx * 1.4 * AP), ey = y + Math.round(p.fy * AP);
   dot(ex, ey, eye, true); dot(ex + 1, ey, eye, true);
-  dot(x, y + Math.ceil(R), under, true, 0.8);
+  dot(x, y + 4, under, true, 0.8);
   lights.push({ x, y, r: TILE * 1.1, i: 0.45, c: rgb01(eye) });
 }
 
