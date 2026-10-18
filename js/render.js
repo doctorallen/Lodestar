@@ -384,7 +384,7 @@ function renderFrame() {
 
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) drawDrop(dr, ox, oy, lights);
-  const props = d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : riftProps(d);
+  const props = d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : riftProps(d).concat(lifeActors(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], View.flora || [], props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
@@ -392,6 +392,7 @@ function renderFrame() {
     else if (a.wreck) drawWreck(d, ox, oy, lights);
     else if (a.tear) drawRift(d, a, ox, oy, lights);
     else if (a.piece) drawFlora(d, a, ox, oy, lights);
+    else if (a.crit) drawCritter(d, a, ox, oy);
     else drawEnemy(d, a, ox, oy, tick, lights);
   }
   for (const b of d.bolts) {
@@ -449,6 +450,7 @@ function renderFrame() {
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
   if (d.hub) drawHubOver(d, ox, oy, lights);
   for (const s of Sparks) dot(Math.round(s.x + ox), Math.round(s.y + oy), s.col, true);
+  drawLifeAir(d, ox, oy, lights);
   const fx = Math.round(p.x + ox), fy = Math.round(p.y + oy);
 
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
@@ -483,6 +485,7 @@ function renderFrame() {
   addLight(lx, fx, fy - 17, Lt.lamp[0] * TILE * lamp * (1 + (d.stats.lamp || 0) / 100), Lt.lamp[1] * lamp, rgb01(ART.pal.lamp[0]));
   lightScene(camX, camY);
   bloomScene();
+  drawLifeShade(d, ox, oy);
 
   // on top, unlit: enemies' health, the ore being aimed at, and how far
   // through it the pick is

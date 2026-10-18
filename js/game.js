@@ -94,6 +94,7 @@ function enterFloor(depth, zone = 'cave') {
   placeRift(d);
   spawnEnemies(d);
   placeFieldForge(d);
+  placeLife(d);
   const P = T.pull;
   d.pull = 1; d.pullTime = Math.max(P.min, P.time + P.perDepth * (depth - 1)); d.waveT = P.waveEvery; d.channel = null;
   // a lair's lodeline is dark until its Keeper falls
@@ -212,6 +213,7 @@ function updateDive(dtReal, dt) {
   updateBolts(dt);
   updateAuras(dt);
   updateCombatFx(dt);
+  if (!d.hub) updateLife(d, dt);
   updatePickups(dtReal);
   if (Input.consumeAct()) {
     const a = actionHere();
