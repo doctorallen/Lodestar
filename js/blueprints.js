@@ -59,6 +59,8 @@ const BP_IDS = Object.keys(BLUEPRINTS);
 // what a piece made before blueprints is
 const KIND_BLUEPRINT = { blade: 'blade', focus: 'wand', armor: 'plate', charm: 'charm', pick: 'pick' };
 const bpOf = (item) => BLUEPRINTS[item.bp || KIND_BLUEPRINT[item.kind]] || null;
+// the blueprint a spell or modifier core is forged from
+const bpOfCore = (core) => BLUEPRINTS[BP_IDS.find((id) => BLUEPRINTS[id].core === core)] || null;
 
 // Where each blueprint tends to turn up.
 const BLUEPRINT_BIOME = {

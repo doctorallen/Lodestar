@@ -290,8 +290,9 @@ async function phone(browser) {
   await tap(page, '#pause-recall');
   await run(page, T_RECALL + 0.3);
   check(await visible(page, '#screen-report'), 'phone: the recall did not come home');
-  const recalled = await page.evaluate(() => [Save.data.stash.ferrite, Math.round(20 * (1 - recallCost({ depth: 1 })))]);
-  check(recalled[0] === recalled[1], `phone: the recall banked ${recalled[0]} Ferrite, not ${recalled[1]}`);
+  // the dark's share is rounded up or down by chance
+  const recalled = await page.evaluate(() => [Save.data.stash.ferrite, 20 - Math.ceil(20 * recallCost({ depth: 1 })), 20 - Math.floor(20 * recallCost({ depth: 1 }))]);
+  check(recalled[0] >= recalled[1] && recalled[0] <= recalled[2], `phone: the recall banked ${recalled[0]} Ferrite, not ${recalled[1]}–${recalled[2]}`);
   await tap(page, '#screen-report [data-act=closeReport]');
 
   // a Keeper holds a heart-shard; once taken it's safe, and set at the altar

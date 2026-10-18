@@ -78,7 +78,7 @@ function installBot() {
     let progressT = 0, progress = '', aim = null, iter = 0;
     const result = () => ({ biome, depth: d.depth, kills: d.kills, cargo: cargoUsed(d), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t) });
     while (t < maxTime) {
-      if (Game.dive !== d) { ended = UI.report && UI.report.banked ? 'extracted' : 'died'; break; }
+      if (Game.dive !== d) { ended = UI.report && UI.report.recalled ? 'recalled' : UI.report && UI.report.banked ? 'extracted' : 'died'; break; }
       if (Game.modal) UI.close();
       const p = d.p, st = d.stats, steps = stepsFromMe(d);
       Input.bot = { x: 0, y: 0 };
@@ -91,7 +91,10 @@ function installBot() {
       const leave = (full || hurt || d.depth >= depth || !(d.floor.ways || []).length) && d.floor.pad && !d.padDark;
       const action = actionHere();
       Bot.why = [action, !!foe, full, hurt, leave, d.depth, depth, !!d.floor.pad].join(',');
+      // stranded (no lodeline here, full, hurt or out of time): recall
+      const stranded = (!d.floor.pad || d.padDark) && (full || hurt || d.pull < 0.12) && (!(d.floor.ways || []).length || hurt || d.pull < 0.12 || d.depth >= depth + 1);
       if (d.channel) { /* hold still while the lodeline lifts */ }
+      else if (stranded && !foe) UI.acts.recall();
       else if (action === 'extract' && leave) { Input.bot.act = true; }
       else if (action === 'way' && !leave && (!d.floor.pad || d.depth < depth || full || hurt)) { Input.bot.act = true; }
       else if (foe && !(hurt && d.floor.pad)) {

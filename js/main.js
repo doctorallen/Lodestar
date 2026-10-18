@@ -16,6 +16,7 @@ function step(dtReal) {
   UI.frame(dtReal);
   View.shake = (View.shake || 0) * Math.exp(-14 * dtReal);
   if (Game.modal === 'screen-anvil') Anvil.update(dtReal);
+  if (Game.dive && Game.dive.feedT > 0) Game.dive.feedT = Math.max(0, Game.dive.feedT - dtReal);
   if (Game.modal) return;
   // a hit lands: everything holds still for a moment
   if (Game.hitstop > 0) { Game.hitstop -= dtReal; return; }
@@ -35,10 +36,10 @@ function frame(now) {
     if (n === 5) _acc = 0;
     _resizeT -= dt;
     if (_resizeT <= 0) { _resizeT = 0.5; fitLayout(); resizeView(); }
-    renderFrame();
   } catch (e) {
     noteError(e);
   }
+  try { renderFrame(); } catch (e) { noteError(e); }
   requestAnimationFrame(frame);
 }
 
@@ -84,6 +85,7 @@ function boot() {
   Game.render = renderFrame;
   Game.ready = true;
   enterHub();
+  if (Save.unread) UI.toast("The old save couldn't be read. It's been kept aside, and this is a new start");
   requestAnimationFrame((t) => { _last = t; frame(t); });
 }
 

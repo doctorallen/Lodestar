@@ -216,7 +216,7 @@ function drawWreck_() {
   const s = Save.data, held = Story.shardsHeld(), set = Story.shardsSet();
   const shardRow = (b, i) => {
     const has = (s.shards || []).includes(i);
-    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? (i < set || set >= held ? 'Set in the star' : 'Take it to the altar') : `In the Keeper's Lair, the last site of an expedition${biomeOpen(s, i) ? '' : ', beyond the star\'s reach for now'}`}</span></span></div>`;
+    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Take it to the altar') : `In the Keeper's Lair, the last site of an expedition${biomeOpen(s, i) ? '' : ', beyond the star\'s reach for now'}`}</span></span></div>`;
   };
   const echoes = (s.echoes || []).map((i) => `<div class="echo"><b>${esc(ECHOES[i].title)}</b><p>${esc(ECHOES[i].text)}</p></div>`).join('');
   $('wreck-body').innerHTML = `
@@ -239,7 +239,7 @@ function drawReport() {
   if (r.recalled) {
     title = 'RECALLED';
     const lost = [stuffLines(r.recalled.lost), r.recalled.lostItems ? `${r.recalled.lostItems} piece${r.recalled.lostItems > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(' and ');
-    text = `From ${where}. ${got ? `Banked ${got}.` : ''}${lost ? ` The dark kept ${lost}.` : ''}`;
+    text = [`From ${where}.`, got ? `Banked ${got}.` : '', lost ? `The dark kept ${lost}.` : ''].filter(Boolean).join(' ');
   }
   if (r.kept && (r.kept.items.length || Object.keys(r.kept.stuff).length)) text += ` Your pocket kept ${[stuffLines(r.kept.stuff), r.kept.items.map((i) => i.name).join(', ')].filter(Boolean).join(' and ')}.`;
   if (r.shard) text += ' You carried a heart-shard home. Set it in the star at the altar.';
@@ -248,7 +248,8 @@ function drawReport() {
   if (learned.length) text += ` Learned: ${learned.map((id) => BLUEPRINTS[id].name).join(', ')}.`;
   if (r.lostBlueprints) text += ` ${r.lostBlueprints} blueprint${r.lostBlueprints > 1 ? 's were' : ' was'} lost with the cargo.`;
   if (r.fed) text += ` The lodeline fed the star ${r.fed}.`;
-  if (r.grew) text += ` It grew to magnitude ${r.grew}.`;
+  const mag = magnitudeOf(Save.data.star);
+  if (r.fed && Save.data.magSeen !== undefined && mag > Save.data.magSeen) text += ` It grew to magnitude ${mag}.`;
   $('report-title').textContent = title;
   $('report-body').textContent = text;
 }
@@ -496,9 +497,8 @@ UI.acts = {
   abandon: () => abandonDive(),
   dive: (i) => { UI.close(); startDive(Number(i)); },
   closeReport: () => {
-    const r = UI.report;
     UI.report = null; UI.close();
-    if (r && r.grew) Story.starGrew(r.grew);
+    Story.starGrew();
   },
   storyNext: () => {
     const st = UI.story;
@@ -549,7 +549,7 @@ UI.acts = {
     if (!k) return;
     d.cargo[id] -= k;
     if (!d.cargo[id]) delete d.cargo[id];
-    d.drops.push({ x: d.p.x, y: d.p.y, t: 0, stuff: id, n: k, warned: true });
+    d.drops.push({ x: d.p.x, y: d.p.y, t: 0, stuff: id, n: k, left: true });
     if (!d.cargo[id]) UI.closeCard();
     UI.redraw();
   },
@@ -589,7 +589,7 @@ UI.acts = {
   drop: () => {
     const d = Game.dive, it = UI.card.item;
     removeFrom(d.items, it);
-    d.drops.push({ x: d.p.x, y: d.p.y, t: 0, item: it, warned: true });
+    d.drops.push({ x: d.p.x, y: d.p.y, t: 0, item: it, left: true });
     UI.closeCard();
     UI.redraw();
   },
@@ -605,7 +605,7 @@ UI.acts = {
     if (y.exotic) s[y.exotic] = (s[y.exotic] || 0) + 1;
     if (field) {
       const d = Game.dive, over = cargoUsed(d) - d.stats.cargo;
-      if (over > 0) { const k = Math.min(over, s[y.ore]); s[y.ore] -= k; if (!s[y.ore]) delete s[y.ore]; d.drops.push({ x: d.p.x, y: d.p.y, t: 0, stuff: y.ore, n: k, warned: true }); }
+      if (over > 0) { const k = Math.min(over, s[y.ore]); s[y.ore] -= k; if (!s[y.ore]) delete s[y.ore]; d.drops.push({ x: d.p.x, y: d.p.y, t: 0, stuff: y.ore, n: k, left: true }); }
     }
     UI.toast(`+${y.n} ${T.ores[ORE_INDEX[y.ore]].name}${y.part ? `, +1 ${partName(y.part)}` : ''}${y.exotic ? `, +1 ${exoticName(y.exotic)}` : ''}`);
     UI.closeCard();
@@ -663,7 +663,7 @@ UI.acts = {
     const after = magnitudeOf(s.star);
     Save.save();
     // out to the outpost, to watch the star drink it
-    if (Game.dive && Game.dive.hub) { UI.close(); feedStarFx(Game.dive, k, after > before ? after : 0); if (after > before) Story.starGrew(after); }
+    if (Game.dive && Game.dive.hub) { UI.close(); feedStarFx(Game.dive, k, after > before ? after : 0); if (after > before) Story.starGrew(); }
     else UI.redraw();
   },
   attune: (id) => {

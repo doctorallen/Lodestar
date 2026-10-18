@@ -79,6 +79,7 @@ const Input = {
     for (const k in this.held) { this.held[k] = null; $(HOLD_BUTTONS[k]).classList.remove('held'); }
     for (const k in this.hands) Object.assign(this.hands[k], { down: false, pressed: false, released: false });
     this.dashReq = null;
+    this.keys.clear();
     drawStick();
   },
 };
@@ -151,7 +152,9 @@ function setupInput() {
     if (GAME_KEYS.has(e.code) && !Game.modal) e.preventDefault();
     if (e.repeat) return;
     if ((e.code === 'Escape' || e.code === 'KeyP') && Game.dive) {
-      if (Game.modal) UI.close();
+      if (Game.modal === 'screen-report') UI.acts.closeReport();
+      else if (Game.modal === 'screen-anvil' || Game.modal === 'screen-reveal' || Game.modal === 'screen-story') { /* these finish themselves */ }
+      else if (Game.modal) UI.close();
       else UI.openPause();
       return;
     }

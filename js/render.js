@@ -438,7 +438,7 @@ function renderFrame() {
     }
   }
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
-  if (d.hub) { drawHubOver(d, ox, oy, lights); if (d.feedT > 0) d.feedT = Math.max(0, d.feedT - 1 / 60); }
+  if (d.hub) drawHubOver(d, ox, oy, lights);
   for (const s of Sparks) dot(Math.round(s.x + ox), Math.round(s.y + oy), s.col, true);
   const fx = Math.round(p.x + ox), fy = Math.round(p.y + oy);
 
@@ -584,7 +584,8 @@ function drawProspector(d, ox, oy, tick, lights) {
 // The diver's drone: a little orb that drifts after it, over its back
 // shoulder, bobbing, its eye turned the way the diver looks.
 function drawDrone(d, fx, fy, lights) {
-  const p = d.p, dt = 1 / 60;
+  const p = d.p, dt = clamp(Game.realT - (d.droneT || Game.realT), 0, 0.1);
+  d.droneT = Game.realT;
   const tx = p.x - p.fx * 7 - p.fy * 6, ty = p.y - p.fy * 4 + p.fx * 3 - 20;
   if (!d.drone) d.drone = { x: tx, y: ty };
   const k = 1 - Math.exp(-5 * dt);
@@ -823,6 +824,7 @@ function pixelLineGlow(x0, y0, x1, y1, col) {
 // A tiny pixel font for the numbers that pop off hits: 3×5 digits.
 const DIGITS = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001', '111100111001111', '111100111101111', '111001001010010', '111101111101111', '111101111001111'];
 function drawNumber(v, cx, cy, col, alpha) {
+  if (!Number.isFinite(v) || v >= 1e7) return;
   const s = String(v), x0 = cx - Math.floor((s.length * 4 - 1) / 2), x = View.ctx;
   x.globalAlpha = alpha;
   for (const [ink, off] of [['#000000', 1], [col, 0]])

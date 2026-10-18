@@ -59,6 +59,7 @@ function spawnEnemies(d) {
   if (d.zone === 'lair' && f.arena && !(Save.data.shards || []).includes(d.biome)) {
     const k = makeEnemy('keeper', (f.arena.cx + 0.5) * TILE, (f.arena.cy - 1.5) * TILE, level + 1, null);
     k.home = id;
+    if (bodyHits(f, k.x, k.y, k.r)) k.y = (f.arena.cy + 0.5) * TILE;
     d.enemies.push(k);
     d.keeper = k;
   }
@@ -72,9 +73,11 @@ function spawnEnemies(d) {
     const n = clamp(Math.round(E.perRoom + E.perDepth * d.depth) + rng.i(-1, 1), 0, E.maxPerRoom);
     for (let k = 0; k < n; k++) {
       const type = rng.weighted(types.map((t) => [E[t].weight * (zoneWeight[t] || 1), t]));
-      const at = inRoom(r);
       const elite = rng.chance(eliteChance) ? rng.pick(ELITE_AFFIXES) : null;
-      d.enemies.push(makeEnemy(type, at.x, at.y, level, elite));
+      const e = makeEnemy(type, 0, 0, level, elite);
+      // on clear ground, not half in a wall
+      for (let tries = 0; tries < 8; tries++) { const at = inRoom(r); e.x = at.x; e.y = at.y; if (!bodyHits(f, e.x, e.y, e.r)) break; }
+      d.enemies.push(e);
     }
   }
 }
@@ -130,6 +133,7 @@ const ATTACKING = new Set(['windup', 'lunge', 'charge']);
 function updateEnemies(dt) {
   const d = Game.dive, f = d.floor, p = d.p, E = T.enemies;
   updateFlow(d);
+  if ((d.pruneT = (d.pruneT || 1) - dt) <= 0) { d.pruneT = 1; d.enemies = d.enemies.filter((e) => !e.dead); }
   let attackers = d.enemies.filter((e) => !e.dead && ATTACKING.has(e.state)).length;
   const knockFade = Math.exp(-T.impact.knockDecay * dt);
   for (const e of d.enemies) {
@@ -306,7 +310,12 @@ function updateKeeper(d, e, pd, sp, dt, free) {
   if (!e.met) { e.met = true; Story.say('keeper'); }
   if (e.home === 'rim' && (e.summonT = (e.summonT || def.summonEvery) - dt) <= 0) {
     e.summonT = def.summonEvery;
-    for (let k = 0; k < def.summon; k++) { const c = makeEnemy('crawler', e.x + d.rng.f(-16, 16), e.y + d.rng.f(-10, 10), e.level - 2, null); c.aggro = true; d.enemies.push(c); }
+    const brood = d.enemies.filter((c) => c.brood && !c.dead).length;
+    for (let k = 0; k < Math.min(def.summon, def.broodMax - brood); k++) {
+      const c = makeEnemy('crawler', e.x + d.rng.f(-16, 16), e.y + d.rng.f(-10, 10), e.level - 2, null);
+      if (bodyHits(d.floor, c.x, c.y, c.r)) { c.x = e.x; c.y = e.y; }
+      c.aggro = true; c.brood = true; d.enemies.push(c);
+    }
   }
   const was = e.state;
   updateCharger(d, e, pd, sp, dt, true);

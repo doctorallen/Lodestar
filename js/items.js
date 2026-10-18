@@ -353,7 +353,6 @@ function compareSlot(equip, it) {
 
 // What a blueprint takes: { ore, parts } (ore of the chosen tier, parts of
 // the chosen kind and grade). A kind's name stands for its plain blueprint.
-function craftCost(id) { const bp = BLUEPRINTS[id] || BLUEPRINTS[KIND_BLUEPRINT[id]] || BLUEPRINTS['core_' + id]; return { ore: bp.ore, parts: bp.parts }; }
 // Which parts can bind a blueprint.
 function bindsWith(bpId, partStack) {
   const bp = BLUEPRINTS[bpId], p = parsePart(partStack);
@@ -416,7 +415,7 @@ function addAffix(rng, item) {
 // null, exotic: id | null }. Some of its ore, the part that bound it, and
 // sometimes an exotic.
 function salvageYield(rng, item) {
-  const bp = item.kind === 'relic' ? null : item.kind === 'core' ? BLUEPRINTS['core_' + item.core] : bpOf(item);
+  const bp = item.kind === 'relic' ? null : item.kind === 'core' ? bpOfCore(item.core) : bpOf(item);
   const n = Math.max(1, Math.floor((bp ? bp.ore : 0) * T.salvage.back));
   const good = item.rarity === 'rare' || item.rarity === 'legendary' || item.rarity === 'set';
   const exotic = rng.chance(good ? T.salvage.exoticRare : T.salvage.exotic) ? rng.pick(T.exotics).id : null;

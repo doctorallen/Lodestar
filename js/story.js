@@ -27,6 +27,7 @@ const WICK = {
   firstParts: 'Parts from what you killed. The forge can bind them into gear.',
   firstBlueprint: "A blueprint. Someone made things down here once. Get it home and we'll learn it.",
   firstForge: 'Strike when the marker crosses the glow. The better the strikes, the better the piece.',
+  noPad: "No lodeline reaches this far. We go on, or I call us back from the pause menu, and the dark keeps a share of what we carry.",
   pullFading: "The star's grip is slipping on this floor. We shouldn't stay much longer.",
   choir: 'The Choir. Everything here hums when it is struck. Even you.',
   underforge: "The Underforge. These ruins were built by someone. They didn't leave.",
@@ -79,8 +80,21 @@ const Story = {
     said[id] = true;
     UI.speak('WICK', WICK[id]);
   },
-  // The star, when it grows.
-  starGrew(mag) { if (STAR_SPEAKS[mag]) UI.speak('THE STAR', STAR_SPEAKS[mag], 'star'); },
+  // The star, when it grows: a line for every magnitude it passed (a big
+  // feed can pass two), what opened, and the attunement to spend.
+  starGrew() {
+    const s = Save.data, mag = magnitudeOf(s.star);
+    if (s.magSeen === undefined) s.magSeen = mag;
+    if (mag <= s.magSeen) return;
+    for (let m = s.magSeen + 1; m <= mag; m++) {
+      if (STAR_SPEAKS[m]) UI.speak('THE STAR', STAR_SPEAKS[m], 'star');
+      const b = T.star.biomeAt.indexOf(m);
+      if (b > 0) UI.toast(`The star reaches the ${T.biomes[b].name}`, 'legendary');
+    }
+    UI.toast(`Magnitude ${mag}: ${mag - s.magSeen > 1 ? 'attunements' : 'an attunement'} to spend at the altar`);
+    s.magSeen = mag;
+    Save.save();
+  },
 
   // The opening, the first time the game is played.
   intro() {
@@ -97,6 +111,7 @@ const Story = {
     const s = Save.data;
     s.shards = s.shards || [];
     if (!s.shards.includes(biome)) s.shards.push(biome);
+    Save.saveField('shards');
     Story.say('shard');
   },
 
@@ -108,6 +123,7 @@ const Story = {
     s.star += T.story.shardStar * (held - set);
     Save.save();
     UI.speak('THE STAR', SHARD_SPEAKS[held - 1], 'star');
+    Story.starGrew();
     if (held === 3) Story.say('allShards');
     return true;
   },
@@ -119,6 +135,7 @@ const Story = {
     if (s.echoes.length >= ECHOES.length) return null;
     const i = s.echoes.length;
     s.echoes.push(i);
+    Save.saveField('echoes');
     Story.say('echo');
     return ECHOES[i];
   },

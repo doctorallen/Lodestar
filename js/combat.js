@@ -71,14 +71,18 @@ function swing(slot, item, h) {
   const dir = aimDir(M.autoAim);
   h.cd = cd / (1 + st.atkSpeed / 100);
   h.comboT = M.comboWindow + h.cd;
+  // the arc is measured from where the swing began, so the lunge can't
+  // carry the diver past something standing on top of it
+  const x0 = p.x, y0 = p.y;
   moveBody(d.floor, p, dir.x * lunge, dir.y * lunge, T.player.radius);
   p.swing = { slot, a: Math.atan2(dir.y, dir.x), side: h.step % 2 ? -1 : 1, t: time, max: time, heavy, spin: false, style: (bpOf(item || {}) || {}).style || 'blade' };
   const base = item ? item.base.dmg : M.fist;
   let hit = 0;
   for (const e of d.enemies) {
     if (e.dead) continue;
-    const dx = e.x - p.x, dy = e.y - p.y, m = Math.hypot(dx, dy);
-    if (m > S.range + e.r || (m > 2 && (dx * dir.x + dy * dir.y) / m < arc)) continue;
+    const dx = e.x - x0, dy = e.y - y0, m = Math.hypot(dx, dy);
+    const close = m <= e.r + T.player.radius + 3 || dist(e.x, e.y, p.x, p.y) <= e.r + T.player.radius + 3;
+    if (!close && (m > S.range + e.r || (m > 2 && (dx * dir.x + dy * dir.y) / m < arc))) continue;
     meleeHit(e, base * mult, dir, knock, heavy, item && item.element);
     hit++;
   }
@@ -113,7 +117,7 @@ function chargedAttack(slot, item, h) {
     p.swing = { slot, a: Math.atan2(dir.y, dir.x), side: 1, t: C.time, max: C.time, heavy: true, spin: false, style };
   } else if (C.move === 'drag') {
     for (const e of d.enemies) {
-      if (e.dead || e.boss || dist(e.x, e.y, p.x, p.y) > C.radius + e.r) continue;
+      if (e.dead || e.boss || e.type === 'hollow' || dist(e.x, e.y, p.x, p.y) > C.radius + e.r) continue;
       const m = dist(e.x, e.y, p.x, p.y) || 1, k = Math.min(160, (m - 10) * 5);
       e.kx = ((p.x - e.x) / m) * k; e.ky = ((p.y - e.y) / m) * k; e.stunT = 0.5;
       meleeHit(e, base * C.mult, norm(p.x - e.x, p.y - e.y), 0, true, el);
@@ -141,11 +145,19 @@ function meleeHit(e, dmg, dir, knock, heavy, element) {
   if (crit && st.powers.bloodedge) healPlayer(st.maxHp * 0.04);
 }
 
+// A hit lands: the world holds still a moment. Only a heavy hit can freeze
+// it again straight after another, so a flurry doesn't stutter.
+function freezeFrame(t, heavy) {
+  if (!heavy && Game.realT - (Game.frozeAt || -1) < T.impact.stopGap) return;
+  Game.hitstop = Math.max(Game.hitstop, t);
+  Game.frozeAt = Game.realT;
+}
+
 function afterMelee(item, h, hit, heavy) {
   const d = Game.dive, p = d.p, st = d.stats, I = T.impact;
   if (!hit) return;
   p.charge = Math.min(st.maxCharge, p.charge + T.player.chargeOnHit * hit);
-  Game.hitstop = Math.max(Game.hitstop, heavy ? I.heavyStop : I.hitstop);
+  freezeFrame(heavy ? I.heavyStop : I.hitstop, heavy);
   shakeView(heavy ? I.heavyShake : I.shake);
   buzz(heavy ? 25 : 10);
   // a blade's cores fire every few hits, free
@@ -285,7 +297,7 @@ function castSpell(kind, power, spread = 0, charged = false, mods = {}) {
     const r = S.pull.radius * area;
     d.fx.push({ kind: 'pull', x: p.x, y: p.y - 6, r, t: 0.35, max: 0.35 });
     for (const e of d.enemies) {
-      if (e.dead || e.boss) continue;
+      if (e.dead || e.boss || e.type === 'hollow') continue;
       const m = dist(e.x, e.y, p.x, p.y);
       if (m > r || m < 1) continue;
       const k = Math.min(S.pull.speed, (m - 10) * 4);
@@ -362,7 +374,7 @@ function updateBolts(dt) {
       if (e.dead || b.hitIds.includes(e) || dist(b.x, b.y, e.x, e.y - 5) > e.r + (b.big ? 7 : 4)) continue;
       const sp0 = Math.hypot(b.vx, b.vy) || 1;
       hurtEnemy(e, b.dmg, { spell: true, knock: { x: (b.vx / sp0) * (b.big ? 120 : 50), y: (b.vy / sp0) * (b.big ? 120 : 50) }, heavy: b.big, element: b.element });
-      Game.hitstop = Math.max(Game.hitstop, T.impact.hitstop * 0.6);
+      if (b.big) freezeFrame(T.impact.hitstop * 0.6, false);
       b.hitIds.push(e);
       if (b.pierce > 0) { b.pierce--; continue; }
       // Stormcaller: on to the next nearest
@@ -458,6 +470,8 @@ function killEnemy(e) {
   // warden leave more, and now and then a blueprint, an exotic or a relic
   const grade = d.biome + 1, part = Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
   const parts = (n) => { if (part) for (let k = 0; k < n; k++) drop({ stuff: partId(part, grade), n: 1 }); };
+  // a boss's hoard: ordinary parts of any creature (its own heart is apart)
+  const hoard = (n) => { for (let k = 0; k < n; k++) drop({ stuff: partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), grade), n: 1 }); };
   const tier = dropTier(d);
   if (e.type === 'keeper') {
     if (d.padDark && d.zone === 'lair') { d.padDark = false; UI.toast('The lodeline lights', 'legendary'); }
@@ -465,13 +479,13 @@ function killEnemy(e) {
     drop({ shard: d.biome });
     drop({ echo: true });
     dropBlueprint(d, drop, true);
-    parts(L.bossParts);
+    hoard(L.bossParts);
     for (let k = 0; k < 2; k++) drop({ exotic: rng.pick(T.exotics).id });
     if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
     return;
   }
   if (e.boss) {
-    parts(L.bossParts);
+    hoard(L.bossParts);
     drop({ stuff: partId('heart', grade), n: 1 });
     dropBlueprint(d, drop, true);
     if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
@@ -495,7 +509,7 @@ function killEnemy(e) {
 // A blueprint not yet known (nor already carried), likelier one of this
 // biome's own; when every one is known, an exotic instead.
 function dropBlueprint(d, drop, sure) {
-  const known = new Set(Save.data.blueprints.concat(d.blueprints.map((b) => b.id), d.drops.filter((x) => x.blueprint).map((x) => x.blueprint)));
+  const known = new Set(Save.data.blueprints.concat(d.blueprints.map((b) => b.id), d.drops.filter((x) => x.blueprint).map((x) => x.blueprint), (d.pocket || []).filter((x) => x.blueprint).map((x) => x.blueprint)));
   const local = BLUEPRINT_BIOME[T.biomes[d.biome].id].filter((id) => !known.has(id));
   const any = BP_IDS.filter((id) => !known.has(id));
   const pool = local.length && (sure || d.rng.chance(0.7)) ? local : any;
@@ -532,7 +546,9 @@ function updatePickups(dt) {
   for (const dr of d.drops) {
     dr.t += dt;
     if (dr.home) { const a = norm(p.x - dr.x, p.y - dr.y); dr.x += a.x * 90 * dt; dr.y += a.y * 90 * dt; }
-    if (dist(dr.x, dr.y, p.x, p.y) > reach) { dr.warned = false; continue; }
+    // something put down stays down until the diver has walked away from it
+    if (dist(dr.x, dr.y, p.x, p.y) > reach) { dr.warned = false; dr.left = false; continue; }
+    if (dr.left) continue;
     if (dr.mote) { healPlayer(dr.mote); dr.gone = true; continue; }
     const room = d.stats.cargo - cargoUsed(d);
     // a pile of ore: take what fits

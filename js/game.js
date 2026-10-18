@@ -99,6 +99,7 @@ function enterFloor(depth, zone = 'cave') {
   d.padDark = zone === 'lair' && !!d.keeper;
   if (d.floor.pad && !d.padDark) UI.tip('lodeline', "The gold beam is a lodeline: it takes you home");
   UI.toast(`${T.biomes[d.biome].name} · ${T.zones[zone].name} · site ${depth} of ${X.sites}${d.floor.pad || zone === 'lair' ? '' : ': no lodeline reaches here'}`);
+  if (!d.floor.pad) Story.say('noPad');
 }
 
 // Which way on the diver stands at, if any.
@@ -282,11 +283,23 @@ function bodyHits(f, x, y, r) {
   for (const [c, s] of BODY_RING) if (rockAt(f, x + c * r, y + s * r)) return true;
   return false;
 }
+// How far into rock a body is: its ring points in rock, its centre double.
+function bodyInRock(f, x, y, r) {
+  let n = rockAt(f, x, y) ? 2 : 0;
+  for (const [c, s] of BODY_RING) if (rockAt(f, x + c * r, y + s * r)) n++;
+  return n;
+}
 
 function moveBody(f, b, dx, dy, r) {
   if (!dx && !dy) return;
-  // already wedged in rock (a spawn on a ragged edge): let it walk out
-  if (!bodyHits(f, b.x + dx, b.y + dy, r) || bodyHits(f, b.x, b.y, r)) { b.x += dx; b.y += dy; return; }
+  if (!bodyHits(f, b.x + dx, b.y + dy, r)) { b.x += dx; b.y += dy; return; }
+  // already wedged in rock (pushed onto a ragged edge): it may work its way
+  // out, or along the edge, but never deeper in
+  if (bodyHits(f, b.x, b.y, r)) {
+    const was = bodyInRock(f, b.x, b.y, r), now = bodyInRock(f, b.x + dx, b.y + dy, r);
+    if (now < was || (now === was && !rockAt(f, b.x + dx, b.y + dy))) { b.x += dx; b.y += dy; }
+    return;
+  }
   // blocked: slide along the wall, one axis at a time, as far as each goes
   const x0 = b.x, y0 = b.y;
   for (const [mx, my] of [[dx, 0], [0, dy]]) {
@@ -405,15 +418,15 @@ function bankBlueprints(d) {
 
 function extractDive() {
   const d = Game.dive, s = Save.data.stash;
-  bankPocket(d);
+  const kept = bankPocket(d);
   for (const k in d.cargo) s[k] = (s[k] || 0) + d.cargo[k];
   Save.data.items.push(...d.items);
   const learned = bankBlueprints(d);
-  const fed = T.star.extractStar * d.depth * d.depth, before = magnitudeOf(Save.data.star);
+  const fed = T.star.extractStar * d.depth * d.depth;
   Save.data.star += fed;
   noteDeepest(d);
   Save.save();
-  enterHub({ banked: d.cargo, items: d.items, depth: d.depth, biome: d.biome, fed, learned, shard: d.gotShard, echoes: d.echoes, grew: magnitudeOf(Save.data.star) > before ? magnitudeOf(Save.data.star) : 0 });
+  enterHub({ banked: d.cargo, items: d.items, depth: d.depth, biome: d.biome, fed, learned, kept, shard: d.gotShard, echoes: d.echoes });
 }
 
 // Dying, or giving up: the cargo is lost, what's worn and what's in the
@@ -430,20 +443,22 @@ function loseDive(died) {
 function recallDive() {
   const d = Game.dive, s = Save.data.stash, cost = recallCost(d), lost = {};
   let lostItems = 0;
-  bankPocket(d);
+  const kept = bankPocket(d);
   for (const k in d.cargo) {
-    const gone = Math.round(d.cargo[k] * cost);
+    // a share of each stack, rounded up or down by chance, so a single
+    // exotic is a gamble rather than a certainty either way
+    const share = d.cargo[k] * cost, gone = Math.floor(share) + (d.rng.chance(share % 1) ? 1 : 0);
     if (gone) lost[k] = gone;
     const keep = d.cargo[k] - gone;
     if (keep > 0) s[k] = (s[k] || 0) + keep;
     d.cargo[k] = keep;
   }
-  const kept = d.items.filter(() => { if (d.rng.chance(cost)) { lostItems++; return false; } return true; });
-  Save.data.items.push(...kept);
+  const safe = d.items.filter(() => { if (d.rng.chance(cost)) { lostItems++; return false; } return true; });
+  Save.data.items.push(...safe);
   const learned = bankBlueprints(d);
   noteDeepest(d);
   Save.save();
-  enterHub({ banked: d.cargo, items: kept, depth: d.depth, biome: d.biome, learned, shard: d.gotShard, echoes: d.echoes, recalled: { lost, lostItems, cost } });
+  enterHub({ banked: d.cargo, items: safe, depth: d.depth, biome: d.biome, learned, shard: d.gotShard, echoes: d.echoes, kept, recalled: { lost, lostItems, cost } });
 }
 
 function abandonDive() { loseDive(false); }
