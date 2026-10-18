@@ -72,6 +72,11 @@ const T = {
   // exit two ways lead on to other zones. At the last exit, one way leads to
   // the Keeper's Lair (if its shard is still held there) or a Deep Vein.
   expedition: { sites: 4, ways: 2 },
+  // A portal (portals.js), each way on: stepping in takes `enter` seconds
+  // (the world holds still), and the view opens over `arrive` on the other
+  // side. reach: how near its threshold (px) the diver must stand. light:
+  // [radius in tiles, strength], times sunLight under the sky.
+  portal: { enter: 0.45, arrive: 0.7, reach: 11, light: [2.6, 1.0], sunLight: 0.55 },
   // Contracts: how many are posted, how often each kind comes up, and the
   // star points each pays per magnitude.
   // newest: the share of hauls and reaches set in the newest biome open;

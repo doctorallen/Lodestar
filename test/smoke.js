@@ -1,7 +1,7 @@
 'use strict';
 // The whole loop through the real controls. On a phone, upright: the
 // Lodestar, DESCEND and a biome, walking with the joystick, swinging at an
-// enemy, mining with MINE held, a vein the pick is too weak for, a way on
+// enemy, mining with MINE held, a vein the pick is too weak for, a portal
 // to the next site, pausing, the cargo screen, the lodeline home and the haul in the
 // stash; the forge, equipping what it makes, a reroll at the rune bench,
 // feeding the star; then a death that loses the cargo but not what's worn.
@@ -84,15 +84,18 @@ async function phone(browser) {
   await run(page, 0.5);
   await page.touchscreen.touchEnd();
   check(await page.evaluate((h0) => Game.dive.p.y < h0 - 4, h0), 'phone: the joystick did not walk at the outpost');
-  await page.evaluate(atStation, 'descend');
+  await page.evaluate(atStation, 'setout');
   await run(page, 0.1);
   check(await page.evaluate(() => $('btn-act').textContent === 'SET OUT'), 'phone: no SET OUT at the ledge');
   await tap(page, '#btn-act');
   await run(page, 0.05);
-  check(await visible(page, '#screen-descend'), 'phone: the ledge did not open the biomes');
-  check(await page.evaluate(() => document.querySelectorAll('#descend-body .biome:disabled').length === 2), 'phone: the Choir and the Underforge are open on a fresh save');
-  await tap(page, '#descend-body [data-act=dive][data-arg="0"]');
+  check(await visible(page, '#screen-setout'), 'phone: the portal did not open the biomes');
+  check(await page.evaluate(() => document.querySelectorAll('#setout-body .biome:disabled').length === 2), 'phone: the Choir and the Underforge are open on a fresh save');
+  // each site is named once on arriving (counted as said, not as shown)
+  await page.evaluate(() => { window._siteToasts = 0; const said = UI.toast; UI.toast = (m, k) => { if (/ · site \d/.test(m)) window._siteToasts++; return said(m, k); }; });
+  await tap(page, '#setout-body [data-act=dive][data-arg="0"]');
   check(await page.evaluate(() => Game.scene === 'dive' && !Game.dive.hub && !Game.modal && Game.dive.depth === 1), 'phone: tapping the Rim did not start a dive');
+  check(await page.evaluate(() => window._siteToasts === 1), 'phone: the first site was not named once on arriving');
   await run(page, 0.2);
   const v = await page.evaluate(() => ({ w: View.w, h: View.h, cssW: View.canvas.getBoundingClientRect().width, stageW: $('stage').getBoundingClientRect().width }));
   check(Math.min(v.w, v.h) >= 176 && v.cssW >= v.stageW - 1, `phone: the view is ${v.w}×${v.h}, ${v.cssW}px across a ${v.stageW}px stage`);
@@ -141,22 +144,23 @@ async function phone(browser) {
     check((await page.evaluate(() => cargoUsed(Game.dive))) === cargo, 'phone: a weak pick still mined');
   }
 
-  // a way on: ON: ZONE appears and takes the dive to the next site, in
-  // the zone its signpost named
+  // a portal: STEP THROUGH: ZONE appears, the view closes on it, and the
+  // dive goes on to the next site, in the zone its keystone named
   const offered = await page.evaluate(() => Game.dive.ways.slice());
-  check(offered.length === 2, 'phone: the surface did not offer two ways on');
-  await page.evaluate(standOn, 'shaft');
+  check(offered.length === 2, 'phone: the surface did not offer two portals');
+  await page.evaluate(standOn, 'portal');
   await run(page, 0.1);
-  check(await visible(page, '#btn-act'), 'phone: no way on at the shaft');
-  check(/^ON:/.test(await page.evaluate(() => $('btn-act').textContent)), 'phone: the way on is not labelled ON:');
+  check(await visible(page, '#btn-act'), 'phone: no button at the portal');
+  check(await page.evaluate((o) => $('btn-act').textContent === 'STEP THROUGH: ' + T.zones[o[0]].name.toUpperCase(), offered), 'phone: the portal is not labelled STEP THROUGH: and its zone');
   // (past the first site a lodeline is a coin toss; this test wants one)
-  await page.evaluate(() => { window._padOdds = T.floor.padOdds; T.floor.padOdds = [1, 1, 1, 1]; });
+  await page.evaluate(() => { window._padOdds = [T.floor.padOdds, T.floor.padCap]; T.floor.padOdds = T.floor.padCap = [1, 1, 1, 1]; });
   await tap(page, '#btn-act');
   await page.waitForFunction(() => Game.dive.depth === 2, { timeout: 5000 }).catch(() => {});
-  await page.evaluate(() => { T.floor.padOdds = window._padOdds; });
+  await page.evaluate(() => { [T.floor.padOdds, T.floor.padCap] = window._padOdds; });
   await run(page, 0.1);
-  check(await page.evaluate(() => Game.dive.depth === 2), 'phone: the way on did not lead on');
-  check(await page.evaluate((o) => Game.dive.floor.zone === o[0], offered), 'phone: the way on led to the wrong zone');
+  check(await page.evaluate(() => Game.dive.depth === 2), 'phone: the portal did not lead on');
+  check(await page.evaluate((o) => Game.dive.floor.zone === o[0], offered), 'phone: the portal led to the wrong zone');
+  check(await page.evaluate(() => window._siteToasts === 2), 'phone: the second site was not named once on arriving');
   check(await page.evaluate(() => cargoUsed(Game.dive)) === cargo, 'phone: the cargo did not come along');
   await page.evaluate(calm);
 
@@ -461,9 +465,9 @@ async function sideways(browser) {
 
 async function desktop(browser) {
   const { page, errors } = await openGame(browser, DESKTOP);
-  await page.evaluate(() => UI.useStation('descend'));
+  await page.evaluate(() => UI.useStation('setout'));
   await sleep(450);
-  await page.click('#descend-body [data-act=dive][data-arg="0"]');
+  await page.click('#setout-body [data-act=dive][data-arg="0"]');
   await run(page, 0.1);
   await page.evaluate(calm);
   const y0 = await page.evaluate(() => Game.dive.p.y);

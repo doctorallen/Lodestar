@@ -9,10 +9,10 @@
 // ---------------------------------------------------------------------------
 
 const TOOLS = {
-  compass: { name: 'Lodeline Compass', icon: 'compass', text: 'An arrow to the nearest lodeline, or where none reaches, to the nearest way on.' },
+  compass: { name: 'Lodeline Compass', icon: 'compass', text: 'An arrow to the nearest lodeline, or where none reaches, to the nearest portal on.' },
   oresense: { name: 'Ore Sense', icon: 'lens', text: 'Veins nearby glint through the dark, and an arrow points to the nearest beyond the view.' },
   radar: { name: 'Threat Radar', icon: 'radar', text: 'Marks at the edge of the view for what is out there: red for the dangerous, violet for the Hollow.' },
-  map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each site as you walk it, with its ways and lodeline once seen.' },
+  map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each site as you walk it, with its portals and lodeline once seen.' },
   satchel: { name: 'Deep Satchel', icon: 'satchel', text: 'One more pocket slot, so more comes home whatever happens.' },
   beacon: { name: 'Lode Beacon', icon: 'beacon', text: 'Once an expedition: call a lodeline down where you stand. It takes a few seconds to land, and its light draws everything near.' },
 };
@@ -73,7 +73,7 @@ function updateTools(dt) {
 }
 
 // Where the compass points: the nearest lit lodeline on foot, else the
-// nearest way on.
+// nearest portal on.
 function compassTarget(d, tx, ty) {
   const f = d.floor, steps = floorDistances(f.tiles, f.w, f.h, tx, ty);
   const far = (t) => { const s = steps[t.y * f.w + t.x]; return s < 0 ? 1e9 : s; };

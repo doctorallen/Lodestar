@@ -164,19 +164,17 @@ function flippedSprite(s) {
 // Tiles, painted into a floor's pixel buffer at (ox, oy). rnd() is the
 // tile's own seeded generator.
 // ---------------------------------------------------------------------------
-// An oval dish with a lip: the lodeline's anchor (glowing star metal), or the
-// shaft down (a black drop).
-function paintDish(P, ox, oy, b, kind) {
+// An oval dish with a lip: the lodeline's anchor (glowing star metal).
+function paintDish(P, ox, oy) {
   const cx = ox + TILE / 2 - 0.5, cy = oy + TILE / 2, rx = TILE * 0.42, ry = TILE * 0.3;
-  const m = fourStep(kind === 'pad' ? ART.pal.metal : b.front), star = ART.pal.star;
+  const m = fourStep(ART.pal.metal), star = ART.pal.star;
   for (let y = 0; y < TILE; y++)
     for (let x = 0; x < TILE; x++) {
       const dx = (ox + x - cx) / rx, dy = (oy + y - cy) / ry, e = dx * dx + dy * dy;
       if (e > 1) continue;
       if (e > 0.62) putPx(P, ox + x, oy + y, dy < 0 ? m[3] : m[1]);
       else if (e > 0.4) putPx(P, ox + x, oy + y, m[0]);
-      else if (kind === 'pad') putPx(P, ox + x, oy + y, e < 0.12 ? star[3] : star[2], true);
-      else putPx(P, ox + x, oy + y, '#000000');
+      else putPx(P, ox + x, oy + y, e < 0.12 ? star[3] : star[2], true);
     }
 }
 

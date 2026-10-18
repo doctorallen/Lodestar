@@ -3,8 +3,8 @@
 // The outpost on the sinkhole's rim, drawn. The Lodestar hangs over the pit,
 // bobbing, its lodelines running down into the dark: one more for every
 // magnitude. Round the plaza stand the stations (the star's altar, the
-// locker, the ledge you jump from, the forge, the rune bench) and the
-// practice target, and lanterns, one lit for every magnitude. The floor,
+// locker, the portal every expedition sets out through, the forge, the rune
+// bench) and the practice target, and lanterns, one lit for every magnitude. The floor,
 // walls and pit are painted like any floor (render.js); these are drawn
 // every frame on top.
 // ---------------------------------------------------------------------------
@@ -83,13 +83,6 @@ const STATION_ROWS = {
     '..GGGGGGGG..',
     '.MMMMMMMMMM.',
   ],
-  descend: [
-    'MMMMMMMMMMMMMMMMMMMM',
-    'MwwMwwMwwMwwMwwMwwwM',
-    'MwwMwwMwwMwwMwwMwwwM',
-    'MMMMMMMMMMMMMMMMMMMM',
-    '.MM..............MM.',
-  ],
 };
 const _stationSprites = {};
 function stationSprite(id) {
@@ -119,15 +112,13 @@ function drawHubUnder(d, ox, oy, tick, lights) {
     }
   }
   for (const s of HUB_STATIONS) {
-    if (s.id === 'dummy' || s.id === 'wreck') continue;
-    const spr = stationSprite(s.id), x = Math.round((s.x + 0.5) * TILE + ox - spr.ax), y = Math.round((s.y + 0.5) * TILE + oy - spr.ay + (s.id === 'descend' ? 4 : 6));
+    // (the portal stands among the actors: portals.js)
+    if (s.id === 'dummy' || s.id === 'wreck' || s.id === 'setout') continue;
+    const spr = stationSprite(s.id), x = Math.round((s.x + 0.5) * TILE + ox - spr.ax), y = Math.round((s.y + 0.5) * TILE + oy - spr.ay + 6);
     drawArtSprite(spr, x, y);
     const glow = { forge: [ART.pal.glass[0], 1.8, 0.9], runes: [ART.pal.arcane[0], 1.2, 0.5], locker: [DIVER_PAL.tip[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
     if (glow) lights.push({ x: x + spr.w / 2, y: y + spr.h / 2, r: TILE * glow[1], i: glow[2] * (0.85 + 0.15 * Math.sin(Game.realT * 3)), c: rgb01(glow[0]) });
   }
-  // the ledge you jump from: an arrow pulsing down into the pit
-  const dz = HUB_STATIONS.find((s) => s.id === 'descend'), ax = (dz.x + 0.5) * TILE + ox, ay = (dz.y + 0.5) * TILE + oy - 10 + Math.round(Math.sin(Game.realT * 4) * 1.5);
-  for (const [i, j] of [[0, 0], [-1, -1], [1, -1], [-2, -2], [2, -2], [0, -1], [0, -2], [0, -3]]) dot(Math.round(ax + i), Math.round(ay + j), star[3], true, 0.8);
   // lanterns, lit one per magnitude
   LANTERNS.forEach(([lx, ly], k) => {
     const x = Math.round((lx + 0.5) * TILE + ox), y = Math.round((ly + 0.5) * TILE + oy), lit = k < mag;
@@ -202,8 +193,8 @@ function drawLabel(text, cx, y, col, alpha) {
   }
   c.globalAlpha = 1;
 }
-const STATION_LABELS = { descend: 'THE LEDGE', altar: 'THE STAR', locker: 'LOCKER', forge: 'FORGE', runes: 'RUNE BENCH', wreck: 'THE MERIDIAN', dummy: 'TARGET' };
-const STATION_LABEL_Y = { descend: 8, altar: -26, locker: -24, forge: -26, runes: -20, wreck: -34, dummy: -22 };
+const STATION_LABELS = { setout: 'THE PORTAL', altar: 'THE STAR', locker: 'LOCKER', forge: 'FORGE', runes: 'RUNE BENCH', wreck: 'THE MERIDIAN', dummy: 'TARGET' };
+const STATION_LABEL_Y = { setout: 8, altar: -26, locker: -24, forge: -26, runes: -20, wreck: -34, dummy: -22 };
 function drawStationLabels(d, ox, oy) {
   for (const s of HUB_STATIONS) {
     const x = (s.x + 0.5) * TILE, y = (s.y + 0.5) * TILE, m = dist(x, y, d.p.x, d.p.y) / TILE;

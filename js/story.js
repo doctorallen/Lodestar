@@ -23,7 +23,7 @@ const STORY_INTRO = [
 
 // Wick, the first time each thing happens.
 const WICK = {
-  firstDive: 'Down we go. Mine what glows, and mind the dark. The gold beam is our way back.',
+  firstDive: 'Through we go. Mine what glows, and mind the dark. The gold beam is our way back.',
   firstParts: 'Parts from what you killed. The forge can bind them into gear.',
   firstBlueprint: "A blueprint. Someone made things down here once. Get it home and we'll learn it.",
   firstForge: 'Strike when the marker crosses the glow. The better the strikes, the better the piece.',
@@ -108,7 +108,7 @@ const Story = {
   // The opening, the first time the game is played.
   intro() {
     if (Save.data.introSeen) return false;
-    UI.openStory(STORY_INTRO, () => { Save.data.introSeen = true; Save.save(); UI.tip('hub', 'Walk to the ledge under the star to descend'); });
+    UI.openStory(STORY_INTRO, () => { Save.data.introSeen = true; Save.save(); UI.tip('hub', 'Walk to the portal under the star to set out'); });
     return true;
   },
 
