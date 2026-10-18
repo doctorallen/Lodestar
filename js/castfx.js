@@ -164,7 +164,8 @@ function castFxEcho(d) {
   if (CFX.dive !== d || !CFX.last || !Game.dive) return;
   const p = d.p, L = CFX.last, col = ART.cores.echo, hand = castFxHandRel(L.a, L.slot, L.style), spr = castFxSprite(L.a, L.slot);
   CFX.origin = { x: hand.x, y: hand.y, t: Game.realT };
-  if (spr) CFX.ghosts.push({ spr, x: p.x, y: p.y, col, t: T.castFx.echo, max: T.castFx.echo, alpha: 0.55 });
+  // (over the diver, or the diver would hide it)
+  if (spr) CFX.ghosts.push({ spr, x: p.x, y: p.y, col, t: T.castFx.echo, max: T.castFx.echo, alpha: 0.45, over: true });
   cfxCastBurst(p, L.a, hand, mix(L.col, col, 0.5), false, false, L.style, true);
 }
 
@@ -551,16 +552,19 @@ function drawCastGround(d, ox, oy, tick, lights) {
     const lv = chargeLevel(h);
     if (lv <= 0) continue;
     const C = T.castFx.charge, rx = cfxQuant(lerp(C.glyph[0], C.glyph[1], lv) * AP), full = lv >= 1;
-    cfxBlit(cfxGlyphPic(rx, full && tick % 2 ? '#ffffff' : castFxCol(it), Math.floor(Game.realT * (6 + lv * 10)) % 6), fx, fy, full ? 1 : 0.5 + lv * 0.5 > 0.75 ? 0.75 : 0.5);
+    cfxBlit(cfxGlyphPic(rx, full && tick % 2 ? '#ffffff' : castFxCol(it), Math.floor(Game.realT * (6 + lv * 10)) % 6), fx, fy, full ? 1 : lv > 0.5 ? 0.75 : 0.5);
   }
-  // afterimages: the silhouette in the cast's colour
-  for (const g of CFX.ghosts) {
-    const k = g.t / g.max, spr = g.spr, x = Math.round(g.x * AP) + ox - spr.ax, y = Math.round(g.y * AP) + oy - spr.ay;
-    const pic = cfxTinted(spr, g.col), a = cfxBand(k) * g.alpha;
-    c.globalAlpha = a; c.drawImage(pic, Math.round(x), Math.round(y));
-    e.globalAlpha = a * 0.6; e.drawImage(pic, Math.round(x), Math.round(y));
-    c.globalAlpha = e.globalAlpha = 1;
-  }
+  // afterimages (an Echo's ghost goes over the diver: drawCastAir)
+  for (const g of CFX.ghosts) if (!g.over) cfxDrawGhost(g, ox, oy);
+}
+
+// An afterimage: the diver's silhouette in a colour.
+function cfxDrawGhost(g, ox, oy) {
+  const c = View.ctx, e = View.emCtx, k = g.t / g.max, spr = g.spr, pic = cfxTinted(spr, g.col), a = cfxBand(k) * g.alpha;
+  const x = Math.round(g.x * AP) + ox - Math.round(spr.ax), y = Math.round(g.y * AP) + oy - Math.round(spr.ay);
+  c.globalAlpha = a; c.drawImage(pic, x, y);
+  e.globalAlpha = a * 0.6; e.drawImage(pic, x, y);
+  c.globalAlpha = e.globalAlpha = 1;
 }
 
 // A sprite's silhouette in a colour, kept.
@@ -577,6 +581,7 @@ function cfxTinted(spr, col) {
 // bursts, and the lights they all give.
 function drawCastAir(d, ox, oy, tick, lights) {
   if (CFX.dive !== d) return;
+  for (const g of CFX.ghosts) if (g.over) cfxDrawGhost(g, ox, oy);
   const p = d.p, px = p.x, py = p.y;
   const vx = (wx) => Math.round(wx * AP) + ox, vy = (wy) => Math.round(wy * AP) + oy;
   for (const q of CFX.parts) {
@@ -631,9 +636,12 @@ function drawCastAir(d, ox, oy, tick, lights) {
       if (r.pillar) { const L = Math.round(ap(14) * k); for (let j = -L; j <= L; j++) dot(x, y + j, Math.abs(j) < 3 ? '#ffffff' : r.col, true, cfxBand(k * (1 - Math.abs(j) / (L + 1)))); }
     }
   }
+  // (in daylight a flare would only wash the ground out, so it's dimmed, as
+  // the lamp is)
+  const zl = !d.hub && T.zones[d.zone] && T.zones[d.zone].light, dim = zl && d.pull > zl.lampAt ? T.castFx.dayFlare : 1;
   for (const l of CFX.flares) {
     const k = l.t / l.max;
-    lights.push({ x: l.f ? fx + Math.round(l.x * AP) : vx(l.x), y: l.f ? fy + Math.round(l.y * AP) : vy(l.y), r: l.r * (0.6 + 0.4 * k), i: l.i * k, c: l.c });
+    lights.push({ x: l.f ? fx + Math.round(l.x * AP) : vx(l.x), y: l.f ? fy + Math.round(l.y * AP) : vy(l.y), r: l.r * (0.6 + 0.4 * k), i: l.i * k * dim, c: l.c });
   }
 }
 

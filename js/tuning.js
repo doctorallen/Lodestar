@@ -280,7 +280,8 @@ const T = {
   //     radius [empty, full].
   //   echo: how long the ghost of a recast pose lasts.
   //   cap: the most motes alive at once (past it, new ones are skipped); flares: the
-  //     most lights flaring at once (the oldest make way).
+  //     most lights flaring at once (the oldest make way); dayFlare: how
+  //     bright they are in daylight.
   castFx: {
     pose: 0.2, thrust: 0.45,
     lean: { wand: [1, 1], gauntlet: [2, 1], staff: [1, 0] }, reach: { wand: 3, gauntlet: 1, staff: 4 }, lift: 4,
@@ -298,7 +299,7 @@ const T = {
     bolt: { originT: 0.07, trail: 5, every: 0.035 }, impact: [7, 1.1, 1.1, 0.16], decal: [1.6, 16],
     charge: { motes: 40, glyph: [5, 13] },
     echo: 0.3,
-    cap: 180, flares: 10,
+    cap: 180, flares: 10, dayFlare: 0.3,
   },
   // Elements a weapon or focus carries. shock: this share of hits arcs on;
   // frost: hits chill, and a heavy hit on the chilled shatters for `shatter`
