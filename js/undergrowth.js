@@ -18,6 +18,9 @@
 //    all painted into the floor's pixels, so a plant stands in the ground
 //    rather than on it. Repainting after mining paints them again; ground
 //    that was rock when they grew stays bare.
+//  - Feet: a plant's foot has no sel-out and is shaded into its shadow,
+//    roots or a skirt of its bed spread from it, and a few blades grow in
+//    front of it, so it melts into the ground rather than sitting on it.
 //  - Walls: moss climbing a face over a bed at its foot, roots, vines or
 //    icicles hanging from a lip, scree at a wall's foot, and under the sky a
 //    fringe of dry grass over a mesa's lip.
@@ -44,7 +47,7 @@ const UG_LOOKS = {
   cinder: { bed: '#6a6066', litter: ['#8a8086', '#140e10'], lip: ['#5a5054', '#2a2224', '#141012'], blade: 'stem', tall: 'stem', head: 'ash', pad: 'ash', root: 'root' },
   bloomfen: { bed: '#34501e', litter: ['#c890b0', '#2a4220'], lip: ['#6a9a46', '#3c5c2c', '#22381a'], moss: ['#527a3a', '#2a4220'], strand: ['#4a7a36', '#22401c'], blade: 'leaf', tall: 'leaf', head: 'bark', pad: 'moss', root: 'bark' },
   grotto: { bed: '#1c2a46', litter: ['#4a5878', '#141c34'], moss: ['#2a4e62', '#12283a'], strand: ['#2e5068', '#14283a'], blade: 'leaf', tall: 'leaf', head: 'shell', pad: 'moss', root: 'shell' },
-  magma: { bed: '#140c10', litter: ['#4a3e40', '#0a0608'], moss: ['#302a2a', '#1a1616'], strand: ['#3a2418', '#1a100c'], blade: 'rock', tall: 'rock', head: 'rock', pad: 'rock', root: 'root' },
+  magma: { bed: '#140c10', litter: ['#4a3e40', '#0a0608'], moss: ['#302a2a', '#1a1616'], strand: ['#3a2418', '#1a100c'], front: 'pebbles', blade: 'rock', tall: 'rock', head: 'rock', pad: 'rock', root: 'root' },
   rootdeep: { bed: '#3a2a16', litter: ['#6a5030', '#2a2010'], moss: ['#4a5a28', '#2a3418'], strand: ['#62502e', '#2a2014'], blade: 'leaf', tall: 'leaf', head: 'stem', pad: 'moss', root: 'root' },
   temple: { bed: '#2c4826', litter: ['#6a6a30', '#22341c'], moss: ['#486638', '#22341c'], strand: ['#3c6a32', '#1a3218'], blade: 'leaf', tall: 'leaf', head: 'petal', pad: 'moss', root: 'vine' },
   vault: { bed: '#2a1c10', litter: ['#5a4428', '#1a120a'], moss: ['#3a3020', '#221a10'], blade: 'leaf', tall: 'leaf', head: 'leaf', pad: 'rock', root: 'bark' },
@@ -92,7 +95,29 @@ const UG_ROWS = {
     ['.H...H.', '.c.d.c.', '.c.c.c.', '.b.c.b.', 'b..b.b.', '.b.bb..', '.abab..', '..aa...'],
     ['.d..d', '.c.c.', 'c.cb.', '.bb.b', '.bab.', '..a..'],
   ],
+  // what grows in front of a plant's foot, over it: little clumps of
+  // blades a pixel wide, drawn at the art's own size (not enlarged), set as
+  // the stands' are, dark where they meet the ground
+  front: [
+    ['.d...', '.c..d', 'd.c.c', '.cbc.', '.bb..', '..a..'],
+    ['d...', '.c.d', '.cc.', 'b.b.', '.ab.'],
+    ['..d..', 'd.c..', '.c.cd', '.bcb.', '..ba.'],
+    ['.d.', 'c.d', 'cb.', '.a.'],
+    ['d..d.', '.cc..', '.b.c.', '..ab.'],
+  ],
 };
+// The pieces that spread roots into the ground round their foot (the rest
+// get a skirt of the bed's growth).
+const UG_ROOTED = new Set(['Dome tree', 'Fan palm', 'Mushroom tree', 'Great root', 'Charred snag', 'Smouldering stump', 'Jelly cap', 'Frill stalk', 'Flower bush', 'Toadstools', 'Seed spire', 'Ash caps', 'Glowcaps', 'Kelp fronds']);
+
+// A strip of blades (stamps at art px x, y, their feet at world y by),
+// drawn among the actors at y (world px; the blades' mean foot, unless said).
+function ugStrip(blades, y) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, sy = 0;
+  for (const o of blades) { x0 = Math.min(x0, o.x); y0 = Math.min(y0, o.y); x1 = Math.max(x1, o.x + o.st.w); y1 = Math.max(y1, o.y + o.st.h); sy += o.by; }
+  blades.sort((a, c) => a.by - c.by);
+  return { blades, x0, y0, w: x1 - x0, h: y1 - y0, y: y === undefined ? sy / blades.length : y };
+}
 
 // A sprite as a stamp: its pixels as 32-bit words (0 where it's clear),
 // to paint into a floor's pixels or a stand's rows.
@@ -118,7 +143,9 @@ function ugKit(set, b) {
   const tallLetters = Object.assign({}, letters, { a: [has(look.tall), 0], b: [has(look.tall), 1], c: [has(look.tall), 2], d: [has(look.tall), 3] });
   const make = (rows, L, o) => ugStampOf(buildArtSprite(rows, pal, L || letters, [], o));
   K = {};
-  for (const k of Object.keys(UG_ROWS)) K[k] = UG_ROWS[k].map((r) => (k === 'tall' ? make(r, tallLetters, { outline: 'none' }) : make(r)));
+  for (const k of Object.keys(UG_ROWS)) K[k] = UG_ROWS[k].map((r) => (k === 'tall' ? make(r, tallLetters, { outline: 'none' }) : k === 'front' ? make(r, tallLetters, { outline: 'none', scale: 1 }) : make(r)));
+  // (where blades would be rock, pebbles lie in front instead)
+  if (look.front === 'pebbles') K.front = K.pebbles;
   _ugKits.set(key, K);
   return K;
 }
@@ -141,6 +168,70 @@ function ugTones(set, b) {
   };
   _ugTones.set(key, Q);
   return Q;
+}
+
+// The colour a plant's foot melts towards: the ground under it, drawn to
+// its bed's deep tone and in its contact shadow (a 32-bit word).
+function ugFootTone(set, b) {
+  const F = T.flora, Q = ugTones(set, b);
+  return ugDarken(ugMix(cavePal(b).f[1], Q.deep, F.bed.inner), F.shadow.core);
+}
+
+// Where a standing sprite meets the ground: the span of its lowest
+// T.flora.melt.zone px (art px from its middle), worked out once.
+function ugFootSpan(spr) {
+  if (spr.foot) return spr.foot;
+  const w = spr.w, h = spr.h, z = Math.min(h, T.flora.melt.zone), d = spr.c.getContext('2d').getImageData(0, h - z, w, z).data;
+  let l = w, r = -1;
+  for (let y = 0; y < z; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 127) { if (x < l) l = x; if (x > r) r = x; }
+  if (r < 0) { l = 0; r = w - 1; }
+  return (spr.foot = { l: l - w / 2, r: r + 1 - w / 2 });
+}
+
+// A standing sprite's own colours at its foot, darkest and middling (32-bit
+// words), for the roots it spreads.
+function ugFootCols(spr) {
+  if (spr.footCols) return spr.footCols;
+  const w = spr.w, h = spr.h, z = Math.min(h, T.flora.melt.zone), d = spr.c.getContext('2d').getImageData(0, h - z, w, z).data, e = spr.ec.getContext('2d').getImageData(0, h - z, w, z).data, all = [];
+  for (let i = 0; i < w * z; i++) if (d[i * 4 + 3] > 127 && !e[i * 4 + 3]) all.push([d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11, (0xff000000 | (d[i * 4 + 2] << 16) | (d[i * 4 + 1] << 8) | d[i * 4]) >>> 0]);
+  all.sort((a, b) => a[0] - b[0]);
+  const at = (q) => (all.length ? all[Math.min(all.length - 1, Math.floor(all.length * q))][1] : 0xff000000);
+  return (spr.footCols = [at(0.15), at(0.6)]);
+}
+
+// A standing sprite with its foot melted into the ground under it: up each
+// column from its lowest pixel, a few steps drawn towards View.ug.foot (the
+// ground in the plant's shadow), whole pixels, the steps' edge ragged in
+// pairs of columns, so there's no light line where it meets the ground.
+// Worked out once a sprite and floor look; the same size and anchor.
+const _ugMelts = new WeakMap();
+function ugMelted(spr) {
+  const U = View.ug, M = T.flora.melt;
+  if (!U || !U.foot) return spr;
+  const m = _ugMelts.get(spr);
+  if (m && m.key === U.foot) return m.spr;
+  const w = spr.w, h = spr.h, img = spr.c.getContext('2d').getImageData(0, 0, w, h), d = img.data, e = spr.ec.getContext('2d').getImageData(0, 0, w, h).data;
+  const t = [U.foot & 255, (U.foot >>> 8) & 255, (U.foot >>> 16) & 255], tl = t[0] * 0.3 + t[1] * 0.59 + t[2] * 0.11, P = M.pull;
+  for (let x = 0; x < w; x++) {
+    let yb = -1;
+    for (let y = h - 1; y >= Math.max(0, h - M.zone); y--) if (d[(y * w + x) * 4 + 3] > 127) { yb = y; break; }
+    if (yb < 0) continue;
+    const lift = artHash(x >> 1, 0, 0x6f07) < M.ragged ? 1 : 0;
+    for (let y = yb, n = 0; y >= 0 && n < P.length + lift; y--) {
+      const k = (y * w + x) * 4;
+      if (d[k + 3] < 128) break;
+      const a = lift && y === yb ? M.edge : P[Math.max(0, yb - y - lift)];
+      n = yb - y + 1;
+      // (only ever darker: a dark foot on light ground stays as it is)
+      if (e[k + 3] || d[k] * 0.3 + d[k + 1] * 0.59 + d[k + 2] * 0.11 <= tl) continue;
+      for (let c = 0; c < 3; c++) d[k + c] = Math.round(d[k + c] + (t[c] - d[k + c]) * a);
+    }
+  }
+  const [c, cx] = makeCanvas(w, h);
+  cx.putImageData(img, 0, 0);
+  const out = Object.assign({}, spr, { c });
+  _ugMelts.set(spr, { key: U.foot, spr: out });
+  return out;
 }
 
 // How big a floor piece is: 2 big (a tree, a tall stalk), 1 middling, 0
@@ -241,7 +332,7 @@ function placeUndergrowth(f, set) {
   const rockPx = (x, y) => { x = Math.round(x); y = Math.round(y); return x < 0 || y < 0 || x >= PW || y >= PH || R[y * PW + x] === 1; };
   const wallAbove = (tx, ty) => TILE_SOLID[floorTile(f, tx, ty - 1)] && floorTile(f, tx, ty - 1) !== TILE_PIT;
 
-  const U = { f, set, b, K, Q: ugTones(set, b), sky, orig: new Uint8Array(N), beds: new Array(N), shadows: new Array(N), stamps: new Array(N), grid: new Float32Array(N), gridNear: new Uint8Array(N), atlas: null };
+  const U = { f, set, b, K, Q: ugTones(set, b), foot: ugFootTone(set, b), sky, orig: new Uint8Array(N), beds: new Array(N), shadows: new Array(N), stamps: new Array(N), grid: new Float32Array(N), gridNear: new Uint8Array(N), atlas: null };
   for (let i = 0; i < N; i++) U.orig[i] = TILE_SOLID[f.tiles[i]] ? 1 : 0;
   // each thing painted goes in the lists of the tiles it touches (art px)
   const bucket = (list, it, x0, y0, x1, y1) => {
@@ -250,16 +341,18 @@ function placeUndergrowth(f, set) {
   };
   // a bed (world px: its middle, half width and depth; k its strength)
   const bed = (x, y, rx, ry, k = 1) => { const s = { x: x * AP, y: y * AP, rx: rx * AP, ry: ry * AP, k }; bucket(U.beds, s, s.x - s.rx, s.y - s.ry, s.x + s.rx, s.y + s.ry); };
-  const shadow = (x, y, rx) => { const s = { x: (x + rx * 0.3) * AP, y: (y + 0.5) * AP, rx: rx * AP, ry: Math.max(1.4, rx * 0.34) * AP }; bucket(U.shadows, s, s.x - s.rx, s.y - s.ry, s.x + s.rx, s.y + s.ry); };
+  // a contact shadow tight under a foot (world px: its middle and half
+  // width), a little to the side away from the light
+  const shadow = (x, y, hw) => { const Sh = F.shadow, rx = hw + Sh.pad, s = { x: (x + Sh.dx) * AP, y: (y + Sh.dy) * AP, rx: rx * AP, ry: Math.min(Sh.ry[1], Sh.ry[0] + rx * 0.15) * AP }; bucket(U.shadows, s, s.x - s.rx, s.y - s.ry, s.x + s.rx, s.y + s.ry); };
   // a stamp, its middle at x and its letters' foot at y (world px)
   const stamp = (st, x, y) => {
     const s = { st, x: Math.round(x * AP - st.w / 2), y: Math.round(y * AP) - st.h + 2 };
     if (rockPx(x * AP, y * AP)) return;
     bucket(U.stamps, s, s.x, s.y, s.x + st.w - 1, s.y + st.h - 1);
   };
-  const coverAt = (x, y, wantRock) => {
-    const r = rng.f();
-    const pick = (a) => a[Math.floor(rng.f() * a.length)];
+  const coverAt = (x, y, wantRock, g = rng) => {
+    const r = g.f();
+    const pick = (a) => a[Math.floor(g.f() * a.length)];
     stamp(r < 0.5 ? pick(K.tuft) : r < 0.68 ? pick(K.sprig) : r < 0.84 ? pick(K.moss) : wantRock ? pick(K.pebbles) : pick(K.roots), x, y);
   };
 
@@ -285,13 +378,53 @@ function placeUndergrowth(f, set) {
     return spr;
   };
   // a plant on the ground, with its bed, shadow and cover round it
+  // where a plant meets the ground (spr: its sprite; x, y its foot, world
+  // px): roots or a skirt of the bed's growth spread from it, painted into
+  // the floor, and a few blades in front of it, drawn over its foot
+  // (from a generator of its own, so the plants grow where they did)
+  const M = F.melt, fronts = [], footRng = new Rng((seed ^ 0x6f07) >>> 0);
+  // (owner: the plant's item, which draws them just after itself; else
+  // they're drawn among the actors on their own)
+  const footing = (spr, x, y, cls, rooted, owner) => {
+    const rng = footRng;
+    const ft = ugFootSpan(spr), fx = Math.round(x * AP), fy = Math.round(y * AP);
+    if (rooted) {
+      const [dk, md] = ugFootCols(spr);
+      for (const side of [-1, 1]) for (let k = 0, n = rng.i(M.roots[0], M.roots[1]); k < n; k++) {
+        const L = rng.i(M.rootLen[0], M.rootLen[1]), pts = [];
+        let cx = fx + (side < 0 ? Math.ceil(ft.l) + 1 : Math.floor(ft.r) - 2), cy = fy - rng.i(0, 1);
+        for (let i = 0; i < L; i++) {
+          cx += side;
+          if (i && rng.chance(M.rootDrop)) cy++;
+          pts.push([cx, cy, dk]);
+          if (i < L * 0.5) pts.push([cx, cy - 1, md]);
+        }
+        let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        for (const [a, b] of pts) { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, a); y1 = Math.max(y1, b); }
+        const st = { w: x1 - x0 + 1, h: y1 - y0 + 1, px: null };
+        st.px = new Uint32Array(st.w * st.h);
+        for (const [a, b, c] of pts) st.px[(b - y0) * st.w + a - x0] = c;
+        if (!rockPx(cx, cy)) bucket(U.stamps, { st, x: x0, y: y0 }, x0, y0, x1, y1);
+      }
+    }
+    for (const side of [-1, 1]) if (rng.chance(cls ? M.skirt : M.skirt * 0.4)) coverAt(x + (side < 0 ? ft.l : ft.r) / AP + side * rng.f(0, 2), y + rng.f(0.5, 2), false, rng);
+    // (a clump at each corner of the foot, more between on a wide one)
+    const blades = [], n = clamp(Math.round((ft.r - ft.l) / M.frontEvery + rng.f(-0.6, 0.6)), cls ? 2 : 0, M.frontMost);
+    for (let k = 0; k < n; k++) {
+      const st = K.front[rng.i(0, K.front.length - 1)], ax = fx + (k === 0 ? ft.l + rng.f(-1, 2) : k === 1 ? ft.r - rng.f(-1, 2) : ft.l + ((k - 1.5 + rng.f(0, 1)) / (n - 2)) * (ft.r - ft.l)), ay = fy + rng.i(0, 2);
+      if (rockPx(ax, ay)) continue;
+      blades.push({ st, x: Math.round(ax - st.w / 2), y: ay - st.h + 1, by: ay / AP });
+    }
+    if (blades.length) fronts.push(Object.assign(ugStrip(blades, y + M.ahead), { owner }));
+    return ft;
+  };
   const plant = (piece, x, y, cls) => {
-    put(piece, x, y, -1);
+    const spr = put(piece, x, y, -1), ft = footing(spr, x, y, cls, cls > 0 && UG_ROOTED.has(piece.name), items[items.length - 1]);
     const r = piece.w / 2;
     claim(x, y, r, piece.name, cls === 0);
     const bx = r + F.bed.reach * (cls === 2 ? 1.3 : cls === 1 ? 1 : 0.7);
     bed(x, y - 1, bx, bx * F.bed.squash);
-    shadow(x, y, Math.max(2.5, piece.w * F.shadow.w));
+    shadow(x + (ft.l + ft.r) / 2 / AP, y, (ft.r - ft.l) / 2 / AP);
     const n = cls === 0 ? rng.i(0, 1) : rng.i(F.cover.round[0], F.cover.round[1]) + (cls === 2 ? 1 : 0);
     for (let k = 0; k < n; k++) {
       const a = rng.f(Math.PI * 2), d = bx * rng.f(0.45, 0.95);
@@ -411,7 +544,8 @@ function placeUndergrowth(f, set) {
     const look = kit.looks && set !== 'surface' ? kit.pieces.find((p) => p.name === kit.looks[e.type]) : null, w = look ? look.w : 12;
     const bx = w / 2 + F.bed.reach;
     bed(e.x, e.y - 1, bx, bx * F.bed.squash);
-    shadow(e.x, e.y, Math.max(2.5, w * F.shadow.w));
+    const ft = footing(enemySprite(d, e.type), e.x, e.y, look ? ugClass(look) : 1, !!look && ugClass(look) > 0 && UG_ROOTED.has(look.name));
+    shadow(e.x + (ft.l + ft.r) / 2 / AP, e.y, (ft.r - ft.l) / 2 / AP);
     claim(e.x, e.y, w / 2, look ? look.name : '', false);
     for (let k = 0, n = rng.i(F.cover.round[0], F.cover.round[1]); k < n; k++) { const a = rng.f(Math.PI * 2), r = bx * rng.f(0.45, 0.95); coverAt(e.x + Math.cos(a) * r, e.y - 1 + Math.sin(a) * r * F.bed.squash, false); }
     if (look) for (let k = 0, n = rng.i(1, 2), tries = 0; k < n && tries < 8; tries++) {
@@ -453,15 +587,12 @@ function placeUndergrowth(f, set) {
               blades.push({ st, x: Math.round(bx * AP - st.w / 2), y: Math.round(by * AP) - st.h + 2, by });
             }
           }
-          if (!blades.length) continue;
-          let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9, sy = 0;
-          for (const o of blades) { x0 = Math.min(x0, o.x); y0 = Math.min(y0, o.y); x1 = Math.max(x1, o.x + o.st.w); y1 = Math.max(y1, o.y + o.st.h); sy += o.by; }
-          blades.sort((a, c) => a.by - c.by);
-          strips.push({ blades, x0, y0, w: x1 - x0, h: y1 - y0, y: sy / blades.length });
+          if (blades.length) strips.push(ugStrip(blades));
         }
       }
     }
   }
+  for (const s of fronts) strips.push(s);
   if (strips.length) {
     const AW = 1024;
     let cx = 0, cy = 0, rowH = 0;
@@ -479,7 +610,11 @@ function placeUndergrowth(f, set) {
     const [c, cx2] = makeCanvas(AW, AH);
     cx2.putImageData(new ImageData(new Uint8ClampedArray(px.buffer), AW, AH), 0, 0);
     U.atlas = c;
-    for (const s of strips) items.push({ strip: true, sx: s.sx, sy: s.sy, w: s.w, h: s.h, bx0: s.x0, by0: s.y0, bx1: s.x0 + s.w, by1: s.y0 + s.h, x: (s.x0 + s.w / 2) / AP, y: s.y, hgt: s.h, phase: rng.f(), amp: 0, stir: 0, stirDir: 1 });
+    for (const s of strips) if (s.owner) {
+      const o = s.owner;
+      o.front = { sx: s.sx, sy: s.sy, w: s.w, h: s.h, x0: s.x0, y0: s.y0 };
+      o.bx0 = Math.min(o.bx0, s.x0); o.bx1 = Math.max(o.bx1, s.x0 + s.w); o.by1 = Math.max(o.by1, s.y0 + s.h);
+    } else items.push({ strip: true, sx: s.sx, sy: s.sy, w: s.w, h: s.h, bx0: s.x0, by0: s.y0, bx1: s.x0 + s.w, by1: s.y0 + s.h, x: (s.x0 + s.w / 2) / AP, y: s.y, hgt: s.h, phase: rng.f(), amp: 0, stir: 0, stirDir: 1 });
   }
   // the tiles a bed of a stand or a wall's foot can reach
   for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
@@ -765,6 +900,14 @@ function ugGlows(spr) {
     for (let i = 3; i < d.length; i += 4) if (d[i]) { spr.glows = true; break; }
   }
   return spr.glows;
+}
+
+// The blades in front of a plant's foot (it: the plant), leaning as far as
+// their height has it of the plant's lean.
+function drawFootFront(it, ox, oy) {
+  const U = View.ug, s = it.front;
+  if (!U || !U.atlas) return;
+  drawLeaning(U.atlas, null, s.sx, s.sy, s.w, s.h, s.x0 + ox, s.y0 + oy, (it.amp || 0) * Math.min(1, s.h / Math.max(1, it.hgt)) * 2, false, it.over !== false);
 }
 
 // A stand's row of stems.

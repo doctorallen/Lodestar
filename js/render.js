@@ -121,7 +121,7 @@ const rgb01 = (hex) => rgbOf(hex).map((v) => v / 255);
 const _floraSprites = {};
 function floraSprite(set, piece, frame) {
   const key = set + '/' + piece.name + '/' + frame;
-  if (!_floraSprites[key]) { const k = floraKit(set); _floraSprites[key] = buildArtSprite(piece.frames[frame], k.pal, k.letters, k.glows); }
+  if (!_floraSprites[key]) { const k = floraKit(set); _floraSprites[key] = buildArtSprite(piece.frames[frame], k.pal, k.letters, k.glows, { openFoot: piece.anchor === 'ceiling' ? 0 : T.flora.melt.open }); }
   return _floraSprites[key];
 }
 // Which plants grow on a floor: its clime's own, if it has them; else the
@@ -137,11 +137,12 @@ function drawFlora(d, fl, ox, oy, lights) {
   if (fl.anchorT >= 0 && !TILE_SOLID[d.floor.tiles[fl.anchorT]]) return;
   const p = fl.piece, sky = View.ug && View.ug.sky;
   const frame = p.frames.length > 1 && !sky ? Math.floor(Game.realT * 2 + fl.phase * 2) % 2 : 0;
-  const spr = floraSprite(fl.set, p, frame);
+  const spr = fl.top ? floraSprite(fl.set, p, frame) : ugMelted(floraSprite(fl.set, p, frame));
   const fx = Math.round(fl.x * AP) + ox, fy = Math.round(fl.y * AP) + oy;
   const sx = Math.round(fx - spr.w / 2), sy = fl.top ? fy : fy - spr.h + 1;
   if (sx > View.w || sy > View.h || sx + spr.w < 0 || sy + spr.h < 0) return;
   drawLeaning(spr.c, ugGlows(spr) ? spr.ec : null, 0, 0, spr.w, spr.h, sx, sy, fl.amp || 0, fl.top, fl.over !== false);
+  if (fl.front) drawFootFront(fl, ox, oy);
 }
 
 // The plants' glow, baked with the floor's lights (in world px). Under the
@@ -764,7 +765,7 @@ function enemySprite(d, type) {
     if (!_enemySprites[key]) {
       const kit = floraKit(set), piece = kit.pieces.find((p) => p.name === kit.looks[type]) || kit.pieces[0], pal = Object.assign({}, kit.pal);
       for (const g of kit.glows) pal[g] = [g === 'glow2' ? mix(PLANT_GLOW, '#ffd0a0', 0.4) : PLANT_GLOW];
-      const spr = buildArtSprite(piece.frames[piece.frames.length - 1], pal, kit.letters, kit.glows);
+      const spr = buildArtSprite(piece.frames[piece.frames.length - 1], pal, kit.letters, kit.glows, { openFoot: T.flora.melt.open });
       spr.flash = tinted(spr.c, '#ffffff'); spr.ax = spr.w / 2; spr.ay = spr.h - footOff(1.5);
       _enemySprites[key] = spr;
     }
@@ -781,7 +782,7 @@ function enemySprite(d, type) {
     for (const kind of ['snapjaw', 'spitter']) {
       const piece = FLORA[id].find((p) => p.name === PLANT_LOOKS[id][kind]) || FLORA[id][0];
       const pal = Object.assign({}, FLORA_PAL[id], { glow: [PLANT_GLOW], glow2: [mix(PLANT_GLOW, '#ffd0a0', 0.4)] });
-      const spr = buildArtSprite(piece.frames[piece.frames.length - 1], pal, FLORA_LETTERS, FLORA_GLOWS);
+      const spr = buildArtSprite(piece.frames[piece.frames.length - 1], pal, FLORA_LETTERS, FLORA_GLOWS, { openFoot: T.flora.melt.open });
       spr.flash = tinted(spr.c, '#ffffff'); spr.ax = spr.w / 2; spr.ay = spr.h - footOff(1.5);
       out[kind] = spr;
     }
@@ -959,7 +960,8 @@ function drawFocusHeld(d, it, hand, lights) {
 }
 
 function drawEnemy(d, e, ox, oy, tick, lights) {
-  const spr = enemySprite(d, e.type), x = View.ctx;
+  // (the fighting flora's feet melt into the ground as a plant's do)
+  const rooted = T.enemies[e.type].rooted, spr = rooted ? ugMelted(enemySprite(d, e.type)) : enemySprite(d, e.type), x = View.ctx;
   let lift = 0;
   if (e.type === 'wisp' || e.type === 'hollow') lift = 5 + Math.round(Math.sin(e.bob * 3) * 1.5);
   else if (T.enemies[e.type].rooted) lift = e.state === 'windup' ? 1 : 0;
@@ -968,7 +970,7 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   const shake = e.state === 'windup' ? (tick % 2 ? 1 : -1) : 0;
   const fx = Math.round(e.x * AP) + ox, fy = Math.round(e.y * AP) + oy;
   if (fx < -60 || fy < -15 || fx > View.w + 60 || fy > View.h + 75) return;
-  drawShadow(fx, fy, Math.max(3, e.r));
+  if (!rooted) drawShadow(fx, fy, Math.max(3, e.r));
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
   if (e.flash > 0) {
     x.drawImage(spr.flash, sx, sy);

@@ -440,8 +440,21 @@ const T = {
   //     deep; drift: how strongly a thick drift's tiles are bedded, so its
   //     plants' beds run together; litter (how much of it is
   //     strewn with leaves, ash or petals). shadow: a piece's contact
-  //     shadow: w, its half width for the piece's; core, rim: what's left
-  //     of the ground's colour in its middle and at its edge.
+  //     shadow, tight under its foot: pad, world px past the foot either
+  //     way; ry [least, most] its depth; dx, dy where its middle is from the
+  //     foot's (away from the light); core, rim: what's left of the
+  //     ground's colour in its middle and at its edge.
+  //   melt: how a plant's foot melts into the ground: open, the art px at
+  //     its foot with no sel-out; zone, how near its lowest row a column's
+  //     foot must be; pull, how far each art px up from it is drawn to the
+  //     ground in its shadow; ragged, the share of column pairs whose steps
+  //     start a pixel higher (its lowest pixel drawn edge of the way).
+  //     frontEvery: art px of foot for each clump of blades over it (two at
+  //     least, but on a small piece, and frontMost at most), drawn ahead
+  //     world px in front of it; skirt: the chance of a stamp of the
+  //     bed's growth tight at each side of a foot; roots: [least, most] a
+  //     side for the pieces that spread them, rootLen [least, most] art px,
+  //     rootDrop: how often a root steps a pixel down as it goes.
   //   faceMoss: how far up a wall's face moss climbs over a bed at its
   //     foot (a share of the face); strands: roots or vines hanging from a
   //     lip (cut on their noise, past: the most px past the face's foot);
@@ -460,7 +473,8 @@ const T = {
     stand: { cut: 0.5, minSuit: 0.45, reach: 2, rows: 3, gap: 5 },
     cover: { round: [2, 4], foot: 0.7, scree: [1, 3], open: 0.03 },
     bed: { reach: 5, squash: 0.62, fray: 0.6, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6, drift: 0.6 },
-    shadow: { w: 0.36, core: 0.68, rim: 0.84 },
+    shadow: { pad: 1.5, ry: [1.2, 2.2], dx: 0.5, dy: 0.4, core: 0.68, rim: 0.84 },
+    melt: { open: 3, zone: 6, pull: [0.55, 0.35, 0.15], ragged: 0.5, edge: 0.85, frontEvery: 7, frontMost: 5, ahead: 0.5, skirt: 0.6, roots: [1, 2], rootLen: [3, 6], rootDrop: 0.45 },
     faceMoss: 0.7, strands: { cut: 0.3, past: 3 }, lip: 3,
     wind: { s: 0.55, swell: [0.55, 0.45, 0.7], gust: [1.3, 0.45], amp: 2.2, stir: [1.5, 0.8, 9] },
     sets: {

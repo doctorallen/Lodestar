@@ -311,7 +311,8 @@ const ART_CREATURE = { kind: 'creature' };
 // opts: { kind: 'creature' or 'prop' (the default), outline: 'black',
 // 'selout' or 'none' (else the kind's, T.art.outline), hueShift: [shadows,
 // lights] or false, tones, dither, scale: how much the letter grid is
-// enlarged before it's shaded (AP, the art's size, unless said) }. The
+// enlarged before it's shaded (AP, the art's size, unless said), openFoot:
+// no outline on its lowest n px, so a plant's foot meets the ground }. The
 // sprite keeps its scale as k: its outline is a pixel, its letters k px.
 //
 // Shading by form: each pixel's height is how far it lies inside the
@@ -413,7 +414,7 @@ function buildArtSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS,
     putPx(P, i % W, (i / W) | 0, ramp[Math.max(0, Math.min(n - 1, k))], glow);
     solid[i] = 1;
   }
-  outlineBuf(P, solid, outline);
+  outlineBuf(P, solid, outline, opts.openFoot ? (x, y) => y > y1 - opts.openFoot : null);
   const out = spriteFromBuf(P);
   out.k = scale;
   return out;
