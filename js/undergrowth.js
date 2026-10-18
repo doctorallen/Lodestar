@@ -856,6 +856,7 @@ function floraInView(d, ox, oy) {
     it.over = it.glowUnder;
     for (const m of bodies) if (Math.abs(m.x - it.x) < hw + 12 && it.y > m.y - 2 && it.y - m.y < it.hgt / AP + 4) { it.over = true; break; }
     for (const m of movers) if (Math.abs(m.x - it.x) < hw + 2 && it.y - m.y > -3 && it.y - m.y < sR) { it.stir = 1; it.stirDir = m.x < it.x ? 1 : -1; }
+    if (CFX.waves.length) castWaveStir(it);
     it.stir = Math.max(0, it.stir - dt / sT);
     let a = it.stir ? it.stirDir * sAmp * it.stir * (0.7 + 0.3 * Math.sin(now * 11 + it.phase * 6)) : 0;
     if (sky) a += (floraWind(it.x, it.y) + Math.sin(now * 3.1 + it.phase * 6) * 0.15 * Wd.s) * Wd.amp * clamp(it.hgt / 36, 0.35, 1.4);

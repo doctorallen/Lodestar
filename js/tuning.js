@@ -245,6 +245,61 @@ const T = {
   // cools down quickenCd faster; chain adds chainJumps; echo recasts after
   // echoDelay at echoMult.
   mods: { splitMult: 0.6, splitSpread: 0.28, amplifyArea: 1.5, amplifyDmg: 1.2, quickenCost: 0.67, quickenCd: 0.7, chainJumps: 2, echoDelay: 0.4, echoMult: 0.6 },
+  // How a cast looks (castfx.js; cosmetic only: the spell still fires on the
+  // tap, and nothing here changes what it does). Sizes are world px, times
+  // seconds, light radii tiles.
+  //   pose: how long the diver holds the cast pose; thrust: the share of it
+  //     the arm is out before it eases back. lean: by the focus's style, [art
+  //     px the body leans into the cast, art px it recoils back]; reach: art
+  //     px the focus is held out past the fist; lift: art px a staff's head
+  //     rises before it swings down at the aim.
+  //   flash: the burst at the fist, [seconds, light radius, light]; streaks:
+  //     how many motes it kicks out, [least, most] speed.
+  //   glyph: the rune circle under the feet, [radius from, radius to,
+  //     seconds]; glyphBig: the same for the big spells; motes: how many
+  //     rise round the diver, and for how long; pulse: [radius from, to,
+  //     seconds] of the aura's ring.
+  //   shapes: what a spell does about the diver, by its shape (castFxFor),
+  //     so a new spell takes its shape's look: projectile (drawn from the
+  //     bolts themselves); sweep (a close ring in front), burst (a ring swept
+  //     out from the diver, or in), placed (swept in where it lands, with a
+  //     rune circle, glyph: [radius from, to as a share of the reach,
+  //     seconds]), guard (a ring drawing in round the diver: ring [from, to],
+  //     motes rising), move (ghosts afterimages, alpha, ends: a ring at each
+  //     end [small, big radius, seconds]). from: the radius a sweep starts
+  //     at (or ends at, inwards); time: its seconds; dust: motes of dust it
+  //     pushes; scatter: bits of its element thrown out; bloom: [light
+  //     radius as a share of the reach (move: tiles), light, seconds]; big:
+  //     its cast has the big rune circle.
+  //   shapeOf: today's spells' shapes.
+  //   bolt: originT, how long a bolt takes to leave the fist for its true
+  //     path; trail: dots behind it; every: seconds between the motes it
+  //     sheds. impact: [sparks, light radius, light, seconds]; decal:
+  //     [seconds a mark on the ground lasts, the most at once].
+  //   charge: motes drawn into the focus a second at full charge; glyph
+  //     radius [empty, full].
+  //   echo: how long the ghost of a recast pose lasts.
+  //   cap: the most motes alive at once (past it, new ones are skipped); flares: the
+  //     most lights flaring at once (the oldest make way).
+  castFx: {
+    pose: 0.2, thrust: 0.45,
+    lean: { wand: [1, 1], gauntlet: [2, 1], staff: [1, 0] }, reach: { wand: 3, gauntlet: 1, staff: 4 }, lift: 4,
+    flash: [0.12, 1.5, 1.0], streaks: 5, streakSpeed: [50, 110],
+    glyph: [6, 10, 0.32], glyphBig: [9, 16, 0.5], motes: 6, moteTime: 0.55, pulse: [4, 9, 0.14],
+    shapes: {
+      projectile: {},
+      sweep: { from: 3, time: 0.2, dust: 6, bloom: [1, 0.8, 0.2] },
+      burst: { from: 4, time: 0.32, dust: 12, scatter: 12, bloom: [1.2, 1.1, 0.3], big: true },
+      placed: { from: 4, time: 0.42, dust: 10, glyph: [0.5, 0.3, 0.7], bloom: [1.2, 1.1, 0.3], big: true },
+      guard: { ring: [18, 9], time: 0.32, motes: 10, bloom: [1.2, 0.9, 0.3], big: true },
+      move: { ghosts: 6, time: 0.3, alpha: 0.4, ends: [3, 12, 0.18], bloom: [2, 1.2, 0.25] },
+    },
+    shapeOf: { spark: 'projectile', bolt: 'projectile', frost: 'projectile', ember: 'projectile', chain: 'projectile', nova: 'burst', pull: 'burst', thorns: 'burst', well: 'placed', ward: 'guard', blink: 'move', phase: 'move' },
+    bolt: { originT: 0.07, trail: 5, every: 0.035 }, impact: [7, 1.1, 1.1, 0.16], decal: [1.6, 16],
+    charge: { motes: 40, glyph: [5, 13] },
+    echo: 0.3,
+    cap: 180, flares: 10,
+  },
   // Elements a weapon or focus carries. shock: this share of hits arcs on;
   // frost: hits chill, and a heavy hit on the chilled shatters for `shatter`
   // times; ember: hits burn for burnTime, `burn` of the hit a second; blight:

@@ -67,6 +67,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |
 | `js/undergrowth.js` | How flora grows into a place (cosmetic): habitat, drifts, stands of tall grass, beds and ground cover painted into the floor, moss and roots on the walls, wind and stir |
 | `js/render.js` | The pixel view (art px, 1.5 to a world px), the floor canvas, lighting and bloom, sparks |
+| `js/castfx.js` | How a cast looks (cosmetic): the flash at the fist, the rune circle, motes, swept rings, bolts' trails, bursts and marks on the ground |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
 | `js/ui.js` | The Lodestar, set out, forge, gear, star, cargo and pause screens, the item card, the top bar |
 | `js/main.js` | Boot, the fixed-step loop, the upright and sideways layouts |

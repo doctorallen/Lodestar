@@ -367,6 +367,7 @@ function updateGlobs(dt) {
       // the diver's Ember Burst: a burst, and burning ground
       g.done = true;
       d.fx.push({ kind: 'blast', x: g.x1, y: g.y1 - 4, r: g.r, t: 0.3, max: 0.3 });
+      castFxSpot(g.x1, g.y1 - 4, 'ember', 1.5);
       for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, g.x1, g.y1) < g.r + e.r) hurtEnemy(e, g.dmg, { spell: true, element: 'ember' });
       d.puddles.push({ x: g.x1, y: g.y1, r: g.r * 0.7, t: T.spells.ember.burnTime, max: T.spells.ember.burnTime, dps: g.dmg * T.spells.ember.burn, mine: true });
     } else if (k >= 1) { g.done = true; d.puddles.push({ x: g.x1, y: g.y1, r: def.puddle / 2, t: def.puddleTime, max: def.puddleTime, dps: def.puddleDps * (g.dmg / def.dmg) }); }

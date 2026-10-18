@@ -177,9 +177,10 @@ function castFocus(item, h, charged) {
   if (p.charge < cost) { p.lowCharge = 0.4; return; }
   p.charge -= cost;
   h.cd = S.castCooldown * (mods.quicken ? T.mods.quickenCd : 1);
-  p.cast = { t: 0.15, max: 0.15, charged };
   d.castElement = item.element || null;
   d.castRange = style === 'gauntlet' ? S.gauntletRange : style === 'staff' ? S.staffRange : S.aimRange;
+  // the pose and the burst round it (cosmetic: castfx.js)
+  castFxStart(d, item, h === p.hands.off ? 'off' : 'main', style, charged, cores.length ? cores.map((c) => c.core) : ['spark']);
   const power = item.base.power * (charged && style !== 'staff' ? S.chargedMult : 1);
   // a staff's charged cast fires everything three times, fanned out
   const times = charged && style === 'staff' ? 3 : 1;
@@ -208,7 +209,7 @@ function castCores(item, power, charged = false, spread = 0) {
     if (!c || CORES[c.core].mod || !T.spells[c.core]) continue;
     const p = power * (1 + T.items.core.growth * (c.tier - 1)) * T.spells[c.core].mult;
     for (let k = 0; k < times; k++) castSpell(c.core, p, spread + k * 0.25, charged, mods);
-    if (mods.echo) d.later.push({ t: T.mods.echoDelay, fn: () => castSpell(c.core, p * T.mods.echoMult, spread, false, Object.assign({}, mods, { echo: false })), el: d.castElement });
+    if (mods.echo) d.later.push({ t: T.mods.echoDelay, fn: () => { castFxEcho(d); castSpell(c.core, p * T.mods.echoMult, spread, false, Object.assign({}, mods, { echo: false })); }, el: d.castElement });
   }
 }
 
@@ -282,6 +283,7 @@ function castSpell(kind, power, spread = 0, charged = false, mods = {}) {
     for (let j = 0; cur && j <= S.chain.jumps + chainMore + (charged ? 2 : 0); j++) {
       d.fx.push({ kind: 'arc', x: from.x, y: from.y, x2: cur.x, y2: cur.y - 5, t: 0.2, max: 0.2 });
       hurtEnemy(cur, k, { spell: true, element: 'shock', noProc: true });
+      castFxSpot(cur.x, cur.y - 5, 'shock', 0.8);
       hit.push(cur); from = { x: cur.x, y: cur.y - 5 }; k *= S.chain.falloff;
       cur = d.enemies.filter((e) => !e.dead && !hit.includes(e) && dist(e.x, e.y, from.x, from.y) < S.chain.jumpRange * area).sort((a2, b) => dist(a2.x, a2.y, from.x, from.y) - dist(b.x, b.y, from.x, from.y))[0];
     }
@@ -290,12 +292,14 @@ function castSpell(kind, power, spread = 0, charged = false, mods = {}) {
   if (kind === 'nova') {
     const r = S.nova.radius * area;
     d.fx.push({ kind: 'nova', x: p.x, y: p.y - 6, r, t: 0.3, max: 0.3 });
+    castFxFor(T.castFx.shapeOf.nova, el, p, 0, { r, col: ART.cores.nova });
     for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < r + e.r) hurtEnemy(e, dmg, { spell: true, element: el });
     return;
   }
   if (kind === 'pull') {
     const r = S.pull.radius * area;
     d.fx.push({ kind: 'pull', x: p.x, y: p.y - 6, r, t: 0.35, max: 0.35 });
+    castFxFor(T.castFx.shapeOf.pull, el, p, 0, { r, inward: true, col: ART.cores.pull });
     for (const e of d.enemies) {
       if (e.dead || e.boss || e.type === 'hollow') continue;
       const m = dist(e.x, e.y, p.x, p.y);
@@ -311,10 +315,12 @@ function castSpell(kind, power, spread = 0, charged = false, mods = {}) {
     p.ward = Math.max(p.ward, dmg * (mods.amplify ? M.amplifyArea : 1));
     p.wardT = S.ward.time;
     d.fx.push({ kind: 'ward', x: p.x, y: p.y - 6, t: 0.3, max: 0.3 });
+    castFxFor(T.castFx.shapeOf.ward, el, p, 0, { r: 14, col: ART.cores.ward });
     return;
   }
   if (kind === 'thorns') {
     // a ring that goes with you, cutting what comes close
+    castFxFor(T.castFx.shapeOf.thorns, 'blight', p, 0, { r: S.thorns.radius * area });
     d.auras.push({ kind: 'thorns', r: S.thorns.radius * area, t: S.thorns.time * (charged ? 1.6 : 1), max: S.thorns.time * (charged ? 1.6 : 1), tick: 0, dmg, follow: true });
     return;
   }
@@ -322,6 +328,7 @@ function castSpell(kind, power, spread = 0, charged = false, mods = {}) {
     const { target, a } = aimAt();
     const x = target ? target.x : p.x + Math.cos(a) * 50, y = target ? target.y : p.y + Math.sin(a) * 50;
     d.auras.push({ kind: 'well', x, y, r: S.well.radius * area, t: S.well.time, max: S.well.time, tick: 0, dmg, el });
+    castFxFor(T.castFx.shapeOf.well, el, { x, y }, a, { r: S.well.radius * area, col: ART.cores.well });
     return;
   }
   if (kind === 'blink' || kind === 'phase') {
@@ -330,7 +337,7 @@ function castSpell(kind, power, spread = 0, charged = false, mods = {}) {
     const x0 = p.x, y0 = p.y, steps = 12;
     for (let k = 0; k < steps; k++) moveBody(d.floor, p, (dir.x * reach) / steps, (dir.y * reach) / steps, T.player.radius);
     p.invuln = Math.max(p.invuln, S[kind].invuln);
-    for (let k = 0; k < 4; k++) d.fx.push({ kind: 'ghost', x: lerp(x0, p.x, k / 4), y: lerp(y0, p.y, k / 4), fx: dir.x, fy: dir.y, t: 0.25, max: 0.25 });
+    castFxFor(T.castFx.shapeOf[kind], el, { x: x0, y: y0 }, Math.atan2(dir.y, dir.x), { to: { x: p.x, y: p.y }, col: ART.cores[kind], cut: kind === 'phase' });
     if (kind === 'phase') {
       const vx = p.x - x0, vy = p.y - y0, L2 = vx * vx + vy * vy || 1;
       for (const e of d.enemies) {
@@ -369,12 +376,13 @@ function updateBolts(dt) {
   const d = Game.dive, f = d.floor;
   for (const b of d.bolts) {
     b.t -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
-    if (TILE_SOLID[floorTile(f, Math.floor(b.x / TILE), Math.floor((b.y + 6) / TILE))]) { b.t = 0; continue; }
+    if (TILE_SOLID[floorTile(f, Math.floor(b.x / TILE), Math.floor((b.y + 6) / TILE))]) { b.t = 0; castFxImpact(b, 'wall'); continue; }
     for (const e of d.enemies) {
       if (e.dead || b.hitIds.includes(e) || dist(b.x, b.y, e.x, e.y - 5) > e.r + (b.big ? 7 : 4)) continue;
       const sp0 = Math.hypot(b.vx, b.vy) || 1;
       hurtEnemy(e, b.dmg, { spell: true, knock: { x: (b.vx / sp0) * (b.big ? 120 : 50), y: (b.vy / sp0) * (b.big ? 120 : 50) }, heavy: b.big, element: b.element });
       if (b.big) freezeFrame(T.impact.hitstop * 0.6, false);
+      castFxImpact(b, 'hit');
       b.hitIds.push(e);
       if (b.pierce > 0) { b.pierce--; continue; }
       // Stormcaller: on to the next nearest
@@ -387,6 +395,7 @@ function updateBolts(dt) {
       break;
     }
   }
+  for (const b of d.bolts) if (b.t <= 0) castFxBoltEnd(b);
   d.bolts = d.bolts.filter((b) => b.t > 0);
 }
 

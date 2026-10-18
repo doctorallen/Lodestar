@@ -21,6 +21,7 @@ function step(dtReal) {
   // a hit lands: everything holds still for a moment
   if (Game.hitstop > 0) { Game.hitstop -= dtReal; return; }
   if (!Game.dive) return;
+  updateCastFx(dtReal);
   const dt = dtReal * Game.timeScale;
   Game.t += dt;
   updateDive(dtReal, dt);

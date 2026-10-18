@@ -87,6 +87,37 @@ function buildSprites() {
     s.flash = tinted(s.c, '#ffffff');
     return s;
   }));
+  // the cast pose in each facing, [main hand, off hand] × [idle, walk ×4];
+  // each knows its fist (castHand), the other hand (restHand) and whether
+  // that one is behind the body. (Each drawn pose is built once, and
+  // flipped for the mirrored facings.)
+  const built = new Map();
+  Sprites.diverCast = FACINGS.map((name, i) => {
+    const idle = DIVER_FRAMES[name][0], W = idle[0].length, split = DIVER_CAST_SPLIT[name];
+    return [false, true].map((off) => {
+      const mir = off && (name === 'S' || name === 'N'), cast = mir ? diverCastMirror(DIVER_CAST[name], idle) : DIVER_CAST[name];
+      const pt = (q) => (q ? { x: (mir ? W - 1 - q[0] : q[0]) + 1, y: q[1] + 1 } : null);
+      return DIVER_FRAMES[name].map((walk, k) => {
+        const key = `${name} ${mir} ${k}`;
+        let s = built.get(key);
+        if (!s) {
+          s = buildArtSprite(artNative(k ? diverCastRows(cast, idle, walk, split) : cast.slice()), DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS, ART_CREATURE);
+          s.ax = s.w / 2; s.ay = s.h - footOff(2.5);
+          s.castHand = pt(DIVER_CAST_HAND[name]); s.restHand = pt(DIVER_CAST_REST[name]); s.restBehind = DIVER_CAST_BEHIND[name];
+          s.flash = tinted(s.c, '#ffffff');
+          built.set(key, s);
+        }
+        // (the idle hand too, for the other hand where it has no place of its own)
+        if (!MIRRORED[i]) { s.hand = Sprites.diver[i][k].hand; return s; }
+        const f = flippedSprite(s);
+        f.hand = Sprites.diver[i][k].hand;
+        f.castHand = { x: s.w - 1 - s.castHand.x, y: s.castHand.y };
+        f.restHand = s.restHand && { x: s.w - 1 - s.restHand.x, y: s.restHand.y };
+        f.flash = flipped(s.flash);
+        return f;
+      });
+    });
+  });
   Sprites.drone = buildArtSprite(DRONE_ROWS, DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS, ART_CREATURE);
 }
 // The drone's body, drawn by hand at the art's size (artNative): a disc of
@@ -593,6 +624,7 @@ function renderFrame() {
 
   if (d.hub) drawHubUnder(d, ox, oy, tick, lights);
   if (!d.hub) drawHazardsUnder(d, ox, oy, tick, lights);
+  drawCastGround(d, ox, oy, tick, lights);
   if (d.fieldForge) {
     const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * ATILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * ATILE + oy - spr.ay + ap(6));
     drawArtSprite(spr, x, y);
@@ -617,20 +649,8 @@ function renderFrame() {
   LateDots.on = !d.hub;
   // where a world point is on the view
   const vx = (wx) => Math.round(wx * AP) + ox, vy = (wy) => Math.round(wy * AP) + oy;
-  for (const b of d.bolts) {
-    const col = b.element ? ELEMENT_COLS[b.element] : b.kind === 'bolt' ? ART.cores.bolt : '#e8f4ff';
-    // a frost lance: a long shard of ice
-    if (b.kind === 'frost') {
-      const sp = Math.hypot(b.vx, b.vy) || 1;
-      for (let k = 0, n = ap(6); k < n; k++) dot(Math.round(b.x * AP + ox - (b.vx / sp) * k), Math.round(b.y * AP + oy - (b.vy / sp) * k), k < ap(2) ? '#ffffff' : ELEMENT_COLS.frost, true, 1 - (k / AP) * 0.12);
-      lights.push({ x: vx(b.x), y: vy(b.y), r: TILE, i: 0.6, c: rgb01(ELEMENT_COLS.frost) });
-      continue;
-    }
-    dot(vx(b.x - b.vx * 0.012), vy(b.y - b.vy * 0.012), col, true, 0.5);
-    const pts = b.big ? [[0, -1], [-1, 0], [0, 0], [1, 0], [0, 1], [-1, -1], [1, 1], [1, -1], [-1, 1], [2, 0], [-2, 0], [0, 2], [0, -2]] : [[0, 0], [1, 0], [0, 1], [1, 1]];
-    for (const [i, j] of pts) dot(vx(b.x) + i - (b.big ? 0 : 1), vy(b.y) + j - (b.big ? 0 : 1), i === 0 && j === 0 && b.big ? '#ffffff' : col, true);
-    lights.push({ x: vx(b.x), y: vy(b.y), r: TILE, i: 0.7, c: rgb01(col) });
-  }
+  // the diver's bolts: trails, flicker, a frost lance's glint (castfx.js)
+  for (const b of d.bolts) drawCastBolt(b, ox, oy, tick, lights);
   const shotCol = artBiome(f).glow;
   for (const sh of d.shots) {
     const sx = vx(sh.x), sy = vy(sh.y);
@@ -646,6 +666,7 @@ function renderFrame() {
     lights.push({ x: cx, y: cy, r: TILE * 1.1, i: 0.4 * k, c: rgb01(col) });
   }
   for (const g of d.globs) {
+    if (g.mine) { drawCastGlob(g, ox, oy, tick, lights); continue; }
     const gx = vx(g.x), gy = vy(g.y), col = g.mine ? ELEMENT_COLS.ember : PLANT_GLOW;
     for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1]]) dot(gx + i, gy + j, j < 0 || i < 0 ? '#ffd0a0' : col, true);
     lights.push({ x: gx, y: gy, r: TILE, i: 0.6, c: rgb01(col) });
@@ -670,6 +691,7 @@ function renderFrame() {
     }
   }
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
+  drawCastAir(d, ox, oy, tick, lights);
   if (d.hub) drawHubOver(d, ox, oy, lights);
   for (const s of Sparks) dot(vx(s.x), vy(s.y), s.col, true);
   if (!d.hub) drawHazardsAir(d, ox, oy, lights);
@@ -809,24 +831,36 @@ function drawProspector(d, ox, oy, tick, lights) {
   const p = d.p;
   const walking = p.walkT > 0;
   const frame = walking ? 1 + (Math.floor(p.walkT * 10) % 4) : 0;
-  const spr = Sprites.diver[facingIndex(p.fx, p.fy)][frame];
-  const fx = Math.round(p.x * AP) + ox, fy = Math.round(p.y * AP) + oy;
-  const sx = Math.round(fx - spr.ax), sy = Math.round(fy - spr.ay);
+  // casting: the pose, turned to the aim and leaning into it (castfx.js);
+  // the legs keep walking. Charging a focus, the pose is held, gathering.
+  let cast = p.cast && p.cast.t > 0 && p.cast.a !== undefined && !p.swing && !(p.mine && !p.mine.refused) ? p.cast : null;
+  if (!cast && !p.swing && !(p.mine && !p.mine.refused))
+    for (const slot of ['main', 'off']) {
+      const h = p.hands[slot], it = Save.data.equip[slot];
+      if (h.holding && handKind(it) === 'focus' && chargeLevel(h) > 0) { cast = { a: castFxAim(d), slot, style: (bpOf(it) || {}).style || 'wand', t: 1, max: 1, charging: true }; break; }
+    }
+  p.castPose = cast;
+  const face = cast ? { x: Math.cos(cast.a), y: Math.sin(cast.a) } : { x: p.fx, y: p.fy };
+  const spr = cast ? castFxSprite(cast.a, cast.slot, frame) : Sprites.diver[facingIndex(p.fx, p.fy)][frame];
+  const fx = Math.round(p.x * AP) + ox, fy = Math.round(p.y * AP) + oy, lean = cast ? castFxLean(cast) : { x: 0, y: 0 };
+  const sx = Math.round(fx - spr.ax) + lean.x, sy = Math.round(fy - spr.ay) + lean.y;
   drawShadow(fx, fy, 5);
-  // a hand on the far side, or both facing away, is drawn behind the body
-  const side = Math.abs(p.fx) > Math.abs(p.fy) + 0.2, away = p.fy < -0.3 && !(p.swing && p.swing.spin);
-  const behind = (slot) => away || (side && slot === 'off');
-  drawHeld(d, spr, sx, sy, tick, lights, (slot) => behind(slot));
+  // a hand on the far side, or both facing away, is drawn behind the body;
+  // casting, the other hand is where the pose puts it
+  const side = Math.abs(face.x) > Math.abs(face.y) + 0.2, away = face.y < -0.3 && !(p.swing && p.swing.spin);
+  const behind = (slot) => (cast ? slot !== cast.slot && spr.restBehind : away || (side && slot === 'off'));
+  drawHeld(d, spr, sx, sy, tick, lights, (slot) => behind(slot), face);
   // blink while hurt; fall still while dying
   if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(spr, sx, sy);
-  drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot));
+  drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot), face);
   if (p.ward > 0) ringDots(fx, fy - ap(10), 12 * AP, ART.cores.ward, 0.5 + 0.3 * Math.sin(Game.realT * 6), true);
-  // a charging hand gathers light, and flashes when it's full
+  // a charging hand gathers light, and flashes when it's full (a focus's
+  // circle is on the ground, its motes drawn in: castfx.js)
   for (const slot of ['main', 'off']) {
-    const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
+    const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0, it = Save.data.equip[slot];
     if (lv <= 0) continue;
-    const col = handKind(Save.data.equip[slot]) === 'focus' ? ART.cores.bolt : '#fff2c8';
-    ringDots(fx, fy - ap(10), (15 - lv * 5) * AP, col, lv >= 1 ? (tick % 2 ? 1 : 0.5) : 0.25 + lv * 0.5, true);
+    const focus = handKind(it) === 'focus', col = focus ? castFxCol(it) : '#fff2c8';
+    if (!focus) ringDots(fx, fy - ap(10), (15 - lv * 5) * AP, col, lv >= 1 ? (tick % 2 ? 1 : 0.5) : 0.25 + lv * 0.5, true);
     lights.push({ x: fx, y: fy - ap(10), r: TILE * (0.8 + lv), i: 0.3 + lv * 0.6, c: rgb01(col) });
   }
   if (p.mine && !p.mine.refused && d.target) {
@@ -866,29 +900,37 @@ function drawDrone(d, fx, fy, lights) {
 }
 
 // Where a hand is on the screen: the main hand from the sprite; the off
-// hand mirrored across it, or just behind it seen from the side.
-function handOf(p, spr, sx, sy, slot) {
+// hand mirrored across it, or just behind it seen from the side. In the
+// cast pose, the casting hand is the fist held out, and the other the
+// pose's other hand. face: the way the diver faces.
+function handOf(p, spr, sx, sy, slot, face = { x: p.fx, y: p.fy }) {
+  const pose = p.castPose;
+  if (spr.castHand && pose) {
+    if (slot === pose.slot) return { x: sx + spr.castHand.x, y: sy + spr.castHand.y };
+    if (spr.restHand) return { x: sx + spr.restHand.x, y: sy + spr.restHand.y };
+    slot = 'off';
+  }
   const h = spr.hand;
   if (slot === 'main') return { x: sx + h.x, y: sy + h.y };
-  if (Math.abs(p.fx) > Math.abs(p.fy) + 0.2) return { x: sx + h.x - Math.sign(p.fx) * ap(4), y: sy + h.y - ap(1) };
+  if (Math.abs(face.x) > Math.abs(face.y) + 0.2) return { x: sx + h.x - Math.sign(face.x) * ap(4), y: sy + h.y - ap(1) };
   return { x: sx + spr.w - 1 - h.x, y: sy + h.y };
 }
 
 // The weapons in hand: a blade (swinging through its arc, with a slash of
-// light behind it), or a focus, a glowing orb over the hand. which(slot):
-// whether to draw that hand now (behind the body, or in front). Lengths
-// are in world px, stepped along in art px.
-function drawHeld(d, spr, sx, sy, tick, lights, which) {
+// light behind it), or a focus (drawFocusHeld). which(slot): whether to
+// draw that hand now (behind the body, or in front); face: the way the
+// diver faces. Lengths are in world px, stepped along in art px.
+function drawHeld(d, spr, sx, sy, tick, lights, which, face = { x: d.p.fx, y: d.p.fy }) {
   const p = d.p, eq = Save.data.equip;
   if (p.mine && !p.mine.refused) return;
   for (const slot of ['main', 'off']) {
     const it = eq[slot];
     if (!which(slot) || (!it && slot === 'off')) continue;
-    const hand = handOf(p, spr, sx, sy, slot), sw = p.swing && p.swing.slot === slot ? p.swing : null;
-    if (handKind(it) === 'focus') { drawFocusHeld(d, it, hand, lights); continue; }
+    const hand = handOf(p, spr, sx, sy, slot, face), sw = p.swing && p.swing.slot === slot ? p.swing : null;
+    if (handKind(it) === 'focus') { drawFocusHeld(d, it, hand, lights, slot, tick); continue; }
     if (!it) continue;
     const ramp = it.tier >= 1 ? ART.ores[oreOfTier(it.tier).id] : ART.pal.steel;
-    const face = Math.atan2(p.fy, p.fx);
+    const faceA = Math.atan2(face.y, face.x);
     let a, len = 10;
     if (sw) {
       const k = 1 - sw.t / sw.max;
@@ -902,7 +944,7 @@ function drawHeld(d, spr, sx, sy, tick, lights, which) {
         for (const r of [len - 2, len - 1, len, len + 1, len + 2]) dot(Math.round(hand.x + Math.cos(b) * r * AP), Math.round(hand.y + Math.sin(b) * r * AP * 0.85), r === len ? ramp[3] : ramp[2], true, (1 - n / (steps + 1)) * (r === len - 1 || r === len + 1 ? 0.45 : 0.7));
       }
       lights.push({ x: hand.x + Math.cos(a) * 8 * AP, y: hand.y + Math.sin(a) * 7 * AP, r: TILE * 1.2, i: 0.6, c: rgb01(ramp[3]) });
-    } else a = face + (slot === 'main' ? 1 : -1) * 1.1 + Math.sin(Game.realT * 2) * 0.05;
+    } else a = faceA + (slot === 'main' ? 1 : -1) * 1.1 + Math.sin(Game.realT * 2) * 0.05;
     const c = Math.cos(a), sn = Math.sin(a), style = (bpOf(it) || {}).style || 'blade';
     const glow = it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'rare';
     const elem = it.element ? ELEMENT_COLS[it.element] : null;
@@ -942,19 +984,52 @@ function drawHeld(d, spr, sx, sy, tick, lights, which) {
   }
 }
 
-function drawFocusHeld(d, it, hand, lights) {
-  const p = d.p, core = it && it.sockets && it.sockets.find(Boolean);
-  const col = core ? ART.cores[core.core] : '#9fe8ff';
-  const bob = Math.round(Math.sin(Game.realT * 4 + (hand.x & 3)) * AP);
-  const x = hand.x, y = hand.y - ap(3) + bob, flare = p.cast ? p.cast.t / p.cast.max : 0;
-  // an orb: a white heart, its colour round it
-  for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) {
-    const e = Math.abs(i) + Math.abs(j);
-    if (e > 2 || (e === 2 && i && j)) continue;
-    dot(x + i, y + j, e === 0 || (e === 1 && i <= 0 && j <= 0) ? '#ffffff' : col, true);
+// A focus in hand, by its style: a wand's orb floats over the hand; a
+// staff is a shaft with the orb at its head; a gauntlet's knuckles glow.
+// Casting, it's held out at the aim: a wand flicks out and back, a staff
+// lifts its head and swings it down at the aim, a gauntlet punches. A charge
+// makes it burn brighter. Where it is goes to castfx.js, for the motes a
+// charge draws in.
+function drawFocusHeld(d, it, hand, lights, slot, tick) {
+  const p = d.p, F = T.castFx, col = castFxCol(it), style = (bpOf(it) || {}).style || 'wand', h = p.hands[slot];
+  const cast = p.castPose && p.castPose.slot === slot ? p.castPose : null;
+  const lv = h && h.holding ? chargeLevel(h) : 0, full = lv >= 1;
+  const k = cast ? 1 - cast.t / cast.max : 1, out = cast ? (k < F.thrust ? 1 : 1 - (k - F.thrust) / (1 - F.thrust)) : 0, flare = cast && !cast.charging ? 1 - k : 0;
+  const ca = cast ? Math.cos(cast.a) : 0, sa = cast ? Math.sin(cast.a) : 0, reach = (F.reach[style] || 0) * out;
+  const bob = cast ? 0 : Math.round(Math.sin(Game.realT * 4 + (hand.x & 3)) * AP);
+  let x, y;
+  if (style === 'staff') {
+    // the head lifts, then swings down at the aim
+    // (held, it leans a little the way the diver faces, clear of the dome)
+    const lean = Math.abs(p.fx) > 0.3 ? Math.sign(p.fx) * ap(2) : 0;
+    const lifting = cast && k < F.thrust * 0.5, hx = cast && !lifting ? Math.round(hand.x + ca * (ap(7) + reach)) : hand.x + (cast ? 0 : lean);
+    const hy = cast && !lifting ? Math.round(hand.y + sa * (ap(7) + reach) - ap(2)) : hand.y - ap(9) + bob - (lifting ? F.lift : 0);
+    const bx = cast && !lifting ? Math.round(hand.x - ca * ap(4)) : hand.x, by = cast && !lifting ? Math.round(hand.y - sa * ap(4) + ap(2)) : hand.y + ap(5);
+    pixelLine(bx, by, hx, hy + 2, ART.pal.wood[3]);
+    pixelLine(bx + 1, by, hx + 1, hy + 2, ART.pal.wood[1]);
+    x = hx; y = hy;
+  } else if (style === 'gauntlet') {
+    x = Math.round(hand.x + ca * reach); y = Math.round(hand.y + sa * reach) - (cast ? 0 : 1);
+  } else {
+    x = Math.round(hand.x + ca * (reach + 2)); y = Math.round(hand.y + sa * (reach + 2)) - (cast ? ap(1) : ap(3)) + bob;
   }
-  if (flare > 0) ringDots(x, y, (3 + (1 - flare) * 5) * AP, col, flare, true);
-  lights.push({ x, y, r: TILE * (0.9 + flare), i: 0.5 + flare, c: rgb01(col) });
+  CFX.focusAt[slot] = { x: (x + View.camX) / AP - p.x, y: (y + View.camY) / AP - p.y };
+  const heart = full && tick % 2 ? col : '#ffffff', rim = full && tick % 2 ? '#ffffff' : col;
+  if (style === 'gauntlet') {
+    // a knuckle-glow: a small cross on the fist
+    for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) dot(x + i, y + j, i || j ? rim : heart, true);
+  } else {
+    // an orb: a white heart, its colour round it (a staff's is bigger)
+    const R = style === 'staff' ? 3 : 2;
+    for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
+      const e = Math.abs(i) + Math.abs(j);
+      if (e > R || (e === R && i && j && R === 2)) continue;
+      dot(x + i, y + j, e === 0 || (e === 1 && i <= 0 && j <= 0) ? heart : e === R && R === 3 ? mix(col, '#000000', 0.3) : rim, true);
+    }
+  }
+  // a charge: a ring of light round it, closing as it fills
+  if (lv > 0.3) ringDots(x, y, (6 - lv * 3) * AP, col, full ? 1 : 0.5, true);
+  lights.push({ x, y, r: TILE * (0.9 + flare + lv * 1.2), i: 0.5 + flare + lv * 0.8, c: rgb01(col) });
 }
 
 function drawEnemy(d, e, ox, oy, tick, lights) {
@@ -1069,32 +1144,15 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     const t = 1 - k, sx = STAR_AT.x * ATILE + ox, sy = STAR_AT.y * ATILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * AP * (1 - t);
     dot(Math.round(lerp(cx, sx, t * t) + wob), Math.round(lerp(cy, sy, t)), ART.pal.star[t > 0.8 ? 3 : 2], true);
   } else if (fx.kind === 'nova') {
-    ringDots(cx, cy, fx.r * (1 - k * 0.7) * AP, ART.cores.nova, k, true);
+    // (its ring is swept over the ground: castFxBig)
     lights.push({ x: cx, y: cy, r: fx.r * 1.3, i: k, c: rgb01(ART.cores.nova) });
-  } else if (fx.kind === 'pull') {
-    ringDots(cx, cy, fx.r * k * AP, ART.cores.pull, 0.8, true);
-  } else if (fx.kind === 'ward') {
-    ringDots(cx, cy, (11 + 6 * k) * AP, ART.cores.ward, k, true);
-  } else if (fx.kind === 'arc') {
-    const n = 6, x2 = Math.round(fx.x2 * AP) + ox, y2 = Math.round(fx.y2 * AP) + oy;
-    let px = cx, py = cy;
-    for (let s = 1; s <= n; s++) {
-      const tx = cx + ((x2 - cx) * s) / n + (s < n ? FX_R.i(-3, 3) : 0), ty = cy + ((y2 - cy) * s) / n + (s < n ? FX_R.i(-3, 3) : 0);
-      pixelLineGlow(px, py, tx, ty, ART.exotics.voltaic);
-      px = tx; py = ty;
-    }
-  } else if (fx.kind === 'blast') {
+  } else if (fx.kind === 'arc') drawCastArc(fx, ox, oy, lights); else if (fx.kind === 'blast') {
     ringDots(cx, cy, fx.r * (1 - k * 0.6) * AP, '#ff7a3a', k, true);
     lights.push({ x: cx, y: cy, r: fx.r * 1.5, i: 1.2 * k, c: [1, 0.5, 0.25] });
   } else if (fx.kind === 'volatile') {
     if (tick % 2) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(cx + i - 1, cy - ap(4) + j - 1, '#ff5a3a', true);
     lights.push({ x: cx, y: cy, r: TILE, i: 0.8, c: [1, 0.35, 0.2] });
   }
-}
-
-function pixelLineGlow(x0, y0, x1, y1, col) {
-  const n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))));
-  for (let s = 0; s <= n; s++) dot(Math.round(x0 + ((x1 - x0) * s) / n), Math.round(y0 + ((y1 - y0) * s) / n), col, true);
 }
 
 // A tiny pixel font for the numbers that pop off hits: 3×5 digits.
