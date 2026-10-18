@@ -362,17 +362,20 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 ## Presentation
 
 - Top-down pixel art with 16 px tiles. The view always shows at least 176 game pixels on its shorter side (about 11–12 tiles), scaled up by whole device pixels.
-- **Art style: "Glow + Detail".**
-  - A grim, desaturated palette with four-step ramps and ordered dithering.
+- **Art style: "Glow + Detail", drawn to the A+ rules** (DECISIONS.md; the knobs are in `T.art`).
+  - A grim palette in short ramps, hue-shifted: shadows lean to violet, lights to warm gold. At most 3–4 tones of a material on one thing, chosen by its form, lit from the top left.
+  - Texture in clusters of light and dark, never speckle. No dithering on creatures, sprites or props; a little at the edges of large ground gradients only.
+  - Black outlines on creatures (the diver, enemies, critters); sel-outs, a much darker shade of the colour inside, on flora and props.
   - Darkness, where only magitech gives off light: the helmet lamp, ore glints, runes, glowing fungus, singing crystals, magma, enemies' eyes and cores, the lodelines and the Lodestar.
-  - Light comes in a few dithered bands, and glowing things bloom.
+  - Light comes in a few hard bands, dithered only just at each step's edge, and glowing things bloom.
+  - The plan: these rules on today's 16 px art, then 24 px tiles by enlarging the letter grids 1.5× before shading, then a hand redraw.
 - **Readability rule.** Rock tops are always darker than the floor, with lit rims and front faces where they meet it.
 - **Biome looks.** Each biome changes its enemies' colours, and in its own climes (Badlands, Caverns, Archive) its floor, rock and light colours; the other climes bring their own (see Climes). Each also has its own strange flora (flora.js), as sprites that stand on the floor, grow at the foot of walls, or hang from wall faces. Some sway or pulse:
   - **the Rim:** jelly caps trailing beads of light, frilled stalks, shelf fungus, split puffballs, blinking eye stalks, a lit pitcher, hanging roots, dripstone;
   - **the Choir:** bone tube worms, reed pipes, ribbed fans, bell flowers, spore sacs, weeping stone, ribbon fronds, chime cones;
   - **the Underforge:** ash caps, fungus on broken pipes, charred roots, a breathing vent flower, slag drips, a half-buried cog, a rust totem, cinder pods.
 - **Alien light.** Faint veins glow in the rock. Flora glows dimly, in colours no ore uses, and never in crystal shapes: chartreuse on the Rim, dusky pink in the Choir, low ember in the Underforge.
-- **Ambient life** (life.js), cosmetic only: a few small harmless creatures a site, unoutlined so they read as part of the ground, never as enemies or loot. Lizards and flocks of birds under the sky, glowing moths drawn to the lamp underground, scurriers along the foot of ruin walls. They bolt from the diver and from fights, then settle again. On the surface, cloud shadows drift on the wind and dust gusts by now and then; underground, drips and dust in the lamp. Each clime has its own critters' colours and weather: snow, embers, pollen, fireflies, rising sparks.
+- **Ambient life** (life.js), cosmetic only: a few small harmless creatures a site, outlined as every creature is but small and muted, so they read as part of the place, never as enemies or loot. Lizards and flocks of birds under the sky, glowing moths drawn to the lamp underground, scurriers along the foot of ruin walls. They bolt from the diver and from fights, then settle again. On the surface, cloud shadows drift on the wind and dust gusts by now and then; underground, drips and dust in the lamp. Each clime has its own critters' colours and weather: snow, embers, pollen, fireflies, rising sparks.
 - **Ore twinkles**, so it's the one thing in the rock that catches the eye.
 - **Loot glows in its rarity's colour.** Rare and better stands up in a beam, so it's seen from across a room.
 - **(proposed) Lamp radius as a dial.** The lamp's radius could shrink as danger rises with depth.

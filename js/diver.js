@@ -1,7 +1,7 @@
 'use strict';
 // ---------------------------------------------------------------------------
 // The player: the circuit diver. A sleek alien-tech suit with glowing
-// circuits, under a glass dome with a violet light inside. Drawn in style E
+// circuits, under a glass dome with a violet light inside. Drawn in the A+ style
 // in five facings (S, SE, E, NE, N; the rest are mirrors), each an idle
 // frame and a four-frame walk, all 25×24. Its letters are its own
 // (DIVER_LETTERS), built with buildArtSprite. hand: where the main hand
@@ -9,9 +9,9 @@
 // apart (render.js), so it can follow and orbit.
 // ---------------------------------------------------------------------------
 
-const DIVER_LETTERS = {'U':['suit'],'G':['plate'],'M':['metal'],'K':['boots'],'N':['dome'],'n':['dome',3],'Q':['core'],'A':['chest'],'R':['tip'],'w':['steel',1],'W':['steel']};
+const DIVER_LETTERS = {'U':['suit'],'G':['plate'],'M':['metal'],'K':['boots'],'N':['dome'],'n':['dome',4],'Q':['core'],'A':['chest'],'R':['tip'],'w':['steel',1],'W':['steel']};
 const DIVER_GLOWS = ['core','chest','tip'];
-const DIVER_PAL = {'suit':['#0d0f17','#181b28','#272b40','#3e4460'],'plate':['#191c22','#2e333c','#4a515c','#78808c'],'metal':['#241c12','#4a3a20','#7a6234','#b89a58'],'boots':['#0b0909','#18120e','#281e16'],'dome':['#071318','#0f2830','#1d4654','#7fc8d8'],'core':['#c9a2ff'],'chest':['#c9a2ff'],'tip':['#7dffd8'],'steel':['#22262c','#444a54','#767f8c','#c8d2dc']};
+const DIVER_PAL = {'suit':['#0d0f17','#181b28','#272b40','#3e4460'],'plate':['#191c22','#2e333c','#4a515c','#78808c'],'metal':['#241c12','#4a3a20','#7a6234','#b89a58'],'boots':['#0b0909','#18120e','#281e16'],'dome':['#071318','#0f2830','#1d4654','#3a7a8c','#7fc8d8'],'core':['#c9a2ff'],'chest':['#c9a2ff'],'tip':['#7dffd8'],'steel':['#22262c','#444a54','#767f8c','#c8d2dc']};
 const DIVER_HAND = {'S':[8,15],'SE':[9,16],'E':[12,17],'NE':[15,16],'N':[16,15]};
 const DIVER_FRAMES = {
   S: [

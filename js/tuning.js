@@ -398,7 +398,7 @@ const T = {
     px: 1, tones: 4, hueShift: [0.2, 0.3, 0.05], violet: 255, gold: 50, groundHue: [0.1, 0.1, 0],
     form: { edge: 1.5, body: 0.3, part: 2, depth: 1.6, light: 0.5, shade: 0.32, fall: 0.1, crease: 0.24 },
     dither: false, outline: { creature: 'black', prop: 'selout' }, selout: 0.42,
-    cluster: { patch: 9, grain: 3, cut: 0.28 }, rockCut: 0.34, groundDither: true,
+    cluster: { patch: 9, grain: 3, cut: 0.32 }, rockCut: 0.34, groundDither: true,
     lightSteps: 5, lightDither: 0.3,
   },
 

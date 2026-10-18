@@ -1,17 +1,23 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// The art: style E, "Glow + Detail". A grim, desaturated palette with
-// four-step ramps and ordered dithering, in darkness where only magitech
-// gives off light (the helmet lamp, ore glints, runes, fungus, the lodeline).
-// Every picture has two layers: its colours, and its emissive pixels, which
-// keep their own colour under any light and feed the bloom (render.js).
-// Rock tops are darker than the floor, with lit rims and front faces, so
-// walls always read as walls.
+// The art: "Glow + Detail", drawn to the A+ rules (DECISIONS.md; every knob
+// in T.art). Darkness where only magitech gives off light (the helmet lamp,
+// ore glints, runes, fungus, the lodeline). A material has at most a few
+// tones on any one thing, chosen by its form lit from the top left, from a
+// ramp whose shadows lean violet and lights warm gold. Texture comes in
+// clusters, never speckle; there's no dither on sprites. Creatures are
+// outlined black, props and flora with sel-outs. Every picture has two
+// layers: its colours, and its emissive pixels, which keep their own colour
+// under any light and feed the bloom (render.js). Rock tops are darker than
+// the floor, with lit rims and front faces, so walls always read as walls.
+// Nothing here assumes 16 px art: sprites are shaded at whatever size their
+// letter grids are, and the painters' distances scale with T.art.px.
 // ---------------------------------------------------------------------------
 
 const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 // The ordered-dither threshold at x, y, in (0, 1). Anchored to the world, so
-// dithering stays put as the camera moves.
+// dithering stays put as the camera moves. A+ keeps it for the edges of
+// large gradients and the light's steps only.
 const bayerAt = (x, y) => (BAYER4[(y & 3) * 4 + (x & 3)] + 0.5) / 16;
 
 function desaturate(hex, t) {

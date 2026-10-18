@@ -163,3 +163,23 @@ The designer asked for more variety in the environment, "completely different bi
 - **Flora never looks like ore, and walls always read as walls:** no crystal shapes among the new plants (the geode idea was dropped for that reason), rock tops always darker than the floor, glows in colours no ore uses, and portal motes in a clime's colour but never violet, magenta or cyan, which belong to rifts.
 - **Grafts bring a clime too:** a rift's graft is a patch of another region's ground in one of its climes, such as a patch of steppe snow in a cave.
 - **Drawn for the A+ move:** few tones a material, hue-shifted ramps (violet shadows, warm lights), clusters rather than speckle, no dither on props. The art stays at 16 px until the migration.
+
+## 2026-10-18: the art direction, "A+ Midway"
+
+The designer compared several looks for the art's next step, drawn by a mock-up renderer at 1×, 1.5× and 2×, and chose A+ Midway.
+- **Plain 2× was rejected.** Doubling the resolution and keeping the old shading (smooth gradients dithered over every tone, noise speckle) "moved away from pixel art": it read as a smoothed painting, not as clusters of pixels.
+- **A+ is a set of pixel artist's rules, not a resolution:**
+  - at most 3–4 tones of a material on any one thing, picked by its form lit from the top left rather than spread as a gradient;
+  - hue-shifted ramps: shadows lean to violet, lights to warm gold, middle tones a little richer;
+  - texture in clusters of light and dark, never per-pixel speckle or orphan pixels;
+  - no dithering on creatures, sprites or props; a little only at the edges of large ground gradients and of the light's steps;
+  - black outlines on creatures (the diver, enemies, critters) and sel-outs (a much darker shade of the colour inside) on flora and props;
+  - light in a few hard bands, and the bloom kept.
+- **Three steps:**
+  1. Apply the rules to today's 16 px art. Done: the sprite builder shades by form, the ground is clustered and the light banded, with every knob in `T.art`.
+  2. Move to 24 px tiles by enlarging the letter-row material grids 1.5× before shading, so the shading adds detail at the new size instead of blurring the old (`T.art.px` scales the painters' distances).
+  3. Redraw by hand where the enlarged art falls short.
+- **The rules that don't change:** walls read as walls (rock tops darker than the floor, lit rims and faces), flora never looks like ore (the ores' ramps are never hue-shifted), no screen shake, and the art is visual only, so generation and the golden hashes are untouched.
+- **Critters are outlined now,** as creatures. They stay muted and small, so they still read as part of the place rather than as enemies.
+- **The light keeps its colour at a step.** Banding each colour channel on its own shifted a tinted light's hue (the badlands went red), so the steps are of brightness only, and flat ambient light is snapped to a whole step so it never sits on a dithered edge.
+
