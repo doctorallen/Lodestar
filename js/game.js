@@ -171,7 +171,9 @@ function placeFieldForge(d) {
   const f = d.floor, rng = new Rng(hashInts(d.seed, d.depth, 0xf0e6));
   d.fieldForge = null;
   if (!rng.chance(T.zones[d.zone].forge || 0)) return;
-  const rooms = f.rooms.slice(1).filter((r) => !r.arena && !(f.ways || []).some((w) => roomHas(r, w)) && !(f.pad && roomHas(r, f.pad)) && r.cells.length > 8);
+  // not in a room with a way on, the lodeline or a rift's tear
+  const tears = d.rift ? [d.rift, d.rift.pair].filter(Boolean) : [];
+  const rooms = f.rooms.slice(1).filter((r) => !r.arena && !(f.ways || []).some((w) => roomHas(r, w)) && !(f.pad && roomHas(r, f.pad)) && !tears.some((t) => roomHas(r, t)) && r.cells.length > 8);
   if (!rooms.length) return;
   const r = rng.pick(rooms), i = rng.pick(r.cells);
   d.fieldForge = { x: i % f.w, y: Math.floor(i / f.w) };

@@ -336,7 +336,7 @@ async function phone(browser) {
     T.rifts.chance = [1, 1, 1, 1];
     for (const kind of ['bloom', 'gate', 'graft']) {
       T.rifts.kinds = { graft: 0, bloom: 0, gate: 0, inversion: 0, [kind]: 1 };
-      UI.close(); startDive(0); enterFloor(2, 'cave');
+      UI.close(); startDive(0); Game.dive.seed = 4242; enterFloor(2, 'cave');
       const d = Game.dive, r = d.rift;
       if (!r) { out[kind] = 'none'; continue; }
       for (const e of d.enemies) e.dead = true;
