@@ -63,7 +63,7 @@ const T = {
   // forge.
   zones: {
     cave: { name: 'Cave', gen: { veins: [1, 3] }, forge: 0.15 },
-    surface: { name: 'Surface', gen: { rooms: [6, 8], roomR: [4, 7], roomGap: 2, tunnelR: [1.8, 2.6], meander: 0.25, veins: [0, 2], pillar: 0.8 }, light: { day: 1.15, dusk: 0.5, tint: [1.0, 0.92, 0.8], lampAt: 0.5 }, enemies: { wisp: 2, construct: 0.6 }, forge: 0.1 },
+    surface: { name: 'Surface', gen: { rooms: [6, 8], roomR: [4, 7], roomGap: 2, tunnelR: [1.8, 2.6], meander: 0.25, veins: [0, 2], pillar: 0.8 }, light: { day: 1.15, dusk: 0.65, tint: [1.0, 0.92, 0.8], lampAt: 0.5 }, enemies: { wisp: 2, construct: 0.6 }, forge: 0.1 },
     ruin: { name: 'Ruin', gen: { rooms: [7, 9], roomW: [5, 9], roomH: [4, 7], veinChance: 0.5, veinLen: [2, 3] }, enemies: { construct: 2, crawler: 0.7 }, forge: 0.6 },
     lair: { name: "Keeper's Lair", gen: { rooms: [3, 4], veins: [1, 2] }, forge: 0 },
     deep: { name: 'Deep Vein', gen: { veins: [2, 3], veinLen: [3, 5] }, forge: 0.1, warden: 0.6 },

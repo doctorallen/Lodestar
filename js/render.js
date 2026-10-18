@@ -130,7 +130,7 @@ function placeFlora(f, set) {
       const wallAbove = TILE_SOLID[floorTile(f, tx, ty - 1)] && floorTile(f, tx, ty - 1) !== TILE_PIT;
       let walls = 0;
       for (const [dx, dy] of DIRS4) if (TILE_SOLID[floorTile(f, tx + dx, ty + dy)]) walls++;
-      const scale = f.hub ? 0.4 : 1;
+      const scale = f.hub ? 0.4 : set === 'surface' ? 2 : 1;
       let piece = null, x = (tx + 0.5) * TILE + ((h >>> 20) % 7) - 3, y;
       if (wallAbove && roll < L.floraCeiling * scale) { piece = pick('ceiling', h); y = ty * TILE - 1; }
       else if (wallAbove && roll < (L.floraCeiling + L.floraWall) * scale) { piece = pick('wall', h); if (piece) y = ty * TILE + piece.h - 2; }

@@ -585,5 +585,10 @@ const TOOL_ROWS = {
   ],
 };
 
-// The Rim's surface is the mesa country these were drawn for.
-ART.surface.rim = Object.assign({ sun: true }, SURFACE_BIOME);
+// The Rim's surface is the mesa country these were drawn for, with the
+// mesa tops darker than the sand between, so walls still read as walls.
+ART.surface.rim = Object.assign({ sun: true }, SURFACE_BIOME, {
+  floor: ['#a8784c', '#b4855a', '#c09266'],
+  rock: ['#5c3a24', '#68432a', '#744c30', '#d0a070'],
+  front: ['#2e1810', '#432316', '#5a301e'],
+});
