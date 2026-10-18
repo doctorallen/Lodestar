@@ -1,9 +1,10 @@
 'use strict';
-// The autopilot plays careers from a fresh save: dives, then spends the
-// haul at home, over and over. It fails if a career can't get anywhere: the
-// first dives must bring something home, the pick must improve, the star
-// must grow, and a new biome must open within the dives played.
-// node test/bot.js [--careers N] [--dives N]; results in test/out/balance.json
+// The autopilot plays careers from a fresh save: sorties out into the
+// world, then spends the haul at home, over and over. It fails if a career
+// can't get anywhere: the first sorties must bring something home, the pick
+// must improve, the star must grow, and some career must kindle a territory.
+// node test/bot.js [--careers N] [--dives N] (sorties a career); results
+// in test/out/balance.json
 const fs = require('fs');
 const path = require('path');
 const { launch, openGame, outDir, finish } = require('./lib');
@@ -11,7 +12,6 @@ const { installBot } = require('./botlib');
 
 const arg = (k, def) => { const i = process.argv.indexOf(k); return i > 0 ? Number(process.argv[i + 1]) : def; };
 const CAREERS = arg('--careers', 2), DIVES = arg('--dives', 24);
-const T_BIOMES = ['rim', 'choir', 'forge'];
 
 (async () => {
   const browser = await launch();
@@ -20,13 +20,12 @@ const T_BIOMES = ['rim', 'choir', 'forge'];
     for (let c = 0; c < CAREERS; c++) {
       const { page, errors } = await openGame(browser);
       await page.evaluate(installBot);
-      const runs = await page.evaluate((n) => Bot.career({ dives: n }), DIVES);
+      const runs = await page.evaluate((n) => Bot.career({ sorties: n }), DIVES);
       all.push(runs);
-      const extracted = runs.filter((r) => r.ended === 'extracted').length, recalled = runs.filter((r) => r.ended === 'recalled').length, died = runs.filter((r) => r.ended === 'died').length;
-      const last = runs[runs.length - 1];
-      console.log(`career ${c + 1}: ${extracted} extracted, ${recalled} recalled, ${died} died, ${runs.length - extracted - recalled - died} timed out; magnitude ${last.mag}, pick ${last.pick}, ${last.hands}, ${last.maxHp} hp`);
-      for (const r of runs) console.log(`  ${T_BIOMES[r.biome]} d${r.depth} ${(r.clime || '').padEnd(8)} ${r.ended.padEnd(9)} kills ${String(r.kills).padStart(3)} cargo ${String(r.cargo).padStart(2)} items ${r.items} t ${r.time}s | mag ${r.mag} pick ${r.pick} ${r.hands} | ${r.why || r.home.join('; ')}`);
-      if (!runs.slice(0, 4).some((r) => r.ended === 'extracted' || r.ended === 'recalled')) failures.push(`career ${c + 1}: none of the first four dives came home`);
+      const n = (k) => runs.filter((r) => r.ended === k).length, last = runs[runs.length - 1];
+      console.log(`career ${c + 1}: ${n('home')} home, ${n('recalled')} recalled, ${n('died')} fell, ${n('timeout')} timed out; ${last.kindledAll} kindled, ${runs.filter((r) => r.deep).length} Deeps; magnitude ${last.mag}, pick ${last.pick}, ${last.hands}, ${last.maxHp} hp`);
+      for (const r of runs) console.log(`  r${r.ring} L${String(r.level).padEnd(2)} ${(r.clime || '').padEnd(8)} ${r.ended.padEnd(8)}${r.kindled ? ' +K' : '   '}${r.deep ? ' D' : '  '} kills ${String(r.kills).padStart(3)} cargo ${String(r.cargo).padStart(2)} t ${String(r.time).padStart(3)}s | mag ${r.mag} pick ${r.pick} | ${r.why || r.home.join('; ')}`);
+      if (!runs.slice(0, 4).some((r) => r.ended === 'home' || r.ended === 'recalled')) failures.push(`career ${c + 1}: none of the first four sorties came home`);
       if (last.pick < 2) failures.push(`career ${c + 1}: the pick never improved`);
       if (last.mag < 2) failures.push(`career ${c + 1}: the star never grew`);
       if (errors.length) failures.push(`career ${c + 1}: ` + errors.slice(0, 5).join(' | '));
@@ -39,6 +38,9 @@ const T_BIOMES = ['rim', 'choir', 'forge'];
   } finally {
     await browser.close();
   }
+  if (all.length && !all.some((r) => r[r.length - 1].kindledAll > 0)) failures.push('no career kindled a territory');
   fs.writeFileSync(path.join(outDir(), 'balance.json'), JSON.stringify(all, null, 1));
+  const flat = all.flat(), k = (e) => flat.filter((r) => r.ended === e).length, N = flat.length || 1;
+  if (all.length) console.log(`all: ${flat.length} sorties: ${(100 * k('died') / N).toFixed(1)}% fell, ${(100 * k('home') / N).toFixed(1)}% home, ${(100 * k('recalled') / N).toFixed(1)}% recalled, ${(100 * k('timeout') / N).toFixed(1)}% timed out; kindled per career ${(all.reduce((a, r) => a + r[r.length - 1].kindledAll, 0) / all.length).toFixed(2)}; magnitude ${(all.reduce((a, r) => a + r[r.length - 1].mag, 0) / all.length).toFixed(2)}, pick ${(all.reduce((a, r) => a + r[r.length - 1].pick, 0) / all.length).toFixed(2)}; a sortie: haul ${(flat.reduce((a, r) => a + r.cargo, 0) / N).toFixed(1)}, kills ${(flat.reduce((a, r) => a + r.kills, 0) / N).toFixed(1)}, ${(flat.reduce((a, r) => a + r.time, 0) / N).toFixed(0)} s, ${flat.filter((r) => r.deep).length} Deeps`);
   finish('bot', failures);
 })();

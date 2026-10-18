@@ -9,6 +9,12 @@
 //    generation that repeats exactly for the same arguments; a clime's
 //    hazard kept off the entry's cavern, the ways and the lodeline, vents
 //    and pods out in the open, and lava that cuts no ground off;
+//  - the world: 10 seeds' layouts (rings the right size, neighbours on
+//    both sides, every territory reachable from the outpost, one starter
+//    and a gate in each of the first three rings) and every territory of 3
+//    of them: an opening for each neighbour at the map's edge, and the
+//    heart, the waystones and every opening reached on foot from each
+//    other, ore only from its region, and the same map every time;
 //  - golden hashes pin generation, so a change to it has to be meant
 //    (re-record with --update).
 const fs = require('fs');
@@ -16,7 +22,7 @@ const path = require('path');
 const { sandbox } = require('./sandbox');
 const { finish } = require('./lib-node');
 
-const G = sandbox(['js/util.js', 'js/tuning.js', 'js/floor.js']);
+const G = sandbox(['js/util.js', 'js/tuning.js', 'js/floor.js', 'js/world.js']);
 const failures = [];
 const fail = (msg) => { if (failures.length < 200) failures.push(msg); };
 const GOLDEN = path.join(__dirname, 'golden.json');
@@ -79,6 +85,41 @@ for (const [seed, biome, depth, zone, clime] of cases) {
         }
 }
 
+// the world
+for (let seed = 1; seed <= 10; seed++) {
+  const L = G.worldLayout(seed), at = `world ${seed}`;
+  G.T.world.rings.forEach((R, r) => { const n = L.terrs.filter((t) => t.ring === r).length; if (n !== R.n) fail(`${at}: ring ${r} has ${n} territories, not ${R.n}`); });
+  for (const t of L.terrs) {
+    if (!t.home && !t.nb.length) fail(`${at}: ${t.name} has no neighbours`);
+    for (const n of t.nb) if (!L.terrs[n].nb.includes(t.id)) fail(`${at}: ${t.name} and ${L.terrs[n].name} aren't neighbours both ways`);
+    if (!t.home && (t.depth < 1 || t.depth > 4 + (t.edge ? G.T.world.edgeDepth : 0))) fail(`${at}: ${t.name} is depth ${t.depth}`);
+  }
+  const seen = new Set([0]), q = [0];
+  for (let i = 0; i < q.length; i++) for (const n of L.terrs[q[i]].nb) if (!seen.has(n)) { seen.add(n); q.push(n); }
+  if (seen.size !== L.terrs.length) fail(`${at}: only ${seen.size} of ${L.terrs.length} territories can be walked to`);
+  if (L.terrs.filter((t) => t.starter).length !== 1 || !L.terrs.find((t) => t.starter).nb.includes(0)) fail(`${at}: not one starter next to the outpost`);
+  for (let r = 1; r <= 3; r++) if (!L.terrs.some((t) => t.ring === r && t.gate && t.deep >= 2)) fail(`${at}: ring ${r} has no gate with a Deep`);
+  if (seed > 3) continue;
+  for (const t of L.terrs) {
+    if (t.home) continue;
+    const f = G.generateTerritory(seed, t.id), w = f.w, tat = `${at} ${t.name}`;
+    if (f.exits.length !== t.nb.length) fail(`${tat}: ${f.exits.length} openings for ${t.nb.length} neighbours`);
+    for (const e of f.exits) {
+      const edge = e.x === 1 || e.y === 1 || e.x === w - 2 || e.y === f.h - 2;
+      if (!edge || f.tiles[e.y * w + e.x] !== G.TILE_FLOOR) fail(`${tat}: the opening to ${e.to} isn't open ground at the edge`);
+      if (f.tiles[e.ay * w + e.ax] !== G.TILE_FLOOR) fail(`${tat}: the arrival from ${e.to} isn't open ground`);
+    }
+    const steps = G.floorDistances(f.tiles, w, f.h, f.heart.x, f.heart.y);
+    for (const p of f.stones.concat(f.exits, f.ways)) if (steps[p.y * w + p.x] < 0) fail(`${tat}: ${p.x},${p.y} can't be walked to from the heart`);
+    const keys = [f.heart].concat(f.stones);
+    for (let i = 0; i < keys.length; i++) for (let j = i + 1; j < keys.length; j++) if (keys[i].x === keys[j].x && keys[i].y === keys[j].y) fail(`${tat}: the heart and waystones overlap`);
+    if (!!t.deep !== (f.ways.length === 1)) fail(`${tat}: its Deep's portal is missing or unasked for`);
+    const allowed = new Set(G.T.biomes[t.biome].ores.map((id) => G.ORE_INDEX[id] + 1));
+    for (let i = 0; i < f.ore.length; i++) if (f.ore[i] && !allowed.has(f.ore[i])) { fail(`${tat}: ore from another region`); break; }
+    if (G.territoryHash(G.generateTerritory(seed, t.id)) !== G.territoryHash(f)) fail(`${tat}: its map doesn't repeat`);
+  }
+}
+
 const golden = {};
 for (const seed of [1, 7, 1234])
   for (let biome = 0; biome < G.T.biomes.length; biome++)
@@ -86,6 +127,8 @@ for (const seed of [1, 7, 1234])
 // and each clime's, in its first zone
 for (const seed of [1, 7])
   for (const clime of CLIMES) { const zone = G.T.climes[clime].zones[0]; golden[`${seed}/0/2/${zone}/${clime}`] = G.floorHash(G.generateFloor(seed, 2, 0, 0.5, zone, 2, clime)); }
+// and the world's territories
+for (const seed of [1, 7]) for (const id of [1, 9, 20, 33]) golden[`world ${seed}/${id}`] = G.territoryHash(G.generateTerritory(seed, id));
 if (update || !fs.existsSync(GOLDEN)) {
   fs.writeFileSync(GOLDEN, JSON.stringify(golden, null, 2) + '\n');
   console.log('gen: golden hashes recorded');

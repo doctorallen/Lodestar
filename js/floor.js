@@ -34,10 +34,11 @@ function floorTile(f, tx, ty) {
 // deeper ore). ways: how many portals lead on (each stands on a
 // TILE_PORTAL, listed in f.ways, furthest first; portals.js draws them).
 // clime: its country (T.climes), which may change the generator and lays
-// its hazard over the ground (placeHazards).
-function generateFloor(seed, depth, biome, padChance = 1, zone = 'cave', ways = 1, clime = null) {
+// its hazard over the ground (placeHazards). over: overrides of the
+// generator's numbers on top of all that (a territory's, world.js).
+function generateFloor(seed, depth, biome, padChance = 1, zone = 'cave', ways = 1, clime = null, over = null) {
   if (zone === 'ruin') return generateRuin(seed, depth, biome, padChance, ways, clime);
-  const F = Object.assign({}, T.floor, T.zones[zone] && T.zones[zone].gen, climeGen(clime)), B = T.biomes[biome];
+  const F = Object.assign({}, T.floor, T.zones[zone] && T.zones[zone].gen, climeGen(clime), over), B = T.biomes[biome];
   const rng = new Rng(hashInts(seed, depth, biome, ZONE_SALT[zone] || 0x10de));
   const w = F.w, h = F.h;
   const tiles = new Uint8Array(w * h).fill(TILE_ROCK), ore = new Uint8Array(w * h);

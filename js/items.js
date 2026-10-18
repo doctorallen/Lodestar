@@ -123,10 +123,10 @@ function baseStats(kind, tier, bp = BLUEPRINTS[KIND_BLUEPRINT[kind]]) {
 }
 
 // How many slots a caster of a blueprint has, forged at the anvil's quality
-// (0–3).
-function casterSlotCount(bpId, q = 1) {
-  const B = T.circuits.bases[(BLUEPRINTS[bpId] || {}).style] || T.circuits.bases.wand;
-  return B.slots[clamp(q, 0, 3)];
+// (0–3), in an ore of a tier (Starmetal has more).
+function casterSlotCount(bpId, q = 1, tier = 1) {
+  const B = T.circuits.bases[(BLUEPRINTS[bpId] || {}).style] || T.circuits.bases.wand, way = T.circuits.ores[oreOfTier(tier).id] || {};
+  return B.slots[clamp(q, 0, 3)] + (way.slots || 0);
 }
 
 // opts: { bp (the blueprint; else the plain one for the kind), rarity,
@@ -154,7 +154,7 @@ function makeItem(rng, kind, tier, opts = {}) {
     }
   }
   while (item.affixes.length < n) { const a = rollAffix(rng, item, families); if (!a) break; item.affixes.push(a); }
-  if (kind === 'caster') item.slots = new Array(casterSlotCount(bpId, opts.q === undefined ? rng.i(0, 3) : opts.q)).fill(null);
+  if (kind === 'caster') item.slots = new Array(casterSlotCount(bpId, opts.q === undefined ? rng.i(0, 3) : opts.q, tier)).fill(null);
   item.name = itemName(rng, item);
   return item;
 }
@@ -206,7 +206,7 @@ function fmtAffix(a) { return AFFIXES[a.id].text.replace('{v}', a.v); }
 
 function itemBaseLine(item) {
   const b = item.base || {};
-  if (item.kind === 'caster') return `${b.power} spell power · ${(item.slots || []).length} slots`;
+  if (item.kind === 'caster') { const el = (T.circuits.ores[oreOfTier(item.tier).id] || {}).el; return `${b.power} spell power · ${(item.slots || []).length} slots${item.links && item.links.length ? ' (2 linked)' : ''}${el ? ` · attuned to ${CIRCUIT_ELEMENTS[el].name}` : ''}`; }
   if (item.kind === 'armor') return `${b.armor} armor, +${b.hp} max health`;
   if (item.kind === 'pick') { const top = T.ores.filter((o) => o.tier <= b.power).pop(); return `Breaks up to ${top ? top.name : 'nothing'}, ${b.speed}× speed`; }
   if (item.kind === 'stone') return stoneLine(item.stone);
@@ -355,6 +355,8 @@ function forgeItem(rng, bpId, oreId, partStack, exoticId, q = 1) {
   if (part && part.kind === 'heart' && q >= 2) rarity = 'legendary';
   const item = makeItem(rng, bp.kind, tier, { bp: bpId, rarity, family: ex && ex.family, binding: part, q });
   if (bp.kind === 'caster' && ex && ex.element) item.withStone = makeStone(ex.element, tier);
+  // a masterwork may link a pair of slots: a Glyph in either counts twice
+  if (bp.kind === 'caster' && q >= 3 && rng.chance(T.circuits.links.chance)) item.links = [rng.i(0, item.slots.length - 2)];
   return item;
 }
 
@@ -410,4 +412,3 @@ function attunePointsLeft(save) {
   for (const id in save.attune) spent += save.attune[id];
   return magnitudeOf(save.star) - 1 - spent;
 }
-function biomeOpen(save, i) { return magnitudeOf(save.star) >= T.star.biomeAt[i]; }

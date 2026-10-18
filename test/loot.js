@@ -38,7 +38,7 @@ function checkItem(it, at, family, binding) {
   if (it.power && !G.LEGENDARIES[it.power].kinds.includes(it.kind)) fail(`${at}: ${it.power} on a ${it.kind}`);
   if (it.rarity === 'legendary' && !it.power) fail(`${at}: a legendary without a power`);
   if (it.set && !G.SETS[it.set].pieces[it.kind]) fail(`${at}: a set ${it.kind}`);
-  if (it.kind === 'caster' && !(it.slots && it.slots.length >= 3 && it.slots.length <= 6)) fail(`${at}: a caster with ${it.slots && it.slots.length} slots`);
+  if (it.kind === 'caster' && !(it.slots && it.slots.length >= 3 && it.slots.length <= 6 + (it.tier === 6 ? 1 : 0))) fail(`${at}: a caster with ${it.slots && it.slots.length} slots`);
   if (/NaN|undefined/.test(G.itemBaseLine(it))) fail(`${at}: "${G.itemBaseLine(it)}"`);
 }
 
@@ -67,7 +67,9 @@ for (let seed = 1; seed <= 3000; seed++) {
   }
   rarities[made.rarity] = (rarities[made.rarity] || 0) + 1;
   checkItem(made, `forged ${bpId} ${seed}`, ex && ex.family);
-  if (bp.kind === 'caster' && made.slots.length !== G.casterSlotCount(bpId, q)) fail(`forged ${bpId} ${seed}: ${made.slots.length} slots at quality ${q}`);
+  if (bp.kind === 'caster' && made.slots.length !== G.casterSlotCount(bpId, q, made.tier)) fail(`forged ${bpId} ${seed}: ${made.slots.length} slots at quality ${q}`);
+  if (bp.kind === 'caster' && made.slots.length !== G.casterSlotCount(bpId, q) + (made.tier === 6 ? 1 : 0)) fail(`forged ${bpId} ${seed}: Starmetal's slot is wrong`);
+  if (bp.kind === 'caster' && made.links && (q < 3 || made.links.some((a) => a < 0 || a > made.slots.length - 2))) fail(`forged ${bpId} ${seed}: links ${made.links} at quality ${q}`);
   if (bp.kind === 'caster' && made.slots.some(Boolean)) fail(`forged ${bpId} ${seed}: came out with stones in it`);
   if (made.bp !== bpId) fail(`forged ${bpId} ${seed}: came out a ${made.bp}`);
   const fam = pk && G.PARTS[pk.kind].family;
@@ -159,6 +161,15 @@ const P4 = G.parseCircuit(SS('bolt', 'split', 'trigger'));
 if (!P4.dangling) fail('a Trigger at the end is not marked as setting off nothing');
 if (G.circuitCost({ bp: 'wand', slots:SS('arc', 'quicken') }) !== Math.round(3 * C.glyphs.quicken.cost * 10) / 10) fail('ARC QUICKEN does not cost a third less');
 if (G.circuitCost({ bp: 'gauntlet', slots:SS('arc', null, null) }) !== C.forms.arc.cost - 1) fail('a gauntlet does not take 1 off a close Form');
+// a Glyph in a linked slot counts twice, in what it does and what it costs
+const PL = G.parseCircuit(SS('bolt', 'split', 'echo'), [1]);
+if (PL.groups[0].glyphs.split !== 2 || PL.groups[0].glyphs.echo !== 2) fail('a Glyph in a linked slot does not count twice');
+if (G.parseCircuit(SS('bolt', 'split', 'echo'), [0]).groups[0].glyphs.echo !== 1) fail('a slot outside the linked pair counts twice');
+if (G.circuitCost({ bp: 'wand', slots: SS('bolt', 'split', null), links: [1] }) !== Math.round(C.forms.bolt.cost * C.glyphs.split.cost * C.glyphs.split.cost * 10) / 10) fail('a linked Glyph does not cost twice');
+// ore affinity: Ferrite's Glaive costs less; the attuned hit harder
+if (G.circuitCost({ bp: 'wand', tier: 1, slots: SS('glaive') }) !== C.forms.glaive.cost - C.ores.ferrite.glaive) fail('a Ferrite Glaive does not cost less');
+if (G.circuitCost({ bp: 'wand', tier: 2, slots: SS('glaive') }) !== C.forms.glaive.cost) fail('a Lumenite Glaive costs less');
+if (G.affinityMult({ tier: 2 }, ['shock']) !== 1 + C.attuned.dmg || G.affinityMult({ tier: 2 }, ['frost']) !== 1 || G.affinityMult({ tier: 2 }, ['shock', 'frost']) !== 1 + C.attuned.dmg / 2) fail('Lumenite is not attuned to Shock by its share');
 // resonances fill the caster exactly
 for (const r of G.RESONANCES) {
   if (!r.seq.every((id) => ids.includes(id))) fail(`${r.name} needs a part outside the core set`);
@@ -169,7 +180,6 @@ for (const r of G.RESONANCES) {
 const S = G.T.star;
 if (G.magnitudeOf(0) !== 1) fail('a fresh star is not magnitude 1');
 S.levels.forEach((need, i) => { if (G.magnitudeOf(need) !== i + 1) fail(`${need} points is not magnitude ${i + 1}`); });
-if (G.biomeOpen({ star: 0 }, 1) || !G.biomeOpen({ star: S.levels[S.biomeAt[1] - 1] }, 1)) fail('the Choir opens at the wrong magnitude');
 if (G.attunePointsLeft({ star: S.levels[3], attune: { vitality: 1 } }) !== 2) fail('attunement points are miscounted');
 
 finish('loot', failures);

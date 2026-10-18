@@ -20,7 +20,7 @@ function hazardNear(f, tx, ty, r) {
 }
 
 // Does this enemy walk (rather than fly, or stand rooted)?
-const hazardWalker = (e) => e.type !== 'wisp' && e.type !== 'hollow' && !T.enemies[e.type].rooted;
+const hazardWalker = (e) => { const def = T.enemies[e.type]; return e.type !== 'wisp' && e.type !== 'hollow' && !def.rooted && !def.flies && !def.anchored && !def.swims && !e.hid; };
 
 // How fast an enemy goes for the ground it's on: slower wading.
 function hazardSlow(f, e) {
@@ -34,6 +34,9 @@ function hazardSlow(f, e) {
 function stepDiver(d, p, vx, vy, dt) {
   const f = d.floor, k = f.haz ? hazardAt(f, p.x, p.y) : 0;
   if (k === HAZ_CODES.pool) { vx *= T.hazards.pool.slow; vy *= T.hazards.pool.slow; }
+  // a Rootweaver's snare holds the step like water (foes.js); a dash crosses it
+  const sn = snareSlow(d, p);
+  if (sn < 1) { vx *= sn; vy *= sn; }
   if (k === HAZ_CODES.slick) {
     const g = 1 - Math.exp(-T.hazards.slick.grip * dt);
     p.vx = (p.vx || 0) + (vx - (p.vx || 0)) * g; p.vy = (p.vy || 0) + (vy - (p.vy || 0)) * g;
@@ -74,7 +77,7 @@ function updateHazards(d, dt) {
   if (f.haz && hazardAt(f, p.x, p.y) && HAZARD_TIPS[kind]) UI.tip('haz_' + kind, HAZARD_TIPS[kind]);
   if (kind === 'burn') {
     if (open && hazardAt(f, p.x, p.y)) { hazardDrain(d, H.burn.dps * dt); if (Math.random() < dt * 10) spawnSparks(p.x, p.y - 2, ['#ff8a20', '#ffd060'], 1); }
-    for (const e of d.enemies) if (!e.dead && hazardWalker(e) && hazardAt(f, e.x, e.y) && !(e.burn && e.burn.t > 0.3)) e.burn = { t: 0.6, dps: H.burn.dps };
+    for (const e of d.enemies) if (!e.dead && hazardWalker(e) && !T.enemies[e.type].lavaProof && hazardAt(f, e.x, e.y) && !(e.burn && e.burn.t > 0.3)) e.burn = { t: 0.6, dps: H.burn.dps };
   } else if (kind === 'vent') {
     const V = H.vent;
     for (const v of f.hazPts) {

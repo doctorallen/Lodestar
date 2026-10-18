@@ -1,11 +1,15 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Portals: the ways on at each site's exit, and the one at the outpost that
-// every expedition sets out through. Each is a standing ring of lodestone on
+// Portals: the way down into a territory's Deep and on through its sites,
+// and the one at the outpost every sortie sets out through. Each is a standing ring of lodestone on
 // a plinth, its face a slow swirl in the colour of where it leads (warm
 // daylight for the surface, cool blue for a cave, amber for a ruin, red for
 // a Keeper's Lair, green for a Deep Vein), and the keystone carries that
 // place's glyph. They're nothing like a rift's violet tears.
+//
+// The same moment carries the diver across a territory's edge (no portal:
+// the view closes on the diver, in daylight's colour into lit land, in the
+// dusk's into dark land) and from spire to spire.
 //
 // Stepping through: the world holds still while the view closes on the
 // portal's face in its colour (T.portal.enter), the next site is entered,
@@ -23,6 +27,8 @@ const PORTAL_LOOKS = {
   ruin: { face: ['#341604', '#7c3a08', '#cc7616', '#ffc45e'], glyph: [[-1, -1], [-1, 0], [-1, 1], [1, -1], [1, 0], [1, 1]] },
   lair: { face: ['#2a0606', '#6a1010', '#c22a1c', '#ff7a5a'], glyph: [[-1, 0], [1, 0], [0, 1]] },
   deep: { face: ['#061e18', '#0e4832', '#1e8858', '#7ce0a0'], glyph: [[0, -1], [-1, 0], [1, 0], [0, 1]] },
+  // (no portal has it: crossing into dark land)
+  dusk: { face: ['#0c0e18', '#1c2236', '#3a4462', '#8a96b8'], glyph: [] },
 };
 // The colour that stands for each destination elsewhere (the compass, the map).
 const ZONE_SIGNS = Object.fromEntries(Object.entries(PORTAL_LOOKS).map(([z, l]) => [z, l.face[3]]));
@@ -173,7 +179,7 @@ function updateWarp(d, dt) {
   if (!w) return false;
   if ((w.t += dt) < T.portal.enter) return true;
   d.warp = null;
-  enterFloor(d.depth + 1, w.zone, w.clime);
+  warpArrive(d, w);
   return false;
 }
 
@@ -185,7 +191,7 @@ const PortalIris = { img: null, canvas: null };
 function drawPortalIris(d, ox, oy) {
   let k, zone, cx, cy;
   if (d.warp) {
-    const f = portalFaceAt(d.warp.at);
+    const f = d.warp.at ? portalFaceAt(d.warp.at) : { x: d.p.x, y: d.p.y - 10 };
     k = 1 - easeInQuad(Math.min(1, d.warp.t / T.portal.enter)); zone = d.warp.zone; cx = f.x * AP + ox; cy = f.y * AP + oy;
   } else if (d.arrive && d.arrive.t < T.portal.arrive) {
     k = easeOutQuad(d.arrive.t / T.portal.arrive); zone = d.arrive.zone; cx = d.p.x * AP + ox; cy = (d.p.y - 10) * AP + oy;

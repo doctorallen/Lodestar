@@ -1,6 +1,6 @@
 # Lodestar: design
 
-Lodestar is a top-down pixel-art mining and looting game for the phone browser. You play a circuit diver, an explorer in an alien-tech suit with a glass dome and a little drone, on a world where technology runs on arcane ore. From a fallen star hanging over a vast sinkhole, you dive into the depths, mine ore, fight, and decide when to push deeper and when to get out before you lose the haul.
+Lodestar is a top-down pixel-art mining and looting game for the phone browser. You play a circuit diver, an explorer in an alien-tech suit with a glass dome and a little drone, on a world where technology runs on arcane ore. From a fallen star hanging over a vast sinkhole, you carry its light out into a dark world, mine ore, fight, take the land one territory at a time, and decide when to push further and when to get back to a spire before you lose the haul.
 
 It mixes Terraria and Starbound (always another ore to find, and the gear it makes) with Diablo (every drop is a roll of the dice, so you never keep the same gear for long).
 
@@ -10,7 +10,7 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 
 1. **Always another upgrade.** A new ore leads to a new pick, which opens new depths, which leads to new gear.
 2. **Every item is a roll.** Crafted and found gear both have random affixes. Materials let you steer the rolls, but never fix them completely.
-3. **Push your luck.** The deeper you go, the better the loot and the higher the risk of losing it.
+3. **Push your luck.** The further out you go, the better the loot and the higher the risk of losing it.
 4. **Built for a thumb.** It plays well upright with one or two thumbs, in short or long sessions.
 
 ## The story
@@ -48,13 +48,9 @@ How it's told:
 
 The Lodestar is a huge magnetic crystal that fell from the sky and now hangs over a sinkhole, held up by its own magnetic field. Your outpost is built on and around it.
 
-- **Lodelines.** The star's magnetic lines reach down into the depths. Where a line reaches a floor, there's a gold beam: stand in it and tap EXTRACT to be pulled home with everything you carry.
-- **Its pull weakens with depth.** Every floor has a lodeline down to a reach depth, which is 3 at first and one floor deeper per magnitude. Below that, each floor is less likely to have one (down to 35%), so sometimes you have to go deeper to find a way out.
-- **Feeding the star.** Each ore fed is worth its tier² in points, and the points raise the star's **magnitude**. Each magnitude:
-  - reaches the lodelines a floor deeper,
-  - gives an attunement point.
-- **Biomes open with magnitude.** The Choir opens at magnitude 3 and the Underforge at 5.
-- **(proposed) Lore hook.** The deepest ore, Starmetal, is pieces of the Lodestar that broke off when it fell. Something down there has been collecting them.
+- **Its light.** The star's light reaches the land next to the outpost, and every spire planted further out carries it on. Out in the dark, your own light drains; in kindled land and at home it fills again.
+- **Feeding the star.** Each ore fed is worth its tier² in points, and the points raise the star's **magnitude**. Each magnitude gives an attunement point, a Deep's lodelines a little likelier, a gentler emergency recall, and now and then another pocket slot.
+- **(proposed) Lore hook.** The deepest ore, Starmetal, is pieces of the Lodestar that broke off when it fell. Something out there has been collecting them.
 
 ## The loop
 
@@ -62,43 +58,45 @@ The Lodestar is a huge magnetic crystal that fell from the sky and now hangs ove
    - forge casters, gear, picks and the stones circuits are built from;
    - rework affixes and salvage what you don't need;
    - build circuits at the locker, unseal relics, feed the star and spend attunements.
-2. **Set out:** pick one of the biomes the star reaches. An expedition is a chain of up to 4 sites, starting on the sunlit surface.
-3. **Explore each site:** mine ore veins, fight, and pick up loot. Your cargo is limited.
-4. **Push or leave:** each site has two portals on, each in the colour of the zone it leads to, and some have a lodeline home.
-5. **Extract or fall:** if you extract, everything in your cargo is banked. If you fall, what you wear is safe, but everything in the cargo is lost (ore, exotics, gear and relics).
+2. **Set out:** the outpost's portal opens the world map. Walk out into any territory next to the outpost, or set out to any spire, and pick the tool to carry.
+3. **Push into the dark:** cross from territory to territory. In dark land your light drains, the enemies are out, and the ore is worth taking.
+4. **Mine, fight, kindle:** work on a territory's heart goal, or just take what you can carry. Some territories have a Deep below, a short dungeon richer in ore.
+5. **Bank or fall:** bank at any spire (or walk home). If you fall, what you wear and what's in your pocket are safe, but the cargo is lost, and you wake at the last spire you touched.
 
-## Expeditions
+## The world
 
-- **Floors** are seeded caverns, so a floor can be rebuilt from its seed:
-  - lumpy caverns with ragged, rounded walls, joined by tunnels that wander like rivers;
-  - some caverns keep a pillar of rock;
-  - ore veins run into the walls;
-  - most rock can't be mined, so the layout stays readable.
-- **Walls follow a smooth line**, not the tile grid. Corners round off and edges wander by a few pixels, and bodies collide with that same line.
-- **(proposed) Breakable walls** that open shortcuts.
-- **Zones.** Every step along the chain changes zone, so no two sites in a row feel the same:
-  - **Surface:** open, sunlit badlands under the sky. Its daylight is the star's pull: the sun sets as the pull fades, and night brings the Hollow. Wisps and constructs.
-  - **Cave:** the meandering caverns, the biome's own creatures and flora.
-  - **Ruin:** rectangular halls and pillars left by someone before, paved floors, more ancient forges, constructs.
-  - **Deep Vein:** at the last site, rich in ore, likelier to hold the warden.
-  - **Keeper's Lair:** at the last site, while the biome's heart-shard is still missing. An arena; the Keeper holds the shard, and the lodeline only lights when it falls. While the Keeper lives the star's pull doesn't fade (the Keeper holds the dark off), but after 90 s it rages: faster, with twice the ring of orbs. When it falls, its lodeline lights and a short 30 s pull begins: take the shard and go.
-- **Portals.** The ways on are standing rings of lodestone, not holes, since the next site may be up on the surface as easily as further down. Each portal's face swirls in the colour of where it leads (warm daylight for the surface, cool blue for a cave, amber for a ruin, red for a Keeper's Lair, green for a Deep Vein), its runes glow in it, and its keystone carries that zone's glyph. They're dark stone, and their colours are never a rift's violet, magenta or cyan. STEP THROUGH: the world holds still while the view closes on the portal's face in its colour, then opens round the diver at the next site. No shake. The outpost has one too, its face the surface's daylight, and every expedition sets out through it.
-- **The chain has 4 sites.** The player decides how far to go along it, not how deep. A site's lodeline is certain at the first, then 80%, 60% and 40% (5% more for each magnitude past the first, to at most 90%, 75% and 55%), so pushing on stays a gamble. The star's growth also softens the emergency recall (2% less lost for each magnitude).
-- **Danger rises with each site.** A site's enemy level is 4 × the biome's index plus the site (one more in a lair). Each level raises enemy health by 16% and damage by 8%. Deeper floors also have more enemies, more elites, and more of the biome's better ore and loot.
-- **Cargo is limited** (40 units, more from attunements and affixes). Ore and exotics weigh 1, gear and relics 3. You can drop gear mid-dive to make room.
-- **The pocket.** A few cargo slots whose contents survive a fall: 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
-- **The star's pull on each floor.** A gold meter under the health bar, full on arrival, fades over about 75 seconds (a little less at each site).
-  - **Half gone:** your lamp dims, and more enemies stir in the dark every so often.
-  - **Gone:** the floor's lodeline goes dark and the Hollow comes, a shadow that hunts you and can't be staggered. The way out is a portal on, or the recall.
-- **Leaving takes a moment.** EXTRACT in a lodeline is 1.5 s of standing still. Moving or being hit breaks it, and its light wakes anything nearby.
-- **Emergency recall** (pause or cargo screen) works anywhere: 4 s standing still. The dark keeps a share of the cargo, 15% plus 6% a site, to 70% at most, but the pocket is safe.
-- **Saved as you go.** The expedition is saved at every site and whenever the page is hidden; reopening the game offers to carry on from that site's start.
+The world is rolled once for each save from its seed (world.js) and kept in the save: the seed, and for each territory only what's been done to it. It's laid out in rings round the outpost:
+
+| Ring | Region | Territories | Ore | Enemy level |
+|---|---|---|---|---|
+| 0 | The outpost | 1 | | |
+| 1 | The Rim | 7 | Ferrite, Lumenite | 1–4 |
+| 2 | The Choir | 10 | Resonite, Aetherglass | 5–8 |
+| 3 | The Underforge | 12 | Sigilite, Starmetal | 9–12 |
+| 4 | The Edge | 10 | Sigilite, Starmetal (rich) | 13–16 |
+
+- **A graph of neighbours.** On the world map each territory is the cell of land nearest its middle, with wandering borders; two that share a border are neighbours. Within a ring, danger rises the further out a territory stands (its depth, 1 to 4), so the land next to a spire is the gentle kind. The Edge is unknown on the map until walked, and its own content comes later.
+- **Each territory has a fixed clime and a name** (a surface clime, leaning to its region's as the old sites did), a heart goal, and sometimes a Deep.
+- **Territories are site-sized surface maps,** built by the floor generator from the world's seed and the territory's id (`generateTerritory`), so climes, hazards, undergrowth and rifts all apply and it's the same map every visit. Each has an opening at its edge for each neighbour, on the side facing it. Walking into one plays the portal transition (no shake) and you arrive at the matching opening in the neighbour, with a gold or grey label saying where it goes. They have a cavern fewer than a site did but more veins in each, so dark land is worth mining.
+- **What persists:** a territory's state (dark, contested, kindled), its goal's progress, its tear sealed, and veins mined. Mined veins grow back after a few sorties in dark land; in kindled land they don't. Enemies come back each time you enter dark land. Kindled land is quiet: critters and now and then a straggler.
+- **Your light** (the old star's pull) drains in dark land over about 75 s and fills in kindled land and at home. Below half your lamp dims and the dark stirs more creatures every so often; at nothing the Hollow comes, in every dark territory you enter until it's back. Dark land is under a dim dusk; kindled land under daylight.
+- **Spires.** Each kindled territory has one at its heart: a standing lodestone obelisk with a gold beam, and the outpost has its own. At a spire, **BANK** (1.5 s standing still, like the old EXTRACT) puts the cargo and the pocket in the stash, and the sortie goes on. **TRAVEL** opens the world map: tap any spire to go there, or the star to go home; travelling banks first. The first ring-1 territory, the gentlest, starts kindled by the outpost's own spire, so the first sortie is gentle.
+- **A fall** loses the cargo and wakes you at the last spire you touched (the outpost if none); the pocket is safe. Going home (walking in, or travelling from a spire) banks everything, settles contracts, and feeds the star 8 × d², d the depth of the furthest dark land walked that sortie (as the old ride home did, once a sortie however often it banked). The **emergency recall** works anywhere: 4 s standing still, home, and the dark keeps a share of the cargo (15% plus 6% for each depth, less 2% a magnitude past the first).
+- **Kindling.** A territory's heart goal, for now one of two:
+  - **Light the waystones:** three old pylons, each a 2.5 s channel whose light wakes everything near; the last must then be held, standing in its light for 20 s while the dark sends more.
+  - **Seal the tear:** a rift sits on the territory's heart (a graft or an ore wake); seal it, early and safe or late and rich.
+  Done, the heart is marked in gold: plant the spire there (a 6 s channel) and the territory is kindled for good: its spire, full light, daylight, and what the dark sent burns away. Kindled ground is never lost. A goal's progress stays when you leave.
+- **Deeps.** Some territories have a portal down into a Deep of 1–3 sites (caves and ruins, ending in a deep vein), built as the old expeditions were, at the territory's own level: each site has a lodeline by chance (100, 80, 60%, more as the star grows), and a portal on. Your light drains down there too, and when it's gone a Deep's lodeline goes dark. Its lodeline, or its last portal, takes you back up to the territory, by the Deep's portal. Under the furthest territory of each of the first three rings, the Deep ends in the region's Keeper's Lair while its heart-shard is missing (their own place in the world comes later).
+- **Saved as you go.** A sortie is saved on arriving anywhere and whenever the page is hidden; reopening the game offers to carry on from where you came in.
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
-- **The warden** is an optional loot piñata that can turn up in a side room from depth 4. It charges and fires rings of orbs. It's never needed for progression, and it drops three rare-or-better pieces and often a relic.
+- **The warden** is an optional loot piñata that can turn up in a side room at depth 3 or more. It charges and fires rings of orbs. It drops three rare-or-better pieces and often a relic.
+- **Cargo is limited** (40 units, more from attunements and affixes). Ore and exotics weigh 1, gear and relics 3. You can drop gear to make room.
+- **The pocket.** A few cargo slots whose contents survive a fall: 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
+- **(proposed, stage 2)** More heart goals (purge the nest, cap the vents, carry the seed, break the Keeper), scouting, tithes and boons, richer kindled looks and settlers, optional dark tides on border territories. **(stage 3)** Keepers as ring gates, pick and spell gates, the Edge's own content.
 
 ## Climes
 
-Every site is also a **clime**: the kind of country it is. The region still sets the ore and how strong the enemies are; the clime sets how the place looks and feels. It's rolled when the way to a site is made, so a portal's button already names it (STEP THROUGH: FROST STEPPE), the arrival toast names it, and the route becomes a choice of country as well as zone. Each zone's first clime is the look it always had, without a hazard.
+Every territory and every site of a Deep is also a **clime**: the kind of country it is. The region still sets the ore and how strong the enemies are; the clime sets how the place looks and feels. A territory's is fixed when the world is rolled; a Deep's sites roll theirs from the world's seed, so a portal's button names it (STEP THROUGH: FLOODED GROTTO). Each zone's first clime is the look it always had, without a hazard.
 
 | Clime | Zone | Look | Its quirk | Leans to |
 |---|---|---|---|---|
@@ -119,40 +117,42 @@ Every site is also a **clime**: the kind of country it is. The region still sets
 - **Climes change generation a little, never its danger:** the Frost Steppe keeps fewer pillars and the Cinder Waste more, the Bloomfen, Rootdeep and Magma Tubes wander differently, but none has more, bigger or more open caverns (which meant more enemies at once, and more falls in the bot's runs). The hazards are laid over the ground afterwards from a generator of their own, so the tiles don't change.
 - **A rift's graft** brings another clime's ground with it: a patch of Frost Steppe snow in a cave, or Magma Tubes basalt under the sky.
 - The fighting flora dress as the clime's own plants, glow gone red.
+- Each clime has a creature of its own (Enemies).
 
 ## The weather
 
-About a third of expeditions set out under a **Lodestorm**. On the surface, every 20 s a strike falls within 6 tiles of the diver, marked by a tightening, flickering ring a second before. It hurts whatever stands in it (diver and enemies alike, the enemies with shock), and when it finds an ore vein it charges it into the biome's better ore. A storm is a hazard to dodge and a reason to stand near a vein when the ring appears.
+About a third of sorties set out under a **Lodestorm**. On the surface, every 20 s a strike falls within 6 tiles of the diver, marked by a tightening, flickering ring a second before. It hurts whatever stands in it (diver and enemies alike, the enemies with shock), and when it finds an ore vein it charges it into the biome's better ore. A storm is a hazard to dodge and a reason to stand near a vein when the ring appears.
 
 ## Contracts
 
-Three small goals are always posted at the portal, so every expedition, even a short one, works towards something. Each is settled when you come home by a lodeline or a recall, never after a fall:
-- bring home some ore (a common amount of the lower ore, a few of the better);
+Three small goals are always posted at the portal, so every sortie, even a short one, works towards something. Each is settled when you come home (walking in, travelling from a spire, or a recall), never after a fall:
+- bring home some ore (a common amount of the lower ore, a few of the better), counting all that was banked on the way;
 - bring down some creatures of a kind;
-- reach a site in a biome;
+- walk into a ring of the world;
 - seal a rift;
-- ride a lodeline home from a given zone.
+- kindle a territory;
+- go down into a Deep.
 
-Each pays the star (25 × magnitude) and leaves an exotic, three parts or a riftglass, and a new one takes its place. Progress shows in the cargo screen mid-dive.
+Each pays the star (25 × magnitude) and leaves an exotic, three parts, a riftglass or a resonance stone (while the Codex has pages to fill), and a new one takes its place. Progress shows in the cargo screen mid-sortie.
 
-The board keeps moving: never two of a kind; 70% of hauls and reaches are set in the newest biome open; one that has stood for 3 expeditions is replaced; one may be swapped for free each time home; and meeting all three in one expedition pays the star twice.
+The board keeps moving: never two of a kind; 70% of hauls are set in the furthest region reached; one that has stood for 3 sorties is replaced; one may be swapped for free each time home; and meeting all three in one sortie pays the star twice.
 
 ## Tools
 
-The diver carries one tool, chosen at the portal before setting out. Each changes what you can see or do down there, so the choice shapes the expedition. The Compass is carried from the start; the rest are made once, from the stash, as the star grows.
+The diver carries one tool, chosen at the portal before setting out. Each changes what you can see or do out there, so the choice shapes the sortie. The Compass is carried from the start; the rest are made once, from the stash, as the star grows.
 
 | Tool | From magnitude | What it does |
 |---|---|---|
-| Lodeline Compass | 1 | An arrow round the diver to the nearest lit lodeline, or where none reaches, to the nearest portal on (in its zone's colour). |
+| Lodeline Compass | 1 | An arrow round the diver to the spire here, or in dark land to the opening towards the nearest kindled land; in a Deep, to its lit lodeline or the portal on. |
 | Ore Sense | 2 | Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the pick can break. |
 | Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
-| Surveyor's Map | 3 | A map of each site, drawn as you walk it, in the view's corner, with portals, lodeline and ancient forge once seen. |
+| Surveyor's Map | 3 | A map of each place, drawn as you walk it, in the view's corner, with its openings, portals, spire, waystones and ancient forge once seen. |
 | Deep Satchel | 3 | One more pocket slot. |
-| Lode Beacon | 2 | Once an expedition, from the pause menu: call a lodeline down where you stand, where no lit one reaches. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
+| Lode Beacon | 2 | Once a sortie, from the pause menu: call a spire's light down where you stand, where no spire is: you can bank and travel from it, and standing in it brings your light back slowly. In a Deep it's a lodeline. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
 
 ## Rifts
 
-Tears in the world, where the star's fall cracked more than the ground. A site may hold one (a quarter of first sites, rising to over half of last ones), above ground or below. Each changes the site around it:
+Tears in the world, where the star's fall cracked more than the ground. Dark land and a Deep's sites may hold one (a quarter of the gentlest, rising to over half of the hardest), and a territory whose heart goal is to seal the tear always has one on its heart. Sealed, it stays sealed. Each changes the site around it:
 - **Graft:** another place has bled through. A blob of another biome's ground, stitched in with a glowing seam: a patch of sunlit badlands in a cave (its daylight with it), or a patch of cave on the surface. The ore inside is that biome's, so a graft can bring a better ore early.
 - **Ore wake:** the rock round the tear has woken into ore, half of it the site's better ore.
 - **Gate:** two tears in different rooms, one place. Step into one, out of the other: a shortcut, or an escape.
@@ -181,6 +181,47 @@ Only two enemies can wind up at once, plus one more every three floors down. The
 - **Fast:** moves half again as fast.
 - **Tough:** extra health.
 - **Volatile:** bursts a moment after it dies.
+- **Insulated:** all but shrugs off Shock (×0.25).
+- **Fireproof:** all but shrugs off Ember (×0.25).
+- **Warded:** resists everything inside a shell of pale light, until three Force hits (a heavy one counts two) crack it open. Something blunt is always worth carrying.
+- **Shifting:** its weakness moves to the next element every 6 s, and its pip and mark change colour with it.
+
+**Weak and resistant** (natures.js). Every kind is weak to some elements and resists others, by what it's made of: weak takes ×1.5, resistant ×0.5, very resistant ×0.25. Nothing is ever immune.
+
+| Kind | Force | Shock | Frost | Ember | Blight | Why |
+|---|---|---|---|---|---|---|
+| Crawler | | | | W | | a chitin shell, dry inside |
+| Wisp | R | R | | | I | no body, all ether |
+| Construct | | W | | | I | an armoured machine |
+| Snapjaw, spitter | | | R | W | R | living plants |
+| The Hollow | R | R | R | R | R | the living dark; in a lit lodeline's light it loses them all |
+| The warden, the Keepers | one W and one R by region: the Rim Ember W, Blight R; the Choir Force W, Frost R; the Underforge Frost W, Ember R | | | | | |
+
+- **Climes shift it a step** (W to neither, neither to R, R to I, or back): the Frost Steppe more resistant to Frost and weaker to Ember; the Cinder Waste and the Magma Tubes to Ember and Frost; the Flooded Grotto to Ember and Shock; the Bloomfen and the Rootdeep to Blight and Ember; the Clockwork Vault to Force and Shock.
+- **Force is mostly neutral:** it's every spell's element when it has none, so only the wisp (no body to strike), the Hollow and two armoured clime creatures (the Slag Crab and the Gear Hound) resist it. The Slag Crab's shell stands in for its resistances while it's shut (35% gets through, rather than 35% of a half), and what it fears still counts.
+- **No marks over what's hidden:** a skink under the sand, an eel under the water, a dropper on the roof or a wraith in its fissure shows none until it comes out.
+- **Wick learns it.** The first hit of an element on a kind tells Wick its verdict, kept in the save. Over each awake foe, a mark for each verdict Wick knows: ▲ in the element's colour for weak, ▼ for resistant, a bar for very resistant, and "?" while some are still unknown; three at most, what it fears first, then what it resists most. An elite's affix always shows.
+- **The numbers carry it:** a weak hit pops bigger and green, a resisted one small and grey; WEAK or RESIST under it at most once every 0.8 s over a foe, and not when a reaction's name shows for that hit. A reaction's name stands over the foe above where its numbers rise, never over them. Wick says so the first time each happens.
+
+### Each clime's own creature
+
+Every clime has a creature found nowhere else: about 30% of what a room holds in its clime, and elsewhere only where a rift's graft of that clime brings one or two (not the eel or the dropper, which need their water or a roof). The crawler, wisp, construct and the fighting flora are the rest, everywhere. Each has its own attack, tied to its clime and its hazard, and like every enemy it shows its attack first (a red line, ring or mark, and it glows brighter as it winds up), a dash crosses every one, and it takes its turn with the others. Each leaves the creature part that suits it, can be an elite, and grows with the level like the rest. Wick says a word on each the first time it shows itself, and a hunt contract can name one (from a clime that leans to an open biome, or to none).
+
+| Clime | Creature | Attack | Tell | Nature (weak / resists) | Part |
+|---|---|---|---|---|---|
+| Badlands | Dune Skink | Swims under the sand (a mound with eyes), bursts up under you and bites; then it's up a moment, scuttling, before it digs back under | A ring of sand under you, its reach in red | Frost / Ember | chitin |
+| Frost Steppe | Tusker | A heavy charge; it slides on, can't turn, and on ice slides on until the rock stops it, dazed for longer | Its whole run in red, a ring where it will slam | Ember / Frost | chitin |
+| Cinder Waste | Ash Wraith | Rises from a smouldering fissure, drifts in and bursts into embers, leaving burning ground; then it's a spent cinder | It swells and glows, its reach in a red ring | Frost / Ember | ether |
+| Bloomfen | Bog Lurker | Sunk to its stalked eyes in its mire; its tongue lashes along a line and drags you a tile in | Its mouth opens, the line marked in red | Ember / Blight | spore |
+| Caverns | Ceiling Dropper | Clings to the roof; drops on you, then fights like a squat crawler | Its shadow grows on the floor, following you a moment, then holding, ringed in red | Force / Shock | chitin |
+| Flooded Grotto | Pool Eel | Swims in the pools (a fin and ripples), rears and lunges; on dry ground without a bite it's stranded | It rears, its line in red | Shock / Ember | fibre |
+| Magma Tubes | Slag Crab | Sidesteps and pinches; its shell turns most of a blow until it's chilled or cracked by a heavy hit (its seams light); lava doesn't burn it | Claws up, a short red line | Frost / Ember and Force | cog |
+| Rootdeep | Rootweaver | Keeps off and spits; strings root snares between the walls across your way, which hold your feet (a dash crosses) | A red line from its mouth; the snare's line in red | Ember / Blight | fibre |
+| Archive | Sentinel Eye | Floats and sweeps a beam through an arc; rock stops it, so a pillar is cover | The arc it will sweep, and the line it starts from | Shock / Blight | ether |
+| Overgrown Temple | Moss Idol | A temple guardian beast, half lion-dog and half gargoyle, moss over its back. Moves only out of the light (the heart of the lamp's reach, or a shaft of daylight), prowling low with its cracks faintly alight, and pounces from the dark; lit, it's a crouched statue | Haunches gathered, cracks and eyes ablaze, its line in red | Force / Frost | spore |
+| Clockwork Vault | Gear Hound | Winds its key, then runs in straight lines, glancing off the walls twice; then it's spent | The key turning, the whole run shown with a ring at each wall | Shock / Force | cog |
+
+While a skink is under the sand, an eel under the water or a dropper on the roof, nothing can strike it or aim at it. A stranded eel, a spent wraith or hound and a dropper that has just landed take half again as much, as a dazed construct does.
 
 ## Mining and ore
 
@@ -233,13 +274,15 @@ Finished gear comes from the forge. Enemies leave the materials to make it, not 
 
 Parts come in three grades, Rim, Choir and Forge, one per biome. Deeper biomes give stronger bindings.
 
-| Element | Exotic | On hit |
-|---|---|---|
-| Force | none | Knocks back harder; heavy hits stagger |
-| Shock | Voltaic crystal | Arcs to the next enemy |
-| Frost | Frostglass | Chills; a heavy hit on the chilled shatters for more |
-| Ember | Emberglass | Burns |
-| Blight | Blightcap | Poisons, spreading when its host falls |
+| Element | Exotic | On hit | Stacked on itself |
+|---|---|---|---|
+| Force | none | Knocks back harder; heavy hits stagger | a second heavy hit stuns |
+| Shock | Voltaic crystal | Arcs to the next enemy | five overload it, stunning |
+| Frost | Frostglass | Chills (slows) | three freeze it solid |
+| Ember | Emberglass | Burns | burns stack, and spread |
+| Blight | Blightcap | Poisons, spreading when its host falls | poison spreads on a hit |
+
+Shock is drawn in its stone's yellow everywhere in play (bolts, arcs, bursts, numbers), never cyan, which is the Glyphs' teal and the diver's circuits; the Voltaic crystal is yellow to match.
 
 Bloodresin guarantees a leech affix, and a Lodestone shard raises the rarity.
 
@@ -318,8 +361,50 @@ Salvaging a legendary at home writes its power into the forge's **Codex**. Any l
 | Trigger | 1 | The next Form fires from where this one hits or ends |
 
 - Two of a glyph stack: two Splits fire five, two Echoes cast twice more, and so on.
-- **Resonances** (proposed, phase 3): exact circuits that fill a caster and wake into named spells (Thunderhead, Shatterglass, Kindling Arc, Wildfire, Stormglaive, Starfall). The engine already recognises them; nothing acts on them yet.
-- **(proposed, phase 2)** Reactions between two elements' statuses, enemies' resistances and weaknesses with pips over them, ore affinity, linked slots, and the Lode and Rift elements with more Forms and Glyphs.
+- **Reactions** (reactions.js). Every element leaves its status on a foe for 3 s. A second element hitting a foe that still carries another's reacts, in either order, and two elements on one Form react on their own. Each reaction's name flashes over its target in the pixel hand, and Wick explains it the first time.
+
+  | Reaction | Elements | What it does |
+  |---|---|---|
+  | Shatter | Force + Frost | ×1.6 on the chilled; a frozen foe bursts, hurting what's round it |
+  | Conduct | Frost + Shock | the shock leaps to every chilled foe within 5 tiles |
+  | Steam | Frost + Ember | a cloud: foes in it lose the diver for 2 s |
+  | Brittle | Frost + Blight | +25% from everything for 3 s |
+  | Pyre | Ember + Blight | the poison left bursts at once |
+  | Flare | Ember + Shock | blinds, and breaks wind-ups |
+  | Scatter | Ember + Force | burning ground flung the way of the knock |
+  | Jolt | Force + Shock | the stagger adds 2 overload |
+  | Overload | Shock ×5 | stunned for 1 s |
+  | Freeze | Frost ×3 | frozen solid |
+  | Inferno | Ember on the burning | burns stack, and at three they spread |
+  | Plague | Blight on the poisoned | the poison spreads at once |
+  | Stun | a second heavy Force hit | stunned for 1 s |
+
+  A boss takes a third of a stun, freeze, blinding or loss; the Hollow none.
+- **Ore affinity.** A caster's ore (the one it's named for) favours an element. A spell of it is attuned: 25% harder (by its share of the spell's elements) and its status lasts half again as long. Each ore has a way of its own, shown on the caster's card and its readout:
+
+  | Ore | Attuned to | And |
+  |---|---|---|
+  | Ferrite | Force | Glaives cost 1 less |
+  | Lumenite | Shock | casts 10% faster |
+  | Resonite | nothing | resonances 25% stronger |
+  | Aetherglass | Frost | Lances reach 35% further |
+  | Sigilite | Ember | Glyphs 10% stronger |
+  | Starmetal | nothing | one slot more than its base |
+
+- **Linked slots.** A masterwork caster has an even chance of a linked pair of slots, a gold chain between them. A Glyph in either counts twice, in what it does and what it costs.
+- **Resonances** (resonance.js): exact circuits that wake into named spells. One must fill its caster exactly, so a 3-slot wand is worth keeping and a 5-slot staff is a find. A resonant circuit hits 50% harder (Resonite more), and does something its parts alone don't:
+
+  | Resonance | Circuit | What it does |
+  |---|---|---|
+  | Thunderhead | ORB SHOCK LINGER | the orb stops overhead and becomes a stormcloud, drifting over the nearest foe and striking it every 0.4 s for 4 s |
+  | Shatterglass | LANCE FROST ECHO | the echo lance shatters the chilled along its line for double, flinging shards to either side |
+  | Kindling Arc | ARC EMBER QUICKEN | every third arc sets the ground in front alight in a crescent |
+  | Wildfire | ORB EMBER SPLIT LINGER | three orbs leave burning trails; plants catch, and the fire runs through them (for show) |
+  | Stormglaive | GLAIVE SHOCK CHAIN AMPLIFY | the blades arc lightning to every foe within reach |
+  | Starfall | BOLT FORCE SPLIT TRIGGER NOVA | three bolts rise and meet as a falling star: a crater, a stun, a ring of light |
+
+  The forge's **Codex** shows each as a silhouette with its slot count (`ORB · ? · LINGER`); **resonance stones** show its parts one at a time: elites drop them now and then, they lie by ancient forges, and contracts pay them. Kindling Arc is known from the start, and building or casting one fills in its page. At the locker, a circuit a stone away from one on a caster of the right size says *resonance stirs…*, and a live one wears a gold banner with its name.
+- **(proposed)** The Lode and Rift elements, with more Forms, Glyphs and resonances.
 - **The dash** is a quick burst that nothing can touch, from DASH or a flick of the move thumb. It's how you get out of a lunge or a charge.
 - **Impact:**
   - a hit stops the world for an instant (the view doesn't shake: the designer found it unpleasant);
@@ -340,7 +425,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 
 | Station | What it does |
 |---|---|
-| The portal (SET OUT) | Pick a biome, a tool, and step through onto its surface |
+| The portal (SET OUT) | The world map: a territory next to the outpost to walk out into, or a spire to set out to, and a tool |
 | The forge (FORGE) | Make casters, plate, charms, picks, and Form, Element and Glyph stones from banked ore, parts and exotics. Every forge is played on the anvil |
 | The rune bench (RUNES) | Rework affixes on any piece: reroll, raise, add |
 | The locker (GEAR) | What's worn, the stash and its stones, stats; equip, build circuits (free), salvage, unseal relics |
@@ -353,7 +438,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
   - The strikes add up to a quality from rough to masterwork, which shifts the rarity odds. A masterwork can even come out legendary.
   - It sets a caster's slots, and a fine forge raises a stone's tier.
 - **The reveal.** A forged piece or an unsealed relic rises in a beam of its rarity's colour, then its card opens.
-- **After a dive,** a report says what came home or what was lost, then you're back on the plaza.
+- **After a sortie,** a report says what came home or what was lost (and where you wake, after a fall), then you're back on the plaza or at that spire.
 
 | Attunement | Each rank (up to 5) |
 |---|---|
@@ -366,7 +451,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 ### Fewer trips home
 - **Salvage in the field:** break found gear down into ore in the cargo, so it isn't all weight. Ore that doesn't fit is left on the floor.
 - **Ancient forges:** from depth 3, a floor sometimes has one in a side cavern. It forges from what you carry, on the same anvil, and the piece goes in your cargo.
-- **The ride home feeds the star:** every extraction feeds it 3 × depth² points, so pushing deep grows the star directly.
+- **The way home feeds the star:** coming home feeds it 8 × d² points, d the depth of the furthest dark land walked that sortie, so pushing out grows the star directly.
 
 ## Controls
 
@@ -378,7 +463,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
   - the contextual SET OUT, STEP THROUGH or EXTRACT above them.
 - **Sideways:** the view stands in the middle with the controls either side, as in NEO.
 - Close Forms aim at the nearest enemy in reach, and the rest at the nearest in sight. Mining targets the ore you're facing.
-- CARGO in the top bar shows what you carry, ore and exotics included. Tap anything to equip it or drop it mid-dive. Dropped ore lies on the floor as a glowing heap you can pick back up.
+- CARGO in the top bar shows what you carry, ore and exotics included. Tap anything to equip it or drop it mid-sortie. Dropped ore lies on the floor as a glowing heap you can pick back up.
 - **Keyboard:**
   - WASD or the arrows to move,
   - J for the main hand and K for the off hand,
@@ -425,13 +510,13 @@ The aim is broad and rough rather than narrow and polished. Everything below is 
 - 3 biomes with 2 ores each and 6 pick tiers;
 - 3 enemies per biome, elites, and the optional warden;
 - the whole loot pipeline;
-- lodelines, cargo, death, and saving in localStorage.
+- the world: rings of territories, light, spires, kindling, Deeps;
+- cargo, death, and saving in localStorage.
 
-The autopilot (`test/bot.js`) plays whole careers from a fresh save. With its simple play it reaches the Choir after about 8 dives and magnitude 4–5 after about 25, and it rarely dies. A bot that never turns back dies 2–4 floors down in any biome with gear made for it.
+The autopilot (`test/bot.js`) plays whole careers from a fresh save, out into the world and home again. Over 24 sorties it usually kindles most of ring 1 and walks into ring 2, ends at magnitude 4–5, and falls in about a fifth of its sorties, fewer as the land round it is kindled.
 
 ## Open questions
 
-- Pacing: how long a dive and a career should take for a person rather than the bot.
-- What a dive gives back when you fall, if anything. For now it gives nothing.
+- Pacing: how long a sortie and a career should take for a person rather than the bot.
+- What a sortie gives back when you fall, if anything. For now it gives nothing but what was banked and pocketed.
 - Sound.
-- Saving a dive in progress, so closing the page doesn't lose it.

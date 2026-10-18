@@ -43,7 +43,7 @@
 
 // Said once, before the opening, to a player whose save came from before
 // circuits.
-const FRESH_START_LINE = 'Spells are now circuits you build from stones, and blades are gone, so your outpost starts afresh.';
+const FRESH_START_LINE = 'The land round the star is one world now, to walk and kindle territory by territory, so your outpost starts afresh.';
 
 // The opening: five panels, a tap each. The panels are words only for now;
 // what each should show, when they get art:
@@ -97,6 +97,41 @@ const WICK = {
   ring3: "The third ring. The dark's thick enough to lean on out here. Stay close.",
   theEdge: "The Edge. Whatever this world has at its heart, it's out there. I don't think it's sleeping.",
   firstSettlers: "The first lander's down. Settlers, on the rim. Try to look like you know what you're doing.",
+  // natures (natures.js)
+  weakHit: "It hates that. I'll mark what each kind fears over its head: a point up for what hurts it, down for what it shrugs off.",
+  resistHit: "That barely touched it. Some things shrug an element off. Try the other hand.",
+  warded: "That one's warded. Only something blunt will crack its shell.",
+  wardBroken: 'The ward is down. Everything works on it now.',
+  shifting: 'Its colour keeps changing, and so does what it fears. Watch the mark.',
+  // reactions (reactions.js), the first time each happens
+  react_shatter: 'Shatter! Ice breaks under a blow. Chill them, then hit them hard.',
+  react_conduct: 'Conduct! Shock runs through everything that is chilled.',
+  react_steam: "Steam. Fire on ice: whatever's in it can't see us for a moment.",
+  react_brittle: 'Brittle. Chilled and poisoned, it cracks at anything.',
+  react_pyre: 'Pyre! Fire set the poison off all at once.',
+  react_flare: 'Flare. Fire and lightning blind, and break whatever it was winding up.',
+  react_scatter: 'Scatter. A blow flings its fire across the ground.',
+  react_jolt: 'Jolt. A heavy blow drives the charge in deeper.',
+  react_overload: 'Overload! Enough shock, and it locks up.',
+  react_freeze: 'Frozen solid. Hit it hard and it will shatter.',
+  react_inferno: 'Inferno. Burns pile up, and the fire jumps to its neighbours.',
+  react_plague: 'Plague. Poison on the poisoned spreads to everything near.',
+  react_stun: 'Stunned. Two heavy blows in a row, and it reels.',
+  // resonances (resonance.js)
+  resonance: "The stones are singing together. That's a resonance: the whole circuit woke into one spell.",
+  resStone: 'A resonance stone. It remembers part of a circuit that sings. I put it in the Codex at the forge.',
+  // each clime's own creature, the first time it shows itself (foes.js)
+  foe_skink: "Something's swimming under the sand. Where it rings under you, step off.",
+  foe_tusker: "That one charges, and on ice it can't stop. Step aside and let the rock have it.",
+  foe_wraith: "Ash, walking. It glows before it bursts. Don't be beside it then.",
+  foe_lurker: 'Eyes in the mire. Its tongue reaches further than you think. Stay off the line it marks.',
+  foe_dropper: 'Something was on the roof. Watch the floor for its shadow.',
+  foe_eel: "A fin in the water. If it lunges and misses, it's stuck on dry ground for a moment.",
+  foe_crab: 'Its shell turns most of what we throw. Freeze it, or crack it with a heavy blow.',
+  foe_weaver: "It strings roots across the way. They'll hold your feet; dash through them.",
+  foe_sentinel: 'A sentry. Its beam sweeps the hall. Put rock between us and it.',
+  foe_idol: 'That statue moved. Only out of the light, I think. Keep it in the lamp.',
+  foe_hound: "A wind-up hound. When the key stops, it runs, off the walls and all. After that it's spent.",
 };
 
 // The star, as it grows: a seed-star waking up where it fell.
@@ -242,15 +277,13 @@ const Story = {
     UI.speak('WICK', WICK[id]);
   },
   // The star, when it grows: a line for every magnitude it passed (a big
-  // feed can pass two), what opened, and the attunement to spend.
+  // feed can pass two), and the attunement to spend.
   starGrew() {
     const s = Save.data, mag = magnitudeOf(s.star);
     if (s.magSeen === undefined) s.magSeen = mag;
     if (mag <= s.magSeen) return;
     for (let m = s.magSeen + 1; m <= mag; m++) {
       if (STAR_SPEAKS[m]) UI.speak('THE STAR', STAR_SPEAKS[m], 'star');
-      const b = T.star.biomeAt.indexOf(m);
-      if (b > 0) UI.toast(`The star reaches the ${T.biomes[b].name}`, 'legendary');
     }
     UI.toast(`Magnitude ${mag}: ${mag - s.magSeen > 1 ? 'attunements' : 'an attunement'} to spend at the altar`);
     s.magSeen = mag;
