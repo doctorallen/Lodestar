@@ -146,7 +146,7 @@ const UI = {
   },
 
   redraw() {
-    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawWreck_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
+    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawUplink_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
     if (r) r();
     if (UI.card) drawCard();
   },
@@ -282,7 +282,7 @@ const UI = {
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     const way = a === 'way' ? wayPlaceName(d, wayHere(d)) : null;
     const rh = a === 'rift' && riftHere(d);
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way ? 'STEP THROUGH: ' + way.toUpperCase() : { setout: 'SET OUT', extract: 'EXTRACT', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'BOARD THE MERIDIAN' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way ? 'STEP THROUGH: ' + way.toUpperCase() : { setout: 'SET OUT', extract: 'EXTRACT', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', d.channel.kind === 'recall' ? 'RECALLING…' : d.channel.kind === 'seal' ? 'SEALING…' : 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
   },
@@ -307,19 +307,28 @@ function drawStory() {
   $('story-step').textContent = `${st.i + 1} / ${st.lines.length}`;
 }
 
-// The Meridian: what's needed to call home, and the echoes found.
-function drawWreck_() {
-  const s = Save.data, held = Story.shardsHeld(), set = Story.shardsSet();
+// The Meridian uplink (the station 'wreck'): the colony ship in orbit, the
+// landers it can send, the shards set, calling the colony down, and the
+// echoes found.
+function drawUplink_() {
+  const s = Save.data, set = Story.shardsSet(), world = !!s.world;
   const shardRow = (b, i) => {
     const has = (s.shards || []).includes(i);
     return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Take it to the altar') : `In the Keeper's Lair, the last site of an expedition${biomeOpen(s, i) ? '' : ', beyond the star\'s reach for now'}`}</span></span></div>`;
   };
+  // the landers: one for every few territories kindled
+  const kindled = storyKindledCount(), landers = storyLanders(), every = T.story.landerEvery, need = T.story.callLanders;
+  const landerNote = `Kindled: ${kindled} territor${kindled === 1 ? 'y' : 'ies'}. The Meridian can send a lander for every ${every}, so ${landers ? `${landers} can come down` : 'none can come down yet'}${landers < need ? `; ${(landers + 1) * every - kindled} more for the next` : ''}.`;
+  const call = Story.landersCalled() ? '<p class="note">The colony is down. The rim is theirs now, and the dark beyond it is still yours to walk.</p>'
+    : Story.canCall() ? '<div class="menu"><button class="btn primary" data-act="callLanders">CALL THE LANDERS</button></div>'
+    : `<p class="note">The colony can land when all three shards are set in the star${world ? ` and there's ground for ${need} landers (${need * every} territories kindled)` : ''}.</p>`;
   const echoes = (s.echoes || []).map((i) => `<div class="echo"><b>${esc(ECHOES[i].title)}</b><p>${esc(ECHOES[i].text)}</p></div>`).join('');
   $('wreck-body').innerHTML = `
-    <p class="note">The Meridian's beacon will call for home, if it has the power. The star could give it, if its heart were whole.</p>
-    <h3>THE STAR'S HEART · ${set}/3</h3>${T.biomes.map(shardRow).join('')}
-    ${s.beaconLit ? '<p class="note">The beacon is lit. Home is coming. Until then, the deep is yours.</p>' : Story.canLight() ? '<div class="menu"><button class="btn primary" data-act="lightBeacon">LIGHT THE BEACON</button></div>' : ''}
-    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The crews before you left logs in the deep.</p>'}`;
+    <p class="note">The colony ship Meridian waits in orbit, its settlers asleep. This mast is how it hears us.</p>
+    ${world ? `<h3>LANDERS · ${landers}</h3><p class="note">${esc(landerNote)}</p>` : ''}
+    <h3>SHARDS SET · ${set}/3</h3>${T.biomes.map(shardRow).join('')}
+    ${call}
+    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The Kindlers before you left logs in the deep.</p>'}`;
 }
 
 // How the last dive ended, over the outpost.
@@ -342,10 +351,10 @@ function drawReport() {
   const learned = (r.learned || []).concat((r.kept && r.kept.blueprints) || []);
   if (learned.length) row('LEARNED', 'gold', learned.map((id) => BLUEPRINTS[id].name).join(', '));
   if (r.lostBlueprints) row('BLUEPRINTS LOST', 'bad', `${r.lostBlueprints}, with the cargo`);
-  if (r.shard) row('HEART-SHARD', 'gold', 'Carried home. Set it in the star at the altar.');
+  if (r.shard) row('SHARD', 'gold', 'Carried home. Set it in the star at the altar.');
   for (const c of r.contracts || []) row('CONTRACT DONE', 'good', `${contractText(c)}: ${contractRewardText(c)}`);
   if (r.contracts && r.contracts.bonus) row('THE WHOLE BOARD', 'gold', `+${r.contracts.bonus} more to the star`);
-  if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the wreck`);
+  if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the uplink`);
   // the star: what this ride fed it, and how far to the next magnitude
   const s = Save.data, mag = magnitudeOf(s.star), lo = T.star.levels[mag - 1], hi = T.star.levels[mag];
   let star = '';
@@ -701,10 +710,8 @@ UI.acts = {
     UI.story = null; UI.close();
     if (st.done) st.done();
   },
-  lightBeacon: () => {
-    Save.data.beaconLit = true; Save.save();
-    UI.openStory(STORY_END, () => UI.useStation('wreck'));
-  },
+  // calling the colony down, at the uplink (story.js)
+  callLanders: () => { if (Story.canCall()) Story.callLanders(() => UI.useStation('wreck')); },
   recall: () => {
     UI.close();
     const d = Game.dive;

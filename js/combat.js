@@ -273,7 +273,7 @@ function updatePickups(dt) {
       continue;
     }
     // a heart-shard binds to the diver: safe whatever happens now
-    if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard of the star\'s heart', 'legendary'); dr.gone = true; continue; }
+    if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard, still warm', 'legendary'); dr.gone = true; continue; }
     if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); } dr.gone = true; continue; }
     if (dr.blueprint) {
       if (room < 1) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } continue; }

@@ -68,6 +68,7 @@ function enterHub(report) {
   const dm = HUB_STATIONS.find((s) => s.id === 'dummy');
   const dummy = makeEnemy('dummy', (dm.x + 0.5) * TILE, (dm.y + 0.5) * TILE, 1, null);
   d.enemies = [dummy];
+  placeSettlers(d);
   Game.scene = 'hub';
   UI.close();
   if (report) UI.openReport(report);
@@ -237,6 +238,7 @@ function updateDive(dtReal, dt) {
   updateAuras(dt);
   updateCombatFx(dt);
   if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); }
+  else updateSettlers(d, dt);
   updatePickups(dtReal);
   if (Input.consumeAct()) {
     const a = actionHere();

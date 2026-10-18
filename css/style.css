@@ -353,6 +353,7 @@ body.home #btn-mine { display: none; }
 .speech b { color: #7dffd8; letter-spacing: 0.1em; font-size: 11px; margin-right: 6px; }
 .speech.star { border-color: #5a4a20; font-style: italic; color: #ffe9b0; }
 .speech.star b { color: var(--gold); font-style: normal; }
+.speech.settler b { color: #e0c89a; }
 /* sideways there's no bottom deck: speak over the foot of the view */
 #app.wide .speech { bottom: calc(12px + env(safe-area-inset-bottom)); left: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); right: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); }
 /* over a screen, toasts sit just under a panel's header, clear of its title and its way out */

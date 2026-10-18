@@ -4,9 +4,11 @@
 // bobbing, its lodelines running down into the dark: one more for every
 // magnitude. Round the plaza stand the stations (the star's altar, the
 // locker, the portal every expedition sets out through, the forge, the rune
-// bench) and the practice target, and lanterns, one lit for every magnitude. The floor,
-// walls and pit are painted like any floor (render.js); these are drawn
-// every frame on top.
+// bench), the practice target and the Meridian uplink, and lanterns, one
+// lit for every magnitude. As territories are kindled the colony comes down,
+// and tents and lanterns go up round the plaza (settlers: story.js). The
+// floor, walls and pit are painted like any floor (render.js); these are
+// drawn every frame on top.
 // ---------------------------------------------------------------------------
 
 const STATION_ROWS = {
@@ -138,7 +140,8 @@ function drawHubUnder(d, ox, oy, tick, lights) {
     drawShadow(x, y, 2);
     drawArtSprite(spr, Math.round(x - spr.ax), Math.round(y - spr.ay));
     if (lit) lights.push({ x, y: y - ap(11), r: TILE * 2.2, i: 0.7, c: rgb01(star[2]) });
-  });
+  });  // and the settlement's, as the colony comes down
+  drawSettleLanterns(d, ox, oy, lights);
 }
 
 // Over everything: the Lodestar itself, bigger as it grows.
@@ -164,22 +167,58 @@ function feedStarFx(d, n, grew) {
   if (grew) UI.toast(`The Lodestar grows: magnitude ${grew}`, 'legendary');
 }
 
-// The Meridian: a prop the diver walks in front of and behind, its beacon
-// dark until the star is whole and the beacon lit.
-const _wreck = {};
-function wreckSprite() {
-  const lit = !!Save.data.beaconLit;
-  if (!_wreck[lit]) { const s = art2Sprite(WRECK_ROWS[lit ? 'lit' : 'dark']); s.ax = s.w / 2; s.ay = s.h - footOff(3); _wreck[lit] = s; }
-  return _wreck[lit];
+// The Meridian uplink: a relay mast the diver walks in front of and behind,
+// talking to the colony ship in orbit. Its tip blinks cold until the colony's
+// called, then burns warm. (Its station keeps the id 'wreck'.)
+const _uplink = {};
+function uplinkSprite() {
+  const lit = Story.landersCalled();
+  if (!_uplink[lit]) { const s = art2Sprite(UPLINK_ROWS[lit ? 'lit' : 'dark']); s.ax = Math.round(s.w * 0.58); s.ay = s.h - 3; _uplink[lit] = s; }
+  return _uplink[lit];
 }
-function drawWreck(d, ox, oy, lights) {
-  const s = HUB_STATIONS.find((x) => x.id === 'wreck'), spr = wreckSprite();
+function drawUplink(d, ox, oy, lights) {
+  const s = HUB_STATIONS.find((x) => x.id === 'wreck'), spr = uplinkSprite();
   const x = Math.round((s.x + 0.5) * ATILE + ox - spr.ax), y = Math.round((s.y + 0.5) * ATILE + oy - spr.ay);
   drawArtSprite(spr, x, y);
-  // the beacon: a cold spark until it's lit, then a great warm light
-  const bx = x + spritePt(spr, 24), by = y + spritePt(spr, 0);
-  if (Save.data.beaconLit) lights.push({ x: bx, y: by, r: TILE * 6, i: 1.4, c: rgb01(ART.pal.star[3]) });
-  else lights.push({ x: bx, y: by, r: TILE, i: 0.25 + 0.15 * Math.sin(Game.realT * 2), c: [0.5, 0.6, 0.8] });
+  // the tip: a slow cold blink, then a great warm light once called
+  const bx = x + UPLINK_TIP[0], by = y + UPLINK_TIP[1];
+  if (Story.landersCalled()) lights.push({ x: bx, y: by, r: TILE * 6, i: 1.4, c: rgb01(ART.pal.star[3]) });
+  else lights.push({ x: bx, y: by, r: TILE, i: 0.25 + 0.2 * Math.max(0, Math.sin(Game.realT * 2)), c: [0.5, 0.6, 0.8] });
+  // the dish's feed and the console's screen, faintly
+  lights.push({ x: x + UPLINK_FEED[0], y: y + UPLINK_FEED[1], r: TILE * 0.8, i: 0.35, c: rgb01(ART.pal.rune[0]) });
+}
+// (art px in the sprite: the tip's light, the dish's feed; one more for the
+// outline)
+const UPLINK_TIP = [23, 3], UPLINK_FEED = [5, 10];
+
+// The settlement: a tent, and a lantern beside it, for each lander down
+// (all of them once the colony's called).
+const TENT_SPOTS = [[8, 20], [14, 20], [4, 13], [18, 13], [5, 18], [17, 17]];
+const SETTLE_LANTERNS = [[10, 20], [13, 20], [6, 13], [17, 13], [7, 18], [16, 17]];
+let _tentSprite = null;
+function settlementSize() {
+  return Story.landersCalled() ? TENT_SPOTS.length : Math.min(TENT_SPOTS.length, storyLanders());
+}
+// the settlement's lanterns, under everything that walks
+function drawSettleLanterns(d, ox, oy, lights) {
+  for (let k = 0; k < settlementSize(); k++) {
+    const [lx, ly] = SETTLE_LANTERNS[k], x = Math.round((lx + 0.5) * ATILE) + ox, y = Math.round((ly + 0.5) * ATILE) + oy, ls = lanternSprite(true);
+    drawShadow(x, y, 2);
+    drawArtSprite(ls, Math.round(x - ls.ax), Math.round(y - ls.ay));
+    lights.push({ x, y: y - ap(11), r: TILE * 2.2, i: 0.7, c: rgb01(ART.pal.star[2]) });
+  }
+}
+// What stands at home among the walkers, in order of their feet: the uplink,
+// the tents, the settlers (story.js).
+function hubProps(d) {
+  const up = HUB_STATIONS.find((x) => x.id === 'wreck'), out = [{ wreck: true, y: (up.y + 0.5) * TILE }];
+  for (let k = 0; k < settlementSize(); k++) out.push({ tent: k, y: (TENT_SPOTS[k][1] + 0.5) * TILE });
+  return out.concat(d.settlers || []);
+}
+function drawTent(d, a, ox, oy) {
+  if (!_tentSprite) _tentSprite = buildArtSprite(TENT_ROWS, { coat: ['#2a2420', '#463c32', '#645646', '#82725c'], leather: ['#1e1a16', '#342c24', '#4c4034', '#625444'], metal: ['#1a1410', '#2e241a', '#463626', '#5c4a34'] });
+  const [tx, ty] = TENT_SPOTS[a.tent], spr = _tentSprite;
+  drawArtSprite(spr, Math.round((tx + 0.5) * ATILE + ox - spr.w / 2), Math.round((ty + 0.5) * ATILE + oy - spr.h + ap(2)));
 }
 
 // Each station's name, in a small pixel hand, over it: always there, a
@@ -208,9 +247,9 @@ function drawLabel(text, cx, y, col, alpha) {
   }
   c.globalAlpha = 1;
 }
-const STATION_LABELS = { setout: 'THE PORTAL', altar: 'THE STAR', locker: 'LOCKER', forge: 'FORGE', runes: 'RUNE BENCH', wreck: 'THE MERIDIAN', dummy: 'TARGET' };
+const STATION_LABELS = { setout: 'THE PORTAL', altar: 'THE STAR', locker: 'LOCKER', forge: 'FORGE', runes: 'RUNE BENCH', wreck: 'THE UPLINK', dummy: 'TARGET' };
 // (world px above or below the station's middle)
-const STATION_LABEL_Y = { setout: 8, altar: -26, locker: -24, forge: -26, runes: -20, wreck: -34, dummy: -22 };
+const STATION_LABEL_Y = { setout: 8, altar: -26, locker: -24, forge: -26, runes: -20, wreck: -38, dummy: -22 };
 function drawStationLabels(d, ox, oy) {
   for (const s of HUB_STATIONS) {
     const x = (s.x + 0.5) * TILE, y = (s.y + 0.5) * TILE, m = dist(x, y, d.p.x, d.p.y) / TILE;

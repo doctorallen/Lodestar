@@ -655,12 +655,14 @@ function renderFrame() {
 
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) drawDrop(dr, ox, oy, lights);
-  const props = (d.hub ? [{ wreck: true, y: (HUB_STATIONS.find((x) => x.id === 'wreck').y + 0.5) * TILE }] : riftProps(d).concat(lifeActors(d))).concat(portalProps(d));
+  const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d))).concat(portalProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
     if (a === p) drawProspector(d, ox, oy, tick, lights);
-    else if (a.wreck) drawWreck(d, ox, oy, lights);
+    else if (a.wreck) drawUplink(d, ox, oy, lights);
+    else if (a.tent !== undefined) drawTent(d, a, ox, oy);
+    else if (a.settler) drawSettler(d, a, ox, oy, lights);
     else if (a.tear) drawRift(d, a, ox, oy, lights);
     else if (a.portal) drawPortal(d, a, ox, oy, lights);
     else if (a.piece || a.strip) drawFlora(d, a, ox, oy, lights);

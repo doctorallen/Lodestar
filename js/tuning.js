@@ -423,11 +423,25 @@ const T = {
   // magnitude each biome opens at.
   // extractStar: what a ride home feeds the star, times the depth squared.
   star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], biomeAt: [1, 3, 5], extractStar: 8 },
-  // The story: each region's Keeper waits in its lair, at the end of an
-  // expedition, holding a shard of the star's heart; each shard set in the star adds shardStar points.
-  // An echo (a log of the crews before) turns up by an ancient forge, from
-  // an elite now and then, and from every Keeper.
-  story: { shardStar: 400, echoForge: 0.5, echoElite: 0.05 },
+  // The story (story.js): each region's Keeper waits in its lair, at the end
+  // of an expedition, holding a shard of a star that went dark; each shard
+  // set in the Lodestar adds shardStar points. An echo (a log of the
+  // Kindlers before) turns up by an ancient forge, from an elite now and
+  // then, and from every Keeper.
+  //   landerEvery: the Meridian can send a lander for every this many
+  //     territories kindled. callLanders: how many landers' worth of kindled
+  //     land it takes to call the colony down (with every shard set).
+  //   turnEcho: from this many echoes read, the settlers have heard.
+  //   settlers: figures at the outpost, perLander for each lander down (all
+  //     of them, most, once the colony's called); their pace (world px a
+  //     second), the pause between strolls (s), how near (tiles) the diver
+  //     comes before one speaks, and how long (s) before that one speaks
+  //     again.
+  story: {
+    shardStar: 400, echoForge: 0.5, echoElite: 0.05,
+    landerEvery: 3, callLanders: 5, turnEcho: 5,
+    settlers: { perLander: 1, most: 6, speed: 9, rest: [2, 6], talkR: 1.4, talkGap: 40 },
+  },
   // An ancient forge stands on a floor this deep or deeper, by chance.
   // Imprinting a known legendary power at the forge costs a heart (any
   // grade) or `glass` riftglass; a fine forge or better always takes it,
