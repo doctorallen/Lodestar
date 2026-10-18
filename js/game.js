@@ -31,7 +31,7 @@ function newWorld(fields) {
   return Object.assign({
     seed: 0, biome: 0, depth: 0, floor: null, target: null, time: 0, kills: 0, dying: 0,
     rng: new Rng(1), stats, reach: lodelineReach(),
-    cargo: {}, items: [], pocket: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], flow: null, flowAt: -1,
+    cargo: {}, items: [], blueprints: [], pocket: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], flow: null, flowAt: -1,
     pull: 1, pullTime: 1, waveT: 0, channel: null, padDark: false,
     p: {
       x: 0, y: 0, fx: 0, fy: 1, walkT: 0, mine: null,
@@ -92,6 +92,8 @@ function placeFieldForge(d) {
   if (!rooms.length) return;
   const r = rng.pick(rooms), i = rng.pick(r.cells);
   d.fieldForge = { x: i % f.w, y: Math.floor(i / f.w) };
+  // whoever worked it left a schematic behind, now and then
+  if (rng.chance(T.fieldForge.blueprint)) dropBlueprint(d, (thing) => d.drops.push(Object.assign({ x: (d.fieldForge.x + 1.5) * TILE, y: (d.fieldForge.y + 0.5) * TILE, t: 0 }, thing)));
 }
 
 // The outfit changed mid-dive.
@@ -176,7 +178,7 @@ function updatePull(dt) {
   const d = Game.dive, P = T.pull;
   if (d.pull <= 0) return;
   const was = d.pull;
-  d.pull = Math.max(0, d.pull - dt / d.pullTime);
+  d.pull = Math.max(0, d.pull - (dt / d.pullTime) * (1 - d.stats.pullSlow / 100));
   if (was > P.dimAt && d.pull <= P.dimAt) UI.toast("The star's pull is fading", 'legendary');
   if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { d.waveT = P.waveEvery; stirTheDark(d, P.wave); }
   if (d.pull <= 0) {
@@ -313,6 +315,8 @@ function updateMining(dt) {
   p.mine.hitT -= dt;
   if (p.mine.hitT <= 0) {
     p.mine.hitT = T.mine.hitEvery;
+    // a drill is loud
+    if (d.stats.noisy) for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.mine.drillNoise) wake(d, e);
     spawnSparks((tgt.tx + 0.5) * TILE, (tgt.ty + 0.5) * TILE, [ART.ores[o.id][3], '#ffffff'], 4);
     buzz(6);
   }
@@ -352,13 +356,24 @@ function noteDeepest(d) {
 // the depth: extractStar × depth² points.
 // Everything in the pocket goes home, whatever happens.
 function bankPocket(d) {
-  const s = Save.data.stash, kept = { stuff: {}, items: [] };
+  const s = Save.data.stash, kept = { stuff: {}, items: [], blueprints: [] };
   for (const e of d.pocket) {
     if (e.item) { Save.data.items.push(e.item); kept.items.push(e.item); }
+    else if (e.blueprint) { learnBlueprint(e.blueprint); kept.blueprints.push(e.blueprint); }
     else { s[e.stuff] = (s[e.stuff] || 0) + e.n; kept.stuff[e.stuff] = (kept.stuff[e.stuff] || 0) + e.n; }
   }
   d.pocket = [];
   return kept;
+}
+
+function learnBlueprint(id) { if (!Save.data.blueprints.includes(id)) Save.data.blueprints.push(id); }
+
+// Blueprints carried home are learned.
+function bankBlueprints(d) {
+  const learned = d.blueprints.map((b) => b.id).filter((id) => !Save.data.blueprints.includes(id));
+  for (const id of learned) learnBlueprint(id);
+  d.blueprints = [];
+  return learned;
 }
 
 function extractDive() {
@@ -366,11 +381,12 @@ function extractDive() {
   bankPocket(d);
   for (const k in d.cargo) s[k] = (s[k] || 0) + d.cargo[k];
   Save.data.items.push(...d.items);
+  const learned = bankBlueprints(d);
   const fed = T.star.extractStar * d.depth * d.depth, before = magnitudeOf(Save.data.star);
   Save.data.star += fed;
   noteDeepest(d);
   Save.save();
-  enterHub({ banked: d.cargo, items: d.items, depth: d.depth, biome: d.biome, fed, grew: magnitudeOf(Save.data.star) > before ? magnitudeOf(Save.data.star) : 0 });
+  enterHub({ banked: d.cargo, items: d.items, depth: d.depth, biome: d.biome, fed, learned, grew: magnitudeOf(Save.data.star) > before ? magnitudeOf(Save.data.star) : 0 });
 }
 
 // Dying, or giving up: the cargo is lost, what's worn and what's in the
@@ -379,7 +395,7 @@ function loseDive(died) {
   const d = Game.dive, kept = bankPocket(d);
   noteDeepest(d);
   Save.save();
-  enterHub({ lost: d.cargo, items: d.items, depth: d.depth, biome: d.biome, died, kept });
+  enterHub({ lost: d.cargo, items: d.items, depth: d.depth, biome: d.biome, died, kept, lostBlueprints: d.blueprints.length });
 }
 
 // An emergency recall: home, but the dark keeps a share of the cargo (the
@@ -397,9 +413,10 @@ function recallDive() {
   }
   const kept = d.items.filter(() => { if (d.rng.chance(cost)) { lostItems++; return false; } return true; });
   Save.data.items.push(...kept);
+  const learned = bankBlueprints(d);
   noteDeepest(d);
   Save.save();
-  enterHub({ banked: d.cargo, items: kept, depth: d.depth, biome: d.biome, recalled: { lost, lostItems, cost } });
+  enterHub({ banked: d.cargo, items: kept, depth: d.depth, biome: d.biome, learned, recalled: { lost, lostItems, cost } });
 }
 
 function abandonDive() { loseDive(false); }

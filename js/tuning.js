@@ -20,7 +20,7 @@ const T = {
   // point `ahead` px in front of the diver is the target. A hardness-1
   // ore breaks after 1 / speed seconds of holding MINE, times the pick's
   // speed.
-  mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 2] },
+  mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 2], drillNoise: 90 }, // a drill wakes what's within drillNoise px
 
   // Cargo is counted in units: ore and exotics weigh 1, gear and relics
   // itemWeight. The pocket: slots (by magnitude, 1 to 8) whose contents
@@ -68,13 +68,15 @@ const T = {
     { id: 'starmetal', name: 'Starmetal', tier: 6, hardness: 4.0 },
   ],
   // Exotic materials: dropped by elites (and now and then anything else).
-  // In a craft, each guarantees an affix from its family; a lodestone shard
-  // raises the rarity a step instead.
+  // Worked into a forging, each does one thing: gives a weapon or focus an
+  // element, guarantees an affix family, or raises the rarity a step.
   exotics: [
-    { id: 'voltaic', name: 'Voltaic crystal', family: 'shock' },
+    { id: 'voltaic', name: 'Voltaic crystal', element: 'shock' },
+    { id: 'frostglass', name: 'Frostglass', element: 'frost' },
+    { id: 'emberglass', name: 'Emberglass', element: 'ember' },
+    { id: 'blightcap', name: 'Blightcap', element: 'blight' },
     { id: 'bloodresin', name: 'Bloodresin', family: 'leech' },
-    { id: 'frostglass', name: 'Frostglass', family: 'chill' },
-    { id: 'lodeshard', name: 'Lodestone shard', family: null },
+    { id: 'lodeshard', name: 'Lodestone shard', rarity: true },
   ],
 
   // Each biome's look is in art.js, under the same id. A floor's enemy level
@@ -86,18 +88,24 @@ const T = {
   ],
   levelPerBiome: 4,
 
-  // Melee. Taps chain a combo: each swing hits everything within range in
-  // an arc (cos of the half-angle) round the aim, which is the nearest enemy
-  // within autoAim, else straight ahead. combo: [damage ×, cooldown, arc cos,
-  // knockback px/s, lunge px, swing time]; the last is heavy, and staggers.
+  // Melee. Taps chain a combo, by the weapon's style: each swing hits
+  // everything within range in an arc (cos of the half-angle) round the
+  // aim, which is the nearest enemy within autoAim, else straight ahead.
+  // combo: [damage ×, cooldown, arc cos, knockback px/s, lunge px, swing
+  // time]; the last is heavy and staggers (a hammer's every blow is heavy).
   // Another tap within comboWindow carries the combo on. Holding the button
   // chargeStart past a swing starts a charge; let go once it's past
-  // chargeFull for a spin that hits all round (charged). fist: an empty
-  // main hand's damage.
+  // chargeFull for the style's charged move: a blade spins, a spear lunges
+  // (reach px over time s), a hammer slams the ground, a whip drags enemies
+  // in. fist: an empty main hand's damage.
   melee: {
-    range: 22, autoAim: 52, fist: 3, comboWindow: 0.6, chargeStart: 0.25, chargeFull: 0.7,
-    combo: [[1, 0.24, 0.3, 70, 4, 0.12], [1, 0.24, 0.3, 70, 4, 0.12], [1.7, 0.45, -0.1, 160, 9, 0.18]],
-    charged: { mult: 2.4, knock: 180, radius: 28, time: 0.25 },
+    autoAim: 52, fist: 3, comboWindow: 0.6, chargeStart: 0.25, chargeFull: 0.7,
+    styles: {
+      blade: { range: 22, combo: [[1, 0.24, 0.3, 70, 4, 0.12], [1, 0.24, 0.3, 70, 4, 0.12], [1.7, 0.45, -0.1, 160, 9, 0.18]], charged: { move: 'spin', mult: 2.4, knock: 180, radius: 28, time: 0.25 } },
+      spear: { range: 36, combo: [[1, 0.27, 0.8, 90, 6, 0.12], [1, 0.27, 0.8, 90, 6, 0.12], [1.6, 0.42, 0.75, 180, 12, 0.16]], charged: { move: 'lunge', mult: 2.3, knock: 160, reach: 64, time: 0.2 } },
+      hammer: { range: 25, heavy: true, combo: [[1, 0.62, -0.2, 160, 3, 0.2], [1, 0.62, -0.2, 160, 3, 0.2], [1.5, 0.85, -0.5, 240, 6, 0.26]], charged: { move: 'slam', mult: 2.6, knock: 260, radius: 44, time: 0.3 } },
+      whip: { range: 34, combo: [[1, 0.28, -0.3, 40, 0, 0.14], [1, 0.28, -0.3, 40, 0, 0.14], [1.5, 0.42, -0.55, 70, 0, 0.18]], charged: { move: 'drag', mult: 1.6, knock: 0, radius: 52, time: 0.22 } },
+    },
   },
   // A dash: a burst of speed with a moment of untouchability. A flick of
   // the move thumb (flickPx in flickMs) dashes too.
@@ -114,12 +122,22 @@ const T = {
   // its cores on every procEvery-th hit at procMult, for no charge.
   spells: {
     castCooldown: 0.3, procEvery: 3, procMult: 0.6, aimRange: 140, chargedMult: 1.8, chargedCost: 1.5,
+    // a gauntlet casts at gauntletCost the charge, but only within gauntletRange;
+    // a staff reaches staffRange, and its charged cast (three of everything)
+    // costs staffChargedCost
+    gauntletCost: 0.75, gauntletRange: 70, staffRange: 180, staffChargedCost: 2.4,
     spark: { cost: 5, mult: 0.6, speed: 170 },
     bolt: { cost: 8, mult: 1.0, speed: 170 },
     nova: { cost: 18, mult: 1.3, radius: 34 },
     pull: { cost: 14, mult: 0.5, radius: 72, stun: 0.7, speed: 160 },
     ward: { cost: 20, mult: 2.5, time: 5 },
   },
+  // Elements a weapon or focus carries. shock: this share of hits arcs on;
+  // frost: hits chill, and a heavy hit on the chilled shatters for `shatter`
+  // times; ember: hits burn for burnTime, `burn` of the hit a second; blight:
+  // poison for blightTime, `blight` of the hit a second, spreading within
+  // blightSpread px when its host falls.
+  elements: { shockChance: 0.3, shatter: 1.6, burn: 0.35, burnTime: 3, blight: 0.22, blightTime: 4, blightSpread: 40 },
   // shock arcs to the nearest other enemy within shockRange for shockMult;
   // chill slows by chillSlow for chillTime.
   onHit: { shockRange: 48, shockMult: 0.5, chillSlow: 0.5, chillTime: 2 },
@@ -159,10 +177,14 @@ const T = {
     bossDepth: 4, bossChance: 0.3,
   },
 
-  // Drops. rarity weights: [base, per depth]. motes heal.
+  // Drops. Enemies leave their own parts (part: the chance; partTwo: the
+  // chance of a second), elites and the warden more, and now and then an
+  // exotic, a blueprint or a sealed relic. Finished gear comes from the
+  // forge. motes heal. rarity: [base, per depth] weights (for relics).
   loot: {
-    drop: 0.18, eliteDrops: 1, bossDrops: 3, exotic: 0.04, eliteExotic: 0.6,
-    relic: 0.01, eliteRelic: 0.12, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
+    part: 0.6, partTwo: 0.25, eliteParts: [2, 3], bossParts: 4,
+    exotic: 0.03, eliteExotic: 0.5, eliteBlueprint: 0.22,
+    relic: 0.008, eliteRelic: 0.1, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
     rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [1, 0.35], set: [0.8, 0.25] },
   },
 
@@ -170,7 +192,7 @@ const T = {
   // affixGrowth a tier). Each kind's crafting cost is in ore of its tier
   // (a pick is made from the ore it's named for, and breaks the next one).
   items: {
-    tierGrowth: 1.45, affixGrowth: 0.3,
+    tierGrowth: 1.45, affixGrowth: 0.3, gradeBoost: 0.12, // a part's grade over 1 strengthens what it binds
     blade: { dmg: 6, cost: 8 }, focus: { power: 6, cost: 8 },
     armor: { armor: 4, armorGrowth: 0.75, hp: 10, hpGrowth: 1.35, cost: 10 },
     charm: { cost: 6 }, pick: { speedGrowth: 0.12, cost: 12 }, core: { cost: 10, growth: 0.25 },
@@ -192,7 +214,7 @@ const T = {
   // extractStar: what a ride home feeds the star, times the depth squared.
   star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], biomeAt: [1, 3, 5], extractStar: 3 },
   // An ancient forge stands on a floor this deep or deeper, by chance.
-  fieldForge: { depth: 3, chance: 0.3 },
+  fieldForge: { depth: 3, chance: 0.3, blueprint: 0.6 }, // blueprint: the chance a schematic lies by it
   // The anvil: three strikes, each a marker sweeping a bar at `speeds`
   // (sweeps a second); a strike inside the zone (zone wide, narrowing by
   // shrink a strike) is good, inside its middle `perfect` is perfect.

@@ -32,7 +32,9 @@ const ART = {
   },
   // what each rarity's drops and names glow with
   rarity: { common: '#b8b0a0', magic: '#6fa8ff', rare: '#ffd34d', legendary: '#ff8a3d', set: '#5fe08a', relic: '#c9a2ff' },
-  exotics: { voltaic: '#7fe8ff', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890' },
+  exotics: { voltaic: '#7fe8ff', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890', emberglass: '#ff8a3a', blightcap: '#9ad04a' },
+  // creature parts, until they have their own art: a colour a kind
+  parts: { chitin: '#8a6a7a', ether: '#9fd8ff', cog: '#b89a58', fiber: '#8ab86a', spore: '#c87ab0', heart: '#ff6a4a' },
   cores: { bolt: '#62f0ff', nova: '#ffb347', pull: '#ffd890', ward: '#8fb4ff' },
   ores: {
     ferrite: ['#3b170d', '#743828', '#c46444', '#ffb08a'],
@@ -473,8 +475,16 @@ const ICON_ROWS = {
 
 const _iconCache = new Map();
 // The icon for an item as a data URL (for the screens), cached by look.
+// A sprite from art2.js, with its own letters and glows. pal: overrides.
+function art2Sprite(rows, pal) {
+  return buildArtSprite(rows, Object.assign({}, ART2_PAL, pal), Object.assign({}, SPRITE_CHARS, ART2_LETTERS), [...SPRITE_GLOWS, ...ART2_GLOWS]);
+}
+
 function itemIconUrl(item) {
-  const key = item.kind + '/' + item.tier + '/' + (item.core || '') + '/' + item.rarity;
+  const style = item.kind === 'core' || item.kind === 'relic' ? item.kind : ((typeof bpOf === 'function' && bpOf(item)) || {}).style;
+  const own = ICON_ROWS2[style] && !ICON_ROWS[style];
+  const rows = own ? ICON_ROWS2[style] : ICON_ROWS[item.kind];
+  const key = item.kind + '/' + style + '/' + item.tier + '/' + (item.core || '') + '/' + item.rarity;
   let url = _iconCache.get(key);
   if (url) return url;
   const pal = {};
@@ -484,9 +494,17 @@ function itemIconUrl(item) {
   }
   if (item.kind === 'core') { pal.arcane = [ART.cores[item.core]]; pal.rune = [mix(ART.cores[item.core], '#000000', 0.3)]; }
   if (item.kind === 'relic') pal.arcane = [ART.rarity.relic];
-  const s = buildArtSprite(ICON_ROWS[item.kind], pal);
+  const s = own ? art2Sprite(rows, pal) : buildArtSprite(rows, pal);
   url = s.c.toDataURL();
   _iconCache.set(key, url);
+  return url;
+}
+
+// A blueprint, a heart-shard or a spell modifier, as an icon.
+function art2IconUrl(name, pal) {
+  const key = 'art2/' + name + '/' + JSON.stringify(pal || {});
+  let url = _iconCache.get(key);
+  if (!url) { url = art2Sprite(ICON_ROWS2[name], pal).c.toDataURL(); _iconCache.set(key, url); }
   return url;
 }
 
@@ -503,6 +521,12 @@ function stuffIconUrl(id) {
   const key = 'stuff/' + id;
   let url = _iconCache.get(key);
   if (url) return url;
+  const part = parsePart(id);
+  if (part) {
+    url = art2Sprite(PART_ROWS[part.kind], PART_PAL[part.kind][part.grade - 1]).c.toDataURL();
+    _iconCache.set(key, url);
+    return url;
+  }
   const r = ART.ores[id], col = r ? r[2] : ART.exotics[id];
   url = buildArtSprite(STUFF_ROWS, { crystal: [col], coreglow: [r ? r[3] : mix(col, '#ffffff', 0.6)] }).c.toDataURL();
   _iconCache.set(key, url);

@@ -61,49 +61,83 @@ function aimDir(range) {
   return norm(p.fx, p.fy);
 }
 
+// How a hand's weapon fights.
+function meleeStyle(item) { const bp = item && bpOf(item); return T.melee.styles[(bp && T.melee.styles[bp.style]) ? bp.style : 'blade']; }
+
 function swing(slot, item, h) {
-  const d = Game.dive, p = d.p, st = d.stats, M = T.melee;
-  h.step = h.comboT > 0 ? (h.step + 1) % M.combo.length : 0;
-  const [mult, cd, arc, knock, lunge, time] = M.combo[h.step], heavy = h.step === M.combo.length - 1;
+  const d = Game.dive, p = d.p, st = d.stats, M = T.melee, S = meleeStyle(item);
+  h.step = h.comboT > 0 ? (h.step + 1) % S.combo.length : 0;
+  const [mult, cd, arc, knock, lunge, time] = S.combo[h.step], heavy = !!S.heavy || h.step === S.combo.length - 1;
   const dir = aimDir(M.autoAim);
   h.cd = cd / (1 + st.atkSpeed / 100);
   h.comboT = M.comboWindow + h.cd;
   moveBody(d.floor, p, dir.x * lunge, dir.y * lunge, T.player.radius);
-  p.swing = { slot, a: Math.atan2(dir.y, dir.x), side: h.step % 2 ? -1 : 1, t: time, max: time, heavy, spin: false };
+  p.swing = { slot, a: Math.atan2(dir.y, dir.x), side: h.step % 2 ? -1 : 1, t: time, max: time, heavy, spin: false, style: (bpOf(item || {}) || {}).style || 'blade' };
   const base = item ? item.base.dmg : M.fist;
   let hit = 0;
   for (const e of d.enemies) {
     if (e.dead) continue;
     const dx = e.x - p.x, dy = e.y - p.y, m = Math.hypot(dx, dy);
-    if (m > M.range + e.r || (m > 2 && (dx * dir.x + dy * dir.y) / m < arc)) continue;
-    meleeHit(e, base * mult, dir, knock, heavy);
+    if (m > S.range + e.r || (m > 2 && (dx * dir.x + dy * dir.y) / m < arc)) continue;
+    meleeHit(e, base * mult, dir, knock, heavy, item && item.element);
     hit++;
   }
   afterMelee(item, h, hit, heavy);
 }
 
-// The spin: everything round the diver, hard.
+// The charged move, by style: a blade spins, a spear lunges through, a
+// hammer slams the ground, a whip drags everything near in.
 function chargedAttack(slot, item, h) {
-  const d = Game.dive, p = d.p, C = T.melee.charged;
+  const d = Game.dive, p = d.p;
   if (handKind(item) === 'focus') { castFocus(item, h, true); return; }
-  p.swing = { slot, a: Math.atan2(p.fy, p.fx), side: 1, t: C.time, max: C.time, heavy: true, spin: true };
-  h.cd = T.melee.combo[0][1];
+  const S = meleeStyle(item), C = S.charged, base = item ? item.base.dmg : T.melee.fist, el = item && item.element;
+  const style = (bpOf(item || {}) || {}).style || 'blade';
+  h.cd = S.combo[0][1];
   h.comboT = 0;
-  const base = item ? item.base.dmg : T.melee.fist;
   let hit = 0;
-  for (const e of d.enemies) {
-    if (e.dead || dist(e.x, e.y, p.x, p.y) > C.radius + e.r) continue;
-    meleeHit(e, base * C.mult, norm(e.x - p.x, e.y - p.y), C.knock, true);
-    hit++;
+  if (C.move === 'lunge') {
+    // through everything on the way
+    const dir = aimDir(T.melee.autoAim * 1.5), x0 = p.x, y0 = p.y;
+    const steps = 8;
+    for (let k = 1; k <= steps; k++) moveBody(d.floor, p, (dir.x * C.reach) / steps, (dir.y * C.reach) / steps, T.player.radius);
+    p.invuln = Math.max(p.invuln, C.time);
+    for (const e of d.enemies) {
+      if (e.dead) continue;
+      // distance from the line just travelled
+      const vx = p.x - x0, vy = p.y - y0, L2 = vx * vx + vy * vy || 1, t = clamp(((e.x - x0) * vx + (e.y - y0) * vy) / L2, 0, 1);
+      if (dist(e.x, e.y, x0 + vx * t, y0 + vy * t) > e.r + 8) continue;
+      meleeHit(e, base * C.mult, dir, C.knock, true, el);
+      hit++;
+    }
+    for (let k = 0; k < 5; k++) d.fx.push({ kind: 'ghost', x: lerp(x0, p.x, k / 5), y: lerp(y0, p.y, k / 5), fx: dir.x, fy: dir.y, t: 0.2, max: 0.2 });
+    p.swing = { slot, a: Math.atan2(dir.y, dir.x), side: 1, t: C.time, max: C.time, heavy: true, spin: false, style };
+  } else if (C.move === 'drag') {
+    for (const e of d.enemies) {
+      if (e.dead || e.boss || dist(e.x, e.y, p.x, p.y) > C.radius + e.r) continue;
+      const m = dist(e.x, e.y, p.x, p.y) || 1, k = Math.min(160, (m - 10) * 5);
+      e.kx = ((p.x - e.x) / m) * k; e.ky = ((p.y - e.y) / m) * k; e.stunT = 0.5;
+      meleeHit(e, base * C.mult, norm(p.x - e.x, p.y - e.y), 0, true, el);
+      hit++;
+    }
+    d.fx.push({ kind: 'pull', x: p.x, y: p.y - 6, r: C.radius, t: C.time, max: C.time });
+    p.swing = { slot, a: Math.atan2(p.fy, p.fx), side: 1, t: C.time, max: C.time, heavy: true, spin: true, style };
+  } else {
+    // a spin, or a slam: everything round about
+    for (const e of d.enemies) {
+      if (e.dead || dist(e.x, e.y, p.x, p.y) > C.radius + e.r) continue;
+      meleeHit(e, base * C.mult, norm(e.x - p.x, e.y - p.y), C.knock, true, el);
+      hit++;
+    }
+    d.fx.push({ kind: C.move === 'slam' ? 'blast' : 'spin', x: p.x, y: p.y - (C.move === 'slam' ? 0 : 6), r: C.radius, t: C.time, max: C.time });
+    p.swing = { slot, a: Math.atan2(p.fy, p.fx), side: 1, t: C.time, max: C.time, heavy: true, spin: C.move === 'spin', style };
   }
-  d.fx.push({ kind: 'spin', x: p.x, y: p.y - 6, r: C.radius, t: C.time, max: C.time });
   afterMelee(item, h, hit, true);
 }
 
-function meleeHit(e, dmg, dir, knock, heavy) {
+function meleeHit(e, dmg, dir, knock, heavy, element) {
   const d = Game.dive, st = d.stats;
   const crit = d.rng.f(100) < st.crit;
-  hurtEnemy(e, dmg * (1 + st.meleeDmg / 100) * (crit ? 2 : 1), { crit, knock: { x: dir.x * knock, y: dir.y * knock }, heavy });
+  hurtEnemy(e, dmg * (1 + st.meleeDmg / 100) * (crit ? 2 : 1), { crit, knock: { x: dir.x * knock, y: dir.y * knock }, heavy, element });
   if (crit && st.powers.bloodedge) healPlayer(st.maxHp * 0.04);
 }
 
@@ -122,28 +156,37 @@ function afterMelee(item, h, hit, heavy) {
 }
 
 function castFocus(item, h, charged) {
-  const d = Game.dive, p = d.p, S = T.spells;
+  const d = Game.dive, p = d.p, S = T.spells, style = (bpOf(item) || {}).style || 'wand';
   const cores = (item.sockets || []).filter(Boolean);
   let cost = cores.length ? cores.reduce((a, c) => a + S[c.core].cost, 0) : S.spark.cost;
-  if (charged) cost *= S.chargedCost;
+  if (style === 'gauntlet') cost *= S.gauntletCost;
+  if (charged) cost *= style === 'staff' ? S.staffChargedCost : S.chargedCost;
   if (p.charge < cost) { p.lowCharge = 0.4; return; }
   p.charge -= cost;
   h.cd = S.castCooldown;
   p.cast = { t: 0.15, max: 0.15, charged };
-  const power = item.base.power * (charged ? S.chargedMult : 1);
-  if (!cores.length) castSpell('spark', power * S.spark.mult, 0, charged);
-  else castCores(item, power, charged);
-  if (charged) shakeView(T.impact.shake);
+  d.castElement = item.element || null;
+  d.castRange = style === 'gauntlet' ? S.gauntletRange : style === 'staff' ? S.staffRange : S.aimRange;
+  const power = item.base.power * (charged && style !== 'staff' ? S.chargedMult : 1);
+  // a staff's charged cast fires everything three times, fanned out
+  const times = charged && style === 'staff' ? 3 : 1;
+  for (let k = 0; k < times; k++) {
+    const spread = times > 1 ? (k - 1) * 0.3 : 0;
+    if (!cores.length) castSpell('spark', power * S.spark.mult, spread, charged && times === 1);
+    else castCores(item, power, charged && times === 1, spread);
+  }
+  d.castElement = null;
 }
 
-// Fires every core in an item (twice with the Twice-Told).
-function castCores(item, power, charged = false) {
+// Fires every core in an item (twice with the Twice-Told). spread: an angle
+// to fan bolts out by.
+function castCores(item, power, charged = false, spread = 0) {
   const st = Game.dive.stats;
   const times = st.powers.echo && item.power === 'echo' ? 2 : 1;
   for (const c of item.sockets || []) {
-    if (!c) continue;
+    if (!c || !T.spells[c.core]) continue;
     const p = power * (1 + T.items.core.growth * (c.tier - 1)) * T.spells[c.core].mult;
-    for (let k = 0; k < times; k++) castSpell(c.core, p, k * 0.25, charged);
+    for (let k = 0; k < times; k++) castSpell(c.core, p, spread + k * 0.25, charged);
   }
 }
 
@@ -159,7 +202,7 @@ function updateDash(dt) {
     p.dashT = D.time; p.dashX = dir.x; p.dashY = dir.y;
     p.fx = dir.x; p.fy = dir.y;
     p.invuln = Math.max(p.invuln, D.invuln);
-    p.dashCd = D.cooldown;
+    p.dashCd = D.cooldown * (1 + d.stats.dashCd / 100);
     buzz(8);
   }
   if (p.dashT > 0) {
@@ -179,16 +222,16 @@ function castSpell(kind, power, spread = 0, charged = false) {
   const d = Game.dive, p = d.p, st = d.stats, S = T.spells;
   const dmg = power * (1 + st.spellDmg / 100);
   if (kind === 'spark' || kind === 'bolt') {
-    const target = nearestEnemy(d, S.aimRange);
+    const target = nearestEnemy(d, d.castRange || S.aimRange);
     let a = target ? Math.atan2(target.y - 4 - (p.y - 8), target.x - p.x) : Math.atan2(p.fy, p.fx);
     a += spread;
     const sp = S[kind].speed;
-    d.bolts.push({ x: p.x, y: p.y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg, kind, t: 1.2, chain: kind === 'bolt' && st.powers.stormcaller ? 2 : 0, hitIds: [], big: charged, pierce: charged ? 3 : 0 });
+    d.bolts.push({ x: p.x, y: p.y - 8, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, dmg, kind, t: 1.2, chain: kind === 'bolt' && st.powers.stormcaller ? 2 : 0, hitIds: [], big: charged, pierce: charged ? 3 : 0, element: d.castElement || null });
     return;
   }
   if (kind === 'nova') {
     d.fx.push({ kind: 'nova', x: p.x, y: p.y - 6, r: S.nova.radius, t: 0.3, max: 0.3 });
-    for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < S.nova.radius + e.r) hurtEnemy(e, dmg, { spell: true });
+    for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < S.nova.radius + e.r) hurtEnemy(e, dmg, { spell: true, element: d.castElement });
     return;
   }
   if (kind === 'pull') {
@@ -219,7 +262,7 @@ function updateBolts(dt) {
     for (const e of d.enemies) {
       if (e.dead || b.hitIds.includes(e) || dist(b.x, b.y, e.x, e.y - 5) > e.r + (b.big ? 7 : 4)) continue;
       const sp0 = Math.hypot(b.vx, b.vy) || 1;
-      hurtEnemy(e, b.dmg, { spell: true, knock: { x: (b.vx / sp0) * (b.big ? 120 : 50), y: (b.vy / sp0) * (b.big ? 120 : 50) }, heavy: b.big });
+      hurtEnemy(e, b.dmg, { spell: true, knock: { x: (b.vx / sp0) * (b.big ? 120 : 50), y: (b.vy / sp0) * (b.big ? 120 : 50) }, heavy: b.big, element: b.element });
       Game.hitstop = Math.max(Game.hitstop, T.impact.hitstop * 0.6);
       b.hitIds.push(e);
       if (b.pierce > 0) { b.pierce--; continue; }
@@ -261,11 +304,22 @@ function healPlayer(n) {
 }
 
 // opts: { crit, spell, noProc (an arc of lightning doesn't arc again),
-// knock: { x, y } px/s, heavy (staggers) }
+// knock: { x, y } px/s, heavy (staggers), element }
 function hurtEnemy(e, dmg, opts = {}) {
-  const d = Game.dive, st = d.stats, O = T.onHit;
+  const d = Game.dive, st = d.stats, O = T.onHit, El = T.elements;
   if (e.dead) return;
   if (e.state === 'dazed') dmg *= 1.5;
+  // a heavy blow to the frozen shatters them
+  if (opts.heavy && e.slowT > 0 && opts.element === 'frost') { dmg *= El.shatter; d.fx.push({ kind: 'shatter', x: e.x, y: e.y - 6, t: 0.3, max: 0.3 }); }
+  if (opts.element && !opts.noProc) {
+    if (opts.element === 'shock' && d.rng.chance(El.shockChance)) {
+      const o = nearestEnemy(d, O.shockRange, e, e);
+      if (o) { d.fx.push({ kind: 'arc', x: e.x, y: e.y - 5, x2: o.x, y2: o.y - 5, t: 0.15, max: 0.15 }); hurtEnemy(o, dmg * O.shockMult, { noProc: true }); }
+    }
+    if (opts.element === 'frost') e.slowT = O.chillTime;
+    if (opts.element === 'ember') e.burn = { t: El.burnTime, dps: dmg * El.burn };
+    if (opts.element === 'blight') e.blight = { t: El.blightTime, dps: dmg * El.blight };
+  }
   e.hp -= dmg;
   e.flash = T.enemies.hurtFlash;
   d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit });
@@ -288,6 +342,7 @@ function killEnemy(e) {
   const d = Game.dive, st = d.stats, L = T.loot, rng = d.rng;
   e.dead = true;
   d.kills++;
+  if (e.blight) for (const o of d.enemies) if (!o.dead && o !== e && dist(o.x, o.y, e.x, e.y) < T.elements.blightSpread) o.blight = { t: T.elements.blightTime, dps: e.blight.dps };
   spawnSparks(e.x, e.y - 5, [ENEMY_PAL[T.biomes[d.biome].id].crystal[0], '#ffffff'], e.boss ? 30 : 10);
   if (e.elite === 'volatile') d.fx.push({ kind: 'volatile', x: e.x, y: e.y, t: T.enemies.volatileFuse, max: T.enemies.volatileFuse, dmg: e.dmg * T.enemies.volatileDmg });
   if (st.powers.lodeheart) {
@@ -300,23 +355,41 @@ function killEnemy(e) {
     if (TILE_SOLID[floorTile(d.floor, Math.floor(x / TILE), Math.floor(y / TILE))]) { x = e.x; y = e.y; }
     d.drops.push(Object.assign({ x, y, t: 0 }, thing));
   };
+  // what it was made of: its own part, graded by the biome; elites and the
+  // warden leave more, and now and then a blueprint, an exotic or a relic
+  const grade = d.biome + 1, part = Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
+  const parts = (n) => { if (part) for (let k = 0; k < n; k++) drop({ stuff: partId(part, grade), n: 1 }); };
   const tier = dropTier(d);
   if (e.boss) {
-    for (let k = 0; k < L.bossDrops; k++) drop({ item: rollDrop(rng, tier + 1, level + 2, 'rare') });
+    parts(L.bossParts);
+    drop({ stuff: partId('heart', grade), n: 1 });
+    dropBlueprint(d, drop, true);
     if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
     drop({ exotic: rng.pick(T.exotics).id });
     return;
   }
   if (e.elite) {
-    for (let k = 0; k < L.eliteDrops; k++) drop({ item: rollDrop(rng, tier, level + 1, 'magic') });
+    parts(rng.i(L.eliteParts[0], L.eliteParts[1]));
     if (rng.chance(L.eliteExotic)) drop({ exotic: rng.pick(T.exotics).id });
+    if (rng.chance(L.eliteBlueprint)) dropBlueprint(d, drop);
     if (rng.chance(L.eliteRelic)) drop({ item: makeRelic(tier) });
   } else {
-    if (rng.chance(L.drop)) drop({ item: rollDrop(rng, tier, level) });
+    if (rng.chance(L.part)) parts(rng.chance(L.partTwo) ? 2 : 1);
     if (rng.chance(L.exotic)) drop({ exotic: rng.pick(T.exotics).id });
     if (rng.chance(L.relic)) drop({ item: makeRelic(tier) });
   }
   if (rng.chance(L.mote)) drop({ mote: L.moteHeal });
+}
+
+// A blueprint not yet known (nor already carried), likelier one of this
+// biome's own; when every one is known, an exotic instead.
+function dropBlueprint(d, drop, sure) {
+  const known = new Set(Save.data.blueprints.concat(d.blueprints.map((b) => b.id), d.drops.filter((x) => x.blueprint).map((x) => x.blueprint)));
+  const local = BLUEPRINT_BIOME[T.biomes[d.biome].id].filter((id) => !known.has(id));
+  const any = BP_IDS.filter((id) => !known.has(id));
+  const pool = local.length && (sure || d.rng.chance(0.7)) ? local : any;
+  if (pool.length) drop({ blueprint: d.rng.pick(pool) });
+  else drop({ exotic: d.rng.pick(T.exotics).id });
 }
 
 // The tier of loot on this floor: the biome's lower ore, or its deeper one
@@ -354,8 +427,16 @@ function updatePickups(dt) {
     // a pile of ore: take what fits
     if (dr.stuff) {
       const k = Math.min(room, dr.n);
-      if (k > 0) { d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k; dr.n -= k; UI.toast(`+${k} ${stuffName(dr.stuff)}`); }
+      if (k > 0) { d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k; dr.n -= k; UI.toast(`+${k} ${stuffName(dr.stuff)}`); if (parsePart(dr.stuff)) UI.tip('parts', 'Creature parts bind what you forge: each kind brings its own affixes'); }
       if (dr.n > 0) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } } else dr.gone = true;
+      continue;
+    }
+    if (dr.blueprint) {
+      if (room < 1) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } continue; }
+      d.blueprints.push({ id: dr.blueprint });
+      UI.toast(`Blueprint: ${BLUEPRINTS[dr.blueprint].name}. Bring it home to learn it`, 'legendary');
+      UI.tip('blueprint', 'Blueprints are learned when you get them home. Pocket one to be sure of it');
+      dr.gone = true;
       continue;
     }
     const w = dr.item ? T.cargo.itemWeight : 1;
@@ -374,7 +455,7 @@ function updatePickups(dt) {
 function cargoUsed(d) {
   let n = 0;
   for (const k in d.cargo) n += d.cargo[k];
-  for (const e of d.pocket || []) n += e.item ? T.cargo.itemWeight : e.n;
-  return n + d.items.length * T.cargo.itemWeight;
+  for (const e of d.pocket || []) n += e.item ? T.cargo.itemWeight : e.blueprint ? 1 : e.n;
+  return n + d.items.length * T.cargo.itemWeight + (d.blueprints || []).length;
 }
 function pocketSlots() { return T.cargo.pocket[Math.min(T.cargo.pocket.length, magnitudeOf(Save.data.star)) - 1]; }

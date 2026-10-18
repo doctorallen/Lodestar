@@ -14,12 +14,11 @@ const esc = escapeHtml;
 
 // "12 Ferrite, 2 Voltaic crystal"
 function stuffLines(stash) {
-  const names = T.ores.map((o) => [o.id, o.name]).concat(T.exotics.map((x) => [x.id, x.name]));
-  return names.filter(([id]) => stash[id]).map(([id, name]) => `${stash[id]} ${name}`).join(', ');
+  return stuffIds().filter((id) => stash[id]).map((id) => `${stash[id]} ${stuffName(id)}`).join(', ');
 }
 const exoticName = (id) => T.exotics.find((x) => x.id === id).name;
-const stuffIds = () => T.ores.map((o) => o.id).concat(T.exotics.map((x) => x.id));
-const stuffName = (id) => (ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : exoticName(id));
+const stuffIds = () => T.ores.map((o) => o.id).concat(PART_STACK_IDS, T.exotics.map((x) => x.id));
+const stuffName = (id) => (ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : parsePart(id) ? partName(id) : exoticName(id));
 
 function iconImg(item, cls = 'icon') { return `<img class="${cls}" src="${itemIconUrl(item)}" alt="">`; }
 function itemRow(item, act, arg, tag = '') {
@@ -39,7 +38,7 @@ const UI = {
   openedAt: 0,
   screen: null,
   card: null, // { item, where, key, picking }
-  forge: { ore: null, exotic: null },
+  forge: { bp: null, ore: null, part: null, exotic: null, field: false },
 
   init() {
     for (const s of document.querySelectorAll('.screen')) s.addEventListener('click', (e) => UI.onTap(e));
@@ -194,6 +193,9 @@ function drawReport() {
     text = `From ${where}. ${got ? `Banked ${got}.` : ''}${lost ? ` The dark kept ${lost}.` : ''}`;
   }
   if (r.kept && (r.kept.items.length || Object.keys(r.kept.stuff).length)) text += ` Your pocket kept ${[stuffLines(r.kept.stuff), r.kept.items.map((i) => i.name).join(', ')].filter(Boolean).join(' and ')}.`;
+  const learned = (r.learned || []).concat((r.kept && r.kept.blueprints) || []);
+  if (learned.length) text += ` Learned: ${learned.map((id) => BLUEPRINTS[id].name).join(', ')}.`;
+  if (r.lostBlueprints) text += ` ${r.lostBlueprints} blueprint${r.lostBlueprints > 1 ? 's were' : ' was'} lost with the cargo.`;
   if (r.fed) text += ` The lodeline fed the star ${r.fed}.`;
   if (r.grew) text += ` It grew to magnitude ${r.grew}.`;
   $('report-title').textContent = title;
@@ -214,32 +216,63 @@ function drawDescend() {
 // an ancient forge.
 function forgeSource() { return UI.forge.field && Game.dive ? Game.dive.cargo : Save.data.stash; }
 
+// The kinds of blueprint, in the order the forge lists them.
+const FORGE_GROUPS = [['FIGHTING', 'blade'], ['CASTING', 'focus'], ['ARMOR', 'armor'], ['CHARMS', 'charm'], ['PICKS', 'pick'], ['SPELL CORES', 'core']];
+
+// A stand-in piece for a blueprint, for its icon.
+function bpSample(id, tier = 1) { const bp = BLUEPRINTS[id]; return bp.kind === 'core' ? { kind: 'core', core: bp.core, tier, rarity: 'magic' } : { kind: bp.kind, bp: id, tier, rarity: 'common' }; }
+
 function drawForge() {
-  const stash = forgeSource(), F = UI.forge;
+  const stash = forgeSource(), F = UI.forge, known = Save.data.blueprints;
   $('forge-title').textContent = F.field ? 'AN ANCIENT FORGE' : 'THE FORGE';
-  if (!F.ore || !stash[F.ore]) F.ore = (T.ores.find((o) => stash[o.id]) || T.ores[0]).id;
+  if (!F.bp || !known.includes(F.bp)) F.bp = known[0];
+  const bp = BLUEPRINTS[F.bp];
+  // what this blueprint can be made from, of what's to hand
+  const ores = T.ores.filter((o) => (stash[o.id] || 0) > 0);
+  const parts = PART_STACK_IDS.filter((id) => (stash[id] || 0) > 0 && bindsWith(F.bp, id));
+  const exotics = T.exotics.filter((x) => (stash[x.id] || 0) > 0 && (bp.kind !== 'core'));
+  if (!F.ore || !stash[F.ore]) F.ore = (ores.find((o) => stash[o.id] >= bp.ore) || ores[0] || T.ores[0]).id;
+  if (!F.part || !parts.includes(F.part)) F.part = parts.find((id) => stash[id] >= bp.parts) || parts[0] || null;
   if (F.exotic && !stash[F.exotic]) F.exotic = null;
-  const ore = T.ores[ORE_INDEX[F.ore]], have = stash[F.ore] || 0;
-  const chips = T.ores.filter((o) => stash[o.id]).map((o) => `<button class="chip ${o.id === F.ore ? 'on' : ''}" data-act="forgeOre" data-arg="${o.id}">${esc(o.name)} ${stash[o.id]}</button>`).join('') || `<span class="note">${F.field ? 'No ore in your cargo.' : 'No ore banked yet. Mine some and bring it home.'}</span>`;
-  const ex = T.exotics.filter((x) => stash[x.id]).map((x) => `<button class="chip ${x.id === F.exotic ? 'on' : ''}" data-act="forgeExotic" data-arg="${x.id}">${esc(x.name)} ${stash[x.id]}</button>`).join('');
-  const recipe = (kind, label, cost, sub) => `<button class="row recipe" data-act="craft" data-arg="${kind}" ${have >= cost ? '' : 'disabled'}><span class="row-text"><span class="row-name">${label}</span><span class="row-sub">${sub}</span></span><span class="cost">${cost}</span></button>`;
-  const breaks = T.ores.find((o) => o.tier === ore.tier + 1);
+  const ore = T.ores[ORE_INDEX[F.ore]], haveOre = stash[F.ore] || 0, haveParts = F.part ? stash[F.part] || 0 : 0;
+  const ready = haveOre >= bp.ore && haveParts >= bp.parts;
+
+  const order = FORGE_GROUPS.map(([, kind]) => kind);
+  const ids = known.slice().sort((a, b) => order.indexOf(BLUEPRINTS[a].kind) - order.indexOf(BLUEPRINTS[b].kind));
+  const list = `<h3>BLUEPRINTS · ${known.length} OF ${BP_IDS.length} KNOWN</h3><div class="bp-grid">${ids.map((id) => `<button class="bp ${id === F.bp ? 'on' : ''}" data-act="forgeBp" data-arg="${id}"><img class="icon" src="${itemIconUrl(bpSample(id, ore.tier))}" alt=""><span>${esc(BLUEPRINTS[id].name)}</span></button>`).join('')}</div>`;
+  const chip = (act, id, label, on, ok = true) => `<button class="chip ${on ? 'on' : ''}" data-act="${act}" data-arg="${id}" ${ok ? '' : 'disabled'}>${label}</button>`;
+  const oreChips = ores.map((o) => chip('forgeOre', o.id, `${esc(o.name)} ${stash[o.id]}`, o.id === F.ore, stash[o.id] >= bp.ore)).join('') || `<span class="note">${F.field ? 'No ore in your cargo.' : 'No ore banked. Mine some and bring it home.'}</span>`;
+  const partChips = parts.map((id) => { const pk = parsePart(id), fam = PARTS[pk.kind].family; return chip('forgePart', id, `${esc(partName(id))} ${stash[id]}<small>${fam ? fam : 'any'}</small>`, id === F.part, stash[id] >= bp.parts); }).join('')
+    || `<span class="note">No ${bp.partKinds ? bp.partKinds.map((k) => PARTS[k].name).join(' or ') : 'creature parts'} ${F.field ? 'in your cargo' : 'banked'}. Creatures leave them when they fall.</span>`;
+  const exChips = exotics.map((x) => chip('forgeExotic', x.id, `${esc(x.name)} ${stash[x.id]}`, x.id === F.exotic)).join('');
+
+  // what these parts guarantee
+  const pk = F.part && parsePart(F.part), ex = F.exotic && T.exotics.find((e) => e.id === F.exotic);
+  const lines = [];
+  if (bp.kind === 'core') lines.push(`A tier ${ore.tier} ${esc(bp.name)} core (tier ${Math.min(6, ore.tier + 1)} from a fine forge). ${esc(CORES[bp.core].text)}.`);
+  else {
+    const b = baseStats(bp.kind, ore.tier, bp), base = itemBaseLine({ kind: bp.kind, base: b, tier: ore.tier });
+    lines.push(`A tier ${ore.tier} ${esc(bp.name.toLowerCase())}: ${esc(base)}.`);
+    if (bp.text) lines.push(esc(bp.text));
+    if (pk && PARTS[pk.kind].family) lines.push(`Bound with ${esc(partName(F.part).toLowerCase())}: ${pk.grade} ${PARTS[pk.kind].family} affix${pk.grade > 1 ? 'es' : ''} for sure${pk.grade > 1 ? `, ${Math.round(T.items.gradeBoost * (pk.grade - 1) * 100)}% stronger` : ''}.`);
+    if (pk && pk.kind === 'heart') lines.push('A heart: a fine forge or better comes out legendary.');
+    if (ex && ex.element && (bp.kind === 'blade' || bp.kind === 'focus')) lines.push(`${esc(ex.name)}: ${esc(ELEMENTS[ex.element].name.toLowerCase())}. ${esc(ELEMENTS[ex.element].text)}.`);
+    else if (ex && ex.family) lines.push(`${esc(ex.name)}: a ${ex.family} affix for sure.`);
+    else if (ex && ex.rarity) lines.push(`${esc(ex.name)}: a rarity higher.`);
+    else if (ex) lines.push(`${esc(ex.name)} does nothing for a ${esc(bp.name.toLowerCase())}.`);
+    lines.push('The rest is in your strikes: rough, fair, fine or masterwork.');
+  }
   $('forge-body').innerHTML = `
-    <div class="chips">${chips}</div>
-    ${ex ? `<h3>ADD AN EXOTIC</h3><div class="chips">${ex}</div><p class="note">${F.exotic ? exoticHint(F.exotic) : 'Tap one to work it into the next piece.'}</p>` : ''}
-    <h3>GEAR, IN ${esc(ore.name.toUpperCase())}</h3>
-    ${recipe('blade', 'Blade', craftCost('blade'), 'Melee. Swings at what is in front of you.')}
-    ${recipe('focus', 'Focus', craftCost('focus'), 'Magic. Casts the cores socketed in it.')}
-    ${recipe('armor', 'Plate', craftCost('armor'), 'Armor and health.')}
-    ${recipe('charm', 'Charm', craftCost('charm'), 'Affixes of any kind.')}
-    ${recipe('pick', `${esc(ore.name)} Pick`, craftCost('pick'), breaks ? `Breaks up to ${esc(breaks.name)}.` : 'The finest pick there is.')}
-    <h3>SPELL CORES</h3>
-    ${CORE_IDS.map((c) => recipe('core:' + c, CORES[c].name, craftCost('core'), esc(CORES[c].text) + '.')).join('')}
-    <p class="note">Every piece rolls its own affixes. Strike the anvil well and the odds of a rare one rise.${F.field ? ' What you forge here goes in your cargo.' : ''}</p>`;
-}
-function exoticHint(id) {
-  const x = T.exotics.find((e) => e.id === id);
-  return x.family ? `${esc(x.name)}: the piece is sure to roll a ${x.family} affix.` : `${esc(x.name)}: the piece comes out a rarity higher.`;
+    <div class="recipe-panel">
+      <div class="card-head"><img class="icon big" src="${itemIconUrl(bpSample(F.bp, ore.tier))}" alt=""><div class="grow"><div class="card-name">${esc(bp.name)}</div><div class="row-sub">${bp.ore} ore · ${bp.parts} part${bp.parts > 1 ? 's' : ''}${bp.kind !== 'core' ? ' · an exotic if you like' : ''}</div></div></div>
+      <h3>HEAD · ${bp.ore} ORE</h3><div class="chips">${oreChips}</div>
+      <h3>BINDING · ${bp.parts} PART${bp.parts > 1 ? 'S' : ''}</h3><div class="chips">${partChips}</div>
+      ${exChips ? `<h3>EXOTIC · OPTIONAL</h3><div class="chips">${exChips}</div>` : ''}
+      <div class="preview">${lines.map((l) => `<p>${l}</p>`).join('')}</div>
+      <div class="menu"><button class="btn primary" data-act="craft" ${ready ? '' : 'disabled'}>FORGE</button></div>
+      ${F.field ? '<p class="note">What you forge here goes in your cargo.</p>' : ''}
+    </div>
+    ${list}`;
 }
 
 function drawGear() {
@@ -292,14 +325,15 @@ function drawCargo() {
   if (!d) return;
   const items = d.items.map((it) => itemRow(it, 'cardCargo', it.uid, compareTag(it, Save.data.equip))).join('');
   const worn = SLOTS.filter((k) => Save.data.equip[k]).map((k) => itemRow(Save.data.equip[k], 'cardWorn', k, `<span class="slot">${SLOT_NAMES[k]}</span>`)).join('');
-  const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${ORE_INDEX[id] !== undefined ? 'Ore' : 'Exotic material'} · weighs ${d.cargo[id]}</span></span></button>`).join('');
-  const slots = pocketSlots(), pocket = d.pocket.map((e, i) => `<div class="row static">${e.item ? iconImg(e.item) : `<img class="icon" src="${stuffIconUrl(e.stuff)}" alt="">`}<span class="row-text"><span class="row-name ${e.item ? 'r-' + e.item.rarity : ''}">${esc(e.item ? e.item.name : `${stuffName(e.stuff)} × ${e.n}`)}</span><span class="row-sub">In the pocket</span></span><button class="mini" data-act="unpocket" data-arg="${i}">TAKE OUT</button></div>`).join('');
+  const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${ORE_INDEX[id] !== undefined ? 'Ore' : parsePart(id) ? 'Creature part' : 'Exotic material'} · weighs ${d.cargo[id]}</span></span></button>`).join('');
+  const slots = pocketSlots(), pocket = d.pocket.map((e, i) => `<div class="row static">${e.item ? iconImg(e.item) : e.blueprint ? `<img class="icon" src="${itemIconUrl(bpSample(e.blueprint))}" alt="">` : `<img class="icon" src="${stuffIconUrl(e.stuff)}" alt="">`}<span class="row-text"><span class="row-name ${e.item ? 'r-' + e.item.rarity : e.blueprint ? 'r-legendary' : ''}">${esc(e.item ? e.item.name : e.blueprint ? 'Blueprint: ' + BLUEPRINTS[e.blueprint].name : `${stuffName(e.stuff)} × ${e.n}`)}</span><span class="row-sub">In the pocket</span></span><button class="mini" data-act="unpocket" data-arg="${i}">TAKE OUT</button></div>`).join('');
   $('cargo-body').innerHTML = `
     <div class="mag">CARGO ${cargoUsed(d)}/${d.stats.cargo}</div>
     <h3>POCKET · ${d.pocket.length}/${slots}</h3>
     ${pocket || '<p class="note">Empty. Whatever you pocket comes home even if you fall: tap something below to pocket it.</p>'}
     <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">No ore yet.</p>'}
-    <h3>FOUND</h3>${items || '<p class="note">No gear yet.</p>'}
+    ${d.blueprints.length ? `<h3>BLUEPRINTS · LEARNED WHEN YOU GET HOME</h3>${d.blueprints.map((b, i) => `<div class="row static"><img class="icon" src="${itemIconUrl(bpSample(b.id))}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint · weighs 1</span></span>${d.pocket.length < pocketSlots() ? `<button class="mini" data-act="pocketBp" data-arg="${i}">POCKET</button>` : ''}</div>`).join('')}` : ''}
+    <h3>FOUND</h3>${items || '<p class="note">Nothing forged or found yet.</p>'}
     <h3>WORN</h3>${worn}
     <p class="note">What you wear and what's in your pocket are safe. The rest of the cargo is lost if you fall.</p>
     <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL · LOSE ${Math.round(recallCost(d) * 100)}%</button></div>`;
@@ -366,6 +400,7 @@ function drawCard() {
   $('card-body').innerHTML = `
     <div class="card-head">${iconImg(it, 'icon big')}<div class="grow"><div class="card-name r-${it.rarity}">${esc(it.name)} ${cmp}</div><div class="row-sub">${esc(itemKindLine(it))}</div></div>${favBtn}</div>
     <p class="base">${esc(itemBaseLine(it))}</p>
+    ${itemNotes(it).map((n) => `<p class="note">${esc(n)}</p>`).join('')}
     ${affixes ? `<ul class="affixes">${affixes}</ul>` : ''}
     ${extra}${runeNote}
     <div class="menu">${acts.join('')}<button class="btn" data-act="closeCard">BACK</button></div>`;
@@ -373,11 +408,12 @@ function drawCard() {
 
 // Ore or an exotic in the cargo: how much, and dropping some.
 function drawStuffCard(id) {
-  const n = (Game.dive && Game.dive.cargo[id]) || 0, x = T.exotics.find((e) => e.id === id);
-  const what = x ? (x.family ? `Worked into a piece at the forge, it's sure to roll a ${x.family} affix.` : 'Worked into a piece at the forge, it comes out a rarity higher.')
+  const n = (Game.dive && Game.dive.cargo[id]) || 0, x = T.exotics.find((e) => e.id === id), pk = parsePart(id);
+  const what = x ? (x.element ? `Worked into a weapon or focus at the forge, it carries ${ELEMENTS[x.element].name.toLowerCase()}: ${ELEMENTS[x.element].text.toLowerCase()}.` : x.family ? `Worked into a piece at the forge, it's sure to roll a ${x.family} affix.` : 'Worked into a piece at the forge, it comes out a rarity higher.')
+    : pk ? (PARTS[pk.kind].family ? `A creature part. It binds a forged piece with ${pk.grade} ${PARTS[pk.kind].family} affix${pk.grade > 1 ? 'es' : ''}.` : 'A heart. It binds anything, and a fine forge with it comes out legendary.')
     : `Tier ${T.ores[ORE_INDEX[id]].tier} ore, worth ${orePoints(id)} to the star.`;
   $('card-body').innerHTML = `
-    <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${x ? 'Exotic material' : 'Ore'} · in your cargo</div></div></div>
+    <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${x ? 'Exotic material' : pk ? 'Creature part' : 'Ore'} · in your cargo</div></div></div>
     <p class="base">${esc(what)}</p>
     <div class="menu">
       ${n && Game.dive.pocket.length < pocketSlots() ? `<button class="btn" data-act="pocket" data-arg="${T.cargo.pocketStack}">POCKET ${Math.min(n, T.cargo.pocketStack)} (SAFE IF YOU FALL)</button>` : ''}
@@ -426,7 +462,14 @@ UI.acts = {
     const d = Game.dive, e = d.pocket[Number(i)];
     if (!e) return;
     d.pocket.splice(Number(i), 1);
-    if (e.item) d.items.push(e.item); else d.cargo[e.stuff] = (d.cargo[e.stuff] || 0) + e.n;
+    if (e.item) d.items.push(e.item); else if (e.blueprint) d.blueprints.push({ id: e.blueprint }); else d.cargo[e.stuff] = (d.cargo[e.stuff] || 0) + e.n;
+    UI.redraw();
+  },
+  pocketBp: (i) => {
+    const d = Game.dive, b = d.blueprints[Number(i)];
+    if (!b || d.pocket.length >= pocketSlots()) return;
+    d.blueprints.splice(Number(i), 1);
+    d.pocket.push({ blueprint: b.id });
     UI.redraw();
   },
   closeCard: () => { UI.closeCard(); UI.redraw(); },
@@ -447,17 +490,19 @@ UI.acts = {
 
   forgeOre: (id) => { UI.forge.ore = id; UI.redraw(); },
   forgeExotic: (id) => { UI.forge.exotic = UI.forge.exotic === id ? null : id; UI.redraw(); },
-  craft: (what) => {
-    const F = UI.forge, src = forgeSource();
-    const [kind, core] = what.split(':');
-    if ((src[F.ore] || 0) < craftCost(kind)) return;
-    src[F.ore] -= craftCost(kind);
-    if (!src[F.ore]) delete src[F.ore];
+  forgeBp: (id) => { UI.forge.bp = id; UI.forge.part = null; UI.redraw(); },
+  forgePart: (id) => { UI.forge.part = id; UI.redraw(); },
+  craft: () => {
+    const F = UI.forge, src = forgeSource(), bp = BLUEPRINTS[F.bp];
+    if ((src[F.ore] || 0) < bp.ore || !F.part || (src[F.part] || 0) < bp.parts) return;
+    const take = (id, n) => { src[id] -= n; if (!src[id]) delete src[id]; };
+    take(F.ore, bp.ore);
+    take(F.part, bp.parts);
     let exotic = null;
-    if (kind !== 'core' && F.exotic && (src[F.exotic] || 0) > 0) { exotic = F.exotic; src[F.exotic]--; if (!src[F.exotic]) delete src[F.exotic]; }
+    if (bp.kind !== 'core' && F.exotic && (src[F.exotic] || 0) > 0) { exotic = F.exotic; take(F.exotic, 1); }
     F.exotic = null;
     if (!F.field) Save.save();
-    Anvil.start({ kind, core: kind === 'core' ? core : null, ore: F.ore, exotic, field: !!F.field });
+    Anvil.start({ bp: F.bp, ore: F.ore, part: F.part, exotic, field: !!F.field });
   },
   equip: (slot) => {
     const c = UI.card, it = c.item, eq = Save.data.equip;
@@ -490,12 +535,13 @@ UI.acts = {
     for (const core of it.sockets || []) if (core) list.push(core);
     removeFrom(list, it);
     s[y.ore] = (s[y.ore] || 0) + y.n;
+    if (y.part) s[y.part] = (s[y.part] || 0) + 1;
     if (y.exotic) s[y.exotic] = (s[y.exotic] || 0) + 1;
     if (field) {
       const d = Game.dive, over = cargoUsed(d) - d.stats.cargo;
       if (over > 0) { const k = Math.min(over, s[y.ore]); s[y.ore] -= k; if (!s[y.ore]) delete s[y.ore]; d.drops.push({ x: d.p.x, y: d.p.y, t: 0, stuff: y.ore, n: k, warned: true }); }
     }
-    UI.toast(`+${y.n} ${T.ores[ORE_INDEX[y.ore]].name}${y.exotic ? `, +1 ${exoticName(y.exotic)}` : ''}`);
+    UI.toast(`+${y.n} ${T.ores[ORE_INDEX[y.ore]].name}${y.part ? `, +1 ${partName(y.part)}` : ''}${y.exotic ? `, +1 ${exoticName(y.exotic)}` : ''}`);
     UI.closeCard();
     afterChange();
   },
@@ -521,6 +567,7 @@ UI.acts = {
       for (const core of it.sockets || []) if (core) Save.data.items.push(core);
       removeFrom(Save.data.items, it);
       s[y.ore] = (s[y.ore] || 0) + y.n; got[y.ore] = (got[y.ore] || 0) + y.n;
+      if (y.part) { s[y.part] = (s[y.part] || 0) + 1; got[y.part] = (got[y.part] || 0) + 1; }
       if (y.exotic) { s[y.exotic] = (s[y.exotic] || 0) + 1; got[y.exotic] = (got[y.exotic] || 0) + 1; }
     }
     UI.toast('Salvaged for ' + stuffLines(got));

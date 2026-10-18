@@ -22,7 +22,7 @@ const ANVIL_ROWS = [
 ];
 
 const Anvil = {
-  job: null, // { kind, core, ore, exotic, field, rng, k, t, strikes, zone, ... }
+  job: null, // { bp, ore, part, exotic, field, rng, k, t, strikes, zone, ... }
   sprite: null,
 
   start(job) {
@@ -33,7 +33,7 @@ const Anvil = {
     this.job = job;
     UI.show('screen-anvil');
     setTextIfChanged('anvil-call', 'Tap to strike when the marker crosses the glow');
-    setTextIfChanged('anvil-what', `${job.core ? CORES[job.core].name : KIND_NAMES[job.kind]} in ${T.ores[ORE_INDEX[job.ore]].name}${job.exotic ? ' and ' + exoticName(job.exotic) : ''}`);
+    setTextIfChanged('anvil-what', `${BLUEPRINTS[job.bp].name} in ${T.ores[ORE_INDEX[job.ore]].name}, bound with ${partName(job.part).toLowerCase()}${job.exotic ? ', with ' + exoticName(job.exotic).toLowerCase() : ''}`);
     this.draw();
   },
 
@@ -83,10 +83,8 @@ const Anvil = {
   // Makes the piece and shows it off. Also how the autopilot forges: q is
   // the quality to forge at, without the strikes.
   finish(q = this.quality()) {
-    const j = this.job, tier = T.ores[ORE_INDEX[j.ore]].tier;
-    let item;
-    if (j.core) item = makeCore(j.rng, j.core, Math.min(T.ores.length, tier + (q >= 2 ? 1 : 0)));
-    else item = forgeItem(j.rng, j.kind, j.ore, j.exotic, q);
+    const j = this.job;
+    const item = forgeItem(j.rng, j.bp, j.ore, j.part, j.exotic, q);
     this.job = null;
     if (j.field) Game.dive.items.push(item);
     else { Save.data.items.push(item); Save.save(); }

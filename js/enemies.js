@@ -124,6 +124,17 @@ function updateEnemies(dt) {
     if (e.dead) continue;
     e.flash = Math.max(0, e.flash - dt);
     e.slowT = Math.max(0, e.slowT - dt);
+    // burning and blight eat at them, a number now and then
+    for (const k of ['burn', 'blight']) {
+      const dot = e[k];
+      if (!dot) continue;
+      dot.t -= dt; e.hp -= dot.dps * dt; dot.tick = (dot.tick || 0) - dt;
+      if (dot.tick <= 0) { dot.tick = 0.5; d.nums.push({ x: e.x, y: e.y - 16, v: Math.max(1, Math.round(dot.dps * 0.5)), t: 0.5, elem: k }); }
+      if (dot.t <= 0) e[k] = null;
+      if (e.hp <= 0 && e.type !== 'dummy') { killEnemy(e); break; }
+      if (e.type === 'dummy' && e.hp <= 0) e.hp = e.maxHp;
+    }
+    if (e.dead) continue;
     e.cd = Math.max(0, e.cd - dt);
     e.bob += dt;
     // knocked back

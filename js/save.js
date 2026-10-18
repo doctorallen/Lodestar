@@ -1,8 +1,9 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// The save, kept in localStorage: what's banked at the Lodestar (ore and
-// exotics in stash, gear in items), what's worn, the star's points, the
-// attunements, and the deepest floor reached in each biome. A dive in
+// The save, kept in localStorage: what's banked at the Lodestar (ore,
+// parts and exotics in stash, gear in items), what's worn, the blueprints
+// known, the star's points, the attunements, and the deepest floor reached
+// in each biome. A dive in
 // progress isn't saved; leaving mid-dive loses it.
 // ---------------------------------------------------------------------------
 
@@ -16,6 +17,7 @@ const Save = {
       v: 3, uid: 100, crafts: 0, dives: 0, star: 0,
       stash: {}, items: [], equip: startingGear(rng),
       attune: {}, deepest: {}, tips: {}, settings: { haptics: true },
+      blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start),
     };
   },
   load() {

@@ -375,7 +375,7 @@ function renderFrame() {
     else drawEnemy(d, a, ox, oy, tick, lights);
   }
   for (const b of d.bolts) {
-    const col = b.kind === 'bolt' ? ART.cores.bolt : '#e8f4ff';
+    const col = b.element ? ELEMENT_COLS[b.element] : b.kind === 'bolt' ? ART.cores.bolt : '#e8f4ff';
     dot(Math.round(b.x + ox - b.vx * 0.012), Math.round(b.y + oy - b.vy * 0.012), col, true, 0.5);
     const pts = b.big ? [[0, -1], [-1, 0], [0, 0], [1, 0], [0, 1], [-1, -1], [1, 1], [1, -1], [-1, 1], [2, 0], [-2, 0], [0, 2], [0, -2]] : [[0, 0], [1, 0], [0, 1], [1, 1]];
     for (const [i, j] of pts) dot(Math.round(b.x + ox) + i - (b.big ? 0 : 1), Math.round(b.y + oy) + j - (b.big ? 0 : 1), i === 0 && j === 0 && b.big ? '#ffffff' : col, true);
@@ -429,7 +429,7 @@ function renderFrame() {
     for (let i = 0; i < n * k; i++) { const a = -Math.PI / 2 + (i / n) * Math.PI * 2; dot(Math.round(fx + Math.cos(a) * 12), Math.round(fy - 8 + Math.sin(a) * 9), col, true); }
     lights.push({ x: fx, y: fy - 8, r: TILE * (1.5 + k * 2), i: 0.6 + k, c: rgb01(col) });
   }
-  addLight(lx, fx, fy - 17, Lt.lamp[0] * TILE * lamp, Lt.lamp[1] * lamp, rgb01(ART.pal.lamp[0]));
+  addLight(lx, fx, fy - 17, Lt.lamp[0] * TILE * lamp * (1 + (d.stats.lamp || 0) / 100), Lt.lamp[1] * lamp, rgb01(ART.pal.lamp[0]));
   lightScene(camX, camY);
   bloomScene();
 
@@ -447,7 +447,7 @@ function renderFrame() {
     x.fillStyle = '#000'; x.fillRect(bx - 1, 5, w + 2, 4);
     x.fillStyle = '#c04040'; x.fillRect(bx, 6, Math.round((w * boss.hp) / boss.maxHp), 2);
   }
-  for (const n of d.nums) drawNumber(n.v, Math.round(n.x + ox), Math.round(n.y + oy), n.hurt ? '#ff6a5a' : n.crit ? '#ffd34d' : '#f4ecd8', Math.min(1, n.t * 3));
+  for (const n of d.nums) drawNumber(n.v, Math.round(n.x + ox), Math.round(n.y + oy), n.hurt ? '#ff6a5a' : n.elem ? ELEMENT_COLS[n.elem] : n.crit ? '#ffd34d' : '#f4ecd8', Math.min(1, n.t * 3));
   if (d.target) {
     const tx = d.target.tx * TILE + ox, ty = d.target.ty * TILE + oy;
     x.fillStyle = Input.mining() ? '#fff2c8' : 'rgba(255,242,200,0.5)';
@@ -463,6 +463,7 @@ function renderFrame() {
 // The people in it
 // ---------------------------------------------------------------------------
 const ELITE_COLS = { fast: '#7fe8ff', tough: '#ffd34d', volatile: '#ff5a3a' };
+const ELEMENT_COLS = { shock: '#7fe8ff', frost: '#c8f0ff', ember: '#ff8a3a', blight: '#9ad04a' };
 // Which flora piece each biome's fighting plants look like.
 const PLANT_LOOKS = {
   rim: { snapjaw: 'Pitcher', spitter: 'Puffballs' },
@@ -592,16 +593,39 @@ function drawHeld(d, spr, sx, sy, tick, lights, which) {
       }
       lights.push({ x: hand.x + Math.cos(a) * 8, y: hand.y + Math.sin(a) * 7, r: TILE * 1.2, i: 0.6, c: rgb01(ramp[3]) });
     } else a = face + (slot === 'main' ? 1 : -1) * 1.1 + Math.sin(Game.realT * 2) * 0.05;
-    const c = Math.cos(a), sn = Math.sin(a);
-    // the grip and guard, then the blade, its edge catching the light
-    dot(Math.round(hand.x - c), Math.round(hand.y - sn), ART.pal.leather[2]);
-    for (const g of [-2, -1, 1, 2]) dot(Math.round(hand.x + c * 1.5 - sn * g * 0.8), Math.round(hand.y + sn * 1.5 + c * g * 0.8), ART.pal.metal[3]);
+    const c = Math.cos(a), sn = Math.sin(a), style = (bpOf(it) || {}).style || 'blade';
     const glow = it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'rare';
-    for (let r = 2; r <= len; r++) {
-      const x = Math.round(hand.x + c * r), y = Math.round(hand.y + sn * r * 0.85);
-      dot(x, y, r === len ? ramp[3] : ramp[2], glow && r > len - 3, glow && r > len - 3 ? 0.9 : 1);
-      dot(Math.round(x - sn), Math.round(y + c), ramp[1]);
+    const elem = it.element ? ELEMENT_COLS[it.element] : null;
+    const at = (r, side = 0) => ({ x: Math.round(hand.x + c * r - sn * side), y: Math.round(hand.y + (sn * r + c * side) * 0.85) });
+    if (style === 'spear') {
+      // a long shaft, a narrow head
+      for (let r = -3; r <= len + 4; r++) { const q = at(r); dot(q.x, q.y, r > len ? ramp[3] : r > len - 4 ? ramp[2] : ART.pal.wood[2], (glow || elem) && r > len, 1); }
+      const tip = at(len + 1, 1); dot(tip.x, tip.y, ramp[1]);
+    } else if (style === 'hammer') {
+      // a haft, and a heavy head across it
+      for (let r = -1; r <= len - 3; r++) { const q = at(r); dot(q.x, q.y, ART.pal.wood[2]); }
+      for (let r = len - 4; r <= len; r++) for (const side of [-2, -1, 0, 1, 2]) { const q = at(r, side); dot(q.x, q.y, side === -2 || r === len ? ramp[3] : ramp[1 + (r + side) % 2]); }
+      if (elem || glow) { const q = at(len - 2); dot(q.x, q.y, elem || ramp[3], true); }
+    } else if (style === 'whip') {
+      // a grip, then a chain curling out to a blade tip
+      dot(Math.round(hand.x - c), Math.round(hand.y - sn), ART.pal.leather[2]);
+      const reach = sw ? 18 : 9;
+      for (let r = 1; r <= reach; r++) {
+        const curl = Math.sin(r * 0.5 + Game.realT * (sw ? 20 : 3)) * (sw ? 1 : 2.5) * (r / reach), q = at(r, curl);
+        dot(q.x, q.y, r % 2 ? ramp[2] : ramp[1]);
+      }
+      const tip = at(reach + 1); dot(tip.x, tip.y, elem || ramp[3], !!elem || glow);
+    } else {
+      // the grip and guard, then the blade, its edge catching the light
+      dot(Math.round(hand.x - c), Math.round(hand.y - sn), ART.pal.leather[2]);
+      for (const g of [-2, -1, 1, 2]) dot(Math.round(hand.x + c * 1.5 - sn * g * 0.8), Math.round(hand.y + sn * 1.5 + c * g * 0.8), ART.pal.metal[3]);
+      for (let r = 2; r <= len; r++) {
+        const x = Math.round(hand.x + c * r), y = Math.round(hand.y + sn * r * 0.85), lit = (glow || elem) && r > len - 3;
+        dot(x, y, r === len ? ramp[3] : elem && r > len - 3 ? elem : ramp[2], lit, lit ? 0.9 : 1);
+        dot(Math.round(x - sn), Math.round(y + c), ramp[1]);
+      }
     }
+    if (elem) lights.push({ x: hand.x + c * len * 0.7, y: hand.y + sn * len * 0.6, r: TILE * 0.8, i: 0.35, c: rgb01(elem) });
   }
 }
 
@@ -651,13 +675,16 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   // an elite wears a pip of its affix's colour; a chilled one, a pale one
   if (e.elite) for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, sy - 3 + j, ELITE_COLS[e.elite], true);
   if (e.slowT > 0) dot(fx + 3, sy - 2, '#c8f0ff', true);
+  if (e.burn && tick % 2) dot(fx + FX_R.i(-4, 4), fy - FX_R.i(2, 12), ELEMENT_COLS.ember, true);
+  if (e.blight && tick % 3 === 0) dot(fx + FX_R.i(-4, 4), fy - FX_R.i(0, 8), ELEMENT_COLS.blight, true);
 }
 
 function drawDrop(dr, ox, oy, lights) {
   const fx = Math.round(dr.x + ox), fy = Math.round(dr.y + oy) - 3 - Math.round(Math.sin(dr.t * 3 + dr.x) * 1.2);
   let col;
   if (dr.mote) col = '#c8ffd8';
-  else if (dr.stuff) col = ART.ores[dr.stuff] ? ART.ores[dr.stuff][2] : ART.exotics[dr.stuff];
+  else if (dr.stuff) { const pk = parsePart(dr.stuff); col = ART.ores[dr.stuff] ? ART.ores[dr.stuff][2] : pk ? ART.parts[pk.kind] : ART.exotics[dr.stuff]; }
+  else if (dr.blueprint) col = ART.rarity.legendary;
   else if (dr.exotic) col = ART.exotics[dr.exotic];
   else col = ART.rarity[dr.item.rarity] || '#ffffff';
   if (dr.mote) { for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, fy + j, col, true); }
@@ -669,7 +696,7 @@ function drawDrop(dr, ox, oy, lights) {
     for (const [i, j] of [[0, -2], [-1, -1], [0, -1], [1, -1], [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [0, 2]]) dot(fx + i, fy + j, (i || j) ? col : '#ffffff', true);
     // the best of it stands up in a beam, so it's seen from across a room
     const it = dr.item;
-    if (it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'relic'))
+    if (dr.blueprint || (it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'relic')))
       for (let k = 3; k < 18; k++) dot(fx, fy - k, col, true, 0.7 * (1 - k / 18));
   }
   lights.push({ x: fx, y: fy, r: TILE, i: 0.5, c: rgb01(col) });
@@ -709,6 +736,8 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
       const b = a0 + side * (0.6 - s2 * 0.1) * k;
       dot(Math.round(cx + Math.cos(b) * r * s2 / 6), Math.round(cy + Math.sin(b) * r * s2 / 6), PLANT_GLOW, true, k);
     }
+  } else if (fx.kind === 'shatter') {
+    for (let n = 0; n < 8; n++) { const a2 = n * 0.8, r = (1 - k) * 12; dot(Math.round(cx + Math.cos(a2) * r), Math.round(cy + Math.sin(a2) * r), '#e8f8ff', true, k); }
   } else if (fx.kind === 'mote') {
     // ore fed to the star, rising from the altar into it
     const t = 1 - k, sx = STAR_AT.x * TILE + ox, sy = STAR_AT.y * TILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * (1 - t);

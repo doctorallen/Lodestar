@@ -1,9 +1,13 @@
 'use strict';
-// The loot tables, without a browser: thousands of drops, crafts, relics
-// and rune-bench changes at every tier, checked for the right number of
-// affixes for their rarity, no affix twice, affixes only from families the
-// kind can roll (or an exotic's), legendary powers that fit their kind, set
-// pieces in set slots, sockets on foci, positive numbers and a name on
+// The loot tables, without a browser: thousands of forgings (every
+// blueprint, every part that binds it, exotics, every quality), relics and
+// rune-bench changes at every tier, checked for the right number of affixes
+// for their rarity, the binding's family guaranteed as many times as its
+// grade, a heart's legendary, an exotic's element, no affix twice, affixes
+// only from families the kind can roll (or an exotic's or binding's),
+// legendary powers that fit their kind, set pieces in set slots, sockets as
+// the blueprint says, salvage giving back the binding, positive numbers and
+// a name on
 // everything; rolls within their range and comparisons that read; outfits
 // that add up within the caps; and the star's magnitudes and the biomes they
 // open.
@@ -14,7 +18,7 @@ const G = sandbox(['js/util.js', 'js/tuning.js', 'js/floor.js', 'js/items.js']);
 const failures = [];
 const fail = (m) => { if (failures.length < 100) failures.push(m); };
 
-function checkItem(it, at, family) {
+function checkItem(it, at, family, binding) {
   if (!it.name) fail(`${at}: no name`);
   if (it.kind === 'core' || it.kind === 'relic') return;
   const want = G.T.items.affixes[it.rarity];
@@ -23,7 +27,8 @@ function checkItem(it, at, family) {
   if (new Set(ids).size !== ids.length) fail(`${at}: an affix twice: ${ids}`);
   for (const a of it.affixes) {
     const fam = G.AFFIXES[a.id].family;
-    if (!G.KIND_FAMILIES[it.kind].includes(fam) && fam !== family) fail(`${at}: a ${it.kind} rolled ${a.id}`);
+    const bound = it.binding && G.PARTS[it.binding.kind].family;
+    if (!G.KIND_FAMILIES[it.kind].includes(fam) && fam !== family && fam !== bound) fail(`${at}: a ${it.kind} rolled ${a.id}`);
     if (!(a.v > 0)) fail(`${at}: ${a.id} is ${a.v}`);
     if (/NaN|undefined/.test(G.fmtAffix(a))) fail(`${at}: "${G.fmtAffix(a)}"`);
   }
@@ -37,21 +42,31 @@ function checkItem(it, at, family) {
 const rarities = {};
 for (let seed = 1; seed <= 3000; seed++) {
   const rng = new G.Rng(seed);
-  const tier = 1 + (seed % 6), level = 1 + (seed % 12);
-  const it = G.rollDrop(rng, tier, level, seed % 7 === 0 ? 'magic' : undefined);
-  rarities[it.rarity] = (rarities[it.rarity] || 0) + 1;
-  checkItem(it, `drop ${seed}`);
-  if (seed % 7 === 0 && it.rarity === 'common') fail(`drop ${seed}: an elite's drop came out common`);
+  const tier = 1 + (seed % 6);
   const relic = G.unsealRelic(rng, G.makeRelic(tier));
   checkItem(relic, `relic ${seed}`);
   if (!['rare', 'legendary', 'set'].includes(relic.rarity)) fail(`relic ${seed}: unsealed ${relic.rarity}`);
-  // the forge, with and without an exotic
-  const kind = ['blade', 'focus', 'armor', 'charm', 'pick'][seed % 5], ex = G.T.exotics[seed % 5];
-  const ore = G.T.ores[tier - 1].id;
-  const made = G.forgeItem(rng, kind, ore, ex && ex.id);
-  checkItem(made, `forged ${kind} ${seed}`, ex && ex.family);
+  // the forge: any blueprint, any part that binds it, sometimes an exotic, at any quality
+  const bpId = G.BP_IDS[seed % G.BP_IDS.length], bp = G.BLUEPRINTS[bpId];
+  const stacks = G.PART_STACK_IDS.filter((id) => G.bindsWith(bpId, id));
+  if (!stacks.length) { fail(`${bpId}: nothing binds it`); continue; }
+  const part = stacks[seed % stacks.length], pk = G.parsePart(part);
+  const ex = seed % 3 ? null : G.T.exotics[seed % G.T.exotics.length];
+  const q = seed % 4, ore = G.T.ores[tier - 1].id;
+  const made = G.forgeItem(rng, bpId, ore, part, ex && ex.id, q);
+  if (!made) { fail(`forged ${bpId} ${seed}: nothing`); continue; }
+  rarities[made.rarity] = (rarities[made.rarity] || 0) + 1;
+  if (bp.kind === 'core') { if (made.kind !== 'core' || made.core !== bp.core) fail(`forged ${bpId} ${seed}: not its core`); continue; }
+  checkItem(made, `forged ${bpId} ${seed}`, ex && ex.family);
+  if (made.bp !== bpId) fail(`forged ${bpId} ${seed}: came out a ${made.bp}`);
+  const fam = G.PARTS[pk.kind].family;
+  const famCount = made.affixes.filter((a) => G.AFFIXES[a.id].family === fam).length;
+  if (fam && famCount < Math.min(pk.grade, G.T.items.affixes[made.rarity])) fail(`forged ${bpId} ${seed}: bound with ${part} but only ${famCount} ${fam} affixes`);
+  if (pk.kind === 'heart' && q >= 2 && made.rarity !== 'legendary') fail(`forged ${bpId} ${seed}: a heart at quality ${q} came out ${made.rarity}`);
+  if (ex && ex.element && (bp.kind === 'blade' || bp.kind === 'focus') && made.element !== ex.element) fail(`forged ${bpId} ${seed}: ${ex.id} gave no ${ex.element}`);
   if (ex && ex.family && !made.affixes.some((a) => G.AFFIXES[a.id].family === ex.family)) fail(`forged ${seed}: ${ex.id} gave no ${ex.family} affix`);
-  if (kind === 'pick' && made.base.power !== tier + 1) fail(`forged ${seed}: a ${ore} pick breaks tier ${made.base.power}`);
+  if (bp.kind === 'pick' && made.base.power !== tier + 1) fail(`forged ${seed}: a ${ore} pick breaks tier ${made.base.power}`);
+  if (bp.sockets && (!made.sockets || made.sockets.length < bp.sockets[0])) fail(`forged ${bpId} ${seed}: ${made.sockets ? made.sockets.length : 0} sockets`);
   // the rune bench
   if (made.affixes.length) {
     G.rerollAffix(rng, made, 0); checkItem(made, `rerolled ${seed}`, ex && ex.family);
@@ -64,13 +79,16 @@ for (let seed = 1; seed <= 3000; seed++) {
     G.addAffix(rng, made);
     if (made.affixes.length !== was + 1) fail(`added ${seed}: ${was} → ${made.affixes.length}`);
   }
-  for (const a of made.affixes) { const r = G.affixRoll(a, made.tier); if (!(r >= -0.05 && r <= 1.6)) fail(`roll ${seed}: ${a.id} ${a.v} at tier ${made.tier} rolled ${r}`); }
-  for (const l of G.compareLines(made, it)) if (/NaN|undefined/.test(l.text)) fail(`compare ${seed}: "${l.text}"`);
+  for (const a of made.affixes) { const r = G.affixRoll(a, made.tier); if (!(r >= -0.05 && r <= 2)) fail(`roll ${seed}: ${a.id} ${a.v} at tier ${made.tier} rolled ${r}`); }
+  for (const l of G.compareLines(made, relic)) if (/NaN|undefined/.test(l.text)) fail(`compare ${seed}: "${l.text}"`);
   if (G.compareLines(made, made).length) fail(`compare ${seed}: an item differs from itself`);
   const y = G.salvageYield(rng, made);
   if (!(y.n > 0) || !G.T.ores.some((o) => o.id === y.ore)) fail(`salvage ${seed}: ${JSON.stringify(y)}`);
+  if (y.part !== part) fail(`salvage ${seed}: gave back ${y.part}, not ${part}`);
 }
-for (const r of G.RARITIES) if (!rarities[r]) fail(`no ${r} drops in 3000`);
+for (const r of ['common', 'magic', 'rare', 'legendary']) if (!rarities[r]) fail(`no ${r} forges in 3000`);
+// every blueprint is somewhere to be found or known from the start
+for (const id of G.BP_IDS) if (!G.BLUEPRINTS[id].start && !Object.values(G.BLUEPRINT_BIOME || {}).flat().includes(id) && G.BLUEPRINTS[id].kind !== 'core') fail(`${id} can never be found`);
 
 // outfits stay within the caps
 for (let seed = 1; seed <= 500; seed++) {

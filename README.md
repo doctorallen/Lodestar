@@ -49,6 +49,8 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/hub.js` | The outpost: stations, the star over the pit, lanterns, feeding the star |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
 | `js/diver.js` | The player's sprite: the circuit diver's five facings, walk frames and hand points |
+| `js/blueprints.js` | What can be forged: blueprints, creature parts, elements |
+| `js/art2.js` | Art for crafting and the story: new item icons, parts, the wreck, the Shard Keepers |
 | `js/items.js` | Affixes, rarities, legendaries, the set, cores, relics; the forge, rune bench, salvage; stats |
 | `js/game.js` | Game state, the dive, walking, mining, leaving |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |

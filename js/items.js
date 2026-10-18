@@ -1,8 +1,10 @@
 'use strict';
 // ---------------------------------------------------------------------------
 // Gear: the affix table, rarities, legendary powers, the set, spell cores
-// and sealed relics; rolling items, crafting at the forge, the rune bench,
-// salvage; and the stats an outfit adds up to. Every roll takes an Rng.
+// and sealed relics; making a piece from a blueprint, forging one from ore,
+// a creature part and maybe an exotic, the rune bench, salvage; and the
+// stats an outfit adds up to. Every roll takes an Rng. What can be made is
+// in blueprints.js.
 // ---------------------------------------------------------------------------
 
 // Affixes. lo–hi at tier 1, grown by T.items.affixGrowth a tier. dp: decimal
@@ -72,10 +74,15 @@ const CORE_IDS = Object.keys(CORES);
 
 const MAGIC_PREFIX = { melee: 'Keen', spell: 'Humming', defense: 'Sturdy', utility: 'Light', mining: "Delver's", shock: 'Voltaic', leech: 'Thirsting', chill: 'Rimed' };
 const RARE_FIRST = ['Grim', 'Hollow', 'Ember', 'Ashen', 'Star', 'Dusk', 'Iron', 'Pale', 'Rune', 'Vein', 'Night', 'Storm'];
+// The second word of a rare piece's name, by its style.
 const RARE_SECOND = {
-  blade: ['Edge', 'Fang', 'Sliver', 'Bite', 'Brand'], focus: ['Eye', 'Whisper', 'Lantern', 'Choir', 'Spark'],
-  armor: ['Shell', 'Mantle', 'Ward', 'Hide', 'Bulwark'], charm: ['Token', 'Sigil', 'Knot', 'Mark', 'Seal'],
-  pick: ['Delve', 'Breaker', 'Tooth', 'Auger', 'Crag'],
+  blade: ['Edge', 'Fang', 'Sliver', 'Bite', 'Brand'], spear: ['Lance', 'Pike', 'Needle', 'Thorn', 'Reach'],
+  hammer: ['Maul', 'Breaker', 'Knell', 'Fall', 'Anvil'], whip: ['Lash', 'Coil', 'Tether', 'Sting', 'Snare'],
+  wand: ['Eye', 'Whisper', 'Lantern', 'Choir', 'Spark'], staff: ['Rod', 'Spire', 'Beacon', 'Stave', 'Choir'],
+  gauntlet: ['Grip', 'Fist', 'Clasp', 'Hand', 'Knuckle'], plate: ['Shell', 'Mantle', 'Ward', 'Hide', 'Bulwark'],
+  weave: ['Veil', 'Shroud', 'Wrap', 'Drift', 'Mantle'], shell: ['Carapace', 'Bastion', 'Husk', 'Shell', 'Bulwark'],
+  charm: ['Token', 'Sigil', 'Knot', 'Mark', 'Seal'], lantern: ['Lamp', 'Wick', 'Glim', 'Beacon', 'Gleam'],
+  pick: ['Delve', 'Breaker', 'Tooth', 'Auger', 'Crag'], drill: ['Auger', 'Bore', 'Spindle', 'Gimlet', 'Screw'],
 };
 
 // The ore of a tier (tier 0, the rusty pick, counts as Ferrite).
@@ -117,28 +124,44 @@ function rollRarity(rng, level, min = 'common') {
   return rng.weighted(list);
 }
 
-function baseStats(kind, tier) {
-  const I = T.items, s = tierScale(tier);
-  if (kind === 'blade') return { dmg: Math.round(I.blade.dmg * s * 10) / 10 };
-  if (kind === 'focus') return { power: Math.round(I.focus.power * s * 10) / 10 };
-  if (kind === 'armor') return { armor: Math.round(I.armor.armor * (1 + I.armor.armorGrowth * (Math.max(1, tier) - 1))), hp: Math.round(I.armor.hp * Math.pow(I.armor.hpGrowth, Math.max(1, tier) - 1)) };
-  if (kind === 'pick') { const power = tier + 1; return { power, speed: Math.round((1 + I.pick.speedGrowth * (power - 1)) * 100) / 100 }; }
+function baseStats(kind, tier, bp = BLUEPRINTS[KIND_BLUEPRINT[kind]]) {
+  const I = T.items, s = tierScale(tier), m = (bp && bp.mult) || 1;
+  if (kind === 'blade') return { dmg: Math.round(I.blade.dmg * s * m * 10) / 10 };
+  if (kind === 'focus') return { power: Math.round(I.focus.power * s * m * 10) / 10 };
+  if (kind === 'armor') return { armor: Math.round(I.armor.armor * (1 + I.armor.armorGrowth * (Math.max(1, tier) - 1)) * m), hp: Math.round(I.armor.hp * Math.pow(I.armor.hpGrowth, Math.max(1, tier) - 1) * Math.sqrt(m)) };
+  if (kind === 'pick') { const power = tier + 1; return { power, speed: Math.round((1 + I.pick.speedGrowth * (power - 1)) * m * 100) / 100 }; }
   return {};
 }
 
-// opts: { rarity, family (an exotic's guaranteed family), power, set }
+// opts: { bp (the blueprint; else the plain one for the kind), rarity,
+// family (an exotic's guaranteed family), binding ({ kind, grade }: a part
+// whose family is guaranteed `grade` affixes, each stronger by the grade),
+// element, power, set }
 function makeItem(rng, kind, tier, opts = {}) {
-  const rarity = opts.rarity || 'common';
-  const item = { uid: newItemUid(), kind, tier, rarity, base: baseStats(kind, tier), affixes: [] };
+  const rarity = opts.rarity || 'common', bpId = opts.bp || KIND_BLUEPRINT[kind], bp = BLUEPRINTS[bpId];
+  const item = { uid: newItemUid(), kind, bp: bpId, tier, rarity, base: baseStats(kind, tier, bp), affixes: [] };
   if (rarity === 'legendary') item.power = opts.power || rng.pick(Object.keys(LEGENDARIES).filter((k) => LEGENDARIES[k].kinds.includes(kind)));
   if (rarity === 'set') item.set = opts.set || 'regalia';
+  if (opts.element) item.element = opts.element;
   const families = KIND_FAMILIES[kind];
-  if (opts.family) { const a = rollAffix(rng, item, [opts.family]); if (a) item.affixes.push(a); }
   const n = opts.affixes !== undefined ? opts.affixes : T.items.affixes[rarity];
+  if (opts.family) { const a = rollAffix(rng, item, [opts.family]); if (a) item.affixes.push(a); }
+  const bind = opts.binding;
+  if (bind) {
+    item.binding = bind;
+    const fam = PARTS[bind.kind].family, boost = 1 + T.items.gradeBoost * (bind.grade - 1);
+    for (let k = 0; k < bind.grade && item.affixes.length < n; k++) {
+      const a = rollAffix(rng, item, fam ? [fam] : families);
+      if (!a) break;
+      const A = AFFIXES[a.id], dp = Math.pow(10, A.dp || 0);
+      a.v = Math.round(a.v * boost * dp) / dp;
+      item.affixes.push(a);
+    }
+  }
   while (item.affixes.length < n) { const a = rollAffix(rng, item, families); if (!a) break; item.affixes.push(a); }
-  const S = T.items.socket, good = rarity !== 'common' && rarity !== 'magic';
-  if (kind === 'blade' && (good || rng.chance(S.blade))) item.sockets = [null];
-  if (kind === 'focus') item.sockets = good && rng.chance(S.secondFocus) ? [null, null] : [null];
+  const good = rarity !== 'common' && rarity !== 'magic';
+  if (bp && bp.sockets) item.sockets = new Array(bp.sockets[good ? 1 : 0]).fill(null);
+  else if (kind === 'blade' && (good || rng.chance(T.items.socket.blade))) item.sockets = [null];
   item.name = itemName(rng, item);
   return item;
 }
@@ -157,28 +180,21 @@ function itemName(rng, item) {
   if (item.kind === 'pick' && item.tier === 0) return 'Rusty Pick';
   if (item.set) return SETS[item.set].pieces[item.kind];
   if (item.power) return LEGENDARIES[item.power].name;
-  const base = `${oreOfTier(item.tier).name} ${KIND_NAMES[item.kind]}`;
-  if (item.rarity === 'rare') return `${rng.pick(RARE_FIRST)} ${rng.pick(RARE_SECOND[item.kind])}`;
+  const bp = bpOf(item), style = (bp && bp.style) || item.kind;
+  const base = `${oreOfTier(item.tier).name} ${bp ? bp.name : KIND_NAMES[item.kind]}`;
+  if (item.rarity === 'rare') return `${rng.pick(RARE_FIRST)} ${rng.pick(RARE_SECOND[style] || RARE_SECOND.blade)}`;
+  if (item.element) return `${ELEMENTS[item.element].prefix} ${base}`;
   if (item.rarity === 'magic' && item.affixes[0]) return `${MAGIC_PREFIX[AFFIXES[item.affixes[0].id].family]} ${base}`;
   return base;
 }
 
-// A drop from an enemy at this tier and level.
-const DROP_KINDS = [[3, 'blade'], [3, 'focus'], [3, 'armor'], [2, 'charm'], [1, 'pick'], [2, 'core']];
-function rollDrop(rng, tier, level, min) {
-  let kind = rng.weighted(DROP_KINDS);
-  if (kind === 'core' && !min) return makeCore(rng, rng.pick(CORE_IDS), tier);
-  if (kind === 'core') kind = 'blade';
-  const rarity = rollRarity(rng, level, min);
-  if (rarity === 'set') kind = rng.pick(Object.keys(SETS.regalia.pieces));
-  return makeItem(rng, kind, tier, { rarity });
-}
-
-// A sealed relic opens at the Lodestar into something rare or better.
+// A sealed relic opens at the Lodestar into something rare or better, of
+// any blueprint at all (one not yet known is learned from it).
 function unsealRelic(rng, relic) {
   const rarity = rng.weighted([[60, 'rare'], [25, 'legendary'], [15, 'set']]);
-  const kind = rarity === 'set' ? rng.pick(Object.keys(SETS.regalia.pieces)) : rng.pick(['blade', 'focus', 'armor', 'charm', 'pick']);
-  return makeItem(rng, kind, relic.tier, { rarity });
+  if (rarity === 'set') return makeItem(rng, rng.pick(Object.keys(SETS.regalia.pieces)), relic.tier, { rarity });
+  const bpId = rng.pick(BP_IDS.filter((id) => BLUEPRINTS[id].kind !== 'core'));
+  return makeItem(rng, BLUEPRINTS[bpId].kind, relic.tier, { rarity, bp: bpId, element: rng.chance(0.4) ? rng.pick(Object.keys(ELEMENTS)) : null });
 }
 
 function startingGear(rng) {
@@ -209,7 +225,17 @@ function itemBaseLine(item) {
 function itemKindLine(item) {
   if (item.kind === 'relic') return 'Sealed relic';
   if (item.kind === 'core') return 'Spell core';
-  return `${RARITY_NAMES[item.rarity]} ${KIND_NAMES[item.kind].toLowerCase()} · tier ${item.tier}`;
+  const bp = bpOf(item);
+  return `${RARITY_NAMES[item.rarity]} ${(bp ? bp.name : KIND_NAMES[item.kind]).toLowerCase()} · tier ${item.tier}`;
+}
+
+// What else a piece says about itself: its style, element and binding.
+function itemNotes(item) {
+  const out = [], bp = bpOf(item);
+  if (bp && bp.text && bp.kind !== 'core') out.push(bp.text);
+  if (item.element) out.push(`${ELEMENTS[item.element].name}: ${ELEMENTS[item.element].text}.`);
+  if (item.binding) out.push(`Bound with ${partName(partId(item.binding.kind, item.binding.grade)).toLowerCase()}.`);
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -221,6 +247,8 @@ function freshStats() {
     spellDmg: 0, chargeRegen: 0, maxCharge: T.player.charge, moveSpeed: 0,
     cargo: T.cargo.capacity, magnet: T.player.magnet, mineSpeed: 0, oreLuck: 0,
     shock: 0, leech: 0, chill: 0, powers: {}, sets: {}, regalia3: false,
+    // from blueprints' implicits
+    dashCd: 0, lamp: 0, pullSlow: 0, noisy: 0,
   };
 }
 
@@ -232,6 +260,8 @@ function computeStats(equip, attune) {
     if (!it) continue;
     if (it.kind === 'armor') { s.armor += it.base.armor; s.maxHp += it.base.hp; }
     for (const a of it.affixes) s[a.id] += a.v;
+    const imp = (bpOf(it) || {}).implicit;
+    if (imp) for (const k in imp) s[k] += imp[k];
     if (it.power) s.powers[it.power] = (s.powers[it.power] || 0) + 1;
     if (it.set) s.sets[it.set] = (s.sets[it.set] || 0) + 1;
   }
@@ -306,20 +336,36 @@ function compareSlot(equip, it) {
 // ---------------------------------------------------------------------------
 // The forge, the rune bench, the salvager
 // ---------------------------------------------------------------------------
-function craftCost(kind) { return T.items[kind].cost; }
+
+// What a blueprint takes: { ore, parts } (ore of the chosen tier, parts of
+// the chosen kind and grade). A kind's name stands for its plain blueprint.
+function craftCost(id) { const bp = BLUEPRINTS[id] || BLUEPRINTS[KIND_BLUEPRINT[id]] || BLUEPRINTS['core_' + id]; return { ore: bp.ore, parts: bp.parts }; }
+// Which parts can bind a blueprint.
+function bindsWith(bpId, partStack) {
+  const bp = BLUEPRINTS[bpId], p = parsePart(partStack);
+  return !!p && (!bp.partKinds || bp.partKinds.includes(p.kind));
+}
 // The rarity a forge comes out at, by the anvil's quality (0–3).
 const craftRarity = (rng, q = 1) => rng.weighted(T.anvil.odds[clamp(q, 0, 3)].map((w, i) => [w, ['common', 'magic', 'rare', 'legendary'][i]]));
 const RARITY_STEP = { common: 'magic', magic: 'rare', rare: 'legendary', legendary: 'legendary' };
 
-// Makes an item from `cost` of an ore (and an optional exotic), forged at
-// quality q. The caller has checked and spent the materials.
-function forgeItem(rng, kind, oreId, exoticId, q = 1) {
-  const tier = T.ores[ORE_INDEX[oreId]].tier;
-  if (kind === 'core') return null;
+// Makes a piece from a blueprint: its head in an ore, bound with a part (a
+// stack id, as chitin2), maybe with an exotic, forged at quality q. A heart
+// binding forged fine or better comes out legendary. The caller has checked
+// and spent the materials.
+function forgeItem(rng, bpId, oreId, partStack, exoticId, q = 1) {
+  const bp = BLUEPRINTS[bpId], tier = T.ores[ORE_INDEX[oreId]].tier, part = parsePart(partStack);
+  if (bp.kind === 'core') {
+    const core = makeCore(rng, bp.core, Math.min(T.ores.length, tier + (q >= 2 ? 1 : 0)));
+    if (part) core.binding = part;
+    return core;
+  }
   let rarity = craftRarity(rng, q);
   const ex = exoticId && T.exotics.find((e) => e.id === exoticId);
-  if (ex && !ex.family) rarity = RARITY_STEP[rarity];
-  return makeItem(rng, kind, tier, { rarity, family: ex && ex.family });
+  if (ex && ex.rarity) rarity = RARITY_STEP[rarity];
+  if (part && part.kind === 'heart' && q >= 2) rarity = 'legendary';
+  const elemental = bp.kind === 'blade' || bp.kind === 'focus';
+  return makeItem(rng, bp.kind, tier, { bp: bpId, rarity, family: ex && ex.family, element: elemental && ex && ex.element, binding: part });
 }
 
 function runeOre(item) { return oreOfTier(item.tier).id; }
@@ -352,14 +398,16 @@ function addAffix(rng, item) {
   return true;
 }
 
-// What breaking an item down gives back: { ore: id, n, exotic: id | null }
+// What breaking an item down gives back: { ore: id, n, part: stack id |
+// null, exotic: id | null }. Some of its ore, the part that bound it, and
+// sometimes an exotic.
 function salvageYield(rng, item) {
-  const kind = item.kind === 'relic' ? null : item.kind;
-  const cost = kind ? craftCost(kind) : 0;
-  const n = Math.max(1, Math.floor(cost * T.salvage.back));
+  const bp = item.kind === 'relic' ? null : item.kind === 'core' ? BLUEPRINTS['core_' + item.core] : bpOf(item);
+  const n = Math.max(1, Math.floor((bp ? bp.ore : 0) * T.salvage.back));
   const good = item.rarity === 'rare' || item.rarity === 'legendary' || item.rarity === 'set';
   const exotic = rng.chance(good ? T.salvage.exoticRare : T.salvage.exotic) ? rng.pick(T.exotics).id : null;
-  return { ore: oreOfTier(item.tier).id, n, exotic };
+  const part = item.binding ? partId(item.binding.kind, item.binding.grade) : null;
+  return { ore: oreOfTier(item.tier).id, n, part, exotic };
 }
 
 // ---------------------------------------------------------------------------

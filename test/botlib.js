@@ -140,8 +140,6 @@ function installBot() {
     UI.closeCard();
     // unseal relics
     for (const r of s.items.filter((i) => i.kind === 'relic')) { UI.openCard(r, 'stash', r.uid); acts.unseal(); Reveal.done(); UI.closeCard(); log.push('unsealed'); }
-    const forge = (kind) => { acts.craft(kind); if (Anvil.job) { Anvil.finish(1); Reveal.done(); } };
-    UI.forge.field = false;
     const best = () => {
       // equip anything better than what's worn
       for (const it of s.items.slice()) {
@@ -151,13 +149,25 @@ function installBot() {
       }
     };
     best();
-    // forge: a pick that breaks the next ore, then a blade and plate in the best ore
+    // forge: the best ore it has enough of, bound with the part it has most of
+    const forge = (bpId, oreId) => {
+      const bp = BLUEPRINTS[bpId], part = PART_STACK_IDS.filter((id) => bindsWith(bpId, id) && (s.stash[id] || 0) >= bp.parts).sort((a, b) => s.stash[b] - s.stash[a])[0];
+      if (!part || (s.stash[oreId] || 0) < bp.ore) return false;
+      Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, part, exotic: null });
+      acts.craft();
+      if (Anvil.job) { Anvil.finish(1); Reveal.done(); }
+      return true;
+    };
+    UI.forge.field = false;
+    // a pick that breaks the next ore up
     const pick = s.equip.pick, pickOre = T.ores.find((o) => o.tier === (pick ? pick.base.power : 1));
-    if (pickOre && (s.stash[pickOre.id] || 0) >= craftCost('pick')) { UI.forge.ore = pickOre.id; forge('pick'); log.push('forged ' + pickOre.name + ' pick'); }
-    for (const kind of ['blade', 'armor', 'charm']) {
-      const ore = T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) >= craftCost(kind) + 6);
-      const cur = kind === 'blade' ? s.equip.main : s.equip[kind];
-      if (ore && (!cur || cur.tier < ore.tier)) { UI.forge.ore = ore.id; forge(kind); log.push('forged ' + kind + ' in ' + ore.name); }
+    if (pickOre && forge(s.blueprints.includes('drill') ? 'drill' : 'pick', pickOre.id)) log.push('forged ' + pickOre.name + ' pick');
+    // a weapon, plate and a charm in the best ore it has plenty of
+    const weapon = ['hammer', 'spear', 'whip', 'blade'].find((id) => s.blueprints.includes(id));
+    for (const [bpId, slot] of [[weapon, 'main'], ['plate', 'armor'], ['charm', 'charm']]) {
+      const bp = BLUEPRINTS[bpId], ore = T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) >= bp.ore + 6);
+      const cur = s.equip[slot];
+      if (ore && (!cur || cur.tier < ore.tier) && forge(bpId, ore.id)) log.push('forged ' + bpId + ' in ' + ore.name);
     }
     UI.closeCard();
     best();
@@ -167,7 +177,7 @@ function installBot() {
     // feed ore the bot doesn't need for its next pick
     const keep = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
     for (const o of T.ores) {
-      const have = s.stash[o.id] || 0, spare = have - (keep && o.id === keep.id ? craftCost('pick') : 10);
+      const have = s.stash[o.id] || 0, spare = have - (keep && o.id === keep.id ? BLUEPRINTS.pick.ore : 14);
       if (spare >= 10) for (let k = 0; k < Math.floor(spare / 10); k++) acts.feed(o.id + ':10');
     }
     for (const id of ['vitality', 'might', 'capacity', 'vitality', 'might', 'stride', 'capacity']) if (attunePointsLeft(s) > 0) acts.attune(id);

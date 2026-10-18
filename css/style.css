@@ -287,3 +287,13 @@ body.home #btn-mine { display: none; }
 .card-head .grow { flex: 1; }
 .mini.fav { font-size: 18px; color: var(--dim); }
 .mini.fav.on { color: var(--gold); border-color: var(--gold); }
+
+/* the forge: blueprints in a grid, the recipe below */
+.bp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 5px; }
+.bp .icon { width: 32px; height: 32px; }
+.bp { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 11px; }
+.bp.on { border-color: var(--gold); color: var(--gold); }
+.recipe-panel { margin-top: 4px; padding: 10px; border: 1px solid var(--line); background: var(--panel2); }
+.chip small { display: block; font-size: 9px; color: var(--dim); letter-spacing: 0.08em; }
+.preview { margin-top: 10px; padding: 8px; border-left: 2px solid var(--gold); font-size: 12px; }
+.preview p { margin: 3px 0; }

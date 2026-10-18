@@ -167,19 +167,20 @@ async function phone(browser) {
   await tap(page, '#screen-cargo [data-act=resume]');
 
   // an ancient forge forges from the cargo, and what it makes goes in it
-  await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 20; d.fieldForge = { x: Math.floor(d.p.x / TILE), y: Math.floor(d.p.y / TILE) }; });
+  await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 20; d.cargo.chitin1 = 3; d.fieldForge = { x: Math.floor(d.p.x / TILE), y: Math.floor(d.p.y / TILE) }; });
   await run(page, 0.05);
   check(await page.evaluate(() => $('btn-act').textContent === 'FORGE'), 'phone: no FORGE at an ancient forge');
   await tap(page, '#btn-act');
   await run(page, 0.05);
   check(await page.evaluate(() => $('forge-title').textContent === 'AN ANCIENT FORGE'), 'phone: the ancient forge did not open');
-  await tap(page, '#forge-body [data-act=craft][data-arg=charm]');
+  await tap(page, '#forge-body [data-act=forgeBp][data-arg=charm]');
+  await tap(page, '#forge-body [data-act=craft]');
   check(await visible(page, '#screen-anvil'), 'phone: forging did not go to the anvil');
   for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.evaluate(() => Anvil.strike()); }
   await run(page, 0.8);
   check(await visible(page, '#screen-reveal'), 'phone: the forged piece was not revealed');
   await run(page, 2.5);
-  check(await page.evaluate(() => Game.dive.items.some((i) => i.kind === 'charm') && Game.dive.cargo.ferrite === 20 - T.items.charm.cost), 'phone: the ancient forge did not use the cargo, or the charm is not in it');
+  check(await page.evaluate(() => Game.dive.items.some((i) => i.kind === 'charm') && Game.dive.cargo.ferrite === 20 - BLUEPRINTS.charm.ore && Game.dive.cargo.chitin1 === 1), 'phone: the ancient forge did not use the cargo, or the charm is not in it');
   await page.evaluate(() => { UI.closeCard(); UI.close(); Game.dive.fieldForge = null; });
   const carried = await page.evaluate(() => cargoUsed(Game.dive));
 
@@ -213,14 +214,16 @@ async function phone(browser) {
   check(await page.evaluate(() => Game.dive.hub && !Game.modal), 'phone: CONTINUE did not come back to the outpost');
 
   // the forge: three strikes on the anvil, the reveal, the card
-  await page.evaluate(() => { Save.data.stash.ferrite = 40; });
+  await page.evaluate(() => { Save.data.stash.ferrite = 40; Save.data.stash.cog1 = 2; });
   await page.evaluate(atStation, 'forge');
   await run(page, 0.05);
   check(await page.evaluate(() => $('btn-act').textContent === 'FORGE'), 'phone: no FORGE at the forge');
   await tap(page, '#btn-act');
   await run(page, 0.05);
-  await tap(page, '#forge-body [data-act=craft][data-arg=blade]');
-  check(await page.evaluate(() => Save.data.stash.ferrite === 32), 'phone: forging a blade did not cost 8 Ferrite');
+  await tap(page, '#forge-body [data-act=forgeBp][data-arg=blade]');
+  await shot(page, 'smoke-forge');
+  await tap(page, '#forge-body [data-act=craft]');
+  check(await page.evaluate(() => Save.data.stash.ferrite === 32 && !Save.data.stash.cog1), 'phone: forging a blade did not cost 8 Ferrite and 2 cogs');
   await shot(page, 'smoke-anvil');
   const [ax, ay] = await center(page, '#anvil-canvas');
   for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.touchscreen.tap(ax, ay); await sleep(60); }
@@ -232,6 +235,7 @@ async function phone(browser) {
   await shot(page, 'smoke-forged');
   await tap(page, '#card [data-act=equip][data-arg=main]');
   check(await page.evaluate(() => Save.data.equip.main.name !== 'Scrap Blade' && Save.data.items.some((i) => i.name === 'Scrap Blade')), 'phone: the forged blade is not in the main hand');
+  check(await page.evaluate(() => Save.data.equip.main.affixes.some((a) => AFFIXES[a.id].family === 'melee')), 'phone: a blade bound with cogs has no melee affix');
   await tap(page, '#screen-forge [data-act=back]');
 
   // the rune bench rerolls an affix on what's worn

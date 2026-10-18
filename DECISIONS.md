@@ -77,3 +77,11 @@ The designer asked to build the top recommendations from a survey of about 35 co
 - **A pocket** (Tarkov's secure container, Moonlighter). A fall loses the cargo but never everything. It grows with the star and is never sold.
 - **Leaving takes a moment** (Dark and Darker). Extracting is a short channel that a hit or a step breaks, so you have to clear the way first. An emergency recall from anywhere costs more the deeper you are, so there's always a way home, at a price.
 - **A phone-sized item card** (Diablo Immortal, Death Must Die): per-stat comparison, roll bars, a keep star, and salvage-all for downgrades.
+
+## 2026-10-18: crafting is the heart of the game
+
+The designer found that so much loot made forging pointless, and that forged items lacked variety. They asked to lean into crafting, and chose:
+- **Blueprints plus parts.** Blueprints are item types with their own feel (spear, hammer, chain-whip, staff, gauntlet, weave, shell, lantern, drill). Each is made from an ore head, a creature-part binding and an optional exotic, so the choice of parts steers the result, and the anvil gives the temper.
+- **Materials, not gear.** Enemies drop their own parts, graded by biome, so the forge is where gear comes from and different recipes send you hunting different creatures.
+- **Elements from exotics:** shock, frost (which shatters), ember (which burns) and blight (which spreads).
+- **Blueprints must be carried home** to be learned. Finding one is a push-your-luck moment.

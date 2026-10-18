@@ -90,24 +90,62 @@ Only two enemies can wind up at once, plus one more every three floors down. The
 
 - **Exotic materials** drop from elites and the warden, and now and then from anything else.
 
+## Crafting (the heart of the game)
+
+Finished gear comes from the forge. Enemies leave the materials to make it, not gear.
+
+- **Blueprints are item types**, each with its own feel. Six are known from the start: blade, focus, plate, charm, pick and the Arc Bolt core. The rest are found in the depths:
+
+  | Blueprint | Slot | What it does |
+  |---|---|---|
+  | Spear | hand | Long, narrow thrusts; charged, a lunge through everything ahead |
+  | Hammer | hand | Slow, wide blows that always stagger; charged, a ground slam |
+  | Chain-whip | hand | Quick, wide sweeps at reach; charged, drags enemies in |
+  | Staff | hand (casting) | More sockets; a charged cast fires everything three times |
+  | Gauntlet | hand (casting) | One socket, cast hard and cheap, close range only |
+  | Weave | armour | Light: dash 30% more often, move faster |
+  | Shell | armour | Heavy: much more armour, a little slower |
+  | Lantern | charm | A brighter lamp; the star's pull fades 20% slower |
+  | Drill | pick | Mines 60% faster, but the noise wakes what's near |
+  | Nova, Lodestone Pull, Ward Pulse | core | The other spell cores |
+
+- **Where blueprints come from.** Elites sometimes drop one, the warden always does, and ancient forges often have one lying by them. Each biome favours its own. A blueprint rides home in the cargo (weight 1) and is learned when it gets there, so a fall loses it unless it's pocketed. A sealed relic can open into a piece of a blueprint not yet known.
+- **A forging takes three things:**
+  - **an ore head:** the blueprint's amount of one ore, which sets the tier;
+  - **a binding:** creature parts, which guarantee affixes from their family, as many as the part's grade, each stronger the higher the grade;
+  - **an exotic, optionally:** it gives a weapon or focus an element, guarantees an affix family, or raises the rarity.
+- **The anvil decides the rest:** three timed strikes set the temper (rough, fair, fine, masterwork), which sets the rarity odds.
+- **The forge previews** what the chosen parts guarantee before you commit.
+
+| Part | From | Binds |
+|---|---|---|
+| Chitin | crawlers | defense |
+| Ether | wisps | spell (and binds spell cores) |
+| Cog | constructs | melee |
+| Fibre | snapjaws | utility |
+| Spore | spitters | mining |
+| Heart | the warden | anything; a fine forge or better is legendary |
+
+Parts come in three grades, Rim, Choir and Forge, one per biome. Deeper biomes give stronger bindings.
+
+| Element | Exotic | On hit |
+|---|---|---|
+| Shock | Voltaic crystal | Arcs to the next enemy |
+| Frost | Frostglass | Chills; a heavy hit on the chilled shatters for more |
+| Ember | Emberglass | Burns |
+| Blight | Blightcap | Poisons, spreading when its host falls |
+
+Bloodresin guarantees a leech affix, and a Lodestone shard raises the rarity.
+
 ## Loot
 
-- **Crafted items roll affixes.** The ore sets the tier and base stats. Each craft rolls its rarity (mostly common or magic, sometimes rare) and its affixes.
-- **Materials shape the rolls.** Working an exotic into a craft changes what comes out:
-  - Voltaic crystal guarantees a shock affix (arcing lightning on hit).
-  - Bloodresin guarantees a leech affix.
-  - Frostglass guarantees a chill affix (slows on hit).
-  - A Lodestone shard raises the rarity a step.
+- **Drops are materials:** each creature's own part, graded by the biome. Elites drop more, sometimes an exotic, a blueprint or a sealed relic. The warden drops a heart, parts, a blueprint and often a relic.
 - **The rune bench**, on any item card at home, costs ore of the item's tier:
   - reroll an affix,
-  - upgrade an affix by 20% (twice at most),
-  - add an affix, which also raises a common or magic item a rarity.
-- **Salvage** breaks gear down for some of its ore back, with a chance of an exotic.
-- **Rarities:**
-  - Common has 1 affix, Magic 2 and Rare 3.
-  - Legendary has 3 affixes and a legendary power.
-  - Set pieces have 2 affixes and a set bonus.
-  - An item never shows more than four lines.
+  - upgrade one by 20% (twice at most),
+  - add one, which also raises a common or magic item a rarity.
+- **Salvage** gives back some ore, the part that bound the piece, and sometimes an exotic.
+- **Rarities:** Common has 1 affix, Magic 2, Rare 3, Legendary 3 plus a legendary power, Set 2 plus a set bonus.
 - **Legendary powers** change how you play:
 
 | Name | Kind | Power |
@@ -115,21 +153,11 @@ Only two enemies can wind up at once, plus one more every three floors down. The
 | Faultline | pick | Breaking a vein sends out a shockwave |
 | Twice-Told | blade or focus | Its socketed cores fire twice |
 | Redwake | blade | Critical hits heal |
-| Lodeheart | armor or charm | Kills heal and pull in nearby loot |
+| Lodeheart | armour or charm | Kills heal and pull in nearby loot |
 | Stormcaller | focus | Arc Bolts chain to two more enemies |
 
-- **Sets.** Prospector's Regalia (pick, plate and charm):
-  - 2 pieces: +20% mining speed and +6 cargo.
-  - 3 pieces: breaking a vein heals, and +20% chance of double ore.
-- **Sealed relics** are unidentified items that only drop at rare or better, so each one is worth taking home. One takes up gear weight in the cargo, so it competes with ore. The Lodestar's light unseals it at home.
-- **Picks are loot too**, rolling mining affixes (mining speed, double ore) and utility ones.
-- **UPGRADE / DOWNGRADE at a glance:** a ▲ or ▼ beside anything found, against what's worn in that slot.
-- **The item card:**
-  - a bar under each affix shows how well it rolled in its range, and turns orange once raised past it;
-  - a stat-by-stat comparison against what's worn in that slot, legendary powers included;
-  - a ★ keeps a piece, so it can't be salvaged.
-- **Salvage all ▼** in the locker breaks down every downgrade that isn't kept, after a second tap to confirm.
-- **(proposed)** Pick affixes for gem chance and vein sense (seeing veins through walls).
+- **Sets.** Prospector's Regalia (pick, plate and charm): 2 pieces give +20% mining speed and +6 cargo; 3 pieces heal you when you break a vein and give +20% chance of double ore.
+- **Sealed relics** only drop at rare or better and are unsealed at home.
 
 ## Combat and builds
 
