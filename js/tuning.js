@@ -524,7 +524,7 @@ const T = {
     // of 2 art px); portal: a portal's half width (world px).
     shadow: {
       walls: true, baked: true, eye: 17, rays: 1.25, step: 2, reach: 3, top: 0,
-      props: { steps: [0.2, 0.38], dark: [0.72, 0.55], core: [0.62, 0.6], len: [8, 0.1, 16], tall: 30, size: [0.6, 1.3], crown: 0.3, back: 0.35, fray: 0.35, portal: 9 },
+      props: { steps: [0.2, 0.38], dark: [0.66, 0.48], core: [0.62, 0.6], len: [9, 0.12, 18], tall: 30, size: [0.6, 1.3], crown: 0.3, back: 0.35, fray: 0.35, portal: 9 },
     },
   },
 

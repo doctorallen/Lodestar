@@ -26,42 +26,51 @@
 // A sight S is { x0, y0 (the world cell of its first), w (cells across, and
 // down), vis (Float32Array) }.
 
-// Per window size: each cell's distance (art px) from the middle one and the
-// ray (of B) that passes nearest it; and each ray's direction.
+// Per window: each cell's distance (art px) from the light's ground point
+// (ey cells under the window's middle, where the light itself is) and the
+// ray (of B) that passes nearest it, or -1 outside the light's disc; and
+// each ray's direction and how far it need go to leave the disc.
 const _sightTables = new Map();
-function sightTables(H, B) {
-  const key = H * 4096 + B;
+function sightTables(H, B, ey) {
+  const key = (H * 4096 + B) * 64 + ey;
   let t = _sightTables.get(key);
   if (t) return t;
-  const w = 2 * H + 1, dist = new Float32Array(w * w), bin = new Uint16Array(w * w), dx = new Float32Array(B), dy = new Float32Array(B);
+  const w = 2 * H + 1, dist = new Float32Array(w * w), bin = new Int16Array(w * w), dx = new Float32Array(B), dy = new Float32Array(B), len = new Float32Array(B);
+  const r = H * LC, e = ey * LC;
   for (let j = -H; j <= H; j++)
     for (let i = -H; i <= H; i++) {
-      const k = (j + H) * w + i + H;
-      dist[k] = Math.hypot(i, j) * LC;
-      bin[k] = (Math.round((Math.atan2(j, i) / (2 * Math.PI)) * B) + B) % B;
+      const k = (j + H) * w + i + H, jj = j - ey;
+      dist[k] = Math.hypot(i, jj) * LC;
+      bin[k] = Math.hypot(i, j) * LC > r ? -1 : (Math.round((Math.atan2(jj, i) / (2 * Math.PI)) * B) + B) % B;
     }
-  for (let b = 0; b < B; b++) { dx[b] = Math.cos((b / B) * 2 * Math.PI); dy[b] = Math.sin((b / B) * 2 * Math.PI); }
-  t = { dist, bin, dx, dy, depth: new Float32Array(B), rock: new Uint8Array(w * w) };
+  for (let b = 0; b < B; b++) {
+    const a = (b / B) * 2 * Math.PI, u = -e * Math.sin(a);
+    dx[b] = Math.cos(a); dy[b] = Math.sin(a);
+    len[b] = u + Math.sqrt(Math.max(0, u * u - e * e + r * r)) + LC;
+  }
+  t = { dist, bin, dx, dy, len, depth: new Float32Array(B), rock: new Uint8Array(w * w) };
   _sightTables.set(key, t);
   return t;
 }
 
-// Fills S with what a light at world cell (cx, cy) sees out to r art px.
-// Returns false if the light is in rock (it then shadows nothing).
-function seeFrom(f, cx, cy, r, S) {
+// Fills S with what a light sees out to r art px: its ground point (where
+// its rays start) at world cell (cx, cy), the light itself ey cells above
+// that. Returns false if its ground point is in rock (it then shadows
+// nothing).
+function seeFrom(f, cx, cy, r, S, ey = 0) {
   const Sh = T.light.shadow, R = View.rockPx, W = f.w * ATILE, Hp = f.h * ATILE;
-  const H = Math.ceil(r / LC) + 1, w = 2 * H + 1, B = Math.max(16, 8 * Math.ceil((2 * Math.PI * H * Sh.rays) / 8));
-  const t = sightTables(H, B), ox = (cx + 0.5) * LC, oy = (cy + 0.5) * LC, oxi = ox | 0, oyi = oy | 0;
-  S.x0 = cx - H; S.y0 = cy - H; S.w = w;
+  const H = Math.ceil(r / LC) + 1, w = 2 * H + 1, B = Math.max(16, 8 * Math.ceil((2 * Math.PI * (H + ey) * Sh.rays) / 8));
+  const t = sightTables(H, B, ey), ox = (cx + 0.5) * LC, oy = (cy + 0.5) * LC, oxi = ox | 0, oyi = oy | 0;
+  S.x0 = cx - H; S.y0 = cy - ey - H; S.w = w;
   if (!S.vis || S.vis.length < w * w) S.vis = new Float32Array(w * w);
   const vis = S.vis;
   if (oxi < 0 || oyi < 0 || oxi >= W || oyi >= Hp || R[oyi * W + oxi]) return false;
   // how far each ray goes before it strikes rock (the floor's edge is rock;
   // the sinkhole isn't), an art px at a time, but straight across a block
   // between four open tiles' middles, where there's no rock to find
-  const depth = t.depth, rm = H * LC, dxs = t.dx, dys = t.dy, ob = openBlocks(f), BW = f.w, h2 = ATILE / 2, st = Sh.step;
+  const depth = t.depth, lens = t.len, dxs = t.dx, dys = t.dy, ob = openBlocks(f), BW = f.w, h2 = ATILE / 2, st = Sh.step;
   for (let b = 0; b < B; b++) {
-    const dx = dxs[b], dy = dys[b], ix = dx ? 1 / dx : 1e9, iy = dy ? 1 / dy : 1e9;
+    const dx = dxs[b], dy = dys[b], ix = dx ? 1 / dx : 1e9, iy = dy ? 1 / dy : 1e9, rm = lens[b];
     let s = 1;
     while (s <= rm) {
       const x = ox + dx * s, y = oy + dy * s;
@@ -82,20 +91,20 @@ function seeFrom(f, cx, cy, r, S) {
   // each cell, from the bottom row up: rock at its middle?, and lit? A
   // wall's face is lit where the ground under it is (and it faces the
   // light), so the rows under a cell are known when it's reached.
-  const reach = Sh.reach * AP, top = Sh.top, dist = t.dist, bin = t.bin, rock = t.rock, K = Math.ceil(FACE_H / LC);
+  const reach = Sh.reach * AP, top = Sh.top, dist = t.dist, bin = t.bin, rock = t.rock, K = Math.ceil(FACE_H / LC), oj = H + ey;
   for (let j = w - 1; j >= 0; j--) {
-    const py = (cy - H + j) * LC + (LC >> 1), rowIn = py >= 0 && py < Hp, faces = j < H + 1;
+    const py = (cy - ey - H + j) * LC + (LC >> 1), rowIn = py >= 0 && py < Hp, faces = j < oj + 1;
     for (let i = 0, k = j * w, px = (cx - H) * LC + (LC >> 1); i < w; i++, k++, px += LC) {
-      const r = (rock[k] = !rowIn || px < 0 || px >= W ? 1 : R[py * W + px]), dk = dist[k];
-      if (dk > rm) { vis[k] = 0; continue; }
-      if (dk <= depth[bin[k]] + reach) { vis[k] = 1; continue; }
+      const r = (rock[k] = !rowIn || px < 0 || px >= W ? 1 : R[py * W + px]), bk = bin[k];
+      if (bk < 0) { vis[k] = 0; continue; }
+      if (dist[k] <= depth[bk] + reach) { vis[k] = 1; continue; }
       let v = 0;
       if (r) {
         v = top;
         if (faces)
           for (let n = 1, q = k + w; n <= K && j + n < w; n++, q += w) {
             if (rock[q]) continue;
-            if (vis[q] && j + n <= H + 1) v = 1;
+            if (vis[q] && j + n <= oj + 1) v = 1;
             break;
           }
       }
@@ -152,12 +161,13 @@ function lampSight(d, r) {
   // open cell if a foot's on the rock's very edge
   const R = View.rockPx, W = f.w * ATILE, open = (i, j) => { const x = i * LC + (LC >> 1), y = j * LC + (LC >> 1); return x >= 0 && y >= 0 && x < W && y < f.h * ATILE && !R[y * W + x]; };
   if (!open(cx, cy)) for (const [i, j] of [[0, -1], [-1, 0], [1, 0], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) if (open(cx + i, cy + j)) { cx += i; cy += j; break; }
-  // (the reach rounded up to whole steps, so the window is rebuilt rarely)
-  const rr = Math.ceil((r + ap(Sh.eye)) / (4 * LC)) * 4 * LC, key = cx + ',' + cy + ',' + rr;
+  // (the reach rounded up to whole steps, so the window is rebuilt rarely;
+  // the window is round the dome, the light's middle)
+  const rr = Math.ceil(r / (4 * LC)) * 4 * LC, ey = Math.round(ap(Sh.eye) / LC), key = cx + ',' + cy + ',' + rr;
   const S = LampSight;
   if (S.key !== key || S.rock !== R || S.lights !== View.lights) {
     S.key = key; S.rock = R; S.lights = View.lights;
-    S.ok = seeFrom(f, cx, cy, rr, S);
+    S.ok = seeFrom(f, cx, cy, rr, S, ey);
   }
   return S.ok ? S : null;
 }
