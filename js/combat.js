@@ -518,7 +518,7 @@ function dropBlueprint(d, drop, sure) {
   const any = BP_IDS.filter((id) => !known.has(id));
   const pool = local.length && (sure || d.rng.chance(0.7)) ? local : any;
   if (pool.length) drop({ blueprint: d.rng.pick(pool) });
-  else drop({ exotic: d.randomExotic(rng) });
+  else drop({ exotic: randomExotic(d.rng) });
 }
 
 // The tier of loot on this floor: the biome's lower ore, or its deeper one

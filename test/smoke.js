@@ -350,6 +350,16 @@ async function phone(browser) {
   check(rifts.gate === true, 'phone: a gate did not carry the diver through');
   check(rifts.tier === 2, 'phone: riftglass did not forge a tier higher');
 
+  // with every blueprint known, a blueprint drop turns into an exotic
+  const allKnown = await page.evaluate(() => {
+    const was = Save.data.blueprints;
+    Save.data.blueprints = BP_IDS.slice(); UI.close(); startDive(0);
+    const got = []; dropBlueprint(Game.dive, (x) => got.push(x), true);
+    Save.data.blueprints = was; UI.close(); abandonDive(); UI.close();
+    return got.length === 1 && !!got[0].exotic;
+  });
+  check(allKnown, 'phone: a blueprint drop with every blueprint known did not become an exotic');
+
   // contracts: three posted; one met is paid on coming home and replaced
   const contracts = await page.evaluate(() => {
     fillContracts();
