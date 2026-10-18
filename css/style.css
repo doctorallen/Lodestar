@@ -123,8 +123,8 @@ body.home #btn-mine { display: none; }
   #app:not(.wide) .deck-btn.mine { width: 46px; height: 46px; right: 22px; bottom: calc(100px + env(safe-area-inset-bottom)); }
 }
 .deck-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
-.btn-icon { width: 30px; height: 30px; image-rendering: pixelated; pointer-events: none; }
-.deck-btn.off .btn-icon { width: 22px; height: 22px; }
+.btn-icon { width: 40px; height: 40px; image-rendering: pixelated; pointer-events: none; }
+.deck-btn.off .btn-icon { width: 20px; height: 20px; }
 .deck-btn span { pointer-events: none; }
 .deck-btn[hidden] { display: none; }
 
@@ -262,6 +262,10 @@ body.home #btn-mine { display: none; }
 .set { color: var(--set); margin: 8px 0; font-size: 12px; }
 .sockets .sock { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; color: #9fc4ff; }
 .card .menu .btn { width: 100%; min-width: 0; margin: 4px 0; }
+/* the card's buttons two to a row; the long ones and BACK across */
+.card .card-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6px; }
+.card .card-menu .btn.wide { grid-column: 1 / -1; }
+.btn.armed { background: var(--danger); color: #111; }
 
 /* sideways, the side decks can be as narrow as 150px */
 #app.wide .deck-btn.main { right: 8px; width: 80px; height: 80px; }
@@ -279,7 +283,7 @@ body.home #btn-mine { display: none; }
 .reveal-stage { position: relative; width: 100%; max-width: 360px; height: 340px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
 .reveal-beam { position: absolute; left: 50%; bottom: 60px; width: 60px; height: 280px; margin-left: -30px;
   background: linear-gradient(to top, var(--col), transparent); opacity: 0; filter: blur(6px); animation: beam 1.4s ease-out forwards; }
-.reveal-icon { width: 96px; height: 96px; image-rendering: pixelated; position: relative; animation: rise 1s cubic-bezier(.2,.8,.2,1) forwards; filter: drop-shadow(0 0 12px rgba(255,255,255,.4)); }
+.reveal-icon { width: 100px; height: 100px; image-rendering: pixelated; position: relative; animation: rise 1s cubic-bezier(.2,.8,.2,1) forwards; filter: drop-shadow(0 0 12px rgba(255,255,255,.4)); }
 .reveal-name { font-size: 20px; margin-top: 18px; opacity: 0; animation: fadein .5s .7s forwards; text-align: center; }
 .reveal-sub { color: var(--dim); font-size: 12px; opacity: 0; animation: fadein .5s .9s forwards; text-align: center; }
 @keyframes beam { 0% { opacity: 0; transform: scaleY(0.2); transform-origin: bottom; } 40% { opacity: .9; } 100% { opacity: .55; transform: scaleY(1); } }
@@ -295,12 +299,12 @@ body.home #btn-mine { display: none; }
 .compare { margin: 8px 0; padding: 6px 8px; border: 1px solid var(--line); background: var(--panel2); font-size: 12px; }
 .compare .up { color: #6fe08a; } .compare .down { color: var(--danger); }
 .card-head .grow { flex: 1; }
-.mini.fav { font-size: 18px; color: var(--dim); }
+.mini.fav { color: var(--dim); }
 .mini.fav.on { color: var(--gold); border-color: var(--gold); }
 
 /* the forge: blueprints in a grid, the recipe below */
 .bp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 5px; }
-.bp .icon { width: 32px; height: 32px; }
+.bp .icon { width: 40px; height: 40px; }
 .bp { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; background: var(--panel); border: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 11px; }
 .bp.on { border-color: var(--gold); color: var(--gold); }
 .recipe-panel { margin-top: 4px; padding: 10px; border: 1px solid var(--line); background: var(--panel2); }
@@ -318,7 +322,7 @@ body.home #btn-mine { display: none; }
 #app.wide .speech { bottom: calc(12px + env(safe-area-inset-bottom)); left: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); right: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); }
 /* over a screen, toasts move to the foot, out of the way of titles */
 body.modal .toasts { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); }
-.toasts .toast:nth-last-child(n + 4) { display: none; }
+.toasts .toast:nth-last-child(n + 3) { display: none; }
 /* nothing talks over the anvil, a reveal or the story */
 body.rapt .toasts { display: none; }
 /* the story, a panel at a time */
@@ -326,3 +330,12 @@ body.rapt .toasts { display: none; }
 .story-text { max-width: 360px; font-size: 17px; line-height: 1.6; text-align: center; min-height: 6em; }
 .echo { border-left: 2px solid #5a4a20; padding: 4px 10px; margin: 8px 0; font-size: 12px; }
 .echo p { margin: 4px 0 0; color: var(--dim); }
+
+/* the forge: blueprints in a strip along the top, FORGE kept in reach */
+.bp-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 76px; grid-template-columns: none; overflow-x: auto; touch-action: pan-x pan-y; scroll-snap-type: x proximity; padding-bottom: 4px; }
+.bp-strip .bp { scroll-snap-align: center; }
+.forge-go { position: sticky; bottom: 0; background: var(--bg); padding: 8px 0; margin: 0; }
+h3 .dim { color: var(--dim); font-weight: normal; }
+.forge-go .btn small { display: block; font-size: 11px; letter-spacing: 0.08em; margin-top: 2px; }
+.card .card-menu .btn { font-size: 13px; letter-spacing: 0.1em; padding-left: 4px; padding-right: 4px; }
+.mini.fav { font-size: 12px; }

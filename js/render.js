@@ -498,7 +498,17 @@ function renderFrame() {
     x.fillStyle = '#000'; x.fillRect(bx - 1, 5, w + 2, 4);
     x.fillStyle = '#c04040'; x.fillRect(bx, 6, Math.round((w * boss.hp) / boss.maxHp), 2);
   }
-  for (const n of d.nums) drawNumber(n.v, Math.round(n.x + ox), Math.round(n.y + oy), n.hurt ? '#ff6a5a' : n.elem ? ELEMENT_COLS[n.elem] : n.crit ? '#ffd34d' : '#f4ecd8', Math.min(1, n.t * 3));
+  for (const n of d.nums) {
+    const col = n.col || (n.hurt ? '#ff6a5a' : n.elem ? ELEMENT_COLS[n.elem] : n.crit ? '#ffd34d' : '#f4ecd8'), nx = Math.round(n.x + ox), ny = Math.round(n.y + oy);
+    drawNumber(n.v, nx + (n.plus ? 2 : 0), ny, col, Math.min(1, n.t * 3));
+    // a pickup: a + before it
+    if (n.plus) {
+      const px = nx + 2 - Math.floor((String(n.v).length * 4 - 1) / 2) - 4;
+      x.globalAlpha = Math.min(1, n.t * 3);
+      for (const [c, o] of [['#000000', 1], [col, 0]]) { x.fillStyle = c; x.fillRect(px + o, ny + 2 + o, 3, 1); x.fillRect(px + 1 + o, ny + 1 + o, 1, 3); }
+      x.globalAlpha = 1;
+    }
+  }
   if (d.target) {
     const tx = d.target.tx * TILE + ox, ty = d.target.ty * TILE + oy;
     x.fillStyle = Input.mining() ? '#fff2c8' : 'rgba(255,242,200,0.5)';

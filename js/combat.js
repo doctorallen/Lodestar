@@ -557,7 +557,12 @@ function updatePickups(dt) {
     // a pile of ore: take what fits
     if (dr.stuff) {
       const k = Math.min(room, dr.n);
-      if (k > 0) { d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k; dr.n -= k; UI.toast(`+${k} ${stuffName(dr.stuff)}`); if (parsePart(dr.stuff)) UI.tip('parts', 'Creature parts bind what you forge: each kind brings its own affixes'); }
+      if (k > 0) {
+        d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k; dr.n -= k;
+        // a small +n in the stuff's colour, not a toast: pickups are many
+        const pk = parsePart(dr.stuff);
+        d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : pk ? ART.parts[pk.kind] : '#ffffff' });
+        if (parsePart(dr.stuff)) UI.tip('parts', 'Creature parts bind what you forge: each kind brings its own affixes'); }
       if (dr.n > 0) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } } else dr.gone = true;
       continue;
     }

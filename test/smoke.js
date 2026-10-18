@@ -175,6 +175,8 @@ async function phone(browser) {
   const plate = await page.evaluate(() => Game.dive.items.find((i) => i.kind === 'armor').uid);
   await tap(page, `#cargo-body [data-act=cardCargo][data-arg="${plate}"]`);
   await tap(page, '#card [data-act=salvage]');
+  check(await page.evaluate(() => /SURE/.test(document.querySelector('#card [data-act=salvage]').textContent)), 'phone: SALVAGE did not ask first');
+  await tap(page, '#card [data-act=salvage]');
   check(await page.evaluate((f0) => Game.dive.items.length === 1 && (Game.dive.cargo.ferrite || 0) > f0, ferrite0), 'phone: salvaging in the field gave no ore');
   await tap(page, '#screen-cargo [data-act=resume]');
 
