@@ -875,9 +875,9 @@ const T = {
     // start, s leant into the first steps; settle, s to the end of each
     // stopping frame; idle, s an idle cycle (a weight shift, two breaths);
     // turn, rad/s turning between facings; cast, where (of the pose) the
-    // strike ends and the follow-through; warm, how many of the frames not
+    // wind-back, the strike and the follow-through end; warm, how many of the frames not
     // yet wanted are built a draw (none, the draw one was wanted).
-    kindler: { cycle: 27, depthCycle: 0.5, tread: 30, startAt: 0.3, start: 0.2, settle: [0.08, 0.17], idle: 3.6, turn: 16, cast: [0.3, 0.62], warm: 1 },
+    kindler: { cycle: 27, depthCycle: 0.5, tread: 30, startAt: 0.3, start: 0.2, settle: [0.08, 0.17], idle: 3.6, turn: 16, cast: [0.08, 0.32, 0.64], warm: 1 },
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the

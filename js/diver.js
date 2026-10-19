@@ -47,11 +47,11 @@ const KP = {
 // crotch to the neck's base, the torso's cross-section along it ([where,
 // half width, half depth]), the helm's radii.
 const KR = {
-  hip: 19.4, hipW: 2.4, thigh: 9.7, shin: 9.3, ankle: 1.55,
-  upper: 6.7, fore: 6.0, shoulder: 30.4, shoulderW: 4.3,
-  crotch: 17.4, neck: 33.0,
+  hip: 21.2, hipW: 2.4, thigh: 9.5, shin: 9.5, ankle: 1.55,
+  upper: 6.7, fore: 6.0, shoulder: 30.8, shoulderW: 4.3,
+  crotch: 19.2, neck: 33.4,
   prof: [[0, 3.3, 2.3], [0.13, 4.1, 2.5], [0.3, 3.8, 2.3], [0.45, 3.1, 2.0], [0.62, 3.7, 2.4], [0.78, 4.4, 2.5], [0.9, 4.1, 2.1], [1, 1.7, 1.5]],
-  head: [3.4, 4.0, 3.6],
+  head: [3.4, 3.8, 3.6],
 };
 // Depth (towards the camera) shows this much down the screen; the light,
 // from the upper left and a little in front, as (x, up, towards us).
@@ -96,7 +96,7 @@ function kdWalk(s, a, lean) {
   const bob = 0.9 * a * kdBob(s), bobLag = 0.9 * a * kdBob(s - 0.125);
   const swing = (k) => k * 0.55 * a * Math.cos(kdTau * (s - 0.09)), bend = (k) => 0.5 + 0.55 * a * Math.max(0, k * Math.cos(kdTau * (s - 0.2)));
   return {
-    pel: [0.55 * a * Math.sin(kdTau * s), KR.hip - 0.35 + bob, 0.4 * lean], hipYaw: 0.24 * a * Math.cos(kdTau * s), hipRoll: 0.07 * a * Math.sin(kdTau * s),
+    pel: [0.55 * a * Math.sin(kdTau * s), KR.hip - 1.3 * a - 0.4 * (1 - a) + bob, 0.4 * lean], hipYaw: 0.24 * a * Math.cos(kdTau * s), hipRoll: 0.07 * a * Math.sin(kdTau * s),
     chestYaw: -0.17 * a * Math.cos(kdTau * (s - 0.06)), chestRoll: -0.03 * a * Math.sin(kdTau * s), pitch: 0.065 * a + lean, breath: 0, headY: -0.45 * bob, pack: (bobLag - bob) * 0.9,
     feet, toe,
     arms: [{ swing: swing(-1), abd: 0.12, bend: bend(-1) }, { swing: swing(1), abd: 0.12, bend: bend(1) }],
@@ -452,7 +452,7 @@ function kdRender(face, key) {
       const xx = x + (k === 0 ? 1 : k === 1 ? -1 : 0), yy = y + (k === 2 ? -1 : k === 3 ? 1 : 0);
       if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
       const j = yy * W + xx;
-      if (mat[j] && part[j] !== part[i] && zb[j] > zb[i] + 1.2) { val[i] = Math.max(0, val[i] - 0.3); break; }
+      if (mat[j] && part[j] !== part[i] && zb[j] > zb[i] + 0.9) { val[i] = Math.max(0, val[i] - 0.4); break; }
     }
   }
   // laid in strokes: each pixel the tone of its material at its light,
@@ -461,7 +461,7 @@ function kdRender(face, key) {
   for (let i = 0; i < N; i++) {
     if (!mat[i]) continue;
     const ia = cellA[i], ib = cellB[i], pt = part[i], jit = artHash(ia * 31 + pt, ib, seed) + artHash(ib, ia * 7 + pt, seed + 1) - 1;
-    const [ramp, lo, hi, g] = KD_MAT[mat[i]], t = lo + (hi - lo) * Math.pow(val[i], g) + jit * 0.75;
+    const [ramp, lo, hi, g] = KD_MAT[mat[i]], t = lo + (hi - lo) * Math.pow(val[i], g) + jit * 0.55;
     sp.px(i % W, (i / W) | 0, ramp[clamp(Math.round(t), lo, hi)]);
   }
   // features, by hand: a point on the body is drawn if nothing's nearer
@@ -509,7 +509,8 @@ function kdRender(face, key) {
   const Hd = J.head, r = KR.head, tl = (l) => { const c2 = Math.cos(-0.28), s2 = Math.sin(-0.28); return [l[0], l[1] * c2 - l[2] * s2, l[1] * s2 + l[2] * c2]; };
   for (let k = 0; k <= 12; k++) {
     const th = lerp(0.15, 0.62, k / 12) * Math.PI, l = [0, r[1] * Math.cos(th) * 1.02, -r[2] * Math.sin(th) * 1.02];
-    dot(kdAdd(Hd.c, kdYaw(tl(l), Hd.yaw)), KP.plate[k < 5 ? 3 : 2], false, 0.7);
+    const q = dot(kdAdd(Hd.c, kdYaw(tl(l), Hd.yaw)), KP.plate[k < 6 ? 4 : 3], false, 0.7);
+    if (q && fy < 0 && mat[q[1] * W + q[0] + 1] === 5) sp.px(q[0] + 1, q[1], KP.plate[1]);
   }
   let gl = null;
   for (let k = 0; k < W + H && !gl; k++) for (let y = Math.max(0, k - W + 2); y <= Math.min(H - 2, k); y++) {
@@ -650,7 +651,9 @@ function kindlerPick(d, cast) {
     else { A.idle += dt; key = 'i' + (Math.floor((A.idle / K.idle) * 8) % 8); }
   }
   if (cast) {
-    const k = 1 - cast.t / cast.max, ph = cast.charging ? 'w' : k < K.cast[0] ? 's' : k < K.cast[1] ? 'f' : 'r';
+    // (a tap shows the wind-back for a moment as it snaps forward: the
+    // spell has already left the hand)
+    const k = 1 - cast.t / cast.max, ph = cast.charging || k < K.cast[0] ? 'w' : k < K.cast[1] ? 's' : k < K.cast[2] ? 'f' : 'r';
     key = kdCastKey(face, cast.slot, ph, legs[0] === 'g' ? 'w' + legs[1] : legs);
   }
   const spr = kdGet(fi, key);
