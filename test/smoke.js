@@ -12,7 +12,17 @@
 // Held sideways, the decks sit either side of the view. On a desktop: WASD,
 // J to cast, Space to mine, Esc to pause. No page errors anywhere;
 // screenshots go to test/out/.
-const { launch, openGame, shot, finish, PHONE, DESKTOP } = require('./lib');
+const { launch, openGame: openFresh, shot, finish, PHONE, DESKTOP } = require('./lib');
+
+// Every page plays the same world (its seed is otherwise random), so what
+// the checks find in it is the same every run: all of this one's ring 1
+// borders the outpost, with waystones, tears and a Deep among it.
+const SMOKE_WORLD = 5;
+async function openGame(browser, opts) {
+  const g = await openFresh(browser, opts);
+  await g.page.evaluate((seed) => { Save.data.world = freshWorld(seed); }, SMOKE_WORLD);
+  return g;
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const T_RECALL = 4; // seconds; T.leave.recall
@@ -70,7 +80,8 @@ function sturdy() { const d = Game.dive; d.p.hp = d.stats.maxHp = 1e6; for (cons
 // in the page: a ring-1 territory, the gentle starter or a dark one (with a
 // goal, or a Deep, if asked)
 function ring1(want) {
-  const ts = worldMap().terrs.filter((t) => t.ring === 1);
+  // (land beside the outpost, so it can be walked out into)
+  const ts = worldMap().terrs.filter((t) => t.ring === 1 && t.nb.includes(0));
   const t = want === 'starter' ? ts.find((t) => t.starter) : ts.find((t) => !isKindled(t.id) && (!want || (want === 'deep' ? t.deep : t.goal === want)));
   return t ? t.id : null;
 }

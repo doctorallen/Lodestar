@@ -30,13 +30,15 @@
 // --- the world in the save ---------------------------------------------------
 function worldState() {
   const s = Save.data;
-  if (!s.world || !s.world.territories) {
-    // the world's seed may come from anywhere; everything built from it is seeded
-    const seed = (Math.random() * 4294967296) >>> 0, territories = {};
-    for (const t of worldLayout(seed).terrs) if (t.starter) territories[t.id] = { state: 'kindled', done: true, starter: true, visits: 0 };
-    s.world = { seed, territories, sorties: 0 };
-  }
+  // the world's seed may come from anywhere; everything built from it is seeded
+  if (!s.world || !s.world.territories) s.world = freshWorld((Math.random() * 4294967296) >>> 0);
   return s.world;
+}
+// A world not yet walked: only the starter is kindled.
+function freshWorld(seed) {
+  const territories = {};
+  for (const t of worldLayout(seed).terrs) if (t.starter) territories[t.id] = { state: 'kindled', done: true, starter: true, visits: 0 };
+  return { seed, territories, sorties: 0 };
 }
 function worldMap() { return worldLayout(worldState().seed); }
 function terrOf(id) { return worldMap().terrs[id]; }
