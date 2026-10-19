@@ -128,7 +128,7 @@ const rgb01 = (hex) => rgbOf(hex).map((v) => v / 255);
 const _floraSprites = {};
 function floraSprite(set, piece, frame) {
   const key = set + '/' + piece.name + '/' + frame;
-  if (!_floraSprites[key]) { const k = floraKit(set); _floraSprites[key] = buildArtSprite(piece.frames[frame], k.pal, k.letters, k.glows, { openFoot: piece.anchor === 'ceiling' ? 0 : T.flora.melt.open }); }
+  if (!_floraSprites[key]) { const k = floraKit(set); _floraSprites[key] = pflFloraSprite(set, piece, frame, k); }
   return _floraSprites[key];
 }
 // Which plants grow on a floor: its clime's own, if it has them; else the
@@ -1183,12 +1183,16 @@ function drawDrop(dr, ox, oy, lights) {
   else col = ART.rarity[dr.item.rarity] || '#ffffff';
   if (dr.mote) { for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, fy + j, col, true); }
   else if (dr.stuff) {
-    // a little heap of crystals
-    for (const [i, j] of [[-3, 1], [-2, 1], [-2, 0], [-1, 0], [-1, 1], [0, -2], [0, -1], [0, 0], [0, 1], [1, -1], [1, 0], [1, 1], [2, 0], [2, 1], [3, 1]]) dot(fx + i, fy + j + ap(3), j < -1 || (j < 0 && i <= 0) ? '#ffffff' : col, true);
+    // a little heap of crystals (pflora.js), on its shadow
+    const s = pflDropSprite('heap', col, ART.ores[dr.stuff]);
+    drawShadow(fx, Math.round(dr.y * AP) + oy, 3);
+    drawArtSprite(s, fx - 5, fy + ap(3) - 8);
   }
   else {
-    // a gem: a white heart, its colour round it
-    for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) if (Math.abs(i) + Math.abs(j) <= 3) dot(fx + i, fy + j, (Math.abs(i) + Math.abs(j) <= 1 && i <= 0 && j <= 0) ? '#ffffff' : col, true);
+    // a cut gem (pflora.js), bobbing over its shadow
+    const s = pflDropSprite('gem', col);
+    drawShadow(fx, Math.round(dr.y * AP) + oy, 2.5);
+    drawArtSprite(s, fx - 5, fy - 5);
     // the best of it stands up in a beam, so it's seen from across a room
     const it = dr.item;
     if (dr.blueprint || dr.shard !== undefined || dr.echo || dr.resStone || (it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'relic')))

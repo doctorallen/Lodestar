@@ -392,37 +392,19 @@ function pntRockDecor(f, x0, y0, x1, y1) {
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
     const t = f.tiles[ty * f.w + tx];
     if (t !== TILE_ORE && !(t === TILE_ROCK && (hashInts(f.seed, tx, ty, 0x7e1) & 255) < 18)) continue;
+    // (ore is painted in pflora.js)
+    if (t === TILE_ORE) { pflOreTile(f, tx, ty, (x, y) => on(x, y, ty), x0, y0, x1, y1); continue; }
     _tileSeed = hashInts(f.seed, f.depth, tx, ty, 0x0e5) | 0;
     const rnd = tileRnd;
-    if (t === TILE_ORE) {
-      const r = ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id], w = Math.max(2, ap(2)), shards = [];
-      for (let k = 0; k < 3; k++) {
-        const fx = tx * ATILE + Math.round(((k + 0.5) / 3) * (ATILE - w - 2)) + Math.floor(rnd() * ap(2)), fy = ty * ATILE + Math.round(ATILE * (0.35 + rnd() * 0.5));
-        const sy = fy - H[fy * W + fx], h = ap(3 + Math.floor(rnd() * 3));
-        shards.push([fx, sy, h, fy]);
-      }
-      shards.sort((p, q) => p[1] - q[1]);
-      for (const [x, y, h, fy] of shards) {
-        if (!on(x, y + 1, ty)) continue;
-        for (let j = -1; j <= w; j++) if (on(x + j, y + 1, ty)) pntPut(Q, LF, W, x + j, y + 1, rgbOf(b.rock[0]), false, fy);
-        pntShard(Q, LF, W, x, y, h, w, r, fy, x0, y0, x1, y1);
-      }
-      // on its face, where the ground is in front of it
-      if (!TILE_SOLID[floorTile(f, tx, ty + 1)]) {
-        const fx = tx * ATILE + ap(2) + Math.floor(rnd() * (ATILE - ap(6))), fy = (ty + 1) * ATILE - 1, sy = fy - ap(3) - Math.floor(rnd() * ap(4));
-        if (on(fx, sy, ty)) pntShard(Q, LF, W, fx, sy, ap(3), w, r, fy, x0, y0, x1, y1);
-      }
-    } else {
-      // a vein: a thin dim crack wandering over the top
-      const col = rgbOf(mix(b.glow, '#000000', 0.7));
-      let fx = tx * ATILE + ap(3) + Math.floor(rnd() * ap(10)), fy = ty * ATILE + ap(2) + Math.floor(rnd() * ap(8));
-      for (let k = 0, n = ap(9); k < n; k++) {
-        const sy = fy - H[fy * W + fx];
-        if (!on(fx, sy, ty) || !R1(View.rockPx, W, fx, fy)) break;
-        pntPut(Q, LF, W, fx, sy, col, true, fy);
-        fx += rnd() < 0.5 ? 1 : -1; if (rnd() < 0.6) fy += rnd() < 0.5 ? 1 : -1;
-        fx = clamp(fx, tx * ATILE, tx * ATILE + ATILE - 1); fy = clamp(fy, ty * ATILE, ty * ATILE + ATILE - 1);
-      }
+    // a vein: a thin dim crack wandering over the top
+    const col = rgbOf(mix(b.glow, '#000000', 0.7));
+    let fx = tx * ATILE + ap(3) + Math.floor(rnd() * ap(10)), fy = ty * ATILE + ap(2) + Math.floor(rnd() * ap(8));
+    for (let k = 0, n = ap(9); k < n; k++) {
+      const sy = fy - H[fy * W + fx];
+      if (!on(fx, sy, ty) || !R1(View.rockPx, W, fx, fy)) break;
+      pntPut(Q, LF, W, fx, sy, col, true, fy);
+      fx += rnd() < 0.5 ? 1 : -1; if (rnd() < 0.6) fy += rnd() < 0.5 ? 1 : -1;
+      fx = clamp(fx, tx * ATILE, tx * ATILE + ATILE - 1); fy = clamp(fy, ty * ATILE, ty * ATILE + ATILE - 1);
     }
   }
 }
@@ -433,19 +415,6 @@ function pntPut(Q, LF, W, x, y, c, glow, fy) {
   Q.col32[k] = (0xff000000 | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0;
   if (glow) { const e = k * 4; Q.em[e] = c[0]; Q.em[e + 1] = c[1]; Q.em[e + 2] = c[2]; Q.em[e + 3] = 255; } else Q.em[k * 4 + 3] = 0;
   LF[k] = Math.max(1, Math.min(255, fy - y + 1));
-}
-// A crystal up from (x, y) in the rock layer (paintShard's look).
-function pntShard(Q, LF, W, x, y, h, w, r, fy, x0, y0, x1, y1) {
-  for (let i = 0; i < h; i++) {
-    const yy = y - i, tip = i === h - 1;
-    for (let j = 0; j < w; j++) {
-      if (tip && (w === 2 ? j === 1 : j !== 1)) continue;
-      const xx = x + j;
-      if (xx < x0 || yy < y0 || xx >= x1 || yy >= y1) continue;
-      const c = tip ? r[3] : i === 0 ? r[0] : j === 0 ? r[2] : j === w - 1 && w > 2 ? r[0] : r[1];
-      pntPut(Q, LF, W, xx, yy, rgbOf(c), tip, fy);
-    }
-  }
 }
 
 // For each 8 × 8 block of the rock layer, the furthest south floor row any
