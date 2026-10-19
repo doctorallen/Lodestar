@@ -133,8 +133,13 @@ const UI = {
   },
 
   show(id) {
-    // a hint showing goes away with the world, and comes back after
-    for (const t of [...$('toasts').children]) if (t.classList.contains('r-tip')) { UI.heldTips.push(t.textContent); t.remove(); }
+    // a hint showing goes away with the world; one only just shown comes
+    // back after (if it's still where it was given), and the rest count as read
+    for (const t of [...$('toasts').children]) {
+      if (!t.classList.contains('r-tip')) continue;
+      if (Date.now() - t.dataset.born < 800) { UI.hintsSeen.delete(t.textContent); UI.hintQ.unshift({ msg: t.textContent, at: t.dataset.at }); }
+      t.remove();
+    }
     for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id;
     UI.screen = id;
     Game.modal = id;
@@ -152,7 +157,7 @@ const UI = {
   },
 
   redraw() {
-    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawWreck_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
+    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawUplink_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
     if (r) r();
     if (UI.card) drawCard();
   },
@@ -233,19 +238,50 @@ const UI = {
     UI.toast(msg, 'tip');
   },
 
-  // hints wait while a screen is open (heldTips), so none lies over a panel
-  heldTips: [],
+  // Toasts: at most T.ui.toasts on screen at once. News (any toast but a
+  // hint) shows at once and pushes the oldest out. A hint waits its turn in
+  // hintQ, and while a screen is open, so none lies over a panel or crowds
+  // the news; it belongs to the place it was given in (placeKey), and is
+  // dropped if that place has been left before its turn comes. Leaving a
+  // place clears what it said from view, and a hint is never shown twice in
+  // a sortie.
+  hintQ: [], hintsSeen: new Set(), hintsFor: null, toastsAt: '',
+  placeKey() { const d = Game.dive; return !d ? '' : d.hub ? 'home' : `${d.terr}/${d.deep ? d.deep.site : 0}`; },
   toast(msg, kind) {
-    if (kind === 'tip' && Game.modal) { if (!UI.heldTips.includes(msg)) UI.heldTips.push(msg); return; }
-    const box = $('toasts');
+    if (kind !== 'tip') { UI.showToast(msg, kind, UI.placeKey()); return; }
+    if (UI.hintsFor !== Game.dive) { UI.hintsFor = Game.dive; UI.hintsSeen.clear(); }
+    if (UI.hintsSeen.has(msg) || UI.hintQ.some((h) => h.msg === msg)) return;
+    UI.hintQ.push({ msg, at: UI.placeKey() });
+    UI.pumpToasts();
+  },
+  showToast(msg, kind, at) {
+    const box = $('toasts'), most = T.ui.toasts;
     // the same words twice at once read as a stutter: the newer one only
-    for (const o of box.children) if (o.textContent === msg) o.remove();
+    for (const o of [...box.children]) if (o.textContent === msg) o.remove();
     const el = document.createElement('div');
     el.className = 'toast' + (kind ? ' r-' + kind : '');
     el.textContent = msg;
+    el.dataset.at = at;
+    el.dataset.born = Date.now();
+    // long enough to read: a hint longer than news, and long lines longer
+    const secs = clamp(msg.length * (kind === 'tip' ? 0.05 : 0.035), kind === 'tip' ? 2.6 : 1.8, 4.5);
+    el.style.animationDuration = secs + 's';
     box.appendChild(el);
-    while (box.children.length > 3) box.firstChild.remove();
-    setTimeout(() => el.remove(), 1800);
+    while (box.children.length > most) box.firstChild.remove();
+    if (kind === 'tip') UI.hintsSeen.add(msg);
+    setTimeout(() => { el.remove(); UI.pumpToasts(); }, secs * 1000);
+  },
+  // Every step: what a place left behind goes, and a waiting hint shows if
+  // there's room for it.
+  pumpToasts() {
+    const box = $('toasts'), at = UI.placeKey();
+    if (at !== UI.toastsAt) {
+      UI.toastsAt = at;
+      for (const o of [...box.children]) if (o.dataset.at !== at) o.remove();
+    }
+    UI.hintQ = UI.hintQ.filter((h) => h.at === at);
+    if (Game.modal) return;
+    while (UI.hintQ.length && box.children.length < T.ui.toasts) { const h = UI.hintQ.shift(); UI.showToast(h.msg, 'tip', h.at); }
   },
 
   // the top bar and the deck, every step
@@ -257,7 +293,7 @@ const UI = {
     document.body.classList.toggle('diving', !!d);
     document.body.classList.toggle('home', !!(d && d.hub));
     if (Game.modal === 'screen-reveal' && Reveal.item && Game.realT - Reveal.shownAt > 2.2) Reveal.done();
-    if (!Game.modal && UI.heldTips.length) UI.toast(UI.heldTips.shift(), 'tip');
+    UI.pumpToasts();
     if (!d) return;
     if (d.hub) {
       setTextIfChanged('hud-depth', `THE LODESTAR · MAGNITUDE ${magnitudeOf(Save.data.star)}`);
@@ -297,7 +333,7 @@ const UI = {
     const rh = a === 'rift' && riftHere(d);
     let way = '';
     if (a === 'way') way = !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'STEP THROUGH: ' + wayPlaceName(d, wayHere(d)).toUpperCase();
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: 'PLANT THE SPIRE', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'BOARD THE MERIDIAN' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: 'PLANT THE SPIRE', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
     // at a spire (or a beacon's light), TRAVEL too
@@ -326,19 +362,31 @@ function drawStory() {
   $('story-step').textContent = `${st.i + 1} / ${st.lines.length}`;
 }
 
-// The Meridian: what's needed to call home, and the echoes found.
-function drawWreck_() {
-  const s = Save.data, held = Story.shardsHeld(), set = Story.shardsSet();
+// The Meridian uplink (the station 'wreck'): the colony ship in orbit, the
+// landers it can send, the shards set, calling the colony down, and the
+// echoes found.
+function drawUplink_() {
+  const s = Save.data, set = Story.shardsSet();
   const shardRow = (b, i) => {
     const has = (s.shards || []).includes(i);
     return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Take it to the altar') : `In its Keeper's Lair, at the bottom of the Deep under the furthest territory of ring ${i + 1}`}</span></span></div>`;
   };
+  // the landers: one for every few territories kindled
+  const kindled = storyKindledCount(), landers = storyLanders(), every = T.story.landerEvery, need = T.story.callLanders;
+  const landerNote = `Kindled: ${kindled} territor${kindled === 1 ? 'y' : 'ies'}. The Meridian can send a lander for every ${every}, so ${landers ? `${landers} can come down` : 'none can come down yet'}${landers < need ? `; ${(landers + 1) * every - kindled} more for the next` : ''}.`;
+  const call = Story.landersCalled() ? '<p class="note">The colony is down. The rim is theirs now, and the dark beyond it is still yours to walk.</p>'
+    : Story.canCall() ? '<div class="menu"><button class="btn primary" data-act="callLanders">CALL THE LANDERS</button></div>'
+    : `<p class="note">The colony can land when all three shards are set in the star and there's ground for ${need} landers (${need * every} territories kindled).</p>`;
+  // the log: a line for each territory kindled
+  const log = storyKindled().map((t) => `<div class="echo"><p>${esc(kindleLogLine(t.clime, t.name))}</p></div>`).join('');
   const echoes = (s.echoes || []).map((i) => `<div class="echo"><b>${esc(ECHOES[i].title)}</b><p>${esc(ECHOES[i].text)}</p></div>`).join('');
   $('wreck-body').innerHTML = `
-    <p class="note">The Meridian's beacon will call for home, if it has the power. The star could give it, if its heart were whole.</p>
-    <h3>THE STAR'S HEART · ${set}/3</h3>${T.biomes.map(shardRow).join('')}
-    ${s.beaconLit ? '<p class="note">The beacon is lit. Home is coming. Until then, the deep is yours.</p>' : Story.canLight() ? '<div class="menu"><button class="btn primary" data-act="lightBeacon">LIGHT THE BEACON</button></div>' : ''}
-    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The crews before you left logs in the deep.</p>'}`;
+    <p class="note">The colony ship Meridian waits in orbit, its settlers asleep. This mast is how it hears us.</p>
+    <h3>LANDERS · ${landers}</h3><p class="note">${esc(landerNote)}</p>
+    <h3>SHARDS SET · ${set}/3</h3>${T.biomes.map(shardRow).join('')}
+    ${call}
+    ${log ? `<h3>THE LOG · ${kindled} KINDLED</h3>${log}` : ''}
+    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The Kindlers before you left logs out in the dark.</p>'}`;
 }
 
 // How the last dive ended, over the outpost.
@@ -368,10 +416,10 @@ function drawReport() {
   const learned = (r.learned || []).concat((r.kept && r.kept.blueprints) || []);
   if (learned.length) row('LEARNED', 'gold', learned.map((id) => BLUEPRINTS[id].name).join(', '));
   if (r.lostBlueprints) row('BLUEPRINTS LOST', 'bad', `${r.lostBlueprints}, with the cargo`);
-  if (r.shard) row('HEART-SHARD', 'gold', 'Carried home. Set it in the star at the altar.');
+  if (r.shard) row('SHARD', 'gold', 'Carried home. Set it in the star at the altar.');
   for (const c of r.contracts || []) row('CONTRACT DONE', 'good', `${contractText(c)}: ${contractRewardText(c)}`);
   if (r.contracts && r.contracts.bonus) row('THE WHOLE BOARD', 'gold', `+${r.contracts.bonus} more to the star`);
-  if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the wreck`);
+  if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the uplink`);
   // the star: what this ride fed it, and how far to the next magnitude
   const s = Save.data, mag = magnitudeOf(s.star), lo = T.star.levels[mag - 1], hi = T.star.levels[mag];
   let star = '';
@@ -576,7 +624,7 @@ function drawStar() {
   }).join('');
   $('star-body').innerHTML = `
     <div class="mag">MAGNITUDE ${mag}${next !== undefined ? ` · ${s.star}/${next}` : ''}</div>
-    <p class="note">Ore fed to the star makes it grow. Each magnitude gives an attunement point, makes a Deep's lodelines likelier and a recall gentler, and now and then a pocket slot more.</p>
+    <p class="note">Ore fed to the star makes it grow. Each magnitude gives an attunement point, makes the star's light likelier to reach down into a Deep, a recall gentler, and now and then a pocket slot more.</p>
     <h3>FEED THE STAR</h3>${feed || '<p class="note">No ore banked.</p>'}
     <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3>${att}`;
 }
@@ -730,10 +778,8 @@ UI.acts = {
     UI.story = null; UI.close();
     if (st.done) st.done();
   },
-  lightBeacon: () => {
-    Save.data.beaconLit = true; Save.save();
-    UI.openStory(STORY_END, () => UI.useStation('wreck'));
-  },
+  // calling the colony down, at the uplink (story.js)
+  callLanders: () => { if (Story.canCall()) Story.callLanders(() => UI.useStation('wreck')); },
   recall: () => {
     UI.close();
     const d = Game.dive;

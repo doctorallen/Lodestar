@@ -30,13 +30,15 @@
 // --- the world in the save ---------------------------------------------------
 function worldState() {
   const s = Save.data;
-  if (!s.world || !s.world.territories) {
-    // the world's seed may come from anywhere; everything built from it is seeded
-    const seed = (Math.random() * 4294967296) >>> 0, territories = {};
-    for (const t of worldLayout(seed).terrs) if (t.starter) territories[t.id] = { state: 'kindled', done: true, starter: true, visits: 0 };
-    s.world = { seed, territories, sorties: 0 };
-  }
+  // the world's seed may come from anywhere; everything built from it is seeded
+  if (!s.world || !s.world.territories) s.world = freshWorld((Math.random() * 4294967296) >>> 0);
   return s.world;
+}
+// A world not yet walked: only the starter is kindled.
+function freshWorld(seed) {
+  const territories = {};
+  for (const t of worldLayout(seed).terrs) if (t.starter) territories[t.id] = { state: 'kindled', done: true, starter: true, visits: 0 };
+  return { seed, territories, sorties: 0 };
 }
 function worldMap() { return worldLayout(worldState().seed); }
 function terrOf(id) { return worldMap().terrs[id]; }
@@ -128,7 +130,6 @@ function enterTerritory(id, how = {}) {
   if (!d.kindled) UI.tip('darkLand', 'Dark land: your light runs down here. Kindled land fills it again');
   else if (f.pad) { UI.tip('spire', 'A spire: BANK your cargo here, or TRAVEL to another'); Story.say('firstSpire'); }
   noticeRift(d);
-  if (t.goal === 'waystones' && !d.kindled) UI.tip('waystones', 'Light the three waystones and hold the last, and this land can take a spire');
   saveRun(d);
 }
 
@@ -169,7 +170,7 @@ function updateFrontier(d, dt) {
       d.hold = null;
       if (!ts.lit.includes(h.k)) ts.lit.push(h.k);
       ts.done = true;
-      UI.toast('The waystones burn. Plant the spire at the heart', 'legendary');
+      UI.toast('The waystones burn', 'legendary');
       buzz(40);
     }
   }
@@ -274,11 +275,8 @@ function stoneLit(d, k) {
   spawnSparks((s.x + 0.5) * TILE, (s.y + 0.5) * TILE - 18, [ART.pal.star[3], '#ffffff'], 18);
   if (ts.lit.length >= 2) {
     d.hold = { k, t: 0, waveT: W.waveEvery };
-    UI.toast(`Hold the last waystone: stay in its light for ${W.hold} s`, 'legendary');
-  } else {
-    ts.lit.push(k);
-    UI.toast(`A waystone lit: ${ts.lit.length} of 3`, 'legendary');
-  }
+  } else ts.lit.push(k);
+  // (what's left to do is the goal's, over the view: goalLines)
   buzz(30);
 }
 
@@ -287,7 +285,8 @@ function riftSealedHere(d) {
   if (!d.sortie || d.deep) return;
   const ts = terrState(d.terr);
   ts.sealed = true;
-  if (d.rift && d.rift.heart) { ts.done = true; ts.state = 'contested'; UI.toast('The heart is whole. Plant the spire there', 'legendary'); }
+  // (the tear's own toast says it closed; the goal says what's next)
+  if (d.rift && d.rift.heart) { ts.done = true; ts.state = 'contested'; }
 }
 
 function kindleTerritory(d) {
@@ -307,7 +306,7 @@ function kindleTerritory(d) {
   UI.toast(`${t.name.toUpperCase()} IS KINDLED`, 'legendary');
   // the story's log line for it (story.js), when there is one
   const line = typeof kindleLogLine === 'function' ? kindleLogLine(t.clime, t.name) : '';
-  if (line) UI.toast(line);
+  if (line) UI.toast(line, 'log');
   Story.say('firstKindled');
   buzz(60);
 }
@@ -349,9 +348,10 @@ function enterDeepSite(k) {
   d.arrive = { t: 0, zone };
   d.mined = [];
   if (k === 1) { const tl = d.tally || (d.tally = {}); tl.deeps = (tl.deeps || 0) + 1; }
-  UI.toast(`The Deep · ${placeName(zone, clime)} · site ${k} of ${n}${d.floor.pad || zone === 'lair' ? '' : ': no lodeline reaches here'}`);
+  UI.toast(`The Deep · ${placeName(zone, clime)} · site ${k} of ${n}${d.floor.pad || zone === 'lair' ? '' : ': no light reaches down here'}`);
   Story.say('firstDeep');
-  if (d.floor.pad && !d.padDark) UI.tip('lodeline', 'The gold beam is a lodeline: it lifts you back to the surface');
+  Story.say(T.biomes[t.biome].id);
+  if (d.floor.pad && !d.padDark) UI.tip('lodeline', "A shaft of the star's light reaches down here. Stand in it to rise to the surface");
   noticeRift(d);
   saveRun(d);
 }
@@ -544,12 +544,13 @@ function exitLabel(text, col) {
 function goalLines(d) {
   if (!d || !d.sortie || d.deep || d.kindled || !d.terr) return null;
   const t = terrOf(d.terr), ts = terrPeek(d.terr) || {}, out = [];
-  if (ts.done) return ['◆ ' + (t.goal === 'rift' ? 'The tear sealed' : 'The waystones lit'), 'Plant the spire at the heart'];
+  if (ts.done) return ['◇ Plant the spire at the heart'];
   if (t.goal === 'rift') return ['◇ Seal the tear at the heart', 'then plant the spire'];
   const lit = ts.lit || [];
   for (let k = 0; k < 3; k++) {
-    if (d.hold && d.hold.k === k) out.push(`◈ Hold it: ${Math.max(0, Math.ceil(T.world.waystone.hold - d.hold.t))} s`);
-    else out.push((lit.includes(k) ? '◆ ' : '◇ ') + `Waystone ${k + 1}`);
+    if (d.hold && d.hold.k === k) out.push(`◈ Stay in its light: ${Math.max(0, Math.ceil(T.world.waystone.hold - d.hold.t))} s`);
+    else if (lit.includes(k)) out.push(`◆ Waystone ${k + 1} lit`);
+    else out.push(lit.length === 2 ? '◇ Light the last, and hold it' : `◇ Light waystone ${k + 1}`);
   }
   out.push('then plant the spire');
   return out;

@@ -1,6 +1,6 @@
 # Lodestar
 
-A top-down pixel-art mining and looting game for the phone browser, upright or sideways. A fallen star hangs over a sinkhole on an alien world, and the world round it is dark. Carry its light out, mine arcane ore, kindle the land a territory at a time, and get back to a spire before the dark takes your haul.
+A top-down pixel-art mining and looting game for the phone browser, upright or sideways. You're a Kindler: you rode a seed-star down to a dead world to plant it, and it struck wrong and sank into a sinkhole. Carry its light out, mine arcane ore, kindle the land a territory at a time, and get back to a spire before the dark takes your haul.
 
 `DESIGN.md` is the plan; `DECISIONS.md` says why things are the way they are.
 
@@ -34,6 +34,7 @@ At home, walk the outpost's stations:
 - the rune bench: rework affixes;
 - the locker: your gear, and each caster's circuit, built from stones for free;
 - the star's altar: feed it ore to grow it;
+- the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
 - the portal: the world map, to set out again.
 
 ## Files
@@ -51,13 +52,13 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
 | `js/climes.js` | Climes: each one's palette, flora, critters and weather; rolling and naming them |
-| `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards and the beacon |
-| `js/hub.js` | The outpost: stations, the star over the pit, lanterns, feeding the star |
+| `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
+| `js/hub.js` | The outpost: stations, the star over the pit, lanterns, the uplink, the settlement's tents, feeding the star |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
-| `js/diver.js` | The player's sprite: the circuit diver's five facings, walk frames and hand points |
+| `js/diver.js` | The player's sprite: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp |
 | `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
 | `js/blueprints.js` | What can be forged: blueprints (casters, gear, stones), creature parts |
-| `js/art2.js` | Art for crafting and the story: new item icons, parts, stones, the wreck, the Shard Keepers |
+| `js/art2.js` | Art for crafting and the story: new item icons, parts, stones, the uplink, a tent, the Shard Keepers |
 | `js/art3.js` | The sunlit surface's palette and plants, the rift, tool icons |
 | `js/foesart.js` | Each clime's own creature: its frames drawn by hand at 24 px, and its colours |
 | `js/items.js` | Affixes, rarities, legendaries, the set, casters and stones, relics; the forge, rune bench, salvage; stats |

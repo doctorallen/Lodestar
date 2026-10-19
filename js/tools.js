@@ -9,7 +9,7 @@
 // ---------------------------------------------------------------------------
 
 const TOOLS = {
-  compass: { name: 'Lodeline Compass', icon: 'compass', text: 'An arrow to the spire, or the way to the nearest kindled land; in a Deep, to its lodeline or the portal on.' },
+  compass: { name: 'Lodestone Compass', icon: 'compass', text: 'An arrow to the spire, or the way to the nearest kindled land; in a Deep, to its shaft of light or the portal on.' },
   oresense: { name: 'Ore Sense', icon: 'lens', text: 'Veins nearby glint through the dark, and an arrow points to the nearest beyond the view.' },
   radar: { name: 'Threat Radar', icon: 'radar', text: 'Marks at the edge of the view for what is out there: red for the dangerous, violet for the Hollow.' },
   map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each place as you walk it, with its portals, spire and waystones once seen.' },
@@ -104,13 +104,13 @@ function plantBeacon() {
   const d = Game.dive, p = d.p, f = d.floor, tx = Math.floor(p.x / TILE), ty = Math.floor(p.y / TILE);
   if (d.tool !== 'beacon' || d.beaconUsed || d.beacon || d.hub) return false;
   if (d.zone === 'lair' && d.keeper && !d.keeper.dead) { UI.toast("The Keeper's hold is too strong here"); return false; }
-  if (f.pad && !d.padDark) { UI.toast(d.deep ? 'A lodeline already reaches here' : 'A spire already stands here'); return false; }
+  if (f.pad && !d.padDark) { UI.toast(d.deep ? 'The light already reaches here' : 'A spire already stands here'); return false; }
   if (d.sortie && !d.deep && (f.heart && Math.hypot(f.heart.x - tx, f.heart.y - ty) < 2 || (f.stones || []).some((s) => Math.hypot(s.x - tx, s.y - ty) < 2))) { UI.toast('Not so close to that'); return false; }
   if ((d.fieldForge && Math.hypot(d.fieldForge.x - tx, d.fieldForge.y - ty) < 2) || (d.rift && d.rift.open && [d.rift, d.rift.pair].some((r) => r && Math.hypot(r.x - tx, r.y - ty) < 2))) { UI.toast('Not so close to that'); return false; }
   if (floorTile(f, tx, ty) !== TILE_FLOOR) { UI.toast('The beacon needs open ground'); return false; }
   d.beacon = { x: tx, y: ty, t: 0, landed: false };
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.tools.beacon.noise) wake(d, e);
-  UI.toast(d.deep ? 'The beacon is calling a lodeline down' : "The beacon is calling a spire's light down", 'legendary');
+  UI.toast(d.deep ? "The beacon is calling the star's light down" : "The beacon is calling a spire's light down", 'legendary');
   return true;
 }
 function landBeacon(d, quiet) {
@@ -124,7 +124,7 @@ function landBeacon(d, quiet) {
   repaintAround(f, b.x, b.y);
   if (quiet) return;
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, (b.x + 0.5) * TILE, (b.y + 0.5) * TILE) < T.tools.beacon.noise) wake(d, e);
-  UI.toast(d.deep ? 'A lodeline lands' : "A spire's light lands: bank here, or stand in it", 'legendary');
+  UI.toast(d.deep ? 'The light lands: rise here' : "A spire's light lands: bank here, or stand in it", 'legendary');
   buzz(40);
 }
 

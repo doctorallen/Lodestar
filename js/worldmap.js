@@ -190,7 +190,9 @@ function drawMapCard() {
     else if (hasSpire(t.id)) btns.push(`<button class="btn primary" data-act="travelTo" data-arg="${t.id}">TRAVEL TO ITS SPIRE</button>`);
   } else {
     if (!t.home && hasSpire(t.id)) btns.push(`<button class="btn primary" data-act="setOutSpire" data-arg="${t.id}">SET OUT TO ITS SPIRE</button>`);
-    if (t.ring === 1) btns.push(`<button class="btn ${hasSpire(t.id) ? '' : 'primary'}" data-act="setOutWalk" data-arg="${t.id}">WALK OUT INTO IT</button>`);
+    // only land that borders the outpost's can be walked out into (most of
+    // ring 1, but now and then a cell squeezes between two others)
+    if (t.nb.includes(0)) btns.push(`<button class="btn ${hasSpire(t.id) ? '' : 'primary'}" data-act="setOutWalk" data-arg="${t.id}">WALK OUT INTO IT</button>`);
   }
   if (!btns.length && !t.home) btns.push(`<p class="note">${mode === 'travel' ? 'No spire stands here yet.' : 'Reach it on foot, or from a spire near it.'}</p>`);
   $('map-card').innerHTML = `<div class="tcard">${h}${btns.length ? `<div class="menu">${btns.join('')}</div>` : ''}</div>`;

@@ -31,7 +31,7 @@ const BLUEPRINTS = {
   shell: { name: 'Shell', kind: 'armor', style: 'shell', ore: 12, parts: 3, mult: 1.6, implicit: { moveSpeed: -8 }, text: 'Heavy. Much more armor, a little slower.' },
   // charms
   charm: { name: 'Charm', kind: 'charm', style: 'charm', ore: 6, parts: 2, start: true, text: 'Affixes of any kind.' },
-  lantern: { name: 'Lantern', kind: 'charm', style: 'lantern', ore: 6, parts: 3, implicit: { lamp: 30, pullSlow: 20 }, text: "A brighter lamp, and the star's pull fades 20% slower." },
+  lantern: { name: 'Lantern', kind: 'charm', style: 'lantern', ore: 6, parts: 3, implicit: { lamp: 30, pullSlow: 20 }, text: "A brighter lamp, and your light fades 20% slower." },
   // picks
   pick: { name: 'Pick', kind: 'pick', style: 'pick', ore: 12, parts: 1, mult: 1, start: true, text: 'Breaks the ore above its own.' },
   drill: { name: 'Drill', kind: 'pick', style: 'drill', ore: 12, parts: 2, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },

@@ -58,6 +58,7 @@ function enterHub(report) {
   const dm = HUB_STATIONS.find((s) => s.id === 'dummy');
   const dummy = makeEnemy('dummy', (dm.x + 0.5) * TILE, (dm.y + 0.5) * TILE, 1, null);
   d.enemies = [dummy];
+  placeSettlers(d);
   Game.scene = 'hub';
   UI.close();
   if (report) UI.openReport(report);
@@ -191,6 +192,7 @@ function updateDive(dtReal, dt) {
   updateAuras(dt);
   updateCombatFx(dt);
   if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); }
+  else updateSettlers(d, dt);
   updatePickups(dtReal);
   if (Input.consumeAct()) {
     const a = actionHere();
@@ -255,9 +257,9 @@ function updatePull(dt) {
 function theDarkComes(d) {
   if (d.deep) {
     d.padDark = true;
-    if (d.channel && d.channel.kind === 'extract') breakChannel('The lodeline went dark');
+    if (d.channel && d.channel.kind === 'extract') breakChannel('The light went out');
   }
-  UI.toast(d.deep ? 'The lodeline has gone dark. Something is coming.' : 'Your light is out. Something is coming.', 'legendary');
+  UI.toast(d.deep ? 'Your light is out, and the shaft with it. Something is coming.' : 'Your light is out. Something is coming.', 'legendary');
   const at = darkSpot(d);
   if (at) { const h = makeEnemy('hollow', at.x, at.y, floorLevel(d), null); h.aggro = true; d.enemies.push(h); }
 }
@@ -398,7 +400,7 @@ function updateMining(dt) {
   const refuse = (why, msg) => { if (!p.mine || p.mine.i !== tgt.i || p.mine.refused !== why) { p.mine = { i: tgt.i, prog: 0, hitT: 0, refused: why }; UI.toast(msg); } };
   if (!pick) return refuse('nopick', 'You need a pick');
   if (o.tier > pick.base.power) return refuse('weak', `Your pick can't break ${o.name}`);
-  if (cargoUsed(d) >= d.stats.cargo) { UI.tip('full', 'Full: find a lodeline to bank it'); return refuse('full', 'Cargo full'); }
+  if (cargoUsed(d) >= d.stats.cargo) { UI.tip('full', 'Full: bank it at a spire, or carry it home'); return refuse('full', 'Cargo full'); }
   if (!p.mine || p.mine.i !== tgt.i || p.mine.refused) p.mine = { i: tgt.i, prog: 0, hitT: 0 };
   p.mine.prog += (dt * T.mine.speed * pick.base.speed * (1 + d.stats.mineSpeed / 100)) / o.hardness;
   p.mine.hitT -= dt;

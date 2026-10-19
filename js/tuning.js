@@ -671,11 +671,25 @@ const T = {
   // extractStar: what coming home feeds the star, once a sortie, times the
   // square of the deepest dark land walked (its depth, 1 to 4).
   star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], extractStar: 8 },
-  // The story: each region's Keeper waits in its lair, at the end of an
-  // expedition, holding a shard of the star's heart; each shard set in the star adds shardStar points.
-  // An echo (a log of the crews before) turns up by an ancient forge, from
-  // an elite now and then, and from every Keeper.
-  story: { shardStar: 400, echoForge: 0.5, echoElite: 0.05 },
+  // The story (story.js): each region's Keeper waits in its lair, at the end
+  // of its ring's furthest Deep, holding a shard of a star that went dark;
+  // each shard set in the Lodestar adds shardStar points. An echo (a log of
+  // the Kindlers before) turns up by an ancient forge, from an elite now and
+  // then, and from every Keeper.
+  //   landerEvery: the Meridian can send a lander for every this many
+  //     territories kindled. callLanders: how many landers' worth of kindled
+  //     land it takes to call the colony down (with every shard set).
+  //   turnEcho: from this many echoes read, the settlers have heard.
+  //   settlers: figures at the outpost, perLander for each lander down (all
+  //     of them, most, once the colony's called); their pace (world px a
+  //     second), the pause between strolls (s), how near (tiles) the diver
+  //     comes before one speaks, and how long (s) before that one speaks
+  //     again.
+  story: {
+    shardStar: 400, echoForge: 0.5, echoElite: 0.05,
+    landerEvery: 3, callLanders: 5, turnEcho: 5,
+    settlers: { perLander: 1, most: 6, speed: 9, rest: [2, 6], talkR: 1.4, talkGap: 40 },
+  },
   // An ancient forge stands on a floor this deep or deeper, by chance.
   // Imprinting a known legendary power at the forge costs a heart (any
   // grade) or `glass` riftglass; a fine forge or better always takes it,
@@ -855,9 +869,10 @@ const T = {
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: false,
     // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
     // baked: and the floor's fixed lights (lava, vents, glowing plants).
-    // eye: the dome's height over the feet (world px), where the lamp's
-    // light is centred; its shadows are cast from under it. rays: how many
-    // rays for each cell round the edge of the light's reach; step: art px
+    // eye: the brow lamp's height over the feet (world px; DIVER_LAMP's
+    // row is 29.75 art px up), where the lamp's light is centred; its
+    // shadows are cast from under it. rays: how many rays for each cell
+    // round the edge of the light's reach; step: art px
     // a ray moves at a time through the wall line; reach: world px past
     // where a ray strikes rock that's still lit (the skin of rock it
     // strikes); top: what a rock top it doesn't reach keeps of it.
@@ -873,10 +888,20 @@ const T = {
     // foot (a share of its width); fray: how ragged its edges (in clusters
     // of 2 art px); portal: a portal's half width (world px).
     shadow: {
-      walls: true, baked: true, eye: 17, rays: 1.25, step: 2, reach: 3, top: 0,
+      walls: true, baked: true, eye: 20, rays: 1.25, step: 2, reach: 3, top: 0,
       props: { steps: [0.2, 0.38], dark: [0.66, 0.48], core: [0.62, 0.6], len: [9, 0.12, 18], tall: 30, size: [0.6, 1.3], crown: 0.3, back: 0.35, fray: 0.35, portal: 9 },
     },
   },
 
-  ui: { tapGuard: 0.4 }, // seconds a new screen ignores taps
+  // Wick, the drone (render.js, drawDrone; cosmetic): where it hovers from
+  // the feet, in world px: back, how far behind the way the diver faces
+  // ([across, up and down]); aside, how far to the side of it, the same
+  // way; up, how high (clear of the helm's brow lamp in every facing, over
+  // its whole bob). ease: how quickly it catches up (a second); bob: [its
+  // speed, how far (world px)].
+  wick: { back: [7, 4], aside: [6, 3], up: 21, ease: 5, bob: [3, 1.5] },
+
+  // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
+  // at once (ui.js; hints wait their turn).
+  ui: { tapGuard: 0.4, toasts: 2 },
 };

@@ -12,7 +12,17 @@
 // Held sideways, the decks sit either side of the view. On a desktop: WASD,
 // J to cast, Space to mine, Esc to pause. No page errors anywhere;
 // screenshots go to test/out/.
-const { launch, openGame, shot, finish, PHONE, DESKTOP } = require('./lib');
+const { launch, openGame: openFresh, shot, finish, PHONE, DESKTOP } = require('./lib');
+
+// Every page plays the same world (its seed is otherwise random), so what
+// the checks find in it is the same every run: all of this one's ring 1
+// borders the outpost, with waystones, tears and a Deep among it.
+const SMOKE_WORLD = 5;
+async function openGame(browser, opts) {
+  const g = await openFresh(browser, opts);
+  await g.page.evaluate((seed) => { Save.data.world = freshWorld(seed); }, SMOKE_WORLD);
+  return g;
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const T_RECALL = 4; // seconds; T.leave.recall
@@ -70,7 +80,8 @@ function sturdy() { const d = Game.dive; d.p.hp = d.stats.maxHp = 1e6; for (cons
 // in the page: a ring-1 territory, the gentle starter or a dark one (with a
 // goal, or a Deep, if asked)
 function ring1(want) {
-  const ts = worldMap().terrs.filter((t) => t.ring === 1);
+  // (land beside the outpost, so it can be walked out into)
+  const ts = worldMap().terrs.filter((t) => t.ring === 1 && t.nb.includes(0));
   const t = want === 'starter' ? ts.find((t) => t.starter) : ts.find((t) => !isKindled(t.id) && (!want || (want === 'deep' ? t.deep : t.goal === want)));
   return t ? t.id : null;
 }
@@ -241,7 +252,7 @@ async function phone(browser) {
     stones.push(await page.evaluate(() => [(terrState(Game.dive.terr).lit || []).length, !!Game.dive.hold]));
   }
   check(stones[0][0] === 1 && stones[1][0] === 2 && stones[2][1], `phone: the waystones did not light one by one, the last held (${JSON.stringify(stones)})`);
-  check(await page.evaluate(() => terrState(Game.dive.terr).state === 'contested' && /Hold it/.test($('hud-goal').textContent)), 'phone: lighting a waystone did not contest the land, or the goal does not show the hold');
+  check(await page.evaluate(() => terrState(Game.dive.terr).state === 'contested' && /Stay in its light/.test($('hud-goal').textContent)), 'phone: lighting a waystone did not contest the land, or the goal does not show the hold');
   await page.evaluate(() => { for (let i = 0; i < 60 * (T.world.waystone.hold + 0.5); i++) { Game.step(1 / 60); for (const e of Game.dive.enemies) e.dead = true; } });
   check(await page.evaluate(() => terrState(Game.dive.terr).done && !Game.dive.hold), 'phone: holding the last waystone did not finish the goal');
   await page.evaluate(() => { const d = Game.dive, h = d.floor.heart; d.p.x = (h.x + 0.5) * TILE; d.p.y = (h.y + 0.8) * TILE; });
