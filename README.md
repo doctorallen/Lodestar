@@ -1,6 +1,6 @@
 # Lodestar
 
-A top-down pixel-art mining and looting game for the phone browser, upright or sideways. You're a Kindler: you rode a seed-star down to a dead world to plant it, and it struck wrong and sank into a sinkhole. Carry its light out, mine arcane ore, kindle the land a territory at a time, and get back to a spire before the dark takes your haul.
+A top-down pixel-art mining and looting game for the phone browser, upright or sideways. You're a Kindler on your first terraform: the seed-star is planted in the middle of a dead world, the Charter's base round it, and growing it is your job. Carry its light out, mine arcane ore, kindle the land a territory at a time, and get back to a spire before the dark takes your haul.
 
 `DESIGN.md` is the plan; `DECISIONS.md` says why things are the way they are.
 
@@ -21,7 +21,7 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Pause | II | Esc / P |
 
 The loop:
-1. The outpost's portal opens the world map: walk out into a territory next to the outpost, or set out to a spire.
+1. Walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to a spire.
 2. Cross from territory to territory by the openings at their edges. Mine ore and fight what finds you.
 3. Watch the gold meter, your light: it drains in dark land and fills in kindled land. When it's gone, something hunts you.
 4. Light a territory's waystones or seal the tear at its heart, then plant a spire there, and it's kindled for good.
@@ -35,7 +35,7 @@ At home, walk the outpost's stations:
 - the locker: your gear, and each caster's circuit, built from stones for free;
 - the star's altar: feed it ore to grow it;
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
-- the portal: the world map, to set out again.
+- the portal: the world map, to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
 
 ## Files
 
@@ -47,14 +47,16 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/version.js` | The build stamp, written by `.githooks/pre-commit` |
 | `js/tuning.js` | Every gameplay number, the ores, exotics and biomes |
 | `js/save.js` | The save in localStorage |
-| `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline |
+| `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline; the outpost's site, its openings and its plan |
 | `js/world.js` | The world: its rings of territories laid out from the save's seed, their neighbours, climes, names and goals; each territory's map (`generateTerritory`) with its openings, heart and waystones |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
 | `js/paint.js` | The painted style (docs/PAINTED.md): stroke ramps and strokes, the ground's tones, the rock rising as a heightfield from a steep three-quarter camera, occlusion, lazy painting in chunks, and the painted sprite builder |
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
 | `js/climes.js` | Climes: each one's palette, flora, critters and weather; rolling and naming them |
 | `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
-| `js/hub.js` | The outpost: stations, the star over the pit, lanterns, the uplink, the settlement's tents, feeding the star |
+| `js/hub.js` | The outpost: stations, the star over its cradle and its lodelines across the ground, light masts, starstone, the uplink, the settlement's landers and pods, feeding the star |
+| `js/hubart.js` | The outpost, painted: the Charter's modules, the star and its cradle, starstone, light masts, landers, pods and people; the ancient forges in the land |
+| `js/hubground.js` | The outpost's ground: its edges melding into each neighbour's land (ground, plants, rock), the Charter's plates, pads and marked paths |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
 | `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp; Wick |
 | `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
