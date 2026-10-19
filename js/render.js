@@ -226,13 +226,9 @@ function paintFloor(f) {
   fillRockField(f, 0, 0, P.w, P.h);
   // what grows here first: its beds are painted with the tiles
   View.flora = placeFlora(f, floraSetOf(f));
-  for (let ty = 0; ty < f.h; ty++) for (let tx = 0; tx < f.w; tx++) paintTileArt(f, tx, ty);
-  paintGraft(f, 0, 0, f.w - 1, f.h - 1);
-  tintRift(f, 0, 0, P.w, P.h);
-  View.floorImgs = [new ImageData(P.col, P.w, P.h), new ImageData(P.em, P.w, P.h)];
-  let x;
-  [View.floorCol, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[0], 0, 0);
-  [View.floorEm, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[1], 0, 0);
+  // the ground and the rock standing up over it are painted in chunks as
+  // the view comes near them (paint.js, pntFrame)
+  pntFloorStart(f);
   View.lights = floorLights(f);
   View.floraLights = floraLights(View.flora);
   View.bakedFrom = null;
@@ -257,25 +253,33 @@ function paintTileArt(f, tx, ty) {
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
   if (f.clime) paintClimeTile(P, f, tx, ty, ox, oy, b);
   paintUndergrowth(P, f, tx, ty, ox, oy, b);
+  // (ore and veins are on the rock layer: paint.js)
   if (t === TILE_PAD) paintDish(P, ox, oy);
-  else if (t === TILE_ORE) {
-    const front = !TILE_SOLID[floorTile(f, tx, ty + 1)];
-    paintOre(P, ox, oy, b, rnd, ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id], front ? ATILE - FACE_H : ATILE, front ? FACE_H : 0);
-  } else if (t === TILE_ROCK && (hashInts(f.seed, tx, ty, 0x7e1) & 255) < 18) paintRockVein(P, rock, ox, oy, b, rnd);
 }
 
 // After mining: the wall line moves round tx, ty, and with it the rims,
 // faces and shadows of the tiles about it.
+// The rock stands up over the ground north of it (paint.js), so the rock
+// layer is painted again over all it lifts.
 function repaintAround(f, tx, ty) {
   if (View.floorFor !== f) return;
   const T2 = ATILE;
+  // (painted first, if it isn't yet, from the rock as it was)
+  pntEnsure(f, (tx - 2) * T2, (ty - 3) * T2, (tx + 3) * T2, (ty + 3) * T2);
   fillRockField(f, (tx - 1) * T2, (ty - 1) * T2, (tx + 2) * T2, (ty + 2) * T2);
-  for (let y = ty - 2; y <= ty + 2; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
-  paintGraft(f, tx - 1, ty - 2, tx + 1, ty + 2);
-  tintRift(f, (tx - 1) * T2, (ty - 2) * T2, (tx + 2) * T2, (ty + 3) * T2);
-  const dx = Math.max(0, tx - 1) * T2, dy = Math.max(0, ty - 2) * T2;
-  View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, dx, dy, 3 * T2, 5 * T2);
-  View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, dx, dy, 3 * T2, 5 * T2);
+  // the heights first (the ground's sun shadows read them), then the
+  // ground, then the rock
+  const Wl = T.paint.wall, m = Math.max(Wl.edge, Wl.ramp) + 2;
+  pntHeights(f, tx * T2 - m, ty * T2 - m, (tx + 1) * T2 + m, (ty + 1) * T2 + m);
+  pntGroundTones(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + 3) * T2);
+  // (the ground as far up as the rock stood over it)
+  for (let y = ty - 3; y <= ty + 2; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
+  paintGraft(f, tx - 1, ty - 3, tx + 1, ty + 2);
+  tintRift(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + 3) * T2);
+  const dx = Math.max(0, tx - 1) * T2, dy = Math.max(0, ty - 3) * T2;
+  View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, dx, dy, 3 * T2, 6 * T2);
+  View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, dx, dy, 3 * T2, 6 * T2);
+  pntRepaintRock(f, tx * T2, ty * T2, (tx + 1) * T2, (ty + 1) * T2);
   View.lights = floorLights(f);
 }
 
@@ -284,7 +288,8 @@ function floorLights(f) {
   const L = [], Lt = T.light;
   for (let ty = 0; ty < f.h; ty++)
     for (let tx = 0; tx < f.w; tx++)
-      if (floorTile(f, tx, ty) === TILE_ORE) L.push({ x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE, r: Lt.ore[0] * TILE, i: Lt.ore[1], c: rgb01(ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][2]) });
+      // (where the rock stands it up to, unshadowed: it glows from the rock)
+      if (floorTile(f, tx, ty) === TILE_ORE) L.push({ x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE - pntLiftAt((tx + 0.5) * ATILE, (ty + 0.5) * ATILE) / AP, r: Lt.ore[0] * TILE, i: Lt.ore[1], c: rgb01(ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][2]), inRock: true });
   return f.clime ? L.concat(hazardLights(f), climeLights(f)) : L;
 }
 
@@ -716,6 +721,8 @@ function renderFrame() {
   // at home the camera looks further up, to keep the star in sight
   const lookUp = ap(d.hub ? 56 : 8);
   const camY = (View.camY = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h)));
+  // the floor's painted chunks in view and near it (paint.js)
+  pntFrame(f, camX, camY);
   const sh = View.shake > 0.3 ? View.shake * AP : 0;
   // a world point x, y is drawn at Math.round(x * AP) + ox, Math.round(y * AP) + oy
   const ox = -camX + Math.round(FX_R.f(-sh, sh)), oy = -camY + Math.round(FX_R.f(-sh, sh)), ex = View.emCtx;
@@ -735,7 +742,7 @@ function renderFrame() {
       if (f.tiles[ty * f.w + tx] !== TILE_ORE) continue;
       const h = hashInts(tx, ty, 0x7a1), ph = (Game.realT * 1.6 + (h & 255) / 255) % 1;
       if (ph > 0.22) continue;
-      const k = ph < 0.11 ? ph / 0.11 : (0.22 - ph) / 0.11, cx = tx * ATILE + ox + ap(3) + (h >> 8) % ap(10), cy = ty * ATILE + oy + ap(3) + (h >> 12) % ap(6);
+      const k = ph < 0.11 ? ph / 0.11 : (0.22 - ph) / 0.11, cx = tx * ATILE + ox + ap(3) + (h >> 8) % ap(10), cy0 = ty * ATILE + ap(3) + (h >> 12) % ap(6), cy = cy0 + oy - pntLiftAt(cx - ox, cy0);
       dot(cx, cy, '#ffffff', true, k);
       if (k > 0.5) for (const [i, j] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) dot(cx + i, cy + j, ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][3], true, k * 0.7);
     }
@@ -766,7 +773,7 @@ function renderFrame() {
   }
 
   // loot on the floor, then everyone in order of their feet, then what flies
-  for (const dr of d.drops) drawDrop(dr, ox, oy, lights);
+  for (const dr of d.drops) { drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8, Math.round(dr.y * AP) + oy - 16, 16, 18, Math.round(dr.y * AP) + oy, ox, oy); }
   const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d))).concat(portalProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
@@ -781,6 +788,8 @@ function renderFrame() {
     else if (a.piece || a.strip) drawFlora(d, a, ox, oy, lights);
     else if (a.crit) drawCritter(d, a, ox, oy);
     else drawEnemy(d, a, ox, oy, tick, lights);
+    // the rock in front of it, drawn back over it (paint.js)
+    paintOccludeActor(a, ox, oy);
   }
   // from here on (but at home, where the star goes over them) dots are queued
   LateDots.on = !d.hub;
@@ -899,7 +908,8 @@ function renderFrame() {
     }
   }
   if (d.target) {
-    const tx = d.target.tx * ATILE + ox, ty = d.target.ty * ATILE + oy, c = ap(3);
+    // (round the rock's top, where it stands)
+    const tx = d.target.tx * ATILE + ox, ty = d.target.ty * ATILE + oy - pntLiftAt((d.target.tx + 0.5) * ATILE, (d.target.ty + 0.5) * ATILE), c = ap(3);
     o.fillStyle = Input.mining() ? '#fff2c8' : 'rgba(255,242,200,0.5)';
     for (const [cx, cy] of [[0, 0], [ATILE - c, 0], [0, ATILE - c], [ATILE - c, ATILE - c]]) { o.fillRect(tx + cx, ty + cy + (cy ? c - 1 : 0), c, 1); o.fillRect(tx + cx + (cx ? c - 1 : 0), ty + cy, 1, c); }
     if (p.mine && !p.mine.refused) {

@@ -768,6 +768,51 @@ const T = {
     cluster: { patch: 9, grain: 3, cut: 0.32 }, rockCut: 0.34, sunGround: { soften: 0.55, cut: 0.4 }, groundDither: true,
     lightSteps: 5, lightDither: 0, lampPerPixel: true, steadyCam: true,
   },
+  // The painted style (paint.js, docs/PAINTED.md). All in art px.
+  //   ramp: a clime's colours stretched to stroke ramps: dark, the two
+  //     deeper tones' pull towards violet black; light, the two lighter
+  //     ones' towards warm gold (rock: towards its rim colour).
+  //   stroke: how a row's 8 px cells are cut: whole, the share left as one
+  //     stroke; one, the share cut once (the rest twice).
+  //   ground: base, the middle of the value (0-1) on its 9-tone ramp;
+  //     swell [size, amount], a broad rise and fall; patch [across, down],
+  //     the streaky lit patches' noise, patchCut where they begin and are
+  //     full, patchSky/patchCave how much they lift; clump, the old
+  //     clusters' share; foot, how far (px) a wall's foot darkens, footHard
+  //     the hard line, footAmt its falloff; side, beside a wall; sunDir
+  //     the step (px) towards the sun, sunSteps how many, sunSlope how
+  //     much higher the rock must stand each step to shade, sunDark;
+  //     jitter, the strokes' tone jitter.
+  //   wall: the rock's height: face, how high its front rises; edge, how
+  //     far in (px) it takes to rise (steep, then rounding over); bump and
+  //     bumpScale, boulders on top; ramp, how far in they grow to full.
+  //   rock: light [x, y, z], from the upper left; steep, the rise (px a px
+  //     north) where a top turns into a face and where it is one; a top's value from its
+  //     slope to the light (lamLo, the slope that's darkest), laid from
+  //     topLo to topHi on its 15-tone ramp; a face's (faceBase, + faceUp
+  //     at its full height, + faceWest turned to the light) from faceLo to
+  //     faceHi; jitter; strata, the share of 16 px cells along a face row
+  //     with a long darker (or lighter) stroke; crease, how far below its
+  //     neighbours a point lies to be a soot crease; rim, the top edge's
+  //     tone, lip where a top turns down into a face, foot the face's foot.
+  //   slab: the cells rock is broken into (w × h), wobble of their edges;
+  //     tone, each slab's offset; lip, the lift of its top row; crack, the
+  //     tone of its bottom row; gate, how much of the lips and cracks
+  //     is broken off (noise below it).
+  //   occlude: draw the rock back over sprites behind it.
+  //   lazy: a floor is painted in chunks as the view nears them: near,
+  //     the margin (tiles) round the view painted before a frame; far, the
+  //     margin painted as time allows, budget ms a frame.
+  paint: {
+    lazy: { near: 2, far: 7, budget: 3 },
+    ramp: { dark: [0.62, 0.3], light: [0.14, 0.28], rock: { dark: [0.6, 0.3], light: [0.3, 0.6] } },
+    stroke: { whole: 0.12, one: 0.48 },
+    ground: { base: 0.5, swell: 70, swellAmt: 0.22, patch: [46, 14], patchCut: [0.5, 0.68], patchSky: 0.26, patchCave: 0.2, clump: 0.06, foot: 7, footHard: 1, footAmt: 0.3, side: 0.1, sunDir: [2, 3], sunSteps: 9, sunSlope: 3.2, sunDark: 0.32, jitter: 0.42 },
+    wall: { face: 22, edge: 5, bump: 16, bumpScale: 34, ramp: 18 },
+    rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.45, topLo: 2.5, topHi: 9.5, faceBase: 0.2, faceUp: 0.6, faceWest: 0.25, faceLo: 6, faceHi: 12.5, jitter: 0.75, strata: 0.45, crease: 2.5, rim: 12, lip: 12, foot: 1 },
+    slab: { w: 46, h: 19, wobble: 0.8, tone: 1.2, lip: 2, crack: 1, gate: 0.5 },
+    occlude: true,
+  },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the
   // floor's seed on the render side, so play and generation never change).

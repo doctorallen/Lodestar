@@ -131,6 +131,7 @@ function drawHubUnder(d, ox, oy, tick, lights) {
     if (s.id === 'dummy' || s.id === 'wreck' || s.id === 'setout') continue;
     const spr = stationSprite(s.id), x = Math.round((s.x + 0.5) * ATILE + ox - spr.ax), y = Math.round((s.y + 0.5) * ATILE + oy - spr.ay + ap(6));
     drawArtSprite(spr, x, y);
+    paintOcclude(x, y, spr.w, spr.h, y + Math.round(spr.ay), ox, oy);
     const glow = { forge: [ART.pal.glass[0], 1.8, 0.9], runes: [ART.pal.arcane[0], 1.2, 0.5], locker: [DIVER_PAL.circuit[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
     if (glow) lights.push({ x: x + spr.w / 2, y: y + spr.h / 2, r: TILE * glow[1], i: glow[2] * (0.85 + 0.15 * Math.sin(Game.realT * 3)), c: rgb01(glow[0]) });
   }
@@ -139,6 +140,7 @@ function drawHubUnder(d, ox, oy, tick, lights) {
     const x = Math.round((lx + 0.5) * ATILE) + ox, y = Math.round((ly + 0.5) * ATILE) + oy, lit = k < mag, spr = lanternSprite(lit);
     drawShadow(x, y, 2);
     drawArtSprite(spr, Math.round(x - spr.ax), Math.round(y - spr.ay));
+    paintOcclude(Math.round(x - spr.ax), Math.round(y - spr.ay), spr.w, spr.h, y, ox, oy);
     if (lit) lights.push({ x, y: y - ap(11), r: TILE * 2.2, i: 0.7, c: rgb01(star[2]) });
   });  // and the settlement's, as the colony comes down
   drawSettleLanterns(d, ox, oy, lights);

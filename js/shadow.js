@@ -91,11 +91,13 @@ function seeFrom(f, cx, cy, r, S, ey = 0) {
   // each cell, from the bottom row up: rock at its middle?, and lit? A
   // wall's face is lit where the ground under it is (and it faces the
   // light), so the rows under a cell are known when it's reached.
-  const reach = Sh.reach * AP, top = Sh.top, dist = t.dist, bin = t.bin, rock = t.rock, K = Math.ceil(FACE_H / LC), oj = H + ey;
+  // (a cell is rock as it's drawn: the rock layer's, standing up over the
+  // ground behind it (paint.js), so its faces are as tall as they're drawn)
+  const reach = Sh.reach * AP, top = Sh.top, dist = t.dist, bin = t.bin, rock = t.rock, K = Math.ceil(pntMaxLift() / LC) + 1, oj = H + ey, RS = View.rockLift || R;
   for (let j = w - 1; j >= 0; j--) {
     const py = (cy - ey - H + j) * LC + (LC >> 1), rowIn = py >= 0 && py < Hp, faces = j < oj + 1;
     for (let i = 0, k = j * w, px = (cx - H) * LC + (LC >> 1); i < w; i++, k++, px += LC) {
-      const r = (rock[k] = !rowIn || px < 0 || px >= W ? 1 : R[py * W + px]), bk = bin[k];
+      const r = (rock[k] = !rowIn || px < 0 || px >= W ? 1 : RS[py * W + px] ? 1 : 0), bk = bin[k];
       if (bk < 0) { vis[k] = 0; continue; }
       if (dist[k] <= depth[bk] + reach) { vis[k] = 1; continue; }
       let v = 0;
@@ -194,7 +196,7 @@ function bakedSightsFor(f) {
 function addBakedLight(f, L, s) {
   const x = s.x * AP, y = s.y * AP, r = s.r * AP, cx = Math.floor(x / LC), cy = Math.floor(y / LC), R = View.rockPx, W = f.w * ATILE;
   const px = cx * LC + (LC >> 1), py = cy * LC + (LC >> 1);
-  if (!T.light.shadow.baked || px < 0 || py < 0 || px >= W || py >= f.h * ATILE || R[py * W + px]) { addLight(L, x, y, r, s.i, s.c); return; }
+  if (!T.light.shadow.baked || s.inRock || px < 0 || py < 0 || px >= W || py >= f.h * ATILE || R[py * W + px]) { addLight(L, x, y, r, s.i, s.c); return; }
   const key = cx + ',' + cy + ',' + Math.ceil(r), M = _bakedSights.map;
   let e = M.get(key);
   if (!e) {
@@ -303,7 +305,7 @@ function propShadow(f, fx, fy, ux, uy, hw, len, steps, ox, oy) {
     [M.c, M.x] = makeCanvas(mw, mh);
     M.img = new ImageData(mw, mh); M.d32 = new Uint32Array(M.img.data.buffer);
   }
-  const mw = M.img.width, d32 = M.d32, R = View.rockPx, W = f.w * ATILE, Hp = f.h * ATILE;
+  const mw = M.img.width, d32 = M.d32, R = View.rockPx, LFs = View.rockLift, W = f.w * ATILE, Hp = f.h * ATILE;
   const grey = (v) => (0xff000000 | (v << 16) | (v << 8) | v) >>> 0, WHITE = 0xffffffff;
   const mr = grey(Math.round(P.dark[0] * 255)), mc = grey(Math.round(P.dark[1] * 255)), fray = P.fray, cw = P.core[0], cl = P.core[1];
   const iw = 1 / hw, il = 1 / len, ib = 1 / back;
@@ -316,7 +318,7 @@ function propShadow(f, fx, fy, ux, uy, hw, len, steps, ox, oy) {
       const a2 = s * iw * (s * iw), tn = t >= 0 ? t * il : t * ib, q = a2 + tn * tn;
       if (q >= 1) continue;
       const wx = x - ox;
-      if (wx < 0 || wx >= W || R[wy * W + wx]) continue;
+      if (wx < 0 || wx >= W || R[wy * W + wx] || (LFs && LFs[wy * W + wx])) continue;
       // ragged in clusters of 2 × 2 art px fixed to the world (only the
       // edges need the noise)
       let hsh = -1;

@@ -552,43 +552,29 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
       else if (j < ATILE) { const k = g - j; BL[j * ATILE + i] = k <= FACE_H ? k : 0; }
     }
   }
+  // the ground in strokes (paint.js); the rock under the rock layer is left
+  // a flat dark, as the rock layer covers it
+  const GR = pntLook(b).ground, tone = View.groundTone;
   for (let y = oy; y < oy + ATILE; y++) {
-    // the texture of the ground and of the rock top, where there's any
     let rocks = 0;
     for (let i = base + y * W + ox, e = i + ATILE; i < e; i++) rocks += M[i];
     if (rocks < ATILE) { artClumpRow(gRow, ox, ATILE, y, seedH); _caveNoise.set(gRow, (y - oy) * ATILE); }
-    if (rocks) artClumpRow(rRow, ox, ATILE, y, seedH + 11);
     for (let x = ox; x < ox + ATILE; x++) {
-      const t = (BAYER4[((y & 3) << 2) | (x & 3)] + 0.5) / 16, m = base + y * W + x, gn = gRow[x - ox];
-      let c, n;
+      const m = base + y * W + x;
+      let c;
       if (!M[m]) {
-        let shade = gn > cut ? 2 : gn < -cut ? 0 : 1;
+        let t = tone[y * P.w + x];
         if (paving) {
           // flagstones: dark seams, each row of stones set off from the
           // last, each stone a little lighter or darker than its neighbours,
           // bevelled light along its top and left
           const row = (y / FLAG_H) | 0, sx = x + row * FLAG_SET, gy = y % FLAG_H, gx = sx % FLAG_W;
-          if (gy === 0 || gx === 0) shade = 0;
-          else if (gy === 1 || gx === 1) shade = 2;
-          else if (shade === 1 && artHash((sx / FLAG_W) | 0, row, seedH) < 0.35) shade = 2;
+          if (gy === 0 || gx === 0) t = Math.max(0, t - 3);
+          else if (gy === 1 || gx === 1) t = Math.min(8, t + 1);
+          else t = clamp(t + Math.round((artHash((sx / FLAG_W) | 0, row, seedH) - 0.5) * 2.4), 0, 8);
         }
-        // in a wall's shadow (or under the sky, a mesa's): the darkest tone
-        let under = false;
-        for (let k = 1; k <= SH && !under; k++) if (M[m - k * W]) under = true;
-        if (!under && dz && M[m - (SH + 1) * W] && t < 0.5) under = true;
-        if (!under && sun) {
-          for (let k = 0; k < sunN && !under; k++) if (M[m + sunAt[k]]) under = true;
-          if (!under && dz && M[m + sunAt[sunN]] && t < 0.5) under = true;
-        }
-        c = under ? dark : shade === 0 ? f[0] : shade === 1 ? f[1] : f[2];
-      } else {
-        const below = BL[(y - oy) * ATILE + x - ox];
-        if (below === FACE_H) c = r[3];
-        else if (below) { n = Math.floor((below / FACE_H) * 3 + artNoise(x, y * 0.3, gs, seedH + 3) * 0.6); c = fr[n < 0 ? 0 : n > 2 ? 2 : n]; }
-        else if (!M[m - 1] || !M[m - W]) c = r[3];
-        else if (!M[m + 1]) c = rim;
-        else { const rn = rRow[x - ox]; c = r[rn > rCut ? 2 : rn < -rCut ? 0 : 1]; }
-      }
+        c = GR[t];
+      } else c = r[0];
       const k = y * P.w + x;
       C32[k] = c; E[k * 4 + 3] = 0;
     }
