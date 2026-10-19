@@ -476,6 +476,7 @@ function pntGraftLook(f) {
 function pntPaintRock(f, x0, y0, x1, y1) {
   const P = T.paint, Wl = P.wall, Rk = P.rock, Fc = P.facet, Sl = P.slab, HF = View.rockHf, LF = View.rockLift, Q = View.rockBuf, C32 = Q.col32, W = f.w * ATILE, Hp = f.h * ATILE;
   const b = artBiome(f), ramp = pntLook(b).rock, nt = ramp.length, seed = (f.seed ^ f.depth) | 0, rw = x1 - x0, rh = y1 - y0;
+  const ml = f.meld ? f.meld.to.map((_, k) => pntLook(hgrMeldLook(f, k)).rock) : null;
   const gl = pntGraftLook(f), gRamp = gl ? pntLook(gl).rock : null, g = f.graft, gcx = g ? (g.x + 0.5) * ATILE : 0, gcy = g ? (g.y + 0.5) * ATILE : 0, gR = g ? (g.r + 2) * ATILE : 0;
   const ll = Math.hypot(Rk.light[0], Rk.light[1], Rk.light[2]), lx = Rk.light[0] / ll, ly = Rk.light[1] / ll, lz = Rk.light[2] / ll;
   const hq = (x, y) => (x < 0 || y < 0 || x >= W || y >= Hp ? Wl.face : HF[y * W + x] / 16);
@@ -590,7 +591,9 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       if (!isRock(x, y + 1)) t = Math.min(t, Rk.foot);
       else if (!isRock(x, y + 2)) t = Math.min(t, Rk.foot + 1);
       t = Math.round(t);
-      const rp = gRamp && Math.abs(x - gcx) < gR && Math.abs(sy - gcy) < gR && graftAt(f, (x + 0.5) / AP - 0.5, (sy + 0.5) / AP - 0.5) ? gRamp : ramp;
+      let rp = gRamp && Math.abs(x - gcx) < gR && Math.abs(sy - gcy) < gR && graftAt(f, (x + 0.5) / AP - 0.5, (sy + 0.5) / AP - 0.5) ? gRamp : ramp;
+      // (at the outpost, the rock of the land beyond where its meld reaches)
+      if (ml) { const mk = hgrMeldAt(f, x, sy); if (mk >= 0) rp = ml[mk]; }
       C32[y * W + x] = rp[t < 0 ? 0 : t > nt - 1 ? nt - 1 : t];
     }
     let q = tbUp; tbUp = tb; tb = q; q = wbUp; wbUp = wb; wb = q;
@@ -754,6 +757,7 @@ function pntPaintChunk(f, i, j) {
   const tx0 = Math.floor(x0 / ATILE), ty0 = Math.floor(y0 / ATILE), tx1 = Math.ceil(x1 / ATILE) - 1, ty1 = Math.ceil(y1 / ATILE) - 1;
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) paintTileArt(f, tx, ty);
   paintGraft(f, tx0, ty0, tx1, ty1);
+  hgrPaintMeld(f, tx0, ty0, tx1, ty1);
   tintRift(f, x0, y0, x1, y1);
   paintRockArea(f, x0, y0, x1, y1);
   pntComposite(f, x0, y0, x1, y1);

@@ -1,12 +1,15 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// The outpost, painted (docs/PAINTED.md): the stations, the star and its
-// lodelines, the lanterns, the tents, the settlers and the smith, and the
-// things lying about the plaza. Each is built once with the sprite painter
-// (PntSpr) and hartStrokes, short horizontal strokes of a few close tones
-// lit from the upper left, with no outline; only lamps, runes, the forge's
-// crucible and the star glow. hub.js and story.js place and draw them. Every
-// helper here is named hart…; numbers are in T.paint.hub.
+// The outpost, painted (docs/PAINTED.md): the Charter's modules (the
+// fabricator, the rune bench, the locker, the star's altar, the uplink,
+// the portal's gate), the star and its cradle, starstone, the light masts,
+// the habitat pods and landers, the settlers and the smith, and what's
+// stacked by the modules; and the ancient forges out in the land. Each is
+// built once with the sprite painter (PntSpr) and hartStrokes, short
+// horizontal strokes of a few close tones lit from the upper left, with no
+// outline; only lamps, runes, the forge's crucible, starstone and the star
+// glow. hub.js and story.js place and draw them. Every helper here is named
+// hart…; numbers are in T.paint.hub.
 // ---------------------------------------------------------------------------
 
 // Materials, dark to light.
@@ -22,12 +25,14 @@ const HART = {
   skin: ['#2e1b14', '#4a2c20', '#6a4430', '#8a5e44', '#a87a5c'],
   crimson: ['#1e0a0e', '#3e1016', '#6a161e', '#9c2228', '#c0383a'],
   teal: '#7dffd8',
-  // the forge's lander hull, its heat shield, and the ancient forges' weathered
-  // plates, their rust and verdigris, and their cold glow
+  // the Charter's modules: polished steel, gunmetal, the Charter's blue
+  // panels, its amber lights and the seed-star's pale gold; and the ancient
+  // forges' weathered plates, their rust and verdigris, and their cold glow
   steel: ['#1a1e26', '#2c323e', '#454d5c', '#647084', '#8e9aae', '#b4c0d0'],
-  livery: ['#3a3a36', '#5a5850', '#7e7a6c', '#a49e8a'],
   hull: ['#08090d', '#10131a', '#1a1e27', '#262c37', '#363e4c', '#4c5666', '#6a7688'],
-  scorch: ['#0a0706', '#140e0b', '#20160f', '#2e2014', '#44301c', '#624426'],
+  charter: ['#0a0f1e', '#111a32', '#18264a', '#203464', '#2b467e', '#3a5c9a', '#5078b4'],
+  amber: ['#8a4a16', '#d88c30', '#ffb030', '#ffe48a'],
+  mark: ['#6a5a34', '#b8a46a', '#e2d29c', '#fff4d0'],
   old: ['#0a0b0b', '#131615', '#1c211f', '#28302d', '#37413d', '#4b5751', '#64716a'],
   rust: ['#1c0e08', '#33190d', '#4d2a14', '#6a3c1e', '#8a5430'],
   verd: ['#0f1f1c', '#18332e', '#244a42', '#356659', '#4c8573'],
@@ -68,19 +73,22 @@ function hartDone(s, ax, ay, extra) {
 }
 
 // ---------------------------------------------------------------------------
-// The forge: a foundry built into the hull of a lander that came down here.
-// A squat cone of gunmetal plates on its scorched heat shield, one landing
-// leg still out, an exhaust stack and a hatch on its top, and in its face a
+// The fabricator: the Charter's forge module, set down with the seed. A
+// clean block on a plinth, seen from above and in front: a gunmetal top
+// with a hatch, a vent stack at its back, and a face of three panels (the
+// Charter's blue either side, its seed-star on the left, the status lights
+// on the right), an amber trim light under its lip, and in the middle a
 // round glass port with the induction crucible glowing behind it (drawn
-// over each frame, hartForgeFire, its middle at HART_MOUTH), a panel of
-// status lights, coolant pipes into the ground. To its left a hydraulic
-// press on a C-frame over a forging bed; its ram is drawn on its own
-// (hartPressRam), the bed's face at HART_ANVIL. Feet on row 61.
+// over each frame, hartForgeFire, its middle at HART_MOUTH). Coolant pipes
+// run out of its foot. To its left a hydraulic press on a C-frame over a
+// forging bed; its ram is drawn on its own (hartPressRam), the bed's face at
+// HART_ANVIL. Feet on row 61.
 // ---------------------------------------------------------------------------
 const HART_MOUTH = { x: 42, y: 44, r: 7.3 }; // the port's middle, and the glass's radius
 const HART_ANVIL = { x: 9, y: 42 }; // the work on the bed, where the ram lands
 const HART_RAM = { x: 3, y: 28, travel: 9 }; // where the ram hangs, raised, and how far it comes down
-const HART_LEDS = [[54, 39, '#6cff9a'], [56, 39, '#ffb030'], [54, 41, '#62f0ff']]; // the status lights (the first blinks)
+const HART_LEDS = [[55, 39, '#6cff9a'], [57, 39, '#ffb030'], [55, 41, '#62f0ff']]; // the status lights (the first blinks)
+const HART_STACK = { x: 34, y: 8 }; // the vent stack's mouth
 // A line of pixels from a to b.
 function hartLine(s, a, b, col, glow) {
   const n = Math.max(1, Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]))));
@@ -95,94 +103,93 @@ function hartHose(s, a, c, b, w, ramp, lo = 0) {
     for (let k = 0; k < w; k++) s.px(x, y + k, ramp[clamp(lo + (k === 0 ? 2 : k === w - 1 ? 0 : 1), 0, ramp.length - 1)]);
   }
 }
+// The Charter's seed-star, small: eight points round a bright heart (cx,
+// cy its middle; big: the long points two px longer).
+function hartSeedStar(s, cx, cy, big, glow) {
+  const P = HART.mark, L = big ? 3 : 2;
+  for (let k = 1; k <= L; k++) for (const [i, j] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) s.px(cx + i * k, cy + j * k, P[k === L ? 1 : 2], glow);
+  for (const [i, j] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) s.px(cx + i, cy + j, P[1], glow);
+  s.px(cx, cy, P[3], glow);
+}
+// A box seen from above and in front: its top (y0 to y1, narrowing
+// `back` px each side at its back), its face (y1 to y2), lit from the left;
+// ramp a gunmetal or a panel's. Its top's front edge lit, its face's foot
+// dark.
+function hartBlock(s, x0, x1, y0, y1, y2, ramp, seed, back = 2) {
+  const n = ramp.length - 1;
+  hartStrokes(s, x0, y0, x1, y1 - 1, (x, y) => { const b = back * (y1 - y) / Math.max(1, y1 - y0); return x < x0 + b || x > x1 - b ? null : 0.72 - (x - x0) / (x1 - x0) * 0.22 - (y1 - y) * 0.01; }, ramp, seed, { jit: 0.1 });
+  hartStrokes(s, x0, y1, x1, y2, (x, y) => 0.5 - (x - x0) / (x1 - x0) * 0.3 - (y - y1) * 0.004, ramp, seed + 1, { jit: 0.1 });
+  for (let x = x0; x <= x1; x++) { s.px(x, y1, ramp[x < (x0 + x1) / 2 ? n : n - 1]); s.px(x, y2, ramp[0]); }
+  for (let y = y1 + 1; y < y2; y++) { s.px(x0, y, ramp[n - 1]); s.px(x1, y, ramp[1]); }
+}
 function hartForge() {
   return hartKeep('forge', () => {
-    const W = 68, H = 64, FY = 61, s = new PntSpr(W, H, 501), Hu = HART.hull, I = HART.iron, Sc = HART.scorch, M = HART_MOUTH;
-    // the hull: a cone cut off flat, its face from the lip of its top down
-    // to the heat shield, lit on its left
-    const cx = 42, top = 30, foot = 55, xl = (y) => 27 - (y - top) * 5 / (foot - top), xr = (y) => 57 + (y - top) * 5 / (foot - top);
-    const capRx = 15.5, capRy = 4.2, capFront = (x) => top + capRy * Math.sqrt(Math.max(0, 1 - ((x + 0.5 - cx) / capRx) ** 2));
-    // one landing leg still out, to the right, behind the hull
-    hartLine(s, [58, 41], [65, 58], Hu[5]); hartLine(s, [59, 41], [66, 58], Hu[3]); hartLine(s, [59, 42], [66, 59], Hu[1]);
-    s.box(61, 48, 63, 51, Hu, { lo: 2, hi: 6 });
-    s.ell(65.5, 60, 2.6, 1.3, Hu, { lo: 1, hi: 5, bias: 0.15 });
+    const W = 68, H = 64, FY = 61, s = new PntSpr(W, H, 501), Hu = HART.hull, CB = HART.charter, M = HART_MOUTH, St = HART.steel, Am = HART.amber;
+    const xl = 24, xr = 62, top = 23, lip = 31, foot = 55;
     // the press: a column at the back of the bed, an arm over it, the
     // cylinder hanging from the arm's end (its ram is drawn over)
     hartStrokes(s, 15, 12, 19, 44, (x, y) => 0.5 - (x - 15) * 0.09 - (y - 12) * 0.003, Hu, 502, { jit: 0.12 });
     for (let y = 12; y <= 44; y++) s.px(15, y, Hu[y < 30 ? 6 : 5]);
     s.poly([[15, 16], [15, 23], [10.5, 16]], (x, y) => Hu[x < 13 ? 3 : 2]);
     hartStrokes(s, 2, 9, 19, 10, (x) => 0.82 - x * 0.012, Hu, 503);
-    hartStrokes(s, 2, 11, 19, 15, (x, y) => 0.4 - (x - 2) * 0.008 - (y - 11) * 0.03, Hu, 504, { jit: 0.12 });
+    hartStrokes(s, 2, 11, 19, 15, (x, y) => 0.4 - (x - 2) * 0.008 - (y - 11) * 0.03, CB, 504, { jit: 0.12 });
     for (let x = 2; x <= 19; x++) { s.px(x, 9, x < 9 ? Hu[6] : Hu[5]); s.px(x, 16, Hu[1]); }
-    for (let y = 12; y <= 14; y++) for (let x = 3; x <= 13; x++) s.px(x, y, ((x + y) >> 1) % 2 ? (x < 8 ? '#a8701e' : '#8a5c16') : '#1c1408');
-    const St = HART.steel;
+    for (let x = 4; x <= 13; x += 3) s.px(x, 13, Am[1]);
     hartStrokes(s, 4, 17, 13, 26, (x) => 0.85 - Math.abs(x - 6) * 0.1, St, 505, { jit: 0.1 });
     for (let x = 4; x <= 13; x++) { s.px(x, 19, St[1]); s.px(x, 20, x < 8 ? St[5] : St[3]); s.px(x, 24, St[1]); }
     hartStrokes(s, 6, 27, 11, 27, (x) => 0.6 - (x - 6) * 0.08, Hu, 506);
-    // its hydraulic line, looping up off the arm and down to the hull
-    hartHose(s, [6, 8], [18, -6], [28, 29], 2, ['#0b0c10', '#14161c', '#2c313b']);
-    // the hull's top, seen from above: a disc, its front lip lit
-    hartStrokes(s, cx - 16, top - 5, cx + 16, top + 5, (x, y) => (((x + 0.5 - cx) / capRx) ** 2 + ((y + 0.5 - top) / capRy) ** 2 <= 1 ? 0.74 - (x - cx) * 0.014 - (y - top) * 0.02 : null), Hu, 507, { jit: 0.12 });
-    // a hatch on it, a ring of bolts
-    s.ell(47.5, 29.6, 5.2, 1.9, Hu, { lo: 2, hi: 6, bias: 0.12 });
-    for (let x = 43; x <= 52; x++) s.px(x, 31, Hu[1]);
-    // the exhaust stack at its back, sooted round its mouth
-    hartStrokes(s, 31, 11, 36, 28, (x, y) => 0.74 - (x - 31) * 0.1 - (y < 14 ? 0.25 : 0), Hu, 508, { jit: 0.1 });
-    for (let y = 12; y <= 28; y++) s.px(31, y, Hu[y < 15 ? 3 : 5]);
-    for (const y of [17, 21]) for (let x = 31; x <= 36; x++) { s.px(x, y, Hu[0]); s.px(x, y + 1, x < 33 ? Hu[5] : Hu[3]); }
-    s.ell(33.5, 11, 3.6, 1.4, Hu, { lo: 2, hi: 5 });
-    for (let x = 32; x <= 35; x++) s.px(x, 11, '#050506');
-    s.px(33, 11, HART.fire[1], true);
-    // status lights on the stack and the press's column
-    s.px(34, 25, '#ffb030', true); s.px(17, 32, '#6cff9a', true); s.px(17, 34, '#3a1010');
-    for (let x = 31; x <= 36; x++) s.px(x, 29, Hu[1]);
-    // the face: plates either side of the port, their seams riveted,
-    // soot streaked up from the heat shield
-    const seamA = (y) => Math.round(xl(y) + (xr(y) - xl(y)) * 0.18), seamB = (y) => Math.round(xl(y) + (xr(y) - xl(y)) * 0.82);
-    const face = (x, y) => {
-      if (y < top || y > foot - 1 || x < Math.round(xl(y)) || x > Math.round(xr(y)) || y < capFront(x)) return null;
-      const u = (x - xl(y)) / (xr(y) - xl(y)), plate = x < seamA(y) ? 0 : x > seamB(y) ? 2 : 1, side = plate !== 1 && y > 47 ? 1 : 0;
-      const soot = y > 49 && artHash(Math.floor(x / 2), 0, 509) < 0.4 ? (y - 49) * 0.05 : 0;
-      return 0.7 - u * 0.55 + (artHash(plate, side, 510) - 0.5) * 0.12 - soot;
+    // its hydraulic line, looping up off the arm and down to the body
+    hartHose(s, [6, 8], [18, -6], [27, 27], 2, ['#0b0c10', '#14161c', '#2c313b']);
+    // the vent stack at the back: a square tower, louvred, a cap
+    hartStrokes(s, 30, 9, 37, 24, (x, y) => 0.7 - (x - 30) * 0.08, Hu, 508, { jit: 0.1 });
+    for (let y = 10; y <= 24; y++) { s.px(30, y, Hu[6]); s.px(37, y, Hu[1]); }
+    for (let y = 13; y <= 21; y += 2) for (let x = 31; x <= 36; x++) s.px(x, y, Hu[x < 33 ? 2 : 1]);
+    s.box(29, 7, 38, 9, Hu, { lo: 2, hi: 6 });
+    for (let x = 31; x <= 36; x++) s.px(x, 8, '#050506');
+    s.px(34, 8, HART.fire[1], true);
+    // the body: its top (a hatch, a fitting) and its face
+    hartBlock(s, xl, xr, top, lip, foot - 1, Hu, 507, 3);
+    s.box(45, 25, 55, 28, Hu, { lo: 1, hi: 5 });
+    for (let x = 46; x <= 54; x++) s.px(x, 25, Hu[6]);
+    s.px(50, 26, Am[2], true);
+    s.box(27, 25, 31, 28, Hu, { lo: 2, hi: 5 });
+    // the face's panels: the Charter's blue either side of the port's
+    // gunmetal, their seams dark, their tops lit
+    const panel = (x0, x1, ramp, sd) => {
+      hartStrokes(s, x0, lip + 2, x1, foot - 2, (x, y) => 0.62 - (x - xl) / (xr - xl) * 0.36 - (y - lip) * 0.006, ramp, sd, { jit: 0.12 });
+      for (let x = x0; x <= x1; x++) { s.px(x, lip + 2, ramp[ramp.length - 1]); s.px(x, foot - 2, ramp[1]); }
+      for (let y = lip + 2; y <= foot - 2; y++) { s.px(x0, y, ramp[ramp.length - 2]); s.px(x1, y, ramp[0]); }
     };
-    hartStrokes(s, 21, top, 63, foot - 1, face, Hu, 511, { jit: 0.13 });
-    for (let x = 27; x <= 57; x++) { const y = Math.ceil(capFront(x)); s.px(x, y, x < 40 ? Hu[6] : Hu[5]); }
-    for (let y = top + 2; y < foot; y++) {
-      s.px(Math.round(xl(y)), y, Hu[y < 44 ? 6 : 5]); s.px(Math.round(xr(y)), y, Hu[1]);
-      for (const sx of [seamA(y), seamB(y)]) if (y > capFront(sx) + 1) { s.px(sx, y, Hu[1]); if (y % 3 === 0) s.px(sx + 1, y, Hu[sx < cx ? 5 : 4]); }
-    }
-    for (let x = 22; x <= 62; x++) if ((x < seamA(48) || x > seamB(48)) && x > xl(48)) { s.px(x, 48, Hu[1]); if (x % 3 === 0) s.px(x, 49, Hu[x < cx ? 5 : 3]); }
-    // the lander's livery: a band of pale paint under the lip, worn through
-    for (let x = 23; x <= 61; x++) {
-      const y0 = Math.ceil(capFront(x)) + 2;
-      if (y0 + 1 >= foot || x < xl(y0) || x > xr(y0)) continue;
-      const u = (x - xl(y0)) / (xr(y0) - xl(y0));
-      for (let j = 0; j < 2; j++) if (artHash(x >> 1, j, 517) > 0.18) s.px(x, y0 + j, HART.livery[clamp(Math.round(3.6 - u * 3.2 - j * 0.6 + (artHash(x, j, 518) - 0.5)), 0, 3)]);
-    }
-    // the port: a raised bezel lit on its upper left, bolted, round dark glass
+    panel(xl + 1, 31, CB, 511); panel(53, xr - 1, CB, 512);
+    for (let y = lip + 2; y <= foot - 2; y++) { s.px(32, y, Hu[0]); s.px(52, y, Hu[0]); }
+    // the trim light under the lip, in short lit lengths
+    for (let x = xl + 1; x <= xr - 1; x++) s.px(x, lip + 1, x % 7 < 5 ? Am[(x < 43 ? 3 : 2)] : Hu[1], x % 7 < 5);
+    // the seed-star on the left panel, a stencilled stripe under it
+    hartSeedStar(s, 28, 38, true);
+    for (let x = 26; x <= 30; x++) s.px(x, 46, HART.mark[0]);
+    for (let x = 26; x <= 30; x++) s.px(x, 48, HART.mark[0]);
+    // the port: a raised bezel lit on its upper left, round dark glass
     for (let y = M.y - 10; y <= M.y + 10; y++) for (let x = M.x - 10; x <= M.x + 10; x++) {
       const dx = x - M.x, dy = y - M.y, r = Math.hypot(dx, dy);
       if (r <= M.r) s.px(x, y, '#0c0503');
       else if (r <= 8.2) s.px(x, y, -(dx * 0.55 + dy * 0.8) / r > 0.2 ? Hu[0] : Hu[2]);
-      else if (r <= 9.9) { const l = -(dx * 0.55 + dy * 0.8) / r; s.px(x, y, Hu[clamp(Math.round(3.4 + l * 2.6 + (artHash(x, y, 512) - 0.5) * 0.8), 1, 6)]); }
+      else if (r <= 9.9) { const l = -(dx * 0.55 + dy * 0.8) / r; s.px(x, y, Hu[clamp(Math.round(3.6 + l * 2.6 + (artHash(x, y, 512) - 0.5) * 0.6), 1, 6)]); }
     }
-    for (let k = 0; k < 8; k++) { const a = (k + 0.5) / 8 * Math.PI * 2, bx = M.x + Math.cos(a) * 9, by = M.y + Math.sin(a) * 9; s.px(bx, by, Math.cos(a) * 0.55 + Math.sin(a) * 0.8 < 0 ? Hu[6] : Hu[4]); }
-    // the status panel to its right (its lights are drawn glowing)
-    for (let y = 37; y <= 46; y++) for (let x = 53; x <= 57; x++) s.px(x, y, y === 37 || x === 53 ? Hu[0] : '#07080b');
-    for (let x = 53; x <= 57; x++) s.px(x, 47, Hu[5]);
+    for (let k = 0; k < 4; k++) { const a = (k + 0.5) / 4 * Math.PI * 2, bx = M.x + Math.cos(a) * 9, by = M.y + Math.sin(a) * 9; s.px(bx, by, Math.cos(a) * 0.55 + Math.sin(a) * 0.8 < 0 ? Hu[6] : Hu[4]); }
+    // the status panel on the right (its lights are drawn glowing)
+    for (let y = 37; y <= 45; y++) for (let x = 54; x <= 58; x++) s.px(x, y, y === 37 || x === 54 ? Hu[1] : '#07080b');
+    for (let x = 54; x <= 58; x++) s.px(x, 46, CB[5]);
     for (const [x, y, c] of HART_LEDS) s.px(x, y, c, true);
-    s.px(56, 41, '#3a1010');
-    for (let x = 54; x <= 56; x++) s.px(x, 44, x < 56 ? '#1e6a70' : '#0e3a40', true);
-    // the heat shield: charred, ablated in streaks, flared a little
-    const shield = (x, y) => (y < foot || y > FY || x < 22 - (y - foot) * 0.35 || x > 62 + (y - foot) * 0.35 ? null : 0.36 - (x - 21) * 0.006 - (y - foot) * 0.03 + (artHash(Math.floor(x / 3), y, 513) < 0.2 ? 0.25 : 0));
-    hartStrokes(s, 19, foot, 65, FY, shield, Sc, 514, { jit: 0.2 });
-    for (let x = 22; x <= 62; x++) { s.px(x, foot, x < cx ? Sc[5] : Sc[4]); s.px(x, FY, Sc[0]); }
-    // coolant pipes out of its foot on the right, bending off along the
-    // ground (they carry on across the flagstones: drawHubGround)
+    s.px(57, 41, '#3a1010');
+    for (let x = 55; x <= 57; x++) s.px(x, 43, x < 57 ? '#1e6a70' : '#0e3a40', true);
+    // the plinth: a clean gunmetal step, an amber line along its top
+    hartStrokes(s, xl - 2, foot, xr + 2, FY, (x, y) => (y === foot ? 0.9 : 0.34 - (x - xl) * 0.004 - (y - foot) * 0.02), Hu, 514, { jit: 0.1 });
+    for (let x = xl - 2; x <= xr + 2; x++) { s.px(x, foot + 1, x % 4 ? Am[1] : Am[0]); s.px(x, FY, Hu[0]); }
+    for (let y = foot; y < FY; y++) { s.px(xl - 2, y, Hu[5]); s.px(xr + 2, y, Hu[1]); }
+    // coolant pipes out of the plinth on the right, along the ground
     const CP = ['#090d12', '#142028', '#2c4250'];
-    hartHose(s, [59, 50], [59, 58.5], [67, 59], 2, CP);
-    hartHose(s, [56, 53], [56, 60.5], [67, 61], 2, CP);
-    s.px(58, 51, Hu[5]); s.px(59, 50, Hu[6]);
+    hartHose(s, [62, 57], [64, 59.5], [67, 59], 2, CP);
+    hartHose(s, [60, 58], [61, 61], [67, 61], 2, CP);
     // the bed, in front of the column: a block seen from above and in
     // front, a die on its top, hazard chevrons along its foot
     hartStrokes(s, 1, 41, 17, 45, (x, y) => 0.8 - x * 0.012 - (y - 41) * 0.03, Hu, 515, { jit: 0.12 });
@@ -190,9 +197,9 @@ function hartForge() {
     hartStrokes(s, 1, 46, 17, 60, (x, y) => 0.36 - (x - 1) * 0.012 - (y - 46) * 0.008, Hu, 516, { jit: 0.12 });
     for (let x = 1; x <= 17; x++) { s.px(x, 46, x < 8 ? Hu[6] : Hu[5]); s.px(x, 41, Hu[4]); s.px(x, 61, Hu[0]); }
     for (let y = 46; y <= 60; y++) s.px(1, y, Hu[4]);
-    for (let y = 56; y <= 58; y++) for (let x = 2; x <= 16; x++) s.px(x, y, ((x + y) >> 1) % 2 ? (x < 8 ? '#a8701e' : '#8a5c16') : '#1c1408');
+    for (let y = 56; y <= 58; y++) for (let x = 2; x <= 16; x++) s.px(x, y, ((x + y) >> 1) % 2 ? (x < 8 ? Am[1] : Am[0]) : '#1c1408');
     for (const x of [3, 15]) s.px(x, 50, Hu[5]);
-    return hartDone(s, M.x, FY);
+    return hartDone(s, M.x, FY, { stone: [[xl - 2, FY, -1], [xr + 3, FY, 1], [xr - 2, lip - 1, 1], [1, FY, -1], [xl + 6, lip - 1, -1]] });
   });
 }
 // The press's ram, e px down (0, raised, to HART_RAM.travel, on the work):
@@ -374,40 +381,48 @@ function hartOldForgeGlow(frame) {
 }
 
 // ---------------------------------------------------------------------------
-// The rune bench: a heavy slab of stone on two stout legs, its top carved
-// with runes that glow, rune stones laid out on it, a candle.
+// The rune bench: a Charter workstation. A steel bench on a frame, a
+// cabinet of the Charter's blue under its right end, and on its top a dark
+// etching plate with its runes glowing, rune stones laid out on it, and a
+// work lamp on a jointed arm (its light at lamp).
 // ---------------------------------------------------------------------------
 function hartRunes() {
   return hartKeep('runes', () => {
-    const W = 46, H = 34, FY = 32, s = new PntSpr(W, H, 601), S = HART.stone, glow = ART.pal.arcane[0], gdim = '#6a4c9a';
-    // legs
-    for (const lx of [5, 34]) {
-      hartStrokes(s, lx, 18, lx + 6, FY, (x, y) => 0.3 + (lx + 6 - x) * 0.05 - (y - 18) * 0.008, S, 602 + lx);
-      for (let y = 19; y <= FY; y++) s.px(lx, y, S[4]);
-      for (let x = lx - 1; x <= lx + 7; x++) s.px(x, FY, S[1]);
-    }
-    // the slab's top, from above, and its front edge
-    hartStrokes(s, 1, 4, 44, 14, (x, y) => (((x === 1 || x === 44) && (y === 4)) ? null : 0.55 + (44 - x) * 0.006 - (y - 4) * 0.012), S, 610);
-    for (let x = 2; x <= 43; x++) s.px(x, 4, x < 22 ? S[5] : S[4]);
-    hartStrokes(s, 1, 15, 44, 19, (x, y) => (y === 15 ? 0.78 : 0.3 - (y - 15) * 0.05 + (44 - x) * 0.003), S, 611);
-    for (let x = 1; x <= 44; x++) s.px(x, 20, S[0]);
-    // the runes carved in the top: a ring, and marks either side
+    const W = 46, H = 40, FY = 38, s = new PntSpr(W, H, 601), Hu = HART.hull, CB = HART.charter, S = HART.slate, glow = ART.pal.arcane[0], gdim = '#6a4c9a';
+    // the frame's legs, and the cabinet under the right end
+    for (const lx of [4, 21]) { hartStrokes(s, lx, 20, lx + 2, FY - 1, (x) => 0.6 - (x - lx) * 0.2, Hu, 602 + lx); s.px(lx - 1, FY, Hu[1]); s.px(lx + 3, FY, Hu[1]); }
+    hartBlock(s, 26, 43, 20, 21, FY - 1, CB, 603, 0);
+    for (let x = 27; x <= 42; x++) s.px(x, 29, CB[1]);
+    for (const x of [33, 36]) { s.px(x, 25, HART.steel[4]); s.px(x, 33, HART.steel[4]); }
+    for (let x = 26; x <= 43; x++) s.px(x, FY, Hu[0]);
+    for (let x = 4; x <= 24; x++) s.px(x, 31, Hu[2]);
+    // the top: a steel slab from above and its front edge, the etching
+    // plate set into it
+    hartBlock(s, 1, 44, 8, 17, 20, Hu, 610, 2);
+    hartStrokes(s, 8, 10, 36, 15, (x, y) => 0.3 + (36 - x) * 0.004, S, 611, { jit: 0.1 });
+    for (let x = 8; x <= 36; x++) { s.px(x, 9, Hu[1]); s.px(x, 16, Hu[5]); }
+    // the runes etched in the plate: a ring, and marks either side
     const R = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-    for (let a = 0; a < 16; a++) { const x = Math.round(22 + Math.cos(a / 16 * Math.PI * 2) * 5), y = Math.round(9 + Math.sin(a / 16 * Math.PI * 2) * 3); s.px(x, y, a % 4 ? gdim : glow, a % 4 === 0); }
-    s.px(22, 9, glow, true);
-    for (const [cx, cy] of [[9, 8], [14, 11], [31, 8], [36, 11]]) { s.px(cx, cy, glow, true); for (const [i, j] of R.slice(0, (cx * 3) % 4 + 1)) s.px(cx + i, cy + j, gdim, true); }
-    // rune stones laid on it, and a stub of candle
-    const stones = [[39, 7, ART.stones.form.body], [41, 10, ART.stones.glyph.body], [5, 10, ART.stones.ember.body]];
+    for (let a = 0; a < 16; a++) { const x = Math.round(22 + Math.cos(a / 16 * Math.PI * 2) * 5), y = Math.round(12.5 + Math.sin(a / 16 * Math.PI * 2) * 2); s.px(x, y, a % 4 ? gdim : glow, a % 4 === 0); }
+    s.px(22, 12, glow, true);
+    for (const [cx, cy] of [[11, 12], [15, 14], [29, 11], [33, 13]]) { s.px(cx, cy, glow, true); for (const [i, j] of R.slice(0, (cx * 3) % 4 + 1)) s.px(cx + i, cy + j, gdim, true); }
+    // rune stones laid out at its ends, an amber light on the frame
+    const stones = [[40, 12, ART.stones.form.body], [42, 15, ART.stones.glyph.body], [4, 13, ART.stones.ember.body]];
     for (const [x, y, ramp] of stones) s.ell(x, y, 1.8, 1.3, ramp, { lo: 0, hi: 3 });
-    s.px(28, 5, '#d8cfb8'); s.px(28, 6, '#a89c80'); s.px(28, 4, '#ffe8a0', true); s.px(28, 3, '#ffb347', true);
-    return hartDone(s, 23, FY, { candle: { x: 28, y: 3 } });
+    for (let x = 2; x <= 43; x += 6) s.px(x, 18, HART.amber[1]);
+    // the work lamp: an arm up off the back, bent over the plate
+    hartLine(s, [37, 9], [39, 1], Hu[5]); hartLine(s, [38, 9], [40, 1], Hu[2]);
+    hartLine(s, [39, 1], [31, 3], Hu[5]); hartLine(s, [39, 2], [31, 4], Hu[2]);
+    s.box(28, 3, 32, 5, Hu, { lo: 2, hi: 6 });
+    s.px(30, 6, '#d8f4ff', true); s.px(29, 6, '#a8c8e0', true);
+    return hartDone(s, 23, FY, { lamp: { x: 30, y: 6 }, stone: [[1, FY, -1], [44, FY, 1], [44, 19, 1]] });
   });
 }
 
 // ---------------------------------------------------------------------------
-// The locker: a tall steel cabinet, two doors with the diver's amber light
-// down their inner edges, a narrow side in shadow, the Charter's star on
-// its lid.
+// The locker: the Charter's locker module, a tall cabinet, two doors of
+// its blue with the diver's amber light down their inner edges, a narrow
+// side in shadow, the Charter's star on its lid.
 // ---------------------------------------------------------------------------
 function hartLocker() {
   return hartKeep('locker', () => {
@@ -419,8 +434,8 @@ function hartLocker() {
     for (let x = 3; x <= 25; x++) s.px(x, 2, x < 14 ? I[5] : I[4]);
     s.px(27, 3, I[2]); s.px(27, 4, I[2]); s.px(27, 5, I[1]);
     // the doors' faces
-    hartStrokes(s, 2, 7, 23, FY - 1, (x, y) => (x === 13 ? 0.02 : 0.42 + (23 - x) * 0.008 - (y - 7) * 0.004 + (x < 13 ? 0.05 : 0)), I, 704, { jit: 0.12 });
-    for (let y = 7; y <= FY - 1; y++) { s.px(2, y, I[5]); s.px(13, y, '#030406'); s.px(14, y, I[1]); }
+    hartStrokes(s, 2, 7, 23, FY - 1, (x, y) => (x === 13 ? 0.02 : 0.42 + (23 - x) * 0.008 - (y - 7) * 0.004 + (x < 13 ? 0.05 : 0)), HART.charter, 704, { jit: 0.12 });
+    for (let y = 7; y <= FY - 1; y++) { s.px(2, y, HART.charter[5]); s.px(13, y, '#030406'); s.px(14, y, HART.charter[1]); }
     // vents near the top, handles, feet
     for (const x0 of [4, 16]) for (let k = 0; k < 3; k++) for (let x = x0; x <= x0 + 6; x++) s.px(x, 10 + k * 2, I[1]);
     for (const x of [11, 16]) { s.px(x, 25, I[5]); s.px(x, 26, I[4]); s.px(x, 27, I[3]); }
@@ -429,7 +444,7 @@ function hartLocker() {
     for (let y = 16; y <= FY - 5; y++) { s.px(11, y, y % 5 ? amb : '#ffe48a', true); s.px(16, y, y % 5 === 2 ? '#ffe48a' : amb, true); }
     // the Charter's star on the lid
     for (const [i, j, c] of [[0, 0, '#ffe48a'], [-1, 0, amb], [1, 0, amb]]) s.px(14 + i, 4 + j, c, true);
-    return hartDone(s, 14, FY);
+    return hartDone(s, 14, FY, { stone: [[2, FY, -1], [27, FY, 1], [26, 6, 1]] });
   });
 }
 
@@ -456,7 +471,7 @@ function hartAltar() {
     for (let x = 9; x <= 20; x++) s.px(x, 8, '#0e0a06');
     for (const x of [11, 14, 17]) s.px(x, 8, St[4], true);
     s.px(13, 8, St[5], true);
-    return hartDone(s, 15, FY, { bowl: { x: 14.5, y: 7 } });
+    return hartDone(s, 15, FY, { bowl: { x: 14.5, y: 7 }, stone: [[3, FY, -1], [27, FY, 1], [6, 31, -1]] });
   });
 }
 // The shard of the star over the altar: a small faceted crystal, glowing.
@@ -523,26 +538,6 @@ function hartHalo(k, frame) {
     return hartDone(s, c, c);
   });
 }
-// The lodelines: one for each magnitude, falling from the star's foot into
-// the dark, spreading a little, broken, fading as they go. Four frames of
-// the breaks running down. (x, y: the star's foot in the picture)
-function hartLodelines(mag, frame) {
-  return hartKeep('lode' + mag + '/' + frame, () => {
-    const W = 100, H = 96, s = new PntSpr(W, H, 970), c = W >> 1, St = HART.star;
-    for (let k = 0; k < mag; k++) {
-      const off = (k - (mag - 1) / 2), len = 62 + ((k * 37) % 26), spread = off * 3.2;
-      for (let y = 2; y < len; y++) {
-        const t = y / len, x = Math.round(c + off * 2 + spread * t * 2.2);
-        const gap = artHash(Math.floor((y + frame * 3 + k * 11) / 3), k, 971);
-        if (gap < 0.12 + t * t * 0.75) continue;
-        s.px(x, y, t < 0.3 ? St[5] : t < 0.65 ? St[4] : St[3], true);
-        if (t < 0.4 && artHash(y, k, 972) < 0.3) s.px(x + (off < 0 ? -1 : 1), y, St[2], true);
-      }
-    }
-    return hartDone(s, c, 0);
-  });
-}
-
 // ---------------------------------------------------------------------------
 // The Meridian uplink: a lattice mast of dark steel on a slab, a dish turned
 // to the sky, a console at its foot with a screen; the tip's lamp is drawn
@@ -584,68 +579,217 @@ function hartUplink() {
     for (const x of [33, 35, 37]) s.px(x, 62, x === 33 ? '#ffb030' : I[3], x === 33);
     // a cable from the console into the ground
     for (let x = 26; x <= 31; x++) s.px(x, 67 + (x < 29 ? 1 : 0), I[1]);
-    return hartDone(s, cx, FY - 2, { tip: { x: cx, y: top - 4 }, feed: { x: 10, y: 17 }, screen: { x: 36, y: 57 } });
+    return hartDone(s, cx, FY - 2, { tip: { x: cx, y: top - 4 }, feed: { x: 10, y: 17 }, screen: { x: 36, y: 57 }, stone: [[9, FY, -1], [38, FY, 1], [44, 66, 1], [13, 63, -1]] });
   });
 }
 
 // ---------------------------------------------------------------------------
-// The portal at home is portals.js's; its plinth sits on the flagstones.
+// The planting cradle the star hangs over: a ring of Charter segments set in
+// the ground, a socket of the Charter's blue in its middle with the seed's
+// anchor glowing at its heart, and four arms rising round it to hold the
+// star's field, a conduit of its gold up each arm's inner edge and a lamp at
+// each tip (lamps). Feet at the ring's front.
 // ---------------------------------------------------------------------------
+function hartCradle() {
+  return hartKeep('cradle', () => {
+    const W = 92, H = 60, cx = 46, cy = 46, rx = 36, ry = 9.5, FY = 57, s = new PntSpr(W, H, 1601), Hu = HART.hull, CB = HART.charter, G = HART.star, lamps = [];
+    const inE = (x, y, a, b) => ((x + 0.5 - cx) / a) ** 2 + ((y + 0.5 - cy) / b) ** 2 <= 1;
+    // an arm: from its foot on the ring up and in to its tip, gunmetal lit
+    // on its left, a gold conduit along its inner side
+    const arm = (fx, fy, tx, ty, side, seed) => {
+      const pts = [[fx, fy], [fx + (tx - fx) * 0.15, fy - (fy - ty) * 0.55], [tx, ty]];
+      s.limb(pts, 4.6, 2.8, (t, sd) => Hu[sd < 0 ? 5 : sd > 0 ? 1 : 3]);
+      for (let i = 0; i <= 30; i++) {
+        const t = i / 30, u = 1 - t, x = u * u * pts[0][0] + 2 * u * t * pts[1][0] + t * t * pts[2][0], y = u * u * pts[0][1] + 2 * u * t * pts[1][1] + t * t * pts[2][1];
+        s.px(x - side * 1.2, y, i % 5 === 0 ? G[6] : G[4], true);
+      }
+      s.box(tx - 2, ty - 2, tx + 2, ty + 1, CB, { lo: 2, hi: 6 });
+      lamps.push([Math.round(tx), Math.round(ty - 1)]);
+      void seed;
+    };
+    // the back arms, behind the ring
+    arm(cx - 26, cy - 6, cx - 13, 9, -1, 1); arm(cx + 26, cy - 6, cx + 13, 9, 1, 2);
+    // the ring's top: segments lit on the side to the light, their joints dark
+    for (let y = Math.floor(cy - ry - 1); y <= Math.ceil(cy + ry + 1); y++)
+      for (let x = cx - rx - 1; x <= cx + rx + 1; x++) {
+        if (!inE(x, y, rx, ry) || inE(x, y, rx - 7, ry - 2.6)) continue;
+        const a = Math.atan2((y + 0.5 - cy) / ry, (x + 0.5 - cx) / rx), seg = Math.floor((a + Math.PI) / (Math.PI * 2) * 16);
+        const joint = Math.abs(((a + Math.PI) / (Math.PI * 2) * 16) - Math.round((a + Math.PI) / (Math.PI * 2) * 16)) < 0.06;
+        const v = 0.62 - Math.cos(a + 0.6) * 0.18 + (artHash(seg, 1, 1602) - 0.5) * 0.12;
+        s.px(x, y, joint ? Hu[1] : Hu[clamp(Math.round(v * 6 + (artHash(x >> 1, y, 1603) - 0.5) * 0.8), 1, 6)]);
+      }
+    // its outer edge lit at the back, an amber line round its inner edge
+    for (let k = 0; k < 360; k++) {
+      const a = k / 360 * Math.PI * 2, x = cx + Math.cos(a) * (rx - 7.5), y = cy + Math.sin(a) * (ry - 2.9);
+      if (k % 12 < 8) s.px(x, y, HART.amber[Math.sin(a) > 0 ? 1 : 2], Math.sin(a) > 0);
+      const ox = cx + Math.cos(a) * rx, oy = cy + Math.sin(a) * ry;
+      if (Math.sin(a) < 0) s.px(ox, oy, Hu[6]);
+    }
+    // the socket inside it: the Charter's blue in plates, falling to the
+    // anchor in its middle, which glows
+    for (let y = Math.floor(cy - ry); y <= cy + ry; y++)
+      for (let x = cx - rx; x <= cx + rx; x++) {
+        if (!inE(x, y, rx - 7.6, ry - 3)) continue;
+        const u = (x + 0.5 - cx) / (rx - 7.6), v = (y + 0.5 - cy) / (ry - 3), r = Math.hypot(u, v), a = Math.atan2(v, u);
+        const seam = Math.abs(Math.sin(a * 4)) < 0.08 && r > 0.3;
+        let c = CB[clamp(Math.round(2 + (r * 2.2) + (v < 0 ? -0.6 : 0.4) + (artHash(x >> 1, y, 1604) - 0.5)), 0, 6)];
+        if (seam) c = CB[0];
+        if (r < 0.26) { s.px(x, y, r < 0.12 ? G[6] : r < 0.2 ? G[5] : G[3], true); continue; }
+        s.px(x, y, c);
+      }
+    // its wall in front, below the ring: plates, their joints, small lights
+    for (let x = cx - rx; x <= cx + rx; x++) {
+      const u = (x + 0.5 - cx) / rx;
+      if (Math.abs(u) > 1) continue;
+      const y0 = Math.round(cy + ry * Math.sqrt(1 - u * u)), j = Math.round(((Math.asin(clamp(u, -1, 1)) + Math.PI) / (Math.PI * 2)) * 16 * 2) % 2;
+      for (let y = y0 + 1; y <= Math.min(FY, y0 + 6); y++) s.px(x, y, y === y0 + 1 ? Hu[5] : Hu[clamp(Math.round(3.2 - u * 1.6 - (y - y0) * 0.18), 0, 6)]);
+      if (j && artHash(Math.round(x / 3), 9, 1605) < 0.3) s.px(x, y0 + 4, HART.amber[2], true);
+      s.px(x, Math.min(FY, y0 + 7), Hu[0]);
+    }
+    // the front arms
+    arm(cx - 34, cy + 2, cx - 20, 14, -1, 3); arm(cx + 34, cy + 2, cx + 20, 14, 1, 4);
+    // the seed-star on the wall's front
+    hartSeedStar(s, cx, FY - 3, false);
+    return hartDone(s, cx, FY, { lamps, stone: [[cx - 36, cy + 4, -1], [cx + 37, cy + 4, 1], [cx - 18, FY + 1, -1], [cx + 20, FY + 1, 1], [cx - 30, cy - 4, -1], [cx + 30, cy - 4, 1]] });
+  });
+}
 
-// A lantern on its post: a post of dark wood lit on its left, an arm, the
-// lamp hanging from it (lit: glass glowing amber; dark: a dark pane), and a
-// foot. Lamp at lamp.x, lamp.y.
+// Starstone: a cluster of n crystals (1-5), gold and lodestone, the star's
+// own, leaning to one side (side -1 left, 1 right, 0 up), v its variant.
+// Each a faceted shard lit on its upper left, the gold ones glowing at the
+// tip. Feet at its middle.
+function hartStarstone(n, v, side) {
+  return hartKeep('stone' + n + '/' + v + '/' + side, () => {
+    const W = 24, H = 20, FY = 18, cx = 12, s = new PntSpr(W, H, 1701 + v * 7 + n), G = HART.star, L = LODESTONE;
+    const order = [2, 0, 4, 1, 3].slice(0, n).sort((a, b) => Math.abs(b - 2) - Math.abs(a - 2));
+    for (const i of order) {
+      const h = 6 + (5 - Math.abs(i - 2) * 1.6) * (0.5 + n * 0.12) + artHash(i, v, 1702) * 3, rx = 2.2 + artHash(i, v, 1703) * 1.2 + (n - Math.abs(i - 2)) * 0.15;
+      const bx = cx + (i - 2) * 3 + side * 1.5, tx = bx + side * (1.5 + Math.abs(i - 2)) * 0.7 + (i - 2) * 0.8, ty = FY - h, gold = (i + v) % 3 !== 1;
+      const R = gold ? G : [L[0], L[1], L[2], L[3], G[3], G[4], G[5]];
+      s.poly([[bx - rx, FY], [bx - rx * 0.7 + (tx - bx) * 0.5, FY - h * 0.55], [tx, ty], [bx + rx * 0.8 + (tx - bx) * 0.5, FY - h * 0.5], [bx + rx, FY]], (x, y) => {
+        const left = x < bx + (tx - bx) * (FY - y) / Math.max(1, h);
+        return R[clamp(Math.round((gold ? (left ? 4.6 : 2.6) : left ? 2.4 : 1) + (artHash(x, y, 1704) - 0.5) * 0.8 - (y - ty) / h * 0.8), 0, 6)];
+      });
+      hartLine(s, [bx, FY], [tx, ty], gold ? G[6] : G[4]);
+      s.px(tx, ty, gold ? G[6] : G[5], true);
+      if (gold) s.px(tx, ty + 1, G[5], true);
+    }
+    for (let x = cx - 8; x <= cx + 8; x++) if (s.get(x, FY - 1) && artHash(x, 1, 1705) < 0.6) s.px(x, FY, L[0]);
+    return hartDone(s, cx, FY);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// The portal's gate: two pylons of the Charter's blue either side of the
+// portal, amber lights down their inner faces (lamps), a gunmetal lintel
+// across them with the seed-star on it. Feet at the middle of its front.
+// ---------------------------------------------------------------------------
+function hartGate() {
+  return hartKeep('gate', () => {
+    const W = 68, H = 70, FY = 67, cx = 34, s = new PntSpr(W, H, 1801), Hu = HART.hull, CB = HART.charter, lamps = [];
+    for (const [x0, x1] of [[3, 11], [57, 65]]) {
+      // its foot, a step wider
+      hartBlock(s, x0 - 2, x1 + 2, FY - 6, FY - 4, FY, Hu, 1802 + x0, 1);
+      hartBlock(s, x0, x1, 12, 14, FY - 6, CB, 1804 + x0, 1);
+      for (let y = 18; y < FY - 8; y += 9) for (let x = x0 + 1; x < x1; x++) s.px(x, y, CB[1]);
+      const lx = x0 < cx ? x1 - 2 : x0 + 2;
+      for (let y = 20; y < FY - 10; y += 6) { s.px(lx, y, HART.amber[2], true); lamps.push([lx, y]); }
+    }
+    // the lintel, the seed-star on its face
+    hartBlock(s, 1, 67, 3, 7, 13, Hu, 1806, 2);
+    for (let x = 2; x <= 66; x++) if (x % 5 < 3) s.px(x, 12, HART.amber[1]);
+    hartSeedStar(s, cx, 10, true, true);
+    return hartDone(s, cx, FY, { lamps, stone: [[1, FY, -1], [67, FY, 1], [12, FY, 1], [56, FY, -1]] });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// A habitat pod: a Charter module to live in, a long box with rounded ends
+// on skids, seen from above and in front: a pale top, the Charter's blue
+// face with a door and a lit window (lamps: its light), the seed-star, an
+// amber light by the door. v: which way it's laid out.
+// ---------------------------------------------------------------------------
+function hartPod(v = 0) {
+  return hartKeep('pod' + v, () => {
+    const W = 56, H = 38, FY = 35, s = new PntSpr(W, H, 1901 + v), Hu = HART.hull, CB = HART.charter, St = HART.steel, lamps = [];
+    const x0 = 3, x1 = 52, top = 4, lip = 13, foot = 29;
+    // the skids
+    for (const sx of [8, 44]) { hartLine(s, [sx, foot], [sx - 2, FY - 1], Hu[4]); hartLine(s, [sx + 1, foot], [sx - 1, FY - 1], Hu[2]); }
+    for (let x = 4; x <= 51; x++) s.px(x, FY - 1, x < 26 ? Hu[3] : Hu[2]);
+    for (let x = 4; x <= 51; x++) s.px(x, FY, Hu[0]);
+    // the top: pale panels, rounded at its ends
+    hartStrokes(s, x0, top, x1, lip - 1, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < 3 - (y - top) * 0.6 ? null : 0.78 - (x - x0) / (x1 - x0) * 0.2 - (lip - y) * 0.015; }, St, 1902 + v, { jit: 0.1 });
+    for (let x = x0 + 4; x <= x1 - 4; x += 12) for (let y = top + 1; y < lip; y++) s.px(x, y, St[2]);
+    s.box(x0 + 30, top + 2, x0 + 38, top + 6, Hu, { lo: 2, hi: 5 });
+    // the face
+    hartStrokes(s, x0, lip, x1, foot, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < 2 - Math.min(2, (y - lip) * 0.5) ? null : 0.55 - (x - x0) / (x1 - x0) * 0.32 - (y - lip) * 0.005; }, CB, 1904 + v, { jit: 0.12 });
+    for (let x = x0 + 1; x <= x1 - 1; x++) { s.px(x, lip, St[4]); s.px(x, foot, CB[0]); }
+    for (let y = lip + 1; y < foot; y++) { s.px(x0 + 1, y, CB[5]); s.px(x1 - 1, y, CB[1]); }
+    for (let x = x0 + 2; x <= x1 - 2; x++) s.px(x, lip + 3, CB[1]);
+    // the door, its frame, its light; the window, lit warm inside
+    const dx = v ? 38 : 9, wx = v ? 12 : 28;
+    for (let y = lip + 4; y < foot; y++) for (let x = dx; x <= dx + 7; x++) s.px(x, y, x === dx || y === lip + 4 ? Hu[5] : x === dx + 7 ? Hu[1] : Hu[2 + ((y >> 2) & 1)]);
+    s.px(dx + 6, lip + 13, HART.amber[2], true);
+    s.px(dx - 2, lip + 6, HART.amber[3], true);
+    for (let y = lip + 5; y <= lip + 10; y++) for (let x = wx; x <= wx + 12; x++) {
+      const edge = y === lip + 5 || x === wx || x === wx + 12 || y === lip + 10;
+      s.px(x, y, edge ? Hu[1] : y > lip + 7 ? '#d8862c' : (x + y) % 5 === 0 ? '#ffe0a0' : '#ffc060', !edge);
+    }
+    lamps.push([wx + 6, lip + 8]);
+    hartSeedStar(s, v ? 31 : 46, lip + 8, false);
+    return hartDone(s, 27, FY, { lamps, stone: [[2, FY, -1], [53, FY, 1], [x1, lip, 1]] });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// A lander, down on its pad: a squat Charter craft, its hull gunmetal over a
+// band of the Charter's blue, a pale nose cap, a row of ports, four legs
+// splayed to the pad, red landing lights (lamps) blinking in turn.
+// ---------------------------------------------------------------------------
+function hartLander() {
+  return hartKeep('lander', () => {
+    const W = 50, H = 50, FY = 47, cx = 25, s = new PntSpr(W, H, 2001), Hu = HART.hull, CB = HART.charter, St = HART.steel, lamps = [];
+    // the back legs, behind
+    for (const sd of [-1, 1]) { hartLine(s, [cx + sd * 10, 32], [cx + sd * 15, FY - 5], Hu[2]); s.box(cx + sd * 15 - 2, FY - 6, cx + sd * 15 + 2, FY - 4, Hu, { lo: 1, hi: 3 }); }
+    // the hull: a rounded cone, lit on its left
+    s.poly([[cx - 18, 36], [cx - 13, 14], [cx + 13, 14], [cx + 18, 36]], (x, y) => Hu[clamp(Math.round(5 - (x - cx + 18) / 36 * 3.6 + (artHash(x >> 1, y, 2002) - 0.5) * 0.7), 1, 6)]);
+    s.ell(cx, 14, 13, 4, St, { lo: 1, hi: 5, bias: 0.15 });
+    s.ell(cx - 1, 13, 6, 2, St, { lo: 2, hi: 5, bias: 0.25 });
+    for (let x = cx - 12; x <= cx + 12; x++) s.px(x, 17, Hu[1]);
+    // the blue band, a row of ports, the seed-star
+    for (let y = 24; y <= 29; y++) {
+      const half = 13 + (y - 14) * 5 / 22;
+      for (let x = Math.round(cx - half); x <= Math.round(cx + half); x++) s.px(x, y, CB[clamp(Math.round(5 - (x - cx + half) / (2 * half) * 3.5 - (y === 29 ? 1 : 0)), 0, 6)]);
+    }
+    for (let k = -2; k <= 2; k++) { s.px(cx + k * 4, 20, '#0a0e14'); s.px(cx + k * 4 + 1, 20, k < 0 ? '#3a4a5c' : '#141c26'); }
+    hartSeedStar(s, cx, 26, false);
+    // its skirt, and the front legs
+    for (let x = cx - 18; x <= cx + 18; x++) { s.px(x, 36, Hu[0]); s.px(x, 35, Hu[x < cx ? 4 : 2]); }
+    for (const sd of [-1, 1]) {
+      hartLine(s, [cx + sd * 15, 31], [cx + sd * 22, FY - 1], Hu[sd < 0 ? 5 : 3]); hartLine(s, [cx + sd * 15 + 1, 31], [cx + sd * 22 + 1, FY - 1], Hu[1]);
+      s.box(cx + sd * 22 - 3, FY - 2, cx + sd * 22 + 3, FY, Hu, { lo: 1, hi: 4 });
+      lamps.push([cx + sd * 17, 34]);
+    }
+    lamps.push([cx, 10]);
+    return hartDone(s, cx, FY - 1, { lamps });
+  });
+}
+
+// A light mast on its foot: a slim gunmetal pole with a band of the
+// Charter's blue, a lamp head on an arm (lit: amber, glowing; dark: a dark
+// pane). Lamp at lamp.x, lamp.y.
 function hartLantern(lit) {
   return hartKeep('lantern' + lit, () => {
-    const W = 12, H = 40, FY = 38, s = new PntSpr(W, H, 1101), Wd = HART.wood, I = HART.iron, St = HART.star;
-    for (let y = 3; y <= FY - 2; y++) { s.px(3, y, Wd[y < 12 ? 5 : 4]); s.px(4, y, Wd[2]); }
-    s.box(2, FY - 2, 5, FY, HART.stone, { lo: 0, hi: 3 });
-    // the arm, and the lamp's hook
-    for (let x = 3; x <= 9; x++) s.px(x, 3, x < 6 ? Wd[5] : Wd[4]);
-    s.px(4, 4, Wd[3]); s.px(9, 4, I[3]);
-    // the lamp: a hood, a frame round the glass, a foot
-    for (let x = 7; x <= 11; x++) s.px(x, 5, x < 9 ? I[4] : I[3]);
-    s.px(8, 6, I[3]); s.px(9, 6, I[3]); s.px(10, 6, I[2]);
-    for (let y = 7; y <= 11; y++) {
-      s.px(7, y, I[3]); s.px(11, y, I[1]);
-      for (let x = 8; x <= 10; x++) s.px(x, y, lit ? (y === 9 && x === 9 ? St[6] : y > 9 || x === 10 ? St[3] : St[5]) : x === 8 && y === 8 ? '#3a4050' : '#141820', lit);
-    }
-    for (let x = 7; x <= 11; x++) s.px(x, 12, I[2]);
-    return hartDone(s, 4, FY, { lamp: { x: 9, y: 9 } });
-  });
-}
-
-// A tent of canvas, its ridge running away from us: the gable faces us,
-// lit on its left, the flap open on lamplight inside, the flap folded back,
-// a pole at the ridge, a guy rope, pegs, and a patch.
-function hartTent(v = 0) {
-  return hartKeep('tent' + v, () => {
-    const W = 50, H = 40, FY = 37, s = new PntSpr(W, H, 1201 + v), C = HART.canvas, cx = 24, top = 5, hw = 21;
-    const inGable = (x, y) => y >= top && y <= FY - 1 && Math.abs(x + 0.5 - cx) <= hw * (y - top) / (FY - 1 - top) + 0.5;
-    // the roof's two slopes going back, seen above the gable
-    for (let y = 1; y <= top; y++) { s.px(cx, y, C[5]); s.px(cx - 1, y + 1, C[4]); s.px(cx + 1, y + 1, C[2]); }
-    // the gable: lighter to the left
-    hartStrokes(s, cx - hw, top, cx + hw, FY - 1, (x, y) => (inGable(x, y) ? 0.66 - (x - cx + hw) / (2 * hw) * 0.5 + (y - top) * 0.004 : null), C, 1203 + v, { jit: 0.22 });
-    for (let y = top; y <= FY - 1; y++) { const w = hw * (y - top) / (FY - 1 - top); s.px(Math.round(cx - w), y, C[5]); s.px(Math.round(cx + w), y, C[1]); }
-    // the flap open: dark, and the lamp's light inside
-    const ft = top + 12, fw = 9;
-    for (let y = ft; y <= FY - 1; y++) {
-      const w = fw * (y - ft) / (FY - 1 - ft);
-      for (let x = Math.round(cx - w); x <= Math.round(cx + w); x++) {
-        const edge = x <= Math.round(cx - w) || x >= Math.round(cx + w), h = artHash(x, y, 1210 + v);
-        const k = (y - ft) / (FY - 1 - ft) + (h - 0.5) * 0.25, warm = Math.abs(x - cx) < w * 0.6 && k > 0.55;
-        s.px(x, y, edge ? C[0] : !warm ? (k > 0.35 ? '#24160c' : '#120a06') : k > 0.85 ? '#ffc060' : k > 0.7 ? '#d8862c' : '#7a4818', warm);
-      }
-    }
-    // the flap folded back to the right
-    for (let y = ft + 2; y <= FY - 2; y++) { const w = fw * (y - ft) / (FY - 1 - ft); s.px(Math.round(cx + w) + 1, y, C[4]); s.px(Math.round(cx + w) + 2, y, C[3]); }
-    // the pole, a guy rope off the ridge to a peg, pegs at the corners
-    for (let y = top - 3; y <= FY; y++) s.px(cx, y, y < ft ? HART.wood[4] : HART.wood[2]);
-    for (let i = 0; i <= 16; i++) s.px(cx + hw + 2 + Math.round(i * 0.3), top + 6 + i + (i > 8 ? 1 : 0), C[1]);
-    for (const x of [cx - hw - 1, cx + hw + 1, cx + hw + 7]) { s.px(x, FY, HART.wood[3]); s.px(x, FY - 1, HART.wood[4]); }
-    // a patch on the lit side
-    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1], [2, 1]]) s.px(cx - 11 + i, FY - 10 + j, v % 2 ? HART.crimson[2] : '#4a5640');
-    return hartDone(s, cx, FY, { lamp: { x: cx, y: FY - 4 } });
+    const W = 14, H = 46, FY = 44, s = new PntSpr(W, H, 1101), Hu = HART.hull, CB = HART.charter, St = HART.star;
+    for (let y = 4; y <= FY - 2; y++) { s.px(3, y, Hu[y < 14 ? 6 : 5]); s.px(4, y, Hu[2]); }
+    for (let y = 26; y <= 30; y++) { s.px(3, y, CB[5]); s.px(4, y, CB[2]); }
+    s.box(1, FY - 2, 6, FY, Hu, { lo: 0, hi: 4 });
+    // the arm and the head
+    for (let x = 3; x <= 11; x++) s.px(x, 4, x < 7 ? Hu[6] : Hu[5]);
+    for (let x = 6; x <= 12; x++) s.px(x, 5, Hu[2]);
+    for (let x = 7; x <= 12; x++) s.px(x, 6, lit ? (x === 9 || x === 10 ? St[6] : St[4]) : x === 8 ? '#3a4050' : '#141820', lit);
+    for (let x = 7; x <= 12; x++) s.px(x, 7, lit ? St[2] : '#0e1218', lit);
+    return hartDone(s, 4, FY, { lamp: { x: 9, y: 6 } });
   });
 }
 
@@ -763,114 +907,43 @@ function hartPerson(look, pose, frame) {
 }
 
 // ---------------------------------------------------------------------------
-// The plaza's dressing: supply crates, barrels and sacks, a banner with the
-// seed-star, a fire ring with a log, cables on the ground. Each is a kind
-// here; HUB_DRESSING (hub.js) places them.
+// What's set down by the modules: Charter supply containers stacked neatly
+// (stack1, stack2, stack3: one, two, three), and a pennant on a mast, the
+// Charter's blue with its seed-star. Each a kind here; HUB_DRESSING (hub.js)
+// places them.
 // ---------------------------------------------------------------------------
+// One container into s, its front's lower left at x, y: w wide, h high
+// (its face), its top seen above it.
+function hartContainer(s, x, y, w, h, seed) {
+  const Hu = HART.hull, CB = HART.charter;
+  hartBlock(s, x, x + w - 1, y - h - 4, y - h, y, CB, seed, 1);
+  for (let k = x + 3; k < x + w - 2; k += 4) for (let j = y - h + 2; j < y - 1; j++) s.px(k, j, CB[1]);
+  for (const j of [y - h + 1, y - 1]) for (let i = x + 1; i < x + w - 1; i++) s.px(i, j, Hu[2]);
+  s.px(x + w - 4, y - (h >> 1), HART.amber[2]);
+  for (let i = x + 2; i < x + 6; i++) s.px(i, y - h + 3, HART.mark[1]);
+}
 function hartProp(kind) {
   return hartKeep('prop' + kind, () => {
     let s, ax, ay;
-    const Wd = HART.wood, I = HART.iron;
-    if (kind === 'crate' || kind === 'crate2') {
-      // a crate seen from above and in front: a lid, slats, a stencil
-      const big = kind === 'crate', w = big ? 16 : 12, h = big ? 15 : 12, top = big ? 5 : 4;
-      s = new PntSpr(w + 2, h + 1, 1401 + w);
-      hartStrokes(s, 1, 0, w, top - 1, (x, y) => 0.7 - x * 0.012, Wd, 1402 + w);
-      hartStrokes(s, 1, top, w, h - 1, (x, y) => ((y - top) % 4 === 3 ? 0.12 : 0.42 - (x / w) * 0.18), Wd, 1403 + w);
-      for (let y = 0; y < h; y++) { s.px(1, y, Wd[5]); s.px(w, y, Wd[1]); }
-      for (let x = 1; x <= w; x++) { s.px(x, top, Wd[5]); s.px(x, h, Wd[0]); }
-      if (big) for (const [i, j] of [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]]) s.px((w >> 1) + 1 + i, top + 5 + j, '#8a6a3a');
-      ax = (w >> 1) + 1; ay = h;
-    } else if (kind === 'barrel') {
-      s = new PntSpr(12, 16, 1420);
-      hartStrokes(s, 1, 2, 10, 14, (x, y) => 0.75 - Math.abs(x - 3.5) * 0.08, Wd, 1421);
-      for (const y of [4, 11]) for (let x = 1; x <= 10; x++) s.px(x, y, x < 5 ? I[4] : I[2]);
-      s.ell(5.5, 2, 4.6, 1.7, Wd, { lo: 2, hi: 5 });
-      s.px(4, 1, Wd[1]); s.px(5, 1, Wd[1]);
-      for (let x = 1; x <= 10; x++) s.px(x, 15, Wd[0]);
-      ax = 6; ay = 15;
-    } else if (kind === 'sacks') {
-      s = new PntSpr(18, 11, 1430);
-      const SK = ['#1c1810', '#2c2618', '#3e3622', '#52482e', '#6a5e3e'];
-      s.ell(5, 6.5, 4.6, 3.8, SK, { lo: 0, hi: 4 });
-      s.ell(12, 7, 5, 3.4, SK, { lo: 0, hi: 4 });
-      s.ell(8.5, 3.8, 4, 3, SK, { lo: 1, hi: 4, bias: 0.1 });
-      s.px(8, 1, SK[1]); s.px(9, 1, SK[2]); s.px(12, 4, SK[1]);
-      ax = 9; ay = 10;
-    } else if (kind === 'banner') {
-      // a pole with a crimson banner, the seed-star sewn on it
-      s = new PntSpr(16, 48, 1440);
-      const C = HART.crimson;
-      for (let y = 1; y <= 46; y++) { s.px(2, y, Wd[y < 10 ? 5 : 4]); s.px(3, y, Wd[2]); }
-      s.px(2, 0, '#b89a58'); s.px(3, 0, '#7a6234');
-      for (let x = 2; x <= 14; x++) s.px(x, 3, Wd[4]);
-      hartStrokes(s, 4, 4, 14, 22, (x, y) => (y === 22 && x % 2 ? null : 0.75 - (x - 4) * 0.04 - (y - 4) * 0.015), C, 1441);
-      for (const [i, j] of [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1], [0, 2]]) s.px(9 + i, 11 + j, i || j ? '#d88c30' : '#ffe48a');
-      s.box(0, 45, 5, 47, HART.stone, { lo: 0, hi: 3 });
-      ax = 3; ay = 47;
-    } else if (kind === 'firering') {
-      // stones in a ring round a bed of embers (its flames are drawn over)
-      s = new PntSpr(22, 12, 1450);
-      for (let a = 0; a < 10; a++) { const x = 11 + Math.cos(a / 10 * Math.PI * 2) * 8.5, y = 6 + Math.sin(a / 10 * Math.PI * 2) * 3.8; s.ell(x, y, 2, 1.5, HART.stone, { lo: 0, hi: a > 2 && a < 7 ? 5 : 3 }); }
-      for (let y = 4; y <= 8; y++) for (let x = 6; x <= 16; x++) if (((x - 11) / 5.5) ** 2 + ((y - 6) / 2.4) ** 2 <= 1) s.px(x, y, artHash(x, y, 1451) < 0.3 ? '#902a0a' : artHash(x, y, 1452) < 0.5 ? '#2a1008' : '#140806', artHash(x, y, 1451) < 0.3);
-      ax = 11; ay = 10;
-    } else if (kind === 'log') {
-      s = new PntSpr(22, 8, 1460);
-      s.limb([[2, 4], [19, 4]], 5.4, 5.0, (t, sd) => Wd[sd < 0 ? 5 : sd > 0 ? 1 : 3]);
-      s.ell(19.5, 4, 1.6, 2.6, ['#3a2819', '#6a4b30', '#8a6a46'], { lo: 0, hi: 2 });
-      ax = 11; ay = 7;
-    } else if (kind === 'rack') {
-      // a steel rack of tools by the forge: a frame, a pick, a cutting
-      // torch on its bottle, a hammer
-      s = new PntSpr(16, 28, 1470);
-      const Hu = HART.hull;
-      for (let y = 4; y <= 27; y++) { s.px(1, y, Hu[y < 12 ? 6 : 5]); s.px(14, y, Hu[2]); }
-      for (let x = 1; x <= 14; x++) { s.px(x, 5, x < 7 ? Hu[6] : Hu[5]); s.px(x, 20, Hu[3]); }
-      for (let y = 6; y <= 24; y++) { s.px(4, y, Wd[3]); s.px(11, y, Wd[3]); }
-      for (let x = 1; x <= 7; x++) s.px(x, 6 + Math.abs(x - 4) * 0.4, I[x < 4 ? 5 : 3]);
-      s.box(7, 12, 9, 25, HART.crimson, { lo: 1, hi: 4 });
-      s.px(8, 11, I[4]); s.px(8, 10, I[3]); s.px(9, 10, I[3]); s.px(10, 10, '#62f0ff', true);
-      s.box(10, 6, 12, 8, I, { lo: 1, hi: 4 });
-      ax = 8; ay = 27;
-    } else if (kind === 'cart') {
-      // a hand cart heaped with ore, its handles down, two wheels
-      s = new PntSpr(26, 18, 1490);
-      hartStrokes(s, 3, 6, 20, 12, (x, y) => (y === 6 ? 0.85 : 0.45 - (x - 3) * 0.01 - (y - 6) * 0.04), Wd, 1491);
-      for (let x = 3; x <= 20; x++) s.px(x, 13, Wd[0]);
-      for (let i = 0; i < 6; i++) s.px(20 + i, 10 + (i >> 1), Wd[4]);
-      const ores = [[6, 5, HART.star], [10, 4, HART.iron], [14, 5, HART.star], [17, 5, HART.iron], [8, 3, HART.iron], [12, 3, HART.star]];
-      for (const [x, y, r] of ores) s.ell(x, y, 2.4, 1.8, r, { lo: 1, hi: r === HART.star ? 4 : 5 });
-      s.px(12, 2, HART.star[6], true); s.px(6, 4, HART.star[5], true);
-      for (const wx of [6, 17]) { s.ell(wx, 14, 3, 3, Wd, { lo: 0, hi: 3 }); s.px(wx, 14, I[3]); }
-      ax = 12; ay = 17;
+    if (kind === 'stack1' || kind === 'stack2' || kind === 'stack3') {
+      const n = Number(kind[5]);
+      s = new PntSpr(n === 3 ? 34 : 20, n === 1 ? 20 : 34, 1401 + n);
+      if (n === 3) { hartContainer(s, 1, 33, 16, 10, 1402); hartContainer(s, 17, 33, 16, 10, 1403); hartContainer(s, 9, 19, 16, 10, 1404); ax = 17; ay = 33; }
+      else if (n === 2) { hartContainer(s, 1, 33, 18, 10, 1405); hartContainer(s, 3, 19, 14, 10, 1406); ax = 10; ay = 33; }
+      else { hartContainer(s, 1, 19, 18, 10, 1407); ax = 10; ay = 19; }
+    } else if (kind === 'pennant') {
+      // a mast, a long pennant of the Charter's blue, the seed-star on it
+      s = new PntSpr(16, 52, 1440);
+      const Hu = HART.hull, CB = HART.charter;
+      for (let y = 1; y <= 49; y++) { s.px(2, y, Hu[y < 10 ? 6 : 5]); s.px(3, y, Hu[2]); }
+      s.px(2, 0, HART.amber[2], true);
+      for (let x = 2; x <= 13; x++) s.px(x, 3, Hu[5]);
+      hartStrokes(s, 4, 4, 13, 28, (x, y) => (y > 24 && Math.abs(x - 8.5) < (y - 24) * 1.2 ? null : 0.62 - (x - 4) * 0.035 - (y - 4) * 0.008), CB, 1441);
+      hartSeedStar(s, 8, 11, true);
+      for (let x = 4; x <= 13; x++) s.px(x, 18, HART.amber[1]);
+      s.box(0, 48, 5, 50, Hu, { lo: 0, hi: 3 });
+      ax = 3; ay = 50;
     }
     return hartDone(s, ax, ay);
-  });
-}
-// A seed-star inlaid in the flagstones, worn: brass lines of an eight-
-// pointed star in a ring, flattened as the ground is, broken where feet
-// have worn it. Not glowing.
-function hartInlay() {
-  return hartKeep('inlay', () => {
-    const R = 28, W = R * 2 + 3, H = Math.round(R * 1.24) + 3, s = new PntSpr(W, H, 1500), cx = W >> 1, cy = H >> 1, M = ['#201d18', '#2e2a20', '#3e3626', '#524630'];
-    const put = (x, y, t) => { const X = Math.round(cx + x), Y = Math.round(cy + y * 0.62); if (artHash(Math.floor(X / 3), Y, 1501) < 0.34) return; s.px(X, Y, M[clamp(t + (artHash(X, Y, 1502) < 0.3 ? -1 : 0), 0, 3)]); };
-    for (const r of [R, R - 4]) for (let a = 0; a < 1; a += 1 / (r * 7)) put(Math.cos(a * Math.PI * 2) * r, Math.sin(a * Math.PI * 2) * r, r === R ? 2 : 1);
-    for (let k = 0; k < 8; k++) {
-      const a = (k / 8) * Math.PI * 2 - Math.PI / 2, L = k % 2 ? R * 0.55 : R - 6, b0 = a - 0.32, b1 = a + 0.32, r0 = 9;
-      for (const b of [b0, b1]) { const x0 = Math.cos(b) * r0, y0 = Math.sin(b) * r0, x1 = Math.cos(a) * L, y1 = Math.sin(a) * L, n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 1.2); for (let i = 0; i <= n; i++) put(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, k % 2 ? 2 : 3); }
-    }
-    for (let a = 0; a < 1; a += 1 / 40) put(Math.cos(a * Math.PI * 2) * 4, Math.sin(a * Math.PI * 2) * 4, 3);
-    return hartDone(s, cx, cy);
-  });
-}
-// Flames over a fire ring, three frames, glowing.
-function hartFlames(frame) {
-  return hartKeep('flames' + frame, () => {
-    const W = 10, H = 10, s = new PntSpr(W, H, 1480 + frame), F = HART.fire;
-    for (let x = 0; x < W; x++) {
-      const tall = (Math.sin(x * 1.7 + frame * 2.3) * 0.5 + 0.5) * (1 - Math.abs(x - 4.5) / 5.5) * 9 + 1;
-      for (let j = 0; j < tall; j++) { const v = 1 - j / tall; s.px(x, H - 1 - j, F[clamp(Math.round(1 + v * 4.2), 0, 5)], true); }
-    }
-    return hartDone(s, 5, H - 1);
   });
 }

@@ -161,16 +161,20 @@ function pshBlocked(f, x0, y0, x1, y1) {
 }
 
 // What stands at home and doesn't move, each { spr, x, y } (its feet, floor
-// px), and the plaza's lights, each { x, y (its foot), h (how high it
-// stands), lx, ly (where its light is), r, i } (px).
+// px), and the plaza's lights (its light masts and the forge), each { x, y
+// (its foot), h (how high it stands), lx, ly (where its light is), r, i }
+// (px).
 function pshHubStill(d) {
   const out = [];
   for (const a of hubProps(d)) {
     if (a.station) { const s = a.station, at = stationAt(s, 0, 0); out.push({ spr: stationSprite(s.id), x: at.x, y: at.y }); }
     else if (a.wreck) { const s = HUB_STATIONS.find((x) => x.id === 'wreck'); out.push({ spr: hartUplink(), x: Math.round((s.x + 0.5) * ATILE), y: Math.round((s.y + 0.5) * ATILE) }); }
     else if (a.lamp) out.push({ spr: hartLantern(a.lit), x: Math.round((a.at[0] + 0.5) * ATILE), y: Math.round((a.at[1] + 0.5) * ATILE), lamp: a });
-    else if (a.tent !== undefined) { const [tx, ty] = TENT_SPOTS[a.tent]; out.push({ spr: hartTent(a.tent % 2), x: Math.round((tx + 0.5) * ATILE), y: Math.round((ty + 0.5) * ATILE) + ap(2) }); }
-    else if (a.dress) out.push({ spr: hartProp(a.dress.kind), x: Math.round(a.dress.x * ATILE), y: Math.round(a.dress.y * ATILE), fire: a.dress.kind === 'firering' });
+    else if (a.gate) { const s = HUB_STATIONS.find((x) => x.id === 'setout'); out.push({ spr: hartGate(), x: Math.round((s.x + 0.5) * ATILE), y: Math.round((s.y + 0.5) * ATILE) + 1 }); }
+    else if (a.cradle) out.push({ spr: hartCradle(), x: Math.round(OUTPOST_CRADLE.x * ATILE), y: Math.round(OUTPOST_CRADLE.y * ATILE) });
+    else if (a.pod) out.push({ spr: hartPod(a.look % 2), x: Math.round(a.pod.x * ATILE), y: Math.round(a.pod.y * ATILE) });
+    else if (a.lander) out.push({ spr: hartLander(), x: Math.round(a.lander.x * ATILE), y: Math.round(a.lander.y * ATILE + ap(4)) });
+    else if (a.dress) out.push({ spr: hartProp(a.dress.kind), x: Math.round(a.dress.x * ATILE), y: Math.round(a.dress.y * ATILE) });
   }
   return out;
 }
@@ -179,7 +183,6 @@ function pshHubLights(d, still) {
   for (const s of still) {
     const spr = s.spr;
     if (s.lamp && s.lamp.lit) L.push({ x: s.x, y: s.y, h: spr.ay - spr.lamp.y, lx: s.x - spr.ax + spr.lamp.x, ly: s.y - spr.ay + spr.lamp.y, r: TILE * 2.2 * AP, i: 0.7, own: s });
-    if (s.fire) L.push({ x: s.x, y: s.y + 1, h: C.fireH, lx: s.x, ly: s.y - 6, r: TILE * 1.8 * AP, i: 0.75, own: s });
   }
   const fg = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(fg, 0, 0), fs = hartForge();
   L.push({ x: at.x - fs.ax + HART_MOUTH.x, y: at.y + 2, h: fs.ay - HART_MOUTH.y, lx: at.x - fs.ax + HART_MOUTH.x, ly: at.y - fs.ay + HART_MOUTH.y, r: TILE * 2.2 * AP, i: 1.0, forge: true });
@@ -208,7 +211,7 @@ function pshAxes(lx, ly, h, fx, fy, k) {
 function pshBake(f) {
   const d = Game.dive, P = T.paint.shade, C = T.light.shadow.cast, W = f.w * ATILE, Hp = f.h * ATILE;
   if (!d || d.floor !== f) return null;
-  const A = new Uint8Array(W * Hp), U = View.ug, sky = !!artBiome(f).sun && !d.hub;
+  const A = new Uint8Array(W * Hp), U = View.ug, sky = !!artBiome(f).sun;
   // the sun's strength (daylight in kindled land, a dusk in the dark)
   const sun = sky ? clamp(sunOf(d), 0, 1) : 0, G = T.paint.ground, szx = G.sunDir[0] / G.sunSlope, szy = G.sunDir[1] / G.sunSlope;
   const lv = lampLevels(d), amb = lv.amb * (lv.tint[0] + lv.tint[1] + lv.tint[2]) / 3;
@@ -235,9 +238,10 @@ function pshBake(f) {
     if (it.top) continue;
     if (it.strip) {
       // (a stand's row: its picture in the stands' atlas)
-      if (!U || !U.atlas) continue;
+      const UA = it.ug || U;
+      if (!UA || !UA.atlas) continue;
       let st = _pshItems.get(it);
-      if (!st) { const dd = U.atlas.getContext('2d').getImageData(it.sx, it.sy, it.w, it.h); st = { w: it.w, h: it.h, px: new Uint32Array(dd.data.buffer) }; _pshItems.set(it, st); }
+      if (!st) { const dd = UA.atlas.getContext('2d').getImageData(it.sx, it.sy, it.w, it.h); st = { w: it.w, h: it.h, px: new Uint32Array(dd.data.buffer) }; _pshItems.set(it, st); }
       const S = pshSil(st);
       if (S.foot < 0) continue;
       const fy = it.by0 + S.foot;
@@ -250,9 +254,10 @@ function pshBake(f) {
     pshBakeContact(A, f, cx + P.contactAt[0], fy + 0.5 + P.contactAt[1], hw + P.contactPad[cls], Math.min(P.contactRy[1], P.contactRy[0] + hw * 0.15), P.contact[cls]);
     cast(S, fx - sx, spr.h - 1, fx, fy + 0.5, spr.h);
   }
-  if (U && U.stamps) {
+  // (at the outpost, each side's too: hubground.js)
+  for (const UU of [U].concat(View.ugMeld || [])) if (UU && UU.stamps) {
     const seen = new Set();
-    for (const list of U.stamps) if (list) for (const s of list) {
+    for (const list of UU.stamps) if (list) for (const s of list) {
       if (seen.has(s)) continue;
       seen.add(s);
       const S = pshSil(s.st);
@@ -260,14 +265,15 @@ function pshBake(f) {
       pshBakeContact(A, f, s.x + (S.l + S.r + 1) / 2 + 0.5, s.y + S.foot + 1, (S.r - S.l + 1) / 2 + P.coverPad, P.coverRy, P.cover);
     }
   }
-  // at home: what stands round the plaza, from its lanterns, the forge and
-  // the fire (whichever is strongest at its feet)
+  // at home: what stands round the plaza, from the sun, and from its light
+  // masts and the forge (whichever is strongest at its feet)
   if (d.hub) {
     const still = pshHubStill(d), HL = pshHubLights(d, still), amb0 = amb;
     PshBake.sig = pshHubSig();
     for (const s of still) {
       const spr = s.spr, S = pshSil(spr), hw = (S.r - S.l + 1) / 2, cx = s.x - spr.ax + (S.l + S.r + 1) / 2;
       pshBakeContact(A, f, cx + P.contactAt[0], s.y + 0.5 + P.contactAt[1], hw + P.contactPad[2], Math.min(P.contactRy[1], P.contactRy[0] + hw * 0.15), P.contact[2]);
+      if (sun > 0 && !s.flat) pshBakeCast(A, f, S, spr.ax, spr.ay, s.x, s.y + 0.5, 1, 0, szx, szy, 0, P.sun * sun, null);
       let best = null, bs = C.home.min;
       for (const L of HL) { if (L.own === s) continue; const sh = pshShare(L, s.x, s.y, amb0); if (sh > bs) { bs = sh; best = L; } }
       if (!best) continue;
@@ -456,7 +462,7 @@ function pshMovers(d) {
     for (const s of d.settlers || []) out.push({ spr: settlerSprite(s.look, s.walkT > 0 ? 1 + (Math.floor(s.walkT * 7) % 4) : 0, s.west), x: Math.round(s.x * AP), y: Math.round(s.y * AP) });
     const n = settlementSize();
     if (n >= 1) { const fg = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(fg, 0, 0), fs = hartForge(); out.push({ spr: hartPerson(1, 'smith', 0), x: at.x - fs.ax + HART_ANVIL.x - 14, y: at.y + 2 }); }
-    if (n >= 2) out.push({ spr: hartPerson(2, 'sit', 0), x: Math.round(HUB_SITTER[0] * ATILE), y: Math.round(HUB_SITTER[1] * ATILE) });
+    if (n >= 2) { const [sx, sy] = hubSitterAt(d.floor.site); out.push({ spr: hartPerson(2, 'sit', 0), x: Math.round(sx * ATILE), y: Math.round(sy * ATILE) }); }
     return out;
   }
   for (const e of d.enemies) {
@@ -519,7 +525,7 @@ function pshFrame(d, ox, oy) {
     }
   }
   // by day under the sky: the sun's, for what moves
-  const sky = !!artBiome(f).sun && !d.hub, sun = sky ? clamp(sunOf(d), 0, 1) : 0;
+  const sky = !!artBiome(f).sun, sun = sky ? clamp(sunOf(d), 0, 1) : 0;
   if (sun > 0.05) {
     const G = T.paint.ground, szx = G.sunDir[0] / G.sunSlope, szy = G.sunDir[1] / G.sunSlope, dk = C.sun * sun;
     for (const o of movers) {

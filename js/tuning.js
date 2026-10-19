@@ -116,6 +116,31 @@ const T = {
     plant: 6,
     sun: { dark: -0.35, kindled: 1, edge: -0.6 },
   },
+  // The outpost (floor.js outpostFloor, hub.js): the middle of the world, a
+  // cleared site `size` tiles square with an opening on its edge towards
+  // each land next to it, as a territory has. rim: how deep the rock stands
+  // round its edge (tiles, by noise between the two). passage: an opening's
+  // way through it (its half width, tiles). meld: the cleared ground grades
+  // into the land beyond each opening from `from` tiles in from the edge to
+  // all of it by `to`, the border between two neighbours' sides wandering
+  // `wobble` tiles; their plants grow there `flora` times as thickly as in
+  // their own land, as much as the meld's weight to the power floraPow, and `outcrops` of their rock stand in it.
+  // sun: the daylight over the site at magnitude 1, and from magnitude
+  // sunFull on (the star's own ground grows brighter as it does). pads: the
+  // landing pads round the plaza, `r` tiles out from the star.
+  outpost: {
+    size: 40, rim: [1.4, 3.4], passage: 1.7,
+    meld: { from: 13, to: 3, wobble: 2.5, flora: 1.8, floraPow: 1.4 }, outcrops: [5, 8],
+    sun: [0.35, 1], sunFull: 6, pads: { r: 11.5, n: 6 },
+    // lode: the lodelines out across the ground, reach [at magnitude 1,
+    // more each magnitude] (tiles; all the way towards kindled land), how
+    // fast their breaks run out (px/s), and how faint towards the dark.
+    // stone: the starstone on the modules, a cluster on each spot from
+    // magnitude 2, the next spot every `spread` magnitudes, a crystal more
+    // every `grow` (at most `most`), glowing from glowFrom crystals' worth.
+    lode: { reach: [4, 2.4], speed: 26, dark: 0.45 },
+    stone: { spread: 1.4, grow: 2, most: 5, glowFrom: 4 },
+  },
   // Climes: the kind of country a site is, rolled when the way to it is
   // made (so its portal can name it). zones: where it can turn up; weight:
   // how often, times lean[region] in a region it leans to (every clime can
@@ -841,6 +866,23 @@ const T = {
     // old: an ancient forge's cold light, [reach (tiles), strength], and how
     // fast it breathes (rad/s) and by how much.
     hub: { press: { beat: 1.5, rest: 0.16, rise: 0.46, wait: 0.26 }, old: { light: [1.8, 0.75], breath: 1.3, breathAmt: 0.15 } },
+    // site (hubground.js): the outpost's ground. tear: where the land beyond
+    // comes in, its border torn by two noises ([across, down] px, each) by
+    // tearAmt. squash: how much a circle on the ground is flattened by the
+    // camera. deck, gravel: the Charter's deck plates and the paths' packed
+    // gravel, seven tones each; plate: a plate [w, h] (px); deckTone: a
+    // plate's tone from the ground's [base, times]; walkW: a walkway's half
+    // width (tiles); mark: the amber
+    // of the markings [dark, light]; star: the seed-star's [dark, light];
+    // lamp: a pad's landing lights. padR: a pad's radius, pathW a path's
+    // half width (tiles); dash: the dashes along a path's edges (px).
+    site: {
+      tear: [9, 3, 30, 10], tearAmt: 0.85, squash: 0.72,
+      deck: ['#232833', '#2d3340', '#383f4d', '#444c5b', '#515a6a', '#5e6879', '#6e7889'],
+      gravel: ['#3e3a34', '#4a453d', '#565047', '#625b51', '#6e675c', '#7b7366', '#888072'],
+      plate: [30, 20], deckTone: [1.6, 0.75], walkW: 0.7, mark: [[150, 104, 40], [214, 160, 66]], star: [[200, 180, 130], [238, 222, 176]], lamp: '#ffc860',
+      padR: 2.2, pathW: 0.95, dash: 9,
+    },
     // hole (painthole.js): what lies below the floor. depth: how far down a
     // hazard's surface lies (art px), shade how far (a share of it) its
     // banks shade it from the light. A far wall: wall (the sinkhole's, on
@@ -931,7 +973,7 @@ const T = {
   //     softly that edge thins out; outlier: the odd one anywhere.
   //   floorP, wallP, ceilP: the most of a tile that grows a floor piece,
   //     a piece at the foot of a wall, one hanging from it (times the set's
-  //     density; at the outpost, times hub). space: how far apart pieces
+  //     density). space: how far apart pieces
   //     stand, a share of their half widths added (sameKind: for small ones
   //     of a kind, which clump). gather: [least, most] small pieces round
   //     each big one.
@@ -978,7 +1020,7 @@ const T = {
   flora: {
     foot: 1, wallReach: 1.6, nook: 0.35, wet: 0.7, wetReach: 3, light: 0.5, lightReach: 3, base: 0.12, openFrom: 3, openKeep: 0.25, narrow: 4,
     drift: 3.2, cut: 0.1, fray: 0.28, outlier: 0.04,
-    floorP: 0.55, wallP: 0.5, ceilP: 0.4, hub: 0.4, space: 0.9, sameKind: 0.8, gather: [1, 3],
+    floorP: 0.55, wallP: 0.5, ceilP: 0.4, space: 0.9, sameKind: 0.8, gather: [1, 3],
     stand: { cut: 0.5, minSuit: 0.45, reach: 2, rows: 3, gap: 5 },
     cover: { round: [2, 4], foot: 0.7, scree: [1, 3], open: 0.03 },
     bed: { reach: 5, squash: 0.62, fray: 0.6, strokes: 0.7, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6, drift: 0.6 },
@@ -1002,8 +1044,8 @@ const T = {
     },
   },
 
-  // Light (render.js). The world dims to `ambient` (tinted; at home, the
-  // brighter hubAmbient); lights add back
+  // Light (render.js). The world dims to `ambient` (tinted; under the sky,
+  // and at home, its zone's daylight); lights add back
   // [radius in tiles, strength]; the result is cut into T.art.lightSteps
   // bands, never brighter than `max`. flora: how bright a plant's glow is.
   // bloom: [downscale, strength] passes, times glow. bloomWorld: the
@@ -1012,7 +1054,7 @@ const T = {
   // moves (render.js, bloomSceneWorld). The lamp's radius may become a dial
   // that shrinks with depth.
   light: {
-    ambient: 0.45, hubAmbient: 0.85, tint: [0.72, 0.76, 0.95], max: 1.9,
+    ambient: 0.45, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: true,
     // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
@@ -1035,14 +1077,13 @@ const T = {
     // by day, how dark the sun's shadow of what moves (its strength, as
     // the baked ones' T.paint.shade.sun). fixedH: how high (px) the floor's
     // fixed lights stand, fixedMin the share of the light at a plant's foot
-    // from which one casts, fixedK as lampK. home: the outpost's lanterns,
-    // forge and fire: min, the share from which they cast; k as lampK; dark,
-    // as lamp; full: the share that casts the full shadow; fireH: the fire's
-    // height; near: what moves casts only within this share of the lamp's
-    // reach of the Kindler.
+    // from which one casts, fixedK as lampK. home: the outpost's light masts
+    // and forge: min, the share from which they cast; k as lampK; dark, as
+    // lamp; full: the share that casts the full shadow; near: what moves
+    // casts only within this share of the lamp's reach of the Kindler.
     shadow: {
       walls: true, baked: true, eye: 26, rays: 1.25, step: 2, reach: 3, top: 0,
-      cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, fireH: 8, near: 1 }, hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
+      cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, near: 1 }, hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
     },
   },
 

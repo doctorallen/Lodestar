@@ -109,9 +109,11 @@ function graftAt(f, x, y) {
   return Math.hypot(x - cx, y - cy) / TILE <= g.r - 0.5 + 1.1 * Math.sin(3 * a + g.p1) + 0.6 * Math.sin(5 * a + g.p2);
 }
 
-// How a tile looks: the floor's own, or while the graft is being painted,
-// the graft's.
+// How a tile looks: the floor's own, or while the graft (or the outpost's
+// meld) is being painted, the graft's.
 function tileArt(f, tx, ty) {
+  // (the outpost's meld: the land beyond an opening, hubground.js)
+  if (f.meldPainting >= 0) return hgrMeldLook(f, f.meldPainting);
   if (f.graft && f.paintingGraft) {
     const id = T.biomes[f.graft.biome].id;
     return CLIME_ART[f.graft.clime] || (f.graft.sky ? ART.surface[id] : ART.biomes[id]);
