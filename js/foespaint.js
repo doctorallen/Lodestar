@@ -294,8 +294,15 @@ function fpKeeperSprite(id) {
 }
 
 // A fighting plant, in the shape of a harmless one (render.js enemySprite).
-function fpPlantSprite(rows, pal, letters, glows, kind) {
-  return fpPaintGrid(rows, pal, letters, glows, { keepEyes: true });
+// Painted as the flora is (pflora.js: by hand if its piece is, else from its
+// last frame's grid), so it matches the plants round it; its cue is its
+// glow gone red (kit.pal, set by the caller), and it stands where it did.
+function fpPlantSprite(set, piece, kit, kind) {
+  const f = piece.frames.length - 1, hand = PFL_HAND[piece.name];
+  const out = Object.assign({}, hand ? hand(piece, f, kit, set + '/' + kind) : pflSprite(piece.frames[f], kit.pal, kit.letters, kit.glows));
+  out.ax = out.w / 2; out.ay = out.h - footOff(1.5);
+  out.flash = tinted(out.c, '#ffffff');
+  return out;
 }
 
 // ---------------------------------------------------------------------------

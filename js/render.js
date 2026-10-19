@@ -931,7 +931,7 @@ function enemySprite(d, type) {
     if (!_enemySprites[key]) {
       const kit = floraKit(set), piece = kit.pieces.find((p) => p.name === kit.looks[type]) || kit.pieces[0], pal = Object.assign({}, kit.pal);
       for (const g of kit.glows) pal[g] = [g === 'glow2' ? mix(PLANT_GLOW, '#ffd0a0', 0.4) : PLANT_GLOW];
-      _enemySprites[key] = fpPlantSprite(piece.frames[piece.frames.length - 1], pal, kit.letters, kit.glows, type);
+      _enemySprites[key] = fpPlantSprite(set, piece, Object.assign({}, kit, { pal }), type);
     }
     return _enemySprites[key];
   }
@@ -948,7 +948,7 @@ function enemySprite(d, type) {
     for (const kind of ['snapjaw', 'spitter']) {
       const piece = FLORA[id].find((p) => p.name === PLANT_LOOKS[id][kind]) || FLORA[id][0];
       const pal = Object.assign({}, FLORA_PAL[id], { glow: [PLANT_GLOW], glow2: [mix(PLANT_GLOW, '#ffd0a0', 0.4)] });
-      out[kind] = fpPlantSprite(piece.frames[piece.frames.length - 1], pal, FLORA_LETTERS, FLORA_GLOWS, kind);
+      out[kind] = fpPlantSprite(id, piece, { pal, letters: FLORA_LETTERS, glows: FLORA_GLOWS }, kind);
     }
   }
   return _enemySprites[id][type];
