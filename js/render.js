@@ -232,16 +232,21 @@ function repaintAround(f, tx, ty) {
   // ground, then the rock
   // (the wall line moves up to half a tile past the tile, and the heights
   // as far again as they read it)
-  const Wl = T.paint.wall, m = Math.max(Wl.edge, Wl.ramp) + 2 + T2 / 2;
+  // (and what of them changed bounds how much rock is painted again)
+  const Wl = T.paint.wall, m = Math.max(Wl.edge, Wl.ramp) + 2 + T2 / 2, hb = pntHfWatch(f, tx * T2 - m, ty * T2 - m, (tx + 1) * T2 + m, (ty + 1) * T2 + m);
   pntHeights(f, tx * T2 - m, ty * T2 - m, (tx + 1) * T2 + m, (ty + 1) * T2 + m);
-  pntGroundTones(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + 3) * T2);
-  // (the ground as far up as the rock stood over it)
-  for (let y = ty - 3; y <= ty + 2; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
-  paintGraft(f, tx - 1, ty - 3, tx + 1, ty + 2);
-  tintRift(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + 3) * T2);
-  pntRepaintRock(f, tx * T2, ty * T2, (tx + 1) * T2, (ty + 1) * T2);
+  const changed = pntHfChanged(hb);
+  // (the ground as far up as the rock stood over it, and down as far as
+  // the wall's foot moved: a row further under the sky, where the rock's
+  // shadow falls to the lower right)
+  const below = artBiome(f).sun ? 2 : 1;
+  pntGroundTones(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
+  for (let y = ty - 3; y <= ty + below; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
+  paintGraft(f, tx - 1, ty - 3, tx + 1, ty + below);
+  tintRift(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
+  pntRepaintRock(f, tx * T2, ty * T2, (tx + 1) * T2, (ty + 1) * T2, changed);
   // (the rock laid back over the ground's tiles too, where they're under it)
-  pntComposite(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + 3) * T2);
+  pntComposite(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
   View.lights = floorLights(f);
 }
 

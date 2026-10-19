@@ -384,6 +384,8 @@ function pntSlabs(cell, x0, y0, rw, ch, sp, seed, mason) {
   // the big planes: where a broad noise is high, the cells are a coarser
   // grid's (S.big), so a mass has a few big planes among smaller facets
   const B = S.big, bw = cw * B.k[0], bh = chh * B.k[1], ibw = 1 / bw, ibh = 1 / bh, big = new Float32Array(rw);
+  const bx0 = Math.floor(x0 * ibw) - 1, by0 = Math.floor((y0 - sp) * ibh) - 1, bgw = Math.floor((x0 + rw) * ibw) + 2 - bx0, bgh = Math.floor((y0 - sp + ch) * ibh) + 2 - by0, BXs = new Float32Array(bgw * bgh), BYs = new Float32Array(bgw * bgh);
+  for (let j = 0; j < bgh; j++) for (let k = 0; k < bgw; k++) { const J = by0 + j, K = bx0 + k; BXs[j * bgw + k] = (K + artHash(K, J, seed + 5) + (J & 1) * 0.5) * bw; BYs[j * bgw + k] = (J + artHash(K, J, seed + 6)) * bh; }
   for (let r = 0; r < ch; r++) {
     const y = y0 - sp + r;
     if (y < 0 || y >= Hp) { cell.fill(-1, r * rw, r * rw + rw); continue; }
@@ -399,7 +401,7 @@ function pntSlabs(cell, x0, y0, rw, ch, sp, seed, mason) {
         const bgx = Math.floor(x * ibw), bgy = Math.floor(y * ibh);
         let best = 1e9, id = 0;
         for (let j = bgy - 1; j <= bgy + 1; j++) for (let k = bgx - 1; k <= bgx + 1; k++) {
-          const px = (k + artHash(k, j, seed + 5) + (j & 1) * 0.5) * bw, py = (j + artHash(k, j, seed + 6)) * bh, dx = (x - px) * ibw, dy = (y - py) * ibh, d = dx * dx + dy * dy * (1 + (wob[i] - 0.5) * S.wobble);
+          const o = (j - by0) * bgw + k - bx0, dx = (x - BXs[o]) * ibw, dy = (y - BYs[o]) * ibh, d = dx * dx + dy * dy * (1 + (wob[i] - 0.5) * S.wobble);
           if (d < best) { best = d; id = PNT_BIGID + j * 4099 + k + 1; }
         }
         cell[out + i] = id;
@@ -694,6 +696,24 @@ function pntFloorStart(f) {
 // handed to its canvases, over floor px x0..x1, y0..y1: the floor is drawn
 // as one picture, and the rock buffer is kept for drawing it back over
 // what stands behind it (paintOcclude).
+// Which heights a repaint changes: pntHfWatch keeps a copy of the window's
+// heights before; pntHfChanged then gives the box of those that changed
+// (x1, y1 past its end), or null if none did.
+let _pntHfOld = new Uint16Array(0);
+function pntHfWatch(f, x0, y0, x1, y1) {
+  const W = f.w * ATILE, Hp = f.h * ATILE, HF = View.rockHf;
+  x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(Hp, y1);
+  const w = Math.max(0, x1 - x0), h = Math.max(0, y1 - y0);
+  if (_pntHfOld.length < w * h) _pntHfOld = new Uint16Array(w * h);
+  for (let y = 0; y < h; y++) _pntHfOld.set(HF.subarray((y0 + y) * W + x0, (y0 + y) * W + x1), y * w);
+  return { x0, y0, x1, y1, w, h, W };
+}
+function pntHfChanged(o) {
+  const HF = View.rockHf;
+  let bx0 = Infinity, by0 = Infinity, bx1 = -1, by1 = -1;
+  for (let y = 0; y < o.h; y++) for (let x = 0, r = (o.y0 + y) * o.W + o.x0, q = y * o.w; x < o.w; x++) if (HF[r + x] !== _pntHfOld[q + x]) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; by1 = y; }
+  return bx1 < 0 ? null : { x0: o.x0 + bx0, y0: o.y0 + by0, x1: o.x0 + bx1 + 1, y1: o.y0 + by1 + 1 };
+}
 function pntComposite(f, x0, y0, x1, y1) {
   const W = f.w * ATILE, Hp = f.h * ATILE, P = View.floorBuf, Q = View.rockBuf, LF = View.rockLift;
   x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(Hp, y1);
@@ -768,12 +788,16 @@ function pntFrame(f, camX, camY) {
 // worked out again (pntHeights, the same box and m about it) and the
 // ground's tiles under all it lifts painted again: the rock layer over
 // everything they lift.
-function pntRepaintRock(f, x0, y0, x1, y1) {
+function pntRepaintRock(f, x0, y0, x1, y1, hb) {
   const maxH = pntMaxLift(), Wl = T.paint.wall, m = Math.max(Wl.edge, Wl.ramp) + 2 + ATILE / 2, P = T.paint;
   // (as far as a pixel's tone reads the heights: its slope's broad reach,
-  // and its stroke's middle)
-  const mx = m + P.facet.smooth + PNT_CELL, my = m + P.facet.smooth + 2;
-  const rx0 = x0 - mx, ry0 = y0 - my - maxH, rx1 = x1 + mx, ry1 = y1 + my;
+  // and its stroke's middle; from the heights that changed, if known, else
+  // from as far as they could have)
+  const sx = P.facet.smooth + PNT_CELL + 3, sy = P.facet.smooth + 5;
+  // (nothing changed in the heights, as when a vein is charged into the
+  // rock: the whole reach)
+  const B = hb || { x0: x0 - m, y0: y0 - m, x1: x1 + m, y1: y1 + m };
+  const rx0 = B.x0 - sx, ry0 = B.y0 - sy - maxH, rx1 = B.x1 + sx, ry1 = B.y1 + sy;
   paintRockArea(f, rx0, ry0, rx1, ry1);
   pntComposite(f, rx0, ry0, rx1, ry1);
   View.occCache = new Map(); View.pnrTiles = null;
