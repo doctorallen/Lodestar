@@ -94,10 +94,21 @@ function pntLook(b, lift = View.pntLift || 0) {
   const rk = rampRgb(b.rock), fr = rampRgb(b.front);
   const rock = rk.slice(0, 3).concat(fr.slice(0, 3)).sort((p, q) => pntLum(p) - pntLum(q));
   const ground = pntLiftRamp(pntRampEven(g, 7, R.ground), lift, R.liftGround);
-  const rr = pntLiftRamp(pntRampEven(rock, 10, R.rock, rk[3]), lift, R.liftRock);
+  const rr = pntRockUnder(pntLiftRamp(pntRampEven(rock, 10, R.rock, rk[3]), lift, R.liftRock), ground);
   L = { ground: Uint32Array.from(ground.map(pntU32)), rock: Uint32Array.from(rr.map(pntU32)), groundRgb: ground, rockRgb: rr };
   M.set(key, L);
   return L;
+}
+// Walls read as walls: a rock's tops (its middle tone) are kept to at most
+// T.paint.rampEven.under[0] of the ground's middle tone, its tones darkened
+// to fit, less towards the top of the ramp, and its lips and rims (from
+// tone under[1] up) not at all, so a wall stands dark with lit edges
+// wherever a clime's rock and floor colours are close.
+function pntRockUnder(rock, ground) {
+  const U = T.paint.rampEven.under, k = pntLum(rock[4]) / Math.max(1, pntLum(ground[3]));
+  if (k <= U[0]) return rock;
+  const s = U[0] / k;
+  return rock.map((c, i) => { const t = Math.min(1, Math.max(0, (i - 4) / (U[1] - 4))), m = i <= 4 ? s : s + (1 - s) * t * t; return c.map((v) => v * m); });
 }
 // How dark the floor being painted will be lit, 0 (daylight) to 1 (a deep
 // cave): from the place's ambient light as the frame will work it out.
@@ -363,7 +374,8 @@ function paintRockArea(f, x0, y0, x1, y1) {
 // The cell of a pixel: the nearest of the jittered points about it, their
 // borders wobbled by noise. Fills cell (rw × ch, rows from y0 - sp) for
 // the rock pixels only (-1 elsewhere).
-function pntSlabs(cell, x0, y0, rw, ch, sp, seed) {
+function pntSlabs(cell, x0, y0, rw, ch, sp, seed, mason) {
+  if (mason) { pntBlocks(cell, x0, y0, rw, ch, sp, seed); return; }
   const S = T.paint.slab, cw = S.w, chh = S.h, LF = View.rockLift, W = View.floorBuf.w, Hp = View.floorBuf.h;
   const gx0 = Math.floor(x0 / cw) - 1, gx1 = Math.floor((x0 + rw) / cw) + 1, gy0 = Math.floor((y0 - sp) / chh) - 1, gy1 = Math.floor((y0 - sp + ch) / chh) + 1;
   const gw = gx1 - gx0 + 1, gh = gy1 - gy0 + 1, PX = new Float32Array(gw * gh), PY = new Float32Array(gw * gh);
@@ -391,9 +403,30 @@ function pntSlabs(cell, x0, y0, rw, ch, sp, seed) {
     }
   }
 }
+// Masonry (a ruin's rock, T.paint.slab.mason): the cells are dressed
+// blocks laid in courses, each course's joints shifted along by half a
+// block and a little more, the blocks of a course a little uneven.
+function pntBlocks(cell, x0, y0, rw, ch, sp, seed) {
+  const M = T.paint.slab.mason, LF = View.rockLift, W = View.floorBuf.w, Hp = View.floorBuf.h;
+  for (let r = 0; r < ch; r++) {
+    const y = y0 - sp + r, out = r * rw;
+    if (y < 0 || y >= Hp) { cell.fill(-1, out, out + rw); continue; }
+    const J = Math.floor(y / M.h), off = (J & 1) * M.w * 0.5 + artHash(J, 5, seed) * M.jit, row = y * W;
+    for (let i = 0; i < rw; i++) {
+      const x = x0 + i;
+      if (!LF[row + x]) { cell[out + i] = -1; continue; }
+      const u = (x + off) / M.w;
+      let I = Math.floor(u);
+      // (an uneven joint: a block runs a little long or short)
+      if (u - I < (artHash(I, J, seed + 3) - 0.5) * 0.3) I--;
+      cell[out + i] = (J * 4099 + I + 1) | 0;
+    }
+  }
+}
 // A facet's site (pntSlabs' jittered point for cell id), in the view's px.
-function pntSlabSite(id, seed) {
+function pntSlabSite(id, seed, mason) {
   const S = T.paint.slab, j = Math.floor(id / 4099), k = id - j * 4099 - 1;
+  if (mason) { const M = S.mason; return [(k + 0.5) * M.w - (j & 1) * M.w * 0.5 - artHash(j, 5, seed) * M.jit, (j + 0.5) * M.h]; }
   return [(k + artHash(k, j, seed) + (j & 1) * 0.5) * S.w, (j + artHash(k, j, seed + 1)) * S.h];
 }
 // The look a graft brings (rifts.js), for its rock.
@@ -425,11 +458,12 @@ function pntPaintRock(f, x0, y0, x1, y1) {
   const sp = 4, ch = rh + 2 * sp, cx0 = x0 - 8, cw = rw + 16;
   if (_pntCell.length < cw * ch) _pntCell = new Int32Array(cw * ch);
   const cell = _pntCell;
-  pntSlabs(cell, cx0, y0, cw, ch, sp, seed + 61);
+  const mason = !!b.paving, Ms = Sl.mason;
+  pntSlabs(cell, cx0, y0, cw, ch, sp, seed + 61, mason);
   // a rock pixel's tone before its stroke into tb, and how steep (0 a top,
   // 1 a face) into wb
   const s0 = Rk.steep[0], sk = 1 / (Rk.steep[1] - Rk.steep[0]), lamLo = Rk.lamLo, lamK = 1 / (1 - lamLo), topLo = Rk.topLo, topR = Rk.topHi - Rk.topLo, faceLo = Rk.faceLo, faceR = Rk.faceHi - Rk.faceLo;
-  const fB = Rk.faceBase, fU = Rk.faceUp / Wl.face, fWst = Rk.faceWest, W2 = 2 * W, S = Fc.smooth, SW = S * W, iS = 1 / (32 * S), keep = Fc.keep, tilt = Fc.tilt * 2, rel = Fc.relief, flat = Fc.flat;
+  const fB = Rk.faceBase, fU = Rk.faceUp / Wl.face, fWst = Rk.faceWest, W2 = 2 * W, S = Fc.smooth, SW = S * W, iS = 1 / (32 * S), keep = Fc.keep, tilt = Fc.tilt * 2, rel = Fc.relief, flat = b.paving ? Sl.mason.flat : Fc.flat;
   // a surface point's (floor px x, sy) light as a top (0..1, its broad
   // slope tilted by tx, ty, to the light), how steep it is, and its tone
   const at = (x, sy, tx, ty, o) => {
@@ -455,7 +489,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
   const facetOf = (id) => {
     let v = facets.get(id);
     if (v !== undefined) return v;
-    const [fx, fy] = pntSlabSite(id, fseed);
+    const [fx, fy] = pntSlabSite(id, fseed, mason);
     let y = fy + Wl.face + Wl.bump * 0.5;
     y = fy + Wl.face + Wl.bump * (1 - Wl.rough) * pntBoulderAt(fx, y, seed);
     const gx = (pntBoulderAt(fx + S, y, seed) - pntBoulderAt(fx - S, y, seed)) * bk + (artHash(id, 2, seed + 87) - 0.5) * tilt * rel;
@@ -507,15 +541,15 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       // the facet: a tone of its own; bevelled light along its top, a crack
       // along its foot and now and then down its right side
       const cj = r * cw + i, id = cell[cj];
-      if (id !== slId) { slId = id; slT = (artHash(id, 1, seed + 86) - 0.5) * 2 * Sl.tone; }
+      if (id !== slId) { slId = id; slT = (artHash(id, 1, seed + 86) - 0.5) * 2 * (mason ? Ms.tone : Sl.tone); if (mason && artHash(id, 6, seed + 86) < Ms.gone) slT = -3; }
       t += slT;
       // (the cracks come in broken lengths: a gate of noise stretched
       // across, the same for the crack and the bevel under it)
       const gt = gate[x - x0], upD = cell[cj - cw] !== id && isRock(x, y - 1), dnD = cell[cj + cw] !== id && isRock(x, y + 1);
-      if (gt > Sl.gate) {
+      if (gt > (mason ? Ms.gate : Sl.gate)) {
         if (dnD) t = Math.min(t, Sl.crack + (face ? 0 : 1));
         else if (upD) t += Sl.lip;
-        else if (cell[cj + 1] !== id && cell[cj + 1] >= 0 && artHash(id, 4, seed + 89) < Sl.side) t = Math.min(t, Sl.crack + 1);
+        else if (cell[cj + 1] !== id && cell[cj + 1] >= 0 && artHash(id, 4, seed + 89) < (mason ? Ms.side : Sl.side)) t = Math.min(t, Sl.crack + (mason ? 0 : 1));
       }
       // a crease where the rock folds (where two boulders meet): hard soot
       if (!face && x >= cr && x < W - cr && sy >= cr && sy < Hp - cr) {
