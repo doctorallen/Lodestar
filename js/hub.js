@@ -23,7 +23,7 @@ const STAR_AT = { x: 11.5, y: 5.6 }; // tiles: over the middle of the pit
 // on the ground, the stations' lights. (The stations, lanterns, tents and
 // what lies about the plaza stand among the walkers: hubProps.)
 function drawHubUnder(d, ox, oy, tick, lights) {
-  const mag = magnitudeOf(Save.data.star), star = ART.pal.star, k = mag >= 5 ? 3 : 2;
+  const mag = hubStarMag(d), star = ART.pal.star, k = mag >= 5 ? 3 : 2;
   const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE) + oy, st = hartStar(k);
   // the lodelines, falling from the star's foot into the dark
   if (mag > 0) { const L = hartLodelines(Math.min(mag, 8), Math.floor(Game.realT * 6) % 4); drawArtSprite(L, sx - L.ax, sy + (st.h - 15 - st.ay) - 4); }
@@ -72,23 +72,145 @@ function drawHubStation(d, a, ox, oy, lights) {
 
 // Over everything: the Lodestar itself, bigger as it grows, in its halo.
 function drawHubOver(d, ox, oy, lights) {
-  const mag = magnitudeOf(Save.data.star), k = mag >= 5 ? 3 : 2;
+  const mag = hubStarMag(d), k = mag >= 5 ? 3 : 2;
   const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE + Math.sin(Game.realT * 1.2) * 2 * AP) + oy;
-  const pulse = d.feedT > 0 ? d.feedT : 0, halo = hartHalo(k, Math.floor(Game.realT * 3) % 2), st = hartStar(k);
+  const pulse = d.feedT > 0 ? d.feedT : 0, hum = d.feedHum || 0, halo = hartHalo(k, Math.floor(Game.realT * 3) % 2), st = hartStar(k);
+  // the ores rising into it, behind it as they arrive
+  drawStarFeed(d, ox, oy, lights);
   View.ctx.globalAlpha = 0.8;
   View.ctx.drawImage(halo.c, sx - halo.ax, sy - halo.ay - 4);
   View.ctx.globalAlpha = 1;
   drawArtSprite(st, sx - st.ax, sy - st.ay);
-  lights.push({ x: sx, y: sy, r: TILE * (4 + mag * 0.4 + pulse * 3), i: 1.1 + pulse, c: rgb01(ART.pal.star[2]) });
+  // brighter while it's fed, swelling as each ore lands; a ring out from
+  // it as it reaches a magnitude
+  lights.push({ x: sx, y: sy, r: TILE * (4 + mag * 0.4 + pulse * 3 + hum * 2), i: 1.1 + pulse + hum * 0.6, c: rgb01(ART.pal.star[2]) });
+  if (hum > 0.05) cfxStrokeRing(sx, sy - 4, (14 + hum * 6) * AP, (14 + hum * 6) * AP * 0.75, cfxRamp(ART.pal.star[2]), hum * 0.5, 7177, false, 0.45);
   if (pulse > 0) ringDots(sx, sy, (20 + (1 - pulse) * 30) * AP, ART.pal.star[3], pulse, true);
 }
 
-// Feeding the star from the altar: motes stream up into it, and it pulses.
+// Setting a shard at the altar: motes stream up into the star, and it pulses.
 function feedStarFx(d, n, grew) {
   const alt = HUB_STATIONS.find((s) => s.id === 'altar');
   for (let i = 0; i < Math.min(40, 6 + n); i++) d.fx.push({ kind: 'mote', x: (alt.x + 0.5) * TILE, y: (alt.y + 0.5) * TILE - 6, t: 1 + i * 0.03, max: 1 + i * 0.03, seed: i });
   d.feedT = 1;
   if (grew) UI.toast(`The Lodestar grows: magnitude ${grew}`, 'legendary');
+}
+
+// ---------------------------------------------------------------------------
+// Feeding the star: hold FEED THE STAR at the altar, and ore after ore
+// rises from the Kindler, bows up over the altar's bowl and drops into the
+// star, faster the longer it's held; let go and it stops. The plainest ore
+// goes first (Ferrite, then Lumenite, and so on), so a short hold never
+// gives the rare ore you forge with, and the flow rests a beat before each
+// new kind, a moment to let go. Ore marked kept at the star (Save.data
+// .keepOre) is never given. Each ore leaves the stash and its points
+// (tier²) join the star's at once, so the save is never between the two;
+// the star is drawn as it was until each ore lands in it (hubStarMag), and
+// a magnitude is reached, with its weight, when the ore that makes it lands.
+// ---------------------------------------------------------------------------
+
+// The next ore the star would take: the plainest not kept, or null.
+function starFeedNextOre() {
+  const s = Save.data, keep = s.keepOre || {};
+  const o = T.ores.find((x) => (s.stash[x.id] || 0) > 0 && !keep[x.id]);
+  return o ? o.id : null;
+}
+// The star's magnitude as drawn: what it was before the ores still rising.
+function hubStarMag(d = Game.dive) { return magnitudeOf(Save.data.star - ((d && d.feedFlying) || 0)); }
+
+// The act button pressed at the altar (with no shard to set).
+function startStarFeed(d) {
+  if (!starFeedNextOre()) {
+    const any = T.ores.some((o) => Save.data.stash[o.id]);
+    UI.toast(any ? 'All your ore is kept for the forge. ATTUNE chooses what the star may take' : 'No ore banked. The star takes what you bring home');
+    return;
+  }
+  Story.say('firstFeed');
+  d.feed = { t: 0, acc: 1, beat: 0, ore: null };
+  if (typeof snd === 'function') snd('starFeedStart', {});
+}
+function endStarFeed(d) {
+  if (!d.feed) return;
+  d.feed = null;
+  Save.save();
+  if (typeof snd === 'function') snd('starFeedEnd', {});
+  UI.tip('feedKeep', 'Ore you mark KEPT at the star (ATTUNE) stays for the forge');
+}
+
+// Each step at home: the hold's flow, and the ores in the air.
+function updateStarFeed(d, dt) {
+  const F = T.star.feed, s = Save.data;
+  d.feedHum = Math.max(0, (d.feedHum || 0) - F.humFade * dt);
+  // the ores in the air: each lands in the star in turn
+  if (d.feedMotes && d.feedMotes.length) {
+    for (const m of d.feedMotes) {
+      if ((m.t += dt / F.fly) < 1) continue;
+      const before = hubStarMag(d);
+      d.feedFlying -= m.pts;
+      d.feedHum = Math.min(1, d.feedHum + F.hum * m.tier);
+      if (typeof snd === 'function') snd('starFeed', { n: m.n, tier: m.tier, rate: m.rate });
+      Story.starTaste(m.ore);
+      spawnSparks(STAR_AT.x * TILE, STAR_AT.y * TILE + 4, [(ART.ores[m.ore] || ART.pal.star)[3]], 1);
+      const after = hubStarMag(d);
+      if (after > before) {
+        d.feedT = 1;
+        spawnSparks(STAR_AT.x * TILE, STAR_AT.y * TILE, [ART.pal.star[3], ART.pal.star[2], '#ffffff'], 30);
+        if (typeof snd === 'function') snd('starGrow', { mag: after });
+        Story.starGrew(after);
+      }
+    }
+    d.feedMotes = d.feedMotes.filter((m) => m.t < 1);
+  }
+  const f = d.feed;
+  if (!f) return;
+  if (!Input.isHeld('act') || Game.modal || actionHere() !== 'altar') { endStarFeed(d); return; }
+  if (f.beat > 0) { f.beat -= dt; return; }
+  f.t += dt;
+  const k = Math.min(1, f.t / F.ramp), rate = F.rate0 + (F.rateMax - F.rate0) * k * k;
+  f.acc += rate * dt;
+  while (f.acc >= 1) {
+    const id = starFeedNextOre();
+    if (!id) { endStarFeed(d); return; }
+    // a new kind of ore: a beat's rest first
+    if (f.ore && id !== f.ore) { f.ore = id; f.beat = F.beat; f.t = Math.min(f.t, F.ramp * F.beatRamp); f.acc = 0; return; }
+    f.ore = id; f.acc -= 1;
+    spendOre(id, 1);
+    const pts = orePoints(id), p = d.p;
+    s.star += pts;
+    d.feedFlying = (d.feedFlying || 0) + pts;
+    d.feedN = (d.feedN || 0) + 1;
+    (d.feedMotes = d.feedMotes || []).push({ ore: id, tier: T.ores[ORE_INDEX[id]].tier, pts, n: d.feedN, rate, t: 0, x: p.x + FX_R.f(-3, 3), y: p.y - 14, seed: FX_R.f(1000) });
+  }
+}
+
+// Where a rising ore is at t (0..1), in world px: from the Kindler's hands,
+// bowing up over the altar's bowl, quicker as it nears the star.
+function starFeedPath(m, t) {
+  const alt = HUB_STATIONS.find((s) => s.id === 'altar'), u = t * (0.35 + 0.65 * t);
+  const cx = (alt.x + 0.5) * TILE, cy = (alt.y + 0.5) * TILE - T.star.feed.arc, sx = STAR_AT.x * TILE, sy = STAR_AT.y * TILE;
+  const a = (1 - u) * (1 - u), b = 2 * u * (1 - u), c = u * u;
+  return { x: a * m.x + b * cx + c * sx, y: a * m.y + b * cy + c * sy };
+}
+// The ores in the air, as small glowing strokes in their own colours: a
+// bright head a stroke wide (wider for the heavier ores), and a tail of
+// deeper tones fading behind it.
+function drawStarFeed(d, ox, oy, lights) {
+  const ms = d.feedMotes;
+  if (!ms || !ms.length) return;
+  const F = T.star.feed, every = Math.max(1, Math.ceil(ms.length / F.lights));
+  ms.forEach((m, i) => {
+    const R = ART.ores[m.ore] || ART.pal.star, w = m.tier >= 5 ? 3 : 2;
+    for (let j = 5; j >= 0; j--) {
+      const t = m.t - j * 0.028;
+      if (t < 0) continue;
+      const q = starFeedPath(m, t), wob = Math.sin(m.seed + t * 9) * 3 * (1 - t), x = Math.round((q.x + wob) * AP) + ox, y = Math.round(q.y * AP) + oy;
+      if (j === 0) {
+        for (let k = 0; k < w; k++) dot(x + k - (w >> 1), y, k === (w >> 1) ? R[3] : R[2], true);
+        if (m.tier >= 3) dot(x, y - 1, R[2], true, 0.8);
+        if (i % every === 0) lights.push({ x, y, r: TILE * (0.5 + m.tier * 0.08), i: 0.5, c: rgb01(R[2]) });
+      } else dot(x, y, R[j < 3 ? 2 : 1], true, 1 - j * 0.15);
+    }
+  });
 }
 
 // The Meridian uplink: a relay mast the diver walks in front of and behind,
@@ -124,7 +246,7 @@ function settlementSize() {
 // plaza, the smith and the settlers (story.js). Each draws itself (hubDraw)
 // and says how much rock in front might hide it (occ).
 function hubProps(d) {
-  const out = [], n = settlementSize(), mag = magnitudeOf(Save.data.star);
+  const out = [], n = settlementSize(), mag = hubStarMag(d);
   for (const s of HUB_STATIONS) {
     if (s.id === 'dummy' || s.id === 'setout') continue;
     if (s.id === 'wreck') { out.push({ wreck: true, hubDraw: drawUplink, y: (s.y + 0.5) * TILE }); continue; }

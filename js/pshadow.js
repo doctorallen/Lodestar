@@ -279,7 +279,7 @@ function pshBake(f) {
 }
 // What the plaza's baked shadows were made for: its settlement and its lit
 // lanterns (if either changes, the outpost is painted again).
-function pshHubSig() { return settlementSize() + '/' + magnitudeOf(Save.data.star); }
+function pshHubSig() { return settlementSize() + '/' + hubStarMag(); }
 
 // ---------------------------------------------------------------------------
 // Each frame: a mask of greys over the view, multiplied over the ground

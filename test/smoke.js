@@ -5,7 +5,8 @@
 // the pick is too weak for, crossing an edge into the neighbour, pausing,
 // the cargo screen, lighting the waystones and planting a spire, banking
 // at it and travelling home with the haul in the stash; the forge,
-// equipping what it makes, a reroll at the rune bench, feeding the star;
+// equipping what it makes, a reroll at the rune bench, feeding the star
+// (held at the altar, and ore kept from it);
 // your light running out, a recall, tools, rifts, a Deep, a Keeper; then a
 // fall that loses the cargo but not what's worn, and wakes at the last
 // spire.
@@ -362,17 +363,31 @@ async function phone(browser) {
   await tap(page, '#card [data-act=closeCard]');
   await tap(page, '#screen-gear [data-act=back]');
 
-  // feeding the star at the altar: back out to watch it drink
+  // feeding the star at the altar: held, ore after ore rises into it, the
+  // plainest first; let go and it stops; ore marked kept stays
+  await page.evaluate(() => { for (const o of T.ores) delete Save.data.stash[o.id]; Save.data.stash.ferrite = 30; Save.data.stash.lumenite = 10; Save.data.keepOre = {}; });
   await page.evaluate(atStation, 'altar');
   await run(page, 0.05);
-  check(await page.evaluate(() => $('btn-act').textContent === 'FEED THE STAR'), 'phone: no FEED THE STAR at the altar');
-  await tap(page, '#btn-act');
-  await run(page, 0.05);
+  check(await page.evaluate(() => $('btn-act').textContent === 'FEED THE STAR' && !$('btn-act2').hidden && /^ATTUNE/.test($('btn-act2').textContent)), 'phone: no FEED THE STAR and ATTUNE at the altar');
   const pts = await page.evaluate(() => Save.data.star);
-  await tap(page, '#star-body [data-act=feed][data-arg="ferrite:10"]');
-  check(await page.evaluate((p) => Save.data.star === p + 10 && !Game.modal, pts), 'phone: feeding 10 Ferrite did not add 10 points and show the star');
+  await hold(page, '#btn-act', 0.6);
+  await run(page, 0.05);
+  const fed = await page.evaluate((p) => { const s = Save.data, k = 30 - (s.stash.ferrite || 0); return [k, s.star - p, s.stash.lumenite, !!Game.dive.feed, (Game.dive.feedMotes || []).length]; }, pts);
+  check(fed[0] > 0 && fed[0] < 30 && fed[1] === fed[0] && fed[2] === 10, `phone: a short hold fed ${fed[0]} Ferrite for ${fed[1]} points (and Lumenite left ${fed[2]})`);
+  check(!fed[3], 'phone: feeding the star did not stop on letting go');
   await run(page, 0.4);
   await shot(page, 'smoke-feed');
+  check(await page.evaluate(() => !(Game.dive.feedMotes || []).length && JSON.parse(localStorage.getItem('lodestar.save.v4')).stash.ferrite === Save.data.stash.ferrite), 'phone: the ore fed never reached the star, or the save missed it');
+  // ATTUNE opens the star's screen: keep the Ferrite, then hold to the end
+  await tap(page, '#btn-act2');
+  check(await visible(page, '#screen-star'), 'phone: ATTUNE did not open the star');
+  await tap(page, '#star-body [data-act=keepOre][data-arg=ferrite]');
+  await tap(page, '#screen-star [data-act=back]');
+  const fe1 = await page.evaluate(() => Save.data.stash.ferrite), pts1 = await page.evaluate(() => Save.data.star);
+  await hold(page, '#btn-act', 2.5);
+  await run(page, 1);
+  check(await page.evaluate(([f, p]) => Save.data.stash.ferrite === f && !Save.data.stash.lumenite && Save.data.star === p + 40, [fe1, pts1]), 'phone: a long hold did not give all the Lumenite and keep the Ferrite');
+  await page.evaluate(() => { Save.data.keepOre = {}; });
 
   // your light runs out in dark land, and the Hollow comes; kindled land
   // fills it again
