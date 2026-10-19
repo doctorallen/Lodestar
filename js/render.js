@@ -212,9 +212,6 @@ function paintTileArt(f, tx, ty) {
   const rnd = tileRnd;
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
-  // (the sinkhole, falling away below the floor: painthole.js)
-  if (View.pitPx) phlPaintPit(P, f, tx, ty, ox, oy, b);
-  if (t === TILE_PIT) return;
   if (f.clime || f.meldPainting >= 0) paintClimeTile(P, f, tx, ty, ox, oy, b);
   // (the outpost's deck, pads and paths: hubground.js)
   if (f.hub) hgrPaintGround(P, f, tx, ty, ox, oy);

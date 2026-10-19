@@ -155,7 +155,7 @@ function pshBlocked(f, x0, y0, x1, y1) {
   const W = f.w * ATILE, R = View.rockPx, n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 4);
   for (let i = 1; i < n; i++) {
     const x = (x0 + ((x1 - x0) * i) / n) | 0, y = (y0 + ((y1 - y0) * i) / n) | 0;
-    if (R[y * W + x] && floorTile(f, Math.floor(x / ATILE), Math.floor(y / ATILE)) !== TILE_PIT) return true;
+    if (R[y * W + x]) return true;
   }
   return false;
 }

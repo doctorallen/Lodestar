@@ -36,7 +36,7 @@ function pnrRockGrowth(f, x0, y0, x1, y1) {
   for (let x = x0; x < x1; x++) {
     for (let ye = Math.min(Hp - 2, y1 + maxH + zone); ye >= Math.max(0, y0 - 1); ye--) {
       const ke = ye * W + x;
-      if (!R[ke] || R[ke + W] || (View.pitPx && View.pitPx[ke])) continue;
+      if (!R[ke] || R[ke + W]) continue;
       // the face: its lip, the highest its zone's points are drawn
       let lip = ye - H[ke], top = ye;
       for (let y = ye - 1; y >= Math.max(0, ye - zone) && R[y * W + x]; y--) { top = y; if (y - H[y * W + x] < lip) lip = y - H[y * W + x]; }

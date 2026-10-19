@@ -503,7 +503,7 @@ function hartCrystal(s, cx, y0, _, y1, rx, g) {
 }
 
 // ---------------------------------------------------------------------------
-// The Lodestar itself, over the pit: a great faceted crystal, k its size
+// The Lodestar itself, over its cradle: a great faceted crystal, k its size
 // (2 or 3, as it grows), and a loose halo of amber round it. Glowing.
 // ---------------------------------------------------------------------------
 function hartStar(k) {

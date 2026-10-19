@@ -12,10 +12,9 @@
 // pixels. Bodies collide with that line, not with the tiles' squares.
 // ---------------------------------------------------------------------------
 
-const TILE_FLOOR = 0, TILE_ROCK = 1, TILE_ORE = 2, TILE_EDGE = 3, TILE_PAD = 4, TILE_PORTAL = 5, TILE_PIT = 6;
-// Indexed by tile type: does it stop a body? (A pit falls away below the
-// floor and can't be walked into.)
-const TILE_SOLID = [false, true, true, true, false, false, true];
+const TILE_FLOOR = 0, TILE_ROCK = 1, TILE_ORE = 2, TILE_EDGE = 3, TILE_PAD = 4, TILE_PORTAL = 5;
+// Indexed by tile type: does it stop a body?
+const TILE_SOLID = [false, true, true, true, false, false];
 
 // Where each ore sits in T.ores, by id. A floor's ore array holds index + 1.
 const ORE_INDEX = Object.fromEntries(T.ores.map((o, i) => [o.id, i]));

@@ -279,7 +279,7 @@ function placeUndergrowth(f, set, o = {}) {
   for (const p of f.hazPts || []) mark(p.x, p.y);
   const open = (tx, ty) => tx > 0 && ty > 0 && tx < W - 1 && ty < H - 1 && f.tiles[ty * W + tx] === TILE_FLOOR && !keep[ty * W + tx] && (!mask || mask[ty * W + tx] > artHash(tx, ty, seed + 9));
   const rockPx = (x, y) => { x = Math.round(x); y = Math.round(y); return x < 0 || y < 0 || x >= PW || y >= PH || R[y * PW + x] === 1; };
-  const wallAbove = (tx, ty) => TILE_SOLID[floorTile(f, tx, ty - 1)] && floorTile(f, tx, ty - 1) !== TILE_PIT;
+  const wallAbove = (tx, ty) => TILE_SOLID[floorTile(f, tx, ty - 1)];
 
   const U = { f, set, b, K, Q: ugTones(set, b), foot: ugFootTone(set, b), sky, orig: new Uint8Array(N), beds: new Array(N), shadows: new Array(N), stamps: new Array(N), grid: new Float32Array(N), gridNear: new Uint8Array(N), atlas: null };
   for (let i = 0; i < N; i++) U.orig[i] = TILE_SOLID[f.tiles[i]] ? 1 : 0;
