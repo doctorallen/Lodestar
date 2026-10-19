@@ -766,7 +766,7 @@ const T = {
     form: { edge: 1.5, body: 0.3, part: 2, depth: 1.6, light: 0.5, shade: 0.32, fall: 0.1, crease: 0.24 },
     dither: false, outline: { creature: 'black', prop: 'selout' }, selout: 0.42,
     cluster: { patch: 9, grain: 3, cut: 0.32 }, rockCut: 0.34, sunGround: { soften: 0.55, cut: 0.4 }, groundDither: true,
-    lightSteps: 5, lightDither: 0.3, lampPerPixel: false, steadyCam: false,
+    lightSteps: 5, lightDither: 0, lampPerPixel: true, steadyCam: true,
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the
@@ -866,7 +866,7 @@ const T = {
   light: {
     ambient: 0.45, hubAmbient: 0.85, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
-    glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: false,
+    glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: true,
     // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
     // baked: and the floor's fixed lights (lava, vents, glowing plants).
     // eye: the brow lamp's height over the feet (world px; DIVER_LAMP's

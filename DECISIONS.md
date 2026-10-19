@@ -352,3 +352,12 @@ The `story` branch (the Kindler) merged with the world (Frontier stage 1), to re
 - **The goal panel says the goal, the toasts say what happened.** The waystones' hint, "a waystone lit: 1 of 3", "hold the last waystone…" and "plant the spire" toasts are gone: the panel shows each waystone, "Light the last, and hold it", "Stay in its light: 20 s", and "Plant the spire at the heart". Toasts keep the moments: "The waystones burn", "The tear closes", the kindling.
 - **Walking out only into land that borders the outpost.** About one world in four has a ring-1 territory squeezed between two others, not touching the outpost's cell; the map offered to walk out into it anyway, and the diver came in at its entry with no opening home. Its card now says to reach it on foot or from a spire. The smoke test plays one world (seed 5) so what it checks is the same every run; picking such a territory from a random world was why it sometimes failed with "the diver did not come in at the opening from the outpost".
 
+
+## 2026-10-18: light that holds still as you walk
+
+The designer noticed everything seemed to gleam or shine as the diver moved. Recording the same walk seven ways found the causes: the bloom shrank the glow layer on a grid fixed to the screen, so small glows were caught or missed as the camera moved and their halos flared and vanished (the biggest part); the dither at each light band's edge popped on and off; band edges hopped a 3 px cell at a time; and the diver wobbled a pixel either side on a view an odd number of pixels across. The designer chose, from side-by-side clips, to fix all of it:
+- **The bloom is world-fixed** (`T.light.bloomWorld`): the glow layer is halved twice on grids fixed to the world before the bloom passes, so a glow's halo holds still.
+- **No dither at band edges** (`T.art.lightDither` 0): hard bands, nothing sparkling.
+- **Band edges glide a pixel at a time** (`T.art.lampPerPixel`): each pixel's light is read off a slope through its cell, for every light, not only the lamp.
+- **A steady camera** (`T.art.steadyCam`): the camera follows the diver's whole art pixel.
+- **Cost:** about +2.8 ms a frame at phone size with the CPU slowed 4× (about 17%). Left as it was: lamp shadows on walls still step a cell, which is rare and local.
