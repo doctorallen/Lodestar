@@ -774,7 +774,7 @@ const T = {
   //     ones' towards warm gold (rock: towards its rim colour).
   //   stroke: how a row's 8 px cells are cut: whole, the share left as one
   //     stroke; one, the share cut once (the rest twice).
-  //   ground: base, the middle of the value (0-1) on its 9-tone ramp;
+  //   ground: base, the middle of the value (0-1) on its 7-tone ramp;
   //     swell [size, amount], a broad rise and fall; patch [across, down],
   //     the streaky lit patches' noise, patchCut where they begin and are
   //     full, patchSky/patchCave how much they lift; clump, the old
@@ -789,7 +789,7 @@ const T = {
   //   rock: light [x, y, z], from the upper left; steep, the rise (px a px
   //     north) where a top turns into a face and where it is one; a top's value from its
   //     slope to the light (lamLo, the slope that's darkest), laid from
-  //     topLo to topHi on its 15-tone ramp; a face's (faceBase, + faceUp
+  //     topLo to topHi on its 10-tone ramp; a face's (faceBase, + faceUp
   //     at its full height, + faceWest turned to the light) from faceLo to
   //     faceHi; jitter; strata, the share of 16 px cells along a face row
   //     with a long darker (or lighter) stroke; crease, how far below its
@@ -807,10 +807,10 @@ const T = {
     lazy: { near: 2, far: 7, budget: 3 },
     ramp: { dark: [0.62, 0.3], light: [0.14, 0.28], rock: { dark: [0.6, 0.3], light: [0.3, 0.6] } },
     stroke: { whole: 0.12, one: 0.48 },
-    ground: { base: 0.5, swell: 70, swellAmt: 0.22, patch: [46, 14], patchCut: [0.5, 0.68], patchSky: 0.26, patchCave: 0.2, clump: 0.06, foot: 7, footHard: 1, footAmt: 0.3, side: 0.1, sunDir: [2, 3], sunSteps: 9, sunSlope: 3.2, sunDark: 0.32, jitter: 0.42 },
+    ground: { base: 0.47, swell: 70, swellAmt: 0.24, patch: [46, 14], patchCut: [0.5, 0.68], patchSky: 0.3, patchCave: 0.24, clump: 0.06, foot: 7, footHard: 1, footAmt: 0.3, side: 0.1, sunDir: [2, 3], sunSteps: 9, sunSlope: 3.2, sunDark: 0.32, jitter: 0.42 },
     wall: { face: 22, edge: 5, bump: 16, bumpScale: 34, ramp: 18 },
-    rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.45, topLo: 2.5, topHi: 9.5, faceBase: 0.2, faceUp: 0.6, faceWest: 0.25, faceLo: 6, faceHi: 12.5, jitter: 0.75, strata: 0.45, crease: 2.5, rim: 12, lip: 12, foot: 1 },
-    slab: { w: 46, h: 19, wobble: 0.8, tone: 1.2, lip: 2, crack: 1, gate: 0.5 },
+    rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.45, topLo: 2.6, topHi: 6.6, faceBase: 0.2, faceUp: 0.6, faceWest: 0.25, faceLo: 4, faceHi: 8, jitter: 0.8, strata: 0.45, crease: 2.5, rim: 8, lip: 8, foot: 1 },
+    slab: { w: 46, h: 19, wobble: 0.8, tone: 0.8, lip: 1.5, crack: 1, gate: 0.5 },
     occlude: true,
   },
 

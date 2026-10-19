@@ -570,8 +570,8 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
           // bevelled light along its top and left
           const row = (y / FLAG_H) | 0, sx = x + row * FLAG_SET, gy = y % FLAG_H, gx = sx % FLAG_W;
           if (gy === 0 || gx === 0) t = Math.max(0, t - 3);
-          else if (gy === 1 || gx === 1) t = Math.min(8, t + 1);
-          else t = clamp(t + Math.round((artHash((sx / FLAG_W) | 0, row, seedH) - 0.5) * 2.4), 0, 8);
+          else if (gy === 1 || gx === 1) t = Math.min(6, t + 1);
+          else t = clamp(t + Math.round((artHash((sx / FLAG_W) | 0, row, seedH) - 0.5) * 2.4), 0, 6);
         }
         c = GR[t];
       } else c = r[0];

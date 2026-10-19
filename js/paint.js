@@ -30,19 +30,19 @@ const pntLum = (c) => c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
 const PNT_DEEP = [7, 5, 12], PNT_WARM = [255, 238, 200];
 
 // A ramp for stroke painting, from a few anchors (dark to light, [r, g, b]):
-// two deeper shades (towards a violet black), the anchors with a tone
-// halfway between each pair, and two lighter ones (towards `light`, warm
-// gold by default). So a clime's three or four colours become nine or
-// more close tones of the same hues. As whole pixels.
+// two deeper shades (towards a violet black), the anchors, and two lighter
+// ones (towards `light`, warm gold by default). So a clime's three colours
+// become seven close tones of the same hues, its rock's six ten. As whole
+// pixels.
 function pntRamp(anchors, light = PNT_WARM, P = T.paint.ramp) {
   const out = [pntMixRgb(anchors[0], PNT_DEEP, P.dark[0]), pntMixRgb(anchors[0], PNT_DEEP, P.dark[1])];
-  anchors.forEach((a, i) => { if (i) out.push(pntMixRgb(anchors[i - 1], a, 0.5)); out.push(a); });
+  anchors.forEach((a) => out.push(a));
   const top = anchors[anchors.length - 1];
   out.push(pntMixRgb(top, light, P.light[0]), pntMixRgb(top, light, P.light[1]));
   return out;
 }
 // A look's ramps (b: a floor look, ART.biomes' shape), worked out once:
-// ground (9 tones from its floor's three) and rock (15, from its rock's
+// ground (7 tones from its floor's three) and rock (10, from its rock's
 // three dark tones and its face's three, sorted by lightness, lit towards
 // its rim colour).
 const _pntLooks = new WeakMap();
@@ -116,7 +116,7 @@ function pntStrokeRow(mid, jit, x0, n, y, seed) {
 }
 
 // ---- the ground ------------------------------------------------------------
-// The ground's tones (indices into its 9-tone ramp) for floor pixels x0..x1,
+// The ground's tones (indices into its 7-tone ramp) for floor pixels x0..x1,
 // y0..y1, into View.groundTone, worked out a whole row at a time: its light
 // value (0..1) is a broad swell, streaky lit patches (noise stretched
 // across, cut soft), the floor's own clumps faintly, darker at the foot of a
@@ -124,7 +124,7 @@ function pntStrokeRow(mid, jit, x0, n, y, seed) {
 // lower right as high as the rock stands). Then strokes: each pixel takes
 // its stroke's middle's value, jittered. paintCaveTile reads them.
 function pntGroundTones(f, x0, y0, x1, y1) {
-  const G = T.paint.ground, W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx, H = View.rockH, out = View.groundTone, nt = 9;
+  const G = T.paint.ground, W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx, H = View.rockH, out = View.groundTone, nt = 7;
   x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(Hp, y1);
   if (x1 <= x0 || y1 <= y0) return;
   const sun = !!artBiome(f).sun, seedH = (f.seed ^ f.depth) | 0, pad = PNT_CELL, ax = x0 - pad, n = x1 - x0 + 2 * pad;
@@ -367,7 +367,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       }
       // a crease where the rock folds: hard soot
       const ks = sy * W + x, cav = x >= 3 && x < W - 3 && sy >= 3 && sy < Hp - 3 ? (HF[ks] - (HF[ks - 3] + HF[ks + 3] + HF[ks - W3] + HF[ks + W3]) * 0.25) * 0.0625 : 0;
-      if (cav < -Rk.crease) t = Math.min(t, 1);
+      if (cav < -Rk.crease && !face) t = Math.min(t, 1);
       // the silhouette's top edge, lit; the lip where a top turns down
       // into a face, lit; the face's foot on the ground, soot
       if (!isRock(x, y - 1)) t = Math.max(t, Rk.rim);
