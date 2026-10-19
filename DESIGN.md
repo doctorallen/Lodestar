@@ -1,6 +1,6 @@
 # Lodestar: design
 
-Lodestar is a top-down pixel-art mining and looting game for the phone browser. You play a Kindler, an explorer in a blue Charter suit with amber circuits, a faced helm with a brow lamp, and a little drone, on a world where technology runs on arcane ore. From a fallen star hanging over a vast sinkhole, you carry its light out into a dark world, mine ore, fight, take the land one territory at a time, and decide when to push further and when to get back to a spire before you lose the haul.
+Lodestar is a top-down pixel-art mining and looting game for the phone browser. You play a Kindler, an explorer in a blue Charter suit with amber circuits, a faced helm with a brow lamp, and a little drone, on a world where technology runs on arcane ore. From a seed-star hanging over a vast sinkhole, you carry its light out into a dark world, mine ore, fight, take the land one territory at a time, and decide when to push further and when to get back to a spire before you lose the haul.
 
 It mixes Terraria and Starbound (always another ore to find, and the gear it makes) with Diablo (every drop is a roll of the dice, so you never keep the same gear for long).
 
@@ -36,8 +36,9 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 
 How it's told:
 - **An opening** of five panels on a new game.
-- **Wick**, your drone, dry and kind, says a line the first time things happen: the first dive, parts, a blueprint, the anvil, the light thinning, a new biome, a Keeper, a shard, the first spire, the first territory kindled, the first dark tide, the first Deep, each ring, the Edge, the first settlers.
-- **The star speaks** as it grows, a seed-star waking where it fell, and as each shard is set.
+- **Wick**, your drone, dry and kind, says a line the first time things happen: the first dive, parts, a blueprint, the anvil, the light thinning, a new biome, a Keeper, a shard, the first spire, the first territory kindled, the first dark tide, the first Deep, each ring, the Edge, the first settlers, the first feeding of the star.
+- **The star speaks** as it grows, a seed-star waking, as each shard is set, and when it first tastes the land's ore, and Starmetal.
+- **Feeding seeds the turn.** It's the procedure, and the echoes show earlier Kindlers fed their stars the same way: the ore was the world's own, and the last of them stopped feeding hers. By the Edge, the player has been doing the kindling all along.
 - **Eight echoes:** logs of the Kindlers before, found by ancient forges, from elites now and then, and from every Keeper, and read at the uplink in the order found. The early ones are hopeful, the middle ones uneasy, and the later ones carry the turn.
 - **Settlers** at the outpost, one for each lander down, stroll the plaza among tents and lanterns and say a line when you pass. After the turn, they've heard.
 - **The log:** one line for each territory kindled, by its clime.
@@ -46,10 +47,15 @@ How it's told:
 
 ## The Lodestar (the base)
 
-The Lodestar is a huge magnetic crystal that fell from the sky and now hangs over a sinkhole, held up by its own magnetic field. Your outpost is built on and around it.
+The Lodestar is the seed-star the Charter sent down with you. A seed-star is planted small and fed the land's ore until it's strong enough to light a world: that's the procedure every Kindler follows, and this is your first. It now hangs over a sinkhole, held up by its own magnetic field. Your outpost is built on and around it.
 
 - **Its light.** The star's light reaches the land next to the outpost, and every spire planted further out carries it on. Out in the dark, your own light drains; in kindled land and at home it fills again.
 - **Feeding the star.** Each ore fed is worth its tier² in points, and the points raise the star's **magnitude**. Each magnitude gives an attunement point, a Deep's lodelines a little likelier, a gentler emergency recall, and now and then another pocket slot.
+- **The feeding is a ritual, not a shop.** At the altar, hold FEED THE STAR: ore after ore rises from the Kindler's hands, bows up over the altar's bowl and drops into the star, in its own colour, faster the longer you hold (from 3 a second to 160 within about 2 s, so a full stash goes in a few seconds). Let go and it stops. The star brightens as each lands and swells with a ring of light at each magnitude reached. The button says what's going and how much is left (GIVING FERRITE · 87).
+  - **The plainest first:** Ferrite, then Lumenite, and so on up. A short hold never gives the rare ore you forge with, and the flow rests a beat before each new kind, a moment to let go.
+  - **Keeping ore back:** ATTUNE, beside it at the altar, opens the star's screen (attunements, and the ore banked). Mark an ore ☆ KEEP, the same mark that keeps gear from salvage, and the star is never given it.
+  - Each ore leaves the stash and its points join the star's at once (the save is never between the two); the star, its lodelines and lanterns are drawn as they were until each ore lands.
+  - **Words:** Wick gives the why the first time (it's the procedure), and the star remarks on the first ore it ever takes, and the first Starmetal.
 - **(proposed) Lore hook.** The deepest ore, Starmetal, is pieces of the Lodestar that broke off when it fell. Something out there has been collecting them.
 
 ## The loop
@@ -431,7 +437,7 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 | The forge (FORGE) | Make casters, plate, charms, picks, and Form, Element and Glyph stones from banked ore, parts and exotics. Every forge is played on the anvil |
 | The rune bench (RUNES) | Rework affixes on any piece: reroll, raise, add |
 | The locker (GEAR) | What's worn, the stash and its stones, stats; equip, build circuits (free), salvage, unseal relics |
-| The star's altar (THE STAR) | Feed it ore, and spend attunements. Feeding sends you back out to watch the ore stream up into the star as it pulses and grows |
+| The star's altar (THE STAR) | Hold FEED THE STAR and ore after ore rises into the star, the plainest first, faster the longer you hold, until you let go; ATTUNE spends attunements and marks ore kept for the forge. A shard carried home is set here instead (SET THE SHARD) |
 | The practice target | A construct that takes every hit and never falls, for trying combos |
 | The uplink (THE UPLINK) | A relay mast to the *Meridian* in orbit: the landers it can send, the shards set, the echoes, and calling the colony down |
 

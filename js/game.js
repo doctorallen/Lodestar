@@ -192,11 +192,12 @@ function updateDive(dtReal, dt) {
   updateAuras(dt);
   updateCombatFx(dt);
   if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); }
-  else updateSettlers(d, dt);
+  else { updateSettlers(d, dt); updateStarFeed(d, dtReal); }
   updatePickups(dtReal);
   if (Input.consumeAct()) {
     const a = actionHere();
-    if (d.hub) { if (a) UI.useStation(a); }
+    // (the altar: a shard to set, or else the star fed for as long as it's held)
+    if (d.hub) { if (a === 'altar' && Story.shardsHeld() <= Story.shardsSet()) startStarFeed(d); else if (a) UI.useStation(a); }
     else if (a === 'way') stepThrough(d, wayHere(d));
     else if (a === 'extract') startChannel('extract');
     else if (a === 'stone') startChannel('stone');

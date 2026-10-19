@@ -670,7 +670,19 @@ const T = {
   // now and then (T.cargo.pocket) and a gentler recall.
   // extractStar: what coming home feeds the star, once a sortie, times the
   // square of the deepest dark land walked (its depth, 1 to 4).
-  star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], extractStar: 8 },
+  // feed: holding FEED THE STAR at the altar (hub.js). Ore leaves the
+  // stash one at a time, the plainest first, rate0 a second at the start,
+  // climbing to rateMax over ramp s of holding (eased in, so a tap gives
+  // one). Moving on to the next kind of ore, the flow rests for beat s and
+  // falls back to beatRamp of the way up, so there's a moment to let go.
+  // fly: s for an ore to rise from the Kindler to the star; arc: world px
+  // its path bows up over the altar's bowl. hum: how much each landing
+  // brightens the star, by tier (it fades at humFade a second). lights:
+  // at most this many rising ores carry a light of their own.
+  star: {
+    levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], extractStar: 8,
+    feed: { rate0: 3, rateMax: 160, ramp: 1.8, beat: 0.2, beatRamp: 0.5, fly: 0.75, arc: 46, hum: 0.05, humFade: 2.5, lights: 14 },
+  },
   // The story (story.js): each region's Keeper waits in its lair, at the end
   // of its ring's furthest Deep, holding a shard of a star that went dark;
   // each shard set in the Lodestar adds shardStar points. An echo (a log of

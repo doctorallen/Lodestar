@@ -120,6 +120,7 @@ body.home #btn-mine { display: none; }
 .deck-btn.act { left: auto; top: auto; right: 10px; bottom: calc(100% + 8px); width: auto; height: 44px; padding: 0 16px; border-radius: 22px; color: #111; background: var(--gold); white-space: nowrap; z-index: 5; }
 #app.wide .deck-btn.act { bottom: calc(166px + env(safe-area-inset-bottom)); right: 8px; }
 /* at a spire, TRAVEL sits over BANK */
+.deck-btn.act.held { background: #fff0c0; box-shadow: 0 0 14px rgba(255, 210, 120, 0.8); }
 .deck-btn.act.act2 { bottom: calc(100% + 60px); background: #2a2210; color: var(--gold); border-color: var(--gold); }
 #app.wide .deck-btn.act.act2 { bottom: calc(218px + env(safe-area-inset-bottom)); }
 /* the smallest phones: the cluster tightens so nothing overlaps */

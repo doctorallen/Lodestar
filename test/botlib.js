@@ -16,7 +16,7 @@
 //   the anvil fairly), forges the stones its circuits want and sockets them
 //   (an Arc in the gauntlet, a Bolt or Lance in the other hand, with an
 //   element and glyphs as it finds them), salvages the rest, unseals relics,
-//   feeds spare ore to the star and spends attunements.
+//   feeds spare ore to the star (held at the altar) and spends attunements.
 //   Bot.career({ sorties }) does both over and over from a fresh save.
 
 function installBot() {
@@ -340,16 +340,38 @@ function installBot() {
     // salvage what's left that isn't a stone
     for (const it of s.items.filter((i) => i.kind !== 'stone' && i.kind !== 'relic')) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
     UI.closeCard();
-    // feed ore the bot doesn't need for its next pick
+    // feed ore the bot doesn't need for its next pick, at the altar
     const keep = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
     for (const o of T.ores) {
       const have = s.stash[o.id] || 0, spare = have - (keep && o.id === keep.id ? BLUEPRINTS.pick.ore : 14);
-      if (spare >= 10) for (let k = 0; k < Math.floor(spare / 10); k++) acts.feed(o.id + ':10');
+      if (spare >= 10) feedStar(o.id, Math.floor(spare / 10) * 10);
     }
     for (const id of ['vitality', 'proximity', 'capacity', 'vitality', 'clarity', 'stride', 'capacity']) if (attunePointsLeft(s) > 0) acts.attune(id);
     Save.save();
     UI.close();
     return log;
+  }
+
+  // Feeding the star as a player does: at the altar, every other ore
+  // marked kept, FEED THE STAR held until about n of this one have gone
+  // (the flow is a few ore a step at full speed), then let go and the
+  // marks put back. Returns how many went.
+  function feedStar(id, n) {
+    const s = Save.data, d = Game.dive, alt = HUB_STATIONS.find((x) => x.id === 'altar');
+    if (!d || !d.hub) return 0;
+    UI.close();
+    const was = Object.assign({}, s.keepOre), had = s.stash[id] || 0, bot = Input.bot;
+    s.keepOre = {};
+    for (const o of T.ores) if (o.id !== id) s.keepOre[o.id] = true;
+    d.p.x = (alt.x + 0.5) * TILE; d.p.y = (alt.y + 0.5) * TILE + 10;
+    Input.bot = { x: 0, y: 0, act: true, actHeld: true };
+    for (let i = 0; i < 1200 && had - (s.stash[id] || 0) < n && (s.stash[id] || 0) > 0; i++) Game.step(1 / 60);
+    Input.bot.actHeld = false;
+    for (let i = 0; i < 60; i++) Game.step(1 / 60);
+    UI.close();
+    Input.bot = bot;
+    s.keepOre = was;
+    return had - (s.stash[id] || 0);
   }
 
   // The circuits a player might build: the gauntlet an Arc (Quicken,

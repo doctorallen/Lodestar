@@ -33,7 +33,7 @@ At home, walk the outpost's stations:
 - the forge: strike the anvil well for better odds; its Codex shows the resonances found;
 - the rune bench: rework affixes;
 - the locker: your gear, and each caster's circuit, built from stones for free;
-- the star's altar: feed it ore to grow it;
+- the star's altar: hold FEED THE STAR and your ore rises into it, the plainest first, until you let go; ATTUNE spends attunements and marks ore to keep for the forge;
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
 - the portal: the world map, to set out again.
 
@@ -54,7 +54,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
 | `js/climes.js` | Climes: each one's palette, flora, critters and weather; rolling and naming them |
 | `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
-| `js/hub.js` | The outpost: stations, the star over the pit, lanterns, the uplink, the settlement's tents, feeding the star |
+| `js/hub.js` | The outpost: stations, the star over the pit, lanterns, the uplink, the settlement's tents, feeding the star (held at its altar) |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
 | `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp; Wick |
 | `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
