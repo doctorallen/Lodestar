@@ -49,7 +49,8 @@ const FRESH_START_LINE = 'The land round the star is one world now, to walk and 
 // what each should show, when they get art:
 const STORY_INTRO = [
   // a seed-star falling through the dark between stars, a capsule riding
-  // its wake, the Charter's mark on the capsule's side
+  // its wake, the Charter's mark (the pale gold seed-star the Kindler wears
+  // on the chest) on the capsule's side
   'The Lodestar Charter sends seed-stars to dead worlds. A Kindler rides down with each one, to plant it and carry its light outward.',
   // the star striking stone at a bad angle, a crack of light across it,
   // the ground giving way into a sinkhole
@@ -57,10 +58,13 @@ const STORY_INTRO = [
   // the Meridian high above, small and patient against the stars, its
   // settlers asleep in rows
   'High above, the colony ship Meridian waits in orbit. Its settlers sleep until there is ground lit enough to land on.',
-  // the Kindler and Wick climbing out of the capsule; the star over the
-  // pit, its light reaching only a few steps
+  // the Kindler climbing out of the capsule: the blue Charter suit with its
+  // amber circuits, the faced helm's dark glass and its brow lamp lit; Wick,
+  // grey with its teal eye, over a shoulder; the star over the pit, its
+  // light reaching only a few steps
   "I'm Wick, your drone. The star's hurt, but it's alive. For now its light barely reaches the rim.",
-  // the outpost's first lantern lit, the dark all round it
+  // the outpost's first lantern lit, the dark all round it, and the
+  // Kindler's brow lamp turned out towards it
   'So we do what Kindlers do. Feed it, carry its light out spire by spire, and call the landers down when the ground can hold them.',
 ];
 

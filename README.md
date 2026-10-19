@@ -55,7 +55,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
 | `js/hub.js` | The outpost: stations, the star over the pit, lanterns, the uplink, the settlement's tents, feeding the star |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
-| `js/diver.js` | The player's sprite: the circuit diver's five facings, walk frames and hand points |
+| `js/diver.js` | The player's sprite: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp |
 | `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
 | `js/blueprints.js` | What can be forged: blueprints (casters, gear, stones), creature parts |
 | `js/art2.js` | Art for crafting and the story: new item icons, parts, stones, the uplink, a tent, the Shard Keepers |

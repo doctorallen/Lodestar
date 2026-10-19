@@ -1,6 +1,6 @@
 # Lodestar: design
 
-Lodestar is a top-down pixel-art mining and looting game for the phone browser. You play a circuit diver, an explorer in an alien-tech suit with a glass dome and a little drone, on a world where technology runs on arcane ore. From a fallen star hanging over a vast sinkhole, you carry its light out into a dark world, mine ore, fight, take the land one territory at a time, and decide when to push further and when to get back to a spire before you lose the haul.
+Lodestar is a top-down pixel-art mining and looting game for the phone browser. You play a Kindler, an explorer in a blue Charter suit with amber circuits, a faced helm with a brow lamp, and a little drone, on a world where technology runs on arcane ore. From a fallen star hanging over a vast sinkhole, you carry its light out into a dark world, mine ore, fight, take the land one territory at a time, and decide when to push further and when to get back to a spire before you lose the haul.
 
 It mixes Terraria and Starbound (always another ore to find, and the gear it makes) with Diablo (every drop is a roll of the dice, so you never keep the same gear for long).
 
@@ -247,7 +247,7 @@ Finished gear comes from the forge. Enemies leave the materials to make it, not 
   | Staff | hand (caster) | 4–6 slots; slower to cast, every reach 30% wider |
   | Weave | armour | Light: dash 30% more often, move faster |
   | Shell | armour | Heavy: much more armour, a little slower |
-  | Lantern | charm | A brighter lamp; the star's pull fades 20% slower |
+  | Lantern | charm | A brighter lamp; your light fades 20% slower |
   | Drill | pick | Mines 60% faster, but the noise wakes what's near |
   | Glaive, Lance, Orb, Nova, Well, Ward | Form stone | The other Forms (Combat and builds) |
 
@@ -410,10 +410,12 @@ Salvaging a legendary at home writes its power into the forge's **Codex**. Any l
   - a hit stops the world for an instant (the view doesn't shake: the designer found it unpleasant);
   - damage numbers pop off;
   - the caster is drawn in hand and the diver casts with it (castfx.js); an Arc is a crescent of light swept across in front, the heavy third thicker and wider, throwing sparks.
-- **The player is the circuit diver.**
-  - A sleek suit with glowing teal circuits, under a glass dome with a violet light inside. The dome is the lamp you see by.
+- **The player is the Kindler,** in the Charter's blue and amber.
+  - A near-black navy suit with amber-gold circuits, royal blue plate at the pauldrons, cuffs, belt and gloves, and a pale gold seed-star on the chest.
+  - A faced helm: an opaque blue shell, a faceplate of plain dark glass with a blue-white glint, and a warm-white brow lamp over it. The brow lamp is the lamp you see by, and its light and shadows come from it. From behind, a ridge runs down the helm and an air port sits on the back.
+  - Blue is for everything solid and amber for every light; there's no teal on the suit.
   - Drawn in 8 facings, with a 4-frame walk.
-  - A small drone follows over its shoulder, bobbing, its eye turned the way the diver looks.
+  - Wick, a small drone, follows over its shoulder, bobbing, its teal eye turned the way the diver looks, clear of the brow lamp.
 
 ## The base: the outpost
 

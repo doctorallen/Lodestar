@@ -156,13 +156,13 @@ function addLightSeen(L, x, y, r, i, c, S) {
 const LampSight = { x0: 0, y0: 0, w: 0, vis: null, key: '', rock: null, lights: null, ok: false };
 function lampSight(d, r) {
   const f = d.floor, p = d.p, Sh = T.light.shadow;
-  let cx = Math.floor((p.x * AP) / LC), cy = Math.floor((p.y * AP) / LC);
-  // the light's ground point: under the dome (the feet), or the nearest
-  // open cell if a foot's on the rock's very edge
+  let cx = Math.floor(diverLampAt(d).x / LC), cy = Math.floor((p.y * AP) / LC);
+  // the light's ground point: under the brow lamp, level with the feet, or
+  // the nearest open cell if a foot's on the rock's very edge
   const R = View.rockPx, W = f.w * ATILE, open = (i, j) => { const x = i * LC + (LC >> 1), y = j * LC + (LC >> 1); return x >= 0 && y >= 0 && x < W && y < f.h * ATILE && !R[y * W + x]; };
   if (!open(cx, cy)) for (const [i, j] of [[0, -1], [-1, 0], [1, 0], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) if (open(cx + i, cy + j)) { cx += i; cy += j; break; }
   // (the reach rounded up to whole steps, so the window is rebuilt rarely;
-  // the window is round the dome, the light's middle)
+  // the window is round the lamp, the light's middle)
   const rr = Math.ceil(r / (4 * LC)) * 4 * LC, ey = Math.round(ap(Sh.eye) / LC), key = cx + ',' + cy + ',' + rr;
   const S = LampSight;
   if (S.key !== key || S.rock !== R || S.lights !== View.lights) {
@@ -210,8 +210,8 @@ function addBakedLight(f, L, s) {
 // The lamp's light, and what the props cast from it
 // ---------------------------------------------------------------------------
 
-// The diver's lamp at x, y (art px in the world, the dome), stopped by the
-// rock; or as before where there's no rock to stop it.
+// The diver's lamp at x, y (art px in the world, the helm's brow), stopped
+// by the rock; or as before where there's no rock to stop it.
 function addLampLight(d, L, x, y, r, i, c) {
   const S = T.light.shadow.walls && !d.hub ? lampSight(d, r) : null;
   if (S) addLightSeen(L, x, y, r, i, c, S);
@@ -246,8 +246,8 @@ function drawLampShadows(d, ox, oy) {
   const lv = lampLevels(d);
   if (lv.lamp <= 0) return;
   const f = d.floor, p = d.p, S = Sh.walls ? lampSight(d, lv.r) : null;
-  // the lamp's ground point and its dome, in art px in the world
-  const lx = p.x * AP, ly = p.y * AP, hx = lx, hy = ly - ap(Sh.eye), steps = T.art.lightSteps;
+  // the lamp's ground point and the lamp itself, in art px in the world
+  const lamp = diverLampAt(d), lx = lamp.x, ly = p.y * AP, hx = lx, hy = ly - ap(Sh.eye), steps = T.art.lightSteps;
   const amb = Math.max(1, Math.round(lv.amb * Math.max(...lv.tint) * steps)) / steps;
   const C = _propCasters;
   C.length = 0;

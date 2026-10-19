@@ -48,7 +48,7 @@ const STATION_ROWS = {
     '..MGM..............MGM..',
     '.MMMMM............MMMMM.',
   ],
-  // a tall locker, a strip of the diver's teal light down each door
+  // a tall locker, a strip of the diver's amber light down each door
   locker: [
     '..GGGGGGGGGGGGGG..',
     '.GGGGGGGGGGGGGGGG.',
@@ -89,7 +89,7 @@ const STATION_ROWS = {
 const _stationSprites = {};
 function stationSprite(id) {
   if (!_stationSprites[id]) {
-    const pal = id === 'altar' ? { arcane: [ART.pal.star[2]], coreglow: [ART.pal.star[3]] } : id === 'locker' ? { rune: [DIVER_PAL.tip[0]] } : {};
+    const pal = id === 'altar' ? { arcane: [ART.pal.star[2]], coreglow: [ART.pal.star[3]] } : id === 'locker' ? { rune: [DIVER_PAL.circuit[0]] } : {};
     const s = buildArtSprite(STATION_ROWS[id], pal);
     s.ax = s.w / 2; s.ay = s.h - footOff(1);
     _stationSprites[id] = s;
@@ -131,7 +131,7 @@ function drawHubUnder(d, ox, oy, tick, lights) {
     if (s.id === 'dummy' || s.id === 'wreck' || s.id === 'setout') continue;
     const spr = stationSprite(s.id), x = Math.round((s.x + 0.5) * ATILE + ox - spr.ax), y = Math.round((s.y + 0.5) * ATILE + oy - spr.ay + ap(6));
     drawArtSprite(spr, x, y);
-    const glow = { forge: [ART.pal.glass[0], 1.8, 0.9], runes: [ART.pal.arcane[0], 1.2, 0.5], locker: [DIVER_PAL.tip[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
+    const glow = { forge: [ART.pal.glass[0], 1.8, 0.9], runes: [ART.pal.arcane[0], 1.2, 0.5], locker: [DIVER_PAL.circuit[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
     if (glow) lights.push({ x: x + spr.w / 2, y: y + spr.h / 2, r: TILE * glow[1], i: glow[2] * (0.85 + 0.15 * Math.sin(Game.realT * 3)), c: rgb01(glow[0]) });
   }
   // lanterns, lit one per magnitude
