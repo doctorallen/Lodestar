@@ -236,10 +236,9 @@ function repaintAround(f, tx, ty) {
   for (let y = ty - 3; y <= ty + 2; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
   paintGraft(f, tx - 1, ty - 3, tx + 1, ty + 2);
   tintRift(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + 3) * T2);
-  const dx = Math.max(0, tx - 1) * T2, dy = Math.max(0, ty - 3) * T2;
-  View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, dx, dy, 3 * T2, 6 * T2);
-  View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, dx, dy, 3 * T2, 6 * T2);
   pntRepaintRock(f, tx * T2, ty * T2, (tx + 1) * T2, (ty + 1) * T2);
+  // (the rock laid back over the ground's tiles too, where they're under it)
+  pntComposite(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + 3) * T2);
   View.lights = floorLights(f);
 }
 
