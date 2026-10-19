@@ -39,6 +39,7 @@ function hgrMeldAt(f, x, y) {
   return M.sec[clamp(Math.floor(wy / ATILE), 0, f.h - 1) * f.w + clamp(Math.floor(wx / ATILE), 0, f.w - 1)];
 }
 
+let _hgrSide = new Int8Array(0);
 // The meld over tiles tx0..tx1, ty0..ty1 (pntPaintChunk, after the tiles):
 // for each side that reaches them, its tiles painted again in its look on a
 // second buffer, then laid in where that side's land shows.
@@ -55,13 +56,22 @@ function hgrPaintMeld(f, tx0, ty0, tx1, ty1) {
   const Q = View.meldBuf && View.meldBuf.w === P.w && View.meldBuf.h === P.h ? View.meldBuf : (View.meldBuf = pixBuf(P.w, P.h));
   const U0 = View.ug, PC = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), PE = P.em32 || (P.em32 = new Uint32Array(P.em.buffer));
   const QC = Q.col32 || (Q.col32 = new Uint32Array(Q.col.buffer)), QE = Q.em32 || (Q.em32 = new Uint32Array(Q.em.buffer));
+  // (which side each pixel shows, worked out once for all the sides)
+  const bx0 = tx0 * ATILE, by0 = ty0 * ATILE, bw = (tx1 - tx0 + 1) * ATILE, bh = (ty1 - ty0 + 1) * ATILE;
+  if (_hgrSide.length < bw * bh) _hgrSide = new Int8Array(bw * bh);
+  const side = _hgrSide, todo = [];
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+    if (!near(tx, ty)) continue;
+    todo.push(tx, ty);
+    for (let y = ty * ATILE; y < (ty + 1) * ATILE; y++) for (let x = tx * ATILE; x < (tx + 1) * ATILE; x++) side[(y - by0) * bw + x - bx0] = hgrMeldAt(f, x, y);
+  }
   for (const k of ks) {
     View.floorBuf = Q; View.ug = View.ugMeld[k]; f.meldPainting = k;
-    try { for (let y = ty0; y <= ty1; y++) for (let x = tx0; x <= tx1; x++) if (near(x, y)) paintTileArt(f, x, y); }
+    try { for (let i = 0; i < todo.length; i += 2) paintTileArt(f, todo[i], todo[i + 1]); }
     finally { View.floorBuf = P; View.ug = U0; f.meldPainting = -1; }
-    for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
-      if (!near(tx, ty)) continue;
-      for (let y = ty * ATILE; y < (ty + 1) * ATILE; y++) for (let x = tx * ATILE, q = y * P.w + x; x < (tx + 1) * ATILE; x++, q++) if (hgrMeldAt(f, x, y) === k) { PC[q] = QC[q]; PE[q] = QE[q]; }
+    for (let i = 0; i < todo.length; i += 2) {
+      const tx = todo[i], ty = todo[i + 1];
+      for (let y = ty * ATILE; y < (ty + 1) * ATILE; y++) for (let x = tx * ATILE, q = y * P.w + x, r = (y - by0) * bw + x - bx0; x < (tx + 1) * ATILE; x++, q++, r++) if (side[r] === k) { PC[q] = QC[q]; PE[q] = QE[q]; }
     }
   }
 }
