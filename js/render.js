@@ -739,7 +739,9 @@ function renderFrame() {
   if (d.fieldForge) {
     const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * ATILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * ATILE + oy - spr.ay + ap(6));
     drawArtSprite(spr, x, y);
-    lights.push({ x: x + spr.w / 2, y: y + spr.h / 2, r: TILE * 1.8, i: 0.9, c: rgb01(ART.pal.glass[0]) });
+    const fire = hartForgeFire(Math.floor(Game.realT * 9) % 3);
+    drawArtSprite(fire, x + HART_MOUTH.x - (fire.w >> 1), y + HART_MOUTH.y - (HART_MOUTH.h >> 1));
+    lights.push({ x: x + HART_MOUTH.x, y: y + HART_MOUTH.y, r: TILE * 1.8, i: 0.9, c: rgb01(ART.pal.glass[0]) });
   }
 
   // loot on the floor, then everyone in order of their feet, then what flies

@@ -456,13 +456,13 @@ function hartPerson(look, pose, frame) {
     const top = sit ? by - 14 : by - 18;
     if (sit) {
       // the crate under him
-      s.box(ox - 2, by - 9, ox + 9, by, HART.wood, { lo: 0, hi: 4 });
-      for (let x = ox - 2; x <= ox + 9; x++) s.px(x, by - 9, HART.wood[x < ox + 3 ? 5 : 4]);
-      for (let y = by - 8; y <= by; y++) s.px(ox + 3, y, HART.wood[1]);
+      s.box(ox - 4, by - 9, ox + 7, by, HART.wood, { lo: 0, hi: 4 });
+      for (let x = ox - 4; x <= ox + 7; x++) s.px(x, by - 9, HART.wood[x < ox + 1 ? 5 : 4]);
+      for (let y = by - 8; y <= by; y++) s.px(ox + 1, y, HART.wood[1]);
       // his legs, out in front to the left
       for (const [k, dk] of [[0, -1], [1, 0]]) {
-        s.limb([[ox + 1 + k * 3, top + 2], [ox - 6 + k * 2, top + 3], [ox - 7 + k * 2, by - 3]], 4.2, 3.6, (t, sd) => TR[k ? (sd < 0 ? 3 : 1) : sd < 0 ? 2 : 0]);
-        s.ell(ox - 8 + k * 2, by - 1.6, 3.2, 1.8, BOOT, { lo: 0, hi: k ? 3 : 2 });
+        s.limb([[ox + 1 + k * 2, top + 3], [ox - 7 + k * 2, top + 4], [ox - 8 + k * 2, by - 3]], 4.4, 3.8, (t, sd) => TR[k ? (sd < 0 ? 3 : 1) : sd < 0 ? 2 : 0]);
+        s.ell(ox - 9 + k * 2, by - 1.6, 3.2, 1.8, BOOT, { lo: 0, hi: k ? 3 : 2 });
       }
     } else {
       // legs: the far one darker; boots

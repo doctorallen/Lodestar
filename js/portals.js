@@ -55,14 +55,18 @@ function portalSprite(zone) {
   // the art px of one world px (x, y), filled
   const blk = (x, y, col, glow) => { for (let j = Math.round(y * AP); j < Math.round((y + 1) * AP); j++) for (let i = Math.round(x * AP); i < Math.round((x + 1) * AP); i++) put(i, j, col, glow); };
   const at = (n) => (n + 0.5) / AP - 0.5;
-  // a tone by form, cut hard (no dither on a prop)
-  const step = (v) => S[clamp(Math.floor(v * 4), 0, 3)];
+  // a tone by form, laid in short strokes (the painted style): each run of
+  // 2 to 5 px along a row shares a little jitter, on a ramp of six tones
+  const SR = ['#08090c', S[0], S[1], S[2], S[3], '#848c98'];
+  let _sx = -1, _sy = -1;
+  const step = (v) => SR[clamp(Math.round(v * 5 - 0.9 + (artHash(Math.floor((_sx + artHash(_sy, 3, 0x9a) * 5) / 4), _sy, 0x9b) - 0.5) * 0.9), 0, 5)];
   // the plinth: a slab, lit along its top
   const py0 = Math.round(26.5 * AP + 0.5);
   for (let y = py0; y < Math.round(31.5 * AP + 0.5); y++)
     for (let x = 0; x < W; x++) {
       const u = at(x), v = at(y);
       if (u < 0.5 || u >= 23.5 || (y === py0 && (u < 2.5 || u >= 21.5))) continue;
+      _sx = x; _sy = y;
       put(x, y, y === py0 ? S[3] : y === py0 + 1 ? step(0.62) : step(0.3 - (v - 29) * 0.06));
     }
   // the ring: lit from the top left on its outer side, from the bottom
@@ -71,6 +75,7 @@ function portalSprite(zone) {
     for (let x = 0; x < W; x++) {
       const dx = at(x) - C.x, dy = at(y) - C.y, eo = (dx / PORTAL_OUT[0]) ** 2 + (dy / PORTAL_OUT[1]) ** 2, ei = (dx / PORTAL_IN[0]) ** 2 + (dy / PORTAL_IN[1]) ** 2;
       if (eo > 1 || ei <= 1) continue;
+      _sx = x; _sy = y;
       const m = Math.hypot(dx, dy) || 1, nx = dx / m, ny = dy / m;
       let v;
       if (eo > 0.82) v = 0.55 - 0.42 * (nx * 0.6 + ny * 0.8);
@@ -97,9 +102,7 @@ function portalSprite(zone) {
   for (const [i, j] of L.glyph) glyph[j + 1][i + 1] = 'G';
   const g = artScaleRows(glyph.map((r) => r.join('')), AP), gw = g[0].length, gh = g.length;
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) if (g[j][i] === 'G') put(kx - (gw >> 1) + i, hy - (gh >> 1) + j, L.face[3], true);
-  // an outline round everything solid but the open face: a sel-out, or as
-  // T.art.outline.prop says
-  outlineBuf(P, solid, T.art.outline.prop, (x, y) => ((at(x) - C.x) / PORTAL_IN[0]) ** 2 + ((at(y) - C.y) / PORTAL_IN[1]) ** 2 <= 1);
+  // (no outline: the painted style)
   const s = spriteFromBuf(P);
   s.ax = (C.x + 0.5) * AP; s.ay = (PORTAL_H - 2) * AP; s.k = AP;
   return (_portalSprites[zone] = s);
