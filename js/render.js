@@ -282,22 +282,33 @@ function drawArtSprite(spr, x, y) {
   ex.drawImage(spr.ec, x, y);
 }
 
-// The lodeline's beam, as dots dithered down a strip 2 × half wide at x;
-// one of each kind drawn once and kept.
+// The lodeline's beam, painted: runs of the star's gold down a strip 2 ×
+// half wide at x, a tone a run, its middle the hottest, its edges a broken
+// deeper gold; the runs slide down a little each tick. One of each kind
+// drawn once and kept.
 const _beamStrips = new Map();
 function beamStrip(x, tick, half) {
   const key = `${x & 3} ${tick & 3} ${half} ${View.h}`;
   let c = _beamStrips.get(key);
   if (c) return c;
   if (_beamStrips.size > 64) _beamStrips.clear();
-  const star = ART.pal.star, w = 2 * half, h = View.h, img = new ImageData(w, h), d = img.data, lit = rgbOf(star[2]), rim = rgbOf(star[1]);
-  for (let y = 0; y < h; y++)
-    for (let i = -half; i < half; i++) {
-      const edge = i === -half || i === half - 1;
-      if (bayerAt(x + i, y + tick) > (edge ? 0.45 : 0.75)) continue;
-      const k = (y * w + i + half) * 4, col = edge ? rim : lit;
-      d[k] = col[0]; d[k + 1] = col[1]; d[k + 2] = col[2]; d[k + 3] = (edge ? 0.55 : 0.8) * 255;
+  const star = ART.pal.star, w = 2 * half, h = View.h, img = new ImageData(w, h), d = img.data;
+  const tones = [star[1], star[2], star[3]].map(rgbOf);
+  for (let i = -half; i < half; i++) {
+    const e = Math.abs(i + 0.5) / half, col = x + i;
+    for (let y = -12, run = 0, ti = 0, gap = false; y < h; y++) {
+      if (run <= 0) {
+        const cell = Math.floor((y + tick * 3) / 4), hh = artHash(col, cell, 0xbea);
+        run = 3 + Math.floor(artHash(col, cell, 0xbeb) * 7);
+        gap = hh < (e > 0.7 ? 0.45 : 0.12);
+        ti = e < 0.4 ? (hh > 0.45 ? 2 : 1) : e < 0.7 ? (hh > 0.7 ? 2 : 1) : (hh > 0.85 ? 1 : 0);
+      }
+      run--;
+      if (y < 0 || gap) continue;
+      const k = (y * w + i + half) * 4, t = tones[ti];
+      d[k] = t[0]; d[k + 1] = t[1]; d[k + 2] = t[2]; d[k + 3] = (e > 0.7 ? 0.55 : 0.85) * 255;
     }
+  }
   [c] = makeCanvas(w, h);
   c.getContext('2d').putImageData(img, 0, 0);
   _beamStrips.set(key, c);
@@ -796,7 +807,8 @@ function renderFrame() {
   drawCastAir(d, ox, oy, tick, lights);
   drawResonanceAir(d, ox, oy, tick, lights);
   if (d.hub) drawHubOver(d, ox, oy, lights);
-  for (const s of Sparks) dot(vx(s.x), vy(s.y), s.col, true);
+  // sparks: short streaks back along their way (castfx.js)
+  for (const s of Sparks) cfxSpark(vx(s.x), vy(s.y), s.vx, s.vy, s.col, s.t);
   if (!d.hub) drawHazardsAir(d, ox, oy, lights);
   drawLifeAir(d, ox, oy, lights);
   if (!d.hub) drawStorm(d, ox, oy, lights);
@@ -972,7 +984,7 @@ function drawProspector(d, ox, oy, tick, lights) {
   // blink while hurt; fall still while dying
   if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(spr, sx, sy);
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot), face);
-  if (p.ward > 0) ringDots(fx, fy - ap(10), 12 * AP, p.wardS ? p.wardS.col : ART.forms.ward, 0.5 + 0.3 * Math.sin(Game.realT * 6), true);
+  if (p.ward > 0) cfxStrokeRing(fx, fy - ap(10), 12 * AP, 9 * AP, cfxRamp(p.wardS ? p.wardS.col : ART.forms.ward), 0.5 + 0.3 * Math.sin(Game.realT * 6), 77, true, 0.25);
   // a charging hand gathers light, and flashes when it's full (its circle
   // is on the ground, its motes drawn in: castfx.js; an empty fist rings)
   for (const slot of ['main', 'off']) {
@@ -1209,14 +1221,12 @@ function ringDots(cx, cy, r, col, alpha, glow) {
 function drawCombatFx(fx, ox, oy, tick, lights) {
   const k = fx.t / fx.max, cx = Math.round(fx.x * AP) + ox, cy = Math.round(fx.y * AP) + oy;
   if (fx.kind === 'swing') {
-    // a pale arc where the blade went
-    const a0 = Math.atan2(fx.dy, fx.dx);
-    for (let s = -8; s <= 8; s++) {
-      const a = a0 + s * 0.13 * (1.2 - k * 0.4);
-      for (const r of [11, 12.5, 14, 15.5, 17]) dot(Math.round(cx + Math.cos(a) * r * AP), Math.round(cy + Math.sin(a) * r * AP * 0.8), '#f4ecd8', true, k * (r === 14 ? 0.9 : r === 11 || r === 17 ? 0.3 : 0.5));
-    }
+    // a pale crescent where the blade went, breaking up as it fades
+    const a0 = Math.atan2(fx.dy, fx.dx), h = 1.04 * (1.2 - k * 0.4);
+    cfxPaintArc(cx, cy, Math.round(15 * AP), a0 - h, a0 + h, 4, cfxRamp('#f4ecd8'), cfxBand(k), cfxSeed(fx), 1 - cfxBand(k), false);
   } else if (fx.kind === 'spin') {
-    ringDots(cx, cy, fx.r * (1 - k * 0.5) * AP, '#fff2c8', k, true);
+    const r = Math.round(fx.r * (1 - k * 0.5) * AP);
+    cfxStrokeRing(cx, cy, r, Math.round(r * 0.75), cfxRamp('#fff2c8'), cfxBand(k), cfxSeed(fx), true, 0.2);
     lights.push({ x: cx, y: cy, r: fx.r * 1.4, i: 0.8 * k, c: [1, 0.95, 0.8] });
   } else if (fx.kind === 'ghost') {
     // a dash's afterimage
@@ -1232,7 +1242,9 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
       dot(Math.round(cx + Math.cos(b) * r * s2 / n), Math.round(cy + Math.sin(b) * r * s2 / n), PLANT_GLOW, true, k);
     }
   } else if (fx.kind === 'shatter') {
-    for (let n = 0; n < 8; n++) { const a2 = n * 0.8, r = (1 - k) * 12 * AP; dot(Math.round(cx + Math.cos(a2) * r), Math.round(cy + Math.sin(a2) * r), '#e8f8ff', true, k); }
+    // shards of ice thrown out
+    const r = (1 - k) * 12 * AP;
+    cfxRays(cx, cy, r * 0.5, r + 2, 8, cfxRamp(ELEMENT_COLS.frost), cfxBand(k), cfxSeed(fx));
   } else if (fx.kind === 'iceBurst' || fx.kind === 'steam' || fx.kind === 'flare' || fx.kind === 'overload' || fx.kind === 'wardBreak') {
     drawReactFx(fx, cx, cy, k, tick, lights);
   } else if (fx.kind === 'mote') {
@@ -1244,7 +1256,9 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     cfxLight(lights, cx, cy, fx.r * 1.3, k, rgb01(fx.col || ART.forms.nova));
   } else if (fx.kind === 'foeBurst' || fx.kind === 'foeTongue') drawFoeFx(fx, ox, oy, tick, lights);
   else if (fx.kind === 'arc') drawCastArc(fx, ox, oy, lights); else if (fx.kind === 'blast') {
-    ringDots(cx, cy, fx.r * (1 - k * 0.6) * AP, '#ff7a3a', k, true);
+    const r = Math.round(fx.r * (1 - k * 0.6) * AP), R = cfxRamp('#ff7a3a');
+    cfxRays(cx, cy, r * 0.3, r, 10, R, cfxBand(k), cfxSeed(fx));
+    cfxStrokeRing(cx, cy, r, Math.round(r * 0.75), R, cfxBand(k), cfxSeed(fx), true, 0.25);
     lights.push({ x: cx, y: cy, r: fx.r * 1.5, i: 1.2 * k, c: [1, 0.5, 0.25] });
   } else if (fx.kind === 'volatile') {
     if (tick % 2) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(cx + i - 1, cy - ap(4) + j - 1, '#ff5a3a', true);

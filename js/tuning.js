@@ -812,6 +812,11 @@ const T = {
     rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.45, topLo: 2.6, topHi: 6.6, faceBase: 0.2, faceUp: 0.6, faceWest: 0.25, faceLo: 4, faceHi: 8, jitter: 0.8, strata: 0.45, crease: 2.5, rim: 8, lip: 8, foot: 1 },
     slab: { w: 46, h: 19, wobble: 0.8, tone: 0.8, lip: 1.5, crack: 1, gate: 0.5 },
     occlude: true,
+    // fx (castfx.js): a cast's light on the ground as strokes of its
+    // colour, lightR its reach (a share of the light's), lightA how strongly;
+    // arc, an Arc's crescent's thickness at its thickest (art px), light and
+    // heavy.
+    fx: { lightR: 0.42, lightA: 0.8, arc: [4.5, 6.5] },
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the

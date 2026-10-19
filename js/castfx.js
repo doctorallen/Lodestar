@@ -34,7 +34,7 @@ const CFX = {
 };
 
 // Kinds of mote.
-const CFX_STREAK = 1, CFX_MOTE = 2, CFX_SPARK = 3, CFX_CINDER = 4, CFX_SMOKE = 5, CFX_ICE = 6, CFX_DUST = 7, CFX_CONV = 8, CFX_DRIP = 9, CFX_GLIM = 10;
+const CFX_STREAK = 1, CFX_MOTE = 2, CFX_SPARK = 3, CFX_CINDER = 4, CFX_SMOKE = 5, CFX_ICE = 6, CFX_DUST = 7, CFX_CONV = 8, CFX_DRIP = 9, CFX_GLIM = 10, CFX_GOB = 11;
 
 // How each element looks, whatever the spell's shape: its colour; the mote
 // a bolt of it sheds as it flies (shed) and the ones it bursts into (burst,
@@ -64,6 +64,124 @@ function castFxCol(item) { return isCaster(item) ? circuitCol(item) : ART.forms.
 // A fade in a few hard steps, from the share of a life left.
 const cfxBand = (k) => (k > 0.75 ? 1 : k > 0.5 ? 0.75 : k > 0.25 ? 0.5 : k > 0 ? 0.25 : 0);
 
+// ---------------------------------------------------------------------------
+// Painting (docs/PAINTED.md). An effect is laid in its colour's ramp of five
+// tones: deep, dim, the colour itself, lit and white-hot. A crescent or a
+// ring is thick and tapered, hottest along its leading edge, its back edge
+// deep, with loose pixels of its colour round it, and it breaks up into
+// gaps as it fades. Its light on the ground is loose short strokes of its
+// colour, denser nearer (cfxLightPic), never an area recoloured. Rings and
+// marks on the ground are painted in short horizontal strokes once and kept
+// (cfxStrokePic); what moves every frame is set as dots.
+// ---------------------------------------------------------------------------
+const CFX_RAMPS = {
+  [ELEMENT_COLS.ember]: ['#6a1e0c', '#c04818', '#ff8a3a', '#ffc070', '#fff0c8'],
+  [ELEMENT_COLS.frost]: ['#24487a', '#5296c8', '#a8dcf4', '#d8f4ff', '#ffffff'],
+  [ELEMENT_COLS.shock]: ['#7a5a0c', '#c89e1c', '#ffe45c', '#fff4a8', '#ffffff'],
+  [ELEMENT_COLS.blight]: ['#243e12', '#4a7420', '#9ad04a', '#c8ec80', '#f0ffd0'],
+  [ELEMENT_COLS.force]: ['#4a3e6a', '#8a7cb4', '#e4dcf4', '#f4f0fc', '#ffffff'],
+  '#e8f4ff': ['#3a4a6a', '#7890b8', '#c4d8f4', '#e8f4ff', '#ffffff'],
+  '#ffd890': ['#7a4214', '#d08a30', '#ffd890', '#fff0c0', '#fffbea'],
+  '#c060ff': ['#3a1a5a', '#7a30b0', '#c060ff', '#e0b0ff', '#fff0ff'],
+};
+const _cfxRamps = new Map();
+function cfxRamp(col) {
+  let r = _cfxRamps.get(col);
+  if (!r) {
+    r = CFX_RAMPS[col] || [mix(col, '#0c0a18', 0.6), mix(col, '#0c0a18', 0.3), col, mix(col, '#ffffff', 0.45), mix(col, '#ffffff', 0.82)];
+    _cfxRamps.set(col, r);
+  }
+  return r;
+}
+// A seed for something drawn every frame, so its strokes hold still.
+const cfxSeed = (o) => o.sd || (o.sd = 1 + ((Math.random() * 1e6) | 0));
+
+// An arc of light round x, cy (art px; R across, R × 0.75 down) from the
+// angle aT (its tail) to aH (its head): th px thick at its thickest, a
+// little towards the head, tapering to points; its outer edge white-hot,
+// then lit, its colour, and its back edge deep; loose pixels outside it.
+// broken (0..1): the share of it dropped as it fades. hot: its head white.
+function cfxPaintArc(x, cy, R, aT, aH, th, ramp, alpha, seed, broken, hot) {
+  const span = aH - aT, steps = Math.max(6, Math.round(Math.abs(span) * R * 1.4));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps, b = aT + span * t, c = Math.cos(b), s = Math.sin(b);
+    const w = th * Math.pow(Math.sin(Math.PI * Math.pow(t, 1.5)), 0.6), glow = Math.sin(Math.PI * t);
+    for (let k = -1.6; k <= w; k += 0.7) {
+      const rr = R - k, px = Math.round(x + c * rr), py = Math.round(cy + s * rr * 0.75), h = artHash(px, py, seed);
+      if (k < 0) {
+        // the glow outside the edge: loose pixels
+        if (h < (broken ? 0.1 : 0.22) * (1 + k / 1.6) * glow) dot(px, py, ramp[h < 0.08 ? 1 : 2], true, alpha * 0.85);
+        continue;
+      }
+      // (broken in strokes along it, not in pixels)
+      if (broken && artHash(Math.floor(i / 3), Math.round(k), seed + 1) < broken * 0.8) continue;
+      let ti = k < 0.9 ? 4 : k < w * 0.55 ? 3 : k < w - 0.8 ? 2 : 1;
+      if (hot && t > 0.88 && k < w * 0.7) ti = 4;
+      if (broken > 0.3 && ti > 2) ti--;
+      dot(px, py, ramp[ti], ti > 1, alpha);
+    }
+  }
+}
+
+// A ring of short strokes round cx, cy (rx × ry art px), a tone a stroke,
+// a few gaps; its front half a pixel thicker (thick) and brighter than its
+// back.
+function cfxStrokeRing(cx, cy, rx, ry, ramp, alpha, seed, thick, gap = 0.18) {
+  if (alpha <= 0) return;
+  rx = Math.max(1, Math.round(rx)); ry = Math.max(1, Math.round(ry));
+  for (const [x, y, a] of cfxEllipse(rx, ry)) {
+    const h = artHash(Math.floor(((a + Math.PI) * rx) / 3), rx, seed);
+    if (h < gap) continue;
+    const ti = h > 0.78 ? 4 : h > 0.42 ? 3 : 2, front = y >= 0, al = front ? alpha : alpha * 0.7;
+    dot(cx + x, cy + y, ramp[ti], true, al);
+    if (thick && front && y > 0) dot(cx + x, cy + y - 1, ramp[ti - 1], true, al * 0.85);
+  }
+}
+
+// Short streaks out from x, y: n of them at hashed angles, from r0 to r1
+// art px out (r × 0.75 down), white-hot nearest, its colour out at the tip.
+function cfxRays(x, y, r0, r1, n, ramp, alpha, seed) {
+  for (let q = 0; q < n; q++) {
+    const a = ((q + artHash(q, 3, seed) * 0.7) / n) * Math.PI * 2, s0 = r0 * (0.7 + 0.5 * artHash(q, 5, seed)), L = Math.max(1, Math.round((r1 - r0) * (0.6 + 0.4 * artHash(q, 7, seed))));
+    const c = Math.cos(a), s = Math.sin(a) * 0.75;
+    for (let j = 0; j <= L; j++) dot(Math.round(x + c * (s0 + j)), Math.round(y + s * (s0 + j)), ramp[j === 0 ? 4 : j <= L / 2 ? 3 : 2], true, alpha);
+  }
+}
+
+// A kept picture painted in short horizontal strokes (pntStrokeRow): val(x,
+// y) from the middle gives -1 where it's empty, else its tone on the ramp
+// (0..1). A stroke takes the value at its middle, plus its jitter, so the
+// edges go ragged in strokes, not in pixels.
+function cfxStrokePic(key, w, h, ramp, val, seed, J = 0.7) {
+  return cfxPic(key, w, h, (set) => {
+    const cx = w >> 1, cy = h >> 1, mid = new Int32Array(w), jit = new Float32Array(w);
+    for (let y = -cy; y < h - cy; y++) {
+      pntStrokeRow(mid, jit, -cx, w, y + 64, seed);
+      for (let i = 0; i < w; i++) {
+        const x = i - cx, v = val(mid[i] - cx, y);
+        if (v < 0 || (val(x, y) < 0 && artHash(x, y, seed) < 0.6)) continue;
+        set(x, y, ramp[clamp(Math.round(v * (ramp.length - 1) + jit[i] * J), 0, ramp.length - 1)]);
+      }
+    }
+  });
+}
+
+// A light's colour on the ground: loose strokes of it, 2 to 5 px, denser
+// and lighter nearer the middle, r art px across (0.6 of it down). A few
+// shapes of each, kept.
+function cfxLightPic(r, col, v) {
+  const ry = Math.max(2, Math.round(r * 0.6)), ramp = cfxRamp(col);
+  return cfxPic(`l${r} ${col} ${v}`, r * 2 + 10, ry * 2 + 4, (set) => {
+    const n = Math.round(r * ry * 1.4);
+    for (let k = 0; k < n; k++) {
+      const x = Math.round((artHash(k, v, r) * 2 - 1) * r), y = Math.round((artHash(k, v + 7, r) * 2 - 1) * ry), d = Math.hypot(x / r, y / ry);
+      if (d >= 1 || artHash(k, v + 13, r) > Math.pow(1 - d, 1.6) * 0.32) continue;
+      const L = 2 + Math.floor(artHash(k, v + 19, r) * (d < 0.4 ? 4 : 3)), ti = d < 0.2 ? 3 : d < 0.55 ? 2 : 1;
+      for (let i = 0; i < L; i++) set(x + i - (L >> 1), y, ramp[ti], d < 0.5 ? 0.9 : 0.7);
+    }
+  });
+}
+
 function cfxReset(d) {
   CFX.dive = d;
   CFX.parts.length = CFX.rings.length = CFX.decals.length = CFX.ghosts.length = CFX.flares.length = CFX.waves.length = 0;
@@ -81,7 +199,7 @@ function cfxPart(k, x, y, vx, vy, t, col, col2, follow) {
 
 function cfxFlare(x, y, r, i, col, t, follow) {
   if (CFX.flares.length >= T.castFx.flares) CFX.flares.shift();
-  CFX.flares.push({ x, y, r, i, c: rgb01(col), t, max: t, f: !!follow });
+  CFX.flares.push({ x, y, r, i, c: rgb01(col), col, v: (Math.random() * 3) | 0, t, max: t, f: !!follow });
 }
 
 // ---------------------------------------------------------------------------
@@ -282,6 +400,36 @@ function castFxSpot(x, y, el, size = 1) {
   if (size >= 1) cfxDecal(x, y + 4, cfxEl(el).decal, size > 1.4);
 }
 
+// Something killed: a splash of its colour thrown up and falling back, a
+// burst of streaks, a puff of dark dust, a few sparks, and a dark splash on
+// the ground that fades (not a confetti of pixels).
+function castFxDeath(x, y, col, big) {
+  const d = Game.dive;
+  if (!d) return;
+  if (CFX.dive !== d) cfxReset(d);
+  const R = cfxRamp(col), n = big ? 28 : 16;
+  for (let k = 0; k < n; k++) {
+    const a = FX_R.f(-Math.PI * 0.95, -Math.PI * 0.05) + (k % 4 === 0 ? FX_R.f(-0.4, 0.4) + Math.PI * 0.5 : 0), s = FX_R.f(40, 100) * (big ? 1.4 : 1), dk = k % 4 === 1;
+    const q = cfxPart(k % 2 ? CFX_GOB : CFX_SPARK, x + FX_R.f(-2, 2), y, Math.cos(a) * s, Math.sin(a) * s * 0.8 - 15, FX_R.f(0.35, 0.6), dk ? R[0] : R[k % 3 ? 2 : 3], dk ? R[0] : R[1]);
+    if (q) { q.g = 230; q.drag = 2.2; q.dark = dk; }
+  }
+  const dust = [mix(R[0], '#0a0806', 0.45), mix(R[0], '#0a0806', 0.2)];
+  for (let k = 0; k < (big ? 8 : 4); k++) { const q = cfxPart(CFX_SMOKE, x + FX_R.f(-5, 5), y + FX_R.f(0, 4), FX_R.f(-10, 10), FX_R.f(-14, -4), FX_R.f(0.4, 0.7), dust[0], dust[1]); if (q) q.drag = 1.5; }
+  CFX.rings.push({ kind: 'burst', x, y, r0: 2, r1: big ? 16 : 10, col, t: 0.16, max: 0.16, f: false });
+  cfxDecal(x, y + 5, 'splat:' + col, big);
+  cfxFlare(x, y, TILE * (big ? 2 : 1.2), 0.8, col, 0.2);
+  spawnSparks(x, y, [R[3], '#ffffff'], big ? 10 : 4);
+}
+
+// A spark (render.js's Sparks), at x, y on the view: a hot head and a
+// streak of its colour back along its way, darker behind.
+function cfxSpark(x, y, vx, vy, col, t) {
+  const sp = Math.hypot(vx, vy) || 1, ux = vx / sp, uy = vy / sp, R = col === '#ffffff' ? null : cfxRamp(col);
+  dot(x, y, R ? R[3] : col, true);
+  if (sp > 15) dot(Math.round(x - ux * 1.5), Math.round(y - uy * 1.5), R ? R[2] : col, true, R ? 0.85 : 0.5);
+  if (sp > 45 && R && t > 0.15) dot(Math.round(x - ux * 3), Math.round(y - uy * 3), R[1], true, 0.5);
+}
+
 // Sparks, a ring and a flare of light where something lands.
 function cfxBurst(x, y, col, size, el) {
   const I = T.castFx.impact, n = Math.round(I[0] * size), E = cfxEl(el);
@@ -456,40 +604,44 @@ function cfxBlit(pic, x, y, alpha) {
   c.globalAlpha = e.globalAlpha = 1;
 }
 
-// The rune circle: an outer ring, a broken inner one, and six marks between
-// them turning. rx in art px; rot: which of six turns.
+// The rune circle: an outer ring in short strokes of two tones (a pixel
+// thicker at the front), a broken inner one, and six marks between them
+// turning. rx in art px; rot: which of six turns.
 const CFX_RUNES = [[[0, 0], [0, -1], [1, 0]], [[-1, 0], [0, 0], [1, 0], [0, -1]], [[0, 0], [1, -1], [0, -1]], [[0, 0], [0, -1], [-1, -1], [1, -1]], [[-1, 0], [0, -1], [1, 0]], [[0, 0], [1, 0], [1, -1]]];
 function cfxGlyphPic(rx, col, rot) {
   const ry = Math.max(1, Math.round(rx * 0.55));
   return cfxPic(`g${rx} ${col} ${rot}`, rx * 2 + 5, ry * 2 + 5, (set) => {
-    const dark = mix(col, '#000000', 0.35), lite = mix(col, '#ffffff', 0.45);
-    for (const [x, y] of cfxEllipse(rx, ry)) set(x, y, col);
-    if (rx >= 7) for (const [x, y, a] of cfxEllipse(rx - 3, Math.max(1, ry - 2))) if (Math.floor(((a + Math.PI) * (rx - 3)) / 3) % 2 === 0) set(x, y, dark);
-    const R = rx - 1.5, Ry = Math.max(1, ry - 1);
+    const R = cfxRamp(col);
+    for (const [x, y, a] of cfxEllipse(rx, ry)) {
+      const h = artHash(Math.floor(((a + Math.PI) * rx) / 3), 1, rx);
+      if (h < 0.07) continue;
+      set(x, y, R[h > 0.6 ? 3 : 2]);
+    }
+    if (rx >= 5) for (const [x, y, a] of cfxEllipse(rx - 1, Math.max(1, ry - 1))) if (y > 0 && artHash(Math.floor(((a + Math.PI) * rx) / 3), 2, rx) < 0.6) set(x, y, R[1]);
+    if (rx >= 7) for (const [x, y, a] of cfxEllipse(rx - 3, Math.max(1, ry - 2))) if (Math.floor(((a + Math.PI) * (rx - 3)) / 3) % 2 === 0) set(x, y, R[1]);
+    const Rr = rx - 1.5, Ry = Math.max(1, ry - 1);
     for (let k = 0; k < 6; k++) {
-      const a = (k / 6) * Math.PI * 2 + (rot / 6) * (Math.PI / 3), mx = Math.round(Math.cos(a) * R), my = Math.round(Math.sin(a) * Ry);
-      for (const [i, j] of rx >= 10 ? CFX_RUNES[k] : [[0, 0]]) set(mx + i, my + j, lite);
+      const a = (k / 6) * Math.PI * 2 + (rot / 6) * (Math.PI / 3), mx = Math.round(Math.cos(a) * Rr), my = Math.round(Math.sin(a) * Ry);
+      for (const [i, j] of rx >= 10 ? CFX_RUNES[k] : [[0, 0]]) set(mx + i, my + j, R[4]);
     }
     // a big circle: ticks round its rim too
-    if (rx >= 15) for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2 + 0.26; set(Math.round(Math.cos(a) * (rx + 2)), Math.round(Math.sin(a) * (ry + 1)), col); }
+    if (rx >= 15) for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2 + 0.26; set(Math.round(Math.cos(a) * (rx + 2)), Math.round(Math.sin(a) * (ry + 1)), R[2]); }
   });
 }
 
-// A swept ring: a bright leading edge, its colour behind, a broken trail.
+// A swept ring, painted in strokes: a band at its leading (outer) edge,
+// white-hot outside and its colour within, thicker at the front, broken by
+// gaps; a loose trail of its colour inside it.
 function cfxSweepPic(rx, col, aspect) {
-  const ry = Math.max(1, Math.round(rx * aspect));
-  return cfxPic(`s${rx} ${col} ${aspect}`, rx * 2 + 5, ry * 2 + 5, (set) => {
-    const lite = mix(col, '#ffffff', 0.4), dark = mix(col, '#000000', 0.4);
-    if (rx > 4) for (const [x, y, a] of cfxEllipse(rx - 2, Math.max(1, ry - 2))) if (Math.floor((a + Math.PI) * rx * 0.25) % 3) set(x, y, dark);
-    if (rx > 1) for (const [x, y] of cfxEllipse(rx - 1, Math.max(1, ry - 1))) set(x, y, col);
-    for (const [x, y] of cfxEllipse(rx, ry)) set(x, y, lite);
-  });
-}
-
-// A thin ring of a colour, in dots (over everyone, where dots are queued
-// and cheap), three quarters as tall as it's wide.
-function cfxRingDots(cx, cy, rx, col, alpha) {
-  for (const [x, y] of cfxEllipse(rx, Math.max(1, Math.round(rx * 0.75)))) dot(cx + x, cy + y, col, true, alpha);
+  const ry = Math.max(1, Math.round(rx * aspect)), th = clamp(Math.round(rx * 0.09), 2, 4);
+  return cfxStrokePic(`s${rx} ${col} ${aspect}`, rx * 2 + 9, ry * 2 + 9, cfxRamp(col), (x, y) => {
+    const e = Math.hypot(x / rx, y / ry), d = (1 - e) * rx, T = th * (1 + 0.5 * Math.max(0, y / ry));
+    if (d < -0.6 || d > T + rx * 0.22) return -1;
+    const cell = Math.floor(((Math.atan2(y / ry, x / rx) + Math.PI) * rx) / 6);
+    if (artHash(cell, rx, 91) < 0.13) return -1;
+    if (d <= T) return 1 - (Math.max(0, d) / T) * 0.72;
+    return artHash(cell, Math.floor(d / 2), 92) < 0.16 ? 0.2 : -1;
+  }, rx * 7 + 3);
 }
 
 // A mark left on the ground, by element: a scorch with embers in it, a star
@@ -511,7 +663,9 @@ function cfxDecalPic(kind, big, v) {
   }
   const nb = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([i, j]) => cells.has(x + i + ',' + (y + j))).length;
   const W = 24, H = 14, glows = [];
-  const tones = {
+  // (a death's splash, in the colour after 'splat:')
+  const sc = kind.startsWith('splat:') ? kind.slice(6) : null;
+  const tones = sc ? [mix(sc, '#0a0806', 0.7), mix(sc, '#0a0806', 0.4)] : {
     ember: ['#140c08', '#2a1a10'], shock: ['#141418', '#262a34'], blight: ['#26341a', '#3e5422'],
     frost: ['#e8f8ff', '#9cc8e0'], arcane: ['#18142a', '#2a2444'], spark: ['#1a1a22', '#2a2a36'],
   }[kind] || ['#18142a', '#2a2444'];
@@ -526,6 +680,11 @@ function cfxDecalPic(kind, big, v) {
       return;
     }
     for (const [x, y] of list) set(x, y, nb(x, y) >= 3 ? tones[0] : tones[1], 0.85);
+    if (sc) {
+      // flecks thrown round it, a short stroke each
+      for (let k = 0; k < (big ? 7 : 4); k++) { const fx = Math.round((Math.random() * 2 - 1) * (big ? 10 : 7)), fy = Math.round((Math.random() * 2 - 1) * (big ? 4 : 3)); set(fx, fy, tones[1], 0.8); set(fx + 1, fy, tones[1], 0.6); }
+      return;
+    }
     const lit = { ember: [ELEMENT_COLS.ember, '#ffd070'], shock: [ELEMENT_COLS.shock], blight: [ELEMENT_COLS.blight], arcane: [ART.forms.bolt], spark: ['#e8f4ff'] }[kind] || [ART.forms.bolt];
     const inner = list.filter(([x, y]) => nb(x, y) >= 3);
     for (let k = 0; k < (big ? 4 : 2); k++) { const [x, y] = inner[(Math.random() * inner.length) | 0] || [0, 0]; glows.push([x, y, lit[k % lit.length]]); }
@@ -567,6 +726,18 @@ function drawCastGround(d, ox, oy, tick, lights) {
     c.globalAlpha = e.globalAlpha = 1;
   }
   const fx = Math.round(p.x * AP) + ox, fy = Math.round(p.y * AP) + oy;
+  // the casts' light on the ground: loose strokes of its colour under each
+  // flare (on the ground under it: at the feet for one at the fist)
+  for (const l of CFX.flares) {
+    const k = l.t / l.max, a = cfxBand(k) * Math.min(1, 0.45 + l.i * 0.5);
+    if (a <= 0) continue;
+    const r = Math.max(8, Math.round((l.r * AP * T.paint.fx.lightR * (0.6 + 0.4 * k)) / 4) * 4), pic = cfxLightPic(r, l.col, l.v);
+    const x = l.f ? fx + Math.round(l.x * AP) : Math.round(l.x * AP) + ox, y = l.f ? fy + 2 : Math.round((l.y + 6) * AP) + oy;
+    if (x < -r - 8 || y < -r || x > View.w + r + 8 || y > View.h + r) continue;
+    c.globalAlpha = a * T.paint.fx.lightA;
+    c.drawImage(pic.c, x - pic.cx, y - pic.cy);
+    c.globalAlpha = 1;
+  }
   for (const r of CFX.rings) {
     if (r.kind !== 'glyph' && !(r.kind === 'sweep' && !r.air)) continue;
     const k = r.t / r.max, u = 1 - k, x = r.f ? fx + Math.round(r.x * AP) : Math.round(r.x * AP) + ox, y = r.f ? fy + Math.round(r.y * AP) : Math.round(r.y * AP) + oy;
@@ -625,22 +796,27 @@ function drawCastAir(d, ox, oy, tick, lights) {
         dot(x, y, q.col, true, s < 0 ? a * 0.5 : a);
         break;
       }
-      case CFX_STREAK: {
-        const x = vx(q.x), y = vy(q.y), sp = Math.hypot(q.vx, q.vy) || 1;
-        dot(x, y, q.col, true, a);
-        if (sp > 20) dot(Math.round(x - (q.vx / sp) * 1.5), Math.round(y - (q.vy / sp) * 1.5), q.col2, true, a * 0.5);
+      case CFX_STREAK: case CFX_SPARK: {
+        // a short streak back along its way: a hot head, its colour behind
+        const x = vx(q.x), y = vy(q.y), sp = Math.hypot(q.vx, q.vy) || 1, ux = q.vx / sp, uy = q.vy / sp;
+        dot(x, y, q.col, !q.dark, a);
+        if (sp > 20) {
+          dot(Math.round(x - ux * 1.5), Math.round(y - uy * 1.5), q.col2, !q.dark, a * 0.75);
+          if (sp > 55 && k > 0.4) dot(Math.round(x - ux * 3), Math.round(y - uy * 3), cfxRamp(q.col2)[1], !q.dark, a * 0.5);
+        }
         break;
       }
-      case CFX_CINDER: dot(vx(q.x), vy(q.y), (tick + q.id) % 3 ? q.col2 : q.col, true, a); break;
+      case CFX_CINDER: { const x = vx(q.x), y = vy(q.y); dot(x, y, (tick + q.id) % 3 ? q.col2 : q.col, true, a); if (k > 0.5) dot(x, y + 1, cfxRamp(q.col2)[1], true, a * 0.6); break; }
       case CFX_SMOKE: {
-        // a soft puff two px across, not glowing
-        const x = vx(q.x), y = vy(q.y), sa = 0.55 * a;
-        dot(x, y, q.col, false, sa); dot(x + 1, y, q.col2, false, sa); dot(x, y - 1, q.col2, false, sa * 0.8);
-        if (k < 0.6) dot(x + 1, y - 1, q.col, false, sa * 0.7);
+        // a soft puff, a short stroke and a top, not glowing
+        const x = vx(q.x), y = vy(q.y), sa = 0.6 * a, w = k < 0.6 ? 3 : 2;
+        for (let i = 0; i < w; i++) dot(x + i, y, i ? q.col2 : q.col, false, sa);
+        dot(x + 1, y - 1, q.col2, false, sa * 0.8);
+        if (k < 0.6) dot(x + 2, y - 1, q.col, false, sa * 0.6);
         break;
       }
-      case CFX_ICE: dot(vx(q.x), vy(q.y), (tick + q.id) % 4 === 0 ? q.col : q.col2, true, a); break;
-      case CFX_DUST: { const x = vx(q.x), y = vy(q.y); dot(x, y, q.col, false, a * 0.8); dot(x + 1, y, q.col, false, a * 0.6); break; }
+      case CFX_ICE: { const x = vx(q.x), y = vy(q.y), lit = (tick + q.id) % 4 === 0; dot(x, y, lit ? q.col : q.col2, true, a); if (lit) dot(x, y - 1, cfxRamp(q.col2)[2], true, a * 0.6); break; }
+      case CFX_DUST: { const x = vx(q.x), y = vy(q.y); dot(x, y, q.col, false, a * 0.8); dot(x + 1, y, q.col, false, a * 0.6); if (k > 0.5) dot(x + 2, y, q.col, false, a * 0.4); break; }
       case CFX_CONV: {
         const x = vx(q.x), y = vy(q.y), at = CFX.focusAt[q.slot];
         dot(x, y, q.col, true, a > 0.5 ? 1 : 0.75);
@@ -648,24 +824,42 @@ function drawCastAir(d, ox, oy, tick, lights) {
         if (at) { const tx = q.x - px - at.x, ty = q.y - py - at.y, m = Math.hypot(tx, ty) || 1; if (m > 3) dot(Math.round(x + (tx / m) * 1.5), Math.round(y + (ty / m) * 1.5), q.col2, true, 0.5); }
         break;
       }
-      case CFX_DRIP: dot(vx(q.x), vy(q.y), k > 0.5 ? q.col : q.col2, true, a); break;
-      case CFX_SPARK: dot(vx(q.x), vy(q.y), q.col, !q.dark, a); break;
+      case CFX_GOB: {
+        // a gob of a splash: a short stroke, its underside darker
+        const x = vx(q.x), y = vy(q.y);
+        dot(x, y, q.col, !q.dark, a); dot(x + 1, y, q.col, !q.dark, a); dot(x, y + 1, q.col2, false, a * 0.8);
+        if (k > 0.5) dot(x - 1, y, q.col2, !q.dark, a * 0.7);
+        break;
+      }
+      case CFX_DRIP: { const x = vx(q.x), y = vy(q.y); dot(x, y, k > 0.5 ? q.col : q.col2, true, a); dot(x, y - 1, q.col2, true, a * 0.5); break; }
       default: dot(vx(q.x), vy(q.y), q.col, true, a * 0.75);
     }
   }
   const fx = vx(px), fy = vy(py);
   for (const r of CFX.rings) {
     const k = r.t / r.max, u = 1 - k, x = r.f ? fx + Math.round(r.x * AP) : vx(r.x), y = r.f ? fy + Math.round(r.y * AP) : vy(r.y);
-    if (r.kind === 'flash') cfxDrawFlash(x, y, r.a, r.col, k, r.big);
+    if (r.kind === 'flash') cfxDrawFlash(x, y, r.a, r.col, k, r.big, cfxSeed(r));
     else if (r.kind === 'crescent') cfxDrawCrescent(r, x, y, u, lights);
     else if (r.kind === 'sweep' && r.air) {
-      const rx = Math.round(lerp(r.r0, r.r1, u) * AP), a = cfxBand(Math.min(1, k * 1.6));
-      cfxRingDots(x, y, rx, mix(r.col, '#ffffff', 0.4), a); cfxRingDots(x, y, rx - 1, r.col, a);
+      // a ward drawing in round the body: a thick ring of strokes, hot
+      const rx = Math.round(lerp(r.r0, r.r1, u) * AP);
+      cfxStrokeRing(x, y, rx, Math.round(rx * 0.75), cfxRamp(r.col), cfxBand(Math.min(1, k * 1.6)), cfxSeed(r), true, 0.12 + u * 0.3);
     } else if (r.kind === 'burst') {
-      const rx = Math.round(lerp(r.r0, r.r1, u) * (r.pillar ? AP : 1));
-      cfxRingDots(x, y, Math.max(1, rx), k > 0.5 ? '#ffffff' : r.col, cfxBand(k));
+      const rx = Math.max(2, Math.round(lerp(r.r0, r.r1, u) * (r.pillar ? AP : 1.2))), R = cfxRamp(r.col), sd = cfxSeed(r), a = cfxBand(k);
+      // streaks thrown out from a hot heart, and a broken ring at their tips
+      cfxRays(x, y, rx * 0.35, rx, r.pillar ? 6 : 8, R, a, sd);
+      if (k > 0.5) for (const [i, j] of [[0, 0], [1, 0], [0, -1], [-1, 0]]) dot(x + i, y + j, R[4], true, a);
+      if (u > 0.3) cfxStrokeRing(x, y, rx, Math.round(rx * 0.75), R, a * 0.75, sd, false, 0.35);
       // a blink's ends: a pillar of light up and down from the middle
-      if (r.pillar) { const L = Math.round(ap(14) * k); for (let j = -L; j <= L; j++) dot(x, y + j, Math.abs(j) < 3 ? '#ffffff' : r.col, true, cfxBand(k * (1 - Math.abs(j) / (L + 1)))); }
+      if (r.pillar) {
+        const L = Math.round(ap(14) * k);
+        for (let j = -L; j <= L; j++) {
+          const e = Math.abs(j) / (L + 1), al = cfxBand(k * (1 - e)), h = artHash(j, 1, sd);
+          dot(x, y + j, R[e < 0.25 ? 4 : 3], true, al);
+          if (h < 0.7 - e) dot(x + 1, y + j, R[2], true, al * 0.8);
+          if (h > 0.85) dot(x - 1 - (h > 0.93 ? 1 : 0), y + j, R[2], true, al * 0.6);
+        }
+      }
     }
   }
   for (const l of CFX.flares) {
@@ -675,27 +869,38 @@ function drawCastAir(d, ox, oy, tick, lights) {
   cfxDayLights(lights);
 }
 
-// The flash at the fist: a white heart, rays out along the aim and across
-// it, shrinking a step at a time; a big one (charged, a gauntlet's punch)
-// has longer rays and a ring.
-function cfxDrawFlash(x, y, a, col, k, big) {
-  const s = (k > 0.66 ? 3 : k > 0.33 ? 2 : 1) + (big ? 1 : 0), ca = Math.cos(a), sa = Math.sin(a);
-  for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(x + i - (ca < 0 ? 1 : 0), y + j - 1, '#ffffff', true);
-  for (let i = 1; i <= s + 1; i++) dot(Math.round(x + ca * (i + 1)), Math.round(y + sa * (i + 1)), i <= 1 ? '#ffffff' : col, true);
-  for (let i = 1; i < s; i++) {
-    dot(Math.round(x - sa * (i + 1)), Math.round(y + ca * (i + 1)), col, true, 0.75);
-    dot(Math.round(x + sa * (i + 1)), Math.round(y - ca * (i + 1)), col, true, 0.75);
+// The flash at the fist: a white-hot heart, rays out along the aim and
+// across it, hot nearest, shrinking a step at a time, with loose pixels
+// round it; a big one (charged, a gauntlet's punch) has longer rays and a
+// ring of strokes.
+function cfxDrawFlash(x, y, a, col, k, big, sd) {
+  const R = cfxRamp(col), s = (k > 0.66 ? 3 : k > 0.33 ? 2 : 1) + (big ? 1 : 0), ca = Math.cos(a), sa = Math.sin(a);
+  for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(x + i - (ca < 0 ? 1 : 0), y + j - 1, R[4], true);
+  for (let i = 1; i <= s + 1; i++) {
+    const tx = Math.round(x + ca * (i + 1)), ty = Math.round(y + sa * (i + 1)), ti = i <= 1 ? 4 : i <= s ? 3 : 2;
+    dot(tx, ty, R[ti], true);
+    if (i <= s - 1) dot(Math.round(tx - sa), Math.round(ty + ca), R[ti - 1], true, 0.75);
   }
-  if (big || k < 0.66) ringDots(x, y, (1 - k) * (big ? 7 : 4) + 2, col, cfxBand(k), true);
+  for (let i = 1; i < s; i++) {
+    dot(Math.round(x - sa * (i + 1)), Math.round(y + ca * (i + 1)), R[i < 2 ? 3 : 2], true, 0.75);
+    dot(Math.round(x + sa * (i + 1)), Math.round(y - ca * (i + 1)), R[i < 2 ? 3 : 2], true, 0.75);
+  }
+  // loose pixels thrown off round it
+  for (let n = 0; n < (big ? 7 : 4); n++) {
+    const h = artHash(n, Math.floor(k * 6), sd), b = a + (h - 0.5) * 2.4, r = 2 + s + artHash(n, 9, sd) * 3;
+    dot(Math.round(x + Math.cos(b) * r), Math.round(y + Math.sin(b) * r * 0.75), R[h < 0.5 ? 2 : 3], true, cfxBand(k));
+  }
+  if (big || k < 0.66) { const rr = Math.round((1 - k) * (big ? 7 : 4) + 2); cfxStrokeRing(x, y, rr, Math.max(1, Math.round(rr * 0.75)), R, cfxBand(k), sd, false, 0.3); }
 }
 
-// A bolt in flight: out of the fist, its head flickering and turning, a
-// trail of dots behind, by kind (spark wobbles; a charged bolt is a turning
-// star; a frost lance a shard with a glint running down it), and its light.
+// A bolt in flight: out of the fist, its head a hot blob, a tapering
+// streak behind it with loose pixels off it, by kind (spark wobbles; a
+// charged bolt is a turning star; a frost lance a shard with a glint running
+// down it), and its light.
 function drawCastBolt(b, ox, oy, tick, lights) {
   const c = b.cfx, age = c ? Game.realT - c.born : 1, o = c ? Math.max(0, 1 - age / T.castFx.bolt.originT) : 0;
   const bx = b.x + (c ? c.ox * o : 0), by = b.y + (c ? c.oy * o : 0), sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
-  const el = b.element, col = cfxBoltCol(b), look = CFX_BOLT_LOOK[b.kind];
+  const el = b.element, col = cfxBoltCol(b), look = CFX_BOLT_LOOK[b.kind], R = cfxRamp(col), sd = c ? cfxSeed(c) : 1;
   // a spark wobbles across its path
   const wob = look === 'wobble' ? Math.round(Math.sin(age * 45) * 1.2) : 0;
   const x = Math.round(bx * AP) + ox - Math.round(uy * wob), y = Math.round(by * AP) + oy + Math.round(ux * wob);
@@ -703,49 +908,55 @@ function drawCastBolt(b, ox, oy, tick, lights) {
   if (look === 'lance') {
     // (a Shatterglass shard is a short one)
     const n = ap(b.kind === 'shard' ? 3 : 6), glint = Math.floor(Game.realT * 30) % (n + 3);
-    for (let k = 0; k < n; k++) dot(Math.round(x - ux * k), Math.round(y - uy * k), k === glint || k < ap(2) ? '#ffffff' : col, true, 1 - (k / AP) * 0.12);
-    // its sides, a pixel either way at the middle: a shard, not a line
-    for (const s of [-1, 1]) dot(Math.round(x - ux * ap(2) - uy * s), Math.round(y - uy * ap(2) + ux * s), mix(col, '#5a8aa8', 0.4), true, 0.75);
+    for (let k = 0; k < n; k++) dot(Math.round(x - ux * k), Math.round(y - uy * k), R[k === glint || k < ap(2) ? 4 : k < n * 0.6 ? 3 : 2], true, 1 - (k / AP) * 0.1);
+    // its sides, a pixel either way along its middle: a shard, not a line
+    for (let k = 1; k < n - 1; k++) if (k < n * 0.7) for (const s of [-1, 1]) dot(Math.round(x - ux * k - uy * s), Math.round(y - uy * k + ux * s), R[s < 0 ? 2 : 1], true, k === 1 ? 0.5 : 0.8);
+    // a few loose glints left behind it
+    for (let k = 0; k < 3; k++) { const h = artHash(k, tick, sd), L = n + 2 + Math.round(h * 6); dot(Math.round(x - ux * L + (h - 0.5) * 3), Math.round(y - uy * L), R[2], true, 0.6); }
     cfxLight(lights, x, y, TILE, 0.6, rgb01(col));
     return;
   }
-  // the trail: dots behind, dimmer and darker with each
-  const n = T.castFx.bolt.trail + (b.big ? 4 : 0), dark = mix(col, '#000000', 0.35);
+  // the streak: thick and hot behind the head, thinning, deepening, broken
+  const n = T.castFx.bolt.trail * 2 + (b.big ? 6 : 0);
   for (let k = 1; k <= n; k++) {
-    const tx = Math.round(x - ux * k * 2), ty = Math.round(y - uy * k * 2), a = cfxBand(1 - k / (n + 1));
-    dot(tx, ty, k < 3 ? col : dark, true, a);
-    if (b.big && k < 4) { dot(Math.round(tx - uy), Math.round(ty + ux), dark, true, a * 0.75); dot(Math.round(tx + uy), Math.round(ty - ux), dark, true, a * 0.75); }
+    const tx = Math.round(x - ux * k), ty = Math.round(y - uy * k), f = k / (n + 1), a = cfxBand(1 - f * 0.9), h = artHash(k, tick >> 1, sd);
+    if (f > 0.5 && h < (f - 0.5) * 1.2) continue;
+    const ti = k < 2 ? 4 : k < 4 ? 3 : f < 0.65 ? 2 : 1;
+    dot(tx, ty, R[ti], ti > 1, a);
+    if (f < (b.big ? 0.55 : 0.3)) for (const s of [-1, 1]) dot(Math.round(tx - uy * s), Math.round(ty + ux * s), R[Math.max(1, ti - 1)], true, a * 0.8);
+    if (h > 0.86) dot(Math.round(tx + uy * (h > 0.93 ? 2 : -2)), Math.round(ty - ux * (h > 0.93 ? 2 : -2)), R[2], true, a * 0.7);
   }
   if (b.big) {
-    // a star that turns: a plus, then a cross
+    // a star that turns: a plus, then a cross, round a hot heart
     const plus = (tick >> 1) % 2 === 0, pts = plus ? [[0, -1], [-1, 0], [1, 0], [0, 1], [2, 0], [-2, 0], [0, 2], [0, -2]] : [[-1, -1], [1, 1], [1, -1], [-1, 1], [2, 2], [-2, -2], [2, -2], [-2, 2]];
-    for (const [i, j] of pts) dot(x + i, y + j, Math.abs(i) + Math.abs(j) > 2 ? dark : col, true);
-    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1]]) dot(x + i, y + j, i || j ? col : '#ffffff', true);
+    for (const [i, j] of pts) dot(x + i, y + j, R[Math.abs(i) + Math.abs(j) > 2 ? 2 : 3], true);
+    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1]]) dot(x + i, y + j, R[i || j ? 3 : 4], true);
   } else {
-    // a small star whose white point goes round it
+    // a hot blob, its lit point going round it
     const w = tick % 4;
-    [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([i, j], q) => dot(x + i, y + j, q === w ? '#ffffff' : col, true));
-    dot(x, y, '#ffffff', true);
+    [[1, 0], [0, 1], [-1, 0], [0, -1]].forEach(([i, j], q) => dot(x + i, y + j, R[q === w ? 4 : 3], true));
+    dot(x, y, R[4], true);
   }
   // shock crackles about its head
-  if (el === 'shock') for (let k = 0; k < 2; k++) dot(x + FX_R.i(-3, 3), y + FX_R.i(-3, 3), k ? '#ffffff' : col, true);
+  if (el === 'shock') for (let k = 0; k < 2; k++) { const i = FX_R.i(-3, 3), j = FX_R.i(-3, 3); dot(x + i, y + j, R[k ? 4 : 3], true); dot(x + i + Math.sign(i), y + j, R[2], true, 0.7); }
   cfxLight(lights, x, y, TILE * (b.big ? 1.4 : 1), 0.6 + (tick % 2) * 0.15, rgb01(col));
 }
 
-// A chain's arc: a jagged white line with the colour round it and a fork,
-// jumping anew each frame; its ends flash.
+// A chain's arc: a jagged white-hot line with its colour round it and a
+// fork, jumping anew each frame; its ends flash.
 function drawCastArc(fx, ox, oy, lights) {
   const k = fx.t / fx.max, x0 = Math.round(fx.x * AP) + ox, y0 = Math.round(fx.y * AP) + oy, x1 = Math.round(fx.x2 * AP) + ox, y1 = Math.round(fx.y2 * AP) + oy;
-  const n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / 8)), col = fx.col || ELEMENT_COLS.shock, a = cfxBand(k);
+  const n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / 8)), col = fx.col || ELEMENT_COLS.shock, R = cfxRamp(col), a = cfxBand(k);
   let px = x0, py = y0;
   for (let s = 1; s <= n; s++) {
     const tx = Math.round(x0 + ((x1 - x0) * s) / n + (s < n ? FX_R.i(-3, 3) : 0)), ty = Math.round(y0 + ((y1 - y0) * s) / n + (s < n ? FX_R.i(-3, 3) : 0));
-    cfxLine(px, py, tx, ty, k > 0.5 ? '#ffffff' : col, a);
-    cfxLine(px, py + 1, tx, ty + 1, col, a * 0.5);
-    if (s === (n >> 1) && k > 0.4) cfxLine(tx, ty, tx + FX_R.i(-6, 6), ty + FX_R.i(-6, 6), col, a * 0.75);
+    cfxLine(px, py, tx, ty, R[k > 0.5 ? 4 : 3], a);
+    cfxLine(px, py + 1, tx, ty + 1, R[2], a * 0.6);
+    cfxLine(px + 1, py, tx + 1, ty, R[1], a * 0.4);
+    if (s === (n >> 1) && k > 0.4) cfxLine(tx, ty, tx + FX_R.i(-6, 6), ty + FX_R.i(-6, 6), R[2], a * 0.75);
     px = tx; py = ty;
   }
-  for (const [x, y] of [[x0, y0], [x1, y1]]) for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) dot(x + i, y + j, i || j ? col : '#ffffff', true, a);
+  for (const [x, y] of [[x0, y0], [x1, y1]]) for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) dot(x + i, y + j, R[i || j ? 3 : 4], true, a);
   cfxLight(lights, (x0 + x1) >> 1, (y0 + y1) >> 1, TILE * 1.4, 0.8 * k, rgb01(col));
 }
 
@@ -755,57 +966,53 @@ function cfxLine(x0, y0, x1, y1, col, alpha) {
 }
 
 // An Arc's crescent (art px x, y: where it was cast from; u: how far through
-// its life): the leading edge sweeps across the aim's arc in the first part
-// of its life, white at its head, the element's colour behind and a darker
-// rim inside, then fades in steps. Heavy: twice as thick.
+// its life): a thick crescent of light whose head sweeps across the aim's
+// arc in the first part of its life, white-hot along its outer edge and at
+// its head, its colour within and deep at its back edge, motes drifting
+// out from inside it; then it breaks up and fades in steps. Heavy: thicker.
 function cfxDrawCrescent(r, x, y, u, lights) {
   const lead = Math.min(1, u / 0.55), fade = u < 0.55 ? 1 : cfxBand((1 - u) / 0.45);
   if (fade <= 0) return;
-  const R = Math.round(r.r * AP * 0.95), th = r.heavy ? 4 : 2, cy = y - Math.round(6 * AP), a0 = r.a - r.side * r.half, span = 2 * r.half * r.side;
-  const tail = Math.max(0, lead - (r.heavy ? 1 : 0.8)), steps = Math.max(8, Math.round(Math.abs(span) * R * (lead - tail)));
-  const lite = mix(r.col, '#ffffff', 0.45), dark = mix(r.col, '#000000', 0.35);
-  for (let i = 0; i <= steps; i++) {
-    const k = tail + ((lead - tail) * i) / steps, b = a0 + span * k, head = lead < 1 && i > steps * 0.85, age = cfxBand((i / steps) * 1.2);
-    const c = Math.cos(b), sn = Math.sin(b);
-    for (let j = 0; j <= th; j++) {
-      const rr = R - j, col = head ? '#ffffff' : j === 0 ? lite : j === th ? dark : r.col;
-      dot(Math.round(x + c * rr), Math.round(cy + sn * rr * 0.75), col, j < th, Math.min(1, age + 0.25) * fade);
-    }
+  const R = Math.round(r.r * AP * 0.95), cy = y - Math.round(6 * AP), a0 = r.a - r.side * r.half, span = 2 * r.half * r.side, sd = cfxSeed(r), ramp = cfxRamp(r.col);
+  const tail = Math.max(0, lead - (r.heavy ? 1 : 0.85)), th = r.heavy ? T.paint.fx.arc[1] : T.paint.fx.arc[0];
+  cfxPaintArc(x, cy, R, a0 + span * tail, a0 + span * lead, th, ramp, fade, sd, u < 0.55 ? 0 : 1 - fade + 0.15, lead < 1);
+  // motes drifting out from inside it
+  for (let n = 0; n < (r.heavy ? 18 : 12); n++) {
+    const t = tail + (lead - tail) * artHash(n, 1, sd), b = a0 + span * t, rr = R - 2 - artHash(n, 2, sd) * R * 0.55 + u * 6;
+    dot(Math.round(x + Math.cos(b) * rr), Math.round(cy + Math.sin(b) * rr * 0.75), ramp[1 + Math.floor(artHash(n, 3, sd) * 3.99)], true, fade * (n % 3 ? 1 : 0.6));
   }
   const b = a0 + span * lead;
   cfxLight(lights, Math.round(x + Math.cos(b) * R), Math.round(cy + Math.sin(b) * R * 0.75), TILE * (r.heavy ? 1.5 : 1.1), 0.8 * fade, rgb01(r.col));
 }
 
-// An orb in flight: a ball with a white heart in its colour, a darker rim,
-// motes turning round it, and a ring when it pulses.
+// An orb in flight: a ball shaded from the upper left in its colour's
+// strokes, a white-hot glint, motes turning round it, and a ring of
+// strokes when it pulses.
 function cfxDrawOrb(b, x, y, tick, col, lights) {
-  const dark = mix(col, '#000000', 0.4), R = 3;
-  for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
+  const R = cfxRamp(col), r = 3, sd = b.cfx ? cfxSeed(b.cfx) : 1;
+  for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
     const e = i * i + j * j;
-    if (e > R * R + 1) continue;
-    dot(x + i, y + j, e <= 2 && i <= 0 && j <= 0 ? '#ffffff' : e >= R * R - 1 ? dark : col, true);
+    if (e > r * r + 1) continue;
+    const u = i / (r + 0.5), v = j / (r + 0.5), nz = Math.sqrt(Math.max(0, 1 - u * u - v * v)), s = (u * 0.55 + v * 0.8) * -0.8 + nz * 0.5 - 0.05;
+    const ti = clamp(Math.round(1 + s * 3.2 + (artHash(i + 9, j, (tick >> 1) + sd) - 0.5) * 0.9), 1, 4);
+    dot(x + i, y + j, R[ti], true);
   }
-  for (let k = 0; k < 3; k++) { const a = Game.realT * 5 + (k * Math.PI * 2) / 3; dot(Math.round(x + Math.cos(a) * ap(4)), Math.round(y + Math.sin(a) * ap(3)), k ? col : '#ffffff', true, 0.75); }
+  dot(x - 1, y - 1, R[4], true); dot(x - 2, y - 1, R[4], true, 0.75);
+  for (let k = 0; k < 4; k++) { const a = Game.realT * 5 + (k * Math.PI * 2) / 4, rr = ap(4) + (k % 2); dot(Math.round(x + Math.cos(a) * rr), Math.round(y + Math.sin(a) * rr * 0.75), R[k ? 2 : 4], true, 0.75); }
   const since = Game.realT - (b.orb ? b.orb.pulse : -1);
-  if (since >= 0 && since < 0.2) { const k = since / 0.2; cfxRingDots(x, y + Math.round(6 * AP * 0.5), Math.max(2, Math.round(b.orb.r * AP * k)), k < 0.5 ? '#ffffff' : col, cfxBand(1 - k)); }
+  if (since >= 0 && since < 0.2) { const k = since / 0.2, rx = Math.max(2, Math.round(b.orb.r * AP * k)); cfxStrokeRing(x, y + Math.round(6 * AP * 0.5), rx, Math.round(rx * 0.75), R, cfxBand(1 - k), sd, true, 0.2); }
   cfxLight(lights, x, y, TILE * 1.3, 0.7 + (since < 0.15 ? 0.4 : 0), rgb01(col));
 }
 
 // A Glaive's blades (art px ox, oy: the floor's offset on the view): each
-// a short crescent on the ring it turns round, its head white, a trail of
-// dots behind it, all in its colour.
+// a short thick crescent on the ring it turns round, its head white-hot,
+// tapering behind it, in its colour.
 function drawCastGlaive(au, ox, oy, tick, lights) {
-  const cx = Math.round(au.x * AP) + ox, cy = Math.round((au.y - 6) * AP) + oy, R = au.r * AP, fade = Math.min(1, au.t / 0.3);
-  const dark = mix(au.col, '#000000', 0.35), lite = mix(au.col, '#ffffff', 0.5), seg = Math.round(R * 0.55);
+  const cx = Math.round(au.x * AP) + ox, cy = Math.round((au.y - 6) * AP) + oy, R = Math.round(au.r * AP), fade = Math.min(1, au.t / 0.3);
+  const ramp = cfxRamp(au.col), seg = R * 0.6, sd = cfxSeed(au), dir = Math.sign(au.spin) || 1;
   for (let n = 0; n < au.n; n++) {
-    const a = au.a + (n / au.n) * Math.PI * 2, dir = Math.sign(au.spin) || 1;
-    for (let i = 0; i <= seg; i++) {
-      const b = a - (dir * i) / R, k = i / seg, c = Math.cos(b), s = Math.sin(b);
-      for (const [rr, col] of [[R + 1, i < 2 ? '#ffffff' : lite], [R, i < 3 ? '#ffffff' : au.col], [R - 1, dark]]) {
-        if (rr === R - 1 && i > seg * 0.6) continue;
-        dot(Math.round(cx + c * rr), Math.round(cy + s * rr * 0.75), col, true, cfxBand(1 - k * 0.8) * fade);
-      }
-    }
+    const a = au.a + (n / au.n) * Math.PI * 2;
+    cfxPaintArc(cx, cy, R, a - (dir * seg) / R, a, 3.2, ramp, cfxBand(fade), sd + n * 31 + (tick & 1), fade < 1 ? 1 - fade : 0, true);
   }
   cfxLight(lights, cx, cy, au.r * 1.1, 0.45 * fade, rgb01(au.col));
 }

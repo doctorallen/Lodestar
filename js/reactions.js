@@ -294,7 +294,10 @@ function drawEnemyStatus(d, e, spr, sx, sy, fx, fy, tick, lights) {
 function drawReactFx(fx, cx, cy, k, tick, lights) {
   const u = 1 - k;
   if (fx.kind === 'iceBurst') {
-    for (let n = 0; n < 14; n++) { const a = n * 0.449 + 0.2, r = (2 + u * fx.r) * AP; dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.7), n % 3 ? '#c8f0ff' : '#ffffff', true, cfxBand(k)); }
+    // shards of ice thrown out, and a broken ring at their tips
+    const r = Math.round((2 + u * fx.r) * AP), R = cfxRamp(ELEMENT_COLS.frost);
+    cfxRays(cx, cy, r * 0.45, r, 12, R, cfxBand(k), cfxSeed(fx));
+    cfxStrokeRing(cx, cy, r, Math.round(r * 0.7), R, cfxBand(k) * 0.8, cfxSeed(fx), false, 0.35);
     cfxLight(lights, cx, cy, fx.r * 1.2, 0.9 * k, rgb01(ELEMENT_COLS.frost));
   } else if (fx.kind === 'steam') {
     // puffs that rise and thin out, in a few hard steps; their tops catch
@@ -308,15 +311,18 @@ function drawReactFx(fx, cx, cy, k, tick, lights) {
     }
     cfxLight(lights, cx, cy, fx.r, 0.35 * k, [0.85, 0.9, 0.95]);
   } else if (fx.kind === 'flare') {
-    const r = Math.max(2, Math.round((2 + u * fx.r) * AP));
-    ringDots(cx, cy, r, k > 0.5 ? '#ffffff' : '#fff2a0', cfxBand(k), true);
-    for (const [i, j] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let s = 1; s < Math.round(ap(5) * k) + 2; s++) dot(cx + i * s, cy + j * s, s < 3 ? '#ffffff' : '#fff2a0', true, cfxBand(k));
+    const r = Math.max(2, Math.round((2 + u * fx.r) * AP)), R = cfxRamp('#fff2a0');
+    cfxStrokeRing(cx, cy, r, Math.round(r * 0.75), R, cfxBand(k), cfxSeed(fx), true, 0.2);
+    for (const [i, j] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let s = 1; s < Math.round(ap(5) * k) + 2; s++) dot(cx + i * s, cy + j * s, R[s < 3 ? 4 : 3], true, cfxBand(k));
     cfxLight(lights, cx, cy, fx.r * 1.6, 1.4 * k, rgb01('#fff2a0'));
   } else if (fx.kind === 'overload') {
-    for (let n = 0; n < 10; n++) { const a = n * 0.628 + tick, r = (3 + u * 10) * AP; dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.7), n % 2 ? '#ffffff' : ELEMENT_COLS.shock, true, cfxBand(k)); }
+    const r = Math.round((3 + u * 10) * AP);
+    cfxRays(cx, cy, r * 0.4, r, 10, cfxRamp(ELEMENT_COLS.shock), cfxBand(k), cfxSeed(fx) + tick);
     cfxLight(lights, cx, cy, TILE * 1.6, 1.1 * k, rgb01(ELEMENT_COLS.shock));
   } else if (fx.kind === 'wardBreak') {
-    for (let n = 0; n < 12; n++) { const a = n * 0.524, r = (6 + u * 14) * AP; dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.75 + u * ap(4)), n % 2 ? '#ffffff' : ELEMENT_COLS.force, true, cfxBand(k)); }
+    // the ward's ring breaking apart and falling
+    const r = Math.round((6 + u * 14) * AP);
+    cfxStrokeRing(cx, cy + Math.round(u * ap(4)), r, Math.round(r * 0.75), cfxRamp(ELEMENT_COLS.force), cfxBand(k), cfxSeed(fx), false, 0.2 + u * 0.5);
     cfxLight(lights, cx, cy, TILE * 1.4, 0.9 * k, rgb01(ELEMENT_COLS.force));
   }
 }
