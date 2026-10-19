@@ -812,6 +812,16 @@ const T = {
     rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.45, topLo: 2.6, topHi: 6.6, faceBase: 0.2, faceUp: 0.6, faceWest: 0.25, faceLo: 4, faceHi: 8, jitter: 0.8, strata: 0.45, crease: 2.5, rim: 8, lip: 8, foot: 1 },
     slab: { w: 46, h: 19, wobble: 0.8, tone: 0.8, lip: 1.5, crack: 1, gate: 0.5 },
     occlude: true,
+    // Creatures (foespaint.js): a dark mass in short strokes, lit from the
+    // upper left. A letter grid's tone: base, plus its form's light (light
+    // and shade, how far a facing to or from the light moves it), less fall
+    // towards its feet and crease under another material, on a ramp of two
+    // deeper tones, its own four and a lighter one. run: [least, most] px a
+    // stroke; jitter: a stroke's tone, give or take; rim: the chance a lit
+    // top edge pixel catches the light (rimHi: the top tone); under: how
+    // dark its lowest edge goes. elite: how much of its lit rim takes its
+    // affix's colour.
+    foes: { base: 0.47, light: 0.9, shade: 0.8, depth: 3, fall: 0.16, crease: 0.14, run: [2, 4], jitter: 0.32, rim: 0.85, rimHi: 0.35, under: 1, elite: 0.7 },
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the

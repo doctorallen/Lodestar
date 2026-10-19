@@ -668,7 +668,8 @@ function renderFrame() {
   const d = Game.dive;
   if (!d) { View.emCtx.clearRect(0, 0, View.w, View.h); View.bloomCtx.clearRect(0, 0, View.w, View.h); return; }
   const f = d.floor, p = d.p, Lt = T.light, star = ART.pal.star;
-  if (View.floorFor !== f) paintFloor(f);
+  // (and the creatures it holds are painted now, not mid-fight)
+  if (View.floorFor !== f) { paintFloor(f); fpWarm(d); }
   // the camera, in art px
   const fw = f.w * ATILE, fh = f.h * ATILE, pxA = p.x * AP, pyA = p.y * AP;
   // (T.art.steadyCam: from the diver's whole art px, so he stands on the
@@ -908,9 +909,7 @@ function enemySprite(d, type) {
     if (!_enemySprites[key]) {
       const kit = floraKit(set), piece = kit.pieces.find((p) => p.name === kit.looks[type]) || kit.pieces[0], pal = Object.assign({}, kit.pal);
       for (const g of kit.glows) pal[g] = [g === 'glow2' ? mix(PLANT_GLOW, '#ffd0a0', 0.4) : PLANT_GLOW];
-      const spr = buildArtSprite(piece.frames[piece.frames.length - 1], pal, kit.letters, kit.glows, { openFoot: T.flora.melt.open });
-      spr.flash = tinted(spr.c, '#ffffff'); spr.ax = spr.w / 2; spr.ay = spr.h - footOff(1.5);
-      _enemySprites[key] = spr;
+      _enemySprites[key] = fpPlantSprite(piece.frames[piece.frames.length - 1], pal, kit.letters, kit.glows, type);
     }
     return _enemySprites[key];
   }
@@ -918,7 +917,7 @@ function enemySprite(d, type) {
   if (FOE_ROWS[type]) return foeSprite(type, FOE_ROWS[type].idle ? 'idle' : FOE_ROWS[type].still ? 'still' : 'rear');
   if (type === 'keeper') {
     const key = 'keeper/' + id;
-    if (!_enemySprites[key]) { const s = art2Sprite(KEEPER_ROWS[id], KEEPER_PAL[id], ART_CREATURE); s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - footOff(2); _enemySprites[key] = s; }
+    if (!_enemySprites[key]) _enemySprites[key] = fpKeeperSprite(id);
     return _enemySprites[key];
   }
   if (!_enemySprites[id]) {
@@ -927,9 +926,7 @@ function enemySprite(d, type) {
     for (const kind of ['snapjaw', 'spitter']) {
       const piece = FLORA[id].find((p) => p.name === PLANT_LOOKS[id][kind]) || FLORA[id][0];
       const pal = Object.assign({}, FLORA_PAL[id], { glow: [PLANT_GLOW], glow2: [mix(PLANT_GLOW, '#ffd0a0', 0.4)] });
-      const spr = buildArtSprite(piece.frames[piece.frames.length - 1], pal, FLORA_LETTERS, FLORA_GLOWS, { openFoot: T.flora.melt.open });
-      spr.flash = tinted(spr.c, '#ffffff'); spr.ax = spr.w / 2; spr.ay = spr.h - footOff(1.5);
-      out[kind] = spr;
+      out[kind] = fpPlantSprite(piece.frames[piece.frames.length - 1], pal, FLORA_LETTERS, FLORA_GLOWS, kind);
     }
   }
   return _enemySprites[id][type];
@@ -1123,7 +1120,8 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   const look = FOE_NAMES[e.type] ? foeLook(d, e) : null;
   if (look && look.hidden) { drawFoeHidden(d, e, ox, oy, tick, lights); return; }
   // (the fighting flora's feet melt into the ground as a plant's do)
-  const rooted = T.enemies[e.type].rooted, spr = look ? look.spr : rooted ? ugMelted(enemySprite(d, e.type)) : enemySprite(d, e.type), x = View.ctx;
+  // (a painted one's pose: foespaint.js)
+  const rooted = T.enemies[e.type].rooted, spr = look ? look.spr : rooted ? ugMelted(enemySprite(d, e.type)) : fpPose(enemySprite(d, e.type), e), x = View.ctx;
   let lift = 0;
   if (look) lift = look.lift;
   else if (e.type === 'wisp' || e.type === 'hollow') lift = 5 + Math.round(Math.sin(e.bob * 3) * 1.5);
@@ -1159,8 +1157,12 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
     for (let k = 0; k < 3; k++) { const a = Game.realT * 6 + (k * Math.PI * 2) / 3; dot(Math.round(fx + Math.cos(a) * 6 * AP), Math.round(sy - ap(2) + Math.sin(a) * 2 * AP), '#fff2c8', true); }
   // its statuses and its elite affix (natures.js, reactions.js)
   drawEnemyStatus(d, e, spr, sx, sy, fx, fy, tick, lights);
-  // an elite wears a pip of its affix's colour; a chilled one, a pale one
-  if (e.elite) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(fx + i - 1, sy - ap(3) + j - 1, eliteCol(e), true);
+  // an elite wears a pip of its affix's colour, and its lit rim glows in
+  // it (foespaint.js)
+  if (e.elite) {
+    for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(fx + i - 1, sy - ap(3) + j - 1, eliteCol(e), true);
+    View.emCtx.drawImage(fpEliteRim(spr, eliteCol(e)), sx, sy);
+  }
   // through a tear: violet and cyan motes drift off it
   if (e.riftTouched) for (let k = 0; k < 3; k++) { const ph = (Game.realT * 0.8 + k / 3) % 1; dot(Math.round(fx + Math.sin(k * 2.1 + Game.realT * 2) * 6 * AP), Math.round(fy - (4 + ph * 14) * AP), k % 2 ? RIFT_PAL.riftcyan[0] : RIFT_PAL.riftedge[0], true, 1 - ph); }
   // a raging Keeper burns

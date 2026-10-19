@@ -814,6 +814,8 @@ const ENEMY_PAL = {
 // Builds every enemy sprite for a biome, each with a white silhouette for
 // hit flashes. They move by bobbing, not by frames.
 function buildEnemySprites(biomeId) {
+  // painted (foespaint.js)
+  if (T.paint.foes) return fpEnemySprites(biomeId);
   const pal = ENEMY_PAL[biomeId], out = {};
   const mk = (rows, p, big) => buildArtSprite(rows, p, undefined, undefined, big ? { kind: 'creature', scale: 2 * AP } : ART_CREATURE);
   for (const type of Object.keys(ENEMY_ROWS)) out[type] = mk(ENEMY_ROWS[type], pal);
