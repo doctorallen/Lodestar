@@ -385,14 +385,16 @@ The designer approved moving the art from A+ to a painted style after Death Tras
   - amber circuits;
   - no outline.
   It has five facings, an idle and a four-step walk each, and a cast pose in each. From three-quarters front the far arm casts, as it's on the aim's side. Wick is a painted disc.
-- **Cost, at phone size with the CPU slowed 4×** (two runs each, the diver walking a circle):
+- **Cost, at phone size with the CPU slowed 4×** (three runs each, the diver walking a circle):
 
   | | Before | After, area painted | After, first walk |
   |---|---|---|---|
-  | Surface, median | 17.4 ms | 17.9 ms | about 20.5 ms |
-  | Deep, median | 16.3 ms | 17.9 ms | about 22 ms |
-  | Outpost, median | 15.3 ms | 15.8 ms | |
-  | Entering a territory | 1.7 s | 1.1 s | |
+  | Surface, median | 17.4 ms | 18.5 ms | about 21.3 ms |
+  | Surface, 95th percentile | 25.9 ms | 27.9 ms | |
+  | Deep, median | 16.3 ms | 17.7 ms | about 21.8 ms |
+  | Deep, 95th percentile | 24.0 ms | 21.2 ms | |
+  | Outpost, median | 15.3 ms | 15.9 ms | |
+  | Entering a territory | 1.7 s | 1.2 s | |
   | Mining a tile | 4.6 ms | 14 ms | |
 
   The first walk through new ground costs more while the chunks around it fill in.
