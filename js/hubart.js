@@ -498,10 +498,25 @@ function hartPerson(look, pose, frame) {
     // the scarf, the face and the hood; goggles with a teal glint
     const hx = ox + (sit ? -1 : 1), hy = (sit ? by - 30 : by - 34) + bob, f = sit ? -1 : 1;
     s.ell(ox + 0.5, cy - 5.5, 5.2, 2.4, L.scarf, { lo: 1, hi: 4 });
-    s.ell(hx + f, hy, 3.8, 4.2, K, { lo: 1, hi: 4 });
-    s.ell(hx - f * 1.2, hy - 0.8, 4.4, 4.8, L.hood, { lo: 1, hi: 4, bias: 0.05 });
-    s.px(hx + f * 2, hy, '#0a0c0e'); s.px(hx + f * 3, hy, HART.teal); s.px(hx + f * 1, hy, L.hood[0]);
-    s.px(hx + f * 4, hy + 2, K[3]);
+    // (the hood a dome lit along its upper left; the face looks out of its
+    // opening on the side he faces, the hood's shadow behind it, lit on the
+    // cheek; goggles a dark band with a bright glint, so the head reads as
+    // a hooded face at a glance and not as a blob)
+    const hcx = hx - f * 0.8, hcy = hy - 0.8, hrx = 4.6, hry = 5;
+    s.ell(hcx, hcy, hrx, hry, L.hood, { lo: 1, hi: 4, bias: 0.1 });
+    const inHood = (x, y) => ((x + 0.5 - hcx) / hrx) ** 2 + ((y + 0.5 - hcy) / hry) ** 2 <= 1;
+    const fcx = hx + f * 1.9, fcy = hy + 1;
+    for (let y = Math.floor(fcy - 3); y <= Math.ceil(fcy + 2); y++) for (let x = Math.floor(fcx - 3); x <= Math.ceil(fcx + 3); x++) {
+      const u = (x + 0.5 - fcx) / 2.8, v = (y + 0.5 - fcy) / 3.2, d = u * u + v * v;
+      if (d > 1 || !inHood(x, y)) continue;
+      // the hood's shadow on the face's far side and brow, else skin: the
+      // cheek nearest the light lit
+      const back = u * f < -0.45 || v < -0.7;
+      s.px(x, y, back ? L.hood[0] : v < 0.1 && u * f > 0.1 ? K[4] : v > 0.55 ? K[2] : K[3]);
+    }
+    // the hood's lit edge
+    for (let y = Math.floor(hcy - hry); y <= hcy + 1; y++) for (let x = Math.floor(hcx - hrx); x <= hcx + 1; x++) if (inHood(x, y) && (!inHood(x, y - 1) || !inHood(x - 1, y)) && artHash(x, y, look + 77) < 0.8) s.px(x, y, mix(L.hood[4], '#f0e2c8', 0.35));
+    s.px(hx + f * 1, hy, '#0a0c0e'); s.px(hx + f * 2, hy, '#16262a'); s.px(hx + f * 3, hy, '#a8fff0');
     if (pose === 'walk') {
       // the near arm, swinging
       const sw = frame === 1 ? 2 : frame === 3 ? -2 : 0;
