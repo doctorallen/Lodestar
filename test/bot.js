@@ -12,6 +12,9 @@ const { installBot } = require('./botlib');
 
 const arg = (k, def) => { const i = process.argv.indexOf(k); return i > 0 ? Number(process.argv[i + 1]) : def; };
 const CAREERS = arg('--careers', 2), DIVES = arg('--dives', 24);
+// Each career plays a fixed world (seed SEED + career), so CI runs are
+// repeatable; --seed 0 rolls a random world each time, for balance runs.
+const SEED = arg('--seed', 101);
 
 (async () => {
   const browser = await launch();
@@ -20,6 +23,7 @@ const CAREERS = arg('--careers', 2), DIVES = arg('--dives', 24);
     for (let c = 0; c < CAREERS; c++) {
       const { page, errors } = await openGame(browser);
       await page.evaluate(installBot);
+      if (SEED) await page.evaluate((seed) => { Save.data.world = freshWorld(seed); Save.save(); }, SEED + c);
       const runs = await page.evaluate((n) => Bot.career({ sorties: n }), DIVES);
       all.push(runs);
       const n = (k) => runs.filter((r) => r.ended === k).length, last = runs[runs.length - 1];
