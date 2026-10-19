@@ -214,6 +214,7 @@ function startDying() {
   Save.data.run = null; Save.saveField('run');
   d.p.mine = null;
   d.fx.push({ kind: 'death', x: d.p.x, y: d.p.y - 6, t: 1.4, max: 1.4 });
+  snd('death');
 }
 
 // What the contextual button does where the diver stands: a station in
@@ -249,7 +250,7 @@ function updatePull(dt) {
   }
   const was = d.pull;
   d.pull = Math.max(0, d.pull - (dt / (d.pullTime || T.world.light)) * (1 - d.stats.pullSlow / 100));
-  if (was > P.dimAt && d.pull <= P.dimAt) { UI.toast('Your light is fading', 'legendary'); Story.say('pullFading'); }
+  if (was > P.dimAt && d.pull <= P.dimAt) { UI.toast('Your light is fading', 'legendary'); Story.say('pullFading'); snd('lightLow'); }
   if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { d.waveT = P.waveEvery; stirTheDark(d, P.wave); }
   if (d.pull <= 0) theDarkComes(d);
 }
@@ -261,6 +262,7 @@ function theDarkComes(d) {
     if (d.channel && d.channel.kind === 'extract') breakChannel('The light went out');
   }
   UI.toast(d.deep ? 'Your light is out, and the shaft with it. Something is coming.' : 'Your light is out. Something is coming.', 'legendary');
+  snd('lightOut');
   const at = darkSpot(d);
   if (at) { const h = makeEnemy('hollow', at.x, at.y, floorLevel(d), null); h.aggro = true; d.enemies.push(h); }
 }
@@ -305,6 +307,7 @@ function breakChannel(why) {
   if (!d.channel) return;
   d.channel = null;
   UI.toast(why);
+  snd('channelBreak');
 }
 
 function updateChannel(dt) {
@@ -398,7 +401,7 @@ function updateMining(dt) {
   if (!tgt || !Input.mining()) { p.mine = null; return; }
   const o = T.ores[f.ore[tgt.i] - 1];
   // a refusal is said once per swing at a tile, not every step
-  const refuse = (why, msg) => { if (!p.mine || p.mine.i !== tgt.i || p.mine.refused !== why) { p.mine = { i: tgt.i, prog: 0, hitT: 0, refused: why }; UI.toast(msg); } };
+  const refuse = (why, msg) => { if (!p.mine || p.mine.i !== tgt.i || p.mine.refused !== why) { p.mine = { i: tgt.i, prog: 0, hitT: 0, refused: why }; UI.toast(msg); snd('mineRefuse'); } };
   if (!pick) return refuse('nopick', 'You need a pick');
   if (o.tier > pick.base.power) return refuse('weak', `Your pick can't break ${o.name}`);
   if (cargoUsed(d) >= d.stats.cargo) { UI.tip('full', 'Full: bank it at a spire, or carry it home'); return refuse('full', 'Cargo full'); }
@@ -410,6 +413,7 @@ function updateMining(dt) {
     // a drill is loud
     if (d.stats.noisy) for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.mine.drillNoise) wake(d, e);
     spawnSparks((tgt.tx + 0.5) * TILE, (tgt.ty + 0.5) * TILE, [ART.ores[o.id][3], '#ffffff'], 4);
+    snd('mine', { tier: o.tier });
     buzz(6);
   }
   if (p.mine.prog >= 1) breakOre(tgt, o);
@@ -428,6 +432,7 @@ function breakOre(tgt, o) {
   repaintAround(f, tgt.tx, tgt.ty);
   const cx = (tgt.tx + 0.5) * TILE, cy = (tgt.ty + 0.5) * TILE;
   spawnSparks(cx, cy, ART.ores[o.id].slice(2), 12);
+  snd('oreBreak', { tier: o.tier });
   if (st.regalia3) healPlayer(3);
   if (st.powers.seismic) {
     d.fx.push({ kind: 'nova', x: cx, y: cy, r: 40, t: 0.3, max: 0.3 });

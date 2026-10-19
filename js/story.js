@@ -303,6 +303,7 @@ const Story = {
     const s = Save.data;
     if (s.magSeen === undefined) s.magSeen = mag;
     if (mag <= s.magSeen) return;
+    snd('starGrow', { mag });
     for (let m = s.magSeen + 1; m <= mag; m++) {
       if (STAR_SPEAKS[m]) UI.speak('THE STAR', STAR_SPEAKS[m], 'star');
     }

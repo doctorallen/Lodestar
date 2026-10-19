@@ -1069,4 +1069,34 @@ const T = {
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
   // at once (ui.js; hints wait their turn).
   ui: { tapGuard: 0.4, toasts: 2 },
+
+  // Sound (audio.js, music.js; cosmetic). master, music, sfx: levels; soft:
+  // a setting's soft level; space: the echo's level. voices: the most
+  // effects sounding at once; gap: the least time (s) between two of the
+  // same, unless the cue says. near: [full, silent] distance (px) from the
+  // Kindler of an effect with a place, panned over panW px, at most panMax.
+  // presence: how much of the star is there in kindled land, and in the
+  // dark and a Deep [with no light, more with full]. figureAt: the presence
+  // the figure needs; phraseRest, callRest: [least, most] s between its
+  // phrases (callRest below magnitude 4) at home, times awayRest away; beat
+  // (s). figure, bloom, ping: their levels; pingGap: s. Feeding swells the
+  // hum (feedPer an ore, feedHeld while held, fading feedFade a second) by
+  // feedSwell and opens it by feedOpen Hz. magLate: s before a magnitude
+  // reached without its bloom is heard anyway; lift: s the whole chord
+  // holds after kindling. bedUnder: how much the star's presence quiets a
+  // place's own sound; bedDay: by day; events: their level; breath: its
+  // level after the turn. uneaseFrom: the echoes read before the turn
+  // starts to be heard; uneasyPhrase: the chance a phrase is uneasy after
+  // it. lowHp: the share of health under which the heart beats; stingR: px
+  // a big foe is first seen at; channel: a channel's tone.
+  sound: {
+    master: 0.9, music: 0.1, sfx: 0.8, soft: 0.4, space: 0.6, voices: 14, gap: 0.03,
+    near: [50, 230], panW: 140, panMax: 0.7,
+    presence: { kindled: 0.78, dark: [0.12, 0.66], deep: [0.04, 0.58] },
+    figureAt: 0.62, phraseRest: [7, 12], callRest: [14, 22], awayRest: 1.5, beat: 0.8,
+    figure: 0.5, bloom: 0.5, ping: 0.18, pingGap: 0.055,
+    feedPer: 0.1, feedHeld: 0.6, feedFade: 0.45, feedSwell: 0.8, feedOpen: 900,
+    magLate: 8, lift: 6, bedUnder: 0.55, bedDay: 0.6, events: 0.5, breath: 0.09,
+    uneaseFrom: 2, uneasyPhrase: 0.6, lowHp: 0.3, stingR: 130, channel: 0.035,
+  },
 };

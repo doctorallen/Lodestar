@@ -171,6 +171,7 @@ function updateFrontier(d, dt) {
       if (!ts.lit.includes(h.k)) ts.lit.push(h.k);
       ts.done = true;
       UI.toast('The waystones burn', 'legendary');
+      snd('waystonesBurn');
       buzz(40);
     }
   }
@@ -183,6 +184,7 @@ function updateFrontier(d, dt) {
 function crossTo(d, to) {
   d.p.mine = null; d.channel = null;
   d.warp = { t: 0, at: null, zone: isKindled(to) ? 'surface' : 'dusk', go: () => (to === 0 ? goHome('walk') : enterTerritory(to, { from: d.terr })) };
+  snd('portal');
   buzz(20);
 }
 
@@ -222,6 +224,7 @@ function bankAtSpire(d, quiet) {
   Save.save();
   saveRun(d);
   if (quiet) return;
+  snd('bank');
   const what = [stuffLines(r.got), r.n ? `${r.n} piece${r.n > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(', ');
   UI.toast(what ? `Banked: ${what}` : 'Nothing to bank', what ? 'legendary' : undefined);
 }
@@ -235,6 +238,7 @@ function travelFrom(d, to) {
 }
 function travelDone(d, to) {
   bankAtSpire(d, true);
+  snd('travel');
   d.warp = { t: 0, at: null, zone: 'surface', go: () => (to === 0 ? goHome('spire') : enterTerritory(to, { spire: true })) };
 }
 
@@ -277,6 +281,7 @@ function stoneLit(d, k) {
     d.hold = { k, t: 0, waveT: W.waveEvery };
   } else ts.lit.push(k);
   // (what's left to do is the goal's, over the view: goalLines)
+  snd('waystone');
   buzz(30);
 }
 
@@ -308,6 +313,7 @@ function kindleTerritory(d) {
   const line = typeof kindleLogLine === 'function' ? kindleLogLine(t.clime, t.name) : '';
   if (line) UI.toast(line, 'log');
   Story.say('firstKindled');
+  snd('kindle');
   buzz(60);
 }
 

@@ -69,6 +69,7 @@ function reactWord(e, word, col) {
 function reactFired(e, id) {
   (e.rcd || (e.rcd = {}))[id] = Game.t + T.circuits.react.cd;
   reactWord(e, REACTIONS[id].name.toUpperCase(), REACTIONS[id].col());
+  snd('react', { x: e.x, y: e.y });
   Story.say('react_' + id);
 }
 

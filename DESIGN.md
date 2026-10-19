@@ -511,6 +511,15 @@ Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's r
 - **(proposed) Lamp radius as a dial.** The lamp's radius could shrink as danger rises with depth.
 - **(proposed) Brightness setting.** Dark scenes lose contrast in bright sunlight.
 
+## Sound
+
+Everything is made in code with Web Audio (`js/audio.js`, `js/music.js`, `T.sound`); nothing is downloaded. Plain, warm, a little lonely, hopeful with unease: ambient, never busy or shrill.
+- **The star's music grows with it.** A hum in D at magnitude 1, then a fifth, a soft chord, a slow figure of bells (before magnitude 4 only its two-note call), a high shimmer, a ninth, the figure in thirds, a deep bell. Feeding swells it, a ping for each ore; a magnitude reached blooms, and the next layer comes in. That's how the star speaks.
+- **Out in the dark it thins** as your light drains, top layers first, and each place's own sound takes over: wind (dry, cold or soft), embers, lava, water and drips, a cave's room, creaking roots, a vault's clock, rain and far thunder in a storm. With the light out, a slow throb. In kindled land the star's chord comes back, with birds by day; kindling a territory brings the whole chord.
+- **After the turn** a darker note creeps in: a flat sixth against the chord, phrases that fall to minor, and in the dark the place's sound breathes.
+- **Effects** for what matters, soft and short, louder near the Kindler and panned: footsteps, mining, each element's casts and hits, hurts, the light fading, loot by rarity, the anvil, the reveal, banking, travel, kindling, a sting when something big is first seen, landers.
+- **Settings:** MUSIC and SOUNDS on the pause screen, each on, soft or off, kept in the save. Silent until the first tap; suspended while the page is hidden.
+
 ## The prototype
 
 The aim is broad and rough rather than narrow and polished. Everything below is built:
@@ -527,4 +536,3 @@ The autopilot (`test/bot.js`) plays whole careers from a fresh save, out into th
 
 - Pacing: how long a sortie and a career should take for a person rather than the bot.
 - What a sortie gives back when you fall, if anything. For now it gives nothing but what was banked and pocketed.
-- Sound.

@@ -318,6 +318,7 @@ function hubPressBeat(t) {
   const k = (ph - r2) / (1 - r2);
   return { ext: k * k, lever: 2, hit: -1, n };
 }
+let _hubPressHeard = -1;
 // The smith at the press, tongs on the work, pushing the lever over; the
 // ram comes down with a burst of sparks out from between it and the bed.
 function drawHubSmith(d, a, ox, oy, lights) {
@@ -326,6 +327,8 @@ function drawHubSmith(d, a, ox, oy, lights) {
   const fx = at.x - fs.ax + HART_ANVIL.x - 14, fy = at.y + 2;
   drawShadow(fx, fy, 4);
   drawArtSprite(spr, fx - spr.ax, fy - spr.ay);
+  // (the slam, heard once a beat: audio.js, from the forge's place)
+  if (beat.hit >= 0 && _hubPressHeard !== beat.n && typeof snd === 'function') { _hubPressHeard = beat.n; snd('forgePress', {}); }
   if (beat.hit >= 0) {
     // sparks squeezed out flat either side, arcing down; a flash of light
     const k = beat.hit, ax = at.x - fs.ax + HART_ANVIL.x, ay = at.y - fs.ay + HART_ANVIL.y;
