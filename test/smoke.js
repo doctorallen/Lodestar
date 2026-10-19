@@ -143,8 +143,11 @@ async function phone(browser) {
   await page.evaluate(calm);
   const before = await page.evaluate(() => [Game.dive.p.x, Game.dive.p.y]);
   const [lx, ly] = await center(page, '#deck-left');
+  // (inward, away from the opening it came in by: walking out of it would
+  // go home)
+  const inward = await page.evaluate(() => { const e = Game.dive.floor.exits.find((x) => x.to === 0); return e ? [e.nx, e.ny] : [1, 0]; });
   await page.touchscreen.touchStart(lx, ly);
-  for (let i = 1; i <= 5; i++) await page.touchscreen.touchMove(lx + i * 8, ly);
+  for (let i = 1; i <= 5; i++) await page.touchscreen.touchMove(lx + i * 8 * inward[0], ly + i * 8 * inward[1]);
   check(await visible(page, '#stick-base'), 'phone: no joystick under the thumb');
   await run(page, 0.6);
   await page.touchscreen.touchEnd();
@@ -158,10 +161,12 @@ async function phone(browser) {
   const hit = await page.evaluate(() => {
     const d = Game.dive, e = makeEnemy('crawler', d.p.x + 10, d.p.y, 1, null);
     e.aggro = true; d.enemies.push(e);
+    // (kept by name: the dark may send another while the button is held)
+    window._smokeCrawler = e;
     return e.hp;
   });
   await hold(page, '#btn-main', 0.5);
-  const left = await page.evaluate(() => Game.dive.enemies[Game.dive.enemies.length - 1].hp);
+  const left = await page.evaluate(() => window._smokeCrawler.hp);
   check(left < hit, `phone: ARC didn't hurt the crawler beside it (${hit} → ${left})`);
   await shot(page, 'smoke-fight');
   await page.evaluate(calm);
@@ -375,7 +380,8 @@ async function phone(browser) {
   const fed = await page.evaluate((p) => { const s = Save.data, k = 30 - (s.stash.ferrite || 0); return [k, s.star - p, s.stash.lumenite, !!Game.dive.feed, (Game.dive.feedMotes || []).length]; }, pts);
   check(fed[0] > 0 && fed[0] < 30 && fed[1] === fed[0] && fed[2] === 10, `phone: a short hold fed ${fed[0]} Ferrite for ${fed[1]} points (and Lumenite left ${fed[2]})`);
   check(!fed[3], 'phone: feeding the star did not stop on letting go');
-  await run(page, 0.4);
+  // (the last ores are still rising: they take T.star.feed.fly to land)
+  await run(page, (await page.evaluate(() => T.star.feed.fly)) + 0.3);
   await shot(page, 'smoke-feed');
   check(await page.evaluate(() => !(Game.dive.feedMotes || []).length && JSON.parse(localStorage.getItem('lodestar.save.v4')).stash.ferrite === Save.data.stash.ferrite), 'phone: the ore fed never reached the star, or the save missed it');
   // ATTUNE opens the star's screen: keep the Ferrite, then hold to the end
