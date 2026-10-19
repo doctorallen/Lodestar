@@ -381,15 +381,30 @@ function pntSlabs(cell, x0, y0, rw, ch, sp, seed, mason) {
   const gw = gx1 - gx0 + 1, gh = gy1 - gy0 + 1, PX = new Float32Array(gw * gh), PY = new Float32Array(gw * gh);
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const I = gx0 + i, J = gy0 + j; PX[j * gw + i] = (I + artHash(I, J, seed) + (J & 1) * 0.5) * cw; PY[j * gw + i] = (J + artHash(I, J, seed + 1)) * chh; }
   const wob = new Float32Array(rw), icw = 1 / cw, ich = 1 / chh, CX = new Float32Array(9), CY = new Float32Array(9), CI = new Int32Array(9);
+  // the big planes: where a broad noise is high, the cells are a coarser
+  // grid's (S.big), so a mass has a few big planes among smaller facets
+  const B = S.big, bw = cw * B.k[0], bh = chh * B.k[1], ibw = 1 / bw, ibh = 1 / bh, big = new Float32Array(rw);
   for (let r = 0; r < ch; r++) {
     const y = y0 - sp + r;
     if (y < 0 || y >= Hp) { cell.fill(-1, r * rw, r * rw + rw); continue; }
     pntNoiseRow(wob, x0, rw, y, 5, 3, seed + 7);
+    pntNoiseRow(big, x0, rw, y, B.s[0], B.s[1], seed + 9);
     const gy = Math.floor(y / chh), row = y * W, out = r * rw;
     let gxl = -1e9;
     for (let i = 0; i < rw; i++) {
       const x = x0 + i;
       if (!LF[row + x]) { cell[out + i] = -1; continue; }
+      if (big[i] > B.cut) {
+        // (the coarse grid's nearest point, its own ids)
+        const bgx = Math.floor(x * ibw), bgy = Math.floor(y * ibh);
+        let best = 1e9, id = 0;
+        for (let j = bgy - 1; j <= bgy + 1; j++) for (let k = bgx - 1; k <= bgx + 1; k++) {
+          const px = (k + artHash(k, j, seed + 5) + (j & 1) * 0.5) * bw, py = (j + artHash(k, j, seed + 6)) * bh, dx = (x - px) * ibw, dy = (y - py) * ibh, d = dx * dx + dy * dy * (1 + (wob[i] - 0.5) * S.wobble);
+          if (d < best) { best = d; id = PNT_BIGID + j * 4099 + k + 1; }
+        }
+        cell[out + i] = id;
+        continue;
+      }
       const gx = Math.floor(x * icw), wb = 1 + (wob[i] - 0.5) * S.wobble;
       if (gx !== gxl) {
         // the nine points about this column of cells, as distances in y
@@ -424,8 +439,14 @@ function pntBlocks(cell, x0, y0, rw, ch, sp, seed) {
   }
 }
 // A facet's site (pntSlabs' jittered point for cell id), in the view's px.
+const PNT_BIGID = 1 << 26;
 function pntSlabSite(id, seed, mason) {
-  const S = T.paint.slab, j = Math.floor(id / 4099), k = id - j * 4099 - 1;
+  const S = T.paint.slab;
+  if (!mason && id >= PNT_BIGID - (1 << 24)) {
+    const q = id - PNT_BIGID, j = Math.floor(q / 4099), k = q - j * 4099 - 1, bw = S.w * S.big.k[0], bh = S.h * S.big.k[1];
+    return [(k + artHash(k, j, seed + 5) + (j & 1) * 0.5) * bw, (j + artHash(k, j, seed + 6)) * bh];
+  }
+  const j = Math.floor(id / 4099), k = id - j * 4099 - 1;
   if (mason) { const M = S.mason; return [(k + 0.5) * M.w - (j & 1) * M.w * 0.5 - artHash(j, 5, seed) * M.jit, (j + 0.5) * M.h]; }
   return [(k + artHash(k, j, seed) + (j & 1) * 0.5) * S.w, (j + artHash(k, j, seed + 1)) * S.h];
 }
@@ -546,7 +567,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       // (the cracks come in broken lengths: a gate of noise stretched
       // across, the same for the crack and the bevel under it)
       const gt = gate[x - x0], upD = cell[cj - cw] !== id && isRock(x, y - 1), dnD = cell[cj + cw] !== id && isRock(x, y + 1);
-      if (gt > (mason ? Ms.gate : Sl.gate)) {
+      if (gt > (mason ? Ms.gate : id >= PNT_BIGID - (1 << 24) ? Sl.big.gate : Sl.gate)) {
         if (dnD) t = Math.min(t, Sl.crack + (face ? 0 : 1));
         else if (upD) t += Sl.lip;
         else if (cell[cj + 1] !== id && cell[cj + 1] >= 0 && artHash(id, 4, seed + 89) < (mason ? Ms.side : Sl.side)) t = Math.min(t, Sl.crack + (mason ? 0 : 1));
