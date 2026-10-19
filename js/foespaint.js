@@ -254,23 +254,11 @@ class FpSpr extends PntSpr {
     x = Math.round(x); y = Math.round(y);
     if (col != null && x >= 0 && y >= 0 && x < this.w && y < this.h) this.m[y * this.w + x] = this.cur;
   }
-  // (PntSpr.ell's light comes from the lower right: u·lx is negated. This
-  // one is lit from the upper left, as the rules say.)
+  // (a darker creature, dk, lays its masses lower on its ramps)
   ell(cx, cy, rx, ry, ramp, o = {}) {
-    // (a darker creature, dk, lays its masses lower on its ramps)
-    const dk = o.glow ? 0 : this.dk, lo = Math.max(0, (o.lo || 0) - dk), hi = (o.hi === undefined ? ramp.length - 1 : o.hi) - dk, bias = o.bias || 0, jit = o.jit === undefined ? 0.25 : o.jit, lx = -0.55, ly = -0.8;
-    for (let y = Math.floor(cy - ry - 1); y <= Math.ceil(cy + ry + 1); y++) {
-      let run = 0, rt = 0;
-      for (let x = Math.floor(cx - rx - 1); x <= Math.ceil(cx + rx + 1); x++) {
-        const u = (x + 0.5 - cx) / rx, v = (y + 0.5 - cy) / ry, d = u * u + v * v;
-        if (d > 1 || (o.mask && !o.mask(x, y))) continue;
-        const nz = Math.sqrt(Math.max(0, 1 - d)), sv = (u * lx + v * ly) * 0.8 + nz * 0.5 - 0.15 + bias;
-        if (run <= 0) { rt = (this.rnd() + this.rnd() - 1) * jit * 1.7; run = 2 + ((this.rnd() * 3) | 0); }
-        run--;
-        const t = lo + (hi - lo) * Math.max(0, Math.min(1, sv));
-        this.px(x, y, ramp[Math.max(lo, Math.min(hi, Math.round(t + rt)))], o.glow);
-      }
-    }
+    const dk = o.glow ? 0 : this.dk;
+    if (!dk) return super.ell(cx, cy, rx, ry, ramp, o);
+    return super.ell(cx, cy, rx, ry, ramp, Object.assign({}, o, { lo: Math.max(0, (o.lo || 0) - dk), hi: (o.hi === undefined ? ramp.length - 1 : o.hi) - dk }));
   }
   // a flat plate facing us, x0..x1, y0..y1: strokes about tone `t` of the
   // ramp, its top row a lit lip, its left edge lit, its right and lowest

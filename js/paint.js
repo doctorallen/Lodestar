@@ -805,7 +805,7 @@ class PntSpr {
       for (let x = Math.floor(cx - rx - 1); x <= Math.ceil(cx + rx + 1); x++) {
         const u = (x + 0.5 - cx) / rx, v = (y + 0.5 - cy) / ry, d = u * u + v * v;
         if (d > 1 || (o.mask && !o.mask(x, y))) continue;
-        const nz = Math.sqrt(Math.max(0, 1 - d)), s = (-(u * lx + v * ly) * 0.8 + nz * 0.5 - 0.15 + bias);
+        const nz = Math.sqrt(Math.max(0, 1 - d)), s = (u * lx + v * ly) * 0.8 + nz * 0.5 - 0.15 + bias;
         if (run <= 0) { rt = (this.rnd() + this.rnd() - 1) * jit * 1.7; run = 2 + ((this.rnd() * 3) | 0); }
         run--;
         const t = lo + (hi - lo) * Math.max(0, Math.min(1, s));

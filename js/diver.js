@@ -124,12 +124,12 @@ function kindlerFrame(face, frame, cast) {
   // the torso and its plate
   s.ell(ox, by - 27 + bob, torsoRx, 6.4, SUIT, { lo: 0, hi: 3 });
   if (back) s.ell(ox - 0.5, by - 30 + bob, torsoRx - 1, 3.6, Pl, { lo: 0, hi: 2, bias: 0 });
-  else s.ell(ox + (side ? 0.5 : -1), by - 28.5 + bob, torsoRx - (side ? 1.4 : 0.6), 5.4, Pl, { lo: 1, hi: 4, bias: 0.2 });
+  else s.ell(ox + (side ? 0.5 : -1), by - 28.5 + bob, torsoRx - (side ? 1.4 : 0.6), 5.4, Pl, { lo: 1, hi: 4, bias: 0.35 });
   // the pauldrons: the near one, or the one on the left, lit
   if (side) s.ell(ox, by - 31 + bob, 5.4, 3.8, Pl, { lo: 1, hi: 4, bias: 0.3 });
   else for (const who of [1, 0]) {
     const x = shoulder[who], lit = turn ? near(who) : x < ox;
-    s.ell(x, by - 31 + bob, turn && !near(who) ? 3.6 : 4.6, 3.4, Pl, { lo: lit ? 1 : 0, hi: back ? (lit ? 3 : 2) : lit ? 4 : 3, bias: back ? (lit ? 0.1 : 0) : lit ? 0.3 : 0.1 });
+    s.ell(x, by - 31 + bob, turn && !near(who) ? 3.6 : 4.6, 3.4, Pl, { lo: lit ? 1 : 0, hi: back ? (lit ? 3 : 2) : lit ? 4 : 3, bias: back ? (lit ? 0 : -0.1) : lit ? 0.12 : 0 });
   }
   if (!back) {
     // the chest's V of circuits down to the seed-star
@@ -152,7 +152,7 @@ function kindlerFrame(face, frame, cast) {
 
   // the helm: a chin guard, the dome lit on its upper left
   s.ell(hx + (side ? 1 : 0), hy + 5.6, side ? 5 : 6, 2.2, Pl, { lo: 0, hi: 2 });
-  s.ell(hx, hy, 7.6, 7.2, Pl, { lo: 0, hi: back ? 3 : 4, bias: back ? -0.05 : 0.25 });
+  s.ell(hx, hy, 7.6, 7.2, Pl, { lo: 0, hi: back ? 3 : 4, bias: back ? -0.15 : 0.02 });
   let lamp;
   if (!back) {
     // the pane: a rounded black window, to the side the helm turns
