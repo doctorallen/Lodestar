@@ -846,9 +846,10 @@ const T = {
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]],
     // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
     // baked: and the floor's fixed lights (lava, vents, glowing plants).
-    // eye: the dome's height over the feet (world px), where the lamp's
-    // light is centred; its shadows are cast from under it. rays: how many
-    // rays for each cell round the edge of the light's reach; step: art px
+    // eye: the brow lamp's height over the feet (world px; DIVER_LAMP's
+    // row is 29.75 art px up), where the lamp's light is centred; its
+    // shadows are cast from under it. rays: how many rays for each cell
+    // round the edge of the light's reach; step: art px
     // a ray moves at a time through the wall line; reach: world px past
     // where a ray strikes rock that's still lit (the skin of rock it
     // strikes); top: what a rock top it doesn't reach keeps of it.
@@ -864,10 +865,18 @@ const T = {
     // foot (a share of its width); fray: how ragged its edges (in clusters
     // of 2 art px); portal: a portal's half width (world px).
     shadow: {
-      walls: true, baked: true, eye: 17, rays: 1.25, step: 2, reach: 3, top: 0,
+      walls: true, baked: true, eye: 20, rays: 1.25, step: 2, reach: 3, top: 0,
       props: { steps: [0.2, 0.38], dark: [0.66, 0.48], core: [0.62, 0.6], len: [9, 0.12, 18], tall: 30, size: [0.6, 1.3], crown: 0.3, back: 0.35, fray: 0.35, portal: 9 },
     },
   },
+
+  // Wick, the drone (render.js, drawDrone; cosmetic): where it hovers from
+  // the feet, in world px: back, how far behind the way the diver faces
+  // ([across, up and down]); aside, how far to the side of it, the same
+  // way; up, how high (clear of the helm's brow lamp in every facing, over
+  // its whole bob). ease: how quickly it catches up (a second); bob: [its
+  // speed, how far (world px)].
+  wick: { back: [7, 4], aside: [6, 3], up: 21, ease: 5, bob: [3, 1.5] },
 
   ui: { tapGuard: 0.4 }, // seconds a new screen ignores taps
 };

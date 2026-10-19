@@ -73,8 +73,8 @@ function resizeView() {
 
 // The diver in eight facings, indexed clockwise from east (E, SE, S, SW, W,
 // NW, N, NE): the five drawn ones and mirrors of three. Each facing is
-// [idle, walk ×4], and each sprite knows its feet (ax, ay) and its main
-// hand (hand).
+// [idle, walk ×4], and each sprite knows its feet (ax, ay), its main
+// hand (hand) and its brow lamp's middle (lamp).
 const FACINGS = ['E', 'SE', 'S', 'SE', 'E', 'NE', 'N', 'NE'];
 const MIRRORED = [false, false, false, true, true, true, false, false];
 function buildSprites() {
@@ -82,8 +82,10 @@ function buildSprites() {
     let s = buildArtSprite(rows, DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS, ART_CREATURE);
     s.ax = s.w / 2; s.ay = s.h - footOff(2.5);
     const [hx, hy] = DIVER_HAND[name], hand = { x: spritePt(s, hx), y: spritePt(s, hy) };
-    s.hand = hand;
-    if (MIRRORED[i]) { s = flippedSprite(s); s.hand = { x: s.w - 1 - hand.x, y: hand.y }; }
+    // (the lamp a point, not a pixel: past the outline, mirrored about the middle)
+    const lamp = { x: DIVER_LAMP[name][0] + 1, y: DIVER_LAMP[name][1] + 1 };
+    s.hand = hand; s.lamp = lamp;
+    if (MIRRORED[i]) { s = flippedSprite(s); s.hand = { x: s.w - 1 - hand.x, y: hand.y }; s.lamp = { x: s.w - lamp.x, y: lamp.y }; }
     s.flash = tinted(s.c, '#ffffff');
     return s;
   }));
@@ -118,11 +120,21 @@ function buildSprites() {
       });
     });
   });
-  Sprites.drone = buildArtSprite(DRONE_ROWS, DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS, ART_CREATURE);
+  Sprites.drone = buildArtSprite(DRONE_ROWS, null, DRONE_LETTERS, [], ART_CREATURE);
 }
 // The drone's body, drawn by hand at the art's size (artNative): a disc of
-// plate with its antenna. Its eye is drawn over it, the way the diver looks.
+// grey plate with its brass antenna (ART.pal's). Its eye is drawn over it,
+// the way the diver looks, in Wick's own teal, with a violet glow under it.
 const DRONE_ROWS = artNative(['....M..', '...M...', '..GGG..', '.GGGGG.', 'GGGGGGG', 'GGGGGGG', 'GGGGGGG', '.GGGGG.', '..GGG..']);
+const DRONE_LETTERS = { G: ['plate'], M: ['metal'] }, WICK_EYE = '#7dffd8', WICK_UNDER = '#c9a2ff';
+
+// Where the diver's brow lamp is (art px in the world), the way it faces
+// (to the aim, while casting): the idle frame's, so the light doesn't bob.
+function diverLampAt(d) {
+  const p = d.p, pose = p.castPose, fi = pose ? facingIndex(Math.cos(pose.a), Math.sin(pose.a)) : facingIndex(p.fx, p.fy);
+  const s = Sprites.diver[fi][0];
+  return { x: Math.round(p.x * AP) - s.ax + s.lamp.x, y: Math.round(p.y * AP) - s.ay + s.lamp.y };
+}
 
 // Which of the eight facings a direction is.
 function facingIndex(fx, fy) { return (Math.round(Math.atan2(fy, fx) / (Math.PI / 4)) + 8) % 8; }
@@ -740,8 +752,10 @@ function renderFrame() {
     if (s.beam) addBeamLight(L, s.x - ox, s.y0 - oy, s.y1 - oy, s.r * AP, s.i, s.c);
     else addLight(L, s.x - ox, s.y - oy, s.r * AP, s.i, s.c);
   }
-  // the lamp, at the dome, stopped by the rock (shadow.js)
-  addLampLight(d, L, fx - ox, fy - ap(T.light.shadow.eye) - oy, lv.r, lv.i, rgb01(ART.pal.lamp[0]));
+  // the lamp, from the helm's brow, in its own warm white, stopped by the
+  // rock (shadow.js)
+  const lamp = diverLampAt(d);
+  addLampLight(d, L, lamp.x, lamp.y, lv.r, lv.i, rgb01(DIVER_PAL.lamp[0]));
   lightScene(-ox, -oy);
   bloomScene();
   drawLifeShade(d, ox, oy);
@@ -923,12 +937,12 @@ function drawProspector(d, ox, oy, tick, lights) {
 function drawDrone(d, fx, fy, lights) {
   const p = d.p, dt = clamp(Game.realT - (d.droneT || Game.realT), 0, 0.1);
   d.droneT = Game.realT;
-  const tx = p.x - p.fx * 7 - p.fy * 6, ty = p.y - p.fy * 4 + p.fx * 3 - 20;
+  const W = T.wick, tx = p.x - p.fx * W.back[0] - p.fy * W.aside[0], ty = p.y - p.fy * W.back[1] + p.fx * W.aside[1] - W.up;
   if (!d.drone) d.drone = { x: tx, y: ty };
-  const k = 1 - Math.exp(-5 * dt);
+  const k = 1 - Math.exp(-W.ease * dt);
   d.drone.x += (tx - d.drone.x) * k; d.drone.y += (ty - d.drone.y) * k;
-  const x = Math.round((d.drone.x - p.x) * AP) + fx, y = Math.round((d.drone.y - p.y + Math.sin(Game.realT * 3) * 1.5) * AP) + fy;
-  const eye = DIVER_PAL.tip[0], under = DIVER_PAL.chest[0];
+  const x = Math.round((d.drone.x - p.x) * AP) + fx, y = Math.round((d.drone.y - p.y + Math.sin(Game.realT * W.bob[0]) * W.bob[1]) * AP) + fy;
+  const eye = WICK_EYE, under = WICK_UNDER;
   // (the disc's middle is the grid's (3, 5), past its outline)
   drawArtSprite(Sprites.drone, x - 4, y - 6);
   const ex = x + Math.round(p.fx * 1.4 * AP), ey = y + Math.round(p.fy * AP);
@@ -982,7 +996,7 @@ function drawFocusHeld(d, it, hand, lights, slot, tick) {
   let x, y;
   if (style === 'staff') {
     // the head lifts, then swings down at the aim
-    // (held, it leans a little the way the diver faces, clear of the dome)
+    // (held, it leans a little the way the diver faces, clear of the helm)
     const lean = Math.abs(p.fx) > 0.3 ? Math.sign(p.fx) * ap(2) : 0;
     const lifting = cast && k < F.thrust * 0.5, hx = cast && !lifting ? Math.round(hand.x + ca * (ap(7) + reach)) : hand.x + (cast ? 0 : lean);
     const hy = cast && !lifting ? Math.round(hand.y + sa * (ap(7) + reach) - ap(2)) : hand.y - ap(9) + bob - (lifting ? F.lift : 0);
