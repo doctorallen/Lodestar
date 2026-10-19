@@ -819,7 +819,8 @@ const T = {
     // underside); jit, wide, stroke: a stroke's jitter (all of it on a run
     // wide px across or more) and its longest run; clump, clumpH: foliage's
     // clumps (px across, how much they bulge); loose, stray: the share of
-    // foliage's edge frayed away, and of strays over it; strand: [foot,
+    // foliage's edge frayed away (where it's a mass: mass of the 25 px
+    // round it), and of strays over it; strand: [foot,
     // tip] of a strand's light; strandForced, strandLo: tones a dark strand
     // gains up it, and its darkest; skirt, skirtLeafy, skirtThin: how much
     // of the shadowed side's rim (where the old outline was) a mass,
@@ -828,7 +829,7 @@ const T = {
     flora: {
       ramp: { dark: [0.55, 0.25], light: [0.18, 0.36] }, tones: [1, 7],
       base: 0.45, light: 0.55, shade: 0.42, fall: 0.22, crease: 0.22, rim: 0.12, under: 0.3, jit: 0.9, wide: 7, stroke: 5,
-      clump: 4, clumpH: 0.45, loose: 0.25, stray: 0.12, strand: [0.15, 0.8], strandForced: 2, strandLo: 3, skirt: 0.9, skirtLeafy: 0.7, skirtThin: 0.25, propJit: 0.4,
+      clump: 4, clumpH: 0.45, loose: 0.25, mass: 15, stray: 0.12, strand: [0.1, 0.65], strandForced: 2, strandLo: 3, skirt: 0.9, skirtLeafy: 0.7, skirtThin: 0.5, propJit: 0.4,
     },
     // ore on the rock (pflOreTile): crystals [least, most] a cluster,
     // spread (px either way of its middle), h [the outer ones', the middle

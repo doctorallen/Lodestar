@@ -20,8 +20,12 @@
 // Everything is seeded by the grid itself, never Math.random.
 // ---------------------------------------------------------------------------
 
-// Materials drawn as loose clumps.
-const PFL_LEAFY = new Set(['leaf', 'moss', 'vine', 'canopy', 'grass', 'petal', 'flower', 'snow']);
+// Materials drawn as loose clumps (petals and flowers stay whole, so a
+// flower keeps its colour).
+const PFL_LEAFY = new Set(['leaf', 'moss', 'vine', 'canopy', 'grass', 'snow']);
+
+// Materials never drawn as strands (a thin rib of bone or a wire is a form).
+const PFL_HARD = new Set(['bone', 'rock', 'metal', 'shell', 'drip', 'ash']);
 
 // A string's hash, for a sprite's seed.
 function pflHashStr(s) {
@@ -116,11 +120,14 @@ function pflSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS, opts
     if (M[i - W] && M[i - W] !== M[i] && !GL[i - W]) s -= PF.crease;
     // (the lit edge and the shadowed one)
     val[i] = s;
-    // a strand: no more than two px across
-    let l = 0, r = 0;
+    // a strand: no more than two px across, and upright (three px or more
+    // tall here); a thin arc lying down is shaded as a form
+    let l = 0, r = 0, u = 0, d = 0;
     while (l < 3 && M[i - l - 1]) l++;
     while (r < 3 && M[i + r + 1]) r++;
-    if (l + r + 1 <= 2) thin[i] = 1;
+    while (u < 2 && M[i - (u + 1) * W]) u++;
+    while (d < 2 && M[i + (d + 1) * W]) d++;
+    if (l + r + 1 <= 2 && u + d >= 2 && !PFL_HARD.has(M[i])) thin[i] = 1;
   }
   // smoothed (over the material's own pixels), so a narrow form doesn't
   // band row by row; then its lit edge (top and left) and its shadowed
@@ -171,7 +178,7 @@ function pflSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS, opts
       if (thin[i]) {
         // a strand: by its height, dark at the foot, the tip lightest
         const f = FT[i] >= 0 ? Math.max(PF.strandLo, 2 + FT[i]) : null, t = up[i];
-        let ti = f !== null ? f + Math.round(t * PF.strandForced) : lo + (hi - lo) * (PF.strand[0] + (PF.strand[1] - PF.strand[0]) * t) + val[i] * 0.8 - 0.4;
+        let ti = f !== null ? f + Math.round(t * PF.strandForced) : lo + (hi - lo) * (PF.strand[0] + (PF.strand[1] - PF.strand[0]) * t) + (val[i] - PF.base) * 0.8;
         if (tip[i]) ti = Math.max(ti + 1, f !== null ? f + 2 : hi);
         put(i, tone(ramp, ti));
         x++; continue;
@@ -214,23 +221,30 @@ function pflSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS, opts
     C32[i] = (0xff000000 | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0;
   }
   // ---- foliage: a frayed edge (bitten away two px at a time, never a lone
-  // pixel left) and a few strays over its top, short dashes of its tones
+  // pixel left) and a few strays over its top, short dashes of its tones;
+  // only where it's a mass of one shade (a frond or a sprig, or leaves
+  // drawn as light and dark ones by hand, keep their edges)
+  const leafy = (j) => M[j] && PFL_LEAFY.has(M[j]) && FT[j] < 0 && !thin[j];
+  const mass = new Uint8Array(N);
   for (let i = W; i < N - W; i++) {
-    const m = M[i];
-    if (!m || !PFL_LEAFY.has(m) || thin[i]) continue;
+    if (!leafy(i)) continue;
+    let n = 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const j = i + dy * W + dx; if (j >= 0 && j < N && leafy(j)) n++; }
+    mass[i] = n >= PF.mass ? 1 : 0;
+  }
+  for (let i = W; i < N - W; i++) {
+    if (!mass[i]) continue;
     const x = i % W, y = (i / W) | 0, edge = !M[i - 1] || !M[i + 1] || !M[i - W] || !M[i + W];
     if (!edge || y >= y1 - 2 || artHash(x >> 1, y, seed + 21) >= PF.loose) continue;
     const j = x & 1 ? i - 1 : i + 1;
     C32[i] = 0; P.em[i * 4 + 3] = 0;
-    if (M[j] && PFL_LEAFY.has(M[j]) && (!M[j - W] || !M[j + W])) { C32[j] = 0; P.em[j * 4 + 3] = 0; }
+    if (mass[j] && (!M[j - W] || !M[j + W])) { C32[j] = 0; P.em[j * 4 + 3] = 0; }
   }
   for (let i = W; i < N - W; i++) {
     if (M[i] || M[i + 1]) continue;
     const x = i % W, y = (i / W) | 0;
-    if (x < 1 || x >= W - 2 || y >= y1 - 2) continue;
-    const nb = M[i + W] && PFL_LEAFY.has(M[i + W]) && C32[i + W] ? i + W : -1;
-    if (nb < 0 || artHash(x >> 1, y, seed + 22) >= PF.stray) continue;
-    const ramp = pflRamp(pal[M[nb]]), c = ramp[Math.min(7, hi - (artHash(x, y, seed + 23) < 0.5 ? 1 : 2))];
+    if (x < 1 || x >= W - 2 || y >= y1 - 2 || !mass[i + W] || !C32[i + W] || artHash(x >> 1, y, seed + 22) >= PF.stray) continue;
+    const ramp = pflRamp(pal[M[i + W]]), c = ramp[Math.min(7, hi - (artHash(x, y, seed + 23) < 0.5 ? 1 : 2))];
     C32[i] = C32[i + 1] = (0xff000000 | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0;
   }
   const out = spriteFromBuf(P);
@@ -241,8 +255,45 @@ function pflSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS, opts
 // A piece of a flora set, painted (render.js floraSprite caches it): by
 // hand, if it has a painter of its own, else from its grid.
 function pflFloraSprite(set, piece, frame, kit) {
+  const hand = PFL_HAND[piece.name];
+  if (hand) return hand(piece, frame, kit, set);
   return pflSprite(piece.frames[frame], kit.pal, kit.letters, kit.glows);
 }
+
+// A clump of grass, by hand, at the size its grid was (so it stands where
+// it did): a field of one-pixel blades, uneven, leaning out and bending,
+// dark at the foot and lit at the tips, out of a low mound of its base
+// (moss, snow) if it has one. A second frame leans a little further.
+function pflGrass(blade, base, o = {}) {
+  return (piece, frame, kit, set) => {
+    const g = piece.frames[frame], w = Math.ceil(Math.max(...g.map((r) => r.length)) * T.art.px) + 2, h = Math.ceil(g.length * T.art.px) + 2;
+    const C = new PflCan(w, h, pflHashStr(set + piece.name)), fy = h - 2, br = pflRamp(kit.pal[blade]);
+    let top = fy;
+    if (base) {
+      const bR = pflRamp(kit.pal[base]), bh = o.baseH || 2;
+      pflMossPad(C, w >> 1, fy, (w >> 1) - 2, bh, bR);
+      top = fy - bh + 1;
+    }
+    const n = Math.round(w * (o.dense || 0.8)), lean = frame ? 0.18 : 0;
+    for (let i = 0; i < n; i++) {
+      const u = (i + 0.5) / n * 2 - 1, x = Math.round((w >> 1) + u * ((w >> 1) - 2) + (C.r() - 0.5) * 2), back = C.r() < 0.35;
+      const len = Math.max(2, Math.round(top * (0.55 + 0.45 * C.r() ** 0.6) * (1 - 0.25 * Math.abs(u)) * (back ? 0.85 : 1)));
+      pflStrand(C, x, top - (back ? 1 : 0), len, u * 0.3 + lean + (C.r() - 0.5) * 0.25, br, back ? 1 : 2, back ? 4 : 5);
+    }
+    if (base) pflMossPad(C, w >> 1, fy, (w >> 1) - 3, 1, pflRamp(kit.pal[base]));
+    const P = pixBuf(w, h);
+    new Uint32Array(P.col.buffer).set(C.px);
+    const out = spriteFromBuf(P);
+    out.k = T.art.px;
+    return out;
+  };
+}
+
+// The pieces painted by hand rather than from their grids.
+const PFL_HAND = {
+  'Fen grass': pflGrass('leaf', 'moss'),
+  'Snow tufts': pflGrass('leaf', 'snow', { baseH: 3, dense: 0.6 }),
+};
 
 // ---------------------------------------------------------------------------
 // The ground cover, painted by hand (undergrowth.js ugKit): stamps of
@@ -277,7 +328,7 @@ function pflTuft(C, cx, fy, ramp, o) {
   const n = o.n, spread = o.spread, list = [];
   for (let i = 0; i < n; i++) {
     const u = n > 1 ? (i / (n - 1)) * 2 - 1 + (C.r() - 0.5) * 0.4 : 0, back = C.r() < 0.4;
-    list.push({ u, back, x: cx + Math.round(u * spread), len: Math.max(2, Math.round(o.h * (1 - 0.35 * Math.abs(u)) * (0.45 + 0.55 * C.r() ** (o.skew || 1)) * (back ? 0.85 : 1))), lean: u * o.fan + (C.r() - 0.5) * 0.3 });
+    list.push({ u, back, x: cx + Math.round(u * spread), len: Math.max(2, Math.round(o.h * (1 - 0.35 * Math.abs(u)) * (0.35 + 0.65 * C.r() ** (o.skew || 1)) * (back ? 0.85 : 1))), lean: u * o.fan + (C.r() - 0.5) * (o.wob || 0.3) });
   }
   list.sort((a, b) => (b.back ? 1 : 0) - (a.back ? 1 : 0));
   for (const s of list) {
@@ -301,14 +352,18 @@ function pflMossPad(C, cx, fy, rx, ry, ramp) {
   }
 }
 
-// A pebble: a little stone lit on its top left, dark under.
-function pflPebble(C, cx, fy, rx, ry, ramp) {
-  for (let y = -ry; y <= 0; y++) for (let x = -rx; x <= rx; x++) {
-    const u = (x + 0.5) / (rx + 0.5), v = (y + ry * 0.5) / (ry * 0.5 + 0.7);
-    if (u * u + v * v > 1.05) continue;
-    const t = y === 0 ? 1 : 3.2 - u * 1.2 - v * 1.6 + (C.r() - 0.5) * 0.6;
-    C.set(cx + x, fy + y, pflPick(ramp, t));
+// A pebble: a little stone w px across and h tall, its feet at fy, its top
+// rounded off, lit on its top left, dark on its right, a shadow under.
+function pflPebble(C, cx, fy, w, h, ramp) {
+  const x0 = cx - (w >> 1);
+  for (let j = 0; j < h; j++) {
+    const y = fy - h + j, inset = j === 0 ? 1 : 0;
+    for (let i = inset; i < w - inset; i++) {
+      const t = j === 0 ? (i <= w / 2 ? 6 : 5) : i === 0 ? 5 : i >= w - 1 ? 2 : j === h - 1 ? 3 : 4;
+      C.set(x0 + i, y, pflPick(ramp, t + (C.r() < 0.25 ? -1 : 0)));
+    }
   }
+  for (let i = 1; i <= w; i++) if (!C.has(x0 + i, fy)) C.set(x0 + i, fy, ramp[0]);
 }
 
 // The set's cover, painted: ugKit's shape ({ tuft, sprig, pebbles, moss,
@@ -320,25 +375,32 @@ function pflCoverKit(set, look, pal) {
   const base = pflHashStr(set + '/cover'), K = {};
   const make = (w, h, k, fn) => { const C = new PflCan(w, h, base + k * 7919); fn(C); return C.stamp(); };
   // rootlet tufts: the most of the ground's dressing
-  K.tuft = [0, 1, 2, 3, 4].map((k) => make(13, 11, k, (C) => pflTuft(C, 6, 9, blade, { n: 5 + k, spread: 2 + (k & 1) + (k >> 2), h: 5 + (k % 3), fan: 0.45, lo: 2, hi: 5, knot: 0.6 })));
+  K.tuft = [0, 1, 2, 3, 4].map((k) => make(17, 13, k, (C) => pflTuft(C, 8, 11, blade, { n: 6 + k, spread: 2 + (k & 1) + (k >> 2), h: 8 + (k % 3), fan: 0.5, wob: 0.4, skew: 0.6, lo: 2, hi: 5, knot: 0.6 })));
   // sprigs: a tuft with seed heads, or leaf tips
-  K.sprig = [0, 1, 2].map((k) => make(11, 11, 10 + k, (C) => pflTuft(C, 5, 9, blade, { n: 3 + k, spread: 2, h: 6 + k, fan: 0.3, lo: 2, hi: 5, heads: 0.7, head, knot: 0.6 })));
-  K.moss = [0, 1, 2].map((k) => make(13, 6, 20 + k, (C) => { pflMossPad(C, 6, 4, 4 + k, 2, pad); if (k) pflMossPad(C, 6 + (k === 1 ? 3 : -3), 4, 2, 1, pad); }));
-  K.pebbles = [0, 1, 2, 3].map((k) => make(11, 6, 30 + k, (C) => {
-    const n = 1 + (k % 3);
-    for (let i = 0; i < n; i++) pflPebble(C, 2 + i * 3 + Math.round(C.r()), 4 - (i === 1 ? 1 : 0), i === 0 && k !== 2 ? 2 : 1, i === 0 ? 2 : 1, scree);
+  K.sprig = [0, 1, 2].map((k) => make(15, 13, 10 + k, (C) => pflTuft(C, 7, 11, blade, { n: 4 + k, spread: 2, h: 8 + k, fan: 0.4, skew: 0.6, lo: 2, hi: 5, heads: 0.8, head, knot: 0.6 })));
+  // moss: a clump of little domes, lit on top, a few strays over it
+  K.moss = [0, 1, 2].map((k) => make(15, 8, 20 + k, (C) => {
+    pflMossPad(C, 7, 6, 4 + k, 3, pad);
+    pflMossPad(C, 7 + (k === 1 ? -4 : 4), 6, 2 + (k & 1), 2, pad);
+    for (let i = 0; i < 3; i++) { const x = 3 + Math.floor(C.r() * 9), y = 2 + Math.floor(C.r() * 2); if (!C.has(x, y) && C.has(x, y + 1)) { C.set(x, y, pad[5]); C.set(x + 1, y, pad[4]); } }
   }));
-  // roots: thin, half sunk, wandering along the ground
-  K.roots = [0, 1, 2].map((k) => make(12, 5, 40 + k, (C) => {
-    for (let s = 0; s < 2; s++) {
-      let x = 1 + s * 3, y = 3 - s;
-      for (let i = 0; i < 7 + k; i++) { if (C.r() > 0.18) C.set(x, y, root[C.r() < 0.35 ? 4 : 3]); x++; if (C.r() < 0.3) y = clamp(y + (C.r() < 0.5 ? -1 : 1), 1, 3); }
+  K.pebbles = [0, 1, 2, 3].map((k) => make(13, 7, 30 + k, (C) => {
+    const n = 1 + (k % 3);
+    for (let i = 0; i < n; i++) pflPebble(C, 3 + i * 4 + Math.round(C.r()), 5 - (i === 1 ? 1 : 0), i === 0 && k !== 2 ? 5 : 3 + (k & 1), i === 0 ? 3 : 2, scree);
+  }));
+  // roots: humps of root, half sunk, lit along their backs
+  K.roots = [0, 1, 2].map((k) => make(16, 6, 40 + k, (C) => {
+    let x = 1, y = 4;
+    for (let i = 0; i < 12 + k; i++) {
+      const hump = Math.sin((i / (6 + k)) * Math.PI * 2 + k) > 0.2;
+      if (hump) { C.set(x, y - 1, root[5]); C.set(x, y, root[2]); } else if (C.r() < 0.6) C.set(x, y, root[3]);
+      x++; if (C.r() < 0.2) y = clamp(y + (C.r() < 0.5 ? -1 : 1), 3, 4);
     }
   }));
   // the stands' stems: taller, a few heads above
-  K.tall = [0, 1, 2, 3, 4, 5].map((k) => make(13, 17, 50 + k, (C) => pflTuft(C, 6, 15, tall, { n: 7 + (k % 4), spread: 3 + (k & 1), h: 11 + (k % 4), fan: 0.25, lo: 2, hi: 5, skew: 0.6, heads: k % 3 === 1 ? 0.35 : 0, head })));
+  K.tall = [0, 1, 2, 3, 4, 5].map((k) => make(17, 19, 50 + k, (C) => pflTuft(C, 8, 17, tall, { n: 8 + (k % 4), spread: 3 + (k & 1), h: 12 + (k % 4), fan: 0.5, wob: 0.6, lo: 2, hi: 5, skew: 0.7, heads: k % 3 === 1 ? 0.35 : 0, head })));
   // the blades in front of a plant's foot: short, dark where they meet it
-  K.front = [0, 1, 2, 3, 4].map((k) => make(7, 8, 60 + k, (C) => pflTuft(C, 3, 6, tall, { n: 3 + (k % 3), spread: 1 + (k & 1), h: 3 + (k % 3), fan: 0.3, lo: 1, hi: 4 })));
+  K.front = [0, 1, 2, 3, 4].map((k) => make(11, 10, 60 + k, (C) => pflTuft(C, 5, 8, tall, { n: 4 + (k % 3), spread: 1 + (k & 1), h: 5 + (k % 3), fan: 0.45, skew: 0.6, lo: 1, hi: 4 })));
   if (look.front === 'pebbles') K.front = K.pebbles;
   return K;
 }
