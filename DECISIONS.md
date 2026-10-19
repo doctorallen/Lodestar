@@ -425,3 +425,23 @@ Every creature is repainted to `docs/PAINTED.md` (`js/foespaint.js`, `T.paint.fo
 - **New frames.** The crawler and the construct (and the warden) have a walk and a wind-up, the wisp and the Hollow a sway.
 - **Cues.** A struck creature still flashes a white rim. An elite keeps its pip, and its lit rim glows in its affix's colour instead of an outline.
 - **Cost.** A floor's creatures are painted as it's entered (about 40 ms for a region's common set with the CPU slowed 4×). A fight's frame costs what it did.
+
+## 2026-10-19: the painted style, the rock and ground polished (branch `painted-rock`)
+
+Phase 1's rock read as soft mud blotches, its paint went quiet under the dim light of dark land, dusk and the Deeps, and wall growth, hanging plants and the ground's effects didn't sit right against the rising rock. Against the style sample (`docs/PAINTED.md`):
+- **Boulders and flat facets.** A rock's heights are now a heap of seeded domes, a few big masses a screen, with creases where they meet. The rock is cut into wide slab cells, each a flat plane tilted its own way off the boulders' slope, with a crack along its foot and a lit bevel under it in broken lengths (cracks on every edge read as cracked mud, as phase 1 found). Faces are darker than lit tops, with strata; the lit rim is only where a top faces the light.
+- **Ramps evenly spaced, and painted for the light.** Ground and rock ramps are still the climes' own colours, but their tones are spread evenly in lightness, so neighbouring strokes always differ. A floor in a dim place is painted with its lighter tones raised (the darks stay), so strokes, facets and lips still read once the dim light multiplies them; mid tones are raised no more than the ground's, so rock tops stay darker than the floor. Kindling a territory paints it again for daylight.
+- **Ground strokes pushed:** more stroke jitter, streakier and harder-edged lit patches. Cloud shadows by day are broken in strokes, not dithered.
+- **Wall growth on the rock layer**, stretched to the taller faces (moss, roots, vines, icicles, a mesa's fringe, Rootdeep's roots); hanging plants hang from the face's lip; a tear's wash and a graft's look reach the rock; the ground's flat effects are hidden behind rock, tile by tile.
+- **Mining still matches a fresh paint** (the rock layer exactly; the facets read only the boulders, so mining changes none). The heights after mining are now worked out as far as the wall line moves, which phase 1 missed.
+- **Cost, at phone size with the CPU slowed 4×,** against phase 1 measured the same hour (three runs each):
+
+  | | Phase 1 | Now |
+  |---|---|---|
+  | Walking painted ground, median (surface / Deep / outpost) | 19.6 / 18.3 / 16.1 ms | 19.3 / 18.1 / 15.9 ms |
+  | Walking new ground, median (surface / Deep / outpost) | 17.6 / 17.7 / 15.6 ms | 18.6 / 19.1 / 16.9 ms |
+  | Walking new ground, 95th percentile, Deep | 21.1 ms | 24.1 ms |
+  | Entering a territory / a Deep | 1.13 / 0.86 s | 1.33 / 1.05 s |
+  | Mining a tile | 14.5 ms | 21 ms |
+
+  A painted chunk costs a little more, so the first walk through new ground and entering cost more; ground already painted costs the same.

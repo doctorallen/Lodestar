@@ -19,10 +19,12 @@ Phase 1 (done): the ground and the rock for every clime, the Deeps and the outpo
 
 `pntRamp(anchors, light, P)` turns a few anchor colours (dark to light, as `[r, g, b]`) into a stroke ramp: two deeper tones (pulled towards a violet black by `T.paint.ramp.dark`), the anchors, and two lighter ones (towards `light`, warm gold by default, by `T.paint.ramp.light`).
 
-`pntLook(b)` gives a floor look's ramps, cached:
+`pntLook(b)` gives a floor look's ramps, cached. They're made by `pntRampEven` (`T.paint.rampEven`): tones evenly spaced in lightness along a path from soot (the first anchor drawn towards the violet black by `deep`) through the anchors to a light (the last drawn towards `light` by `high`), so neighbouring tones are always a visible step apart and the strokes show:
 
 - `ground`: 7 tones from the look's three floor colours (`calmRgb` under the sky, `rampRgb` underground, so they keep the old hue shift).
-- `rock`: 10 tones from its three rock colours and three face colours, sorted by lightness, lit towards its rim colour (`rock[3]`).
+- `rock`: 10 tones from its three rock colours and three face colours, sorted by lightness, lit towards its rim colour (`rock[3]`), with more of them in the darks (`gamma`).
+
+**Painted for its light.** The per-frame light multiplies the painted colours, so a dim place (a Deep, dark land at dusk) would crush the strokes into near black. A floor is painted for the light it will be seen in: `pntDarkness(f)` (0 in daylight, 1 in a deep cave, from the place's ambient, `darkAt`) sets `View.pntLift`, and `pntLiftRamp` raises each tone by more the lighter it is (`liftGround`, `liftRock`: how much the lightest is raised, and the power), so soot stays soot while lit facets, lips and the ground's lit strokes still read. The rock's mid tones are raised no more than the ground's, so rock tops stay darker than the floor. If the place's light changes a lot (a territory kindled), the floor is painted again.
 
 Each comes as whole pixels (`Uint32Array`, for writing into a buffer) and as `[r, g, b]` (`groundRgb`, `rockRgb`).
 
@@ -46,7 +48,7 @@ Everything is seeded by place (`artHash`, `hashInts` of the floor's seed), never
 `pntGroundTones` works out each pixel's light value a row at a time, then lays strokes:
 
 - a broad swell;
-- streaky lit patches (stretched noise, cut soft);
+- streaky lit patches (noise stretched well across, cut fairly hard, `patch`, `patchCut`);
 - the old clusters, faintly;
 - a hard dark line and a falloff at a wall's foot, and a little beside walls;
 - under the sky, a rock's shadow cast to the lower right as far as the rock stands high.
@@ -58,14 +60,17 @@ Everything is seeded by place (`artHash`, `hashInts` of the floor's seed), never
 The camera is a steep three-quarter view: **rock rises**.
 
 - **Footprint.** It's unchanged: collision, generation and `View.rockPx` (the smooth wall line).
-- **Heights.** `pntHeights` raises each rock pixel of the footprint from its distance in from the rock's edge (`T.paint.wall`): a steep rise of `face` px over `edge` px (the face), rounding over into a top, plus boulder bumps (`bump`, `bumpScale`) that grow in over `ramp` px. The sinkhole never rises (`View.pitPx`). Heights are in `View.rockH` (whole px) and `View.rockHf` (sixteenths, for smooth normals).
+- **Heights.** `pntHeights` raises each rock pixel of the footprint from its distance in from the rock's edge (`T.paint.wall`): a steep rise of `face` px over `edge` px (the face), rounding over into a top, plus boulders up to `bump` px that grow in over `ramp` px. The boulders (`pntBoulder`, `pntBoulderAt`) are domes, one in each cell of a grid `boulder` px across (radii `boulderR`, some flatter-topped, `boulderFlat`), the height the highest dome there, with a little noise (`rough`): so a rock is a few big masses, with creases where they meet, and a boulder at the edge raises the face there. The sinkhole never rises (`View.pitPx`). Heights are in `View.rockH` (whole px) and `View.rockHf` (sixteenths, for smooth normals).
 - **Projection.** `paintRockArea` marches each column from the front (south) back. Every surface point is drawn at its row less its height, and the steep ones are stretched down over the rows below them as a face. A rock's top therefore stands up over the ground north of it. For each pixel of rock, `View.rockLift` holds the lift plus 1 (0 for ground), and so the floor row the pixel stands on is `y + lift − 1`.
-- **Shading.** Each rock pixel blends a top's value (its slope to the light, `lamLo`) and a face's (`faceBase`, plus `faceUp` for its height up the face, plus `faceWest` where it turns to the light), weighted by how steep it is (`steep`). It's then laid in strokes on the rock ramp (`topLo`–`topHi`, `faceLo`–`faceHi`), and then:
-  - strata on faces: long strokes a shade or two off;
-  - slabs (`T.paint.slab`): big cells, each its own tone, with a lit lip along the top and a dark crack under it, broken by noise;
-  - soot creases where a top folds;
-  - a lit rim along the silhouette's top edge, and a lit lip where a top turns down into a face;
+- **Shading.** Each rock pixel blends a top's value (its slope to the light, `lamLo`, steepened by `T.paint.facet.relief`) and a face's (`faceBase`, plus `faceUp` for its height up the face, plus `faceWest` where it turns to the light), weighted by how steep it is (`steep`). Faces are darker than lit tops. It's then laid in strokes on the rock ramp (`topLo`–`topHi`, `faceLo`–`faceHi`), and then:
+  - facets: the rock is cut into slab cells in the view's px (`T.paint.slab`, wider than tall). Each facet is a flat plane: a top pixel's value is drawn (`T.paint.facet.flat`) towards its facet's own, the boulders' slope under the facet's site (`pntSlabSite`) tilted its own way (`tilt`), so a top reads as a few flat lit planes. Each facet has a tone of its own too (`slab.tone`);
+  - cracks: along a facet's foot, a dark crack, and under it along the next facet's top a lit bevel, both in broken lengths (a gate of noise stretched across, `gate`, `gateS`), and now and then down a facet's side (`side`). Never on every edge: that reads as cracked mud;
+  - strata on faces: long strokes a shade or two off (`strata`, `strataAmt`);
+  - soot in the creases where boulders meet (`crease`, `creaseR`);
+  - a lit rim along the silhouette's top edge where the top faces the light (`rim`, `rimLit`; elsewhere a shade lighter), and a lit lip where a top turns down into a face;
   - soot at a face's foot.
+  The facets read only the boulders, not the footprint, so mining changes no facet; a pixel's tone reads the heights only within `facet.smooth` px of its own surface point and its stroke's middle, which bounds the repaint after mining (`pntRepaintRock`).
+- **What grows on it** (`paintrock.js`, `pnrRockGrowth`). The wall growth the undergrowth works out (moss climbing a face over a bed at its foot; roots, vines or icicles hanging from a lip; under the sky a ragged fringe of dry grass over a mesa's lip) is painted onto the rock layer, stretched to the face's height, so it shows on the faces and lips. A face is found from the footprint and heights (each south edge, up to the highest point its edge zone is drawn), not the drawn layer. Rootdeep's rock woven of roots follows the top's surface and runs down its faces. A tear's wash (`pnrTintRock`) and a graft's look (its rock ramp inside the graft's outline) reach the rock too, by where each rock pixel stands on the floor.
 - **Ore and veins.** These are on the rock layer (`pntRockDecor`): crystals on the ore tile's lifted top, and one on its face where it faces the ground. The ore's light, its twinkle and the mining target are lifted with it (`pntLiftAt`).
 - **One picture.** The rock is laid over the ground in the floor's own buffers (`pntComposite`), so a frame still draws the floor as one picture. The rock buffer (`View.rockBuf`) is kept for occlusion.
 
@@ -75,7 +80,8 @@ Anything standing north of rock that rises in front of it is hidden by it. After
 
 - An 8×8 block table (`View.rockBlk`, the furthest floor row any rock in the block stands on) passes over most sprites at once.
 - Boxes are cached while they don't move.
-- Hanging plants (`a.top`) belong to the rock and aren't covered.
+- Hanging plants (`a.top`) belong to the rock and aren't covered. They hang from the lip of the face over their anchor (`pnrLipAbove`), not its foot.
+- **Flat things on the ground** have no feet to sort by. A hazard's bubbles and glints, ripples, foes' marks, a waystone's rings and cast marks are drawn before the actors; then `pnrOccludeGround` lays back the rock over every tile where one of them may have been drawn (found from the same state they're drawn from), all of each tile's rock pixels, in both layers, the rock's own glow put back. Each tile's rock is kept as a picture until it's painted again. Things that stand up off the ground (a vent's fire, a spore pod, an afterimage) are drawn after that, each hidden by its feet.
 - Drops, the outpost's stations and the lanterns call `paintOcclude` themselves.
 
 A new kind of actor needs a size in `paintOccludeActor`, or its own call to `paintOcclude`.
@@ -137,10 +143,8 @@ The sample's crawler and wisp (`zsprites.py`) show the idea.
 
 ## Known gaps after phase 1
 
-- **Creatures, critters, stations and the effects** are still A+ sprites with outlines (flora, the field's props, ore and drops: see below). They stand and are hidden correctly, but their look clashes until they're repainted.
-- **Wall growth is hidden.** Moss up a face, roots and icicles painted into the ground layer (`undergrowth.js`) and a clime's rock decor (`paintRootRock`) are covered by the rising rock. The flora phase should paint them onto the rock layer.
-- **Hanging plants** (`anchor: 'ceiling'`) still hang from the footprint's edge, now at the foot of the face rather than its lip.
-- **Ground effects aren't hidden.** Things drawn flat on the ground (hazard animations, cast marks, rift tint) aren't hidden by rock in front of them, and the rift's tint and a graft don't reach the rock.
+- **Wall growth, hanging plants, ground effects, a tear's tint and a graft on the rock** were gaps after phase 1; the rock phase fixed them (above). A new kind of thing drawn flat on the ground needs its tiles marked in `pnrOccludeGround`.
+- **The rock is still made by a rule.** Its boulders and facets are evenly spread over every mass, where a painter would put one big plane and one deep crack where the shape needs them; big flat tops can read as a mosaic of facets.
 - **Painting costs more.** A painted chunk costs about 3 times what the old painter did for the same area. The first walk through new ground costs a few ms a frame while it fills in.
 
 ## The outpost, people and effects (phase 2, branch `painted-hub`)

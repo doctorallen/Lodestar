@@ -757,7 +757,12 @@ function drawCastGround(d, ox, oy, tick, lights) {
     const C = T.castFx.charge, rx = cfxQuant(lerp(C.glyph[0], C.glyph[1], lv) * AP), full = lv >= 1;
     cfxBlit(cfxGlyphPic(rx, full && tick % 2 ? '#ffffff' : castFxCol(it), Math.floor(Game.realT * (6 + lv * 10)) % 6), fx, fy, full ? 1 : lv > 0.5 ? 0.75 : 0.5);
   }
-  // afterimages (an Echo's ghost goes over the diver: drawCastAir)
+}
+// Afterimages on the ground (an Echo's ghost goes over the diver:
+// drawCastAir), drawn after the rock has been laid back over the ground's
+// marks, as they stand up off it (render.js).
+function cfxDrawGroundGhosts(d, ox, oy) {
+  if (CFX.dive !== d) return;
   for (const g of CFX.ghosts) if (!g.over) cfxDrawGhost(g, ox, oy);
 }
 
@@ -768,6 +773,8 @@ function cfxDrawGhost(g, ox, oy) {
   c.globalAlpha = a; c.drawImage(pic, x, y);
   e.globalAlpha = a * 0.6; e.drawImage(pic, x, y);
   c.globalAlpha = e.globalAlpha = 1;
+  // (behind rock, hidden by it: paint.js)
+  paintOcclude(x, y, spr.w, spr.h, Math.round(g.y * AP) + oy, ox, oy);
 }
 
 // A sprite's silhouette in a colour, kept.

@@ -43,21 +43,69 @@ function pntRamp(anchors, light = PNT_WARM, P = T.paint.ramp) {
   out.push(pntMixRgb(top, light, P.light[0]), pntMixRgb(top, light, P.light[1]));
   return out;
 }
-// A look's ramps (b: a floor look, ART.biomes' shape), worked out once:
-// ground (7 tones from its floor's three) and rock (10, from its rock's
-// three dark tones and its face's three, sorted by lightness, lit towards
-// its rim colour).
+// A ramp of n tones evenly spaced in lightness along a path from soot (the
+// first anchor drawn towards a violet black by P.deep) through the anchors
+// (dark to light) to a light (the last drawn towards `light` by P.high), so
+// neighbouring tones are always a visible step apart. P.gamma > 1 puts more
+// of them in the darks.
+function pntRampEven(anchors, n, P, light = PNT_WARM) {
+  const path = [pntMixRgb(anchors[0], PNT_DEEP, P.deep)].concat(anchors, [pntMixRgb(anchors[anchors.length - 1], light, P.high)]), pts = [];
+  for (let i = 0; i + 1 < path.length; i++) for (let s = 0; s < 16; s++) pts.push(pntMixRgb(path[i], path[i + 1], s / 16));
+  pts.push(path[path.length - 1]);
+  // (lightness along it, never falling)
+  const L = [];
+  let m = -1;
+  for (const c of pts) { m = Math.max(m, pntLum(c)); L.push(m); }
+  const L0 = L[0], L1 = L[L.length - 1], out = [];
+  for (let k = 0, j = 0; k < n; k++) {
+    const want = L0 + (L1 - L0) * Math.pow(k / (n - 1), P.gamma);
+    while (j < L.length - 2 && L[j + 1] < want) j++;
+    const u = L[j + 1] > L[j] ? Math.min(1, Math.max(0, (want - L[j]) / (L[j + 1] - L[j]))) : 0;
+    out.push(pntMixRgb(pts[j], pts[j + 1], u));
+  }
+  return out;
+}
+// A ramp lifted for a dark place (lift 0..1): each tone raised by more the
+// lighter it is (its share u of the way up the ramp, so the soot stays
+// soot), so the strokes and lit edges still read once the place's dim
+// light has been multiplied over them (L: [how much a full lift raises
+// the lightest, the power of u]).
+function pntLiftRamp(ramp, lift, L) {
+  if (!(lift > 0)) return ramp;
+  return ramp.map((c, k) => {
+    const u = k / (ramp.length - 1), m = 1 + lift * L[0] * Math.pow(u, L[1]), top = Math.max(c[0], c[1], c[2], 1);
+    return c.map((v) => v * Math.min(m, 255 / top));
+  });
+}
+// A look's ramps (b: a floor look, ART.biomes' shape), worked out once for
+// each lift: ground (7 tones from its floor's three) and rock (10, from its
+// rock's three dark tones and its face's three, sorted by lightness, lit
+// towards its rim colour), each evenly spaced in lightness (pntRampEven)
+// and lifted as dark as the floor being painted is (View.pntLift).
 const _pntLooks = new WeakMap();
-function pntLook(b) {
-  let L = _pntLooks.get(b);
+function pntLook(b, lift = View.pntLift || 0) {
+  let M = _pntLooks.get(b);
+  if (!M) _pntLooks.set(b, (M = new Map()));
+  const key = Math.round(lift * 20);
+  let L = M.get(key);
   if (L) return L;
-  const g = (b.sun ? calmRgb(b.floor) : rampRgb(b.floor)).slice(0, 3);
+  lift = key / 20;
+  const R = T.paint.rampEven, g = (b.sun ? calmRgb(b.floor) : rampRgb(b.floor)).slice(0, 3);
   const rk = rampRgb(b.rock), fr = rampRgb(b.front);
   const rock = rk.slice(0, 3).concat(fr.slice(0, 3)).sort((p, q) => pntLum(p) - pntLum(q));
-  const ground = pntRamp(g), rr = pntRamp(rock, rk[3], T.paint.ramp.rock);
+  const ground = pntLiftRamp(pntRampEven(g, 7, R.ground), lift, R.liftGround);
+  const rr = pntLiftRamp(pntRampEven(rock, 10, R.rock, rk[3]), lift, R.liftRock);
   L = { ground: Uint32Array.from(ground.map(pntU32)), rock: Uint32Array.from(rr.map(pntU32)), groundRgb: ground, rockRgb: rr };
-  _pntLooks.set(b, L);
+  M.set(key, L);
   return L;
+}
+// How dark the floor being painted will be lit, 0 (daylight) to 1 (a deep
+// cave): from the place's ambient light as the frame will work it out.
+function pntDarkness(f) {
+  const d = Game.dive, P = T.paint.rampEven.darkAt;
+  if (!d || d.floor !== f) return 0;
+  const lv = lampLevels(d), a = lv.amb * Math.max(lv.tint[0], lv.tint[1], lv.tint[2]);
+  return Math.max(0, Math.min(1, (P[0] - a) / (P[0] - P[1])));
 }
 
 // ---- noise -----------------------------------------------------------------
@@ -180,6 +228,28 @@ function pntIsRockPx(f, R, W, x, y) {
   const P = View.pitPx;
   return !(P && P[y * W + x]);
 }
+// The boulders: one a cell of a grid Bo px across (T.paint.wall.boulder),
+// each a dome, rounder or flatter-topped: its middle, 1 / its radii, its
+// height (a share of bump) and how flat its top. pntBoulderAt: the heap's
+// height at a floor point (0..1, the highest dome there).
+function pntBoulder(I, J, seed, o) {
+  const Wl = T.paint.wall, Bo = Wl.boulder, rx = Bo * (Wl.boulderR[0] + (Wl.boulderR[1] - Wl.boulderR[0]) * artHash(I, J, seed + 53));
+  o[0] = (I + 0.2 + 0.6 * artHash(I, J, seed + 51)) * Bo; o[1] = (J + 0.2 + 0.6 * artHash(I, J, seed + 52)) * Bo;
+  o[2] = 1 / rx; o[3] = 1 / (rx * (0.7 + 0.35 * artHash(I, J, seed + 54)));
+  o[4] = 0.55 + 0.45 * artHash(I, J, seed + 55); o[5] = 1 + Wl.boulderFlat * artHash(I, J, seed + 56);
+  return o;
+}
+const _pntBo = new Float32Array(6);
+function pntBoulderAt(x, y, seed) {
+  const Bo = T.paint.wall.boulder, gx = Math.floor(x / Bo), gy = Math.floor(y / Bo), o = _pntBo;
+  let bv = 0;
+  for (let j = gy - 1; j <= gy + 1; j++) for (let i = gx - 1; i <= gx + 1; i++) {
+    pntBoulder(i, j, seed, o);
+    const dx = (x - o[0]) * o[2], dy = (y - o[1]) * o[3], e = 1 - dx * dx - dy * dy;
+    if (e > 0) { const v = o[4] * Math.sqrt(e * o[5] < 1 ? e * o[5] : 1); if (v > bv) bv = v; }
+  }
+  return bv;
+}
 // Distances (chamfer 5-7, so ~5 a px) from the nearest open pixel, over a
 // window, capped; then heights for its inner part.
 let _pntDist = new Uint16Array(0);
@@ -219,15 +289,30 @@ function pntHeights(f, x0, y0, x1, y1) {
     if (e2 < d) d = e2;
     D[k] = d;
   }
-  const seed = (f.seed ^ f.depth) | 0, bs = Wl.bumpScale, row = new Float32Array(x1 - x0), row2 = new Float32Array(x1 - x0), edge = Wl.edge, face = Wl.face, bmp = Wl.bump, ramp = Wl.ramp;
+  const seed = (f.seed ^ f.depth) | 0, bs = Wl.bumpScale, row2 = new Float32Array(x1 - x0), edge = Wl.edge, face = Wl.face, bmp = Wl.bump, ramp = Wl.ramp;
+  // the boulders: one a cell of a grid Bo px across, each a dome (rounder
+  // or flatter-topped), so a rock is a heap of distinct masses with creases
+  // where they meet
+  const Bo = Wl.boulder, gx0 = Math.floor(x0 / Bo) - 1, gx1 = Math.floor((x1 - 1) / Bo) + 1, gy0 = Math.floor(y0 / Bo) - 1, gy1 = Math.floor((y1 - 1) / Bo) + 1, gw = gx1 - gx0 + 1, gh = gy1 - gy0 + 1;
+  const BX = new Float32Array(gw * gh), BY = new Float32Array(gw * gh), BRX = new Float32Array(gw * gh), BRY = new Float32Array(gw * gh), BH = new Float32Array(gw * gh), BK = new Float32Array(gw * gh), bo = _pntBo;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const o = j * gw + i;
+    pntBoulder(gx0 + i, gy0 + j, seed, bo);
+    BX[o] = bo[0]; BY[o] = bo[1]; BRX[o] = bo[2]; BRY[o] = bo[3]; BH[o] = bo[4]; BK[o] = bo[5];
+  }
   for (let y = Math.max(0, y0); y < Math.min(Hp, y1); y++) {
-    pntNoiseRow(row, x0, x1 - x0, y, bs, bs * 0.8, seed + 41);
     pntNoiseRow(row2, x0, x1 - x0, y, bs * 0.45, bs * 0.4, seed + 42);
+    const gy = Math.floor(y / Bo) - gy0;
     for (let x = Math.max(0, x0); x < Math.min(W, x1); x++) {
       const dd = D[(y - wy0 + 1) * pw + x - wx0 + 1], k = y * W + x;
       if (!dd) { H[k] = 0; HF[k] = 0; continue; }
       const d = (dd < C ? dd : C) * 0.2, u = d < edge ? d / edge : 1, rise = 1 - (1 - u) * (1 - u);
-      const hf = face * rise + bmp * (row[x - x0] * 0.7 + row2[x - x0] * 0.3) * (d < ramp ? d / ramp : 1), q = hf < 1 ? 1 : hf;
+      let bv = 0;
+      for (let j = gy - 1; j <= gy + 1; j++) for (let i = Math.floor(x / Bo) - gx0 - 1, ie = i + 2; i <= ie; i++) {
+        const o = j * gw + i, dx = (x - BX[o]) * BRX[o], dy = (y - BY[o]) * BRY[o], e = 1 - dx * dx - dy * dy;
+        if (e > 0) { const v = BH[o] * Math.sqrt(e * BK[o] < 1 ? e * BK[o] : 1); if (v > bv) bv = v; }
+      }
+      const hf = face * rise + bmp * (bv * (1 - Wl.rough) + row2[x - x0] * Wl.rough) * (d < ramp ? d / ramp : 1), q = hf < 1 ? 1 : hf;
       H[k] = (q + 0.5) | 0; HF[k] = (q * 16 + 0.5) | 0;
     }
   }
@@ -264,8 +349,13 @@ function paintRockArea(f, x0, y0, x1, y1) {
     }
   }
   pntPaintRock(f, x0, y0, x1, y1);
-  pntRockDecor(f, x0, y0, x1, y1);
-  pntRockBlocks(f, x0, y0, x1, y1);
+  // what grows on it, and a tear's tint (paintrock.js)
+  pnrRockGrowth(f, x0, y0, x1, y1);
+  pnrTintRock(f, x0, y0, x1, y1);
+  // (the march reset the lifts round the area too, so what the rock carries
+  // there is laid again, as it was)
+  pntRockDecor(f, mx0, my0, mx1, my1);
+  pntRockBlocks(f, mx0, my0, mx1, my1);
 }
 
 // The rock's slabs: cells in the view's own px, wider than tall, each a
@@ -292,7 +382,7 @@ function pntSlabs(cell, x0, y0, rw, ch, sp, seed) {
       if (gx !== gxl) {
         // the nine points about this column of cells, as distances in y
         gxl = gx;
-        for (let c = 0, j = gy - 1; j <= gy + 1; j++) for (let k = gx - 1; k <= gx + 1; k++, c++) { const o = (j - gy0) * gw + k - gx0; CX[c] = PX[o]; CY[c] = (y - PY[o]) * ich; CI[c] = (j * 4099 + k) | 0; }
+        for (let c = 0, j = gy - 1; j <= gy + 1; j++) for (let k = gx - 1; k <= gx + 1; k++, c++) { const o = (j - gy0) * gw + k - gx0; CX[c] = PX[o]; CY[c] = (y - PY[o]) * ich; CI[c] = (j * 4099 + k + 1) | 0; }
         for (let c = 0; c < 9; c++) CY[c] = CY[c] * CY[c];
       }
       let best = 1e9, id = 0;
@@ -301,47 +391,106 @@ function pntSlabs(cell, x0, y0, rw, ch, sp, seed) {
     }
   }
 }
+// A facet's site (pntSlabs' jittered point for cell id), in the view's px.
+function pntSlabSite(id, seed) {
+  const S = T.paint.slab, j = Math.floor(id / 4099), k = id - j * 4099 - 1;
+  return [(k + artHash(k, j, seed) + (j & 1) * 0.5) * S.w, (j + artHash(k, j, seed + 1)) * S.h];
+}
+// The look a graft brings (rifts.js), for its rock.
+function pntGraftLook(f) {
+  const g = f.graft;
+  if (!g) return null;
+  const id = T.biomes[g.biome].id;
+  return CLIME_ART[g.clime] || (g.sky ? ART.surface[id] : ART.biomes[id]);
+}
+// The rock in strokes. Each pixel's tone comes from its surface point: as
+// a top, its slope to the light from the upper left; as a face (steep),
+// darker, rising a little up the face and lighter where it turns west; the
+// two blended by how steep it is. The surface is cut into facets (slab
+// cells in the view's px, T.paint.slab), each tilted its own way and
+// flattened towards a broad slope (T.paint.facet), so a top reads as a few
+// flat lit planes; each facet a tone of its own, bevelled light along its
+// top, cracked dark along its foot (broken here and there). Then strata on
+// the faces, soot in the creases where boulders meet, a lit rim along the
+// silhouette and along a face's lip, soot at a face's foot.
 function pntPaintRock(f, x0, y0, x1, y1) {
-  const P = T.paint, Wl = P.wall, Rk = P.rock, HF = View.rockHf, LF = View.rockLift, Q = View.rockBuf, C32 = Q.col32, W = f.w * ATILE, Hp = f.h * ATILE;
+  const P = T.paint, Wl = P.wall, Rk = P.rock, Fc = P.facet, Sl = P.slab, HF = View.rockHf, LF = View.rockLift, Q = View.rockBuf, C32 = Q.col32, W = f.w * ATILE, Hp = f.h * ATILE;
   const b = artBiome(f), ramp = pntLook(b).rock, nt = ramp.length, seed = (f.seed ^ f.depth) | 0, rw = x1 - x0, rh = y1 - y0;
+  const gl = pntGraftLook(f), gRamp = gl ? pntLook(gl).rock : null, g = f.graft, gcx = g ? (g.x + 0.5) * ATILE : 0, gcy = g ? (g.y + 0.5) * ATILE : 0, gR = g ? (g.r + 2) * ATILE : 0;
   const ll = Math.hypot(Rk.light[0], Rk.light[1], Rk.light[2]), lx = Rk.light[0] / ll, ly = Rk.light[1] / ll, lz = Rk.light[2] / ll;
   const hq = (x, y) => (x < 0 || y < 0 || x >= W || y >= Hp ? Wl.face : HF[y * W + x] / 16);
   const isRock = (x, y) => x >= 0 && y >= 0 && x < W && y < Hp && LF[y * W + x] > 0;
-  // a rock pixel's tone before its stroke (its point's slope to the light
-  // as a top, its height up the face as a face, blended by how steep it
-  // is) into tb, and how steep (0 a top, 1 a face) into wb
+  // the facets, for the rows and a few either side, and the columns the
+  // strokes read
+  const sp = 4, ch = rh + 2 * sp, cx0 = x0 - 8, cw = rw + 16;
+  if (_pntCell.length < cw * ch) _pntCell = new Int32Array(cw * ch);
+  const cell = _pntCell;
+  pntSlabs(cell, cx0, y0, cw, ch, sp, seed + 61);
+  // a rock pixel's tone before its stroke into tb, and how steep (0 a top,
+  // 1 a face) into wb
   const s0 = Rk.steep[0], sk = 1 / (Rk.steep[1] - Rk.steep[0]), lamLo = Rk.lamLo, lamK = 1 / (1 - lamLo), topLo = Rk.topLo, topR = Rk.topHi - Rk.topLo, faceLo = Rk.faceLo, faceR = Rk.faceHi - Rk.faceLo;
-  const fB = Rk.faceBase, fU = Rk.faceUp / Wl.face, fWst = Rk.faceWest, W2 = 2 * W, W3 = 3 * W;
-  const look = (x, y, tb, wb, i) => {
-    const sy = y + LF[y * W + x] - 1, k = sy * W + x;
-    let h, hx, hy;
-    if (x >= 2 && x < W - 2 && sy >= 2 && sy < Hp - 2) { h = HF[k] * 0.0625; hx = (HF[k + 2] - HF[k - 2]) * 0.015625; hy = (HF[k + W2] - HF[k - W2]) * 0.015625; }
-    else { h = hq(x, sy); hx = (hq(x + 2, sy) - hq(x - 2, sy)) * 0.25; hy = (hq(x, sy + 2) - hq(x, sy - 2)) * 0.25; }
+  const fB = Rk.faceBase, fU = Rk.faceUp / Wl.face, fWst = Rk.faceWest, W2 = 2 * W, S = Fc.smooth, SW = S * W, iS = 1 / (32 * S), keep = Fc.keep, tilt = Fc.tilt * 2, rel = Fc.relief, flat = Fc.flat;
+  // a surface point's (floor px x, sy) light as a top (0..1, its broad
+  // slope tilted by tx, ty, to the light), how steep it is, and its tone
+  const at = (x, sy, tx, ty, o) => {
+    const k = sy * W + x;
+    let h, hx, hy, hxs, hys;
+    if (x >= S && x < W - S && sy >= S && sy < Hp - S) {
+      h = HF[k] * 0.0625; hx = (HF[k + 2] - HF[k - 2]) * 0.015625; hy = (HF[k + W2] - HF[k - W2]) * 0.015625;
+      hxs = (HF[k + S] - HF[k - S]) * iS; hys = (HF[k + SW] - HF[k - SW]) * iS;
+    } else { h = hq(x, sy); hx = (hq(x + 2, sy) - hq(x - 2, sy)) * 0.25; hy = (hq(x, sy + 2) - hq(x, sy - 2)) * 0.25; hxs = hx; hys = hy; }
     let w = (-hy - s0) * sk;
     w = w <= 0 ? 0 : w >= 1 ? 1 : w * w * (3 - 2 * w);
-    const lam = (-hx * lx - hy * ly + lz) / Math.sqrt(hx * hx + hy * hy + 1);
+    const gx = (hx * keep + hxs * (1 - keep) + tx) * rel, gy = (hy * keep + hys * (1 - keep) + ty) * rel;
+    const lam = (-gx * lx - gy * ly + lz) / Math.sqrt(gx * gx + gy * gy + 1);
     let vt = (lam - lamLo) * lamK; vt = vt < 0 ? 0 : vt > 1 ? 1 : vt;
     let vf = fB + fU * (h < Wl.face ? h : Wl.face) + fWst * (hx < -1 ? -1 : hx > 1 ? 1 : hx); vf = vf < 0 ? 0 : vf > 1 ? 1 : vf;
-    tb[i] = (topLo + vt * topR) * (1 - w) + (faceLo + vf * faceR) * w;
-    wb[i] = w;
+    o[0] = (topLo + vt * topR) * (1 - w) + (faceLo + vf * faceR) * w; o[1] = w; o[2] = vt;
   };
-  // the slab cells, for the rows and a few either side
-  const sp = 4, ch = rh + 2 * sp;
-  if (_pntCell.length < rw * ch) _pntCell = new Int32Array(rw * ch);
-  const cell = _pntCell;
-  pntSlabs(cell, x0, y0, rw, ch, sp, seed + 61);
+  // each facet's own tone as a top: the boulders' slope under its site,
+  // tilted its own way, so the facet reads as one flat plane. (From the
+  // boulders alone, not the footprint, so mining leaves it be: the floor
+  // point under the site is found as if a top stood there.)
+  const facets = new Map(), tmp = [0, 0, 0], fseed = seed + 61, bk = Wl.bump * (1 - Wl.rough) * rel / (2 * S);
+  const facetOf = (id) => {
+    let v = facets.get(id);
+    if (v !== undefined) return v;
+    const [fx, fy] = pntSlabSite(id, fseed);
+    let y = fy + Wl.face + Wl.bump * 0.5;
+    y = fy + Wl.face + Wl.bump * (1 - Wl.rough) * pntBoulderAt(fx, y, seed);
+    const gx = (pntBoulderAt(fx + S, y, seed) - pntBoulderAt(fx - S, y, seed)) * bk + (artHash(id, 2, seed + 87) - 0.5) * tilt * rel;
+    const gy = (pntBoulderAt(fx, y + S, seed) - pntBoulderAt(fx, y - S, seed)) * bk + (artHash(id, 3, seed + 87) - 0.5) * tilt * rel;
+    const lam = (-gx * lx - gy * ly + lz) / Math.sqrt(gx * gx + gy * gy + 1);
+    let vt = (lam - lamLo) * lamK; vt = vt < 0 ? 0 : vt > 1 ? 1 : vt;
+    v = [topLo + vt * topR, vt];
+    facets.set(id, v);
+    return v;
+  };
+  let lastId = NaN, lastF = null;
+  const look = (x, y, tb, wb, i, r) => {
+    at(x, y + LF[y * W + x] - 1, 0, 0, tmp);
+    let t = tmp[0], w = tmp[1], vt = tmp[2];
+    // the facet's plane, where the pixel is the same kind (top or face)
+    const id = cell[r * cw + i];
+    if (id !== lastId) { lastId = id; lastF = facetOf(id); }
+    const fv = lastF, k = flat * (1 - w);
+    t = (fv[0] * (1 - w) + t * w) * k + t * (1 - k); vt = fv[1] * k + vt * (1 - k);
+    tb[i] = t; wb[i] = w; lt[i] = vt;
+  };
   const gate = new Float32Array(rw);
-  const n = rw + 16, mid = new Int16Array(n), jit = new Float32Array(n);
+  const n = cw, mid = new Int16Array(n), jit = new Float32Array(n), lt = new Float32Array(n);
   let tb = new Float32Array(n), wb = new Float32Array(n), tbUp = new Float32Array(n), wbUp = new Float32Array(n);
-  for (let i = 0; i < n; i++) { const x = x0 - 8 + i; if (isRock(x, y0 - 1)) look(x, y0 - 1, tbUp, wbUp, i); else wbUp[i] = 0; }
+  for (let i = 0; i < n; i++) { const x = cx0 + i; if (isRock(x, y0 - 1)) look(x, y0 - 1, tbUp, wbUp, i, sp - 1); else wbUp[i] = 0; }
+  const cr = Rk.creaseR, crW = cr * W, crK = 0.0625 * 0.25;
   for (let y = y0; y < y1; y++) {
-    for (let i = 0; i < n; i++) { const x = x0 - 8 + i; if (isRock(x, y)) look(x, y, tb, wb, i); else wb[i] = -1; }
-    pntStrokeRow(mid, jit, x0 - 8, n, y, seed + 71);
-    pntNoiseRow(gate, x0, rw, y, 7, 4, seed + 85);
+    const r = y - y0 + sp;
+    for (let i = 0; i < n; i++) { const x = cx0 + i; if (isRock(x, y)) look(x, y, tb, wb, i, r); else wb[i] = -1; }
+    pntStrokeRow(mid, jit, cx0, n, y, seed + 71);
+    pntNoiseRow(gate, x0, rw, y, Sl.gateS[0], Sl.gateS[1], seed + 85);
     const off = (artHash(y, 3, seed) * 16) | 0;
     let stS = -1e9, stX = 0, stL = 0, stA = 0, slId = -2, slT = 0;
     for (let x = x0; x < x1; x++) {
-      const i = x - x0 + 8;
+      const i = x - cx0;
       if (wb[i] < 0) continue;
       const sy = y + LF[y * W + x] - 1, face = wb[i] > 0.5, m = mid[i];
       // the stroke's tone, from its middle if that's rock too
@@ -351,33 +500,37 @@ function pntPaintRock(f, x0, y0, x1, y1) {
         const sc = (x + off) >> 4;
         if (sc !== stS) {
           stS = sc; stA = 0;
-          if (artHash(sc, y, seed + 81) < Rk.strata) { stX = sc * 16 - off + ((artHash(sc, y, seed + 82) * 8) | 0); stL = 3 + ((artHash(sc, y, seed + 83) * 10) | 0); stA = artHash(sc, y, seed + 84) < 0.6 ? -2 : 1; }
+          if (artHash(sc, y, seed + 81) < Rk.strata) { stX = sc * 16 - off + ((artHash(sc, y, seed + 82) * 8) | 0); stL = 4 + ((artHash(sc, y, seed + 83) * 12) | 0); stA = artHash(sc, y, seed + 84) < 0.6 ? -Rk.strataAmt : Rk.strataAmt * 0.6; }
         }
         if (stA && x >= stX && x < stX + stL) t += stA;
       }
-      // slabs: a tone of their own; a lip on top, a crack below
-      const cj = (y - y0 + sp) * rw + x - x0, id = cell[cj];
-      let up = 9, dn = 9;
-      for (let k = 1; k <= 3; k++) { if (up === 9 && cell[cj - k * rw] !== id) up = k; if (dn === 9 && cell[cj + k * rw] !== id) dn = k; }
-      if (id !== slId) { slId = id; slT = (artHash(id, 1, seed + 86) - 0.5) * 2 * P.slab.tone; }
+      // the facet: a tone of its own; bevelled light along its top, a crack
+      // along its foot and now and then down its right side
+      const cj = r * cw + i, id = cell[cj];
+      if (id !== slId) { slId = id; slT = (artHash(id, 1, seed + 86) - 0.5) * 2 * Sl.tone; }
       t += slT;
-      if (gate[x - x0] > P.slab.gate) {
-        if (up === 1 && isRock(x, y - 1)) t += face ? P.slab.lip : P.slab.lip * 0.5;
-        else if (up <= 3 && face) t += 0.7;
-        if (dn === 1 && isRock(x, y + 1)) t = Math.min(t, P.slab.crack + (face ? 0 : 2));
-        else if (dn <= 2 && isRock(x, y + 1)) t -= 1;
+      // (the cracks come in broken lengths: a gate of noise stretched
+      // across, the same for the crack and the bevel under it)
+      const gt = gate[x - x0], upD = cell[cj - cw] !== id && isRock(x, y - 1), dnD = cell[cj + cw] !== id && isRock(x, y + 1);
+      if (gt > Sl.gate) {
+        if (dnD) t = Math.min(t, Sl.crack + (face ? 0 : 1));
+        else if (upD) t += Sl.lip;
+        else if (cell[cj + 1] !== id && cell[cj + 1] >= 0 && artHash(id, 4, seed + 89) < Sl.side) t = Math.min(t, Sl.crack + 1);
       }
-      // a crease where the rock folds: hard soot
-      const ks = sy * W + x, cav = x >= 3 && x < W - 3 && sy >= 3 && sy < Hp - 3 ? (HF[ks] - (HF[ks - 3] + HF[ks + 3] + HF[ks - W3] + HF[ks + W3]) * 0.25) * 0.0625 : 0;
-      if (cav < -Rk.crease && !face) t = Math.min(t, 1);
+      // a crease where the rock folds (where two boulders meet): hard soot
+      if (!face && x >= cr && x < W - cr && sy >= cr && sy < Hp - cr) {
+        const ks = sy * W + x, cav = (HF[ks] * 4 - HF[ks - cr] - HF[ks + cr] - HF[ks - crW] - HF[ks + crW]) * crK;
+        if (cav < -Rk.crease) t = Math.min(t, cav < -Rk.crease * 1.8 ? 0 : 1);
+      }
       // the silhouette's top edge, lit; the lip where a top turns down
       // into a face, lit; the face's foot on the ground, soot
-      if (!isRock(x, y - 1)) t = Math.max(t, Rk.rim);
+      if (!isRock(x, y - 1)) t = lt[i] > Rk.rimLit ? Math.max(t, Rk.rim) : t + 1;
       else if (face && wbUp[i] < 0.3) t = Math.max(t, Rk.lip);
       if (!isRock(x, y + 1)) t = Math.min(t, Rk.foot);
-      else if (!isRock(x, y + 2)) t = Math.min(t, Rk.foot + 2);
+      else if (!isRock(x, y + 2)) t = Math.min(t, Rk.foot + 1);
       t = Math.round(t);
-      C32[y * W + x] = ramp[t < 0 ? 0 : t > nt - 1 ? nt - 1 : t];
+      const rp = gRamp && Math.abs(x - gcx) < gR && Math.abs(sy - gcy) < gR && graftAt(f, (x + 0.5) / AP - 0.5, (sy + 0.5) / AP - 0.5) ? gRamp : ramp;
+      C32[y * W + x] = rp[t < 0 ? 0 : t > nt - 1 ? nt - 1 : t];
     }
     let q = tbUp; tbUp = tb; tb = q; q = wbUp; wbUp = wb; wb = q;
   }
@@ -450,6 +603,8 @@ function pntLiftAt(x, y) {
 const PNT_CH = 48, PNT_HCH = 96;
 function pntFloorStart(f) {
   const W = f.w * ATILE, Hp = f.h * ATILE;
+  // (painted for the light it will be seen in: pntLook)
+  View.pntLift = pntDarkness(f);
   View.rockH = new Uint8Array(W * Hp);
   View.rockHf = new Uint16Array(W * Hp);
   View.groundTone = new Uint8Array(W * Hp);
@@ -472,7 +627,7 @@ function pntFloorStart(f) {
     }
   }
   View.pitPx = pit;
-  View.occCache = new Map();
+  View.occCache = new Map(); View.pnrTiles = null;
   const nx = Math.ceil(W / PNT_CH), ny = Math.ceil(Hp / PNT_CH), hx = Math.ceil(W / PNT_HCH), hy = Math.ceil(Hp / PNT_HCH);
   View.pnt = { f, nx, ny, done: new Uint8Array(nx * ny), hnx: hx, hny: hy, hdone: new Uint8Array(hx * hy), left: nx * ny, stale: false };
   let x;
@@ -508,7 +663,8 @@ function pntPaintChunk(f, i, j) {
   const S = View.pnt, W = f.w * ATILE, Hp = f.h * ATILE, maxH = pntMaxLift(), G = T.paint.ground;
   S.done[j * S.nx + i] = 1; S.left--;
   const x0 = i * PNT_CH, y0 = j * PNT_CH, x1 = Math.min(W, x0 + PNT_CH), y1 = Math.min(Hp, y0 + PNT_CH), back = G.sunSteps * Math.max(G.sunDir[0], G.sunDir[1]);
-  pntEnsureHeights(f, x0 - back - 4, y0 - back - 4, x1 + PNT_CELL + 4, y1 + maxH + 8);
+  const sm = T.paint.facet.smooth + 3;
+  pntEnsureHeights(f, x0 - Math.max(back, PNT_CELL + sm) - 4, y0 - Math.max(back, sm) - 4, x1 + PNT_CELL + sm + 4, y1 + maxH + sm + 8);
   pntGroundTones(f, x0, y0, x1, y1);
   const tx0 = Math.floor(x0 / ATILE), ty0 = Math.floor(y0 / ATILE), tx1 = Math.ceil(x1 / ATILE) - 1, ty1 = Math.ceil(y1 / ATILE) - 1;
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) paintTileArt(f, tx, ty);
@@ -516,6 +672,7 @@ function pntPaintChunk(f, i, j) {
   tintRift(f, x0, y0, x1, y1);
   paintRockArea(f, x0, y0, x1, y1);
   pntComposite(f, x0, y0, x1, y1);
+  View.pnrTiles = null;
   // a fixed light whose sight reaches here sees its faces now (shadow.js)
   for (const [key, e] of _bakedSights.map) {
     if ((e.x0 + e.w) * LC < x0 || e.x0 * LC > x1 || (e.y0 + e.w) * LC < y0 || e.y0 * LC > y1) continue;
@@ -545,6 +702,8 @@ function pntEnsure(f, x0, y0, x1, y1, budget) {
 // baked again if chunks were painted since (their faces now known).
 function pntFrame(f, camX, camY) {
   const L = T.paint.lazy, m1 = L.near * ATILE, m2 = L.far * ATILE;
+  // the place's light has changed a lot (kindled): painted again for it
+  if (Math.abs(pntDarkness(f) - (View.pntLift || 0)) > 0.15) paintFloor(f);
   pntEnsure(f, camX - m1, camY - m1, camX + View.w + m1, camY + View.h + m1);
   const all = pntEnsure(f, camX - m2, camY - m2, camX + View.w + m2, camY + View.h + m2, L.budget);
   const S = View.pnt;
@@ -555,11 +714,14 @@ function pntFrame(f, camX, camY) {
 // ground's tiles under all it lifts painted again: the rock layer over
 // everything they lift.
 function pntRepaintRock(f, x0, y0, x1, y1) {
-  const maxH = pntMaxLift(), Wl = T.paint.wall, m = Math.max(Wl.edge, Wl.ramp) + 2;
-  const rx0 = x0 - m, ry0 = y0 - m - maxH, rx1 = x1 + m, ry1 = y1 + m;
+  const maxH = pntMaxLift(), Wl = T.paint.wall, m = Math.max(Wl.edge, Wl.ramp) + 2 + ATILE / 2, P = T.paint;
+  // (as far as a pixel's tone reads the heights: its slope's broad reach,
+  // and its stroke's middle)
+  const mx = m + P.facet.smooth + PNT_CELL, my = m + P.facet.smooth + 2;
+  const rx0 = x0 - mx, ry0 = y0 - my - maxH, rx1 = x1 + mx, ry1 = y1 + my;
   paintRockArea(f, rx0, ry0, rx1, ry1);
   pntComposite(f, rx0, ry0, rx1, ry1);
-  View.occCache = new Map();
+  View.occCache = new Map(); View.pnrTiles = null;
   return { x0: rx0, y0: ry0, x1: rx1, y1: ry1 };
 }
 
