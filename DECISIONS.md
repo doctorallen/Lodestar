@@ -361,3 +361,43 @@ The designer noticed everything seemed to gleam or shine as the diver moved. Rec
 - **Band edges glide a pixel at a time** (`T.art.lampPerPixel`): each pixel's light is read off a slope through its cell, for every light, not only the lamp.
 - **A steady camera** (`T.art.steadyCam`): the camera follows the diver's whole art pixel.
 - **Cost:** about +2.8 ms a frame at phone size with the CPU slowed 4× (about 17%). Left as it was: lamp shadows on walls still step a cell, which is rare and local.
+
+## 2026-10-19: the painted style, phase 1 (branch `painted`)
+
+The designer approved moving the art from A+ to a painted style after Death Trash's, at today's framing. It ships whole on the `painted` branch; main changes only once the whole look is done. Phase 1 is the ground, the rock and the Kindler (`docs/PAINTED.md`, `js/paint.js`, `T.paint`).
+- **Strokes in the climes' own colours.** Ground and rock are short horizontal strokes (2 to 8 px, mostly short), each a tone from the light at its middle with a little jitter. The ramps come from each clime's palette (7 ground tones from its three floor colours, 10 rock tones from its rock and face colours); Death Trash's sepia isn't used. There are streaky lit patches, a dark line at a wall's foot, and rock shadows cast to the lower right under the sky.
+- **Rock rises.** A steep three-quarter camera. Each solid region becomes a heightfield: steep faces about 22 px tall, tops that round over, boulder bumps. A rock's top stands over the ground north of it and hides what stands there. Collision, generation and the golden hashes are untouched: the art only grows upwards from the same footprint.
+- **How it's shaded:**
+  - slabs with lit lips and dark cracks;
+  - strata on the faces;
+  - soot in the creases;
+  - a lit rim along the silhouette.
+  - Rock tops stay darker than the floor, and faces are lighter than tops, so walls read as walls.
+- **Occlusion.** Each actor, drawn in order of its feet, has the rock in front of it drawn back over it, in both layers. A table per 8 × 8 px block skips most actors at once, and boxes that haven't moved are cached.
+- **The lighting is kept.** The painted colours are albedo under the same light (variant G). The lamp's sight treats a cell as rock where rock is drawn, and lights faces up to their full height. The brow lamp's height and Wick's hover rose with the taller Kindler (`T.light.shadow.eye` 26, `T.wick.up` 29).
+- **Painted lazily, in chunks.** Painting the whole 52 × 52 floor in the new style took about 2.7 s with the CPU slowed 4×, against 0.63 s before. So it's painted 48 px at a time:
+  - the view and 2 tiles round it before the frame;
+  - out to 7 tiles at 3 ms a frame.
+  The rock is laid into the floor's own buffers, so a frame still draws the floor as one picture.
+- **The Kindler, painted, about 42 px tall,** in the approved blue and amber:
+  - a dark navy mass, with royal-blue lit edges on the helm, pauldrons, chest, knees and cuffs;
+  - a black pane with one glint, under the warm-white brow lamp;
+  - amber circuits;
+  - no outline.
+  It has five facings, an idle and a four-step walk each, and a cast pose in each. From three-quarters front the far arm casts, as it's on the aim's side. Wick is a painted disc.
+- **Cost, at phone size with the CPU slowed 4×** (two runs each, the diver walking a circle):
+
+  | | Before | After, area painted | After, first walk |
+  |---|---|---|---|
+  | Surface, median | 17.4 ms | 17.9 ms | about 20.5 ms |
+  | Deep, median | 16.3 ms | 17.9 ms | about 22 ms |
+  | Outpost, median | 15.3 ms | 15.8 ms | |
+  | Entering a territory | 1.7 s | 1.1 s | |
+  | Mining a tile | 4.6 ms | 14 ms | |
+
+  The first walk through new ground costs more while the chunks around it fill in.
+- **Left for later phases:**
+  - creatures, flora, props, stations, portals, effects and UI, which keep the A+ look;
+  - growth painted on wall faces, now hidden by the rock;
+  - hanging plants, which hang from the face's foot;
+  - flat ground effects, which aren't hidden by rock in front of them.

@@ -9,15 +9,17 @@
 // a steep three-quarter camera, so its top stands up over the floor behind
 // it and hides what stands there.
 //
-// A floor has two painted layers, cached like the old floor: the ground
-// (View.floorCol/floorEm: every tile's ground, painted by paintCaveTile
-// through pntGroundRow) and the rock (View.rockCol/rockEm, transparent
-// where the ground shows). For each pixel of the rock layer, View.rockLift
-// holds how far its surface point is lifted (its footprint row less the
-// row it's drawn on, plus 1; 0 for ground), and so which floor row it
-// stands on: a sprite whose feet are north of that row is behind it, and
-// paintOcclude draws the rock back over it. The footprint (View.rockPx,
-// the smooth wall line) is unchanged, as are collision and generation.
+// A floor is painted in two layers, cached like the old floor and painted
+// lazily, a chunk at a time, as the view nears it: the ground (every
+// tile's, through paintCaveTile and pntGroundTones) and over it the rock
+// (View.rockBuf, transparent where the ground shows), laid together into
+// the floor's own buffers (View.floorCol/floorEm), so a frame still draws
+// the floor as one picture. For each pixel of rock, View.rockLift holds how
+// far its surface point is lifted (its footprint row less the row it's
+// drawn on, plus 1; 0 for ground), and so which floor row it stands on: a
+// sprite whose feet are north of that row is behind it, and paintOcclude
+// draws the rock back over it. The footprint (View.rockPx, the smooth wall
+// line) is unchanged, as are collision and generation.
 // Everything here is seeded by place (artHash of x, y and the floor's
 // seed), never Math.random, so a floor always paints the same.
 // ---------------------------------------------------------------------------
