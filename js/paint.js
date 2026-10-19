@@ -192,7 +192,8 @@ function pntGroundTones(f, x0, y0, x1, y1) {
   const v = new Float32Array(n), n1 = new Float32Array(n), n2 = new Float32Array(n), n3 = new Float32Array(n), cl = new Float32Array(n), mid = new Int16Array(n), jit = new Float32Array(n);
   // for each column, how many rows since rock above it (up to G.foot + 1)
   const since = new Uint8Array(n), F = G.foot, pk = sun ? G.patchSky : G.patchCave, J = G.jitter * (nt - 1) * 0.48;
-  const rk = (x, y) => x < 0 || y < 0 || x >= W || y >= Hp || R[y * W + x] === 1;
+  // (the sinkhole is no wall: it falls away, painthole.js)
+  const pit = View.pitPx, rk = (x, y) => x < 0 || y < 0 || x >= W || y >= Hp || (R[y * W + x] === 1 && !(pit && pit[y * W + x]));
   for (let i = 0; i < n; i++) { let k = F + 1; for (let j = 1; j <= F; j++) if (rk(ax + i, y0 - j)) { k = j - 1; break; } since[i] = k; }
   for (let y = y0; y < y1; y++) {
     pntNoiseRow(n1, ax, n, y, G.swell, G.swell, seedH + 21);
@@ -201,7 +202,7 @@ function pntGroundTones(f, x0, y0, x1, y1) {
     artClumpRow(cl, ax, n, y, seedH);
     const row = y * W;
     for (let i = 0; i < n; i++) {
-      const x = ax + i, here = x < 0 || x >= W || R[row + x] === 1;
+      const x = ax + i, here = x < 0 || x >= W || (R[row + x] === 1 && !(pit && pit[row + x]));
       let val = G.base + (n1[i] - 0.5) * G.swellAmt + cl[i] * G.clump;
       // streaky light: patches of it, their edges torn in streaks
       const p = n2[i] * 0.65 + n3[i] * 0.35;
@@ -232,7 +233,7 @@ function pntGroundTones(f, x0, y0, x1, y1) {
 // How high each rock pixel of the footprint stands (art px), in View.rockH:
 // from its distance in from the rock's edge, a steep rise (the face) that
 // rounds over into a top, plus boulder bumps that grow in from the edge.
-// The sinkhole is not rock here: it falls away (paintPitTile).
+// The sinkhole is not rock here: it falls away (painthole.js, phlPaintPit).
 function pntMaxLift() { const W = T.paint.wall; return W.face + W.bump + 1; }
 function pntIsRockPx(f, R, W, x, y) {
   if (!R[y * W + x]) return false;

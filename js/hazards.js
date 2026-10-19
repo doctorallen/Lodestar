@@ -144,59 +144,108 @@ function paintClimeTile(P, f, tx, ty, ox, oy, b) {
 
 // A hazard's pixels (art px), its tone by how far in from its edge: a rim
 // a pixel wide, a band of shallows, the deep. Noise is in world px, so a
-// pattern is as big as it was; the art px give it finer edges.
-const HAZ_IN = ap(2), HAZ_DEEP = ap(4), HAZ_STREAK = ap(13), HAZ_RIPPLE = ap(6), _hazMask = new Uint8Array((ATILE + 2 * HAZ_DEEP) ** 2);
+// pattern is as big as it was; the art px give it finer edges. Its surface
+// lies phlDepth px below the floor (painthole.js): each pixel shows the
+// surface point that far north of it, and under the far rim, its bank;
+// the near rim catches the light.
+const HAZ_IN = ap(2), HAZ_DEEP = ap(4), HAZ_STREAK = ap(13), HAZ_RIPPLE = ap(6), HAZ_UP = HAZ_DEEP + 8, _hazMask = new Uint8Array((ATILE + 2 * HAZ_DEEP) * (ATILE + HAZ_DEEP + HAZ_UP));
 function paintHazardPixels(P, f, ox, oy, b, shaded) {
   const R = View.rockPx, W = P.w, kind = f.hazKind, r = b.haz || HAZ_RAMPS[kind], lava = kind === 'burn', ice = kind === 'slick';
+  const D = Math.min(HAZ_UP - HAZ_DEEP, phlDepth(kind)), Ho = T.paint.hole, GR = pntLook(b).ground, seed = (f.seed ^ f.depth) | 0;
   // the hazard's outline round the tile, read once
-  const G = HAZ_DEEP, MW = ATILE + 2 * G, Hm = _hazMask;
-  for (let j = 0; j < MW; j++) for (let i = 0; i < MW; i++) Hm[j * MW + i] = hazardAt(f, (ox - G + i + 0.5) / AP, (oy - G + j + 0.5) / AP) !== 0 ? 1 : 0;
-  const at = (x, y) => Hm[(y - oy + G) * MW + x - ox + G] === 1;
-  for (let y = oy; y < oy + ATILE; y++)
+  const G = HAZ_DEEP, MW = ATILE + 2 * G, MH = ATILE + G + HAZ_UP, Hm = _hazMask;
+  for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) Hm[j * MW + i] = hazardAt(f, (ox - G + i + 0.5) / AP, (oy - HAZ_UP + j + 0.5) / AP) !== 0 ? 1 : 0;
+  const at = (x, y) => Hm[(y - oy + HAZ_UP) * MW + x - ox + G] === 1;
+  const inside = (x, y) => x >= ox - G && x < ox + ATILE + G && y >= oy - HAZ_UP && y < oy + ATILE + G && at(x, y) && !R[y * W + x];
+  const lavaC = [rgbOf(r[1]), rgbOf(r[2])].map(pntU32);
+  for (let y = oy; y < oy + ATILE; y++) {
+    phlStrokes(ox - 8, y, seed + 331);
     for (let x = ox; x < ox + ATILE; x++) {
-      if (R[y * W + x] || !at(x, y)) continue;
-      const edge = !at(x - 1, y) || !at(x + 1, y) || !at(x, y - 1) || !at(x, y + 1);
-      const inner = !edge && (!at(x - HAZ_IN, y) || !at(x + HAZ_IN, y) || !at(x, y - HAZ_IN) || !at(x, y + HAZ_IN));
-      const deep = at(x - HAZ_DEEP, y) && at(x + HAZ_DEEP, y) && at(x, y - HAZ_DEEP) && at(x, y + HAZ_DEEP);
+      if (R[y * W + x]) continue;
+      if (!at(x, y)) {
+        // the near rim, lit
+        if (D && at(x, y - 1) && !R[(y - 1) * W + x]) phlNearLip(P, x, y, b, Ho.lip);
+        continue;
+      }
+      // the bank, under the far rim
+      let k = 0;
+      for (let j = 1; j <= D; j++) if (!at(x, y - j)) { k = j; break; }
+      if (k) {
+        const q = k - 1, s = phlFacing(inside, x, y, D + 2);
+        // (a bank is cut in the ground: on the ground's ramp)
+        let t = phlWallTone(q, D, s, x, ox - 8, y, seed, Ho.bank);
+        if (q === 0) t = Math.max(t, Ho.lipTone[1]);
+        if (lava) {
+          // lit from below by the lava: its own colour in loose strokes,
+          // thicker nearer the surface
+          t += (q / D) * Ho.lavaLift;
+          const m = _phlMid[x - ox + 8] + ox - 8;
+          if (q && artHash(m, y, seed + 337) < (q / D) * Ho.lavaLick) { phlPut(P, x, y, lavaC[q === D - 1 ? 1 : 0], true); continue; }
+        } else if (q === D - 1) t = Math.min(t, Ho.foot);
+        phlPut(P, x, y, GR[phlClampT(t, 7)]);
+        continue;
+      }
+      // the surface, as it was, at the point it shows
+      const sy = y - D;
+      const edge = !at(x - 1, sy) || !at(x + 1, sy) || !at(x, sy - 1) || !at(x, sy + 1);
+      const inner = !edge && (!at(x - HAZ_IN, sy) || !at(x + HAZ_IN, sy) || !at(x, sy - HAZ_IN) || !at(x, sy + HAZ_IN));
+      const deep = at(x - HAZ_DEEP, sy) && at(x + HAZ_DEEP, sy) && at(x, sy - HAZ_DEEP) && at(x, sy + HAZ_DEEP);
+      // (the waterline under the far bank, and a row below it, in its shade)
+      const under = D && !at(x, sy - 1) ? 1 : D && !at(x, sy - 2) ? 2 : 0;
+      // (in the far and west banks' shade, the light being from the upper
+      // left: lava makes its own)
+      let shade = false;
+      if (D && !lava) for (let j = 1, n = Math.round(D * Ho.shade); j <= n && !shade; j++) if (!at(x - j, sy - j) || !at(x, sy - j - 1)) shade = true;
       // tone comes in clusters (smooth noise), never pixel by pixel
-      const n = wallNoise((x / AP) * 1.3 + 17, (y / AP) * 2 + 5, 6), dark = shaded(x, y);
+      const n = wallNoise((x / AP) * 1.3 + 17, (sy / AP) * 2 + 5, 6), dark = shaded(x, y);
       let c, glow = false;
       if (lava) {
         // a dark crust at the edge, then molten: mostly orange, cooler skin
         // drifting on it, the hottest yellow only in the deepest middle
-        if (edge) c = '#2a0a10';
+        if (edge && !under) c = '#2a0a10';
         else if (n > 0.3) c = r[0];
         else { c = r[deep && n < -0.25 ? 3 : deep || n < -0.1 ? 2 : 1]; glow = c !== r[1]; }
       } else if (ice) {
         // glassy, a little lighter in patches, streaked where light runs on it
-        c = edge || dark ? r[0] : r[n > 0.15 ? 2 : 1];
-        if (!edge && !dark && (x * 2 + y) % HAZ_STREAK < 3 && n > -0.3) c = r[3];
+        c = edge || dark || under || shade ? r[0] : r[n > 0.15 ? 2 : 1];
+        if (!edge && !dark && !under && !shade && (x * 2 + y) % HAZ_STREAK < 3 && n > -0.3) c = r[3];
       } else {
         // still water: a wet rim, a band of shallows, darker where it's deep,
-        // the odd line of ripple
-        if (edge) { c = r[3]; glow = !!b.rimGlow; }
-        else if (dark) c = r[0];
+        // the odd line of ripple; under the far bank, its shade
+        if (under === 1) { c = b.rimGlow ? r[3] : r[0]; glow = !!b.rimGlow; }
+        else if (under) c = r[0];
+        else if (edge) { c = r[3]; glow = !!b.rimGlow; }
+        else if (dark || shade) c = r[0];
         else c = inner ? r[2] : deep ? r[0] : r[1];
-        if (!edge && !inner && !dark && y % HAZ_RIPPLE === 0 && n > 0.25) c = r[2];
+        if (!edge && !inner && !dark && !under && !shade && y % HAZ_RIPPLE === 0 && n > 0.25) c = r[2];
       }
       putPx(P, x, y, c, glow);
     }
+  }
 }
 
-// A vent: a ring of dark stone round a black throat, fire showing in it;
-// or under the Vault, a round brass grate. cx, cy: its middle (art px).
+// A vent: a ring of dark stone round a throat, fire showing at its foot;
+// or under the Vault, a round brass grate. cx, cy: its middle (art px). The
+// throat's far wall shows from its lip down into the dark (painthole.js).
 function paintVent(P, cx, cy, b) {
-  const steam = b.vent === 'steam', rx = 6 * AP, ry = Math.sqrt(20) * AP;
+  const steam = b.vent === 'steam', rx = 6 * AP, ry = Math.sqrt(20) * AP, E = (i, j) => (i * i) / (rx * rx) + (j * j) / (ry * ry);
+  const wall = [b.front[1], b.front[0], '#2a1610', '#1a0e0c', '#100808'], Dv = T.paint.hole.vent;
   for (let j = -Math.ceil(ry); j <= Math.ceil(ry); j++)
     for (let i = -Math.ceil(rx); i <= Math.ceil(rx); i++) {
-      const e = (i * i) / (rx * rx) + (j * j) / (ry * ry);
+      const e = E(i, j);
       if (e > 1) continue;
       let c;
       if (steam) c = e > 0.65 ? (j < 0 ? '#b88a48' : '#5a4020') : (Math.floor(i / AP) % 2 === 0 ? '#1a120a' : '#7a5a2a');
-      else c = e > 0.7 ? (j < 0 ? b.front[2] : b.front[0]) : e > 0.4 ? '#140c0a' : '#0a0606';
+      else if (e > 0.62) c = i * 0.55 + j * 0.8 < 0 ? b.front[2] : e > 0.85 ? b.front[0] : b.front[1];
+      else {
+        // the throat: rows down from its far lip
+        let q = 0;
+        while (q < Dv && E(i, j - q - 1) <= 0.62) q++;
+        c = q < Dv ? wall[Math.min(wall.length - 1, q + (i > 0 && q ? 0 : 1))] : '#0a0606';
+      }
       putPx(P, cx + i, cy + j, c);
     }
-  if (!steam) for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (Math.abs(i) + Math.abs(j) < 2 || (j === 1)) putPx(P, cx + i, cy + j, '#6a1a08', true);
+  if (!steam) for (let j = 0; j <= 2; j++) for (let i = -2; i <= 2; i++) if (Math.abs(i) + Math.abs(j - 1) < 3) putPx(P, cx + i, cy + ap(2) + j, j === 2 || Math.abs(i) === 2 ? '#3a0c06' : '#6a1a08', true);
 }
 
 // The bed a spore pod grows from: a hollow, its far (lower right) lip
@@ -306,7 +355,7 @@ function drawHazardsUnder(d, ox, oy, tick, lights) {
   if (!kind) return;
   const tx0 = Math.max(0, Math.floor(-ox / ATILE) - 1), ty0 = Math.max(0, Math.floor(-oy / ATILE) - 1);
   const tx1 = Math.min(f.w - 1, tx0 + Math.ceil(View.w / ATILE) + 2), ty1 = Math.min(f.h - 1, ty0 + Math.ceil(View.h / ATILE) + 2);
-  const b = artBiome(f), r = b.haz || HAZ_RAMPS[kind];
+  const b = artBiome(f), r = b.haz || HAZ_RAMPS[kind], dz = phlDepth(kind);
   if (f.haz) {
     for (let ty = ty0; ty <= ty1; ty++)
       for (let tx = tx0; tx <= tx1; tx++) {
@@ -314,7 +363,9 @@ function drawHazardsUnder(d, ox, oy, tick, lights) {
         const h = hashInts(tx, ty, 0x6a2), ph = (Game.realT * (kind === 'burn' ? 0.5 : 0.3) + (h & 255) / 255) % 1;
         const wx = tx * TILE + 3 + ((h >> 8) % 10), wy = ty * TILE + 3 + ((h >> 12) % 10);
         if (!hazardAt(f, wx, wy)) continue;
-        const x = Math.round(wx * AP) + ox, y = Math.round(wy * AP) + oy;
+        // (on the surface, down in its bed: painthole.js)
+        if (dz && !hazardAt(f, wx, wy + dz / AP)) continue;
+        const x = Math.round(wx * AP) + ox, y = Math.round(wy * AP) + oy + dz;
         if (kind === 'burn') {
           // a bubble swells and pops, a spark lifting off it
           if (ph < 0.3) { const k = ph / 0.3; dot(x, y, r[3], true, k); if (k > 0.5) for (const [i, j] of [[-1, 0], [1, 0], [0, -1], [1, -1]]) dot(x + i, y + j, r[2], true, k); }
@@ -335,7 +386,7 @@ function drawHazardsUnder(d, ox, oy, tick, lights) {
     q.t += 1 / 60;
     if (q.t > 0.8 || HazRipples.length > 12) { HazRipples.splice(n, 1); continue; }
     const rr = 3 + q.t * 12, k = 1 - q.t / 0.8, N = Math.round(14 * AP + rr);
-    for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2, x = q.x + Math.cos(a) * rr, y = q.y + Math.sin(a) * rr * 0.45; if (hazardAt(f, x, y)) dot(Math.round(x * AP) + ox, Math.round(y * AP) + oy, r[3], false, 0.7 * k); }
+    for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2, x = q.x + Math.cos(a) * rr, y = q.y + Math.sin(a) * rr * 0.45; if (hazardAt(f, x, y) && hazardAt(f, x, y + dz / AP)) dot(Math.round(x * AP) + ox, Math.round(y * AP) + oy + dz, r[3], false, 0.7 * k); }
   }
 }
 // What stands up off the ground: a vent's fire or steam and its tell, a

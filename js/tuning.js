@@ -825,6 +825,24 @@ const T = {
     // arc, an Arc's crescent's thickness at its thickest (art px), light and
     // heavy.
     fx: { lightR: 0.42, lightA: 0.8, arc: [6, 8.5] },
+    // hole (painthole.js): what lies below the floor. depth: how far down a
+    // hazard's surface lies (art px), shade how far (a share of it) its
+    // banks shade it from the light. A far wall: wall (the sinkhole's, on
+    // the rock's ramp) and bank (a pool's, cut in the ground,
+    // on the ground's): [its tone at the lip, at the foot, how much lighter
+    // turned to the light]; wallPow how fast it darkens; jitter, strata,
+    // strataAmt as the rock's faces'; plane: the upright planes it breaks
+    // into [px across, how far their tones differ]; crack: [the share of
+    // their borders cracked, a crack's length]; lipTone: the far lip's
+    // least tone [a wall's, a bank's]; foot: a bank's foot's most (at water
+    // or ice); lip: how many tones lighter the near rim's ground; lavaLift,
+    // lavaLick: how much lava lights its bank, and the share of the bank's
+    // foot laid in its colour's strokes; pit: how tall the sinkhole's far
+    // wall shows before the dark, pitFade how much darker it grows down it;
+    // starLick: the star's light on it at home [reach (px), how thick its
+    // strokes]; vent: how tall a vent's throat's far wall (px); wade: how much of a walker in a pool
+    // or lava is under its surface (art px), wadeEase how fast it steps down.
+    hole: { depth: { pool: 6, burn: 6, slick: 4 }, shade: 0.7, wall: [5.2, 1.2, 2.4], bank: [3, 0.6, 1.2], wallPow: 0.9, jitter: 0.45, strata: 0.45, strataAmt: 1.3, plane: [9, 0.7], crack: [0.3, 16], lipTone: [6.5, 4], foot: 0.5, lip: 3, lavaLift: 2, lavaLick: 0.75, pit: 84, pitFade: 2, starLick: [140, 0.55], vent: 5, wade: 4, wadeEase: 0.25 },
     // flora, props, ore and drops (pflora.js). ramp: a material's stroke
     // ramp (as ramp above); tones: [lo, hi] of the ramp's eight a form's
     // light is laid on; base, light, shade, fall, crease, rim, under: its

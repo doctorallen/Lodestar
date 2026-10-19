@@ -210,8 +210,10 @@ function paintTileArt(f, tx, ty) {
   _tileSeed = hashInts(f.seed, f.depth, tx, ty) | 0;
   const rnd = tileRnd;
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
-  if (t === TILE_PIT) { paintPitTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth); return; }
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
+  // (the sinkhole, falling away below the floor: painthole.js)
+  if (View.pitPx) phlPaintPit(P, f, tx, ty, ox, oy, b);
+  if (t === TILE_PIT) return;
   if (f.clime) paintClimeTile(P, f, tx, ty, ox, oy, b);
   paintUndergrowth(P, f, tx, ty, ox, oy, b);
   // (ore and veins are on the rock layer: paint.js)
@@ -765,6 +767,8 @@ function renderFrame() {
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
+    // (a walker in a pool stands down in it: painthole.js)
+    const wade = phlWadeStart(d, a, ox, oy);
     if (a === p) drawProspector(d, ox, oy, tick, lights);
     else if (a.hubDraw) a.hubDraw(d, a, ox, oy, lights);
     else if (a.settler) drawSettler(d, a, ox, oy, lights);
@@ -774,6 +778,7 @@ function renderFrame() {
     else if (a.piece || a.strip) drawFlora(d, a, ox, oy, lights);
     else if (a.crit) drawCritter(d, a, ox, oy);
     else drawEnemy(d, a, ox, oy, tick, lights);
+    if (wade) phlWadeEnd();
     // the rock in front of it, drawn back over it (paint.js)
     paintOccludeActor(a, ox, oy);
   }

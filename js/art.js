@@ -595,25 +595,6 @@ function cavePal(b) {
 // pixel the ground is, kept for undergrowth.js to paint over it)
 const _caveRows = [new Float32Array(ATILE), new Float32Array(ATILE)], _caveBelow = new Int16Array(ATILE * ATILE), _caveNoise = new Float32Array(ATILE * ATILE);
 
-// The sinkhole, pixel by pixel. Where the ground's edge is above it, a
-// cliff face falls away into the dark in bands; elsewhere a lit lip, then
-// nothing.
-const PIT_FACE = ap(14);
-function paintPitTile(P, rock, ox, oy, b, rnd, seedH) {
-  const fr = rampRgb(b.front), fl = rampRgb(b.floor), abyss = ['#000000', '#030306', '#06070c'], dz = T.art.groundDither ? 0.5 : 0;
-  for (let y = oy; y < oy + ATILE; y++)
-    for (let x = ox; x < ox + ATILE; x++) {
-      const t = 0.5 + (bayerAt(x, y) - 0.5) * dz;
-      if (!rock(x, y)) { putPx(P, x, y, rgbToHex(...fl[1 + artClump(x, y, seedH, T.art.cluster.cut)])); continue; }
-      let above = 0;
-      for (let k = 1; k <= PIT_FACE; k++) if (!rock(x, y - k)) { above = k; break; }
-      if (above === 1) putPx(P, x, y, rgbToHex(...rampRgb(b.rock)[3]));
-      else if (above) putPx(P, x, y, rgbToHex(...fr[clamp(Math.floor((1 - above / PIT_FACE) * 2.6 + t - 0.5), 0, 2)]));
-      else if (!rock(x, y + 1) || !rock(x - 1, y) || !rock(x + 1, y)) putPx(P, x, y, mix(b.rock[3], '#000000', 0.4));
-      else putPx(P, x, y, abyss[1 + artClump(x, y, seedH + 5, 0.4)]);
-    }
-}
-
 // A thin, faintly glowing crack wandering across a rock top (dim, so it
 // never passes for ore)
 function paintRockVein(P, rock, ox, oy, b, rnd) {

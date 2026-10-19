@@ -135,7 +135,7 @@ function pnrOccludeGround(ox, oy) {
   };
   const round = (x, y, r) => mark(x - r, y - r, x + r, y + r);
   // a hazard's bubbles and glints (and a spark lifting off), its ripples
-  if (f.haz && f.hazKind) for (let j = Math.max(0, vy0); j <= Math.min(th - 1, vy1); j++) for (let i = Math.max(0, vx0); i <= Math.min(tw - 1, vx1); i++) if (f.haz[j * tw + i]) mark(i * TILE, j * TILE - 10, i * TILE + TILE - 1, j * TILE + TILE - 1);
+  if (f.haz && f.hazKind) for (let j = Math.max(0, vy0); j <= Math.min(th - 1, vy1); j++) for (let i = Math.max(0, vx0); i <= Math.min(tw - 1, vx1); i++) if (f.haz[j * tw + i]) mark(i * TILE, j * TILE - 10, i * TILE + TILE - 1, j * TILE + TILE + 3);
   if (typeof HazRipples !== 'undefined') for (const q of HazRipples) round(q.x, q.y, 16);
   // foes' marks on the ground
   for (const s2 of d.snares || []) mark(Math.min(s2.x0, s2.x1) - 3, Math.min(s2.y0, s2.y1) - 3, Math.max(s2.x0, s2.x1) + 3, Math.max(s2.y0, s2.y1) + 3);
