@@ -86,7 +86,7 @@ The world is rolled once for each save from its seed (world.js) and kept in the 
   - **Light the waystones:** three old pylons, each a 2.5 s channel whose light wakes everything near; the last must then be held, standing in its light for 20 s while the dark sends more.
   - **Seal the tear:** a rift sits on the territory's heart (a graft or an ore wake); seal it, early and safe or late and rich.
   Done, the heart is marked in gold: plant the spire there (a 6 s channel) and the territory is kindled for good: its spire, full light, daylight, and what the dark sent burns away. Kindled ground is never lost. A goal's progress stays when you leave.
-- **Deeps.** Some territories have a portal down into a Deep of 1–3 sites (caves and ruins, ending in a deep vein), built as the old expeditions were, at the territory's own level: each site has a lodeline by chance (100, 80, 60%, more as the star grows), and a portal on. Your light drains down there too, and when it's gone a Deep's lodeline goes dark. Its lodeline, or its last portal, takes you back up to the territory, by the Deep's portal. Under the furthest territory of each of the first three rings, the Deep ends in the region's Keeper's Lair while its heart-shard is missing (their own place in the world comes later).
+- **Deeps.** Some territories have a portal down into a Deep of 1–3 sites (caves and ruins, ending in a deep vein), built as the old expeditions were, at the territory's own level: each site has a lodeline by chance (100, 80, 60%, more as the star grows), and a portal on. Your light drains down there too, and when it's gone a Deep's lodeline goes dark. Its lodeline (to the player, a shaft of the star's light), or its last portal, takes you back up to the territory, by the Deep's portal. Under the furthest territory of each of the first three rings, the Deep ends in the region's Keeper's Lair while its heart-shard is missing (their own place in the world comes later).
 - **Saved as you go.** A sortie is saved on arriving anywhere and whenever the page is hidden; reopening the game offers to carry on from where you came in.
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room at depth 3 or more. It charges and fires rings of orbs. It drops three rare-or-better pieces and often a relic.
@@ -143,7 +143,7 @@ The diver carries one tool, chosen at the portal before setting out. Each change
 
 | Tool | From magnitude | What it does |
 |---|---|---|
-| Lodeline Compass | 1 | An arrow round the diver to the spire here, or in dark land to the opening towards the nearest kindled land; in a Deep, to its lit lodeline or the portal on. |
+| Lodestone Compass | 1 | An arrow round the diver to the spire here, or in dark land to the opening towards the nearest kindled land; in a Deep, to its lit lodeline or the portal on. |
 | Ore Sense | 2 | Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the pick can break. |
 | Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
 | Surveyor's Map | 3 | A map of each place, drawn as you walk it, in the view's corner, with its openings, portals, spire, waystones and ancient forge once seen. |

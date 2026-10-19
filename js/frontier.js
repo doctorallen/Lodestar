@@ -351,9 +351,10 @@ function enterDeepSite(k) {
   d.arrive = { t: 0, zone };
   d.mined = [];
   if (k === 1) { const tl = d.tally || (d.tally = {}); tl.deeps = (tl.deeps || 0) + 1; }
-  UI.toast(`The Deep · ${placeName(zone, clime)} · site ${k} of ${n}${d.floor.pad || zone === 'lair' ? '' : ': no lodeline reaches here'}`);
+  UI.toast(`The Deep · ${placeName(zone, clime)} · site ${k} of ${n}${d.floor.pad || zone === 'lair' ? '' : ': no light reaches down here'}`);
   Story.say('firstDeep');
-  if (d.floor.pad && !d.padDark) UI.tip('lodeline', 'The gold beam is a lodeline: it lifts you back to the surface');
+  Story.say(T.biomes[t.biome].id);
+  if (d.floor.pad && !d.padDark) UI.tip('lodeline', "A shaft of the star's light reaches down here. Stand in it to rise to the surface");
   noticeRift(d);
   saveRun(d);
 }

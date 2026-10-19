@@ -66,11 +66,10 @@ const STORY_INTRO = [
 
 // Wick, the first time each thing happens. Dry, and kind.
 const WICK = {
-  firstDive: 'Out we go. Mine what glows and mind the dark. The gold beam brings us home.',
+  firstDive: "Out we go. Mine what glows, and watch your light. Out in the dark it only lasts so long.",
   firstParts: 'Parts, from what you killed. A lot of teeth, for a dead world. The forge can bind them into gear.',
   firstBlueprint: "A blueprint. Charter make, older than ours. Get it home and we'll learn it.",
   firstForge: 'Strike when the marker crosses the glow. The better the strikes, the better the piece.',
-  noPad: 'No lodeline reaches this far. We go on, or I recall us from the pause menu, and the dark keeps a share of what we carry.',
   rift: 'A tear in the world. Things leak through. Seal it, and something solid is left behind.',
   rift_graft: "That ground isn't from here. Neither is the ore in it.",
   rift_bloom: 'The rock round the tear has woken. It is all ore now.',
@@ -81,6 +80,7 @@ const WICK = {
   storm: "A lodestorm. The star's restless. Where the ground flickers, the sky's about to hit. It charges ore, if we let it.",
   riftSpawn: "Something came through the tear. It'll keep coming until we seal it.",
   pullFading: "Our light's thinning here. We shouldn't stay much longer.",
+  // the first Deep under each outer region
   choir: "The Choir. Everything here hums when it's struck. Even you. The survey called it silent.",
   underforge: 'The Underforge. Someone built this. The survey said no one ever had.',
   keeper: "That's a Keeper. What it's holding hums like our star does. Only colder.",
@@ -187,11 +187,14 @@ const KINDLER_ENDINGS = {
     'And over them, for the first time in an age, the world has stars of its own.',
   ],
 };
-// Calling the colony down, once the world holds the ending at the Edge.
+// Calling the colony down, at the uplink: three shards set, and ground
+// kindled for T.story.callLanders landers.
 const STORY_LANDING = [
   'The uplink sends one word to orbit: now.',
   'The Meridian wakes its sleepers. By nightfall the landers are down on the rim, in your light.',
   "Wick: That's the colony, then. We should probably tidy up.",
+  // the Edge on the horizon past the last spire, dark, and very still
+  'Out past the third ring, the Edge is still dark. Whatever waits at its heart is waiting for you.',
 ];
 
 // One line in the log for each territory kindled, by its clime. {name} is
@@ -240,12 +243,15 @@ const SETTLER_LINES = {
 // For the world: how much of it is kindled, and what that's worth.
 // ---------------------------------------------------------------------------
 
-// The kindled territories, from the world's save (Save.data.world
-// .territories, a map or a list of { state, … }); none while there's no world.
+// The territories kindled, as the world lays them out (so with a name and
+// a clime), read from the world's save: Save.data.world.territories[id]
+// .state === 'kindled' (frontier.js). The starter doesn't count, as the
+// outpost's own light reaches it; none while there's no world yet.
 function storyKindled() {
-  const t = Save.data && Save.data.world && Save.data.world.territories;
-  if (!t || typeof t !== 'object') return [];
-  return Object.values(t).filter((x) => x && (x.state === 'kindled' || x.kindled === true));
+  const W = Save.data && Save.data.world;
+  if (!W || !W.territories) return [];
+  const terrs = worldLayout(W.seed).terrs;
+  return Object.keys(W.territories).map(Number).filter((id) => { const s = W.territories[id]; return s && s.state === 'kindled' && !s.starter && terrs[id]; }).map((id) => terrs[id]);
 }
 function storyKindledCount() { return storyKindled().length; }
 // Landers the Meridian can send: one for every few territories kindled.
@@ -336,20 +342,17 @@ const Story = {
     return ECHOES[i];
   },
 
-  // The colony can be called down when every shard is set and enough of the
-  // world is kindled. With no world yet, the shards alone will do.
-  // (beaconLit: a save from when this was lighting the wreck's beacon.)
-  landersCalled() { return !!(Save.data.landersCalled || Save.data.beaconLit); },
+  // The colony can be called down when every shard is set and there's
+  // ground kindled for enough landers.
+  landersCalled() { return !!Save.data.landersCalled; },
   canCall() {
-    if (Story.landersCalled() || Story.shardsSet() < 3) return false;
-    return !Save.data.world || storyLanders() >= T.story.callLanders;
+    return !Story.landersCalled() && Story.shardsSet() >= 3 && storyLanders() >= T.story.callLanders;
   },
-  // Calling the landers, at the uplink. Until the world has an Edge to
-  // choose at, this is the ending, as lighting the beacon was: 'kindle'.
+  // Calling the landers, at the uplink: the colony comes down, and the Edge
+  // is still out there (its choice, playKindlerEnding, is the Edge's own).
   callLanders(done) {
     Save.data.landersCalled = true; Save.save();
-    if (Save.data.world || Save.data.kindlerEnding) UI.openStory(STORY_LANDING, done);
-    else playKindlerEnding('kindle', done);
+    UI.openStory(STORY_LANDING, done);
   },
 };
 

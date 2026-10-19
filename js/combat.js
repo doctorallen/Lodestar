@@ -99,7 +99,7 @@ function hurtPlayer(dmg, from) {
   p.invuln = T.player.hurtInvuln;
   p.hurtT = 0.25;
   p.restT = 0;
-  if (d.channel) breakChannel('Hit: the pull let go');
+  if (d.channel) breakChannel('Hit: it broke off');
   buzz(30);
   if (p.hp <= 0) { p.hp = 0; startDying(); }
 }
@@ -193,7 +193,7 @@ function killEnemy(e) {
   const tier = dropTier(d);
   if (e.type === 'keeper') {
     // its lodeline lights, and the dark starts to come back: a short pull
-    if (d.zone === 'lair') { d.padDark = false; d.pull = 1; d.pullTime = T.enemies.keeper.afterPull; UI.toast('The lodeline lights. Go, before the dark comes back', 'legendary'); }
+    if (d.zone === 'lair') { d.padDark = false; d.pull = 1; d.pullTime = T.enemies.keeper.afterPull; UI.toast("The star's light reaches down. Go, before the dark comes back", 'legendary'); }
     // its heart-shard, and what it had gathered
     drop({ shard: d.biome });
     drop({ echo: true });

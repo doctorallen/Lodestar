@@ -330,7 +330,7 @@ function drawStory() {
 // landers it can send, the shards set, calling the colony down, and the
 // echoes found.
 function drawUplink_() {
-  const s = Save.data, set = Story.shardsSet(), world = !!s.world;
+  const s = Save.data, set = Story.shardsSet();
   const shardRow = (b, i) => {
     const has = (s.shards || []).includes(i);
     return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Take it to the altar') : `In its Keeper's Lair, at the bottom of the Deep under the furthest territory of ring ${i + 1}`}</span></span></div>`;
@@ -340,14 +340,17 @@ function drawUplink_() {
   const landerNote = `Kindled: ${kindled} territor${kindled === 1 ? 'y' : 'ies'}. The Meridian can send a lander for every ${every}, so ${landers ? `${landers} can come down` : 'none can come down yet'}${landers < need ? `; ${(landers + 1) * every - kindled} more for the next` : ''}.`;
   const call = Story.landersCalled() ? '<p class="note">The colony is down. The rim is theirs now, and the dark beyond it is still yours to walk.</p>'
     : Story.canCall() ? '<div class="menu"><button class="btn primary" data-act="callLanders">CALL THE LANDERS</button></div>'
-    : `<p class="note">The colony can land when all three shards are set in the star${world ? ` and there's ground for ${need} landers (${need * every} territories kindled)` : ''}.</p>`;
+    : `<p class="note">The colony can land when all three shards are set in the star and there's ground for ${need} landers (${need * every} territories kindled).</p>`;
+  // the log: a line for each territory kindled
+  const log = storyKindled().map((t) => `<div class="echo"><p>${esc(kindleLogLine(t.clime, t.name))}</p></div>`).join('');
   const echoes = (s.echoes || []).map((i) => `<div class="echo"><b>${esc(ECHOES[i].title)}</b><p>${esc(ECHOES[i].text)}</p></div>`).join('');
   $('wreck-body').innerHTML = `
     <p class="note">The colony ship Meridian waits in orbit, its settlers asleep. This mast is how it hears us.</p>
-    ${world ? `<h3>LANDERS · ${landers}</h3><p class="note">${esc(landerNote)}</p>` : ''}
+    <h3>LANDERS · ${landers}</h3><p class="note">${esc(landerNote)}</p>
     <h3>SHARDS SET · ${set}/3</h3>${T.biomes.map(shardRow).join('')}
     ${call}
-    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The Kindlers before you left logs in the deep.</p>'}`;
+    ${log ? `<h3>THE LOG · ${kindled} KINDLED</h3>${log}` : ''}
+    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The Kindlers before you left logs out in the dark.</p>'}`;
 }
 
 // How the last dive ended, over the outpost.
@@ -585,7 +588,7 @@ function drawStar() {
   }).join('');
   $('star-body').innerHTML = `
     <div class="mag">MAGNITUDE ${mag}${next !== undefined ? ` · ${s.star}/${next}` : ''}</div>
-    <p class="note">Ore fed to the star makes it grow. Each magnitude gives an attunement point, makes a Deep's lodelines likelier and a recall gentler, and now and then a pocket slot more.</p>
+    <p class="note">Ore fed to the star makes it grow. Each magnitude gives an attunement point, makes the star's light likelier to reach down into a Deep, a recall gentler, and now and then a pocket slot more.</p>
     <h3>FEED THE STAR</h3>${feed || '<p class="note">No ore banked.</p>'}
     <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3>${att}`;
 }
