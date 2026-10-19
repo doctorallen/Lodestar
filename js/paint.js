@@ -670,18 +670,24 @@ function pntFloorStart(f) {
   View.rockBlk = new Int16Array(Math.ceil(W / PNT_BLK) * Math.ceil(Hp / PNT_BLK));
   View.rockBuf = pixBuf(W, Hp);
   View.rockBuf.col32 = new Uint32Array(View.rockBuf.col.buffer);
-  // the sinkhole's pixels, which never rise
+  // the sinkhole's pixels, which never rise: 2 for the hole itself (an
+  // organic, broken edge: the pit's share of the tiles round a pixel,
+  // blended as the wall line is, plus noise, on the rock side of the wall
+  // line), 1 for the ground of its rim where the wall line runs between it
+  // and open ground (painted as ground: phlPaintPit)
   let pit = null;
+  const PN = T.paint.hole.pitEdge, isPit = (i, j) => (floorTile(f, i, j) === TILE_PIT ? 1 : 0);
   for (let ty = 0; ty < f.h; ty++) for (let tx = 0; tx < f.w; tx++) if (f.tiles[ty * f.w + tx] === TILE_PIT) {
     pit = pit || new Uint8Array(W * Hp);
     for (let y = ty * ATILE - ATILE / 2; y < (ty + 1.5) * ATILE; y++) for (let x = tx * ATILE - ATILE / 2; x < (tx + 1.5) * ATILE; x++) {
-      if (x < 0 || y < 0 || x >= W || y >= Hp) continue;
-      // (a pixel belongs to the pit if it's in the pit's tile, or if the
-      // tiles its wall line is blended from are the pit and open ground)
-      const gx = Math.floor(x / ATILE - 0.5), gy = Math.floor(y / ATILE - 0.5);
+      if (x < 0 || y < 0 || x >= W || y >= Hp || pit[y * W + x]) continue;
+      const gx = Math.floor(x / ATILE - 0.5), gy = Math.floor(y / ATILE - 0.5), u = x / ATILE - 0.5 - gx, v = y / ATILE - 0.5 - gy;
       let p = 0, r = 0;
       for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const t = floorTile(f, gx + i, gy + j); if (t === TILE_PIT) p++; else if (TILE_SOLID[t]) r++; }
-      if (floorTile(f, Math.floor(x / ATILE), Math.floor(y / ATILE)) === TILE_PIT || (p && !r)) pit[y * W + x] = 1;
+      const share = (isPit(gx, gy) * (1 - u) + isPit(gx + 1, gy) * u) * (1 - v) + (isPit(gx, gy + 1) * (1 - u) + isPit(gx + 1, gy + 1) * u) * v;
+      const e = share + (pntNoise(x, y, PN[0], PN[1], f.seed + 91) - 0.5) * PN[2] + (pntNoise(x, y, PN[3], PN[4], f.seed + 92) - 0.5) * PN[5];
+      if (e > 0.5 && View.rockPx[y * W + x] === 1) pit[y * W + x] = 2;
+      else if (p && !r) pit[y * W + x] = 1;
     }
   }
   View.pitPx = pit;

@@ -834,15 +834,17 @@ const T = {
     // strataAmt as the rock's faces'; plane: the upright planes it breaks
     // into [px across, how far their tones differ]; crack: [the share of
     // their borders cracked, a crack's length]; lipTone: the far lip's
-    // least tone [a wall's, a bank's]; foot: a bank's foot's most (at water
-    // or ice); lip: how many tones lighter the near rim's ground; lavaLift,
+    // least tone [a wall's, a bank's]; wet, foot: how many rows of a bank's
+    // foot are a wet dark band (at water or ice), and its most tone; lip: how many tones lighter the near rim's ground; lavaLift,
     // lavaLick: how much lava lights its bank, and the share of the bank's
     // foot laid in its colour's strokes; pit: how tall the sinkhole's far
-    // wall shows before the dark, pitFade how much darker it grows down it;
+    // wall shows before the dark, pitFade how much darker it grows down it,
+    // pitEdge its edge's two noises [px across, px down, how far each
+    // moves it (a share of a tile)];
     // starLick: the star's light on it at home [reach (px), how thick its
     // strokes]; vent: how tall a vent's throat's far wall (px); wade: how much of a walker in a pool
     // or lava is under its surface (art px), wadeEase how fast it steps down.
-    hole: { depth: { pool: 6, burn: 6, slick: 4 }, shade: 0.7, wall: [5.2, 1.2, 2.4], bank: [3, 0.6, 1.2], wallPow: 0.9, jitter: 0.45, strata: 0.45, strataAmt: 1.3, plane: [9, 0.7], crack: [0.3, 16], lipTone: [6.5, 4], foot: 0.5, lip: 3, lavaLift: 2, lavaLick: 0.75, pit: 84, pitFade: 2, starLick: [140, 0.55], vent: 5, wade: 4, wadeEase: 0.25 },
+    hole: { depth: { pool: 12, burn: 11, slick: 7 }, shade: 0.6, wall: [5.2, 1.2, 2.4], bank: [3.6, 1.2, 1.2], wet: 2, wallPow: 0.9, jitter: 0.45, strata: 0.45, strataAmt: 1.3, plane: [9, 0.7], crack: [0.3, 16], lipTone: [6.5, 5.5], foot: 0.5, lip: 3, lavaLift: 2, lavaLick: 0.75, pit: 84, pitFade: 2, pitEdge: [30, 22, 0.55, 7, 5, 0.22], starLick: [140, 0.55], vent: 5, wade: 6, wadeEase: 0.25 },
     // flora, props, ore and drops (pflora.js). ramp: a material's stroke
     // ramp (as ramp above); tones: [lo, hi] of the ramp's eight a form's
     // light is laid on; base, light, shade, fall, crease, rim, under: its

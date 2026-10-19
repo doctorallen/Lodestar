@@ -148,7 +148,7 @@ function paintClimeTile(P, f, tx, ty, ox, oy, b) {
 // lies phlDepth px below the floor (painthole.js): each pixel shows the
 // surface point that far north of it, and under the far rim, its bank;
 // the near rim catches the light.
-const HAZ_IN = ap(2), HAZ_DEEP = ap(4), HAZ_STREAK = ap(13), HAZ_RIPPLE = ap(6), HAZ_UP = HAZ_DEEP + 8, _hazMask = new Uint8Array((ATILE + 2 * HAZ_DEEP) * (ATILE + HAZ_DEEP + HAZ_UP));
+const HAZ_IN = ap(2), HAZ_DEEP = ap(4), HAZ_STREAK = ap(13), HAZ_RIPPLE = ap(6), HAZ_UP = HAZ_DEEP + 18, _hazMask = new Uint8Array((ATILE + 2 * HAZ_DEEP) * (ATILE + HAZ_DEEP + HAZ_UP));
 function paintHazardPixels(P, f, ox, oy, b, shaded) {
   const R = View.rockPx, W = P.w, kind = f.hazKind, r = b.haz || HAZ_RAMPS[kind], lava = kind === 'burn', ice = kind === 'slick';
   const D = Math.min(HAZ_UP - HAZ_DEEP, phlDepth(kind)), Ho = T.paint.hole, GR = pntLook(b).ground, seed = (f.seed ^ f.depth) | 0;
@@ -165,6 +165,7 @@ function paintHazardPixels(P, f, ox, oy, b, shaded) {
       if (!at(x, y)) {
         // the near rim, lit
         if (D && at(x, y - 1) && !R[(y - 1) * W + x]) phlNearLip(P, x, y, b, Ho.lip);
+        else if (D && at(x, y - 2) && !R[(y - 2) * W + x]) phlNearLip(P, x, y, b, Ho.lip - 2);
         continue;
       }
       // the bank, under the far rim
@@ -172,16 +173,18 @@ function paintHazardPixels(P, f, ox, oy, b, shaded) {
       for (let j = 1; j <= D; j++) if (!at(x, y - j)) { k = j; break; }
       if (k) {
         const q = k - 1, s = phlFacing(inside, x, y, D + 2);
-        // (a bank is cut in the ground: on the ground's ramp)
+        // (a bank is cut in the ground: on the ground's ramp; its lip lit,
+        // a wet dark band where it meets the water or ice)
         let t = phlWallTone(q, D, s, x, ox - 8, y, seed, Ho.bank);
         if (q === 0) t = Math.max(t, Ho.lipTone[1]);
+        else if (q === 1) t = Math.max(t, Ho.lipTone[1] - 1.5);
         if (lava) {
           // lit from below by the lava: its own colour in loose strokes,
           // thicker nearer the surface
           t += (q / D) * Ho.lavaLift;
           const m = _phlMid[x - ox + 8] + ox - 8;
           if (q && artHash(m, y, seed + 337) < (q / D) * Ho.lavaLick) { phlPut(P, x, y, lavaC[q === D - 1 ? 1 : 0], true); continue; }
-        } else if (q === D - 1) t = Math.min(t, Ho.foot);
+        } else if (q >= D - Ho.wet) t = Math.min(t, q === D - 1 ? 0 : Ho.foot);
         phlPut(P, x, y, GR[phlClampT(t, 7)]);
         continue;
       }
@@ -212,8 +215,11 @@ function paintHazardPixels(P, f, ox, oy, b, shaded) {
       } else {
         // still water: a wet rim, a band of shallows, darker where it's deep,
         // the odd line of ripple; under the far bank, its shade
-        if (under === 1) { c = b.rimGlow ? r[3] : r[0]; glow = !!b.rimGlow; }
-        else if (under) c = r[0];
+        // (the waterline shows only against a bank; where the surface runs
+        // to the cut, its edge is in the near rim's shadow)
+        const cut = !at(x - 1, y) || !at(x + 1, y) || !at(x, y + 1);
+        if (under === 1 && !cut) { c = b.rimGlow ? r[3] : r[0]; glow = !!b.rimGlow; }
+        else if (under || (edge && cut)) c = r[0];
         else if (edge) { c = r[3]; glow = !!b.rimGlow; }
         else if (dark || shade) c = r[0];
         else c = inner ? r[2] : deep ? r[0] : r[1];
@@ -245,7 +251,24 @@ function paintVent(P, cx, cy, b) {
       }
       putPx(P, cx + i, cy + j, c);
     }
-  if (!steam) for (let j = 0; j <= 2; j++) for (let i = -2; i <= 2; i++) if (Math.abs(i) + Math.abs(j - 1) < 3) putPx(P, cx + i, cy + ap(2) + j, j === 2 || Math.abs(i) === 2 ? '#3a0c06' : '#6a1a08', true);
+  if (!steam) paintVentFlame(P, cx, cy + ap(3), cx * 31 + cy);
+}
+// The fire at a vent's foot, painted: a flame rising from the throat's
+// floor over its far wall, its tip leaning and forked, a hot core low in
+// it, deep red at its edges, glowing; embers by it. bx, by: its foot.
+function paintVentFlame(P, bx, by, seed) {
+  const h = 9, w = 3.2, lean = (artHash(seed, 1, 5) - 0.5) * 2.4, cols = ['#5a1206', '#a8300c', '#e4661a', '#ffb040', '#ffe8a0'];
+  for (let j = 0; j < h; j++) {
+    const u = j / (h - 1), half = w * Math.sqrt(1 - u) * (u < 0.15 ? 0.75 + u * 1.6 : 1), mx = bx + lean * u * u;
+    for (let i = Math.floor(mx - half - 1); i <= Math.ceil(mx + half + 1); i++) {
+      const d = Math.abs(i + 0.5 - mx) / Math.max(0.6, half);
+      // (the tip forks: a notch down its middle near the top)
+      if (d > 1 || (u > 0.65 && d < 0.3 && artHash(seed, 2, 5) < 0.6)) continue;
+      const v = (1 - d) * (1 - u * 0.85) + (artHash(i, j, seed) - 0.5) * 0.25;
+      putPx(P, i, by - j, cols[Math.max(0, Math.min(4, Math.floor(v * 5.2)))], true);
+    }
+  }
+  for (const [i, j] of [[-4, -1], [3, -3], [5, 0]]) if (artHash(i, j, seed + 3) < 0.7) putPx(P, bx + i, by + j, '#e4661a', true);
 }
 
 // The bed a spore pod grows from: a hollow, its far (lower right) lip

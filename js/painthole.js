@@ -115,7 +115,8 @@ function phlPaintPit(P, f, tx, ty, ox, oy, b) {
   if (!any) return;
   const H = T.paint.hole, D = H.pit, R = View.rockPx, RK = phlRamp(b), nt = RK.length, seed = (f.seed ^ f.depth) | 0, x0 = ox - 8;
   // (the pit's own pixels on the hole's side of the smooth wall line)
-  const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < Hp && pit[y * W + x] === 1 && R[y * W + x] === 1;
+  const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < Hp && pit[y * W + x] === 2;
+  const GR = pntLook(b).ground;
   const abyss = [pntU32([2, 2, 4]), pntU32([5, 5, 9]), pntU32([9, 8, 15])];
   // (at home, the star hanging over it: where, and its gold, dimmed)
   const lit = f.hub && typeof STAR_AT !== 'undefined' ? [STAR_AT.x * ATILE, STAR_AT.y * ATILE, [0.55, 0.85].map((k) => pntU32(pntMixRgb(rgbOf(ART.pal.star[1]), [0, 0, 0], 1 - k)))] : null;
@@ -135,8 +136,11 @@ function phlPaintPit(P, f, tx, ty, ox, oy, b) {
     for (let x = ox; x < ox + ATILE; x++) {
       const k = y * W + x;
       if (!inside(x, y)) {
-        // the near rim
-        if (!R[k] && inside(x, y - 1)) phlNearLip(P, x, y, b, H.lip);
+        // the rim's ground (which the wall line had as solid), and the near
+        // rim, lit
+        if (pit[k] === 1 && R[k]) phlPut(P, x, y, GR[View.groundTone[k]]);
+        if ((!R[k] || pit[k] === 1) && inside(x, y - 1)) phlNearLip(P, x, y, b, H.lip);
+        else if ((!R[k] || pit[k] === 1) && inside(x, y - 2)) phlNearLip(P, x, y, b, H.lip - 2);
         continue;
       }
       const rim = rimAt(x, y), q = y - rim;
@@ -168,10 +172,11 @@ function phlPaintPit(P, f, tx, ty, ox, oy, b) {
 // ---- in the water --------------------------------------------------------------
 // A walker in a pool or lava stands down on its surface, its feet under it;
 // on ice, down on the ice. Drawn D px lower (eased in as it steps off the
-// bank), clipped wade px above its feet, a broken line of the surface's
-// light across its legs. Only the picture: its body and feet are where
-// they were. phlWadeStart before drawing an actor (true if it set the
-// clip), phlWadeEnd after.
+// bank), cut cleanly at the surface (and by the near rim, which hides what
+// is down in the hole south of it), a ring of the surface's light round it
+// at the waterline, its back half behind it. Only the picture: its body
+// and feet are where they were. phlWadeStart before drawing an actor (true
+// if it set the clip), phlWadeEnd after.
 function phlWadeOf(d, a) {
   const f = d.floor;
   if (!f.haz || d.hub || a.piece || a.strip || a.crit || a.hubDraw || a.settler || a.tear || a.portal || a.wprop) return 0;
@@ -181,25 +186,44 @@ function phlWadeOf(d, a) {
   if (Math.abs(a._wade - want) < 0.3) a._wade = want;
   return a._wade;
 }
+let _phlWading = null;
 function phlWadeStart(d, a, ox, oy) {
   const s = phlWadeOf(d, a);
   if (!(s >= 0.5)) return false;
-  const f = d.floor, H = T.paint.hole, dy = Math.round(s), fy = Math.round(a.y * AP) + oy + dy, cut = f.hazKind === 'slick' ? 0 : Math.round(H.wade * s / phlDepth(f.hazKind));
+  const f = d.floor, H = T.paint.hole, D = phlDepth(f.hazKind), dy = Math.round(s), fx = Math.round(a.x * AP), fy0 = Math.round(a.y * AP);
+  const ice = f.hazKind === 'slick', cut = ice ? 0 : Math.round(H.wade * s / D);
+  // the near rim south of the feet (art px of the floor), as far as it hides
+  let rim = fy0 + D + 1;
+  for (let y = fy0; y <= fy0 + D; y++) if (!hazardAt(f, (fx + 0.5) / AP, (y + 0.5) / AP)) { rim = y; break; }
+  const wl = fy0 + dy - cut, clipY = Math.min(wl, rim) + oy;
+  const w = { x: fx + ox, y: wl + oy, r: Math.max(5, (a.r || T.player.radius) * AP * 1.15), kind: f.hazKind, b: artBiome(f), show: !ice && wl < rim, moving: Math.abs(a.vx || 0) + Math.abs(a.vy || 0) > 5 || (a === d.p && (d.p.walkT || 0) > 0) };
+  if (w.show) phlWadeRing(w, -1);
   for (const c of [View.ctx, View.emCtx]) {
     c.save();
-    if (cut) { c.beginPath(); c.rect(-1e4, -1e4, 2e4, fy - cut + 1e4); c.clip(); }
+    if (cut || rim < fy0 + dy) { c.beginPath(); c.rect(-1e4, -1e4, 2e4, clipY + 1e4); c.clip(); }
     c.translate(0, dy);
   }
-  _phlWading = cut ? { x: Math.round(a.x * AP) + ox, y: fy - cut, r: (a.r || T.player.radius) * AP, kind: f.hazKind, b: artBiome(f) } : null;
+  _phlWading = w;
   return true;
 }
-let _phlWading = null;
+// The ring at the waterline round a wader: its back half (side -1) or its
+// front (1), pulsing out a little while it moves.
+function phlWadeRing(w, side) {
+  const r = w.b.haz || HAZ_RAMPS[w.kind], lava = w.kind === 'burn', t = Game.realT;
+  const grow = w.moving ? ((t * 2.2) % 1) : 0, rx = w.r * (1 + grow * 0.6), ry = Math.max(2, rx * 0.34), n = Math.round(rx * 3.2);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2, sy = Math.sin(a);
+    if ((sy > 0 ? 1 : -1) !== side) continue;
+    const x = Math.round(w.x + Math.cos(a) * rx), y = Math.round(w.y + sy * ry);
+    // (broken here and there, as strokes)
+    if (artHash(i >> 1, 3, 77) < 0.18) continue;
+    const k = (side > 0 ? 0.85 : 0.5) * (1 - grow * 0.7);
+    dot(x, y, side > 0 ? r[3] : r[2], lava, k);
+  }
+}
 function phlWadeEnd() {
   View.ctx.restore(); View.emCtx.restore();
   const w = _phlWading;
-  if (!w) return;
   _phlWading = null;
-  // the surface's line across the legs, broken, sliding a little
-  const r = w.b.haz || HAZ_RAMPS[w.kind], lava = w.kind === 'burn', n = Math.round(w.r * 1.1), sh = Math.floor(Game.realT * 6);
-  for (let i = -n; i <= n; i++) if ((i + sh) % 4 !== 0) dot(w.x + i, w.y, r[lava ? 2 : 3], lava, Math.abs(i) > n - 2 ? 0.45 : 0.8);
+  if (w && w.show) phlWadeRing(w, 1);
 }
