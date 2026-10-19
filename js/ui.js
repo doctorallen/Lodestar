@@ -129,7 +129,7 @@ const UI = {
       return;
     }
     const fn = UI.acts[el.dataset.act];
-    if (fn) fn(el.dataset.arg);
+    if (fn) { snd('tap'); fn(el.dataset.arg); }
   },
 
   show(id) {
@@ -171,15 +171,15 @@ const UI = {
 
   // Walking up to a station in the outpost (or an ancient forge in a dive).
   useStation(id) {
-    if (id === 'forge' || id === 'fieldForge') { UI.forge.field = id === 'fieldForge'; UI.show('screen-forge'); }
+    if (id === 'forge' || id === 'fieldForge') { UI.forge.field = id === 'fieldForge'; UI.show('screen-forge'); snd('forgeOpen'); }
     else if (id === 'altar') {
-      if (Story.setShards()) { feedStarFx(Game.dive, 40, 0); return; }
+      if (Story.setShards()) { feedStarFx(Game.dive, 40, 0); snd('starFeed', { tier: 6, rate: 8, n: 24, stream: true }); return; }
       UI.show('screen-star');
     }
     else if (id === 'locker') { UI.gearRunes = false; UI.show('screen-gear'); }
     else if (id === 'runes') { UI.gearRunes = true; UI.show('screen-gear'); }
     else if (id === 'setout') UI.openMap('setout');
-    else if (id === 'wreck') UI.show('screen-wreck');
+    else if (id === 'wreck') { UI.show('screen-wreck'); snd('uplink'); }
   },
   // The world map: 'setout' at the outpost's portal, 'travel' at a spire.
   openMap(mode) {
@@ -193,6 +193,7 @@ const UI = {
     $('pause-cargo').hidden = home; $('pause-abandon').hidden = home; $('pause-note').hidden = home; $('pause-recall').hidden = home;
     $('pause-beacon').hidden = home || Game.dive.tool !== 'beacon' || !!Game.dive.beaconUsed || !!Game.dive.beacon;
     if (!home) $('pause-recall').textContent = `EMERGENCY RECALL · LOSE ${Math.round(recallCost(Game.dive) * 100)}%`;
+    drawSoundButtons();
     UI.show('screen-pause');
   },
   openCargo() { UI.show('screen-cargo'); },
@@ -220,6 +221,7 @@ const UI = {
       box.className = 'speech ' + l.style;
       box.innerHTML = `<b>${esc(l.who)}</b> ${esc(l.text)}`;
       box.dataset.line = l.text;
+      snd('speak', { style: l.style });
     }
     if ((l.t -= dt) <= 0) UI.lines.shift();
   },
@@ -861,6 +863,7 @@ UI.acts = {
     }
     F.imprint = null;
     if (!F.field) Save.save();
+    snd('forgeFire');
     Anvil.start({ bp: F.bp, ore: F.ore, part: bp.parts ? F.part : null, exotic, imprint, field: !!F.field });
   },
   equip: (slot) => {
@@ -916,6 +919,7 @@ UI.acts = {
     Save.data.items.push(item);
     Save.save();
     UI.closeCard();
+    snd('unseal');
     Reveal.show(item, 'stash', UI.screen);
   },
   reroll: (i) => { const it = UI.card.item; if (spendOre(runeOre(it), T.runes.reroll)) { rerollAffix(Save.rng(), it, Number(i)); afterChange(); } },
@@ -969,9 +973,20 @@ UI.acts = {
     s.star += k * orePoints(id);
     const after = magnitudeOf(s.star);
     Save.save();
-    // out to the outpost, to watch the star drink it
+    // out to the outpost, to watch the star drink it (and hear it: the
+    // stream of ore, then the bloom of a magnitude reached as it lands)
+    snd('starFeed', { tier: T.ores[ORE_INDEX[id]].tier, rate: k, n: k, stream: true });
+    if (after > before) snd('starGrow', { mag: after, delay: 1.4 });
     if (Game.dive && Game.dive.hub) { UI.close(); feedStarFx(Game.dive, k, after > before ? after : 0); if (after > before) Story.starGrew(); }
     else UI.redraw();
+  },
+  // the pause screen's sound settings: on, soft, off, round again
+  soundSet: (kind) => {
+    const s = Save.data.settings || (Save.data.settings = {}), v = Snd.level(kind);
+    s[kind] = v >= 1 ? T.sound.soft : v > 0 ? 0 : 1;
+    Save.saveField('settings');
+    Snd.applyLevels(false);
+    drawSoundButtons();
   },
   attune: (id) => {
     const s = Save.data;
@@ -981,6 +996,13 @@ UI.acts = {
   },
 };
 
+
+// The pause screen's sound settings, as they stand.
+function drawSoundButtons() {
+  const word = (k) => { const v = Snd.level(k); return v >= 1 ? 'ON' : v > 0 ? 'SOFT' : 'OFF'; };
+  setTextIfChanged('pause-music', `MUSIC: ${word('music')}`);
+  setTextIfChanged('pause-sfx', `SOUNDS: ${word('sfx')}`);
+}
 
 // A caster's stones moved into another, slot for slot; what doesn't fit goes
 // to `list`.

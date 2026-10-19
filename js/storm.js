@@ -42,6 +42,7 @@ function updateStorm(d, dt) {
     d.strike = null;
     d.fx.push({ kind: 'strike', x: s.x, y: s.y, t: 0.35, max: 0.35 });
     spawnSparks(s.x, s.y - 4, ['#ffffff', '#fff2a0', '#9fd8ff'], 24);
+    snd('thunder', { x: s.x, y: s.y, g: 1 });
     buzz(20);
     if (dist(s.x, s.y, d.p.x, d.p.y) < S.radius) hurtPlayer(S.dmg * Math.pow(T.enemies.dmgGrowth, floorLevel(d) - 1), { storm: true });
     for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, s.x, s.y) < S.radius + e.r) hurtEnemy(e, S.dmg * 2, { spell: true, element: 'shock', noProc: true });

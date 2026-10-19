@@ -205,6 +205,7 @@ function useRift(d) {
     if (bodyHits(d.floor, p.x, p.y, T.player.radius)) p.y = (h.gate.y + 0.5) * TILE;
     p.invuln = Math.max(p.invuln, 0.5);
     spawnSparks(p.x, p.y - 6, [RIFT_PAL.riftedge[0], RIFT_PAL.riftcyan[0]], 14);
+    snd('riftGate');
     buzz(20);
     Story.say('riftGate');
   } else startChannel('seal');
@@ -223,6 +224,7 @@ function sealRift() {
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, cx, cy) < T.leave.noise) wake(d, e);
   spawnSparks(cx, cy - 10, [RIFT_PAL.riftedge[0], RIFT_PAL.riftcyan[0], '#ffffff'], 30);
   UI.toast('The tear closes', 'legendary');
+  snd('seal');
   Story.say('riftSealed');
   buzz(40);
 }

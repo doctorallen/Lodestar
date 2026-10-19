@@ -268,7 +268,7 @@ function castHand(slot, item, h, charged) {
   const style = (bpOf(it) || {}).style || 'wand', P = parseCircuit(it.slots, it.links), res = circuitResonance(it.slots);
   let cost = it.fist ? 0 : circuitCost(it, P);
   if (charged) cost *= C.chargedCost;
-  if (p.charge < cost) { p.lowCharge = 0.4; return false; }
+  if (p.charge < cost) { p.lowCharge = 0.4; snd('noCharge'); return false; }
   p.charge -= cost;
   // an Arc's combo: a press soon after the last carries it on
   const arc = P.groups.some((g) => !g.triggered && g.form === 'arc');
@@ -278,6 +278,7 @@ function castHand(slot, item, h, charged) {
   d.castRange = B.aim;
   const first = P.groups.filter((g) => !g.triggered);
   castFxStart(d, it, slot, style, charged, first.length ? first.map((g) => (charged && g.form === 'arc' ? 'nova' : g.form)) : ['spark']);
+  snd('cast', { form: first.length ? (charged && first[0].form === 'arc' ? 'nova' : first[0].form) : 'spark', els: first.length ? first[0].els : null, charged, step: h.step, res: !!res });
   const cx = { item: it, power: it.base.power, style, charged, step: h.step, from: null, aim: null, mult: res ? resonanceMult(it) : 1, spread: 0, echo: false, res: res ? res.id : null };
   if (res) resonanceCast(res, d);
   // the Twice-Told: everything again, fanned a little
@@ -373,6 +374,7 @@ function circuitHit(s, e, dmg, opts = {}) {
   if (e.dead || e.hid) return;
   const crit = d.rng.f(100) < st.crit, kf = s.els.includes('force') ? T.circuits.force.knock : 1;
   hurtEnemy(e, dmg * (crit ? 2 : 1), { spell: true, crit, els: s.els, att: s.att, heavy: !!opts.heavy, knock: opts.knock ? { x: opts.knock.x * kf, y: opts.knock.y * kf } : null });
+  snd('hit', { el: s.els[0], crit, heavy: !!opts.heavy, x: e.x, y: e.y });
   if (crit && st.powers.bloodedge) healPlayer(st.maxHp * 0.04);
   if (s.refundLeft > 0) { s.refundLeft--; p.charge = Math.min(st.maxCharge, p.charge + s.refund); }
   if (s.chain && !opts.noChain) circuitLeap(s, e, dmg);

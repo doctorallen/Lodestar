@@ -18,7 +18,7 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Set out / step through / bank / light / plant | The button that appears at a portal, a spire, a waystone or a heart | E / Enter |
 | Travel | TRAVEL, over BANK at a spire | |
 | Cargo | CARGO in the top bar | I |
-| Pause | II | Esc / P |
+| Pause (and the MUSIC and SOUNDS settings) | II | Esc / P |
 
 The loop:
 1. The outpost's portal opens the world map: walk out into a territory next to the outpost, or set out to a spire.
@@ -47,6 +47,8 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/version.js` | The build stamp, written by `.githooks/pre-commit` |
 | `js/tuning.js` | Every gameplay number, the ores, exotics and biomes |
 | `js/save.js` | The save in localStorage |
+| `js/audio.js` | Sound, made in code with Web Audio: the engine (started by the first tap, suspended when hidden, the settings), the effects, and `snd(name, opts)`, the hook the game calls |
+| `js/music.js` | The music that grows with the star and thins in the dark, each place's own sound, the turn's unease; footsteps, heartbeat, stings and landers it listens for |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline |
 | `js/world.js` | The world: its rings of territories laid out from the save's seed, their neighbours, climes, names and goals; each territory's map (`generateTerritory`) with its openings, heart and waystones |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |

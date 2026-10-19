@@ -85,6 +85,7 @@ function updateHazards(d, dt) {
       if (bursting && !v.fired) {
         v.fired = true;
         const x = (v.x + 0.5) * TILE, y = (v.y + 0.5) * TILE;
+        snd('vent', { x, y });
         if (open && dist(x, y, p.x, p.y) < V.r + T.player.radius) hurtPlayer(V.dmg, v);
         for (const e of d.enemies) if (!e.dead && hazardWalker(e) && dist(x, y, e.x, e.y) < V.r + e.r) e.burn = { t: 1, dps: V.dmg };
       } else if (!bursting) v.fired = false;

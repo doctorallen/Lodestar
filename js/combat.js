@@ -67,6 +67,7 @@ function updateDash(dt) {
     p.fx = dir.x; p.fy = dir.y;
     p.invuln = Math.max(p.invuln, D.invuln);
     p.dashCd = D.cooldown * (1 + d.stats.dashCd / 100);
+    snd('dash');
     buzz(8);
   }
   if (p.dashT > 0) {
@@ -100,6 +101,7 @@ function hurtPlayer(dmg, from) {
   p.hurtT = 0.25;
   p.restT = 0;
   if (d.channel) breakChannel('Hit: it broke off');
+  snd('hurt');
   buzz(30);
   if (p.hp <= 0) { p.hp = 0; startDying(); }
 }
@@ -173,6 +175,7 @@ function killEnemy(e) {
   tallyKill(d, e);
   if (e.blight) for (const o of d.enemies) if (!o.dead && o !== e && dist(o.x, o.y, e.x, e.y) < T.elements.blightSpread) o.blight = { t: T.elements.blightTime, dps: e.blight.dps };
   castFxDeath(e.x, e.y - 5, ENEMY_PAL[T.biomes[d.biome].id].crystal[0], !!e.boss);
+  snd('kill', { x: e.x, y: e.y, big: !!e.boss });
   if (e.elite === 'volatile') d.fx.push({ kind: 'volatile', x: e.x, y: e.y, t: T.enemies.volatileFuse, max: T.enemies.volatileFuse, dmg: e.dmg * T.enemies.volatileDmg });
   if (st.powers.lodeheart) {
     healPlayer(3);
@@ -272,13 +275,14 @@ function updatePickups(dt) {
     // something put down stays down until the diver has walked away from it
     if (dist(dr.x, dr.y, p.x, p.y) > reach) { dr.warned = false; dr.left = false; continue; }
     if (dr.left) continue;
-    if (dr.mote) { healPlayer(dr.mote); dr.gone = true; continue; }
+    if (dr.mote) { healPlayer(dr.mote); dr.gone = true; snd('heal'); continue; }
     const room = d.stats.cargo - cargoUsed(d);
     // a pile of ore: take what fits
     if (dr.stuff) {
       const k = Math.min(room, dr.n);
       if (k > 0) {
         d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k; dr.n -= k;
+        snd('pickup');
         // a small +n in the stuff's colour, not a toast: pickups are many
         const pk = parsePart(dr.stuff);
         d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : pk ? ART.parts[pk.kind] : '#ffffff' });
@@ -287,12 +291,13 @@ function updatePickups(dt) {
       continue;
     }
     // a heart-shard binds to the diver: safe whatever happens now
-    if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard, still warm', 'legendary'); dr.gone = true; continue; }
-    if (dr.resStone) { resonanceStoneFound(d.rng); dr.gone = true; buzz(12); continue; }
-    if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); } dr.gone = true; continue; }
+    if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard, still warm', 'legendary'); dr.gone = true; snd('shard'); continue; }
+    if (dr.resStone) { resonanceStoneFound(d.rng); dr.gone = true; snd('resStone'); buzz(12); continue; }
+    if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); snd('echo'); } dr.gone = true; continue; }
     if (dr.blueprint) {
       if (room < 1) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } continue; }
       d.blueprints.push({ id: dr.blueprint });
+      snd('blueprint');
       UI.toast(`Blueprint: ${BLUEPRINTS[dr.blueprint].name}. Bring it home to learn it`, 'legendary');
       UI.tip('blueprint', 'Blueprints are learned when you get them home. Pocket one to be sure of it');
       dr.gone = true;
@@ -303,8 +308,8 @@ function updatePickups(dt) {
       if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); }
       continue;
     }
-    if (dr.item) { UI.tip('gear', 'Tap CARGO to look at what you found'); d.items.push(dr.item); UI.toast(dr.item.kind === 'relic' ? 'A sealed relic' : dr.item.name, dr.item.rarity); }
-    else { d.cargo[dr.exotic] = (d.cargo[dr.exotic] || 0) + 1; UI.toast(T.exotics.find((x) => x.id === dr.exotic).name, 'exotic'); }
+    if (dr.item) { UI.tip('gear', 'Tap CARGO to look at what you found'); d.items.push(dr.item); UI.toast(dr.item.kind === 'relic' ? 'A sealed relic' : dr.item.name, dr.item.rarity); snd('loot', { rarity: dr.item.kind === 'relic' ? 'relic' : dr.item.rarity }); }
+    else { d.cargo[dr.exotic] = (d.cargo[dr.exotic] || 0) + 1; UI.toast(T.exotics.find((x) => x.id === dr.exotic).name, 'exotic'); snd('loot', { rarity: 'exotic' }); }
     dr.gone = true;
     buzz(12);
   }
