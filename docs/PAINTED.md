@@ -203,6 +203,7 @@ The sample's crawler and wisp (`zsprites.py`) show the idea.
 - **Each frame** (`pshFrame`, after the floor, before anything stands on it): black as opaque as the shadow is dark, on a mask over the view, drawn in one box.
   - The lamp's: plants, creatures, the portals, spire, waystones and the field forge within its reach cast away from it, taking back the lamp's share of the light at each pixel (a table over the distance, `pshTab`), so a shadow falls to what the walls' do; none where the lamp's sight doesn't reach. Not at home, where the lanterns cast.
   - The sun's, by day, for what moves (the Kindler, creatures, the portals and spire), and a soft blob under Wick, as far off as it hovers.
+  - What hovers (wisps, sentinels, hollows, wraiths) keeps only a faint, small spot under it, smaller and fainter the higher it floats (`T.light.shadow.cast.hover`); its cast shadow shows how high it is.
   - At home, the Kindler and the settlers near him from the strongest lantern or fire.
 - **On the ground, and up faces behind.** A pixel of rock takes the shadow only if it stands behind the caster's feet (its floor row north of them), so a shadow climbs the face of a wall behind but never covers rock in front, as occlusion has it.
 - **Contact shadows under what moves** (`drawShadow`, `pshContact`): an ellipse of short horizontal strokes, darker in the middle, its row ends ragged, no hard edge; one picture a size, fixed to the caster so it never crawls.

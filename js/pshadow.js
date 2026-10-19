@@ -360,6 +360,9 @@ function pshMaskCast(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, footRow, dark, t
   const G = _pshG, a = S.a, sw = S.w, sh = S.h, zm = G.zmax + 0.5, m = M.d32, mw = M.w, C = T.light.shadow.cast, edge = C.edge[0], pen = C.edge[1] * Math.hypot(azx, azy);
   const izx = G.izx, izy = G.izy, iux = G.iux, iuy = G.iuy, wid = 1 + sp * zm, u0 = (S.x0 - ax) * wid - 1, u1 = (S.x1 + 1 - ax) * wid + 1;
   const tk = tab ? PSH_TAB / (Lt.r * Lt.r) : 0, lvx = tab ? Lt.lx + ox : 0, lvy = tab ? Lt.ly + oy : 0, iLC = 1 / LC;
+  // (the foot's row of the sprite: the painted creatures' anchors fall
+  // between pixels)
+  const ayr = Math.round(ay);
   const svis = S2 ? S2.vis : null, sx0 = S2 ? S2.x0 : 0, sy0 = S2 ? S2.y0 : 0, sww = S2 ? S2.w : 0;
   if (!tab) tab = null;
   let any = false;
@@ -393,10 +396,10 @@ function pshMaskCast(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, footRow, dark, t
       if (z < -0.5 || z > zm) continue;
       const uu = ax + (rx * iux + ru0) / (1 + sp * z);
       if (uu < 0 || uu >= sw) continue;
-      const r = ay - ((z + 0.5) | 0);
+      const r = ayr - ((z + 0.5) | 0);
       if (r < 0 || r >= sh) continue;
       const cl = a[r * sw + (uu | 0)];
-      if (cl === 0) continue;
+      if (!cl) continue;
       const wx = x - ox;
       if (wx < 0 || wx >= W) continue;
       const k = row + wx, lf = LF[k];
@@ -591,7 +594,12 @@ function pshContactPic(r, ry) {
   _pshContacts.set(key, pic);
   return pic;
 }
-function pshContact(fx, fy, rx) {
-  const r = Math.round(rx * AP), ry = Math.round(1.5 * AP + Math.min(1.5, r * 0.08)), pic = pshContactPic(r, ry);
-  View.ctx.drawImage(pic.c, fx - pic.cx, fy - pic.cy);
+// up: how high it hovers (world px): smaller and fainter the higher, as
+// its own cast shadow falls off from it (T.light.shadow.cast.hover).
+function pshContact(fx, fy, rx, up) {
+  const H = T.light.shadow.cast.hover, k = up > 0 ? Math.max(H.least, 1 - up * H.shrink) : 1;
+  const r = Math.round(rx * k * AP), ry = Math.round((1.5 * AP + Math.min(1.5, r * 0.08)) * k), pic = pshContactPic(r, ry), x = View.ctx;
+  if (up > 0) x.globalAlpha = Math.max(H.faint, 1 - up * H.fade);
+  x.drawImage(pic.c, fx - pic.cx, fy - pic.cy);
+  x.globalAlpha = 1;
 }

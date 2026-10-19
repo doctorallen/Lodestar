@@ -965,8 +965,9 @@ function enemySprite(d, type) {
 }
 
 // A soft shadow on the ground under feet at fx, fy (art px), rx world px
-// across either way, in short strokes (pshadow.js).
-function drawShadow(fx, fy, rx) { pshContact(fx, fy, rx); }
+// across either way, in short strokes (pshadow.js); up: how high what casts
+// it hovers (world px), if it does.
+function drawShadow(fx, fy, rx, up) { pshContact(fx, fy, rx, up || 0); }
 
 function drawProspector(d, ox, oy, tick, lights) {
   const p = d.p;
@@ -1161,7 +1162,7 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   const shake = e.state === 'windup' ? (tick % 2 ? 1 : -1) : 0;
   const fx = Math.round(e.x * AP) + ox, fy = Math.round(e.y * AP) + oy;
   if (fx < -60 || fy < -15 || fx > View.w + 60 || fy > View.h + 75) return;
-  if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r));
+  if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r), lift > 2 ? lift : 0);
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
   drawArtSprite(spr, sx, sy);
   // in a dark place its lit rim holds over the light (foespaint.js fpReadable)
