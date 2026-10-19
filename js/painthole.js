@@ -101,6 +101,7 @@ function phlNearLip(P, x, y, b, step) {
   phlPut(P, x, y, GR[t > 6 ? 6 : t]);
 }
 
+let _phlRims = new Int32Array(0);
 // ---- the sinkhole ------------------------------------------------------------
 // The outpost's pit (View.pitPx), over tile tx, ty: each column's far wall
 // from its rim down, darker and darker into soot, then the dark (in faint
@@ -118,6 +119,17 @@ function phlPaintPit(P, f, tx, ty, ox, oy, b) {
   const abyss = [pntU32([2, 2, 4]), pntU32([5, 5, 9]), pntU32([9, 8, 15])];
   // (at home, the star hanging over it: where, and its gold, dimmed)
   const lit = f.hub && typeof STAR_AT !== 'undefined' ? [STAR_AT.x * ATILE, STAR_AT.y * ATILE, [0.55, 0.85].map((k) => pntU32(pntMixRgb(rgbOf(ART.pal.star[1]), [0, 0, 0], 1 - k)))] : null;
+  // each column's rim for each row of the tile (as phlRimRow), from x0 - 2
+  const cw = ATILE + 4, RIM = _phlRims.length >= cw * ATILE ? _phlRims : (_phlRims = new Int32Array(cw * ATILE));
+  for (let i = 0; i < cw; i++) {
+    const x = ox - 2 + i;
+    let top = -1;
+    for (let y = Math.max(0, oy - D - 2); y < oy + ATILE; y++) {
+      if (!inside(x, y)) top = -1; else if (top < 0) top = y;
+      if (y >= oy) RIM[(y - oy) * cw + i] = top < 0 ? y + 2 : Math.max(top, y - D - 1);
+    }
+  }
+  const rimAt = (x, y) => RIM[(y - oy) * cw + x - ox + 2];
   for (let y = oy; y < oy + ATILE; y++) {
     phlStrokes(x0, y, seed + 311);
     for (let x = ox; x < ox + ATILE; x++) {
@@ -127,7 +139,7 @@ function phlPaintPit(P, f, tx, ty, ox, oy, b) {
         if (!R[k] && inside(x, y - 1)) phlNearLip(P, x, y, b, H.lip);
         continue;
       }
-      const rim = phlRimRow(inside, x, y, D + 1), q = y - rim;
+      const rim = rimAt(x, y), q = y - rim;
       if (q >= D) {
         // the dark: a few faint strokes
         const m = _phlMid[x - x0] + x0;
@@ -135,7 +147,8 @@ function phlPaintPit(P, f, tx, ty, ox, oy, b) {
         continue;
       }
       const under = rim > 0 && R[(rim - 1) * W + x] === 1 && !pit[(rim - 1) * W + x];
-      let t = phlWallTone(q, D, phlFacing(inside, x, y, D + 1), x, x0, y, seed) - H.pitFade * Math.pow(q / D, 2);
+      const fc = (rimAt(x + 2, y) - rimAt(x - 2, y)) / 4;
+      let t = phlWallTone(q, D, fc < -1 ? -1 : fc > 1 ? 1 : fc, x, x0, y, seed) - H.pitFade * Math.pow(q / D, 2);
       // the lip, lit where it's ground (a rock's face carries on unbroken)
       if (q === 0 && !under) t = Math.max(t, H.lipTone[0]);
       else if (q === 0) t -= 1;
