@@ -73,11 +73,11 @@ function resizeView() {
 
 // The diver in eight facings, indexed clockwise from east (E, SE, S, SW, W,
 // NW, N, NE): the five painted ones and mirrors of three (diver.js). Each
-// facing is [idle, walk ×4], and each sprite knows its feet (ax, ay), its
-// main hand (hand) and its brow lamp's middle (lamp); the cast pose in
-// each facing, [main hand, off hand] × [idle, walk ×4], knows its fist
-// (castHand), the other hand (restHand) and whether that one is behind the
-// body (restBehind).
+// facing's [0] is its first idle frame (the rest: kindlerPick), and each
+// sprite knows its feet (ax, ay), its hands (hand, offHand) and its brow
+// lamp's middle (lamp); the cast pose's strike in each facing, [main hand,
+// off hand][0], knows its fist (castHand), the other hand (restHand) and
+// whether that one is behind the body (restBehind).
 const FACINGS = ['E', 'SE', 'S', 'SE', 'E', 'NE', 'N', 'NE'];
 const MIRRORED = [false, false, false, true, true, true, false, false];
 function buildSprites() {
@@ -978,10 +978,8 @@ function drawShadow(fx, fy, rx) {
 
 function drawProspector(d, ox, oy, tick, lights) {
   const p = d.p;
-  const walking = p.walkT > 0;
-  const frame = walking ? 1 + (Math.floor(p.walkT * 10) % 4) : 0;
   // casting: the pose, turned to the aim and leaning into it (castfx.js);
-  // the legs keep walking. Charging a caster, the pose is held, gathering.
+  // the legs keep walking. Charging a caster, the pose is held, wound back.
   let cast = p.cast && p.cast.t > 0 && p.cast.a !== undefined && !(p.mine && !p.mine.refused) ? p.cast : null;
   if (!cast && !(p.mine && !p.mine.refused))
     for (const slot of ['main', 'off']) {
@@ -989,8 +987,8 @@ function drawProspector(d, ox, oy, tick, lights) {
       if (h.holding && isCaster(it) && chargeLevel(h) > 0) { cast = { a: castFxAim(d), slot, style: (bpOf(it) || {}).style || 'wand', t: 1, max: 1, charging: true }; break; }
     }
   p.castPose = cast;
-  const face = cast ? { x: Math.cos(cast.a), y: Math.sin(cast.a) } : { x: p.fx, y: p.fy };
-  const spr = cast ? castFxSprite(cast.a, cast.slot, frame) : Sprites.diver[facingIndex(p.fx, p.fy)][frame];
+  // the frame, and the way he's drawn facing (turning: diver.js)
+  const { spr, face } = kindlerPick(d, cast);
   const fx = Math.round(p.x * AP) + ox, fy = Math.round(p.y * AP) + oy, lean = cast ? castFxLean(cast) : { x: 0, y: 0 };
   const sx = Math.round(fx - spr.ax) + lean.x, sy = Math.round(fy - spr.ay) + lean.y;
   drawShadow(fx, fy, 5);
@@ -1067,6 +1065,7 @@ function handOf(p, spr, sx, sy, slot, face = { x: p.fx, y: p.fy }) {
   }
   const h = spr.hand;
   if (slot === 'main') return { x: sx + h.x, y: sy + h.y };
+  if (spr.offHand) return { x: sx + spr.offHand.x, y: sy + spr.offHand.y };
   if (Math.abs(face.x) > Math.abs(face.y) + 0.2) return { x: sx + h.x - Math.sign(face.x) * ap(4), y: sy + h.y - ap(1) };
   return { x: sx + spr.w - 1 - h.x, y: sy + h.y };
 }
@@ -1265,7 +1264,7 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     lights.push({ x: cx, y: cy, r: fx.r * 1.4, i: 0.8 * k, c: [1, 0.95, 0.8] });
   } else if (fx.kind === 'ghost') {
     // a dash's afterimage
-    const spr = Sprites.diver[facingIndex(fx.fx, fx.fy)][0], x = View.ctx;
+    const spr = kindlerGhost(facingIndex(fx.fx, fx.fy)) || Sprites.diver[facingIndex(fx.fx, fx.fy)][0], x = View.ctx;
     x.globalAlpha = 0.35 * k;
     x.drawImage(spr.flash, Math.round(cx - spr.ax), Math.round(cy - spr.ay));
     x.globalAlpha = 1;
