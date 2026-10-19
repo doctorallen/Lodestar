@@ -66,13 +66,12 @@ function drawStorm(d, ox, oy, lights) {
   for (const fx of d.fx) {
     if (fx.kind !== 'strike') continue;
     const k = fx.t / fx.max, x = Math.round(fx.x * AP) + ox, y = Math.round(fx.y * AP) + oy;
-    // a jagged bolt from the top of the view
-    let bx = x;
-    for (let yy = Math.max(0, y - ap(140)); yy < y; yy++) {
-      if (yy % 4 === 0) bx += Math.round((hashInts(yy, x) % 3) - 1);
-      dot(bx - 1, yy, '#1a0c06', false, k); dot(bx + 3, yy, '#1a0c06', false, k);
-      dot(bx, yy, '#cfe8ff', true, k); dot(bx + 1, yy, '#ffffff', true, k); dot(bx + 2, yy, '#cfe8ff', true, k);
-    }
+    // a bolt from the top of the view, painted as a chain's arc is
+    // (castfx.js), wide and forking
+    const y0 = Math.max(0, y - ap(140)), sd = hashInts(fx.x | 0, fx.y | 0, Math.floor(Game.realT * 15)), R = cfxRamp('#cfe8ff'), pts = cfxBoltPath(x + ap(6), y0, x, y, sd, 0.1);
+    cfxPaintBolt(pts, R, cfxBand(k), 2.2, sd);
+    const p = pts[Math.floor(pts.length * 0.45)];
+    if (p) cfxPaintBolt(cfxBoltPath(p[0], p[1], p[0] + ap(14) * (sd & 1 ? 1 : -1), p[1] + ap(22), sd + 1, 0.2), R, cfxBand(k) * 0.8, 0.9, sd + 2);
     lights.push({ x, y, r: TILE * 5, i: 2 * k, c: [0.8, 0.9, 1] });
   }
 }

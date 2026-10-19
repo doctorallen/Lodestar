@@ -629,19 +629,41 @@ function cfxGlyphPic(rx, col, rot) {
   });
 }
 
-// A swept ring, painted in strokes: a band at its leading (outer) edge,
-// white-hot outside and its colour within, thicker at the front, broken by
-// gaps; a loose trail of its colour inside it.
+// A swept ring, painted along its curve (not in rows, which on its sides
+// stack into dashes): a band at its leading (outer) edge, white-hot on the
+// outside, its colour within and its deepest tones on the inside edge (so
+// even a pale ring holds against snow), thicker at the front; laid in
+// strokes along the ring, 4 to 9 px each a tone of its own; a gap or two;
+// a few loose pixels outside it and short strokes trailing inside it.
 function cfxSweepPic(rx, col, aspect) {
-  const ry = Math.max(1, Math.round(rx * aspect)), th = clamp(Math.round(rx * 0.09), 2, 4);
-  return cfxStrokePic(`s${rx} ${col} ${aspect}`, rx * 2 + 9, ry * 2 + 9, cfxRamp(col), (x, y) => {
-    const e = Math.hypot(x / rx, y / ry), d = (1 - e) * rx, T = th * (1 + 0.5 * Math.max(0, y / ry));
-    if (d < -0.6 || d > T + rx * 0.22) return -1;
-    const cell = Math.floor(((Math.atan2(y / ry, x / rx) + Math.PI) * rx) / 6);
-    if (artHash(cell, rx, 91) < 0.13) return -1;
-    if (d <= T) return 1 - (Math.max(0, d) / T) * 0.72;
-    return artHash(cell, Math.floor(d / 2), 92) < 0.16 ? 0.2 : -1;
-  }, rx * 7 + 3);
+  const ry = Math.max(1, Math.round(rx * aspect)), th = clamp(Math.round(rx * 0.1), 3, 5), w = rx * 2 + 9, h = ry * 2 + 9, R = cfxRamp(col), sd = rx * 7 + 3;
+  return cfxPic(`s${rx} ${col} ${aspect}`, w, h, (set) => {
+    // a stroke along the ring: its arc length cut into lengths by hash
+    const strokeOf = (s) => { const c = Math.floor(s / 6); return artHash(c, 1, sd) < 0.5 ? c : c * 1000 + Math.floor((s % 6) / 3); };
+    for (let y = -ry - 4; y <= ry + 4; y++) for (let x = -rx - 4; x <= rx + 4; x++) {
+      const e = Math.hypot(x / rx, y / ry), d = (1 - e) * Math.min(rx, ry / aspect), a = Math.atan2(y / ry, x / rx), s = (a + Math.PI) * rx, front = Math.max(0, y / ry);
+      const T = th * (1 + 0.6 * front), st = strokeOf(s), hs = artHash(st, 2, sd);
+      // gaps, a long stroke's worth now and then
+      if (artHash(Math.floor(s / 11), 3, sd) < 0.05) continue;
+      if (d >= -0.5 && d <= T) {
+        const u = Math.max(0, d) / T, jt = (hs - 0.5) * 0.9;
+        let ti = u < 0.22 ? 4 : u < 0.5 ? 3 : u < 0.8 ? 2 : 1;
+        ti = clamp(Math.round(ti + (u > 0.22 ? jt : 0)), u > 0.85 ? 0 : 1, 4);
+        if (u > 0.8) ti = hs < 0.6 ? 0 : 1;
+        set(x, y, R[ti], front > 0 || ti > 1 ? 1 : 0.85);
+      } else if (d > T && d <= T + 1.2) {
+        // its shadowed inner edge, broken
+        if (hs < 0.55) set(x, y, R[0], 0.75);
+      } else if (d < -0.5 && d > -2.5) {
+        // loose pixels thrown off its edge
+        if (artHash(x, y, sd + 4) < 0.07) set(x, y, R[3], 0.8);
+      } else if (d > T && d < T + rx * 0.3) {
+        // a trail inside: short strokes along it, dimmer further in
+        const k = (d - T) / (rx * 0.3), ts = Math.floor(s / 3);
+        if (artHash(ts, Math.floor(d / 2), sd + 5) < 0.14 * (1 - k)) set(x, y, R[k < 0.4 ? 2 : 1], 0.8);
+      }
+    }
+  });
 }
 
 // A mark left on the ground, by element: a scorch with embers in it, a star
@@ -653,7 +675,7 @@ function cfxDecalPic(kind, big, v) {
   const key = `${kind} ${big ? 1 : 0} ${v}`;
   let pic = _cfxDecals.get(key);
   if (pic) return pic;
-  const n = big ? 26 : 15, cells = new Map([['0,0', 1]]), list = [[0, 0]];
+  const n = (kind.startsWith('splat:') ? 1.4 : 1) * (big ? 26 : 15), cells = new Map([['0,0', 1]]), list = [[0, 0]];
   while (list.length < n) {
     const [x, y] = list[(Math.random() * list.length) | 0], dir = (Math.random() * 6) | 0;
     const nx = x + (dir < 2 ? 1 : dir < 4 ? -1 : 0), ny = y + (dir === 4 ? 1 : dir === 5 ? -1 : 0);
@@ -665,7 +687,7 @@ function cfxDecalPic(kind, big, v) {
   const W = 24, H = 14, glows = [];
   // (a death's splash, in the colour after 'splat:')
   const sc = kind.startsWith('splat:') ? kind.slice(6) : null;
-  const tones = sc ? [mix(sc, '#0a0806', 0.7), mix(sc, '#0a0806', 0.4)] : {
+  const tones = sc ? [mix(sc, '#0a0806', 0.55), mix(sc, '#0a0806', 0.25)] : {
     ember: ['#140c08', '#2a1a10'], shock: ['#141418', '#262a34'], blight: ['#26341a', '#3e5422'],
     frost: ['#e8f8ff', '#9cc8e0'], arcane: ['#18142a', '#2a2444'], spark: ['#1a1a22', '#2a2a36'],
   }[kind] || ['#18142a', '#2a2444'];
@@ -681,8 +703,17 @@ function cfxDecalPic(kind, big, v) {
     }
     for (const [x, y] of list) set(x, y, nb(x, y) >= 3 ? tones[0] : tones[1], 0.85);
     if (sc) {
-      // flecks thrown round it, a short stroke each
-      for (let k = 0; k < (big ? 7 : 4); k++) { const fx = Math.round((Math.random() * 2 - 1) * (big ? 10 : 7)), fy = Math.round((Math.random() * 2 - 1) * (big ? 4 : 3)); set(fx, fy, tones[1], 0.8); set(fx + 1, fy, tones[1], 0.6); }
+      // its upper-left edge wet and catching the light, so it holds on a
+      // dark floor; flecks thrown round it, a short stroke each, some of
+      // them still glowing (they die first)
+      const lit = mix(sc, '#ffffff', 0.15);
+      for (const [x, y] of list) if (!cells.has(x + ',' + (y - 1)) || !cells.has(x - 1 + ',' + y)) { if (Math.random() < 0.55) set(x, y, mix(sc, '#0a0806', 0.08), 0.9); }
+      for (let k = 0; k < (big ? 9 : 6); k++) {
+        const fx = Math.round((Math.random() * 2 - 1) * (big ? 11 : 8)), fy = Math.round((Math.random() * 2 - 1) * (big ? 4 : 3));
+        set(fx, fy, tones[1], 0.9); set(fx + 1, fy, tones[1], 0.7);
+        if (k % 2 === 0) glows.push([fx, fy, k % 4 ? sc : lit]);
+      }
+      for (let k = 0; k < (big ? 3 : 2); k++) { const [x, y] = list[(Math.random() * list.length) | 0]; glows.push([x, y, sc]); }
       return;
     }
     const lit = { ember: [ELEMENT_COLS.ember, '#ffd070'], shock: [ELEMENT_COLS.shock], blight: [ELEMENT_COLS.blight], arcane: [ART.forms.bolt], spark: ['#e8f4ff'] }[kind] || [ART.forms.bolt];
@@ -691,7 +722,7 @@ function cfxDecalPic(kind, big, v) {
     if (kind === 'shock') for (const s of [-1, 1]) for (let i = 2; i < 5; i++) glows.push([s * i, i % 2 ? 0 : -s, ELEMENT_COLS.shock]);
   });
   const em = cfxPic(`de${key}`, W, H, (set) => { for (const [x, y, c] of glows) set(x, y, c); });
-  pic = { col, em };
+  pic = { col, em, splat: !!sc };
   _cfxDecals.set(key, pic);
   return pic;
 }
@@ -720,6 +751,9 @@ function drawCastGround(d, ox, oy, tick, lights) {
     if (x < -20 || y < -20 || x > View.w + 20 || y > View.h + 20) continue;
     c.globalAlpha = cfxBand(k);
     c.drawImage(m.pic.col.c, x - m.pic.col.cx, y - m.pic.col.cy);
+    // (a death's splash in a dark place holds over the light a little, as
+    // the floor there is painted lighter for the dark: it'd vanish in it)
+    if (m.pic.splat && View.pntLift > 0.05) { e.globalAlpha = cfxBand(k) * 0.55 * View.pntLift; e.drawImage(m.pic.col.c, x - m.pic.col.cx, y - m.pic.col.cy); }
     // what glows in it dies first
     const g = cfxBand(k * 2 - 1);
     if (g > 0) { c.globalAlpha = g; c.drawImage(m.pic.em.c, x - m.pic.em.cx, y - m.pic.em.cy); e.globalAlpha = g; e.drawImage(m.pic.em.c, x - m.pic.em.cx, y - m.pic.em.cy); }
@@ -949,27 +983,54 @@ function drawCastBolt(b, ox, oy, tick, lights) {
   cfxLight(lights, x, y, TILE * (b.big ? 1.4 : 1), 0.6 + (tick % 2) * 0.15, rgb01(col));
 }
 
-// A chain's arc: a jagged white-hot line with its colour round it and a
-// fork, jumping anew each frame; its ends flash.
+// A chain's arc, painted: a bolt that forks and wanders (each span split
+// at a displaced middle, again and again, so it bends at every scale, not
+// in straight jags), white-hot down its core, lit on its upper side and its
+// colour on the other, thickest in the middle and tapering to its ends,
+// loose pixels of its colour flicking off it, and a thinner fork or two;
+// it jumps to a new shape every few frames; its ends flash.
+function cfxBoltPath(x0, y0, x1, y1, seed, amp) {
+  let pts = [[x0, y0], [x1, y1]];
+  const L = Math.hypot(x1 - x0, y1 - y0);
+  for (let lv = 0, a = amp * L; lv < 6 && L / pts.length > 3; lv++, a *= 0.55) {
+    const out = [pts[0]];
+    for (let i = 1; i < pts.length; i++) {
+      const p = pts[i - 1], q = pts[i], dx = q[0] - p[0], dy = q[1] - p[1], m = Math.hypot(dx, dy) || 1, o = (artHash(i, lv, seed) - 0.5) * 2 * a;
+      out.push([(p[0] + q[0]) / 2 - (dy / m) * o, (p[1] + q[1]) / 2 + (dx / m) * o], q);
+    }
+    pts = out;
+  }
+  return pts;
+}
+function cfxPaintBolt(pts, R, alpha, w0, seed) {
+  const n = pts.length - 1;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], q = pts[i + 1], dx = q[0] - p[0], dy = q[1] - p[1], m = Math.max(1, Math.round(Math.max(Math.abs(dx), Math.abs(dy)))), L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+    // (the side towards the upper left is the lit one)
+    const lit = nx * -0.55 + ny * -0.8 > 0 ? 1 : -1;
+    for (let s = 0; s < m; s++) {
+      const t = (i + s / m) / n, w = w0 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0.04, t))), 0.5), x = Math.round(p[0] + (dx * s) / m), y = Math.round(p[1] + (dy * s) / m), h = artHash(x, y, seed);
+      dot(x, y, R[w > 0.6 ? 4 : 3], true, alpha);
+      if (w > 0.45) dot(Math.round(x + nx * lit), Math.round(y + ny * lit), R[3], true, alpha * 0.9);
+      if (w > 0.8) dot(Math.round(x - nx * lit), Math.round(y - ny * lit), R[w > 1.2 ? 2 : 1], true, alpha * 0.85);
+      else if (w > 0.3 && h < 0.5) dot(Math.round(x - nx * lit), Math.round(y - ny * lit), R[1], true, alpha * 0.7);
+      if (w > 1.3 && h < 0.6) dot(Math.round(x + nx * lit * 2), Math.round(y + ny * lit * 2), R[2], true, alpha * 0.7);
+      if (h > 0.9) { const k = h > 0.95 ? 3 : -3; dot(Math.round(x + nx * k), Math.round(y + ny * k), R[h > 0.97 ? 3 : 2], true, alpha * 0.7); }
+    }
+  }
+}
 function drawCastArc(fx, ox, oy, lights) {
   const k = fx.t / fx.max, x0 = Math.round(fx.x * AP) + ox, y0 = Math.round(fx.y * AP) + oy, x1 = Math.round(fx.x2 * AP) + ox, y1 = Math.round(fx.y2 * AP) + oy;
-  const n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / 8)), col = fx.col || ELEMENT_COLS.shock, R = cfxRamp(col), a = cfxBand(k);
-  let px = x0, py = y0;
-  for (let s = 1; s <= n; s++) {
-    const tx = Math.round(x0 + ((x1 - x0) * s) / n + (s < n ? FX_R.i(-3, 3) : 0)), ty = Math.round(y0 + ((y1 - y0) * s) / n + (s < n ? FX_R.i(-3, 3) : 0));
-    cfxLine(px, py, tx, ty, R[k > 0.5 ? 4 : 3], a);
-    cfxLine(px, py + 1, tx, ty + 1, R[2], a * 0.6);
-    cfxLine(px + 1, py, tx + 1, ty, R[1], a * 0.4);
-    if (s === (n >> 1) && k > 0.4) cfxLine(tx, ty, tx + FX_R.i(-6, 6), ty + FX_R.i(-6, 6), R[2], a * 0.75);
-    px = tx; py = ty;
+  const col = fx.col || ELEMENT_COLS.shock, R = cfxRamp(col), a = cfxBand(k), sd = cfxSeed(fx) + Math.floor(Game.realT * 15) * 7919, L = Math.hypot(x1 - x0, y1 - y0);
+  const pts = cfxBoltPath(x0, y0, x1, y1, sd, 0.16);
+  cfxPaintBolt(pts, R, a, k > 0.5 ? 1.6 : 1.1, sd);
+  // a fork or two off it, thinner, tapering off
+  for (let f = 0; f < (L > 40 ? 2 : 1); f++) {
+    const i = Math.floor(pts.length * (0.3 + 0.4 * artHash(f, 9, sd))), p = pts[i], dir = Math.atan2(y1 - y0, x1 - x0) + (artHash(f, 10, sd) < 0.5 ? -1 : 1) * (0.5 + 0.5 * artHash(f, 11, sd)), fl = L * (0.18 + 0.15 * artHash(f, 12, sd));
+    if (p && k > 0.3) cfxPaintBolt(cfxBoltPath(p[0], p[1], p[0] + Math.cos(dir) * fl, p[1] + Math.sin(dir) * fl, sd + f + 1, 0.22).slice(0), R, a * 0.85, 0.7, sd + 5);
   }
   for (const [x, y] of [[x0, y0], [x1, y1]]) for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) dot(x + i, y + j, R[i || j ? 3 : 4], true, a);
   cfxLight(lights, (x0 + x1) >> 1, (y0 + y1) >> 1, TILE * 1.4, 0.8 * k, rgb01(col));
-}
-
-function cfxLine(x0, y0, x1, y1, col, alpha) {
-  const n = Math.max(1, Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)));
-  for (let s = 0; s <= n; s++) dot(Math.round(x0 + ((x1 - x0) * s) / n), Math.round(y0 + ((y1 - y0) * s) / n), col, true, alpha);
 }
 
 // An Arc's crescent (art px x, y: where it was cast from; u: how far through
