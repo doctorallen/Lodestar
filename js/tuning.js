@@ -806,11 +806,13 @@ const T = {
   paint: {
     lazy: { near: 2, far: 7, budget: 3 },
     ramp: { dark: [0.62, 0.3], light: [0.14, 0.28], rock: { dark: [0.6, 0.3], light: [0.3, 0.6] } },
+    rampEven: { ground: { deep: 0.45, high: 0.3, gamma: 1 }, rock: { deep: 0.55, high: 0.45, gamma: 1.15 }, darkAt: [0.95, 0.42], liftGround: [0.7, 1.2], liftRock: [1.3, 2.2] },
     stroke: { whole: 0.12, one: 0.48 },
-    ground: { base: 0.47, swell: 70, swellAmt: 0.24, patch: [46, 14], patchCut: [0.5, 0.68], patchSky: 0.3, patchCave: 0.24, clump: 0.06, foot: 7, footHard: 1, footAmt: 0.3, side: 0.1, sunDir: [2, 3], sunSteps: 9, sunSlope: 3.2, sunDark: 0.32, jitter: 0.42 },
-    wall: { face: 22, edge: 5, bump: 16, bumpScale: 34, ramp: 18 },
-    rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.45, topLo: 2.6, topHi: 6.6, faceBase: 0.2, faceUp: 0.6, faceWest: 0.25, faceLo: 4, faceHi: 8, jitter: 0.8, strata: 0.45, crease: 2.5, rim: 8, lip: 8, foot: 1 },
-    slab: { w: 46, h: 19, wobble: 0.8, tone: 0.8, lip: 1.5, crack: 1, gate: 0.5 },
+    ground: { base: 0.45, swell: 70, swellAmt: 0.2, patch: [64, 11], patchCut: [0.52, 0.62], patchSky: 0.42, patchCave: 0.34, clump: 0.06, foot: 7, footHard: 1, footAmt: 0.3, side: 0.1, sunDir: [2, 3], sunSteps: 9, sunSlope: 3.2, sunDark: 0.32, jitter: 0.62 },
+    wall: { face: 22, edge: 5, bump: 16, bumpScale: 34, ramp: 9, boulder: 76, boulderR: [0.5, 0.95], boulderFlat: 1.6, rough: 0.2 },
+    rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.2, topLo: 1.5, topHi: 6.6, faceBase: 0.15, faceUp: 0.55, faceWest: 0.3, faceLo: 1.5, faceHi: 5.5, jitter: 1.1, strata: 0.5, strataAmt: 1.6, crease: 1.6, creaseR: 3, rim: 8, rimLit: 0.6, lip: 7, foot: 0 },
+    slab: { w: 34, h: 13, wobble: 0.8, tone: 0.35, lip: 1.5, crack: 0, side: 0.12, gate: 0.56, gateS: [14, 4] },
+    facet: { keep: 0.5, tilt: 0.2, smooth: 7, relief: 2, flat: 0.55 },
     occlude: true,
   },
 

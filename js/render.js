@@ -146,7 +146,8 @@ function drawFlora(d, fl, ox, oy, lights) {
   const frame = p.frames.length > 1 && !sky ? Math.floor(Game.realT * 2 + fl.phase * 2) % 2 : 0;
   const spr = fl.top ? floraSprite(fl.set, p, frame) : ugMelted(floraSprite(fl.set, p, frame));
   const fx = Math.round(fl.x * AP) + ox, fy = Math.round(fl.y * AP) + oy;
-  const sx = Math.round(fx - spr.w / 2), sy = fl.top ? fy : fy - spr.h + 1;
+  // (a hanging one from the lip of the face it hangs on: paintrock.js)
+  const sx = Math.round(fx - spr.w / 2), sy = fl.top ? fy - (fl.lip === undefined ? (fl.lip = pnrLipAbove(fl.x * AP, fl.y * AP)) : fl.lip) : fy - spr.h + 1;
   if (sx > View.w || sy > View.h || sx + spr.w < 0 || sy + spr.h < 0) return;
   drawLeaning(spr.c, ugGlows(spr) ? spr.ec : null, 0, 0, spr.w, spr.h, sx, sy, fl.amp || 0, fl.top, fl.over !== false);
   if (fl.front) drawFootFront(fl, ox, oy);
@@ -229,7 +230,9 @@ function repaintAround(f, tx, ty) {
   fillRockField(f, (tx - 1) * T2, (ty - 1) * T2, (tx + 2) * T2, (ty + 2) * T2);
   // the heights first (the ground's sun shadows read them), then the
   // ground, then the rock
-  const Wl = T.paint.wall, m = Math.max(Wl.edge, Wl.ramp) + 2;
+  // (the wall line moves up to half a tile past the tile, and the heights
+  // as far again as they read it)
+  const Wl = T.paint.wall, m = Math.max(Wl.edge, Wl.ramp) + 2 + T2 / 2;
   pntHeights(f, tx * T2 - m, ty * T2 - m, (tx + 1) * T2 + m, (ty + 1) * T2 + m);
   pntGroundTones(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + 3) * T2);
   // (the ground as far up as the rock stood over it)
@@ -693,6 +696,12 @@ function renderFrame() {
   drawLampShadows(d, ox, oy);
   // lights: x, y on the view (art px), r in world px
   const lights = [];
+  // what's drawn flat on the ground, then the rock in front of it laid
+  // back over it all (paintrock.js)
+  if (!d.hub) { drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights); }
+  drawWorldUnder(d, ox, oy, lights);
+  drawCastGround(d, ox, oy, tick, lights);
+  pnrOccludeGround(ox, oy);
 
   // ore twinkles, so it's the one thing in the rock that catches the eye
   const tx0 = Math.max(0, Math.floor(camX / ATILE)), ty0 = Math.max(0, Math.floor(camY / ATILE));
@@ -722,9 +731,9 @@ function renderFrame() {
   }
 
   if (d.hub) drawHubUnder(d, ox, oy, tick, lights);
-  if (!d.hub) { drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights); }
-  drawWorldUnder(d, ox, oy, lights);
-  drawCastGround(d, ox, oy, tick, lights);
+  // what stands up off the ground, each behind the rock by its feet
+  if (!d.hub) drawHazardsStanding(d, ox, oy, tick, lights);
+  cfxDrawGroundGhosts(d, ox, oy);
   if (d.fieldForge) {
     const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * ATILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * ATILE + oy - spr.ay + ap(6));
     drawArtSprite(spr, x, y);

@@ -337,45 +337,56 @@ function drawHazardsUnder(d, ox, oy, tick, lights) {
     const rr = 3 + q.t * 12, k = 1 - q.t / 0.8, N = Math.round(14 * AP + rr);
     for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2, x = q.x + Math.cos(a) * rr, y = q.y + Math.sin(a) * rr * 0.45; if (hazardAt(f, x, y)) dot(Math.round(x * AP) + ox, Math.round(y * AP) + oy, r[3], false, 0.7 * k); }
   }
-  if (!f.hazPts) return;
-  const V = T.hazards.vent, steam = b.vent === 'steam', vc = VENT_COLS[steam ? 'steam' : 'fire'];
+}
+// What stands up off the ground: a vent's fire or steam and its tell, a
+// spore pod on its stalk; each hidden by the rock in front of it (drawn
+// after the rock has been laid back over the ground's marks: render.js).
+function drawHazardsStanding(d, ox, oy, tick, lights) {
+  const f = d.floor, kind = f.hazKind;
+  if (!kind || !f.hazPts) return;
+  const b = artBiome(f), V = T.hazards.vent, steam = b.vent === 'steam', vc = VENT_COLS[steam ? 'steam' : 'fire'];
   for (const v of f.hazPts) {
     const cx = Math.round((v.x + 0.5) * ATILE) + ox, cy = Math.round((v.y + 0.5) * ATILE) + oy;
     if (cx < -45 || cy < -60 || cx > View.w + 45 || cy > View.h + 45) continue;
-    if (kind === 'vent') {
-      const s = ventPhase(d, v), tellAt = V.every - V.burst - V.tell;
-      if (s >= V.every - V.burst) {
-        // the burst: a column of fire or steam
-        const k = (s - (V.every - V.burst)) / V.burst;
-        for (let n = 0, N = Math.round(26 * AP); n < N; n++) {
-          const u = ((n * 0.37 + Game.realT * 3) % 1), y = cy - u * 22 * AP * (1 - k * 0.3), x = cx + Math.sin(n * 1.7 + Game.realT * 9) * (2 + u * 4) * AP;
-          dot(Math.round(x), Math.round(y), vc[u < 0.25 ? 0 : u < 0.65 ? 1 : 2], !steam || u < 0.3, 1 - u * 0.6);
-        }
-        ringDots(cx, cy, V.r * AP, vc[1], 0.5 * (1 - k), true);
-        lights.push({ x: cx, y: cy - ap(8), r: TILE * 2.2, i: steam ? 0.7 : 1.1, c: steam ? [0.9, 0.95, 1] : [1, 0.5, 0.2] });
-      } else if (s >= tellAt) {
-        // the tell: the throat glows brighter, the reach shows, smoke rises
-        const k = (s - tellAt) / V.tell;
-        for (const [i, j] of [[0, 0], [-1, 0], [0, 1], [1, 0], [0, -1], [-1, 1], [1, 1], [-2, 0], [2, 0], [0, 2]]) dot(cx + i, cy + j, vc[k > 0.6 ? 0 : 1], true, 0.4 + 0.6 * k);
-        ringDots(cx, cy, V.r * AP, vc[1], (tick % 2 ? 0.55 : 0.3) * k, true);
-        for (let n = 0; n < 6; n++) { const u = (Game.realT * 0.8 + n / 6) % 1; dot(Math.round(cx + Math.sin(n * 2 + Game.realT * 2) * 3 * AP), Math.round(cy - (2 + u * 12) * AP), steam ? '#c8d4dc' : '#5a4a46', false, (1 - u) * k); }
-        lights.push({ x: cx, y: cy, r: TILE * 1.2, i: 0.5 * k, c: steam ? [0.9, 0.95, 1] : [1, 0.45, 0.2] });
-      } else if (!steam && tick % 4 === 0) dot(cx, cy, vc[2], true, 0.6);
-    } else if (kind === 'spores') {
-      // a pod on a stalk, swelling and glowing as it gets ready to let go
-      const S = Object.assign({}, T.hazards.spores, T.climes[f.clime].haz), s = (d.hazT / S.every + v.ph) % 1;
-      const col = SPORE_COLS[f.clime] || SPORE_COLS.bloomfen, sw = s > 0.7 ? (s - 0.7) / 0.3 : 0, rr = (3.6 + sw * 1.6) * AP, x = cx, y = cy - ap(7);
-      for (let j = ap(2); j <= ap(6); j++) { dot(x, y + j, '#3a3020'); dot(x + 1, y + j, '#1e1810'); }
-      const n = Math.ceil(rr) + 1, E = (i, j) => (i * i + j * j * 1.15) / (rr * rr);
-      for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) {
-        const e = E(i, j);
-        if (e > 1 && !(E(i - 1, j) <= 1 || E(i + 1, j) <= 1 || E(i, j - 1) <= 1 || E(i, j + 1) <= 1)) continue;
-        // an outline a pixel wide, a dim rim, the bright body, a highlight up and left
-        const c = e > 1 ? '#140e18' : e > 0.62 ? col[1] : (i < 0 && j < 0 && e < 0.3) ? '#fff8f0' : col[0];
-        dot(x + i, y + j, c, sw > 0.5 && e <= 0.62 && e > 0.3, 1);
+    drawHazardPoint(d, v, cx, cy, kind, b, V, steam, vc, tick, lights);
+    paintOcclude(cx - ap(13), cy - ap(36), ap(26), ap(40), cy + ap(2), ox, oy);
+  }
+}
+function drawHazardPoint(d, v, cx, cy, kind, b, V, steam, vc, tick, lights) {
+  const f = d.floor;
+  if (kind === 'vent') {
+    const s = ventPhase(d, v), tellAt = V.every - V.burst - V.tell;
+    if (s >= V.every - V.burst) {
+      // the burst: a column of fire or steam
+      const k = (s - (V.every - V.burst)) / V.burst;
+      for (let n = 0, N = Math.round(26 * AP); n < N; n++) {
+        const u = ((n * 0.37 + Game.realT * 3) % 1), y = cy - u * 22 * AP * (1 - k * 0.3), x = cx + Math.sin(n * 1.7 + Game.realT * 9) * (2 + u * 4) * AP;
+        dot(Math.round(x), Math.round(y), vc[u < 0.25 ? 0 : u < 0.65 ? 1 : 2], !steam || u < 0.3, 1 - u * 0.6);
       }
-      if (sw > 0) lights.push({ x, y, r: TILE * (0.8 + sw), i: 0.3 * sw, c: rgb01(col[0]) });
+      ringDots(cx, cy, V.r * AP, vc[1], 0.5 * (1 - k), true);
+      lights.push({ x: cx, y: cy - ap(8), r: TILE * 2.2, i: steam ? 0.7 : 1.1, c: steam ? [0.9, 0.95, 1] : [1, 0.5, 0.2] });
+    } else if (s >= tellAt) {
+      // the tell: the throat glows brighter, the reach shows, smoke rises
+      const k = (s - tellAt) / V.tell;
+      for (const [i, j] of [[0, 0], [-1, 0], [0, 1], [1, 0], [0, -1], [-1, 1], [1, 1], [-2, 0], [2, 0], [0, 2]]) dot(cx + i, cy + j, vc[k > 0.6 ? 0 : 1], true, 0.4 + 0.6 * k);
+      ringDots(cx, cy, V.r * AP, vc[1], (tick % 2 ? 0.55 : 0.3) * k, true);
+      for (let n = 0; n < 6; n++) { const u = (Game.realT * 0.8 + n / 6) % 1; dot(Math.round(cx + Math.sin(n * 2 + Game.realT * 2) * 3 * AP), Math.round(cy - (2 + u * 12) * AP), steam ? '#c8d4dc' : '#5a4a46', false, (1 - u) * k); }
+      lights.push({ x: cx, y: cy, r: TILE * 1.2, i: 0.5 * k, c: steam ? [0.9, 0.95, 1] : [1, 0.45, 0.2] });
+    } else if (!steam && tick % 4 === 0) dot(cx, cy, vc[2], true, 0.6);
+  } else if (kind === 'spores') {
+    // a pod on a stalk, swelling and glowing as it gets ready to let go
+    const S = Object.assign({}, T.hazards.spores, T.climes[f.clime].haz), s = (d.hazT / S.every + v.ph) % 1;
+    const col = SPORE_COLS[f.clime] || SPORE_COLS.bloomfen, sw = s > 0.7 ? (s - 0.7) / 0.3 : 0, rr = (3.6 + sw * 1.6) * AP, x = cx, y = cy - ap(7);
+    for (let j = ap(2); j <= ap(6); j++) { dot(x, y + j, '#3a3020'); dot(x + 1, y + j, '#1e1810'); }
+    const n = Math.ceil(rr) + 1, E = (i, j) => (i * i + j * j * 1.15) / (rr * rr);
+    for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) {
+      const e = E(i, j);
+      if (e > 1 && !(E(i - 1, j) <= 1 || E(i + 1, j) <= 1 || E(i, j - 1) <= 1 || E(i, j + 1) <= 1)) continue;
+      // an outline a pixel wide, a dim rim, the bright body, a highlight up and left
+      const c = e > 1 ? '#140e18' : e > 0.62 ? col[1] : (i < 0 && j < 0 && e < 0.3) ? '#fff8f0' : col[0];
+      dot(x + i, y + j, c, sw > 0.5 && e <= 0.62 && e > 0.3, 1);
     }
+    if (sw > 0) lights.push({ x, y, r: TILE * (0.8 + sw), i: 0.3 * sw, c: rgb01(col[0]) });
   }
 }
 
