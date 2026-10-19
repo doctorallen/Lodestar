@@ -741,12 +741,18 @@ const T = {
   //     gradients (wall shadows, the rift's wash, the sinkhole's faces).
   //   lightSteps: the light's bands for each 1.0 of light; lightDither: how
   //     much of each step's edge is dithered (0 hard, 1 the whole step).
+  //   lampPerPixel: each pixel's light read off a slope through its cell
+  //     (render.js, lightScene), so the bands' edges move a pixel at a time
+  //     as the diver walks rather than a cell (3 art px) at a time.
+  //   steadyCam: the camera follows the diver's whole art px, so he stays
+  //     on one pixel of the view as he walks (on a view an odd number of
+  //     pixels across he wobbled a pixel either side).
   art: {
     px: 1.5, tones: 4, hueShift: [0.2, 0.3, 0.05], violet: 255, gold: 50, groundHue: [0.1, 0.1, 0],
     form: { edge: 1.5, body: 0.3, part: 2, depth: 1.6, light: 0.5, shade: 0.32, fall: 0.1, crease: 0.24 },
     dither: false, outline: { creature: 'black', prop: 'selout' }, selout: 0.42,
     cluster: { patch: 9, grain: 3, cut: 0.32 }, rockCut: 0.34, sunGround: { soften: 0.55, cut: 0.4 }, groundDither: true,
-    lightSteps: 5, lightDither: 0.3,
+    lightSteps: 5, lightDither: 0.3, lampPerPixel: false, steadyCam: false,
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the
@@ -838,12 +844,15 @@ const T = {
   // brighter hubAmbient); lights add back
   // [radius in tiles, strength]; the result is cut into T.art.lightSteps
   // bands, never brighter than `max`. flora: how bright a plant's glow is.
-  // bloom: [downscale, strength] passes, times glow. The lamp's radius may
-  // become a dial that shrinks with depth.
+  // bloom: [downscale, strength] passes, times glow. bloomWorld: the
+  // bloom's passes on grids fixed to the world, each pixel the average of
+  // the glow under it, so a glow doesn't flare and vanish as the camera
+  // moves (render.js, bloomSceneWorld). The lamp's radius may become a dial
+  // that shrinks with depth.
   light: {
     ambient: 0.45, hubAmbient: 0.85, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
-    glow: 0.75, bloom: [[3, 0.7], [7, 0.6]],
+    glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: false,
     // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
     // baked: and the floor's fixed lights (lava, vents, glowing plants).
     // eye: the dome's height over the feet (world px), where the lamp's

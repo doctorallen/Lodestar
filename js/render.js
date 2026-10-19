@@ -510,16 +510,40 @@ function lightScene(cx, cy) {
   const col = View.lightCol;
   for (let x = 0; x < w; x++) col[x] = Math.floor((x + px) / LC) * 7;
   let lastBase = -1;
+  // With T.art.lampPerPixel the light is still worked out a cell at a
+  // time, but each pixel's is read off a slope through its cell (from the
+  // cells either side, across and down), so the bands' edges fall between
+  // pixels, not cells, and move a pixel at a time as the lamp moves, never
+  // a cell. LB: each cell's brightness (its brightest channel); GX: per
+  // cell, its slope across (65536ths of a band a pixel), GY its slope down
+  // (both at the cell's place in CF); GXO: for each column, its cell's
+  // slope across times its place in the cell (-1, 0, 1).
+  const fit = !!A.lampPerPixel, nc = L.w * L.h;
+  if (fit && (!View.lightLB || View.lightLB.length < nc || View.lightGXO.length < w)) {
+    View.lightLB = new Float32Array(nc); View.lightGX = new Int32Array(L.w * 7); View.lightGY = new Float32Array(L.w * 7); View.lightCFr = new Int32Array(L.w * 7); View.lightGXO = new Int32Array(w);
+  }
+  const LB = View.lightLB, GX = View.lightGX, GY = View.lightGY, CFr = View.lightCFr, GXO = View.lightGXO;
+  if (fit) for (let n = 0, o = 0; n < nc; n++, o += 3) { const r = a[o], g = a[o + 1], b = a[o + 2]; LB[n] = r > g ? (r > b ? r : b) : g > b ? g : b; }
   for (let y = 0; y < h; y++) {
     const row = ((y + cy) & 3) * 4, base = Math.floor((y + py) / LC) * lw;
     // the threshold: a half (a hard step), give or take a little dither
     for (let n = 0; n < 4; n++) bt[(n + cx) & 3] = Math.floor((0.5 + ((BAYER4[row + ((n + cx) & 3)] + 0.5) / 16 - 0.5) * dz) * 65536);
     if (base !== lastBase) {
       lastBase = base;
+      if (fit) {
+        // the slopes, from the cells either side (the grid's own edge
+        // keeps its cell's)
+        const c0 = base / 3, up = c0 >= L.w ? c0 - L.w : c0, dn = c0 + L.w < nc ? c0 + L.w : c0, k = 65536 / (2 * LC);
+        for (let n = 0, j = 0; n < L.w; n++, j += 7) {
+          GX[j] = ((LB[c0 + (n < L.w - 1 ? n + 1 : n)] - LB[c0 + (n > 0 ? n - 1 : n)]) * k) | 0;
+          GY[j] = (LB[dn + n] - LB[up + n]) * k;
+        }
+      }
       for (let n = 0, o = base, j = 0; n < L.w; n++, o += 3, j += 7) {
         const r = a[o], g = a[o + 1], b = a[o + 2], I = r > g ? (r > b ? r : b) : g > b ? g : b;
         if (I <= 0) { CF[j] = 1 << 20; CF[j + 1] = CF[j + 2] = CF[j + 3] = 0; continue; }
-        let q0 = (I + lo) | 0, q1 = q0 + 1;
+        // (on a slope, the lower step is the one its lowest pixel can reach)
+        let q0 = (I + lo - (fit ? (Math.abs(GX[j]) + Math.abs(GY[j])) / 65536 : 0)) | 0, q1 = q0 + 1;
         CF[j] = Math.ceil((q1 - I) * 65536);
         if (q0 > top) q0 = top;
         if (q1 > top) q1 = top;
@@ -527,6 +551,21 @@ function lightScene(cx, cy) {
         let v = r * k0; CF[j + 1] = v > m256 ? m256 : v + 0.5; v = g * k0; CF[j + 2] = v > m256 ? m256 : v + 0.5; v = b * k0; CF[j + 3] = v > m256 ? m256 : v + 0.5;
         v = r * k1; CF[j + 4] = v > m256 ? m256 : v + 0.5; v = g * k1; CF[j + 5] = v > m256 ? m256 : v + 0.5; v = b * k1; CF[j + 6] = v > m256 ? m256 : v + 0.5;
       }
+    }
+    if (fit) {
+      // this row's place in its cells, and so each cell's threshold here
+      const oy = ((y + py) % LC) - (LC >> 1);
+      if ((y + py) % LC === 0 || y === 0) for (let x = 0; x < w; x++) GXO[x] = GX[col[x]] * (((x + px) % LC) - (LC >> 1));
+      for (let j = 0; j < L.w * 7; j += 7) CFr[j] = CF[j] - ((GY[j] * oy) | 0);
+      for (let x = 0, k = y * w; x < w; x++, k++) {
+        const j = col[x], sel = bt[(x + cx) & 3] + GXO[x] >= CFr[j] ? j + 4 : j + 1, p = d32[k];
+        let r = ((p & 255) * CF[sel] + 128) >> 8, g = (((p >> 8) & 255) * CF[sel + 1] + 128) >> 8, b = (((p >> 16) & 255) * CF[sel + 2] + 128) >> 8;
+        if (r > 255) r = 255;
+        if (g > 255) g = 255;
+        if (b > 255) b = 255;
+        d32[k] = 0xff000000 | (b << 16) | (g << 8) | r;
+      }
+      continue;
     }
     for (let x = 0, k = y * w; x < w; x++, k++) {
       // the pixel, lit by its cell's factors, on the higher step if its
@@ -546,8 +585,10 @@ function lightScene(cx, cy) {
 
 // Bloom from the emissive layer, soft at low resolution so it still reads
 // as pixels: each pass shrunk, summed at the finest pass's size, then
-// drawn into the overlay, which the browser adds over the view.
-function bloomScene() {
+// drawn into the overlay, which the browser adds over the view. cx, cy:
+// the camera in the world (art px), for T.light.bloomWorld.
+function bloomScene(cx, cy) {
+  if (T.light.bloomWorld) { bloomSceneWorld(cx, cy); return; }
   const sum = View.bloomSum, sx = sum.getContext('2d');
   sx.globalCompositeOperation = 'copy';
   View.blooms.forEach(([c, a], n) => {
@@ -565,6 +606,56 @@ function bloomScene() {
   x.imageSmoothingEnabled = true;
   x.globalCompositeOperation = 'copy';
   x.drawImage(sum, 0, 0, View.w, View.h);
+}
+
+// The bloom with its passes' pixels on grids fixed to the world. The
+// browser shrinks a picture by sampling a few of its pixels for each of
+// the smaller one's, so a small glow was caught or missed as the camera
+// moved, and lights flared and vanished as the diver walked. Here the
+// emissive layer is first halved, and halved again (each an exact average
+// of 2 × 2 pixels, on the world's grid of 2, 4, 8 art px), and each pass
+// (s art px a pixel: its downscale in world px × AP, also on the world's
+// grid) is shrunk from the nearest of those, so a glow standing still
+// blooms the same whatever the camera does, and one moving blooms evenly.
+function bloomSceneWorld(cx, cy) {
+  const w = View.w, h = View.h;
+  let P = View.bloomW;
+  if (!P || P.w !== w || P.h !== h) {
+    // (in software, as the view's other layers are)
+    const layer = (cw, ch) => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; const x = c.getContext('2d', { willReadFrequently: true }); x.imageSmoothingEnabled = true; return { c, x }; };
+    const passes = T.light.bloom.map(([div, a]) => { const s = div * AP; return Object.assign(layer(Math.ceil(w / s) + 2, Math.ceil(h / s) + 2), { s, a, from: Math.max(0, Math.floor(Math.log2(s))) }); });
+    // halvings: level k is 2^k art px a pixel (level 0 the layer itself)
+    const levels = [null];
+    for (let k = 1, top = Math.max(...passes.map((ps) => ps.from)); k <= top; k++) levels.push(layer(Math.ceil(w / 2 ** k) + 1, Math.ceil(h / 2 ** k) + 1));
+    P = View.bloomW = { w, h, passes, levels, sum: layer(passes[0].c.width, passes[0].c.height) };
+  }
+  // level k's first pixel starts at the world's multiple of 2^k at or
+  // before the view's corner: o[k] (art px in the world)
+  const L = P.levels, ox = [cx], oy = [cy];
+  for (let k = 1; k < L.length; k++) {
+    const n = 2 ** k, lx = Math.floor(cx / n) * n, ly = Math.floor(cy / n) * n, src = k === 1 ? View.em : L[k - 1].c, sn = n / 2;
+    ox.push(lx); oy.push(ly);
+    const x = L[k].x;
+    x.globalCompositeOperation = 'copy';
+    // (the source rectangle may start a pixel outside the source, which
+    // the browser clips, keeping the scale)
+    x.drawImage(src, (lx - ox[k - 1]) / sn, (ly - oy[k - 1]) / sn, L[k].c.width * 2, L[k].c.height * 2, 0, 0, L[k].c.width, L[k].c.height);
+  }
+  const P0 = P.passes[0], s0 = P0.s, g0x = Math.floor(cx / s0) * s0, g0y = Math.floor(cy / s0) * s0, sx = P.sum.x;
+  sx.globalCompositeOperation = 'copy';
+  for (const ps of P.passes) {
+    const s = ps.s, gx = Math.floor(cx / s) * s, gy = Math.floor(cy / s) * s, k = ps.from, n = 2 ** k, src = k ? L[k].c : View.em;
+    ps.x.globalCompositeOperation = 'copy';
+    ps.x.drawImage(src, (gx - ox[k]) / n, (gy - oy[k]) / n, (ps.c.width * s) / n, (ps.c.height * s) / n, 0, 0, ps.c.width, ps.c.height);
+    sx.globalAlpha = ps.a * T.light.glow;
+    sx.drawImage(ps.c, (gx - g0x) / s0, (gy - g0y) / s0, (ps.c.width * s) / s0, (ps.c.height * s) / s0);
+    sx.globalCompositeOperation = 'lighter';
+  }
+  sx.globalAlpha = 1;
+  const x = View.bloomCtx;
+  x.imageSmoothingEnabled = true;
+  x.globalCompositeOperation = 'copy';
+  x.drawImage(P.sum.c, g0x - cx, g0y - cy, P.sum.c.width * s0, P.sum.c.height * s0);
 }
 
 // The light of the place and of the diver's lamp this frame: the ambient
@@ -604,10 +695,15 @@ function renderFrame() {
   if (View.floorFor !== f) paintFloor(f);
   // the camera, in art px
   const fw = f.w * ATILE, fh = f.h * ATILE, pxA = p.x * AP, pyA = p.y * AP;
-  const camX = (View.camX = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(pxA - View.w / 2, 0, fw - View.w)));
+  // (T.art.steadyCam: from the diver's whole art px, so he stands on the
+  // same pixel of the view as he walks, rather than a pixel either side of
+  // it as his place and the camera's round differently on an odd-sized
+  // view)
+  const steady = T.art.steadyCam, cxA = steady ? Math.round(pxA) - (View.w >> 1) : pxA - View.w / 2, cyA = steady ? Math.round(pyA) - (View.h >> 1) : pyA - View.h / 2;
+  const camX = (View.camX = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(cxA, 0, fw - View.w)));
   // at home the camera looks further up, to keep the star in sight
   const lookUp = ap(d.hub ? 56 : 8);
-  const camY = (View.camY = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(pyA - lookUp - View.h / 2, 0, fh - View.h)));
+  const camY = (View.camY = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h)));
   const sh = View.shake > 0.3 ? View.shake * AP : 0;
   // a world point x, y is drawn at Math.round(x * AP) + ox, Math.round(y * AP) + oy
   const ox = -camX + Math.round(FX_R.f(-sh, sh)), oy = -camY + Math.round(FX_R.f(-sh, sh)), ex = View.emCtx;
@@ -743,7 +839,7 @@ function renderFrame() {
   // the lamp, at the dome, stopped by the rock (shadow.js)
   addLampLight(d, L, fx - ox, fy - ap(T.light.shadow.eye) - oy, lv.r, lv.i, rgb01(ART.pal.lamp[0]));
   lightScene(-ox, -oy);
-  bloomScene();
+  bloomScene(-ox, -oy);
   drawLifeShade(d, ox, oy);
 
   // on top, unlit: enemies' health, the ore being aimed at, and how far
