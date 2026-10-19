@@ -812,7 +812,7 @@ const T = {
     wall: { face: 22, edge: 5, bump: 16, bumpScale: 34, ramp: 9, boulder: 76, boulderR: [0.5, 0.95], boulderFlat: 1.6, rough: 0.2 },
     rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.2, topLo: 1.5, topHi: 6.6, faceBase: 0.15, faceUp: 0.55, faceWest: 0.3, faceLo: 1.5, faceHi: 5.5, jitter: 1.1, strata: 0.5, strataAmt: 1.6, crease: 1.6, creaseR: 3, rim: 8, rimLit: 0.6, lip: 7, foot: 0 },
     slab: { w: 34, h: 13, wobble: 0.8, tone: 0.35, lip: 1.5, crack: 0, side: 0.12, gate: 0.56, gateS: [14, 4] },
-    facet: { keep: 0.5, tilt: 0.2, smooth: 7, relief: 2, flat: 0.55 },
+    facet: { keep: 0.5, tilt: 0.2, smooth: 5, relief: 2, flat: 0.55 },
     occlude: true,
   },
 

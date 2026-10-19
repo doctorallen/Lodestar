@@ -658,15 +658,13 @@ function pntFloorStart(f) {
     }
   }
   View.pitPx = pit;
-  View.occCache = new Map();
+  View.occCache = new Map(); View.pnrTiles = null;
   const nx = Math.ceil(W / PNT_CH), ny = Math.ceil(Hp / PNT_CH), hx = Math.ceil(W / PNT_HCH), hy = Math.ceil(Hp / PNT_HCH);
   View.pnt = { f, nx, ny, done: new Uint8Array(nx * ny), hnx: hx, hny: hy, hdone: new Uint8Array(hx * hy), left: nx * ny, stale: false };
   let x;
   const P = View.floorBuf;
-  View.floorImgs = [new ImageData(P.col, W, Hp), new ImageData(P.em, W, Hp), new ImageData(View.rockBuf.col, W, Hp)];
+  View.floorImgs = [new ImageData(P.col, W, Hp), new ImageData(P.em, W, Hp)];
   [View.floorCol] = makeCanvas(W, Hp); [View.floorEm] = makeCanvas(W, Hp);
-  // (the rock alone, for drawing back over the ground's effects: paintrock.js)
-  [View.rockCol] = makeCanvas(W, Hp);
 }
 // The rock laid over the ground in the floor's own buffers, and those
 // handed to its canvases, over floor px x0..x1, y0..y1: the floor is drawn
@@ -680,7 +678,6 @@ function pntComposite(f, x0, y0, x1, y1) {
   for (let y = y0; y < y1; y++) for (let k = y * W + x0, e = y * W + x1; k < e; k++) if (LF[k] && QC[k]) { PC[k] = QC[k]; PE[k] = QE[k]; }
   View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, x0, y0, x1 - x0, y1 - y0);
   View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, x0, y0, x1 - x0, y1 - y0);
-  View.rockCol.getContext('2d').putImageData(View.floorImgs[2], 0, 0, x0, y0, x1 - x0, y1 - y0);
 }
 // The heights over floor px x0..x1, y0..y1, worked out where they aren't.
 function pntEnsureHeights(f, x0, y0, x1, y1) {
@@ -706,6 +703,7 @@ function pntPaintChunk(f, i, j) {
   tintRift(f, x0, y0, x1, y1);
   paintRockArea(f, x0, y0, x1, y1);
   pntComposite(f, x0, y0, x1, y1);
+  View.pnrTiles = null;
   // a fixed light whose sight reaches here sees its faces now (shadow.js)
   for (const [key, e] of _bakedSights.map) {
     if ((e.x0 + e.w) * LC < x0 || e.x0 * LC > x1 || (e.y0 + e.w) * LC < y0 || e.y0 * LC > y1) continue;
@@ -754,7 +752,7 @@ function pntRepaintRock(f, x0, y0, x1, y1) {
   const rx0 = x0 - mx, ry0 = y0 - my - maxH, rx1 = x1 + mx, ry1 = y1 + my;
   paintRockArea(f, rx0, ry0, rx1, ry1);
   pntComposite(f, rx0, ry0, rx1, ry1);
-  View.occCache = new Map();
+  View.occCache = new Map(); View.pnrTiles = null;
   return { x0: rx0, y0: ry0, x1: rx1, y1: ry1 };
 }
 

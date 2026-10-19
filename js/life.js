@@ -375,7 +375,8 @@ function updateMoth(d, m, th, dt) {
 // Weather
 // ---------------------------------------------------------------------------
 const _lifeClouds = [];
-// A soft cloud shadow: a few overlapping blobs, dithered out at the edges
+// A soft cloud shadow: a few overlapping blobs, broken up at the edges in
+// short horizontal strokes (the painted style has no dither)
 // (drawn a little wider than cloudSize, as the soft rim barely shows), w × h
 // art px.
 function lifeCloudCanvas(seed, w, h) {
@@ -388,7 +389,7 @@ function lifeCloudCanvas(seed, w, h) {
       for (const b of blobs) { const dx = (i - b.x) / b.r, dy = ((y - b.y) * 1.5) / b.r; v = Math.max(v, 1 - Math.hypot(dx, dy)); }
       // ragged with noise, soft at the rim
       v = clamp(v * 1.5 + wallNoise(i / AP + seed % 97, y / AP, 11) * 0.3, 0, 1);
-      if (v > bayerAt(i, y)) D[(y * w + i) * 4 + 3] = 255;
+      if (v > artHash(Math.floor((i + artHash(y, 1, seed) * 4) / 4), y, seed)) D[(y * w + i) * 4 + 3] = 255;
     }
   x.putImageData(img, 0, 0);
   return c;

@@ -114,25 +114,79 @@ function pnrTintRock(f, x0, y0, x1, y1) {
 // ---- the ground's effects behind the rock ----------------------------------
 // What's drawn flat on the ground each frame (a hazard's bubbles and
 // glints, ripples, foes' marks, a waystone's rings, cast marks and glyphs)
-// is drawn before the actors with no feet of its own to sort by, so the rock
-// standing in front of it is drawn back over all of it at once: every rock
-// pixel in view, in both layers (the floor's own glow on the rock put back
-// under what's left). Things that stand up off the ground (a vent's fire, a
-// spore pod, an afterimage) are drawn after this, each hidden by its feet
-// (paintOcclude).
+// is drawn before the actors, with no feet to sort by. So after it, the rock
+// standing over each tile where such a thing may have been drawn is laid
+// back over it: all of that tile's rock pixels (they all stand in front of
+// the ground they cover), in both layers, the rock's own glow put back.
+// The tiles are found from the same state the effects are drawn from;
+// a tile's rock is kept as a picture until the rock there is painted again.
+// Things that stand up off the ground (a vent's fire, a spore pod, an
+// afterimage) are drawn after this, each hidden by its feet (paintOcclude).
 function pnrOccludeGround(ox, oy) {
-  const c = View.rockCol;
-  if (!c || !View.rockLift || T.paint.occlude === false) return;
-  const sx = Math.max(0, -ox), sy = Math.max(0, -oy), w = Math.min(View.w, c.width - sx), h = Math.min(View.h, c.height - sy);
-  if (w <= 0 || h <= 0) return;
-  const dx = sx + ox, dy = sy + oy;
-  View.ctx.drawImage(c, sx, sy, w, h, dx, dy, w, h);
-  const ex = View.emCtx;
-  ex.globalCompositeOperation = 'destination-out';
-  ex.drawImage(c, sx, sy, w, h, dx, dy, w, h);
-  ex.globalCompositeOperation = 'destination-over';
-  ex.drawImage(View.floorEm, sx, sy, w, h, dx, dy, w, h);
-  ex.globalCompositeOperation = 'source-over';
+  // (not at home, where nothing is drawn flat on the ground)
+  const d = Game.dive, f = d && d.floor;
+  if (!f || d.hub || View.floorFor !== f || !View.rockLift || T.paint.occlude === false) return;
+  const tw = f.w, th = f.h, vx0 = Math.floor(-ox / ATILE) - 1, vy0 = Math.floor(-oy / ATILE) - 1, vx1 = Math.floor((View.w - ox) / ATILE) + 1, vy1 = Math.floor((View.h - oy) / ATILE) + 1;
+  const M = View.pnrMarks && View.pnrMarks.length === tw * th ? View.pnrMarks : (View.pnrMarks = new Uint8Array(tw * th)), list = [];
+  // a box in world px: its tiles marked
+  const mark = (x0, y0, x1, y1) => {
+    const i0 = Math.max(vx0, 0, Math.floor(x0 / TILE)), i1 = Math.min(vx1, tw - 1, Math.floor(x1 / TILE)), j0 = Math.max(vy0, 0, Math.floor(y0 / TILE)), j1 = Math.min(vy1, th - 1, Math.floor(y1 / TILE));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * tw + i; if (!M[k]) { M[k] = 1; list.push(k); } }
+  };
+  const round = (x, y, r) => mark(x - r, y - r, x + r, y + r);
+  // a hazard's bubbles and glints (and a spark lifting off), its ripples
+  if (f.haz && f.hazKind) for (let j = Math.max(0, vy0); j <= Math.min(th - 1, vy1); j++) for (let i = Math.max(0, vx0); i <= Math.min(tw - 1, vx1); i++) if (f.haz[j * tw + i]) mark(i * TILE, j * TILE - 10, i * TILE + TILE - 1, j * TILE + TILE - 1);
+  if (typeof HazRipples !== 'undefined') for (const q of HazRipples) round(q.x, q.y, 16);
+  // foes' marks on the ground
+  for (const s2 of d.snares || []) mark(Math.min(s2.x0, s2.x1) - 3, Math.min(s2.y0, s2.y1) - 3, Math.max(s2.x0, s2.x1) + 3, Math.max(s2.y0, s2.y1) + 3);
+  for (const e of d.enemies) {
+    if (e.dead) continue;
+    if (e.type === 'lurker' || e.type === 'wraith') round(e.x, e.y, 16);
+    else if (e.state === 'windup' && (e.type === 'dropper' || e.type === 'skink')) round(e.aimX, e.aimY, 1.7 * (T.enemies[e.type].drop || T.enemies[e.type].burst || 10));
+  }
+  // a waystone's rings, the heart's
+  if (f.stones && d.hold) { const st = f.stones[d.hold.k]; if (st) round((st.x + 0.5) * TILE, (st.y + 0.5) * TILE, T.world.waystone.holdR + 2); }
+  if (f.heart) round((f.heart.x + 0.5) * TILE, (f.heart.y + 0.5) * TILE, 14);
+  // cast marks, glyphs and swept rings, a caster's charging circle
+  if (typeof CFX !== 'undefined' && CFX.dive === d) {
+    for (const m of CFX.decals) { const c = m.pic.col; mark(m.x - c.cx / AP - 1, m.y - c.cy / AP - 1, m.x + (c.c.width - c.cx) / AP + 1, m.y + (c.c.height - c.cy) / AP + 1); }
+    for (const r of CFX.rings) if (r.kind === 'glyph' || (r.kind === 'sweep' && !r.air)) round(r.f ? d.p.x + r.x : r.x, r.f ? d.p.y + r.y : r.y, Math.max(r.r0, r.r1) + 2);
+    round(d.p.x, d.p.y, T.castFx.charge.glyph[1] + 2);
+  }
+  // each marked tile's rock laid back
+  const B = View.rockBlk, bw = Math.ceil((f.w * ATILE) / PNT_BLK), per = ATILE / PNT_BLK, ex = View.emCtx;
+  let C = View.pnrTiles;
+  if (!C) C = View.pnrTiles = new Map();
+  for (const k of list) {
+    M[k] = 0;
+    const i = k % tw, j = (k - i) / tw;
+    let any = false;
+    for (let by = j * per; by < j * per + per && !any; by++) for (let bx = i * per; bx < i * per + per; bx++) if (B[by * bw + bx]) { any = true; break; }
+    if (!any) continue;
+    let c = C.get(k);
+    if (c === undefined) { c = pnrTilePics(f, i, j); C.set(k, c); }
+    if (!c) continue;
+    const dx = i * ATILE + ox, dy = j * ATILE + oy;
+    View.ctx.drawImage(c[0], dx, dy);
+    ex.globalCompositeOperation = 'destination-out';
+    ex.drawImage(c[0], dx, dy);
+    ex.globalCompositeOperation = 'source-over';
+    if (c[1]) ex.drawImage(c[1], dx, dy);
+  }
+}
+// A tile's rock (every pixel of the rock layer in it), as pictures: its
+// colour, and its glow (null if none); null if the tile has no rock.
+function pnrTilePics(f, i, j) {
+  const W = f.w * ATILE, LF = View.rockLift, Q = View.rockBuf, src = Q.col32, se = Q.em32 || (Q.em32 = new Uint32Array(Q.em.buffer));
+  const img = new ImageData(ATILE, ATILE), d32 = new Uint32Array(img.data.buffer), eimg = new ImageData(ATILE, ATILE), e32 = new Uint32Array(eimg.data.buffer);
+  let n = 0, ne = 0;
+  for (let y = 0; y < ATILE; y++) for (let x = 0, k = (j * ATILE + y) * W + i * ATILE; x < ATILE; x++, k++) if (LF[k] && src[k]) { d32[y * ATILE + x] = src[k]; n++; if (se[k] >>> 24) { e32[y * ATILE + x] = se[k]; ne++; } }
+  if (!n) return null;
+  const [cv, cx] = makeCanvas(ATILE, ATILE);
+  cx.putImageData(img, 0, 0);
+  let ev = null;
+  if (ne) { const [c2, x2] = makeCanvas(ATILE, ATILE); x2.putImageData(eimg, 0, 0); ev = c2; }
+  return [cv, ev];
 }
 
 // ---- hanging plants ----------------------------------------------------------
@@ -161,5 +215,5 @@ function pnrRepaintArea(f, x0, y0, x1, y1) {
   const m = pntMaxLift();
   paintRockArea(f, x0, y0 - m, x1, y1);
   pntComposite(f, x0, y0 - m, x1, y1);
-  View.occCache = new Map();
+  View.occCache = new Map(); View.pnrTiles = null;
 }
