@@ -492,8 +492,12 @@ function pntFloorStart(f) {
     pit = pit || new Uint8Array(W * Hp);
     for (let y = ty * ATILE - ATILE / 2; y < (ty + 1.5) * ATILE; y++) for (let x = tx * ATILE - ATILE / 2; x < (tx + 1.5) * ATILE; x++) {
       if (x < 0 || y < 0 || x >= W || y >= Hp) continue;
-      // (a pixel belongs to the pit if its nearest tile is the pit)
-      if (floorTile(f, Math.floor(x / ATILE), Math.floor(y / ATILE)) === TILE_PIT) pit[y * W + x] = 1;
+      // (a pixel belongs to the pit if it's in the pit's tile, or if the
+      // tiles its wall line is blended from are the pit and open ground)
+      const gx = Math.floor(x / ATILE - 0.5), gy = Math.floor(y / ATILE - 0.5);
+      let p = 0, r = 0;
+      for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const t = floorTile(f, gx + i, gy + j); if (t === TILE_PIT) p++; else if (TILE_SOLID[t]) r++; }
+      if (floorTile(f, Math.floor(x / ATILE), Math.floor(y / ATILE)) === TILE_PIT || (p && !r)) pit[y * W + x] = 1;
     }
   }
   View.pitPx = pit;
