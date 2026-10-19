@@ -445,3 +445,16 @@ Phase 1's rock read as soft mud blotches, its paint went quiet under the dim lig
   | Mining a tile | 14.5 ms | 21 ms |
 
   A painted chunk costs a little more, so the first walk through new ground and entering cost more; ground already painted costs the same.
+
+## 2026-10-19: the painted style, the cleanup pass (branch `painted`)
+
+After the four phase-2 branches were merged, a pass over what didn't hold together:
+- **Domes lit from the upper left.** `PntSpr.ell`'s light term had the wrong sign, so the Kindler's helm, his plate, Wick and the outpost's people were lit from the lower right. Fixed, and the creatures' own copy folded into it. The Kindler's helm and pauldrons were rebalanced so the lit cap isn't too broad.
+- **Creatures read on any ground without an outline:** a broken lit edge on the light's side, the shadow side and thin limbs sunk into their deepest tones, a darker contact shadow; in a dark place the lit edge also shows on the glow layer, more the darker the place, as the floor there is painted lighter for the dark and a dark creature on it vanished. The skink (on Badlands' ochre) and the Moss Idol (in the Temple) are a step darker.
+- **Fighting plants are painted by the flora's own painter,** so a snapjaw or a spitter matches the plants it imitates; its glow stays red.
+- **Walls read as walls again.** A rock's middle tone is held to half the floor's at most (`T.paint.rampEven.under`), its lips and rims untouched; Rootdeep's and the Temple's rock had come within reach of their floors. The Temple's (and a ruin's) rock is dressed masonry in courses, a few blocks fallen out.
+- **Effects:** swept rings painted along their curve with a deep inner edge (a frost ring holds on snow; a Nova no longer looks like bands of dashes); chain arcs and the storm's strike are forking painted bolts, not jagged lines; a death's splash has a wet lit edge and glowing flecks, and holds on a dark floor.
+- **Settlers' hoods** have a lit edge, a face in the opening and a goggle glint.
+- **Big planes on the rock:** where a broad noise says so, a top is cut into cells two and a half times bigger with fewer cracks, so big flat tops (Frost, Cinder) aren't an even mosaic.
+- **Mining paints less again:** only the rock round the heights that changed, and one row less of ground in caves. It still matches a fresh paint. Mining a tile with the CPU slowed 4× went from about 25.5 to 20.5 ms on the machine measured (`test/out/cl/mine.js`, median of 11; the rock phase's 21 ms was on a faster hour). Frame times walking are unchanged (median Deep 26.4 / surface 26.2 ms before and after, measured the same hour).
+
