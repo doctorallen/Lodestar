@@ -843,7 +843,7 @@ function drawCastAir(d, ox, oy, tick, lights) {
     else if (r.kind === 'sweep' && r.air) {
       // a ward drawing in round the body: a thick ring of strokes, hot
       const rx = Math.round(lerp(r.r0, r.r1, u) * AP);
-      cfxStrokeRing(x, y, rx, Math.round(rx * 0.75), cfxRamp(r.col), cfxBand(Math.min(1, k * 1.6)), cfxSeed(r), true, 0.12 + u * 0.3);
+      cfxStrokeRing(x, y, rx, Math.round(rx * 0.75), cfxRamp(r.col), cfxBand(Math.min(1, k * 1.6)), cfxSeed(r), true, 0.08 + u * 0.22);
     } else if (r.kind === 'burst') {
       const rx = Math.max(2, Math.round(lerp(r.r0, r.r1, u) * (r.pillar ? AP : 1.2))), R = cfxRamp(r.col), sd = cfxSeed(r), a = cfxBand(k);
       // streaks thrown out from a hot heart, and a broken ring at their tips
@@ -975,7 +975,7 @@ function cfxDrawCrescent(r, x, y, u, lights) {
   if (fade <= 0) return;
   const R = Math.round(r.r * AP * 0.95), cy = y - Math.round(6 * AP), a0 = r.a - r.side * r.half, span = 2 * r.half * r.side, sd = cfxSeed(r), ramp = cfxRamp(r.col);
   const tail = Math.max(0, lead - (r.heavy ? 1 : 0.85)), th = r.heavy ? T.paint.fx.arc[1] : T.paint.fx.arc[0];
-  cfxPaintArc(x, cy, R, a0 + span * tail, a0 + span * lead, th, ramp, fade, sd, u < 0.55 ? 0 : 1 - fade + 0.15, lead < 1);
+  cfxPaintArc(x, cy, R, a0 + span * tail, a0 + span * lead, th, ramp, fade, sd, u < 0.55 ? 0 : (1 - fade) * 0.7 + 0.1, lead < 1);
   // motes drifting out from inside it
   for (let n = 0; n < (r.heavy ? 18 : 12); n++) {
     const t = tail + (lead - tail) * artHash(n, 1, sd), b = a0 + span * t, rr = R - 2 - artHash(n, 2, sd) * R * 0.55 + u * 6;
