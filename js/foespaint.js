@@ -205,6 +205,61 @@ function fpEliteRim(spr, col) {
 }
 
 // ---------------------------------------------------------------------------
+// Read at a glance (T.paint.foes.read). A creature must stand off any ground,
+// bright sand or a dark Deep, without an outline: its silhouette's edge on
+// the light's side (top and left) catches it, a pale lit rim, broken; its
+// edge on the shadow side (right and below) and its thin limbs sink into
+// its own deepest tones, so it holds against light ground. The lit rim is
+// kept apart too (rimEc), and in a dark place it's laid over the light a
+// little (render.js drawEnemy), as the floor there is painted lighter for
+// the dark. Mutates the sprite (keeping the unread picture as raw, for a
+// mirrored one) and makes its flash again.
+// ---------------------------------------------------------------------------
+function fpReadable(spr, o = {}) {
+  const R = T.paint.foes.read, w = spr.w, h = spr.h, x = spr.c.getContext('2d'), img = x.getImageData(0, 0, w, h), D = img.data;
+  if (!spr.raw) { const [rc, rx] = makeCanvas(w, h); rx.drawImage(spr.c, 0, 0); spr.raw = rc; }
+  const E = spr.ec ? spr.ec.getContext('2d').getImageData(0, 0, w, h).data : null;
+  const A = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) A[i] = D[i * 4 + 3] > 0 ? (E && E[i * 4 + 3] > 0 ? 2 : 1) : 0;
+  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : A[y * w + x]);
+  const [rc, rcx] = makeCanvas(w, h), rim = rcx.createImageData(w, h), M = rim.data, seed = w * 131 + h, pale = R.pale, deep = PNT_DEEP;
+  let lit = 0;
+  for (let y = 0; y < h; y++) for (let xx = 0; xx < w; xx++) {
+    if (A[y * w + xx] !== 1) continue;
+    const up = !at(xx, y - 1), lf = !at(xx - 1, y), dn = !at(xx, y + 1), rt = !at(xx + 1, y), k = (y * w + xx) * 4, hsh = artHash(xx, y, seed);
+    const thin = (lf && rt) || (up && dn);
+    let to = null, f = 0;
+    if ((up && !(dn && thin && !lf)) || (lf && !rt && !dn)) {
+      if (hsh < (up ? R.top : R.left)) { to = pale; f = up ? R.lit : R.lit * 0.75; }
+    } else if (dn || rt || thin) {
+      if (hsh < R.shade) { to = deep; f = dn ? R.dark : thin ? R.dark * 0.7 : R.dark * 0.8; }
+    }
+    if (!to) continue;
+    const r = D[k], g = D[k + 1], b = D[k + 2];
+    if (to === pale) {
+      // (never darker than it was)
+      // (a lit edge of its own colour in the picture, as bright ground would
+      // swallow a pale one; the paler one only over the dark)
+      D[k] = r + (to[0] - r) * f; D[k + 1] = g + (to[1] - g) * f; D[k + 2] = b + (to[2] - b) * f;
+      const e = R.glowLit;
+      M[k] = r + (to[0] - r) * e; M[k + 1] = g + (to[1] - g) * e; M[k + 2] = b + (to[2] - b) * e; M[k + 3] = 255; lit++;
+    } else { D[k] = r + (to[0] - r) * f; D[k + 1] = g + (to[1] - g) * f; D[k + 2] = b + (to[2] - b) * f; }
+  }
+  x.putImageData(img, 0, 0);
+  rcx.putImageData(rim, 0, 0);
+  spr.rimEc = lit ? rc : null;
+  spr.flash = tinted(spr.c, '#ffffff');
+  return spr;
+}
+// A mirrored creature, read again from its unread picture (so its lit rim
+// stays on its left).
+function fpReadableFlip(base) {
+  const s = flippedSprite(base);
+  if (base.raw) { s.c = flipped(base.raw); s.raw = null; fpReadable(s); } else s.flash = tinted(s.c, '#ffffff');
+  return s;
+}
+
+// ---------------------------------------------------------------------------
 // What the rest of the game calls
 // ---------------------------------------------------------------------------
 // A clime's own creature, one frame (foesart.js foeSprite; its colours
@@ -229,12 +284,13 @@ function fpEnemySprites(biomeId) {
   out.crawler = fpCrawler(pal, 'idle', biomeId.length);
   out.crawler.walk = fpCrawler(pal, 'walk', biomeId.length);
   out.crawler.windup = fpCrawler(pal, 'windup', biomeId.length);
+  for (const k of Object.keys(out)) if (k !== 'dummy') for (const f of [out[k], out[k].walk, out[k].windup]) if (f) fpReadable(f);
   return out;
 }
 
 // A region's Shard Keeper (render.js enemySprite).
 function fpKeeperSprite(id) {
-  return fpPaintGrid(KEEPER_ROWS[id], Object.assign({}, ART2_PAL, KEEPER_PAL[id]), Object.assign({}, SPRITE_CHARS, ART2_LETTERS), [...SPRITE_GLOWS, ...ART2_GLOWS], { foot: 2 });
+  return fpReadable(fpPaintGrid(KEEPER_ROWS[id], Object.assign({}, ART2_PAL, KEEPER_PAL[id]), Object.assign({}, SPRITE_CHARS, ART2_LETTERS), [...SPRITE_GLOWS, ...ART2_GLOWS], { foot: 2 }));
 }
 
 // A fighting plant, in the shape of a harmless one (render.js enemySprite).
@@ -545,7 +601,7 @@ function fpMound(s, cx, by, rx, ry, R, seed = 0) {
 // the sand, jaws open on pale teeth; dig: half sunk; mound, mound2: a heap
 // of sand with its eyes peeping.
 FP_FOE.skink = (frame, v, P, W, H) => {
-  const s = new FpSpr(W, H, hashInts(frame.length, frame.charCodeAt(2), 0x5c1), 1), R = fpRamp(P.hide), B = fpRamp(P.belly), SA = fpRamp(P.sand), TH = fpRamp(P.horn), EY = P.eye[0], cx = 10;
+  const s = new FpSpr(W, H, hashInts(frame.length, frame.charCodeAt(2), 0x5c1), 2), R = fpRamp(P.hide), B = fpRamp(P.belly), SA = fpRamp(P.sand), TH = fpRamp(P.horn), EY = P.eye[0], cx = 10;
   const eye = (x, y) => { s.tag('eye').px(x, y, EY, true); };
   if (frame === 'mound' || frame === 'mound2') {
     const dx = frame === 'mound2' ? 1 : 0;
@@ -939,7 +995,7 @@ FP_FOE.sentinel = (frame, v, P, W, H) => {
 // cracks dark; creep, creep2: prowling low, cracks faintly alight; windup:
 // haunches gathered, cracks and eyes blazing; lunge: at full stretch.
 FP_FOE.idol = (frame, v, P, W, H) => {
-  const s = new FpSpr(W, H, hashInts(frame.length, frame.charCodeAt(frame.length - 1), 0x1d0)), R = fpRamp(P.hide), M = fpRamp(P.moss), FG = fpRamp(P.belly);
+  const s = new FpSpr(W, H, hashInts(frame.length, frame.charCodeAt(frame.length - 1), 0x1d0), 1), R = fpRamp(P.hide), M = fpRamp(P.moss), FG = fpRamp(P.belly);
   const by = H - 2, still = frame === 'still', blaze = frame === 'windup' || frame === 'lunge', CK = fpGlowRamp(P.core[0]);
   const lim = (pts, w0, w1, far) => s.tag(far ? 'farleg' : 'leg').limb(pts, w0, w1, (t, sd) => (far ? R[sd < 0 ? 3 : 1] : sd < 0 ? R[5] : sd > 0 ? R[2] : R[3]));
   const paw = (x, y, far) => s.tag(far ? 'farleg' : 'paw').ell(x + 0.6, y - 0.8, 2.2, 1.2, R, { lo: far ? 1 : 2, hi: far ? 3 : 5 });

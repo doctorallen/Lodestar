@@ -958,11 +958,17 @@ function enemySprite(d, type) {
 // across either way.
 function drawShadow(fx, fy, rx) {
   const x = View.ctx, r = rx * AP, ry = 1.5 * AP;
-  x.fillStyle = 'rgba(0,0,0,0.45)';
+  // (a darker core tight under the feet: something stands there)
+  const S = T.paint.foes.read.shadow;
+  x.fillStyle = `rgba(0,0,0,${S[0]})`;
   for (let j = -Math.floor(ry); j <= Math.floor(ry); j++) {
     const w = Math.round(r * Math.sqrt(Math.max(0, 1 - (j / (ry + 0.5)) ** 2)));
     if (w > 0) x.fillRect(fx - w, fy + j, w * 2 + 1, 1);
   }
+  x.fillStyle = `rgba(0,0,0,${1 - (1 - S[1]) / (1 - S[0])})`;
+  const cw = Math.max(1, Math.round(r * 0.6));
+  x.fillRect(fx - cw, fy, cw * 2 + 1, 1);
+  if (r > 4) x.fillRect(fx - cw + 2, fy - 1, cw * 2 - 3, 1);
 }
 
 function drawProspector(d, ox, oy, tick, lights) {
@@ -1162,6 +1168,8 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r));
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
   drawArtSprite(spr, sx, sy);
+  // in a dark place its lit rim holds over the light (foespaint.js fpReadable)
+  if (spr.rimEc && View.pntLift > 0.05) { const e = View.emCtx; e.globalAlpha = T.paint.foes.read.glow * View.pntLift; e.drawImage(spr.rimEc, sx, sy); e.globalAlpha = 1; }
   // struck: a rim a pixel wide round it, white or in the hit's element, on
   // the unlit layer over the view, so it's never a light and never blooms,
   // and the enemy stays in sight inside it; a few at most at once

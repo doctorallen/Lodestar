@@ -851,7 +851,17 @@ const T = {
     // top edge pixel catches the light (rimHi: the top tone); under: how
     // dark its lowest edge goes. elite: how much of its lit rim takes its
     // affix's colour.
-    foes: { base: 0.47, light: 0.9, shade: 0.8, depth: 3, fall: 0.16, crease: 0.14, run: [2, 4], jitter: 0.32, rim: 0.85, rimHi: 0.35, under: 1, elite: 0.7 },
+    // read: how a creature is made to read on any ground (fpReadable): top,
+    // left, the chance a silhouette px on the light's side catches it, lit
+    // drawn that far towards pale; shade, dark: the chance one on the shadow
+    // side (or a thin limb) sinks, and how far towards the violet black;
+    // glow: how much of its lit rim is laid over the light in the darkest
+    // place (times its darkness), drawn glowLit towards pale; shadow: the contact shadow's [rim, core]
+    // darkness.
+    foes: {
+      base: 0.47, light: 0.9, shade: 0.8, depth: 3, fall: 0.16, crease: 0.14, run: [2, 4], jitter: 0.32, rim: 0.85, rimHi: 0.35, under: 1, elite: 0.7,
+      read: { top: 0.9, left: 0.6, lit: 0.28, glowLit: 0.6, pale: [255, 236, 200], shade: 0.85, dark: 0.55, glow: 0.7, shadow: [0.4, 0.62] },
+    },
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the
