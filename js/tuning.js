@@ -883,5 +883,7 @@ const T = {
     },
   },
 
-  ui: { tapGuard: 0.4 }, // seconds a new screen ignores taps
+  // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
+  // at once (ui.js; hints wait their turn).
+  ui: { tapGuard: 0.4, toasts: 2 },
 };

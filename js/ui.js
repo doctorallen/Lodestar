@@ -133,8 +133,13 @@ const UI = {
   },
 
   show(id) {
-    // a hint showing goes away with the world, and comes back after
-    for (const t of [...$('toasts').children]) if (t.classList.contains('r-tip')) { UI.heldTips.push(t.textContent); t.remove(); }
+    // a hint showing goes away with the world; one only just shown comes
+    // back after (if it's still where it was given), and the rest count as read
+    for (const t of [...$('toasts').children]) {
+      if (!t.classList.contains('r-tip')) continue;
+      if (Date.now() - t.dataset.born < 800) { UI.hintsSeen.delete(t.textContent); UI.hintQ.unshift({ msg: t.textContent, at: t.dataset.at }); }
+      t.remove();
+    }
     for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id;
     UI.screen = id;
     Game.modal = id;
@@ -233,19 +238,50 @@ const UI = {
     UI.toast(msg, 'tip');
   },
 
-  // hints wait while a screen is open (heldTips), so none lies over a panel
-  heldTips: [],
+  // Toasts: at most T.ui.toasts on screen at once. News (any toast but a
+  // hint) shows at once and pushes the oldest out. A hint waits its turn in
+  // hintQ, and while a screen is open, so none lies over a panel or crowds
+  // the news; it belongs to the place it was given in (placeKey), and is
+  // dropped if that place has been left before its turn comes. Leaving a
+  // place clears what it said from view, and a hint is never shown twice in
+  // a sortie.
+  hintQ: [], hintsSeen: new Set(), hintsFor: null, toastsAt: '',
+  placeKey() { const d = Game.dive; return !d ? '' : d.hub ? 'home' : `${d.terr}/${d.deep ? d.deep.site : 0}`; },
   toast(msg, kind) {
-    if (kind === 'tip' && Game.modal) { if (!UI.heldTips.includes(msg)) UI.heldTips.push(msg); return; }
-    const box = $('toasts');
+    if (kind !== 'tip') { UI.showToast(msg, kind, UI.placeKey()); return; }
+    if (UI.hintsFor !== Game.dive) { UI.hintsFor = Game.dive; UI.hintsSeen.clear(); }
+    if (UI.hintsSeen.has(msg) || UI.hintQ.some((h) => h.msg === msg)) return;
+    UI.hintQ.push({ msg, at: UI.placeKey() });
+    UI.pumpToasts();
+  },
+  showToast(msg, kind, at) {
+    const box = $('toasts'), most = T.ui.toasts;
     // the same words twice at once read as a stutter: the newer one only
-    for (const o of box.children) if (o.textContent === msg) o.remove();
+    for (const o of [...box.children]) if (o.textContent === msg) o.remove();
     const el = document.createElement('div');
     el.className = 'toast' + (kind ? ' r-' + kind : '');
     el.textContent = msg;
+    el.dataset.at = at;
+    el.dataset.born = Date.now();
+    // long enough to read: a hint longer than news, and long lines longer
+    const secs = clamp(msg.length * (kind === 'tip' ? 0.05 : 0.035), kind === 'tip' ? 2.6 : 1.8, 4.5);
+    el.style.animationDuration = secs + 's';
     box.appendChild(el);
-    while (box.children.length > 3) box.firstChild.remove();
-    setTimeout(() => el.remove(), 1800);
+    while (box.children.length > most) box.firstChild.remove();
+    if (kind === 'tip') UI.hintsSeen.add(msg);
+    setTimeout(() => { el.remove(); UI.pumpToasts(); }, secs * 1000);
+  },
+  // Every step: what a place left behind goes, and a waiting hint shows if
+  // there's room for it.
+  pumpToasts() {
+    const box = $('toasts'), at = UI.placeKey();
+    if (at !== UI.toastsAt) {
+      UI.toastsAt = at;
+      for (const o of [...box.children]) if (o.dataset.at !== at) o.remove();
+    }
+    UI.hintQ = UI.hintQ.filter((h) => h.at === at);
+    if (Game.modal) return;
+    while (UI.hintQ.length && box.children.length < T.ui.toasts) { const h = UI.hintQ.shift(); UI.showToast(h.msg, 'tip', h.at); }
   },
 
   // the top bar and the deck, every step
@@ -257,7 +293,7 @@ const UI = {
     document.body.classList.toggle('diving', !!d);
     document.body.classList.toggle('home', !!(d && d.hub));
     if (Game.modal === 'screen-reveal' && Reveal.item && Game.realT - Reveal.shownAt > 2.2) Reveal.done();
-    if (!Game.modal && UI.heldTips.length) UI.toast(UI.heldTips.shift(), 'tip');
+    UI.pumpToasts();
     if (!d) return;
     if (d.hub) {
       setTextIfChanged('hud-depth', `THE LODESTAR · MAGNITUDE ${magnitudeOf(Save.data.star)}`);

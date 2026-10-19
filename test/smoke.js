@@ -252,7 +252,7 @@ async function phone(browser) {
     stones.push(await page.evaluate(() => [(terrState(Game.dive.terr).lit || []).length, !!Game.dive.hold]));
   }
   check(stones[0][0] === 1 && stones[1][0] === 2 && stones[2][1], `phone: the waystones did not light one by one, the last held (${JSON.stringify(stones)})`);
-  check(await page.evaluate(() => terrState(Game.dive.terr).state === 'contested' && /Hold it/.test($('hud-goal').textContent)), 'phone: lighting a waystone did not contest the land, or the goal does not show the hold');
+  check(await page.evaluate(() => terrState(Game.dive.terr).state === 'contested' && /Stay in its light/.test($('hud-goal').textContent)), 'phone: lighting a waystone did not contest the land, or the goal does not show the hold');
   await page.evaluate(() => { for (let i = 0; i < 60 * (T.world.waystone.hold + 0.5); i++) { Game.step(1 / 60); for (const e of Game.dive.enemies) e.dead = true; } });
   check(await page.evaluate(() => terrState(Game.dive.terr).done && !Game.dive.hold), 'phone: holding the last waystone did not finish the goal');
   await page.evaluate(() => { const d = Game.dive, h = d.floor.heart; d.p.x = (h.x + 0.5) * TILE; d.p.y = (h.y + 0.8) * TILE; });

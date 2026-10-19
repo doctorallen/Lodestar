@@ -162,7 +162,7 @@ body.home #btn-mine { display: none; }
 
 /* rarity colours */
 .r-common { color: var(--common); } .r-magic { color: var(--magic); } .r-rare { color: var(--rare); }
-.r-legendary { color: var(--legendary); } .toast.r-tip { color: var(--gold); border-color: #4a3a1a; } .r-set { color: var(--set); } .r-relic { color: var(--relic); } .r-exotic { color: var(--exotic); }
+.r-legendary { color: var(--legendary); } .toast.r-tip { color: var(--gold); border-color: #4a3a1a; } .toast.r-log { color: #eadfc4; font-style: italic; border-color: #4a3a1a; } .r-set { color: var(--set); } .r-relic { color: var(--relic); } .r-exotic { color: var(--exotic); }
 
 /* the screens */
 .screen {
@@ -361,7 +361,6 @@ body.home #btn-mine { display: none; }
 #app.wide .speech { bottom: calc(12px + env(safe-area-inset-bottom)); left: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); right: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); }
 /* over a screen, toasts sit just under a panel's header, clear of its title and its way out */
 body.modal .toasts { top: calc(66px + env(safe-area-inset-top)); }
-.toasts .toast:nth-last-child(n + 3) { display: none; }
 /* nothing talks over the anvil, a reveal or the story */
 body.rapt .toasts { display: none; }
 /* the story, a panel at a time */
