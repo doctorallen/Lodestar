@@ -403,3 +403,12 @@ The designer approved moving the art from A+ to a painted style after Death Tras
   - growth painted on wall faces, now hidden by the rock;
   - hanging plants, which hang from the face's foot;
   - flat ground effects, which aren't hidden by rock in front of them.
+
+## 2026-10-19: the creatures, painted (branch `painted-foes`)
+
+Every creature is repainted to `docs/PAINTED.md` (`js/foespaint.js`, `T.paint.foes`), keeping its size, anchor, silhouette and colours, so hitboxes and the bars over it don't move and each kind still reads apart on a phone.
+- **From shapes.** The crawler, wisp, construct, warden, target and the Hollow, and all eleven climes' creatures in every frame they had, are painted with `PntSpr` shapes (the old grids were the guide): dark masses in strokes lit from the upper left, a lit rim along the top, eyes as single bright pixels, crystals faceted and lit on their left. No outlines.
+- **From grids.** The Shard Keepers and the fighting plants keep their hand-drawn grids, painted in strokes on deeper ramps. Critters are flat colours with a lit top edge.
+- **New frames.** The crawler and the construct (and the warden) have a walk and a wind-up, the wisp and the Hollow a sway.
+- **Cues.** A struck creature still flashes a white rim. An elite keeps its pip, and its lit rim glows in its affix's colour instead of an outline.
+- **Cost.** A floor's creatures are painted as it's entered (about 40 ms for a region's common set with the CPU slowed 4×). A fight's frame costs what it did.

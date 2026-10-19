@@ -499,7 +499,8 @@ function fpConstruct(W, H, k, pal, pose = 'idle', seed = 1) {
   s.tag('chest').plate(X(-5), Y(7) + low, X(5), Y(13) + low, PL, { t: 4.4, lip: 2, fall: 1.6 });
   s.tag('waist').plate(X(-4.6), Y(13) + 1 + low, X(4.6), Y(13.8) + 1 + low, MT, { t: 3, lip: 1 });
   for (const side of [-1, 1]) s.tag('shoulder').ell(cx + side * q(7) + (side > 0 ? 0 : 0.5), Y(7.6) + low, q(2.8) + 0.4, q(1.7) + 0.4, PL, { lo: 2, hi: 7, bias: 0.08 });
-  // the head: brass round a dark visor
+  // a neck, and the head: brass round a dark visor
+  s.tag('neck').plate(X(-2), Y(5) + low, X(2), Y(7) + low, MT, { t: 1, lip: 0, fall: 0.4 });
   s.tag('head').plate(X(-4), Y(0) + low, X(4), Y(5.4) + low, MT, { t: 3, lip: 2, round: true });
   s.tag('visor').plate(X(-3), Y(1.4) + low, X(3), Y(4.4) + low, PL, { t: 1, lip: 0, fall: 0.5 });
   // seams: across the chest, down its middle under the rune; rivets on the
@@ -864,8 +865,8 @@ FP_FOE.crab = (frame, v, P, W, H) => {
   for (const [x0, y0, dx, dy, n] of [[cx - 4, cy - 2.6, 0.6, 1, 4], [cx + 4, cy - 2.6, -0.6, 1, 4], [cx - 1.4, cy + 0.6, -1, 0.5, 5], [cx + 1.4, cy + 0.6, 1, 0.5, 5], [cx, cy - 3.2, 0, 1, 2]])
     for (let k = 0; k <= n; k++) { const x = Math.round(x0 + dx * k), y = Math.round(y0 + dy * k); if (s.tagAt(x, y) === 'shell') s.tag('seam').px(x, y, seam[k % 2 ? 2 : 1], cr); }
   // crust: lumps catching the light
-  for (let i = 0; i < 5; i++) { const x = Math.round(cx - 6 + s.h01(i, 0, 68) * 11), y = Math.round(cy - 2 + s.h01(i, 1, 68) * 5); if (s.tagAt(x, y) === 'shell' && s.tagAt(x + 1, y) === 'shell') { s.px(x, y, R[x < cx ? 6 : 5]); s.px(x + 1, y + 1, R[1]); } }
-  s.rim(['shell'], fpHot(R), R[7], { p: 0.9, under: ['stalk', 'seam'] });
+  for (let i = 0; i < 4; i++) { const x = Math.round(cx - 6 + s.h01(i, 0, 68) * 11), y = Math.round(cy - 2 + s.h01(i, 1, 68) * 5); if (s.tagAt(x, y) === 'shell' && s.tagAt(x + 1, y) === 'shell') { s.px(x, y, R[x < cx ? 5 : 4]); s.px(x + 1, y, R[x < cx ? 4 : 3]); s.px(x + 1, y + 1, R[1]); } }
+  s.rim(['shell'], fpHot(R), R[6], { p: 0.85, under: ['stalk', 'seam'], hot: 0.25 });
   s.rim(['claw'], C[7], C[6], { p: 0.8 });
   s.under(['shell'], R[1]);
   return s;
@@ -885,8 +886,8 @@ FP_FOE.weaver = (frame, v, P, W, H) => {
     const hip = [cx + side * 2.6, 4.6 + k * 1.3];
     const knee = [cx + side * (6.6 + (k === 1 || k === 2 ? 1.6 : 0)), [1.6, 4.6, 8.4, 11][k] + sh * 0.6];
     const foot = [cx + side * ([9.6, 11.6, 11.6, 9.6][k]), [3, 6.6, 10.6, 14][k] + sh];
-    fpThinLeg(s, [hip, knee, foot], R, false, 1.3, 0.6);
-    s.tag('knuckle').px(knee[0], knee[1] - 0.5, R[6]);
+    s.dk = 2; fpThinLeg(s, [hip, knee, foot], R, false, 1.3, 0.6); s.dk = 1;
+    s.tag('knuckle').px(knee[0], knee[1] - 0.5, R[4]);
   }
   // the abdomen, then the head before it
   s.tag('abd').ell(cx, 11.2, 6.2, 5.6, R, { lo: 2, hi: 5, bias: 0 });
