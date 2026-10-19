@@ -473,6 +473,26 @@ function drawWorldProp(d, a, ox, oy, lights) {
   }
 }
 
+// An ancient forge, where one stands (game.js, placeFieldForge): it stands
+// among the actors by its feet, dust of this floor's ground round its foot
+// (hubart.js), its cracked port glowing cold and breathing slowly, one
+// status light still blinking.
+function fieldForgeSprite(d) { return hartOldForge(pntLook(artBiome(d.floor))); }
+function fieldForgeProps(d) {
+  return d.fieldForge ? [{ fieldForge: true, hubDraw: drawFieldForge, hidden: true, y: (d.fieldForge.y + 0.5) * TILE + 6 }] : [];
+}
+function drawFieldForge(d, a, ox, oy, lights) {
+  const spr = fieldForgeSprite(d), P = HART_OLD.port, O = T.paint.hub.old, fy = Math.round((d.fieldForge.y + 0.5) * ATILE + ap(6)) + oy;
+  const x = Math.round((d.fieldForge.x + 0.5) * ATILE) + ox - spr.ax, y = fy - spr.ay;
+  drawArtSprite(spr, x, y);
+  const glow = hartOldForgeGlow(Math.floor(Game.realT * 2.5) % 3);
+  drawArtSprite(glow, x + P.x - glow.ax, y + P.y - glow.ay);
+  if (Math.floor(Game.realT * 0.8) % 3 === 0) dot(x + HART_OLD.led.x, y + HART_OLD.led.y, HART.cold[3], true);
+  const br = 1 - O.breathAmt + O.breathAmt * Math.sin(Game.realT * O.breath);
+  lights.push({ x: x + P.x, y: y + P.y, r: TILE * O.light[0], i: O.light[1] * br, c: rgb01(HART.cold[4]) });
+  paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
+}
+
 // On the ground, under everyone: the light of a held waystone, and the mark
 // at the heart once the goal is done.
 function drawWorldUnder(d, ox, oy, lights) {

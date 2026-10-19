@@ -49,10 +49,17 @@ function drawHubStation(d, a, ox, oy, lights) {
   drawArtSprite(spr, x, y);
   if (s.id === 'forge') {
     const fire = hartForgeFire(Math.floor(Game.realT * 9) % 3);
-    drawArtSprite(fire, x + HART_MOUTH.x - (fire.w >> 1), y + HART_MOUTH.y - (HART_MOUTH.h >> 1));
-    // sparks and smoke off the chimney
+    drawArtSprite(fire, x + HART_MOUTH.x - fire.ax, y + HART_MOUTH.y - fire.ay);
+    // the press's ram, keeping the smith's beat once there's a smith, and
+    // the work glowing on the bed under it
+    const beat = settlementSize() >= 1 ? hubPressBeat(Game.realT) : null, ram = hartPressRam(beat ? Math.round(beat.ext * HART_RAM.travel) : 0);
+    drawArtSprite(ram, x + HART_RAM.x, y + HART_RAM.y);
+    if (beat) for (let i = -2; i <= 2; i++) dot(x + HART_ANVIL.x + i, y + HART_ANVIL.y, beat.hit >= 0 && beat.hit < 0.4 ? '#fff6dc' : Math.abs(i) < 2 ? '#ffd27a' : '#d85c18', true);
+    // the status lights, the first blinking
+    if (Math.floor(Game.realT * 1.7) % 3 === 0) dot(x + HART_LEDS[0][0], y + HART_LEDS[0][1], '#0c2014');
+    // heat and smoke off the stack, a spark now and then
     for (let i = 0; i < 5; i++) {
-      const ph = (Game.realT * 0.6 + i / 5) % 1, cx = x + 12 + Math.round(Math.sin(i * 2.7 + ph * 4) * 2 + ph * 4), cy = y + 1 - Math.round(ph * 22);
+      const ph = (Game.realT * 0.6 + i / 5) % 1, cx = x + 33 + Math.round(Math.sin(i * 2.7 + ph * 4) * 2 + ph * 4), cy = y + 9 - Math.round(ph * 22);
       dot(cx, cy, i % 2 ? '#3a3a40' : ph < 0.4 ? '#ffb347' : '#902a0a', i % 2 === 0, 1 - ph);
     }
   } else if (s.id === 'altar') {
@@ -176,20 +183,38 @@ function drawHubDressing(d, a, ox, oy, lights) {
   }
   paintOcclude(x - spr.ax, y - spr.ay, spr.w, spr.h, y, ox, oy);
 }
-// The smith at the anvil, hammer up, then down with a spray of sparks.
+// The press's beat, shared by the ram and the smith (T.paint.hub.press):
+// the ram rests on the work after it strikes, rises, waits while the smith
+// pushes the lever over, then comes down hard. ext: how far down the ram
+// is (0-1); lever: the smith's frame (0 back, 1 halfway, 2 over); hit: how
+// far through the sparks after a strike (0-1), or -1; n: which strike.
+function hubPressBeat(t) {
+  const P = T.paint.hub.press, n = Math.floor(t / P.beat), ph = t / P.beat - n, r1 = P.rest + P.rise, r2 = r1 + P.wait;
+  if (ph < P.rest) return { ext: 1, lever: 2, hit: ph / P.rest, n };
+  if (ph < r1) { const k = (ph - P.rest) / P.rise; return { ext: 1 - k * k * (3 - 2 * k), lever: k < 0.25 ? 1 : 0, hit: -1, n }; }
+  if (ph < r2) return { ext: 0, lever: (ph - r1) / P.wait < 0.55 ? 0 : 1, hit: -1, n };
+  const k = (ph - r2) / (1 - r2);
+  return { ext: k * k, lever: 2, hit: -1, n };
+}
+// The smith at the press, tongs on the work, pushing the lever over; the
+// ram comes down with a burst of sparks out from between it and the bed.
 function drawHubSmith(d, a, ox, oy, lights) {
   const f = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(f, ox, oy), fs = hartForge();
-  const ph = (Game.realT / 0.9) % 1, struck = ph > 0.62, spr = hartPerson(1, 'smith', struck ? 1 : 0);
+  const beat = hubPressBeat(Game.realT), spr = hartPerson(1, 'smith', beat.lever);
   const fx = at.x - fs.ax + HART_ANVIL.x - 14, fy = at.y + 2;
   drawShadow(fx, fy, 4);
   drawArtSprite(spr, fx - spr.ax, fy - spr.ay);
-  if (struck && ph < 0.8) {
-    const k = (ph - 0.62) / 0.18, ax = at.x - fs.ax + HART_ANVIL.x, ay = at.y - fs.ay + HART_ANVIL.y - 2;
-    for (let i = 0; i < 9; i++) {
-      const ang = -Math.PI * (0.1 + 0.8 * artHash(i, Math.floor(Game.realT / 0.9), 3)), r = 2 + k * (5 + 6 * artHash(i, 1, 4));
-      dot(Math.round(ax + Math.cos(ang) * r * 1.4), Math.round(ay + Math.sin(ang) * r + k * k * 6), i % 3 ? '#ffb347' : '#fff0c0', true, 1 - k * 0.6);
+  if (beat.hit >= 0) {
+    // sparks squeezed out flat either side, arcing down; a flash of light
+    const k = beat.hit, ax = at.x - fs.ax + HART_ANVIL.x, ay = at.y - fs.ay + HART_ANVIL.y;
+    if (k < 0.3) for (const [i, j] of [[-7, 0], [7, 0], [-8, -1], [8, -1], [-6, 1], [6, 1]]) dot(ax + i, ay + j, '#fff6dc', true, 1 - k * 3);
+    for (let i = 0; i < 18; i++) {
+      const side = i % 2 ? 1 : -1, sp = 0.4 + artHash(i, beat.n, 3), up = artHash(i, beat.n, 4), kk = Math.min(1, k * (0.8 + sp * 0.5));
+      const sx = ax + side * (6 + kk * 18 * sp), sy = ay - 1 - up * 7 * kk + kk * kk * 12 * (0.5 + up);
+      dot(Math.round(sx), Math.round(sy), i % 3 ? '#ffb347' : '#fff0c0', true, 1 - kk * 0.6);
+      if (kk < 0.6) dot(Math.round(sx - side), Math.round(sy - (up > 0.5 ? 1 : 0)), i % 3 ? '#d85c18' : '#ffd27a', true, 0.9 - kk);
     }
-    lights.push({ x: ax, y: ay, r: TILE * 1.2, i: 0.8 * (1 - k), c: rgb01('#ffb347') });
+    lights.push({ x: ax, y: ay - 2, r: TILE * 1.4, i: 0.9 * (1 - k), c: rgb01('#ffb347') });
   }
   paintOcclude(fx - spr.ax, fy - spr.ay, spr.w, spr.h, fy, ox, oy);
 }
@@ -200,17 +225,26 @@ function drawHubSitter(d, a, ox, oy) {
   drawArtSprite(spr, x - spr.ax, y - spr.ay);
 }
 // Flat on the flagstones: a cable from the uplink's console to the locker's
-// supplies, scuffed paths worn between the stations.
+// supplies, the forge's coolant pipes and a power line from its foot to
+// the uplink's slab, scuffed paths worn between the stations.
+const HUB_CABLES = [
+  // [points (tiles), pixels across, colours: dark, lit, how often a lit one]
+  [[[13.6, 19.9], [14.8, 18.9], [17.6, 17.6], [18.3, 15.4], [18.6, 12.3]], 1, ['#07080c', '#252b38'], 9, 1.5],
+  [[[7.55, 15.79], [7.9, 16.5], [8.9, 17.6], [10.0, 18.6], [10.95, 19.35]], 2, ['#080b0f', '#1e2e38'], 0, 0.3],
+  [[[7.55, 15.87], [7.7, 16.75], [8.6, 17.95], [9.8, 19.0], [10.95, 19.5]], 1, ['#07080c', '#252b38'], 7, 0.8],
+];
 function drawHubGround(d, ox, oy) {
-  const c = View.ctx, I = HART.iron, inl = hartInlay();
+  const c = View.ctx, inl = hartInlay();
   drawArtSprite(inl, Math.round(11.5 * ATILE) + ox - inl.ax, Math.round(15.3 * ATILE) + oy - inl.ay);
-  c.fillStyle = I[0];
-  const cable = [[13.6, 19.9], [14.8, 18.9], [17.6, 17.6], [18.3, 15.4], [18.6, 12.3]];
-  for (let i = 1; i < cable.length; i++) {
-    const [ax, ay] = cable[i - 1], [bx, by] = cable[i], n = Math.ceil(Math.hypot(bx - ax, by - ay) * ATILE);
-    for (let k = 0; k < n; k++) {
-      const x = Math.round((ax + (bx - ax) * k / n) * ATILE + Math.sin(k * 0.21 + i) * 1.5) + ox, y = Math.round((ay + (by - ay) * k / n) * ATILE) + oy;
-      c.fillStyle = k % 9 === 0 ? I[3] : I[0]; c.fillRect(x, y, 1, 1);
+  for (const [pts, w, [dark, lit], every, wob] of HUB_CABLES) {
+    for (let i = 1; i < pts.length; i++) {
+      const [ax, ay] = pts[i - 1], [bx, by] = pts[i], n = Math.ceil(Math.hypot(bx - ax, by - ay) * ATILE);
+      for (let k = 0; k < n; k++) {
+        const x = Math.round((ax + (bx - ax) * k / n) * ATILE + Math.sin(k * 0.21 + i) * wob) + ox, y = Math.round((ay + (by - ay) * k / n) * ATILE) + oy;
+        // (a cable a pixel across, lit now and then; a pipe two, its top lit)
+        if (w === 1) { c.fillStyle = k % every === 0 ? lit : dark; c.fillRect(x, y, 1, 1); }
+        else { c.fillStyle = lit; c.fillRect(x, y, 1, 1); c.fillStyle = dark; c.fillRect(x, y + 1, 1, 1); }
+      }
     }
   }
 }

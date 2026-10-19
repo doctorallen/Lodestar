@@ -469,7 +469,7 @@ function pshMovers(d) {
     if (a.wprop === 'spire') out.push({ spr: spireSprite(), x: Math.round((a.at.x + 0.5) * ATILE), y: Math.round(((a.at.y + 0.5) * TILE + 1) * AP) });
     else { const ts = terrPeek(d.terr) || {}, lit = (ts.lit || []).includes(a.k) || ts.done; out.push({ spr: waystoneSprite(lit), x: Math.round((a.at.x + 0.5) * ATILE), y: Math.round(((a.at.y + 0.5) * TILE + 1) * AP) }); }
   }
-  if (d.fieldForge) { const spr = stationSprite('forge'); out.push({ spr, x: Math.round((d.fieldForge.x + 0.5) * ATILE), y: Math.round((d.fieldForge.y + 0.5) * ATILE + ap(6)) }); }
+  if (d.fieldForge) out.push({ spr: fieldForgeSprite(d), x: Math.round((d.fieldForge.x + 0.5) * ATILE), y: Math.round((d.fieldForge.y + 0.5) * ATILE + ap(6)) });
   return out;
 }
 

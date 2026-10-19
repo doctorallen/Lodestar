@@ -834,6 +834,13 @@ const T = {
     // arc, an Arc's crescent's thickness at its thickest (art px), light and
     // heavy.
     fx: { lightR: 0.42, lightA: 0.8, arc: [6, 8.5] },
+    // hub (hubart.js, hub.js): the outpost's press keeps a beat of beat s:
+    // its ram rests on the work after it strikes (rest, a share of the
+    // beat, while the sparks fly), rises (rise), waits while the smith
+    // pushes the lever over (wait), and comes down hard in what's left.
+    // old: an ancient forge's cold light, [reach (tiles), strength], and how
+    // fast it breathes (rad/s) and by how much.
+    hub: { press: { beat: 1.5, rest: 0.16, rise: 0.46, wait: 0.26 }, old: { light: [1.8, 0.75], breath: 1.3, breathAmt: 0.15 } },
     // hole (painthole.js): what lies below the floor. depth: how far down a
     // hazard's surface lies (art px), shade how far (a share of it) its
     // banks shade it from the light. A far wall: wall (the sinkhole's, on
