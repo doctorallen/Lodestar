@@ -960,21 +960,8 @@ function enemySprite(d, type) {
 }
 
 // A soft shadow on the ground under feet at fx, fy (art px), rx world px
-// across either way.
-function drawShadow(fx, fy, rx) {
-  const x = View.ctx, r = rx * AP, ry = 1.5 * AP;
-  // (a darker core tight under the feet: something stands there)
-  const S = T.paint.foes.read.shadow;
-  x.fillStyle = `rgba(0,0,0,${S[0]})`;
-  for (let j = -Math.floor(ry); j <= Math.floor(ry); j++) {
-    const w = Math.round(r * Math.sqrt(Math.max(0, 1 - (j / (ry + 0.5)) ** 2)));
-    if (w > 0) x.fillRect(fx - w, fy + j, w * 2 + 1, 1);
-  }
-  x.fillStyle = `rgba(0,0,0,${1 - (1 - S[1]) / (1 - S[0])})`;
-  const cw = Math.max(1, Math.round(r * 0.6));
-  x.fillRect(fx - cw, fy, cw * 2 + 1, 1);
-  if (r > 4) x.fillRect(fx - cw + 2, fy - 1, cw * 2 - 3, 1);
-}
+// across either way, in short strokes (pshadow.js).
+function drawShadow(fx, fy, rx) { pshContact(fx, fy, rx); }
 
 function drawProspector(d, ox, oy, tick, lights) {
   const p = d.p;

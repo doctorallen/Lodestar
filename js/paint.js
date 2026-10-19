@@ -192,6 +192,8 @@ function pntGroundTones(f, x0, y0, x1, y1) {
   const v = new Float32Array(n), n1 = new Float32Array(n), n2 = new Float32Array(n), n3 = new Float32Array(n), cl = new Float32Array(n), mid = new Int16Array(n), jit = new Float32Array(n);
   // for each column, how many rows since rock above it (up to G.foot + 1)
   const since = new Uint8Array(n), F = G.foot, pk = sun ? G.patchSky : G.patchCave, J = G.jitter * (nt - 1) * 0.48;
+  // (what stands on it: its contact, sun and fixed lights' shadows, pshadow.js)
+  const SHD = pshShadeFor(f);
   const rk = (x, y) => x < 0 || y < 0 || x >= W || y >= Hp || R[y * W + x] === 1;
   for (let i = 0; i < n; i++) { let k = F + 1; for (let j = 1; j <= F; j++) if (rk(ax + i, y0 - j)) { k = j - 1; break; } since[i] = k; }
   for (let y = y0; y < y1; y++) {
@@ -218,6 +220,7 @@ function pntGroundTones(f, x0, y0, x1, y1) {
           if (H[sy * W + sx] > s * G.sunSlope) { val -= G.sunDark; break; }
         }
       }
+      if (SHD && !here) val -= SHD[row + x] / 255;
       v[i] = val;
     }
     pntStrokeRow(mid, jit, ax, n, y, seedH + 31);

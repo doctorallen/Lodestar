@@ -92,7 +92,7 @@ A new kind of actor needs a size in `paintOccludeActor`, or its own call to `pai
 The per-frame lighting is unchanged. It multiplies the painted colours, so the painted ramps are albedo:
 
 - In `shadow.js`, the lamp's rays still march through the footprint. A cell of the light grid counts as rock where the rock is drawn (`View.rockLift`). A face is lit where the ground below it is lit, up to the tallest lift (`pntMaxLift()`).
-- Prop shadows skip drawn rock.
+- What stands on the ground casts its silhouette (below, Cast shadows).
 - The brow lamp is 39 art px over the feet (`T.light.shadow.eye` 26 world px); Wick hovers above it (`T.wick.up` 29).
 
 ### Painting lazily
@@ -170,3 +170,23 @@ The sample's crawler and wisp (`zsprites.py`) show the idea.
 - **Ore** (`pflOreTile`, from `pntRockDecor`): a cluster of prisms (`pflCrystal`) out of a soot socket, flecks round it, one on the face. Crystals may stand up past their tile over what's behind them.
 - **Props** (`pflRepaintProp`): a prop drawn in its stone's four tones is laid again in strokes, with a deep rim on its shadowed side and no outline. The spire, waystones and portals use it.
 - **Drops** (`pflDropSprite`): a heap of prisms or a cut gem, cached by colour.
+
+## Cast shadows (branch `painted-shadows`)
+
+`js/pshadow.js`, numbers in `T.light.shadow.cast` and `T.paint.shade`. Everything standing on the ground casts a shadow in the same light as the walls' (shadow.js), so the scene reads as lit by one lamp:
+
+- **A silhouette, not a blob.** A shadow is its caster's own sprite alpha laid flat on the ground (`pshSil`, `pshGeom`): a point u px across and z px up the sprite falls at its foot + u across + z along the light's direction, stretched by how low the light is. Its edge softens further from the foot (a penumbra from each pixel's distance in from the sprite's edge), so it's sharp where it touches.
+- **Baked into the ground's strokes** (once a floor, `pshShadeFor`): a shade field the ground's tones are lowered by (`pntGroundTones`, so they're cut in the ground's own strokes like the mesas' shadows), and then each tile, beds and tufts and all, darkened by its stroke's middle's shade (`pshShadeTile`, `mul`). In it:
+  - every plant's contact shadow, soft, falling off from under its foot (`contact`, by size), and a smaller one under every tuft and stand (`cover`);
+  - by day under the sky, the sun's shadow to the lower right, the mesas' direction and slope (`ground.sunDir`, `sunSlope`), of every plant and stand (`sun`, times the daylight);
+  - a plant's shadow from the strongest fixed light that sees its foot (lava, a vent, a glowing plant: `light`, times that light's share there);
+  - at home, the stations', tents', lanterns' and crates' contact shadows and their shadows from the strongest of the lanterns, the forge and the fire (`home`). If the settlement or the lit lanterns change, the outpost is painted again.
+- **Each frame** (`pshFrame`, after the floor, before anything stands on it): black as opaque as the shadow is dark, on a mask over the view, drawn in one box.
+  - The lamp's: plants, creatures, the portals, spire, waystones and the field forge within its reach cast away from it, taking back the lamp's share of the light at each pixel (a table over the distance, `pshTab`), so a shadow falls to what the walls' do; none where the lamp's sight doesn't reach. Not at home, where the lanterns cast.
+  - The sun's, by day, for what moves (the Kindler, creatures, the portals and spire), and a soft blob under Wick, as far off as it hovers.
+  - At home, the Kindler and the settlers near him from the strongest lantern or fire.
+- **On the ground, and up faces behind.** A pixel of rock takes the shadow only if it stands behind the caster's feet (its floor row north of them), so a shadow climbs the face of a wall behind but never covers rock in front, as occlusion has it.
+- **Contact shadows under what moves** (`drawShadow`, `pshContact`): an ellipse of short horizontal strokes, darker in the middle, its row ends ragged, no hard edge; one picture a size, fixed to the caster so it never crawls.
+- **Holds still.** The shadows' geometry follows the brow lamp's whole art px (`diverLampAt`), each pixel's inside or out from a fixed silhouette, and there's no noise in them, so they glide a pixel at a time as the Kindler walks.
+
+A new kind of thing standing on the ground: add it to `pshMovers` (moves, or may) or the bake (`pshBake`, for what never moves).
