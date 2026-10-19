@@ -137,8 +137,18 @@ The sample's crawler and wisp (`zsprites.py`) show the idea.
 
 ## Known gaps after phase 1
 
-- **Creatures, critters, flora, props, stations, the portals and the effects** are still A+ sprites with outlines. They stand and are hidden correctly, but their look clashes until they're repainted.
+- **Creatures, critters, stations and the effects** are still A+ sprites with outlines (flora, the field's props, ore and drops: see below). They stand and are hidden correctly, but their look clashes until they're repainted.
 - **Wall growth is hidden.** Moss up a face, roots and icicles painted into the ground layer (`undergrowth.js`) and a clime's rock decor (`paintRootRock`) are covered by the rising rock. The flora phase should paint them onto the rock layer.
 - **Hanging plants** (`anchor: 'ceiling'`) still hang from the footprint's edge, now at the foot of the face rather than its lip.
 - **Ground effects aren't hidden.** Things drawn flat on the ground (hazard animations, cast marks, rift tint) aren't hidden by rock in front of them, and the rift's tint and a graft don't reach the rock.
 - **Painting costs more.** A painted chunk costs about 3 times what the old painter did for the same area. The first walk through new ground costs a few ms a frame while it fills in.
+
+## Flora, props, ore and drops
+
+`js/pflora.js`, numbers in `T.paint.flora` and `T.paint.ore`.
+
+- **Flora** (`pflSprite`, through `floraSprite`): a piece's letter grid is enlarged by the grid's own rules (scale3x), then painted: form shading from the upper left laid in short strokes on each material's eight-tone ramp (`pflRamp`); foliage (`PFL_LEAFY`) in loose clumps, frayed two px at a time, strays over its top; upright parts a pixel or two across are strands, lit up to their tips; no outline, but the shadowed side keeps a rim of deep tones. Same size and anchor as before. Pieces painted by hand instead are in `PFL_HAND`.
+- **The ground cover** (`pflCoverKit`, through `ugKit`): rootlet tufts, sprigs, moss clumps, pebbles, roots, the stands' stems and the blades before a plant's foot, all by hand, as 32-bit stamps.
+- **Ore** (`pflOreTile`, from `pntRockDecor`): a cluster of prisms (`pflCrystal`) out of a soot socket, flecks round it, one on the face. Crystals may stand up past their tile over what's behind them.
+- **Props** (`pflRepaintProp`): a prop drawn in its stone's four tones is laid again in strokes, with a deep rim on its shadowed side and no outline. The spire, waystones and portals use it.
+- **Drops** (`pflDropSprite`): a heap of prisms or a cut gem, cached by colour.

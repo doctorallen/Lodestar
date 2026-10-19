@@ -332,9 +332,11 @@ function pflTuft(C, cx, fy, ramp, o) {
   }
   list.sort((a, b) => (b.back ? 1 : 0) - (a.back ? 1 : 0));
   for (const s of list) {
-    const d = s.back ? 1 : 0;
-    pflStrand(C, s.x, fy, s.len, s.lean, ramp, o.lo - d, o.hi - d);
-    if (o.heads && C.r() < o.heads) { const hx = s.x + s.lean * (s.len - 1), hy = fy - s.len; C.set(hx, hy, o.head[5]); C.set(hx, hy + 1, o.head[3]); }
+    // (the feet don't line up: one behind springs up a px or two further
+    // back, so the clump has no straight edge where it meets the ground)
+    const d = s.back ? 1 : 0, sy = fy - (s.back ? 1 + Math.floor(C.r() * 2) : C.r() < 0.4 ? 1 : 0);
+    pflStrand(C, s.x, sy, s.len, s.lean, ramp, o.lo - d - 1, o.hi - d);
+    if (o.heads && C.r() < o.heads) { const hx = s.x + s.lean * (s.len - 1), hy = sy - s.len; C.set(hx, hy, o.head[5]); C.set(hx, hy + 1, o.head[3]); }
   }
   // the foot: a dark knot where they meet the ground
   if (o.knot) for (let i = -Math.ceil(spread / 2); i <= Math.ceil(spread / 2); i++) if (C.r() < o.knot) C.set(cx + i, fy, ramp[1]);
