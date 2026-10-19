@@ -102,7 +102,9 @@ function portalSprite(zone) {
   for (const [i, j] of L.glyph) glyph[j + 1][i + 1] = 'G';
   const g = artScaleRows(glyph.map((r) => r.join('')), AP), gw = g[0].length, gh = g.length;
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) if (g[j][i] === 'G') put(kx - (gw >> 1) + i, hy - (gh >> 1) + j, L.face[3], true);
-  // (no outline: the painted style)
+  // laid in strokes, no outline, the shadowed rim kept but on the open
+  // face (pflora.js)
+  pflRepaintProp(P, solid, S, 0x9071, (x, y) => ((at(x) - C.x) / PORTAL_IN[0]) ** 2 + ((at(y) - C.y) / PORTAL_IN[1]) ** 2 <= 1);
   const s = spriteFromBuf(P);
   s.ax = (C.x + 0.5) * AP; s.ay = (PORTAL_H - 2) * AP; s.k = AP;
   return (_portalSprites[zone] = s);

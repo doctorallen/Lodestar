@@ -239,7 +239,7 @@ function noticeRift(d) {
 // ---------------------------------------------------------------------------
 const _riftSprites = [];
 function riftSprite(k) {
-  if (!_riftSprites[k]) _riftSprites[k] = buildArtSprite(RIFT_ROWS[k], RIFT_PAL, RIFT_LETTERS, RIFT_GLOWS);
+  if (!_riftSprites[k]) _riftSprites[k] = pflSprite(RIFT_ROWS[k], RIFT_PAL, RIFT_LETTERS, RIFT_GLOWS);
   return _riftSprites[k];
 }
 

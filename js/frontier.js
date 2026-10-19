@@ -386,8 +386,9 @@ function compassTargetWorld(d, steps) {
 // --- drawn ----------------------------------------------------------------
 // The spire: a standing obelisk of lodestone on a plinth, gold runes up its
 // face and a gold crystal at its tip (the lodeline's beam rises from it).
-// Painted art pixel by art pixel in the lodestone's four tones, lit from
-// the top left, with a sel-out. Feet at the plinth's front.
+// Drawn art pixel by art pixel in the lodestone's four tones, lit from
+// the top left, then laid in strokes (pflRepaintProp), with no outline.
+// Feet at the plinth's front.
 const _worldSprites = {};
 function spireSprite() {
   if (_worldSprites.spire) return _worldSprites.spire;
@@ -413,7 +414,7 @@ function spireSprite() {
   // runes down the face: small cut marks, glowing
   const runes = [['.G.', 'GGG', '.G.'], ['G.G', '.G.', 'G.G'], ['GG.', '.G.', '.GG'], ['.G.', 'G.G', '.G.']];
   runes.forEach((r, k) => { const y0 = 16 + k * 10; for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) if (r[j][i] === 'G') put(cx - 1 + i, y0 + j, j === 0 ? G[3] : G[2], true); });
-  outlineBuf(P, solid, T.art.outline.prop);
+  pflRepaintProp(P, solid, S, 0x5b1e);
   const s = spriteFromBuf(P);
   s.ax = cx; s.ay = H - 2;
   return (_worldSprites.spire = s);
@@ -432,7 +433,7 @@ function waystoneSprite(lit) {
   }
   const rune = ['G.G.G', '.GGG.', 'G.G.G', '..G..', '.G.G.'];
   for (let j = 0; j < rune.length; j++) for (let i = 0; i < 5; i++) if (rune[j][i] === 'G') put(cx - 2 + i, 10 + j * 2, lit ? (j % 2 ? G[2] : G[3]) : '#16181c', lit);
-  outlineBuf(P, solid, T.art.outline.prop);
+  pflRepaintProp(P, solid, S, 0x5b1f);
   const s = spriteFromBuf(P);
   s.ax = cx; s.ay = H - 2;
   return (_worldSprites[key] = s);

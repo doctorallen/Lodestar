@@ -403,3 +403,16 @@ The designer approved moving the art from A+ to a painted style after Death Tras
   - growth painted on wall faces, now hidden by the rock;
   - hanging plants, which hang from the face's foot;
   - flat ground effects, which aren't hidden by rock in front of them.
+
+## 2026-10-19: the painted style, flora, props, ore and drops (branch `painted-flora`)
+
+- **Flora keeps its shapes, painted over.** Every clime's pieces keep their letter grids, sizes, anchors and frames (so placement, sway, the melted foot and the glow lights don't move), but are painted by `pflSprite` (`js/pflora.js`) instead of being shaded and outlined:
+  - no outline and no sel-out; the shadowed side keeps a rim of the material's own deepest tones where the outline was, so a mass keeps its weight;
+  - masses shaded by form from the upper left and laid in short strokes of an eight-tone ramp per material, drawn from today's palettes (`pntRamp`);
+  - foliage broken into loose clumps, frayed in pairs of pixels, with a few strays over it;
+  - anything upright and a pixel or two across is a strand: dark at the foot, lighter up it, its tip lightest.
+  Fen grass and snow tufts are painted by hand as fields of strands.
+- **The ground cover is painted by hand.** Tufts are fans of one-pixel rootlets with lighter tips, uneven and bending; moss is a clump of lit domes; pebbles are rounded and lit; roots are humps half sunk; the stands are dense fields of leaning strands whose feet don't line up. The edges of the beds break in short strokes.
+- **Ore is clusters of crystal prisms** breaking out of a dark socket in the rock's top, lit on the left facet, with a white glint and a glowing tip, flecks of the ore in the rock round it, and one crystal on the face. It stays the brightest, clearest thing in a scene; nothing in the flora is in an ore's colour or shape.
+- **Props and drops.** The spire, the waystones and the portals are drawn as before and then laid in strokes of the lodestone's ramp, with no sel-out (`pflRepaintProp`). The rift's tear is painted from its grid. Drops are small painted sprites: a heap of three prisms for ore and stuff, a cut gem for gear, each on a contact shadow.
+- **Cost.** Sprites and stamps are built once and cached, so a frame costs the same (deep median about 18 ms with the CPU slowed 4×, as before).

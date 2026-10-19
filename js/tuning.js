@@ -817,6 +817,29 @@ const T = {
     // arc, an Arc's crescent's thickness at its thickest (art px), light and
     // heavy.
     fx: { lightR: 0.42, lightA: 0.8, arc: [6, 8.5] },
+    // flora, props, ore and drops (pflora.js). ramp: a material's stroke
+    // ramp (as ramp above); tones: [lo, hi] of the ramp's eight a form's
+    // light is laid on; base, light, shade, fall, crease, rim, under: its
+    // light value (as T.art.form, plus a lit top-left edge and a shadowed
+    // underside); jit, wide, stroke: a stroke's jitter (all of it on a run
+    // wide px across or more) and its longest run; clump, clumpH: foliage's
+    // clumps (px across, how much they bulge); loose, stray: the share of
+    // foliage's edge frayed away (where it's a mass: mass of the 25 px
+    // round it), and of strays over it; strand: [foot,
+    // tip] of a strand's light; strandForced, strandLo: tones a dark strand
+    // gains up it, and its darkest; skirt, skirtLeafy, skirtThin: how much
+    // of the shadowed side's rim (where the old outline was) a mass,
+    // foliage and a strand keep, in their deepest tones; propJit: a prop's
+    // strokes' jitter (pflRepaintProp).
+    flora: {
+      ramp: { dark: [0.55, 0.25], light: [0.18, 0.36] }, tones: [1, 7],
+      base: 0.45, light: 0.55, shade: 0.42, fall: 0.22, crease: 0.22, rim: 0.12, under: 0.3, jit: 0.9, wide: 7, stroke: 5,
+      clump: 4, clumpH: 0.45, loose: 0.25, mass: 15, stray: 0.12, strand: [0.1, 0.65], strandForced: 2, strandLo: 3, skirt: 0.9, skirtLeafy: 0.7, skirtThin: 0.5, propJit: 0.4,
+    },
+    // ore on the rock (pflOreTile): crystals [least, most] a cluster,
+    // spread (px either way of its middle), h [the outer ones', the middle
+    // ones'] (px), lean (px a px at its edges); flecks of it in the rock.
+    ore: { crystals: [3, 4], spread: 5, h: [6, 10], lean: 0.18, flecks: 5 },
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the
@@ -846,6 +869,7 @@ const T = {
   //     share of tiles; scree: [least, most] pebbles); in the open (open).
   //   bed: the ground grown into round a plant: reach (px past its half
   //     width), squash (its depth for its width), fray (how ragged its edge),
+  //     strokes (how much its edge breaks in short strokes),
   //     deep (where it turns its darker tone); outer, inner: how far the
   //     ground there is drawn to the bed's colour, at its edge and within
   //     deep; drift: how strongly a thick drift's tiles are bedded, so its
@@ -883,7 +907,7 @@ const T = {
     floorP: 0.55, wallP: 0.5, ceilP: 0.4, hub: 0.4, space: 0.9, sameKind: 0.8, gather: [1, 3],
     stand: { cut: 0.5, minSuit: 0.45, reach: 2, rows: 3, gap: 5 },
     cover: { round: [2, 4], foot: 0.7, scree: [1, 3], open: 0.03 },
-    bed: { reach: 5, squash: 0.62, fray: 0.6, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6, drift: 0.6 },
+    bed: { reach: 5, squash: 0.62, fray: 0.6, strokes: 0.7, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6, drift: 0.6 },
     shadow: { pad: 1.5, ry: [1.2, 2.2], dx: 0.5, dy: 0.4, core: 0.68, rim: 0.84 },
     melt: { open: 3, zone: 6, pull: [0.55, 0.35, 0.15], ragged: 0.5, edge: 0.85, frontEvery: 7, frontMost: 5, ahead: 0.5, skirt: 0.6, roots: [1, 2], rootLen: [3, 6], rootDrop: 0.45 },
     faceMoss: 0.7, strands: { cut: 0.3, past: 3 }, lip: 3,
