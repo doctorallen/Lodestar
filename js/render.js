@@ -749,8 +749,7 @@ function renderFrame() {
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
     if (a === p) drawProspector(d, ox, oy, tick, lights);
-    else if (a.wreck) drawUplink(d, ox, oy, lights);
-    else if (a.tent !== undefined) drawTent(d, a, ox, oy);
+    else if (a.hubDraw) a.hubDraw(d, a, ox, oy, lights);
     else if (a.settler) drawSettler(d, a, ox, oy, lights);
     else if (a.tear) drawRift(d, a, ox, oy, lights);
     else if (a.portal) drawPortal(d, a, ox, oy, lights);
@@ -1022,11 +1021,17 @@ function drawDrone(d, fx, fy, lights) {
   d.drone.x += (tx - d.drone.x) * k; d.drone.y += (ty - d.drone.y) * k;
   const x = Math.round((d.drone.x - p.x) * AP) + fx, y = Math.round((d.drone.y - p.y + Math.sin(Game.realT * W.bob[0]) * W.bob[1]) * AP) + fy;
   const eye = WICK_EYE, under = WICK_UNDER;
-  // (the disc's middle is the sprite's (4, 7))
-  drawArtSprite(Sprites.drone, x - 4, y - 7);
-  const ex = x + Math.round(p.fx * 1.4 * AP), ey = y + Math.round(p.fy * AP);
-  dot(ex, ey, eye, true); dot(ex + 1, ey, eye, true);
-  dot(x, y + 4, under, true, 0.8);
+  const S = Sprites.drone;
+  drawArtSprite(S, x - S.cx, y - S.cy);
+  // its eye on the glass band, the way the diver looks (none, looking away)
+  if (p.fy > -0.7) {
+    const ex = x + Math.round(p.fx * 2.6), ey = y + (p.fy > 0.5 ? 1 : 0);
+    dot(ex, ey, eye, true); dot(ex + 1, ey, eye, true);
+    dot(ex + (p.fx < 0 ? -1 : 2), ey, mix(eye, '#04060a', 0.55), true);
+  }
+  // the lift's glow, flickering, a few loose pixels under it
+  const fl = Math.floor(Game.realT * 10) % 3;
+  dot(x + fl - 1, y + 7, under, true, 0.6); dot(x + 2 - fl, y + 8, under, true, 0.35);
   lights.push({ x, y, r: TILE * 1.1, i: 0.45, c: rgb01(eye) });
 }
 

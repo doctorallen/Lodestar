@@ -363,33 +363,21 @@ const Story = {
 // ---------------------------------------------------------------------------
 // Settlers at the outpost: a few small figures, one for each lander down
 // (all of them once the colony's called). Cosmetic: they stroll the plaza,
-// stop, and say a line when the Kindler walks near. Creatures, so outlined
-// black; muted, each with a little star-lamp. Their strolling uses
-// Math.random, as it changes nothing.
+// stop, and say a line when the Kindler walks near. Painted in muted coats,
+// each with a little star-lamp. Their strolling uses Math.random, as it
+// changes nothing.
 // ---------------------------------------------------------------------------
 
-// A settler, front on, drawn by hand at the art's size: a hood, a face, a
-// coat, a lamp held at the side; [standing, a step].
-const SETTLER_ROWS = [
-  artNative(['..HHHH...', '.HHHHHH..', '.HSSSSH..', '.HSSSSH..', '..CCCC...', '.CCCCCC..', 'CCCCCCCC.', 'CCCCCCCCL', 'CCCCCCCCL', '.CCCCCC..', '.CCCCCC..', '.PP..PP..', '.KK..KK..']),
-  artNative(['..HHHH...', '.HHHHHH..', '.HSSSSH..', '.HSSSSH..', '..CCCC...', '.CCCCCC..', 'CCCCCCCC.', 'CCCCCCCCL', 'CCCCCCCCL', '.CCCCCC..', '.CCCCCC..', '..PPPP...', '..KK.KK..']),
-];
-// muted coats and hoods, one look a settler
-const SETTLER_LOOKS = [
-  { coat: ['#1a1a1e', '#2c2c32', '#44444c', '#5c5c66'], helmet: ['#1e1814', '#33291f', '#4c3e2e', '#62523e'] },
-  { coat: ['#1c1a14', '#302c22', '#4a4434', '#635c48'], helmet: ['#16181c', '#262a30', '#3a4048', '#525a64'] },
-  { coat: ['#1e1416', '#342226', '#4e363a', '#664a4e'], helmet: ['#1a1a16', '#2e2e26', '#46463a', '#5e5e4e'] },
-  { coat: ['#141a1a', '#22302e', '#364a46', '#4a625e'], helmet: ['#1e1816', '#3a2c24', '#5e4a36', '#7a6248'] },
-];
+// A settler, painted (hubart.js): a hooded coat, a scarf, goggles, a lamp
+// in the far hand; idle or a step of the walk, turned to the left (west)
+// or the right. Four looks.
+const SETTLER_LOOKS = HART_LOOKS;
 const _settlerSprites = {};
 function settlerSprite(look, frame, west) {
   const key = look + '/' + frame + '/' + west;
   if (!_settlerSprites[key]) {
-    const pal = Object.assign({ lamp: [ART.pal.star[3]] }, SETTLER_LOOKS[look]);
-    let s = buildArtSprite(SETTLER_ROWS[frame], pal, SPRITE_CHARS, SPRITE_GLOWS, ART_CREATURE);
-    s.ax = s.w / 2;
-    if (west) s = flippedSprite(s);
-    _settlerSprites[key] = s;
+    const s = hartPerson(look, 'walk', frame);
+    _settlerSprites[key] = west ? flippedSprite(s) : s;
   }
   return _settlerSprites[key];
 }
@@ -449,10 +437,10 @@ function updateSettlers(d, dt) {
 }
 
 function drawSettler(d, s, ox, oy, lights) {
-  const spr = settlerSprite(s.look, s.walkT > 0 ? Math.floor(s.walkT * 6) % 2 : 0, s.west);
-  const fx = Math.round(s.x * AP) + ox, fy = Math.round(s.y * AP) + oy, x = Math.round(fx - spr.ax), y = fy - spr.h + 1;
+  const spr = settlerSprite(s.look, s.walkT > 0 ? 1 + (Math.floor(s.walkT * 7) % 4) : 0, s.west);
+  const fx = Math.round(s.x * AP) + ox, fy = Math.round(s.y * AP) + oy, x = Math.round(fx - spr.ax), y = fy - spr.ay;
   drawShadow(fx, fy, 3);
   drawArtSprite(spr, x, y);
-  // the little lamp each one carries
-  lights.push({ x: s.west ? x + 1 : x + spr.w - 1, y: y + ap(6), r: TILE * 0.9, i: 0.45, c: rgb01(ART.pal.star[2]) });
+  // the little lamp each one carries, in the far hand
+  lights.push({ x: fx + (s.west ? 6 : -6), y: y + 24, r: TILE * 0.9, i: 0.45, c: rgb01(ART.pal.star[2]) });
 }
