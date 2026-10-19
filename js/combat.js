@@ -172,7 +172,7 @@ function killEnemy(e) {
   d.kills++;
   tallyKill(d, e);
   if (e.blight) for (const o of d.enemies) if (!o.dead && o !== e && dist(o.x, o.y, e.x, e.y) < T.elements.blightSpread) o.blight = { t: T.elements.blightTime, dps: e.blight.dps };
-  spawnSparks(e.x, e.y - 5, [ENEMY_PAL[T.biomes[d.biome].id].crystal[0], '#ffffff'], e.boss ? 30 : 10);
+  castFxDeath(e.x, e.y - 5, ENEMY_PAL[T.biomes[d.biome].id].crystal[0], !!e.boss);
   if (e.elite === 'volatile') d.fx.push({ kind: 'volatile', x: e.x, y: e.y, t: T.enemies.volatileFuse, max: T.enemies.volatileFuse, dmg: e.dmg * T.enemies.volatileDmg });
   if (st.powers.lodeheart) {
     healPlayer(3);

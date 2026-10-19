@@ -217,7 +217,7 @@ function sealRift() {
   d.floor.riftShift = null;
   tallySeal(d);
   riftSealedHere(d);
-  if (View.floorFor === d.floor) { const x0 = (r.x - 6) * ATILE, y0 = (r.y - 6) * ATILE; for (let y = r.y - 6; y <= r.y + 6; y++) for (let x = r.x - 6; x <= r.x + 6; x++) if (x >= 0 && y >= 0 && x < d.floor.w && y < d.floor.h) paintTileArt(d.floor, x, y); paintGraft(d.floor, r.x - 6, r.y - 6, r.x + 6, r.y + 6); tintRift(d.floor, x0, y0, x0 + 13 * ATILE, y0 + 13 * ATILE); View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0); View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0); }
+  if (View.floorFor === d.floor) { const x0 = (r.x - 6) * ATILE, y0 = (r.y - 6) * ATILE; for (let y = r.y - 6; y <= r.y + 6; y++) for (let x = r.x - 6; x <= r.x + 6; x++) if (x >= 0 && y >= 0 && x < d.floor.w && y < d.floor.h) paintTileArt(d.floor, x, y); paintGraft(d.floor, r.x - 6, r.y - 6, r.x + 6, r.y + 6); tintRift(d.floor, x0, y0, x0 + 13 * ATILE, y0 + 13 * ATILE); pnrRepaintArea(d.floor, x0, y0, x0 + 13 * ATILE, y0 + 13 * ATILE); }
   const cx = (r.x + 0.5) * TILE, cy = (r.y + 0.5) * TILE, n = d.rng.i(T.rifts.glass[0], T.rifts.glass[1]) + riftTouchedAlive(d);
   for (let k = 0; k < n; k++) d.drops.push({ x: cx + d.rng.f(-6, 6), y: cy + d.rng.f(-4, 4), t: 0, exotic: 'riftglass', home: true });
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, cx, cy) < T.leave.noise) wake(d, e);
@@ -239,7 +239,7 @@ function noticeRift(d) {
 // ---------------------------------------------------------------------------
 const _riftSprites = [];
 function riftSprite(k) {
-  if (!_riftSprites[k]) _riftSprites[k] = buildArtSprite(RIFT_ROWS[k], RIFT_PAL, RIFT_LETTERS, RIFT_GLOWS);
+  if (!_riftSprites[k]) _riftSprites[k] = pflSprite(RIFT_ROWS[k], RIFT_PAL, RIFT_LETTERS, RIFT_GLOWS);
   return _riftSprites[k];
 }
 

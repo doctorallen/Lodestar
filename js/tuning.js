@@ -768,6 +768,146 @@ const T = {
     cluster: { patch: 9, grain: 3, cut: 0.32 }, rockCut: 0.34, sunGround: { soften: 0.55, cut: 0.4 }, groundDither: true,
     lightSteps: 5, lightDither: 0, lampPerPixel: true, steadyCam: true,
   },
+  // The painted style (paint.js, docs/PAINTED.md). All in art px.
+  //   ramp: a clime's colours stretched to stroke ramps: dark, the two
+  //     deeper tones' pull towards violet black; light, the two lighter
+  //     ones' towards warm gold (rock: towards its rim colour).
+  //   stroke: how a row's 8 px cells are cut: whole, the share left as one
+  //     stroke; one, the share cut once (the rest twice).
+  //   ground: base, the middle of the value (0-1) on its 7-tone ramp;
+  //     swell [size, amount], a broad rise and fall; patch [across, down],
+  //     the streaky lit patches' noise, patchCut where they begin and are
+  //     full, patchSky/patchCave how much they lift; clump, the old
+  //     clusters' share; foot, how far (px) a wall's foot darkens, footHard
+  //     the hard line, footAmt its falloff; side, beside a wall; sunDir
+  //     the step (px) towards the sun, sunSteps how many, sunSlope how
+  //     much higher the rock must stand each step to shade, sunDark;
+  //     jitter, the strokes' tone jitter.
+  //   wall: the rock's height: face, how high its front rises; edge, how
+  //     far in (px) it takes to rise (steep, then rounding over); bump and
+  //     bumpScale, boulders on top; ramp, how far in they grow to full.
+  //   rock: light [x, y, z], from the upper left; steep, the rise (px a px
+  //     north) where a top turns into a face and where it is one; a top's value from its
+  //     slope to the light (lamLo, the slope that's darkest), laid from
+  //     topLo to topHi on its 10-tone ramp; a face's (faceBase, + faceUp
+  //     at its full height, + faceWest turned to the light) from faceLo to
+  //     faceHi; jitter; strata, the share of 16 px cells along a face row
+  //     with a long darker (or lighter) stroke; crease, how far below its
+  //     neighbours a point lies to be a soot crease; rim, the top edge's
+  //     tone, lip where a top turns down into a face, foot the face's foot.
+  //   slab: the cells rock is broken into (w × h), wobble of their edges;
+  //     tone, each slab's offset; lip, the lift of its top row; crack, the
+  //     tone of its bottom row; gate, how much of the lips and cracks
+  //     is broken off (noise below it).
+  //   occlude: draw the rock back over sprites behind it.
+  //   lazy: a floor is painted in chunks as the view nears them: near,
+  //     the margin (tiles) round the view painted before a frame; far, the
+  //     margin painted as time allows, budget ms a frame.
+  paint: {
+    // shade (pshadow.js): the shadows baked into the ground's tones, as how
+    // far each lowers its light value (0-1, as ground.sunDark): sun, by day
+    // (times the daylight), for a stand's blades stand; light, from a fixed
+    // light (times its share there); home, at the outpost (from its
+    // lanterns); edge, at a silhouette's edge. contact: under a plant's foot
+    // [small, middling, tall], pad (px past its foot's span), ry [least,
+    // most] its depth, at [x, y] from the foot, fall (how softly it fades
+    // out); cover: under a tuft or a stand's blade, coverPad, coverRy.
+    shade: { mul: 0.75, sun: 0.32, stand: 0.6, light: 0.3, home: 0.6, edge: [1.5, 0.05], contact: [0.16, 0.24, 0.3], contactPad: [1, 2, 3], contactRy: [2.5, 4.5], contactAt: [0.5, 0.5], contactFall: 0.7, cover: 0.14, coverPad: 0.5, coverRy: 1.6 },
+    lazy: { near: 2, far: 7, budget: 3 },
+    ramp: { dark: [0.62, 0.3], light: [0.14, 0.28], rock: { dark: [0.6, 0.3], light: [0.3, 0.6] } },
+    rampEven: { ground: { deep: 0.45, high: 0.24, gamma: 1 }, rock: { deep: 0.55, high: 0.45, gamma: 1.15 }, darkAt: [0.95, 0.42], liftGround: [0.7, 1.2], liftRock: [1.3, 2.2], under: [0.38, 8] },
+    stroke: { whole: 0.12, one: 0.48 },
+    ground: { base: 0.45, swell: 70, swellAmt: 0.2, patch: [64, 11], patchCut: [0.52, 0.62], patchSky: 0.36, patchCave: 0.32, clump: 0.06, foot: 7, footHard: 1, footAmt: 0.3, side: 0.1, sunDir: [2, 3], sunSteps: 9, sunSlope: 3.2, sunDark: 0.32, jitter: 0.62 },
+    wall: { face: 22, edge: 5, bump: 16, bumpScale: 34, ramp: 9, boulder: 76, boulderR: [0.5, 0.95], boulderFlat: 1.6, rough: 0.2 },
+    rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.2, topLo: 1.5, topHi: 6.6, faceBase: 0.15, faceUp: 0.55, faceWest: 0.3, faceLo: 1.5, faceHi: 5.5, jitter: 1.1, strata: 0.5, strataAmt: 1.6, crease: 1.6, creaseR: 3, rim: 8, rimLit: 0.6, lip: 7, foot: 0 },
+    // big: the big planes, where a broad noise (s px across and down) is
+    // over cut: a coarser grid k times the slab's, its cracks gated harder.
+    // mason: a ruin's rock (a paved look) as dressed blocks instead: w, h a
+    // block (px), jit how far a course's joints shift, its joints' gate and
+    // side (as the slab's), tone, flat (as facet.flat), gone: the share of
+    // blocks fallen out (soot).
+    slab: { w: 34, h: 13, wobble: 0.8, tone: 0.35, lip: 1.5, crack: 0, side: 0.12, gate: 0.56, gateS: [14, 4], big: { cut: 0.55, k: [2.6, 2.4], s: [110, 70], gate: 0.75 }, mason: { w: 18, h: 8, jit: 5, gate: 0.2, side: 0.9, tone: 0.6, flat: 0.85, gone: 0.025 } },
+    facet: { keep: 0.5, tilt: 0.2, smooth: 5, relief: 2, flat: 0.55 },
+    occlude: true,
+    // fx (castfx.js): a cast's light on the ground as strokes of its
+    // colour, lightR its reach (a share of the light's), lightA how strongly;
+    // arc, an Arc's crescent's thickness at its thickest (art px), light and
+    // heavy.
+    fx: { lightR: 0.42, lightA: 0.8, arc: [6, 8.5] },
+    // hole (painthole.js): what lies below the floor. depth: how far down a
+    // hazard's surface lies (art px), shade how far (a share of it) its
+    // banks shade it from the light. A far wall: wall (the sinkhole's, on
+    // the rock's ramp) and bank (a pool's, cut in the ground,
+    // on the ground's): [its tone at the lip, at the foot, how much lighter
+    // turned to the light]; wallPow how fast it darkens; jitter, strata,
+    // strataAmt as the rock's faces'; plane: the upright planes it breaks
+    // into [px across, how far their tones differ]; crack: [the share of
+    // their borders cracked, a crack's length]; lipTone: the far lip's
+    // least tone [a wall's, a bank's]; wet, foot: how many rows of a bank's
+    // foot are a wet dark band (at water or ice), and its most tone; lip: how many tones lighter the near rim's ground; lavaLift,
+    // lavaLick: how much lava lights its bank, and the share of the bank's
+    // foot laid in its colour's strokes; pit: how tall the sinkhole's far
+    // wall shows before the dark, pitFade how much darker it grows down it,
+    // pitEdge its edge's two noises [px across, px down, how far each
+    // moves it (a share of a tile)];
+    // starLick: the star's light on it at home [reach (px), how thick its
+    // strokes]; vent: how tall a vent's throat's far wall (px); wade: how much of a walker in a pool
+    // or lava is under its surface (art px), wadeEase how fast it steps down.
+    hole: { depth: { pool: 12, burn: 11, slick: 7 }, shade: 0.6, wall: [5.2, 1.2, 2.4], bank: [3.6, 1.2, 1.2], wet: 2, wallPow: 0.9, jitter: 0.45, strata: 0.45, strataAmt: 1.3, plane: [9, 0.7], crack: [0.3, 16], lipTone: [6.5, 5.5], foot: 0.5, lip: 3, lavaLift: 2, lavaLick: 0.75, pit: 84, pitFade: 2, pitEdge: [30, 22, 0.55, 7, 5, 0.22], starLick: [140, 0.55], vent: 5, wade: 6, wadeEase: 0.25 },
+    // flora, props, ore and drops (pflora.js). ramp: a material's stroke
+    // ramp (as ramp above); tones: [lo, hi] of the ramp's eight a form's
+    // light is laid on; base, light, shade, fall, crease, rim, under: its
+    // light value (as T.art.form, plus a lit top-left edge and a shadowed
+    // underside); jit, wide, stroke: a stroke's jitter (all of it on a run
+    // wide px across or more) and its longest run; clump, clumpH: foliage's
+    // clumps (px across, how much they bulge); loose, stray: the share of
+    // foliage's edge frayed away (where it's a mass: mass of the 25 px
+    // round it), and of strays over it; strand: [foot,
+    // tip] of a strand's light; strandForced, strandLo: tones a dark strand
+    // gains up it, and its darkest; skirt, skirtLeafy, skirtThin: how much
+    // of the shadowed side's rim (where the old outline was) a mass,
+    // foliage and a strand keep, in their deepest tones; propJit: a prop's
+    // strokes' jitter (pflRepaintProp).
+    flora: {
+      ramp: { dark: [0.55, 0.25], light: [0.18, 0.36] }, tones: [1, 7],
+      base: 0.45, light: 0.55, shade: 0.42, fall: 0.22, crease: 0.22, rim: 0.12, under: 0.3, jit: 0.9, wide: 7, stroke: 5,
+      clump: 4, clumpH: 0.45, loose: 0.25, mass: 15, stray: 0.12, strand: [0.1, 0.65], strandForced: 2, strandLo: 3, skirt: 0.9, skirtLeafy: 0.7, skirtThin: 0.5, propJit: 0.4,
+    },
+    // ore on the rock (pflOreTile): crystals [least, most] a cluster,
+    // spread (px either way of its middle), h [the outer ones', the middle
+    // ones'] (px), lean (px a px at its edges); flecks of it in the rock.
+    ore: { crystals: [3, 4], spread: 5, h: [6, 10], lean: 0.18, flecks: 5 },
+    // Creatures (foespaint.js): a dark mass in short strokes, lit from the
+    // upper left. A letter grid's tone: base, plus its form's light (light
+    // and shade, how far a facing to or from the light moves it), less fall
+    // towards its feet and crease under another material, on a ramp of two
+    // deeper tones, its own four and a lighter one. run: [least, most] px a
+    // stroke; jitter: a stroke's tone, give or take; rim: the chance a lit
+    // top edge pixel catches the light (rimHi: the top tone); under: how
+    // dark its lowest edge goes. elite: how much of its lit rim takes its
+    // affix's colour.
+    // read: how a creature is made to read on any ground (fpReadable): top,
+    // left, the chance a silhouette px on the light's side catches it, lit
+    // drawn that far towards pale; shade, dark: the chance one on the shadow
+    // side (or a thin limb) sinks, and how far towards the violet black;
+    // glow: how much of its lit rim is laid over the light in the darkest
+    // place (times its darkness), drawn glowLit towards pale; shadow: the contact shadow's [rim, core]
+    // darkness.
+    foes: {
+      base: 0.47, light: 0.9, shade: 0.8, depth: 3, fall: 0.16, crease: 0.14, run: [2, 4], jitter: 0.32, rim: 0.85, rimHi: 0.35, under: 1, elite: 0.7,
+      read: { top: 0.9, left: 0.6, lit: 0.28, glowLit: 0.6, pale: [255, 236, 200], shade: 0.85, dark: 0.55, glow: 0.7, shadow: [0.4, 0.62] },
+    },
+    // The Kindler's animation (diver.js kindlerPick): cycle, art px walked
+    // a walk cycle seen from the side (two steps), shortened seen from in
+    // front by depthCycle of the view's foreshortening; tread, px a second
+    // the legs keep moving against a wall; startAt, the walk's first phase;
+    // start, s leant into the first steps; settle, s to the end of each
+    // stopping frame; idle, s an idle cycle (a weight shift, two breaths);
+    // turn, rad/s turning between facings; cast, where (of the pose) the
+    // wind-back, the strike and the follow-through end; warm, how many of the frames not
+    // yet wanted are built a draw (none, the draw one was wanted).
+    kindler: { cycle: 27, depthCycle: 0.5, tread: 30, startAt: 0.3, start: 0.2, settle: [0.08, 0.17], idle: 3.6, turn: 16, cast: [0.08, 0.32, 0.64], warm: 1 },
+  },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the
   // floor's seed on the render side, so play and generation never change).
@@ -796,6 +936,7 @@ const T = {
   //     share of tiles; scree: [least, most] pebbles); in the open (open).
   //   bed: the ground grown into round a plant: reach (px past its half
   //     width), squash (its depth for its width), fray (how ragged its edge),
+  //     strokes (how much its edge breaks in short strokes),
   //     deep (where it turns its darker tone); outer, inner: how far the
   //     ground there is drawn to the bed's colour, at its edge and within
   //     deep; drift: how strongly a thick drift's tiles are bedded, so its
@@ -833,7 +974,7 @@ const T = {
     floorP: 0.55, wallP: 0.5, ceilP: 0.4, hub: 0.4, space: 0.9, sameKind: 0.8, gather: [1, 3],
     stand: { cut: 0.5, minSuit: 0.45, reach: 2, rows: 3, gap: 5 },
     cover: { round: [2, 4], foot: 0.7, scree: [1, 3], open: 0.03 },
-    bed: { reach: 5, squash: 0.62, fray: 0.6, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6, drift: 0.6 },
+    bed: { reach: 5, squash: 0.62, fray: 0.6, strokes: 0.7, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6, drift: 0.6 },
     shadow: { pad: 1.5, ry: [1.2, 2.2], dx: 0.5, dy: 0.4, core: 0.68, rim: 0.84 },
     melt: { open: 3, zone: 6, pull: [0.55, 0.35, 0.15], ragged: 0.5, edge: 0.85, frontEvery: 7, frontMost: 5, ahead: 0.5, skirt: 0.6, roots: [1, 2], rootLen: [3, 6], rootDrop: 0.45 },
     faceMoss: 0.7, strands: { cut: 0.3, past: 3 }, lip: 3,
@@ -869,27 +1010,32 @@ const T = {
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: true,
     // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
     // baked: and the floor's fixed lights (lava, vents, glowing plants).
-    // eye: the brow lamp's height over the feet (world px; DIVER_LAMP's
-    // row is 29.75 art px up), where the lamp's light is centred; its
+    // eye: the brow lamp's height over the feet (world px; the painted
+    // Kindler's lamp is 39 art px up: diver.js), where the lamp's light is centred; its
     // shadows are cast from under it. rays: how many rays for each cell
     // round the edge of the light's reach; step: art px
     // a ray moves at a time through the wall line; reach: world px past
     // where a ray strikes rock that's still lit (the skin of rock it
     // strikes); top: what a rock top it doesn't reach keeps of it.
-    // props: what big things (big plants, enemies, portals) cast from the
-    // lamp. steps: the lamp's share of the light at a foot from which the
-    // rim, then the core, shows; dark: what's left of the ground's colour
-    // in the rim and in the core; core: the core's width and length, as
-    // shares of the shadow's; len: [world px at the foot, more for each
-    // world px from the lamp, most]; tall: the height (world px) that casts
-    // it that long, size: [least, most] the share for other heights; crown:
-    // a plant's shadow is at least this share of its whole width across
-    // (its crown's, not just its foot's); back: how far it rounds behind the
-    // foot (a share of its width); fray: how ragged its edges (in clusters
-    // of 2 art px); portal: a portal's half width (world px).
+    // cast (pshadow.js): what stands on the ground casts its silhouette.
+    // lamp: how much of the lamp's share of the light its shadow takes back
+    // (1: down to what the walls' shadows fall to), that share raised to
+    // pow (below 1, darker where the lamp's share is small); least: none
+    // where it's fainter than this at the caster's foot; lampK: [least, most]
+    // its length for its height (as far from the lamp as the lamp stands
+    // high: once); spread: how much a point light widens it further up (1
+    // as it would); edge: what a silhouette's edge pixel keeps of it. sun:
+    // by day, how dark the sun's shadow of what moves (its strength, as
+    // the baked ones' T.paint.shade.sun). fixedH: how high (px) the floor's
+    // fixed lights stand, fixedMin the share of the light at a plant's foot
+    // from which one casts, fixedK as lampK. home: the outpost's lanterns,
+    // forge and fire: min, the share from which they cast; k as lampK; dark,
+    // as lamp; full: the share that casts the full shadow; fireH: the fire's
+    // height; near: what moves casts only within this share of the lamp's
+    // reach of the Kindler.
     shadow: {
-      walls: true, baked: true, eye: 20, rays: 1.25, step: 2, reach: 3, top: 0,
-      props: { steps: [0.2, 0.38], dark: [0.66, 0.48], core: [0.62, 0.6], len: [9, 0.12, 18], tall: 30, size: [0.6, 1.3], crown: 0.3, back: 0.35, fray: 0.35, portal: 9 },
+      walls: true, baked: true, eye: 26, rays: 1.25, step: 2, reach: 3, top: 0,
+      cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, fireH: 8, near: 1 }, hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
     },
   },
 
@@ -899,7 +1045,7 @@ const T = {
   // way; up, how high (clear of the helm's brow lamp in every facing, over
   // its whole bob). ease: how quickly it catches up (a second); bob: [its
   // speed, how far (world px)].
-  wick: { back: [7, 4], aside: [6, 3], up: 21, ease: 5, bob: [3, 1.5] },
+  wick: { back: [7, 4], aside: [6, 3], up: 29, ease: 5, bob: [3, 1.5] },
 
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
   // at once (ui.js; hints wait their turn).

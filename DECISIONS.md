@@ -361,3 +361,130 @@ The designer noticed everything seemed to gleam or shine as the diver moved. Rec
 - **Band edges glide a pixel at a time** (`T.art.lampPerPixel`): each pixel's light is read off a slope through its cell, for every light, not only the lamp.
 - **A steady camera** (`T.art.steadyCam`): the camera follows the diver's whole art pixel.
 - **Cost:** about +2.8 ms a frame at phone size with the CPU slowed 4× (about 17%). Left as it was: lamp shadows on walls still step a cell, which is rare and local.
+
+## 2026-10-19: the painted style, phase 1 (branch `painted`)
+
+The designer approved moving the art from A+ to a painted style after Death Trash's, at today's framing. It ships whole on the `painted` branch; main changes only once the whole look is done. Phase 1 is the ground, the rock and the Kindler (`docs/PAINTED.md`, `js/paint.js`, `T.paint`).
+- **Strokes in the climes' own colours.** Ground and rock are short horizontal strokes (2 to 8 px, mostly short), each a tone from the light at its middle with a little jitter. The ramps come from each clime's palette (7 ground tones from its three floor colours, 10 rock tones from its rock and face colours); Death Trash's sepia isn't used. There are streaky lit patches, a dark line at a wall's foot, and rock shadows cast to the lower right under the sky.
+- **Rock rises.** A steep three-quarter camera. Each solid region becomes a heightfield: steep faces about 22 px tall, tops that round over, boulder bumps. A rock's top stands over the ground north of it and hides what stands there. Collision, generation and the golden hashes are untouched: the art only grows upwards from the same footprint.
+- **How it's shaded:**
+  - slabs with lit lips and dark cracks;
+  - strata on the faces;
+  - soot in the creases;
+  - a lit rim along the silhouette.
+  - Rock tops stay darker than the floor, and faces are lighter than tops, so walls read as walls.
+- **Occlusion.** Each actor, drawn in order of its feet, has the rock in front of it drawn back over it, in both layers. A table per 8 × 8 px block skips most actors at once, and boxes that haven't moved are cached.
+- **The lighting is kept.** The painted colours are albedo under the same light (variant G). The lamp's sight treats a cell as rock where rock is drawn, and lights faces up to their full height. The brow lamp's height and Wick's hover rose with the taller Kindler (`T.light.shadow.eye` 26, `T.wick.up` 29).
+- **Painted lazily, in chunks.** Painting the whole 52 × 52 floor in the new style took about 2.7 s with the CPU slowed 4×, against 0.63 s before. So it's painted 48 px at a time:
+  - the view and 2 tiles round it before the frame;
+  - out to 7 tiles at 3 ms a frame.
+  The rock is laid into the floor's own buffers, so a frame still draws the floor as one picture.
+- **The Kindler, painted, about 42 px tall,** in the approved blue and amber:
+  - a dark navy mass, with royal-blue lit edges on the helm, pauldrons, chest, knees and cuffs;
+  - a black pane with one glint, under the warm-white brow lamp;
+  - amber circuits;
+  - no outline.
+  It has five facings, an idle and a four-step walk each, and a cast pose in each. From three-quarters front the far arm casts, as it's on the aim's side. Wick is a painted disc.
+- **Cost, at phone size with the CPU slowed 4×** (three runs each, the diver walking a circle):
+
+  | | Before | After, area painted | After, first walk |
+  |---|---|---|---|
+  | Surface, median | 17.4 ms | 18.5 ms | about 21.3 ms |
+  | Surface, 95th percentile | 25.9 ms | 27.9 ms | |
+  | Deep, median | 16.3 ms | 17.7 ms | about 21.8 ms |
+  | Deep, 95th percentile | 24.0 ms | 21.2 ms | |
+  | Outpost, median | 15.3 ms | 15.9 ms | |
+  | Entering a territory | 1.7 s | 1.2 s | |
+  | Mining a tile | 4.6 ms | 14 ms | |
+
+  The first walk through new ground costs more while the chunks around it fill in.
+- **Left for later phases:**
+  - creatures, flora, props, stations, portals, effects and UI, which keep the A+ look;
+  - growth painted on wall faces, now hidden by the rock;
+  - hanging plants, which hang from the face's foot;
+  - flat ground effects, which aren't hidden by rock in front of them.
+
+## 2026-10-19: the painted style, flora, props, ore and drops (branch `painted-flora`)
+
+- **Flora keeps its shapes, painted over.** Every clime's pieces keep their letter grids, sizes, anchors and frames (so placement, sway, the melted foot and the glow lights don't move), but are painted by `pflSprite` (`js/pflora.js`) instead of being shaded and outlined:
+  - no outline and no sel-out; the shadowed side keeps a rim of the material's own deepest tones where the outline was, so a mass keeps its weight;
+  - masses shaded by form from the upper left and laid in short strokes of an eight-tone ramp per material, drawn from today's palettes (`pntRamp`);
+  - foliage broken into loose clumps, frayed in pairs of pixels, with a few strays over it;
+  - anything upright and a pixel or two across is a strand: dark at the foot, lighter up it, its tip lightest.
+  Fen grass and snow tufts are painted by hand as fields of strands.
+- **The ground cover is painted by hand.** Tufts are fans of one-pixel rootlets with lighter tips, uneven and bending; moss is a clump of lit domes; pebbles are rounded and lit; roots are humps half sunk; the stands are dense fields of leaning strands whose feet don't line up. The edges of the beds break in short strokes.
+- **Ore is clusters of crystal prisms** breaking out of a dark socket in the rock's top, lit on the left facet, with a white glint and a glowing tip, flecks of the ore in the rock round it, and one crystal on the face. It stays the brightest, clearest thing in a scene; nothing in the flora is in an ore's colour or shape.
+- **Props and drops.** The spire, the waystones and the portals are drawn as before and then laid in strokes of the lodestone's ramp, with no sel-out (`pflRepaintProp`). The rift's tear is painted from its grid. Drops are small painted sprites: a heap of three prisms for ore and stuff, a cut gem for gear, each on a contact shadow.
+- **Cost.** Sprites and stamps are built once and cached, so a frame costs the same (deep median about 18 ms with the CPU slowed 4×, as before).
+
+## 2026-10-19: the creatures, painted (branch `painted-foes`)
+
+Every creature is repainted to `docs/PAINTED.md` (`js/foespaint.js`, `T.paint.foes`), keeping its size, anchor, silhouette and colours, so hitboxes and the bars over it don't move and each kind still reads apart on a phone.
+- **From shapes.** The crawler, wisp, construct, warden, target and the Hollow, and all eleven climes' creatures in every frame they had, are painted with `PntSpr` shapes (the old grids were the guide): dark masses in strokes lit from the upper left, a lit rim along the top, eyes as single bright pixels, crystals faceted and lit on their left. No outlines.
+- **From grids.** The Shard Keepers and the fighting plants keep their hand-drawn grids, painted in strokes on deeper ramps. Critters are flat colours with a lit top edge.
+- **New frames.** The crawler and the construct (and the warden) have a walk and a wind-up, the wisp and the Hollow a sway.
+- **Cues.** A struck creature still flashes a white rim. An elite keeps its pip, and its lit rim glows in its affix's colour instead of an outline.
+- **Cost.** A floor's creatures are painted as it's entered (about 40 ms for a region's common set with the CPU slowed 4×). A fight's frame costs what it did.
+
+## 2026-10-19: the painted style, the rock and ground polished (branch `painted-rock`)
+
+Phase 1's rock read as soft mud blotches, its paint went quiet under the dim light of dark land, dusk and the Deeps, and wall growth, hanging plants and the ground's effects didn't sit right against the rising rock. Against the style sample (`docs/PAINTED.md`):
+- **Boulders and flat facets.** A rock's heights are now a heap of seeded domes, a few big masses a screen, with creases where they meet. The rock is cut into wide slab cells, each a flat plane tilted its own way off the boulders' slope, with a crack along its foot and a lit bevel under it in broken lengths (cracks on every edge read as cracked mud, as phase 1 found). Faces are darker than lit tops, with strata; the lit rim is only where a top faces the light.
+- **Ramps evenly spaced, and painted for the light.** Ground and rock ramps are still the climes' own colours, but their tones are spread evenly in lightness, so neighbouring strokes always differ. A floor in a dim place is painted with its lighter tones raised (the darks stay), so strokes, facets and lips still read once the dim light multiplies them; mid tones are raised no more than the ground's, so rock tops stay darker than the floor. Kindling a territory paints it again for daylight.
+- **Ground strokes pushed:** more stroke jitter, streakier and harder-edged lit patches. Cloud shadows by day are broken in strokes, not dithered.
+- **Wall growth on the rock layer**, stretched to the taller faces (moss, roots, vines, icicles, a mesa's fringe, Rootdeep's roots); hanging plants hang from the face's lip; a tear's wash and a graft's look reach the rock; the ground's flat effects are hidden behind rock, tile by tile.
+- **Mining still matches a fresh paint** (the rock layer exactly; the facets read only the boulders, so mining changes none). The heights after mining are now worked out as far as the wall line moves, which phase 1 missed.
+- **Cost, at phone size with the CPU slowed 4×,** against phase 1 measured the same hour (three runs each):
+
+  | | Phase 1 | Now |
+  |---|---|---|
+  | Walking painted ground, median (surface / Deep / outpost) | 19.6 / 18.3 / 16.1 ms | 19.3 / 18.1 / 15.9 ms |
+  | Walking new ground, median (surface / Deep / outpost) | 17.6 / 17.7 / 15.6 ms | 18.6 / 19.1 / 16.9 ms |
+  | Walking new ground, 95th percentile, Deep | 21.1 ms | 24.1 ms |
+  | Entering a territory / a Deep | 1.13 / 0.86 s | 1.33 / 1.05 s |
+  | Mining a tile | 14.5 ms | 21 ms |
+
+  A painted chunk costs a little more, so the first walk through new ground and entering cost more; ground already painted costs the same.
+
+## 2026-10-19: the painted style, the cleanup pass (branch `painted`)
+
+After the four phase-2 branches were merged, a pass over what didn't hold together:
+- **Domes lit from the upper left.** `PntSpr.ell`'s light term had the wrong sign, so the Kindler's helm, his plate, Wick and the outpost's people were lit from the lower right. Fixed, and the creatures' own copy folded into it. The Kindler's helm and pauldrons were rebalanced so the lit cap isn't too broad.
+- **Creatures read on any ground without an outline:** a broken lit edge on the light's side, the shadow side and thin limbs sunk into their deepest tones, a darker contact shadow; in a dark place the lit edge also shows on the glow layer, more the darker the place, as the floor there is painted lighter for the dark and a dark creature on it vanished. The skink (on Badlands' ochre) and the Moss Idol (in the Temple) are a step darker.
+- **Fighting plants are painted by the flora's own painter,** so a snapjaw or a spitter matches the plants it imitates; its glow stays red.
+- **Walls read as walls again.** A rock's middle tone is held to half the floor's at most (`T.paint.rampEven.under`), its lips and rims untouched; Rootdeep's and the Temple's rock had come within reach of their floors. The Temple's (and a ruin's) rock is dressed masonry in courses, a few blocks fallen out.
+- **Effects:** swept rings painted along their curve with a deep inner edge (a frost ring holds on snow; a Nova no longer looks like bands of dashes); chain arcs and the storm's strike are forking painted bolts, not jagged lines; a death's splash has a wet lit edge and glowing flecks, and holds on a dark floor.
+- **Settlers' hoods** have a lit edge, a face in the opening and a goggle glint.
+- **Big planes on the rock:** where a broad noise says so, a top is cut into cells two and a half times bigger with fewer cracks, so big flat tops (Frost, Cinder) aren't an even mosaic.
+- **Mining paints less again:** only the rock round the heights that changed, and one row less of ground in caves. It still matches a fresh paint. Mining a tile with the CPU slowed 4× went from about 25.5 to 20.5 ms on the machine measured (`test/out/cl/mine.js`, median of 11; the rock phase's 21 ms was on a faster hour). Frame times walking are unchanged (median Deep 26.4 / surface 26.2 ms before and after, measured the same hour).
+
+
+## 2026-10-19: the painted style, below the floor (branch `painted`)
+
+The user's playtest: the perspective didn't look right, because the ground looked flat beside the rock. Rock rose with a steep three-quarter camera, but everything below the floor (pools, lava, ice, vents, the outpost's sinkhole) was still drawn flat, so tall rock stood beside holes with no depth. Now holes are seen from the same camera (`docs/PAINTED.md`, "Below the floor"; `js/painthole.js`, `T.paint.hole`):
+- **A hole shows its far wall.** A point below the floor is drawn lower by its depth, so each column shows its north inner wall from the rim down, then the bottom; the near wall hides under the near rim; east and west walls are narrow faces, lit where they turn to the light. Walls are strokes with strata, upright planes and the odd crack; the far lip is lit, and the near rim catches the light.
+- **Liquids sit down in their beds:** pools and lava 6 px down, ice 4, under a bank cut in the ground. The surface keeps its look and animation, set down; water is shaded under its far and west banks; lava lights its own bank with strokes of its colour. Walkers in a pool or lava stand down in it with their shins under the surface (only the picture moves).
+- **The sinkhole drops into the dark:** its far wall shows for 84 px, darkening to soot, then black, with the star's gold laid on it in loose strokes. A vent's throat shows its wall above the fire.
+- **Unchanged:** footprints, `hazardAt`, collision, generation and the golden hashes. Mining near a hazard repaints the same as before (the pixels that differ from a fresh paint there are the same ones, as many, before and after).
+- **Cost,** with the CPU slowed 4×, three runs each, a Flooded Grotto Deep walking a circle over a pool, measured the same hour: median 32.1 → 31.0 ms, 95th percentile 44.9 → 41.8 ms; the outpost's median 24.0 → 24.9 ms; painting a whole floor 340 → 315 ms (within noise: it's all painted once with the floor).
+- **Deeper, after review** (the 6 px banks were too quiet beside 22 px rock faces in Grotto and Magma light): pools 12 px down, lava 11, ice 7, so the bank reads at 1× on a phone: a lit lip two rows deep, strata, darker to a wet band at the waterline; Grotto's glow sits on the water's edge, not round the cut; the near rim's lip is two rows. Waders are cut cleanly at the surface (and by the near rim), a ring of the surface's light round them. The sinkhole's edge is broken by noise instead of following the tiles. A vent's fire is a painted flame. Cost unchanged (Grotto Deep median 30.1 → 29.4 ms, outpost 23.7 → 23.4 ms, against `cd4fa11` the same hour).
+
+## 2026-10-19: the Kindler, sleeker and posed (branch `painted-kindler2`)
+
+The painted Kindler read as a robot: very wide, big joints, a stiff four-step walk. He's now a lithe person in a fitted suit, after the approved blue-and-amber design (opt11): shoulders not much wider than the hips, a tapered waist, slim limbs, small close-fitting plates instead of pauldrons and knee and elbow joints, a smaller helm (a dark visor with a lit rim, one glint and the brow lamp; a lit ridge behind), the amber V to the seed-star, cuffs and shins, a small pack. Same height (about 42 px), feet, lamp and occlusion box.
+
+- **Posed, not drawn.** Each frame is rendered from a skeleton set by a pose (`diver.js`: `kdPose`, `kdRig`, `kdRender`): the body is sampled, projected as the camera sees, kept where nearest, shaded from the upper left and laid in strokes that stick to the body. One body makes every facing and pose consistent, so the motion can be fluid.
+- **Moves like a person.** An eight-frame walk driven by the distance walked (contact, down, passing, up), hips and shoulders turning against each other, arms swinging a frame behind the legs with bending elbows, the pack lagging, the head bobbing less; an idle that breathes and shifts its weight; a lean into the first steps and a settle on stopping; turning through the facings between instead of snapping; the cast's wind-back (held while charging), strike, follow-through and recovery with the shoulders and hips turning into it (gameplay is unchanged: the spell leaves at the strike); a leant, stretched dash.
+- **Cost.** About 1.5 ms a frame to build (desktop). The start builds 12 frames (110 ms at 4× CPU, down from 270 ms); the rest are built as first wanted, and the common ones one a draw in the background, which adds about 5 ms to the median frame (4× CPU) for the first few seconds of a run; after that frame times are as before.
+
+## 2026-10-19: everything standing casts a shadow (branch `painted-shadows`)
+
+The designer liked the walls' shadows from the lamp but found it "weird" that plants and other things had none. Now everything standing on the ground casts one, in the same light as the walls (`js/pshadow.js`, `T.light.shadow.cast`, `T.paint.shade`, `docs/PAINTED.md`):
+- **Its own silhouette.** A shadow is the caster's sprite alpha laid flat on the ground away from the light, stretched by how low the light is, its edge softening further from the foot. It replaces the old soft prop shadows (two-step ellipses from the lamp).
+- **The lamp's,** each frame, from the plants, creatures, portals, spire, waystones and field forge within its reach: each pixel takes back the lamp's share of the light there, so it falls to what the walls' shadows fall to, and none falls where the lamp's sight doesn't reach. Tall things cast long ones (up to 1.6 times their height, `lampK`); where the lamp's shadow would be faint at a foot (`least`) there's none. It follows the brow lamp's whole art px and has no noise in it, so it glides a pixel at a time ("light holds still").
+- **The sun's,** by day under the sky, to the lower right with the mesas' slope: for the plants, stands and tufts baked into the ground's own tones and strokes; for what moves (the Kindler, creatures, portals, the spire, Wick's blob) each frame, as dark.
+- **Other lights:** a plant's shadow from the strongest fixed light that sees it (lava, vents, glowing plants), baked; at the outpost, the stations', tents', lanterns' and crates' from the lanterns, the forge and the fire, baked, and the Kindler's and settlers' near him each frame. The lamp casts nothing at home, where the plaza is lit (it cost too much there, as its props are big).
+- **Contact shadows:** under every plant, stand and tuft, soft and baked into the ground's strokes, so feet melt into the ground; under creatures, people, props and drops, an ellipse of short horizontal strokes with ragged ends instead of the hard-edged one.
+- **Occlusion:** shadows are drawn before anything stands on the ground, and a pixel of rock takes one only if it stands behind the caster's feet, so a shadow climbs the face of a wall behind it but never covers rock in front.
+- **Cost** (phone size, CPU slowed 4×, the Kindler walking loops, shadows on and off alternately in one page, median frame): about +1.2 ms in Bloomfen at dusk under the lamp (27.2 → 28.4 ms), +0.1 ms there by day, +1.5 ms in a Deep (Rootdeep, 23.2 → 24.7 ms), +1.4 ms at the outpost. Separate runs of the old branch against this one agree (Bloomfen dark 28.5 → 29.6, Deep 24.9 → 26.7, outpost 28.5 → 29.4 ms, all medians of three or more). What keeps it there: the lamp's shadows are worked out only within its reach and not where they'd be faint at the foot (`least`), each row only across its shadow, the share of the light read off a table by distance squared, and drawn as one box of black onto the view (multiplying cost more); side data is kept in WeakMaps so the sprites' and plants' shapes never change (adding properties to them deoptimised the drawing). Everything else is baked, at about 0.1 s more on entering a territory (1.78 → 1.88 s).
+- **After review** ("the flying orbs have a square shadow"): the painted creatures' anchors fall between pixels, so their cast shadows read the silhouette at fractional rows and filled their whole box; the row is rounded now, and every creature casts its own outline. What hovers keeps only a faint, small spot under it (`hover`), not the walkers' full foot shadow.

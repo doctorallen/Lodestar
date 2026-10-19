@@ -72,61 +72,21 @@ function resizeView() {
 }
 
 // The diver in eight facings, indexed clockwise from east (E, SE, S, SW, W,
-// NW, N, NE): the five drawn ones and mirrors of three. Each facing is
-// [idle, walk ×4], and each sprite knows its feet (ax, ay), its main
-// hand (hand) and its brow lamp's middle (lamp).
+// NW, N, NE): the five painted ones and mirrors of three (diver.js). Each
+// facing's [0] is its first idle frame (the rest: kindlerPick), and each
+// sprite knows its feet (ax, ay), its hands (hand, offHand) and its brow
+// lamp's middle (lamp); the cast pose's strike in each facing, [main hand,
+// off hand][0], knows its fist (castHand), the other hand (restHand) and
+// whether that one is behind the body (restBehind).
 const FACINGS = ['E', 'SE', 'S', 'SE', 'E', 'NE', 'N', 'NE'];
 const MIRRORED = [false, false, false, true, true, true, false, false];
 function buildSprites() {
-  Sprites.diver = FACINGS.map((name, i) => DIVER_FRAMES[name].map((rows) => {
-    let s = buildArtSprite(rows, DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS, ART_CREATURE);
-    s.ax = s.w / 2; s.ay = s.h - footOff(2.5);
-    const [hx, hy] = DIVER_HAND[name], hand = { x: spritePt(s, hx), y: spritePt(s, hy) };
-    // (the lamp a point, not a pixel: past the outline, mirrored about the middle)
-    const lamp = { x: DIVER_LAMP[name][0] + 1, y: DIVER_LAMP[name][1] + 1 };
-    s.hand = hand; s.lamp = lamp;
-    if (MIRRORED[i]) { s = flippedSprite(s); s.hand = { x: s.w - 1 - hand.x, y: hand.y }; s.lamp = { x: s.w - lamp.x, y: lamp.y }; }
-    s.flash = tinted(s.c, '#ffffff');
-    return s;
-  }));
-  // the cast pose in each facing, [main hand, off hand] × [idle, walk ×4];
-  // each knows its fist (castHand), the other hand (restHand) and whether
-  // that one is behind the body. (Each drawn pose is built once, and
-  // flipped for the mirrored facings.)
-  const built = new Map();
-  Sprites.diverCast = FACINGS.map((name, i) => {
-    const idle = DIVER_FRAMES[name][0], W = idle[0].length, split = DIVER_CAST_SPLIT[name];
-    return [false, true].map((off) => {
-      const mir = off && (name === 'S' || name === 'N'), cast = mir ? diverCastMirror(DIVER_CAST[name], idle) : DIVER_CAST[name];
-      const pt = (q) => (q ? { x: (mir ? W - 1 - q[0] : q[0]) + 1, y: q[1] + 1 } : null);
-      return DIVER_FRAMES[name].map((walk, k) => {
-        const key = `${name} ${mir} ${k}`;
-        let s = built.get(key);
-        if (!s) {
-          s = buildArtSprite(artNative(k ? diverCastRows(cast, idle, walk, split) : cast.slice()), DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS, ART_CREATURE);
-          s.ax = s.w / 2; s.ay = s.h - footOff(2.5);
-          s.castHand = pt(DIVER_CAST_HAND[name]); s.restHand = pt(DIVER_CAST_REST[name]); s.restBehind = DIVER_CAST_BEHIND[name];
-          s.flash = tinted(s.c, '#ffffff');
-          built.set(key, s);
-        }
-        // (the idle hand too, for the other hand where it has no place of its own)
-        if (!MIRRORED[i]) { s.hand = Sprites.diver[i][k].hand; return s; }
-        const f = flippedSprite(s);
-        f.hand = Sprites.diver[i][k].hand;
-        f.castHand = { x: s.w - 1 - s.castHand.x, y: s.castHand.y };
-        f.restHand = s.restHand && { x: s.w - 1 - s.restHand.x, y: s.restHand.y };
-        f.flash = flipped(s.flash);
-        return f;
-      });
-    });
-  });
-  Sprites.drone = buildArtSprite(DRONE_ROWS, null, DRONE_LETTERS, [], ART_CREATURE);
+  const K = buildKindlerSprites(FACINGS, MIRRORED);
+  Sprites.diver = K.diver;
+  Sprites.diverCast = K.cast;
+  Sprites.drone = wickSprite();
 }
-// The drone's body, drawn by hand at the art's size (artNative): a disc of
-// grey plate with its brass antenna (ART.pal's). Its eye is drawn over it,
-// the way the diver looks, in Wick's own teal, with a violet glow under it.
-const DRONE_ROWS = artNative(['....M..', '...M...', '..GGG..', '.GGGGG.', 'GGGGGGG', 'GGGGGGG', 'GGGGGGG', '.GGGGG.', '..GGG..']);
-const DRONE_LETTERS = { G: ['plate'], M: ['metal'] }, WICK_EYE = '#7dffd8', WICK_UNDER = '#c9a2ff';
+const WICK_EYE = '#7dffd8', WICK_UNDER = '#c9a2ff';
 
 // Where the diver's brow lamp is (art px in the world), the way it faces
 // (to the aim, while casting): the idle frame's, so the light doesn't bob.
@@ -168,7 +128,7 @@ const rgb01 = (hex) => rgbOf(hex).map((v) => v / 255);
 const _floraSprites = {};
 function floraSprite(set, piece, frame) {
   const key = set + '/' + piece.name + '/' + frame;
-  if (!_floraSprites[key]) { const k = floraKit(set); _floraSprites[key] = buildArtSprite(piece.frames[frame], k.pal, k.letters, k.glows, { openFoot: piece.anchor === 'ceiling' ? 0 : T.flora.melt.open }); }
+  if (!_floraSprites[key]) { const k = floraKit(set); _floraSprites[key] = pflFloraSprite(set, piece, frame, k); }
   return _floraSprites[key];
 }
 // Which plants grow on a floor: its clime's own, if it has them; else the
@@ -186,7 +146,8 @@ function drawFlora(d, fl, ox, oy, lights) {
   const frame = p.frames.length > 1 && !sky ? Math.floor(Game.realT * 2 + fl.phase * 2) % 2 : 0;
   const spr = fl.top ? floraSprite(fl.set, p, frame) : ugMelted(floraSprite(fl.set, p, frame));
   const fx = Math.round(fl.x * AP) + ox, fy = Math.round(fl.y * AP) + oy;
-  const sx = Math.round(fx - spr.w / 2), sy = fl.top ? fy : fy - spr.h + 1;
+  // (a hanging one from the lip of the face it hangs on: paintrock.js)
+  const sx = Math.round(fx - spr.w / 2), sy = fl.top ? fy - (fl.lip === undefined ? (fl.lip = pnrLipAbove(fl.x * AP, fl.y * AP)) : fl.lip) : fy - spr.h + 1;
   if (sx > View.w || sy > View.h || sx + spr.w < 0 || sy + spr.h < 0) return;
   drawLeaning(spr.c, ugGlows(spr) ? spr.ec : null, 0, 0, spr.w, spr.h, sx, sy, fl.amp || 0, fl.top, fl.over !== false);
   if (fl.front) drawFootFront(fl, ox, oy);
@@ -226,13 +187,9 @@ function paintFloor(f) {
   fillRockField(f, 0, 0, P.w, P.h);
   // what grows here first: its beds are painted with the tiles
   View.flora = placeFlora(f, floraSetOf(f));
-  for (let ty = 0; ty < f.h; ty++) for (let tx = 0; tx < f.w; tx++) paintTileArt(f, tx, ty);
-  paintGraft(f, 0, 0, f.w - 1, f.h - 1);
-  tintRift(f, 0, 0, P.w, P.h);
-  View.floorImgs = [new ImageData(P.col, P.w, P.h), new ImageData(P.em, P.w, P.h)];
-  let x;
-  [View.floorCol, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[0], 0, 0);
-  [View.floorEm, x] = makeCanvas(P.w, P.h); x.putImageData(View.floorImgs[1], 0, 0);
+  // the ground and the rock standing up over it are painted in chunks as
+  // the view comes near them (paint.js, pntFrame)
+  pntFloorStart(f);
   View.lights = floorLights(f);
   View.floraLights = floraLights(View.flora);
   View.bakedFrom = null;
@@ -253,29 +210,45 @@ function paintTileArt(f, tx, ty) {
   _tileSeed = hashInts(f.seed, f.depth, tx, ty) | 0;
   const rnd = tileRnd;
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
-  if (t === TILE_PIT) { paintPitTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth); return; }
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
+  // (the sinkhole, falling away below the floor: painthole.js)
+  if (View.pitPx) phlPaintPit(P, f, tx, ty, ox, oy, b);
+  if (t === TILE_PIT) return;
   if (f.clime) paintClimeTile(P, f, tx, ty, ox, oy, b);
   paintUndergrowth(P, f, tx, ty, ox, oy, b);
+  // (ore and veins are on the rock layer: paint.js)
   if (t === TILE_PAD) paintDish(P, ox, oy);
-  else if (t === TILE_ORE) {
-    const front = !TILE_SOLID[floorTile(f, tx, ty + 1)];
-    paintOre(P, ox, oy, b, rnd, ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id], front ? ATILE - FACE_H : ATILE, front ? FACE_H : 0);
-  } else if (t === TILE_ROCK && (hashInts(f.seed, tx, ty, 0x7e1) & 255) < 18) paintRockVein(P, rock, ox, oy, b, rnd);
 }
 
 // After mining: the wall line moves round tx, ty, and with it the rims,
 // faces and shadows of the tiles about it.
+// The rock stands up over the ground north of it (paint.js), so the rock
+// layer is painted again over all it lifts.
 function repaintAround(f, tx, ty) {
   if (View.floorFor !== f) return;
   const T2 = ATILE;
+  // (painted first, if it isn't yet, from the rock as it was)
+  pntEnsure(f, (tx - 2) * T2, (ty - 3) * T2, (tx + 3) * T2, (ty + 3) * T2);
   fillRockField(f, (tx - 1) * T2, (ty - 1) * T2, (tx + 2) * T2, (ty + 2) * T2);
-  for (let y = ty - 2; y <= ty + 2; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
-  paintGraft(f, tx - 1, ty - 2, tx + 1, ty + 2);
-  tintRift(f, (tx - 1) * T2, (ty - 2) * T2, (tx + 2) * T2, (ty + 3) * T2);
-  const dx = Math.max(0, tx - 1) * T2, dy = Math.max(0, ty - 2) * T2;
-  View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, dx, dy, 3 * T2, 5 * T2);
-  View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, dx, dy, 3 * T2, 5 * T2);
+  // the heights first (the ground's sun shadows read them), then the
+  // ground, then the rock
+  // (the wall line moves up to half a tile past the tile, and the heights
+  // as far again as they read it)
+  // (and what of them changed bounds how much rock is painted again)
+  const Wl = T.paint.wall, m = Math.max(Wl.edge, Wl.ramp) + 2 + T2 / 2, hb = pntHfWatch(f, tx * T2 - m, ty * T2 - m, (tx + 1) * T2 + m, (ty + 1) * T2 + m);
+  pntHeights(f, tx * T2 - m, ty * T2 - m, (tx + 1) * T2 + m, (ty + 1) * T2 + m);
+  const changed = pntHfChanged(hb);
+  // (the ground as far up as the rock stood over it, and down as far as
+  // the wall's foot moved: a row further under the sky, where the rock's
+  // shadow falls to the lower right)
+  const below = artBiome(f).sun ? 2 : 1;
+  pntGroundTones(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
+  for (let y = ty - 3; y <= ty + below; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
+  paintGraft(f, tx - 1, ty - 3, tx + 1, ty + below);
+  tintRift(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
+  pntRepaintRock(f, tx * T2, ty * T2, (tx + 1) * T2, (ty + 1) * T2, changed);
+  // (the rock laid back over the ground's tiles too, where they're under it)
+  pntComposite(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
   View.lights = floorLights(f);
 }
 
@@ -284,7 +257,8 @@ function floorLights(f) {
   const L = [], Lt = T.light;
   for (let ty = 0; ty < f.h; ty++)
     for (let tx = 0; tx < f.w; tx++)
-      if (floorTile(f, tx, ty) === TILE_ORE) L.push({ x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE, r: Lt.ore[0] * TILE, i: Lt.ore[1], c: rgb01(ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][2]) });
+      // (where the rock stands it up to, unshadowed: it glows from the rock)
+      if (floorTile(f, tx, ty) === TILE_ORE) L.push({ x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE - pntLiftAt((tx + 0.5) * ATILE, (ty + 0.5) * ATILE) / AP, r: Lt.ore[0] * TILE, i: Lt.ore[1], c: rgb01(ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][2]), inRock: true });
   return f.clime ? L.concat(hazardLights(f), climeLights(f)) : L;
 }
 
@@ -318,22 +292,33 @@ function drawArtSprite(spr, x, y) {
   ex.drawImage(spr.ec, x, y);
 }
 
-// The lodeline's beam, as dots dithered down a strip 2 × half wide at x;
-// one of each kind drawn once and kept.
+// The lodeline's beam, painted: runs of the star's gold down a strip 2 ×
+// half wide at x, a tone a run, its middle the hottest, its edges a broken
+// deeper gold; the runs slide down a little each tick. One of each kind
+// drawn once and kept.
 const _beamStrips = new Map();
 function beamStrip(x, tick, half) {
   const key = `${x & 3} ${tick & 3} ${half} ${View.h}`;
   let c = _beamStrips.get(key);
   if (c) return c;
   if (_beamStrips.size > 64) _beamStrips.clear();
-  const star = ART.pal.star, w = 2 * half, h = View.h, img = new ImageData(w, h), d = img.data, lit = rgbOf(star[2]), rim = rgbOf(star[1]);
-  for (let y = 0; y < h; y++)
-    for (let i = -half; i < half; i++) {
-      const edge = i === -half || i === half - 1;
-      if (bayerAt(x + i, y + tick) > (edge ? 0.45 : 0.75)) continue;
-      const k = (y * w + i + half) * 4, col = edge ? rim : lit;
-      d[k] = col[0]; d[k + 1] = col[1]; d[k + 2] = col[2]; d[k + 3] = (edge ? 0.55 : 0.8) * 255;
+  const star = ART.pal.star, w = 2 * half, h = View.h, img = new ImageData(w, h), d = img.data;
+  const tones = [star[1], star[2], star[3]].map(rgbOf);
+  for (let i = -half; i < half; i++) {
+    const e = Math.abs(i + 0.5) / half, col = x + i;
+    for (let y = -12, run = 0, ti = 0, gap = false; y < h; y++) {
+      if (run <= 0) {
+        const cell = Math.floor((y + tick * 3) / 4), hh = artHash(col, cell, 0xbea);
+        run = 3 + Math.floor(artHash(col, cell, 0xbeb) * 7);
+        gap = hh < (e > 0.7 ? 0.45 : 0.12);
+        ti = e < 0.4 ? (hh > 0.45 ? 2 : 1) : e < 0.7 ? (hh > 0.7 ? 2 : 1) : (hh > 0.85 ? 1 : 0);
+      }
+      run--;
+      if (y < 0 || gap) continue;
+      const k = (y * w + i + half) * 4, t = tones[ti];
+      d[k] = t[0]; d[k + 1] = t[1]; d[k + 2] = t[2]; d[k + 3] = (e > 0.7 ? 0.55 : 0.85) * 255;
     }
+  }
   [c] = makeCanvas(w, h);
   c.getContext('2d').putImageData(img, 0, 0);
   _beamStrips.set(key, c);
@@ -704,7 +689,8 @@ function renderFrame() {
   const d = Game.dive;
   if (!d) { View.emCtx.clearRect(0, 0, View.w, View.h); View.bloomCtx.clearRect(0, 0, View.w, View.h); return; }
   const f = d.floor, p = d.p, Lt = T.light, star = ART.pal.star;
-  if (View.floorFor !== f) paintFloor(f);
+  // (and the creatures it holds are painted now, not mid-fight)
+  if (View.floorFor !== f) { paintFloor(f); fpWarm(d); }
   // the camera, in art px
   const fw = f.w * ATILE, fh = f.h * ATILE, pxA = p.x * AP, pyA = p.y * AP;
   // (T.art.steadyCam: from the diver's whole art px, so he stands on the
@@ -716,6 +702,8 @@ function renderFrame() {
   // at home the camera looks further up, to keep the star in sight
   const lookUp = ap(d.hub ? 56 : 8);
   const camY = (View.camY = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h)));
+  // the floor's painted chunks in view and near it (paint.js)
+  pntFrame(f, camX, camY);
   const sh = View.shake > 0.3 ? View.shake * AP : 0;
   // a world point x, y is drawn at Math.round(x * AP) + ox, Math.round(y * AP) + oy
   const ox = -camX + Math.round(FX_R.f(-sh, sh)), oy = -camY + Math.round(FX_R.f(-sh, sh)), ex = View.emCtx;
@@ -727,6 +715,12 @@ function renderFrame() {
   drawLampShadows(d, ox, oy);
   // lights: x, y on the view (art px), r in world px
   const lights = [];
+  // what's drawn flat on the ground, then the rock in front of it laid
+  // back over it all (paintrock.js)
+  if (!d.hub) { drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights); }
+  drawWorldUnder(d, ox, oy, lights);
+  drawCastGround(d, ox, oy, tick, lights);
+  pnrOccludeGround(ox, oy);
 
   // ore twinkles, so it's the one thing in the rock that catches the eye
   const tx0 = Math.max(0, Math.floor(camX / ATILE)), ty0 = Math.max(0, Math.floor(camY / ATILE));
@@ -735,7 +729,7 @@ function renderFrame() {
       if (f.tiles[ty * f.w + tx] !== TILE_ORE) continue;
       const h = hashInts(tx, ty, 0x7a1), ph = (Game.realT * 1.6 + (h & 255) / 255) % 1;
       if (ph > 0.22) continue;
-      const k = ph < 0.11 ? ph / 0.11 : (0.22 - ph) / 0.11, cx = tx * ATILE + ox + ap(3) + (h >> 8) % ap(10), cy = ty * ATILE + oy + ap(3) + (h >> 12) % ap(6);
+      const k = ph < 0.11 ? ph / 0.11 : (0.22 - ph) / 0.11, cx = tx * ATILE + ox + ap(3) + (h >> 8) % ap(10), cy0 = ty * ATILE + ap(3) + (h >> 12) % ap(6), cy = cy0 + oy - pntLiftAt(cx - ox, cy0);
       dot(cx, cy, '#ffffff', true, k);
       if (k > 0.5) for (const [i, j] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) dot(cx + i, cy + j, ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][3], true, k * 0.7);
     }
@@ -756,24 +750,27 @@ function renderFrame() {
   }
 
   if (d.hub) drawHubUnder(d, ox, oy, tick, lights);
-  if (!d.hub) { drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights); }
-  drawWorldUnder(d, ox, oy, lights);
-  drawCastGround(d, ox, oy, tick, lights);
+  // what stands up off the ground, each behind the rock by its feet
+  if (!d.hub) drawHazardsStanding(d, ox, oy, tick, lights);
+  cfxDrawGroundGhosts(d, ox, oy);
   if (d.fieldForge) {
     const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * ATILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * ATILE + oy - spr.ay + ap(6));
     drawArtSprite(spr, x, y);
-    lights.push({ x: x + spr.w / 2, y: y + spr.h / 2, r: TILE * 1.8, i: 0.9, c: rgb01(ART.pal.glass[0]) });
+    const fire = hartForgeFire(Math.floor(Game.realT * 9) % 3);
+    drawArtSprite(fire, x + HART_MOUTH.x - (fire.w >> 1), y + HART_MOUTH.y - (HART_MOUTH.h >> 1));
+    lights.push({ x: x + HART_MOUTH.x, y: y + HART_MOUTH.y, r: TILE * 1.8, i: 0.9, c: rgb01(ART.pal.glass[0]) });
   }
 
   // loot on the floor, then everyone in order of their feet, then what flies
-  for (const dr of d.drops) drawDrop(dr, ox, oy, lights);
+  for (const dr of d.drops) { drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8, Math.round(dr.y * AP) + oy - 16, 16, 18, Math.round(dr.y * AP) + oy, ox, oy); }
   const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d))).concat(portalProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
+    // (a walker in a pool stands down in it: painthole.js)
+    const wade = phlWadeStart(d, a, ox, oy);
     if (a === p) drawProspector(d, ox, oy, tick, lights);
-    else if (a.wreck) drawUplink(d, ox, oy, lights);
-    else if (a.tent !== undefined) drawTent(d, a, ox, oy);
+    else if (a.hubDraw) a.hubDraw(d, a, ox, oy, lights);
     else if (a.settler) drawSettler(d, a, ox, oy, lights);
     else if (a.tear) drawRift(d, a, ox, oy, lights);
     else if (a.portal) drawPortal(d, a, ox, oy, lights);
@@ -781,6 +778,9 @@ function renderFrame() {
     else if (a.piece || a.strip) drawFlora(d, a, ox, oy, lights);
     else if (a.crit) drawCritter(d, a, ox, oy);
     else drawEnemy(d, a, ox, oy, tick, lights);
+    if (wade) phlWadeEnd();
+    // the rock in front of it, drawn back over it (paint.js)
+    paintOccludeActor(a, ox, oy);
   }
   // from here on (but at home, where the star goes over them) dots are queued
   LateDots.on = !d.hub;
@@ -828,7 +828,8 @@ function renderFrame() {
   drawCastAir(d, ox, oy, tick, lights);
   drawResonanceAir(d, ox, oy, tick, lights);
   if (d.hub) drawHubOver(d, ox, oy, lights);
-  for (const s of Sparks) dot(vx(s.x), vy(s.y), s.col, true);
+  // sparks: short streaks back along their way (castfx.js)
+  for (const s of Sparks) cfxSpark(vx(s.x), vy(s.y), s.vx, s.vy, s.col, s.t);
   if (!d.hub) drawHazardsAir(d, ox, oy, lights);
   drawLifeAir(d, ox, oy, lights);
   if (!d.hub) drawStorm(d, ox, oy, lights);
@@ -899,7 +900,8 @@ function renderFrame() {
     }
   }
   if (d.target) {
-    const tx = d.target.tx * ATILE + ox, ty = d.target.ty * ATILE + oy, c = ap(3);
+    // (round the rock's top, where it stands)
+    const tx = d.target.tx * ATILE + ox, ty = d.target.ty * ATILE + oy - pntLiftAt((d.target.tx + 0.5) * ATILE, (d.target.ty + 0.5) * ATILE), c = ap(3);
     o.fillStyle = Input.mining() ? '#fff2c8' : 'rgba(255,242,200,0.5)';
     for (const [cx, cy] of [[0, 0], [ATILE - c, 0], [0, ATILE - c], [ATILE - c, ATILE - c]]) { o.fillRect(tx + cx, ty + cy + (cy ? c - 1 : 0), c, 1); o.fillRect(tx + cx + (cx ? c - 1 : 0), ty + cy, 1, c); }
     if (p.mine && !p.mine.refused) {
@@ -939,9 +941,7 @@ function enemySprite(d, type) {
     if (!_enemySprites[key]) {
       const kit = floraKit(set), piece = kit.pieces.find((p) => p.name === kit.looks[type]) || kit.pieces[0], pal = Object.assign({}, kit.pal);
       for (const g of kit.glows) pal[g] = [g === 'glow2' ? mix(PLANT_GLOW, '#ffd0a0', 0.4) : PLANT_GLOW];
-      const spr = buildArtSprite(piece.frames[piece.frames.length - 1], pal, kit.letters, kit.glows, { openFoot: T.flora.melt.open });
-      spr.flash = tinted(spr.c, '#ffffff'); spr.ax = spr.w / 2; spr.ay = spr.h - footOff(1.5);
-      _enemySprites[key] = spr;
+      _enemySprites[key] = fpPlantSprite(set, piece, Object.assign({}, kit, { pal }), type);
     }
     return _enemySprites[key];
   }
@@ -949,7 +949,7 @@ function enemySprite(d, type) {
   if (FOE_ROWS[type]) return foeSprite(type, FOE_ROWS[type].idle ? 'idle' : FOE_ROWS[type].still ? 'still' : 'rear');
   if (type === 'keeper') {
     const key = 'keeper/' + id;
-    if (!_enemySprites[key]) { const s = art2Sprite(KEEPER_ROWS[id], KEEPER_PAL[id], ART_CREATURE); s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - footOff(2); _enemySprites[key] = s; }
+    if (!_enemySprites[key]) _enemySprites[key] = fpKeeperSprite(id);
     return _enemySprites[key];
   }
   if (!_enemySprites[id]) {
@@ -958,31 +958,21 @@ function enemySprite(d, type) {
     for (const kind of ['snapjaw', 'spitter']) {
       const piece = FLORA[id].find((p) => p.name === PLANT_LOOKS[id][kind]) || FLORA[id][0];
       const pal = Object.assign({}, FLORA_PAL[id], { glow: [PLANT_GLOW], glow2: [mix(PLANT_GLOW, '#ffd0a0', 0.4)] });
-      const spr = buildArtSprite(piece.frames[piece.frames.length - 1], pal, FLORA_LETTERS, FLORA_GLOWS, { openFoot: T.flora.melt.open });
-      spr.flash = tinted(spr.c, '#ffffff'); spr.ax = spr.w / 2; spr.ay = spr.h - footOff(1.5);
-      out[kind] = spr;
+      out[kind] = fpPlantSprite(id, piece, { pal, letters: FLORA_LETTERS, glows: FLORA_GLOWS }, kind);
     }
   }
   return _enemySprites[id][type];
 }
 
 // A soft shadow on the ground under feet at fx, fy (art px), rx world px
-// across either way.
-function drawShadow(fx, fy, rx) {
-  const x = View.ctx, r = rx * AP, ry = 1.5 * AP;
-  x.fillStyle = 'rgba(0,0,0,0.45)';
-  for (let j = -Math.floor(ry); j <= Math.floor(ry); j++) {
-    const w = Math.round(r * Math.sqrt(Math.max(0, 1 - (j / (ry + 0.5)) ** 2)));
-    if (w > 0) x.fillRect(fx - w, fy + j, w * 2 + 1, 1);
-  }
-}
+// across either way, in short strokes (pshadow.js); up: how high what casts
+// it hovers (world px), if it does.
+function drawShadow(fx, fy, rx, up) { pshContact(fx, fy, rx, up || 0); }
 
 function drawProspector(d, ox, oy, tick, lights) {
   const p = d.p;
-  const walking = p.walkT > 0;
-  const frame = walking ? 1 + (Math.floor(p.walkT * 10) % 4) : 0;
   // casting: the pose, turned to the aim and leaning into it (castfx.js);
-  // the legs keep walking. Charging a caster, the pose is held, gathering.
+  // the legs keep walking. Charging a caster, the pose is held, wound back.
   let cast = p.cast && p.cast.t > 0 && p.cast.a !== undefined && !(p.mine && !p.mine.refused) ? p.cast : null;
   if (!cast && !(p.mine && !p.mine.refused))
     for (const slot of ['main', 'off']) {
@@ -990,8 +980,8 @@ function drawProspector(d, ox, oy, tick, lights) {
       if (h.holding && isCaster(it) && chargeLevel(h) > 0) { cast = { a: castFxAim(d), slot, style: (bpOf(it) || {}).style || 'wand', t: 1, max: 1, charging: true }; break; }
     }
   p.castPose = cast;
-  const face = cast ? { x: Math.cos(cast.a), y: Math.sin(cast.a) } : { x: p.fx, y: p.fy };
-  const spr = cast ? castFxSprite(cast.a, cast.slot, frame) : Sprites.diver[facingIndex(p.fx, p.fy)][frame];
+  // the frame, and the way he's drawn facing (turning: diver.js)
+  const { spr, face } = kindlerPick(d, cast);
   const fx = Math.round(p.x * AP) + ox, fy = Math.round(p.y * AP) + oy, lean = cast ? castFxLean(cast) : { x: 0, y: 0 };
   const sx = Math.round(fx - spr.ax) + lean.x, sy = Math.round(fy - spr.ay) + lean.y;
   drawShadow(fx, fy, 5);
@@ -1003,7 +993,7 @@ function drawProspector(d, ox, oy, tick, lights) {
   // blink while hurt; fall still while dying
   if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(spr, sx, sy);
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot), face);
-  if (p.ward > 0) ringDots(fx, fy - ap(10), 12 * AP, p.wardS ? p.wardS.col : ART.forms.ward, 0.5 + 0.3 * Math.sin(Game.realT * 6), true);
+  if (p.ward > 0) cfxStrokeRing(fx, fy - ap(10), 12 * AP, 9 * AP, cfxRamp(p.wardS ? p.wardS.col : ART.forms.ward), 0.5 + 0.3 * Math.sin(Game.realT * 6), 77, true, 0.25);
   // a charging hand gathers light, and flashes when it's full (its circle
   // is on the ground, its motes drawn in: castfx.js; an empty fist rings)
   for (const slot of ['main', 'off']) {
@@ -1031,7 +1021,7 @@ function drawProspector(d, ox, oy, tick, lights) {
 
 // The diver's drone: a little orb that drifts after it, over its back
 // shoulder, bobbing, its eye turned the way the diver looks. Its body is a
-// disc of plate, lit from the top left, outlined (Sprites.drone).
+// disc of plate, lit from the top left, painted (Sprites.drone: diver.js).
 function drawDrone(d, fx, fy, lights) {
   const p = d.p, dt = clamp(Game.realT - (d.droneT || Game.realT), 0, 0.1);
   d.droneT = Game.realT;
@@ -1041,11 +1031,17 @@ function drawDrone(d, fx, fy, lights) {
   d.drone.x += (tx - d.drone.x) * k; d.drone.y += (ty - d.drone.y) * k;
   const x = Math.round((d.drone.x - p.x) * AP) + fx, y = Math.round((d.drone.y - p.y + Math.sin(Game.realT * W.bob[0]) * W.bob[1]) * AP) + fy;
   const eye = WICK_EYE, under = WICK_UNDER;
-  // (the disc's middle is the grid's (3, 5), past its outline)
-  drawArtSprite(Sprites.drone, x - 4, y - 6);
-  const ex = x + Math.round(p.fx * 1.4 * AP), ey = y + Math.round(p.fy * AP);
-  dot(ex, ey, eye, true); dot(ex + 1, ey, eye, true);
-  dot(x, y + 4, under, true, 0.8);
+  const S = Sprites.drone;
+  drawArtSprite(S, x - S.cx, y - S.cy);
+  // its eye on the glass band, the way the diver looks (none, looking away)
+  if (p.fy > -0.7) {
+    const ex = x + Math.round(p.fx * 2.6), ey = y + (p.fy > 0.5 ? 1 : 0);
+    dot(ex, ey, eye, true); dot(ex + 1, ey, eye, true);
+    dot(ex + (p.fx < 0 ? -1 : 2), ey, mix(eye, '#04060a', 0.55), true);
+  }
+  // the lift's glow, flickering, a few loose pixels under it
+  const fl = Math.floor(Game.realT * 10) % 3;
+  dot(x + fl - 1, y + 7, under, true, 0.6); dot(x + 2 - fl, y + 8, under, true, 0.35);
   lights.push({ x, y, r: TILE * 1.1, i: 0.45, c: rgb01(eye) });
 }
 
@@ -1062,6 +1058,7 @@ function handOf(p, spr, sx, sy, slot, face = { x: p.fx, y: p.fy }) {
   }
   const h = spr.hand;
   if (slot === 'main') return { x: sx + h.x, y: sy + h.y };
+  if (spr.offHand) return { x: sx + spr.offHand.x, y: sy + spr.offHand.y };
   if (Math.abs(face.x) > Math.abs(face.y) + 0.2) return { x: sx + h.x - Math.sign(face.x) * ap(4), y: sy + h.y - ap(1) };
   return { x: sx + spr.w - 1 - h.x, y: sy + h.y };
 }
@@ -1154,7 +1151,8 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   const look = FOE_NAMES[e.type] ? foeLook(d, e) : null;
   if (look && look.hidden) { drawFoeHidden(d, e, ox, oy, tick, lights); return; }
   // (the fighting flora's feet melt into the ground as a plant's do)
-  const rooted = T.enemies[e.type].rooted, spr = look ? look.spr : rooted ? ugMelted(enemySprite(d, e.type)) : enemySprite(d, e.type), x = View.ctx;
+  // (a painted one's pose: foespaint.js)
+  const rooted = T.enemies[e.type].rooted, spr = look ? look.spr : rooted ? ugMelted(enemySprite(d, e.type)) : fpPose(enemySprite(d, e.type), e), x = View.ctx;
   let lift = 0;
   if (look) lift = look.lift;
   else if (e.type === 'wisp' || e.type === 'hollow') lift = 5 + Math.round(Math.sin(e.bob * 3) * 1.5);
@@ -1164,9 +1162,11 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   const shake = e.state === 'windup' ? (tick % 2 ? 1 : -1) : 0;
   const fx = Math.round(e.x * AP) + ox, fy = Math.round(e.y * AP) + oy;
   if (fx < -60 || fy < -15 || fx > View.w + 60 || fy > View.h + 75) return;
-  if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r));
+  if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r), lift > 2 ? lift : 0);
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
   drawArtSprite(spr, sx, sy);
+  // in a dark place its lit rim holds over the light (foespaint.js fpReadable)
+  if (spr.rimEc && View.pntLift > 0.05) { const e = View.emCtx; e.globalAlpha = T.paint.foes.read.glow * View.pntLift; e.drawImage(spr.rimEc, sx, sy); e.globalAlpha = 1; }
   // struck: a rim a pixel wide round it, white or in the hit's element, on
   // the unlit layer over the view, so it's never a light and never blooms,
   // and the enemy stays in sight inside it; a few at most at once
@@ -1190,8 +1190,12 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
     for (let k = 0; k < 3; k++) { const a = Game.realT * 6 + (k * Math.PI * 2) / 3; dot(Math.round(fx + Math.cos(a) * 6 * AP), Math.round(sy - ap(2) + Math.sin(a) * 2 * AP), '#fff2c8', true); }
   // its statuses and its elite affix (natures.js, reactions.js)
   drawEnemyStatus(d, e, spr, sx, sy, fx, fy, tick, lights);
-  // an elite wears a pip of its affix's colour; a chilled one, a pale one
-  if (e.elite) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(fx + i - 1, sy - ap(3) + j - 1, eliteCol(e), true);
+  // an elite wears a pip of its affix's colour, and its lit rim glows in
+  // it (foespaint.js)
+  if (e.elite) {
+    for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(fx + i - 1, sy - ap(3) + j - 1, eliteCol(e), true);
+    View.emCtx.drawImage(fpEliteRim(spr, eliteCol(e)), sx, sy);
+  }
   // through a tear: violet and cyan motes drift off it
   if (e.riftTouched) for (let k = 0; k < 3; k++) { const ph = (Game.realT * 0.8 + k / 3) % 1; dot(Math.round(fx + Math.sin(k * 2.1 + Game.realT * 2) * 6 * AP), Math.round(fy - (4 + ph * 14) * AP), k % 2 ? RIFT_PAL.riftcyan[0] : RIFT_PAL.riftedge[0], true, 1 - ph); }
   // a raging Keeper burns
@@ -1214,12 +1218,16 @@ function drawDrop(dr, ox, oy, lights) {
   else col = ART.rarity[dr.item.rarity] || '#ffffff';
   if (dr.mote) { for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, fy + j, col, true); }
   else if (dr.stuff) {
-    // a little heap of crystals
-    for (const [i, j] of [[-3, 1], [-2, 1], [-2, 0], [-1, 0], [-1, 1], [0, -2], [0, -1], [0, 0], [0, 1], [1, -1], [1, 0], [1, 1], [2, 0], [2, 1], [3, 1]]) dot(fx + i, fy + j + ap(3), j < -1 || (j < 0 && i <= 0) ? '#ffffff' : col, true);
+    // a little heap of crystals (pflora.js), on its shadow
+    const s = pflDropSprite('heap', col, ART.ores[dr.stuff]);
+    drawShadow(fx, Math.round(dr.y * AP) + oy, 3);
+    drawArtSprite(s, fx - 5, fy + ap(3) - 8);
   }
   else {
-    // a gem: a white heart, its colour round it
-    for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) if (Math.abs(i) + Math.abs(j) <= 3) dot(fx + i, fy + j, (Math.abs(i) + Math.abs(j) <= 1 && i <= 0 && j <= 0) ? '#ffffff' : col, true);
+    // a cut gem (pflora.js), bobbing over its shadow
+    const s = pflDropSprite('gem', col);
+    drawShadow(fx, Math.round(dr.y * AP) + oy, 2.5);
+    drawArtSprite(s, fx - 5, fy - 5);
     // the best of it stands up in a beam, so it's seen from across a room
     const it = dr.item;
     if (dr.blueprint || dr.shard !== undefined || dr.echo || dr.resStone || (it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'relic')))
@@ -1240,18 +1248,16 @@ function ringDots(cx, cy, r, col, alpha, glow) {
 function drawCombatFx(fx, ox, oy, tick, lights) {
   const k = fx.t / fx.max, cx = Math.round(fx.x * AP) + ox, cy = Math.round(fx.y * AP) + oy;
   if (fx.kind === 'swing') {
-    // a pale arc where the blade went
-    const a0 = Math.atan2(fx.dy, fx.dx);
-    for (let s = -8; s <= 8; s++) {
-      const a = a0 + s * 0.13 * (1.2 - k * 0.4);
-      for (const r of [11, 12.5, 14, 15.5, 17]) dot(Math.round(cx + Math.cos(a) * r * AP), Math.round(cy + Math.sin(a) * r * AP * 0.8), '#f4ecd8', true, k * (r === 14 ? 0.9 : r === 11 || r === 17 ? 0.3 : 0.5));
-    }
+    // a pale crescent where the blade went, breaking up as it fades
+    const a0 = Math.atan2(fx.dy, fx.dx), h = 1.04 * (1.2 - k * 0.4);
+    cfxPaintArc(cx, cy, Math.round(15 * AP), a0 - h, a0 + h, 4, cfxRamp('#f4ecd8'), cfxBand(k), cfxSeed(fx), 1 - cfxBand(k), false);
   } else if (fx.kind === 'spin') {
-    ringDots(cx, cy, fx.r * (1 - k * 0.5) * AP, '#fff2c8', k, true);
+    const r = Math.round(fx.r * (1 - k * 0.5) * AP);
+    cfxStrokeRing(cx, cy, r, Math.round(r * 0.75), cfxRamp('#fff2c8'), cfxBand(k), cfxSeed(fx), true, 0.2);
     lights.push({ x: cx, y: cy, r: fx.r * 1.4, i: 0.8 * k, c: [1, 0.95, 0.8] });
   } else if (fx.kind === 'ghost') {
     // a dash's afterimage
-    const spr = Sprites.diver[facingIndex(fx.fx, fx.fy)][0], x = View.ctx;
+    const spr = kindlerGhost(facingIndex(fx.fx, fx.fy)) || Sprites.diver[facingIndex(fx.fx, fx.fy)][0], x = View.ctx;
     x.globalAlpha = 0.35 * k;
     x.drawImage(spr.flash, Math.round(cx - spr.ax), Math.round(cy - spr.ay));
     x.globalAlpha = 1;
@@ -1263,7 +1269,9 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
       dot(Math.round(cx + Math.cos(b) * r * s2 / n), Math.round(cy + Math.sin(b) * r * s2 / n), PLANT_GLOW, true, k);
     }
   } else if (fx.kind === 'shatter') {
-    for (let n = 0; n < 8; n++) { const a2 = n * 0.8, r = (1 - k) * 12 * AP; dot(Math.round(cx + Math.cos(a2) * r), Math.round(cy + Math.sin(a2) * r), '#e8f8ff', true, k); }
+    // shards of ice thrown out
+    const r = (1 - k) * 12 * AP;
+    cfxRays(cx, cy, r * 0.5, r + 2, 8, cfxRamp(ELEMENT_COLS.frost), cfxBand(k), cfxSeed(fx));
   } else if (fx.kind === 'iceBurst' || fx.kind === 'steam' || fx.kind === 'flare' || fx.kind === 'overload' || fx.kind === 'wardBreak') {
     drawReactFx(fx, cx, cy, k, tick, lights);
   } else if (fx.kind === 'mote') {
@@ -1275,7 +1283,9 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     cfxLight(lights, cx, cy, fx.r * 1.3, k, rgb01(fx.col || ART.forms.nova));
   } else if (fx.kind === 'foeBurst' || fx.kind === 'foeTongue') drawFoeFx(fx, ox, oy, tick, lights);
   else if (fx.kind === 'arc') drawCastArc(fx, ox, oy, lights); else if (fx.kind === 'blast') {
-    ringDots(cx, cy, fx.r * (1 - k * 0.6) * AP, '#ff7a3a', k, true);
+    const r = Math.round(fx.r * (1 - k * 0.6) * AP), R = cfxRamp('#ff7a3a');
+    cfxRays(cx, cy, r * 0.3, r, 10, R, cfxBand(k), cfxSeed(fx));
+    cfxStrokeRing(cx, cy, r, Math.round(r * 0.75), R, cfxBand(k), cfxSeed(fx), true, 0.25);
     lights.push({ x: cx, y: cy, r: fx.r * 1.5, i: 1.2 * k, c: [1, 0.5, 0.25] });
   } else if (fx.kind === 'volatile') {
     if (tick % 2) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(cx + i - 1, cy - ap(4) + j - 1, '#ff5a3a', true);

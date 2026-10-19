@@ -16,8 +16,8 @@
 // ---------------------------------------------------------------------------
 
 // Each kind's colours by biome, a letter a colour: muted, so they read as
-// part of the place rather than as enemies or loot. Outlined as every
-// creature is (T.art.outline.creature).
+// part of the place rather than as enemies or loot. Painted with no
+// outline (foespaint.js fpCritterCanvas).
 const LIFE_PAL = {
   // each region's lizards and birds stand out from its own ground
   lizard: {
@@ -85,12 +85,12 @@ function critSprite(kind, L, frame, dir) {
     for (let x = 0; x < w; x++) { let r = ''; for (let y = 0; y < h; y++) r += dir === 'n' ? rows[h - 1 - y][w - 1 - x] : rows[y][x]; out.push(r); }
     rows = out;
   }
-  // at the art's size (AP; drawn at it, or enlarged to it), and a creature:
-  // outlined like the rest (T.art.outline.creature), a pixel all round
+  // at the art's size (AP; drawn at it, or enlarged to it), a pixel of
+  // clear all round
   if (native !== AP) rows = artScaleRows(rows, AP / native);
-  const mode = T.art.outline.creature, pad = (src) => { const [p, x] = makeCanvas(src.width + 2, src.height + 2); x.drawImage(src, 1, 1); return p; };
-  let c = spriteFrom(rows, lifePal(kind, L));
-  c = mode === 'none' ? pad(c) : outlined(c, mode === 'black' ? ART.outline : mix(lifePal(kind, L).D || '#000000', '#000000', 0.6));
+  const pad = (src) => { const [p, x] = makeCanvas(src.width + 2, src.height + 2); x.drawImage(src, 1, 1); return p; };
+  // painted, with no outline (foespaint.js)
+  let c = fpCritterCanvas(rows, lifePal(kind, L), kind);
   if (dir === 'w') c = flipped(c);
   let ec = kind === 'scurrier' ? pad(spriteFrom(rows.map((r) => r.replace(/[^E]/g, '.')), { E: LIFE_EYESHINE })) : makeCanvas(c.width, c.height)[0];
   if (dir === 'w') ec = flipped(ec);
@@ -375,7 +375,8 @@ function updateMoth(d, m, th, dt) {
 // Weather
 // ---------------------------------------------------------------------------
 const _lifeClouds = [];
-// A soft cloud shadow: a few overlapping blobs, dithered out at the edges
+// A soft cloud shadow: a few overlapping blobs, broken up at the edges in
+// short horizontal strokes (the painted style has no dither)
 // (drawn a little wider than cloudSize, as the soft rim barely shows), w × h
 // art px.
 function lifeCloudCanvas(seed, w, h) {
@@ -388,7 +389,7 @@ function lifeCloudCanvas(seed, w, h) {
       for (const b of blobs) { const dx = (i - b.x) / b.r, dy = ((y - b.y) * 1.5) / b.r; v = Math.max(v, 1 - Math.hypot(dx, dy)); }
       // ragged with noise, soft at the rim
       v = clamp(v * 1.5 + wallNoise(i / AP + seed % 97, y / AP, 11) * 0.3, 0, 1);
-      if (v > bayerAt(i, y)) D[(y * w + i) * 4 + 3] = 255;
+      if (v > artHash(Math.floor((i + artHash(y, 1, seed) * 4) / 4), y, seed)) D[(y * w + i) * 4 + 3] = 255;
     }
   x.putImageData(img, 0, 0);
   return c;

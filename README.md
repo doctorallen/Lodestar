@@ -50,12 +50,13 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline |
 | `js/world.js` | The world: its rings of territories laid out from the save's seed, their neighbours, climes, names and goals; each territory's map (`generateTerritory`) with its openings, heart and waystones |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
+| `js/paint.js` | The painted style (docs/PAINTED.md): stroke ramps and strokes, the ground's tones, the rock rising as a heightfield from a steep three-quarter camera, occlusion, lazy painting in chunks, and the painted sprite builder |
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
 | `js/climes.js` | Climes: each one's palette, flora, critters and weather; rolling and naming them |
 | `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
 | `js/hub.js` | The outpost: stations, the star over the pit, lanterns, the uplink, the settlement's tents, feeding the star |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
-| `js/diver.js` | The player's sprite: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp |
+| `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp; Wick |
 | `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
 | `js/blueprints.js` | What can be forged: blueprints (casters, gear, stones), creature parts |
 | `js/art2.js` | Art for crafting and the story: new item icons, parts, stones, the uplink, a tent, the Shard Keepers |
@@ -75,7 +76,8 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/hazards.js` | Each clime's hazard at play (pools, ice, lava, vents, spores), and painting a clime's ground |
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |
 | `js/undergrowth.js` | How flora grows into a place (cosmetic): habitat, drifts, stands of tall grass, beds and ground cover painted into the floor, moss and roots on the walls, wind and stir |
-| `js/shadow.js` | Shadows from the light: the rock stops the diver's lamp (and the floor's fixed lights), and big things cast a short shadow away from it |
+| `js/shadow.js` | Shadows from the light: the rock stops the diver's lamp (and the floor's fixed lights) |
+| `js/pshadow.js` | Cast shadows of what stands on the ground: silhouettes from the lamp, the sun and the outpost's lanterns, and contact shadows |
 | `js/render.js` | The pixel view (art px, 1.5 to a world px), the floor canvas, lighting and bloom, sparks |
 | `js/castfx.js` | How a cast looks (cosmetic): the flash at the fist, the rune circle, motes, swept rings, an Arc's crescent, a Glaive's blades, an Orb, bolts' trails, bursts and marks on the ground |
 | `js/natures.js` | What each enemy is weak to and resists (`elementMultFor`), by kind, clime and elite affix; what Wick has learned; the marks over a foe and the WEAK and RESIST numbers |

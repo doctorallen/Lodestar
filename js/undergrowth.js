@@ -57,55 +57,10 @@ const UG_LOOKS = {
 const UG_WET = new Set(['Cattails', 'Kelp fronds', 'Lilies', 'Frost reeds', 'Fen grass', 'Reed pipes', 'Sponge mound', 'Sponge shelf', 'Anemones', 'Water sacs', 'Chime reeds', 'Bladder pods', 'Tube worms']);
 const UG_LIT = new Set(['Glowcaps', 'Fire fungus', 'Lava bloom', 'Ember moss', 'Flower bush', 'Fern', 'Fire lily', 'Basalt columns']);
 
-// The ground cover, as letter rows (built with the set's flora palette by
-// buildArtSprite, shaded and sel-outed like any flora): G a blade (g its
-// darkest), H a seed head or leaf tip, P moss (p), R a pebble (r), T a root
-// (t).
-const UG_ROWS = {
-  tuft: [
-    ['..G..', 'G.G.G', '.GGG.', '.gGg.'],
-    ['.G..G.', '..GG.G', 'G.GG..', '.gGGg.'],
-    ['G..G', '.GG.', '.gG.'],
-  ],
-  sprig: [
-    ['.H.H.', 'HGHGH', '.GGG.', '..g..'],
-    ['H..H', '.GH.', 'GgG.', '.g..'],
-  ],
-  pebbles: [
-    ['.RR..', 'RRRr.', 'rrr..'],
-    ['....RR.', '.R.RRRr', 'RRr.rr.', 'rr.....'],
-    ['RRR', 'rRr'],
-    ['.RRR.R', 'RRRrRr', 'rrr.r.'],
-  ],
-  moss: [
-    ['.PPPP..', 'PPPPPPP', '.pPPPp.'],
-    ['..PPP.', '.PPPPP', 'PPpPP.', '.pp...'],
-  ],
-  roots: [
-    ['T..TT...', '.TT..TT.', '...t...t'],
-    ['.TT....', 'T..TTt.', '.....tT'],
-  ],
-  // the tall grass of a stand: stems a pixel wide, dark at the foot and
-  // light at the tips (a, b, c, d: the material's four tones, set rather
-  // than shaded, since a stem a pixel wide has no form to light), a few
-  // heads (H) above; no sel-out, which on stems this fine would be all
-  // outline
-  tall: [
-    ['..d....d', 'd.c..d.c', 'c.c..c.c', '.cb.c.b.', '.b.bb.b.', '.b.b.bb.', '..bbab..', '..aaa...'],
-    ['.H...H.', '.c.d.c.', '.c.c.c.', '.b.c.b.', 'b..b.b.', '.b.bb..', '.abab..', '..aa...'],
-    ['.d..d', '.c.c.', 'c.cb.', '.bb.b', '.bab.', '..a..'],
-  ],
-  // what grows in front of a plant's foot, over it: little clumps of
-  // blades a pixel wide, drawn at the art's own size (not enlarged), set as
-  // the stands' are, dark where they meet the ground
-  front: [
-    ['.d...', '.c..d', 'd.c.c', '.cbc.', '.bb..', '..a..'],
-    ['d...', '.c.d', '.cc.', 'b.b.', '.ab.'],
-    ['..d..', 'd.c..', '.c.cd', '.bcb.', '..ba.'],
-    ['.d.', 'c.d', 'cb.', '.a.'],
-    ['d..d.', '.cc..', '.b.c.', '..ab.'],
-  ],
-};
+// The ground cover (tufts, sprigs, moss, pebbles, roots, the stands' tall
+// grass and the blades in front of a plant's foot) is painted by hand in
+// pflora.js (pflCoverKit), from the set's flora palette.
+
 // The pieces that spread roots into the ground round their foot (the rest
 // get a skirt of the bed's growth).
 const UG_ROOTED = new Set(['Dome tree', 'Fan palm', 'Mushroom tree', 'Great root', 'Charred snag', 'Smouldering stump', 'Jelly cap', 'Frill stalk', 'Flower bush', 'Toadstools', 'Seed spire', 'Ash caps', 'Glowcaps', 'Kelp fronds']);
@@ -135,17 +90,8 @@ function ugKit(set, b) {
   let K = _ugKits.get(key);
   if (K) return K;
   const kit = floraKit(set), look = UG_LOOKS[set] || UG_LOOKS.rim, pal = Object.assign({}, kit.pal, { scree: fourStep(b.front) });
-  const has = (m) => (pal[m] ? m : 'stem');
-  const letters = {
-    G: [has(look.blade)], g: [has(look.blade), 0], H: [has(look.head)], P: [has(look.pad)], p: [has(look.pad), 0],
-    R: ['scree'], r: ['scree', 0], T: [has(look.root)], t: [has(look.root), 0],
-  };
-  const tallLetters = Object.assign({}, letters, { a: [has(look.tall), 0], b: [has(look.tall), 1], c: [has(look.tall), 2], d: [has(look.tall), 3] });
-  const make = (rows, L, o) => ugStampOf(buildArtSprite(rows, pal, L || letters, [], o));
-  K = {};
-  for (const k of Object.keys(UG_ROWS)) K[k] = UG_ROWS[k].map((r) => (k === 'tall' ? make(r, tallLetters, { outline: 'none' }) : k === 'front' ? make(r, tallLetters, { outline: 'none', scale: 1 }) : make(r)));
-  // (where blades would be rock, pebbles lie in front instead)
-  if (look.front === 'pebbles') K.front = K.pebbles;
+  // (painted by hand: pflora.js)
+  K = pflCoverKit(set, look, pal);
   _ugKits.set(key, K);
   return K;
 }
@@ -675,6 +621,11 @@ function ugStrandLen(x, yf, seedH, amt) {
 }
 
 function paintUndergrowth(P, f, tx, ty, ox, oy, b) {
+  ugPaintTile(P, f, tx, ty, ox, oy, b);
+  // (then the shadows of what stands on it darken it all: pshadow.js)
+  pshShadeTile(P, f, ox, oy);
+}
+function ugPaintTile(P, f, tx, ty, ox, oy, b) {
   const U = View.ug;
   if (!U || U.f !== f) return;
   const F = T.flora, R = View.rockPx, W = P.w, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em, Q = U.Q, i = ty * f.w + tx;
@@ -759,7 +710,9 @@ function paintUndergrowth(P, f, tx, ty, ox, oy, b) {
           let v = -1;
           if (gOn) { const u = (x + 0.5) / ATILE - 0.5 - tx; v = (u < 0 ? g1 + (g1 - g0) * u : g1 + (g2 - g1) * u) * 1.6 - 0.6; }
           for (let q = 0; q < nb; q += 4) { const dx = (x - rb[q]) * rb[q + 1], e = rb[q + 2] - dx * dx * rb[q + 3]; if (e > v) v = e; }
-          if (v > -B.fray) v += n * B.fray;
+          // (its edge frays along the ground's clumps, and breaks in short
+          // strokes, as the paint does)
+          if (v > -B.fray - B.strokes) v += n * B.fray + (artHash((x + ((y * 5) & 7)) >> 2, y, seedH + 65) - 0.5) * B.strokes;
           if (v > 0) {
             // the ground's own clumps show through, drawn towards the bed's
             // colour (further in the middle), strewn with litter in clusters
