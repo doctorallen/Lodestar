@@ -72,61 +72,21 @@ function resizeView() {
 }
 
 // The diver in eight facings, indexed clockwise from east (E, SE, S, SW, W,
-// NW, N, NE): the five drawn ones and mirrors of three. Each facing is
-// [idle, walk ×4], and each sprite knows its feet (ax, ay), its main
-// hand (hand) and its brow lamp's middle (lamp).
+// NW, N, NE): the five painted ones and mirrors of three (diver.js). Each
+// facing is [idle, walk ×4], and each sprite knows its feet (ax, ay), its
+// main hand (hand) and its brow lamp's middle (lamp); the cast pose in
+// each facing, [main hand, off hand] × [idle, walk ×4], knows its fist
+// (castHand), the other hand (restHand) and whether that one is behind the
+// body (restBehind).
 const FACINGS = ['E', 'SE', 'S', 'SE', 'E', 'NE', 'N', 'NE'];
 const MIRRORED = [false, false, false, true, true, true, false, false];
 function buildSprites() {
-  Sprites.diver = FACINGS.map((name, i) => DIVER_FRAMES[name].map((rows) => {
-    let s = buildArtSprite(rows, DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS, ART_CREATURE);
-    s.ax = s.w / 2; s.ay = s.h - footOff(2.5);
-    const [hx, hy] = DIVER_HAND[name], hand = { x: spritePt(s, hx), y: spritePt(s, hy) };
-    // (the lamp a point, not a pixel: past the outline, mirrored about the middle)
-    const lamp = { x: DIVER_LAMP[name][0] + 1, y: DIVER_LAMP[name][1] + 1 };
-    s.hand = hand; s.lamp = lamp;
-    if (MIRRORED[i]) { s = flippedSprite(s); s.hand = { x: s.w - 1 - hand.x, y: hand.y }; s.lamp = { x: s.w - lamp.x, y: lamp.y }; }
-    s.flash = tinted(s.c, '#ffffff');
-    return s;
-  }));
-  // the cast pose in each facing, [main hand, off hand] × [idle, walk ×4];
-  // each knows its fist (castHand), the other hand (restHand) and whether
-  // that one is behind the body. (Each drawn pose is built once, and
-  // flipped for the mirrored facings.)
-  const built = new Map();
-  Sprites.diverCast = FACINGS.map((name, i) => {
-    const idle = DIVER_FRAMES[name][0], W = idle[0].length, split = DIVER_CAST_SPLIT[name];
-    return [false, true].map((off) => {
-      const mir = off && (name === 'S' || name === 'N'), cast = mir ? diverCastMirror(DIVER_CAST[name], idle) : DIVER_CAST[name];
-      const pt = (q) => (q ? { x: (mir ? W - 1 - q[0] : q[0]) + 1, y: q[1] + 1 } : null);
-      return DIVER_FRAMES[name].map((walk, k) => {
-        const key = `${name} ${mir} ${k}`;
-        let s = built.get(key);
-        if (!s) {
-          s = buildArtSprite(artNative(k ? diverCastRows(cast, idle, walk, split) : cast.slice()), DIVER_PAL, DIVER_LETTERS, DIVER_GLOWS, ART_CREATURE);
-          s.ax = s.w / 2; s.ay = s.h - footOff(2.5);
-          s.castHand = pt(DIVER_CAST_HAND[name]); s.restHand = pt(DIVER_CAST_REST[name]); s.restBehind = DIVER_CAST_BEHIND[name];
-          s.flash = tinted(s.c, '#ffffff');
-          built.set(key, s);
-        }
-        // (the idle hand too, for the other hand where it has no place of its own)
-        if (!MIRRORED[i]) { s.hand = Sprites.diver[i][k].hand; return s; }
-        const f = flippedSprite(s);
-        f.hand = Sprites.diver[i][k].hand;
-        f.castHand = { x: s.w - 1 - s.castHand.x, y: s.castHand.y };
-        f.restHand = s.restHand && { x: s.w - 1 - s.restHand.x, y: s.restHand.y };
-        f.flash = flipped(s.flash);
-        return f;
-      });
-    });
-  });
-  Sprites.drone = buildArtSprite(DRONE_ROWS, null, DRONE_LETTERS, [], ART_CREATURE);
+  const K = buildKindlerSprites(FACINGS, MIRRORED);
+  Sprites.diver = K.diver;
+  Sprites.diverCast = K.cast;
+  Sprites.drone = wickSprite();
 }
-// The drone's body, drawn by hand at the art's size (artNative): a disc of
-// grey plate with its brass antenna (ART.pal's). Its eye is drawn over it,
-// the way the diver looks, in Wick's own teal, with a violet glow under it.
-const DRONE_ROWS = artNative(['....M..', '...M...', '..GGG..', '.GGGGG.', 'GGGGGGG', 'GGGGGGG', 'GGGGGGG', '.GGGGG.', '..GGG..']);
-const DRONE_LETTERS = { G: ['plate'], M: ['metal'] }, WICK_EYE = '#7dffd8', WICK_UNDER = '#c9a2ff';
+const WICK_EYE = '#7dffd8', WICK_UNDER = '#c9a2ff';
 
 // Where the diver's brow lamp is (art px in the world), the way it faces
 // (to the aim, while casting): the idle frame's, so the light doesn't bob.
@@ -1041,7 +1001,7 @@ function drawProspector(d, ox, oy, tick, lights) {
 
 // The diver's drone: a little orb that drifts after it, over its back
 // shoulder, bobbing, its eye turned the way the diver looks. Its body is a
-// disc of plate, lit from the top left, outlined (Sprites.drone).
+// disc of plate, lit from the top left, painted (Sprites.drone: diver.js).
 function drawDrone(d, fx, fy, lights) {
   const p = d.p, dt = clamp(Game.realT - (d.droneT || Game.realT), 0, 0.1);
   d.droneT = Game.realT;
@@ -1051,8 +1011,8 @@ function drawDrone(d, fx, fy, lights) {
   d.drone.x += (tx - d.drone.x) * k; d.drone.y += (ty - d.drone.y) * k;
   const x = Math.round((d.drone.x - p.x) * AP) + fx, y = Math.round((d.drone.y - p.y + Math.sin(Game.realT * W.bob[0]) * W.bob[1]) * AP) + fy;
   const eye = WICK_EYE, under = WICK_UNDER;
-  // (the disc's middle is the grid's (3, 5), past its outline)
-  drawArtSprite(Sprites.drone, x - 4, y - 6);
+  // (the disc's middle is the sprite's (4, 7))
+  drawArtSprite(Sprites.drone, x - 4, y - 7);
   const ex = x + Math.round(p.fx * 1.4 * AP), ey = y + Math.round(p.fy * AP);
   dot(ex, ey, eye, true); dot(ex + 1, ey, eye, true);
   dot(x, y + 4, under, true, 0.8);

@@ -914,8 +914,8 @@ const T = {
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: true,
     // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
     // baked: and the floor's fixed lights (lava, vents, glowing plants).
-    // eye: the brow lamp's height over the feet (world px; DIVER_LAMP's
-    // row is 29.75 art px up), where the lamp's light is centred; its
+    // eye: the brow lamp's height over the feet (world px; the painted
+    // Kindler's lamp is 39 art px up: diver.js), where the lamp's light is centred; its
     // shadows are cast from under it. rays: how many rays for each cell
     // round the edge of the light's reach; step: art px
     // a ray moves at a time through the wall line; reach: world px past
@@ -933,7 +933,7 @@ const T = {
     // foot (a share of its width); fray: how ragged its edges (in clusters
     // of 2 art px); portal: a portal's half width (world px).
     shadow: {
-      walls: true, baked: true, eye: 20, rays: 1.25, step: 2, reach: 3, top: 0,
+      walls: true, baked: true, eye: 26, rays: 1.25, step: 2, reach: 3, top: 0,
       props: { steps: [0.2, 0.38], dark: [0.66, 0.48], core: [0.62, 0.6], len: [9, 0.12, 18], tall: 30, size: [0.6, 1.3], crown: 0.3, back: 0.35, fray: 0.35, portal: 9 },
     },
   },
@@ -944,7 +944,7 @@ const T = {
   // way; up, how high (clear of the helm's brow lamp in every facing, over
   // its whole bob). ease: how quickly it catches up (a second); bob: [its
   // speed, how far (world px)].
-  wick: { back: [7, 4], aside: [6, 3], up: 21, ease: 5, bob: [3, 1.5] },
+  wick: { back: [7, 4], aside: [6, 3], up: 29, ease: 5, bob: [3, 1.5] },
 
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
   // at once (ui.js; hints wait their turn).
