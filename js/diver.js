@@ -656,7 +656,7 @@ function kindlerPick(d, cast) {
     const k = 1 - cast.t / cast.max, ph = cast.charging || k < K.cast[0] ? 'w' : k < K.cast[1] ? 's' : k < K.cast[2] ? 'f' : 'r';
     key = kdCastKey(face, cast.slot, ph, legs[0] === 'g' ? 'w' + legs[1] : legs);
   }
-  const spr = kdGet(fi, key);
+  const spr = A.spr = kdGet(fi, key);
   kdWarm(K.warm);
   return { spr, face: { x: Math.cos(A.ang), y: Math.sin(A.ang) } };
 }

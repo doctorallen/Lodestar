@@ -804,6 +804,15 @@ const T = {
   //     the margin (tiles) round the view painted before a frame; far, the
   //     margin painted as time allows, budget ms a frame.
   paint: {
+    // shade (pshadow.js): the shadows baked into the ground's tones, as how
+    // far each lowers its light value (0-1, as ground.sunDark): sun, by day
+    // (times the daylight), for a stand's blades stand; light, from a fixed
+    // light (times its share there); home, at the outpost (from its
+    // lanterns); edge, at a silhouette's edge. contact: under a plant's foot
+    // [small, middling, tall], pad (px past its foot's span), ry [least,
+    // most] its depth, at [x, y] from the foot, fall (how softly it fades
+    // out); cover: under a tuft or a stand's blade, coverPad, coverRy.
+    shade: { mul: 0.75, sun: 0.32, stand: 0.6, light: 0.3, home: 0.6, edge: [1.5, 0.05], contact: [0.16, 0.24, 0.3], contactPad: [1, 2, 3], contactRy: [2.5, 4.5], contactAt: [0.5, 0.5], contactFall: 0.7, cover: 0.14, coverPad: 0.5, coverRy: 1.6 },
     lazy: { near: 2, far: 7, budget: 3 },
     ramp: { dark: [0.62, 0.3], light: [0.14, 0.28], rock: { dark: [0.6, 0.3], light: [0.3, 0.6] } },
     rampEven: { ground: { deep: 0.45, high: 0.24, gamma: 1 }, rock: { deep: 0.55, high: 0.45, gamma: 1.15 }, darkAt: [0.95, 0.42], liftGround: [0.7, 1.2], liftRock: [1.3, 2.2], under: [0.38, 8] },
@@ -1008,20 +1017,25 @@ const T = {
     // a ray moves at a time through the wall line; reach: world px past
     // where a ray strikes rock that's still lit (the skin of rock it
     // strikes); top: what a rock top it doesn't reach keeps of it.
-    // props: what big things (big plants, enemies, portals) cast from the
-    // lamp. steps: the lamp's share of the light at a foot from which the
-    // rim, then the core, shows; dark: what's left of the ground's colour
-    // in the rim and in the core; core: the core's width and length, as
-    // shares of the shadow's; len: [world px at the foot, more for each
-    // world px from the lamp, most]; tall: the height (world px) that casts
-    // it that long, size: [least, most] the share for other heights; crown:
-    // a plant's shadow is at least this share of its whole width across
-    // (its crown's, not just its foot's); back: how far it rounds behind the
-    // foot (a share of its width); fray: how ragged its edges (in clusters
-    // of 2 art px); portal: a portal's half width (world px).
+    // cast (pshadow.js): what stands on the ground casts its silhouette.
+    // lamp: how much of the lamp's share of the light its shadow takes back
+    // (1: down to what the walls' shadows fall to), that share raised to
+    // pow (below 1, darker where the lamp's share is small); least: none
+    // where it's fainter than this at the caster's foot; lampK: [least, most]
+    // its length for its height (as far from the lamp as the lamp stands
+    // high: once); spread: how much a point light widens it further up (1
+    // as it would); edge: what a silhouette's edge pixel keeps of it. sun:
+    // by day, how dark the sun's shadow of what moves (its strength, as
+    // the baked ones' T.paint.shade.sun). fixedH: how high (px) the floor's
+    // fixed lights stand, fixedMin the share of the light at a plant's foot
+    // from which one casts, fixedK as lampK. home: the outpost's lanterns,
+    // forge and fire: min, the share from which they cast; k as lampK; dark,
+    // as lamp; full: the share that casts the full shadow; fireH: the fire's
+    // height; near: what moves casts only within this share of the lamp's
+    // reach of the Kindler.
     shadow: {
       walls: true, baked: true, eye: 26, rays: 1.25, step: 2, reach: 3, top: 0,
-      props: { steps: [0.2, 0.38], dark: [0.66, 0.48], core: [0.62, 0.6], len: [9, 0.12, 18], tall: 30, size: [0.6, 1.3], crown: 0.3, back: 0.35, fray: 0.35, portal: 9 },
+      cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, fireH: 8, near: 1 } },
     },
   },
 

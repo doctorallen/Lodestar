@@ -621,6 +621,11 @@ function ugStrandLen(x, yf, seedH, amt) {
 }
 
 function paintUndergrowth(P, f, tx, ty, ox, oy, b) {
+  ugPaintTile(P, f, tx, ty, ox, oy, b);
+  // (then the shadows of what stands on it darken it all: pshadow.js)
+  pshShadeTile(P, f, ox, oy);
+}
+function ugPaintTile(P, f, tx, ty, ox, oy, b) {
   const U = View.ug;
   if (!U || U.f !== f) return;
   const F = T.flora, R = View.rockPx, W = P.w, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em, Q = U.Q, i = ty * f.w + tx;
