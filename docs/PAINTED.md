@@ -131,7 +131,7 @@ A fixed light whose sight reaches a newly painted chunk is worked out again once
 | `flip()` | The sprite mirrored left to right. |
 | `done()` | `{ c, ec, w, h }`, as `drawArtSprite` takes. |
 
-How a figure is painted (see `kindlerFrame` in `diver.js`):
+How a figure is painted by hand (creatures and settlers do it this way):
 
 1. Far limbs first, darker (`lo`/`hi` lowered).
 2. Then the body masses: dark ramps, with plate catching the light on its upper left.
@@ -141,9 +141,15 @@ How a figure is painted (see `kindlerFrame` in `diver.js`):
 
 Give the sprite its anchor (`ax`, `ay` at the feet) and its points (hands, lamp) in its own pixels, and `flash = tinted(c, '#ffffff')`.
 
-- **Walk.** The Kindler's is a four-step cycle: a foot down in front, passing (the body a pixel higher, the other foot lifted), the other foot, passing. Walking towards the camera the forward foot is lower; walking away, it's higher. Arms swing against the legs.
-- **Facings.** Five are drawn (S, SE, E, NE, N); the other three are mirrors (`buildKindlerSprites`).
-- **Cast pose.** The arm on the aim's side is thrust out to a fist (`castHand`). From the front and back, the casting hand's own arm is used. `restHand` and `restBehind` give the other hand.
+**The Kindler is posed, not drawn** (`diver.js`, numbers in `T.paint.kindler`). He's a lithe figure in a fitted navy suit, about 42 px tall: shoulders not much wider than his hips, a tapered waist, slim limbs, small close-fitting plates (shoulder caps, the upper chest, bracers, kneecaps, shins), a helm with a clear front (a dark visor, its lit rim, one glint, the brow lamp over it) and back (a lit ridge), amber circuits (the chest's V to the seed-star, the cuffs, the shins) and a small pack. A skeleton (`kdRig`: a pelvis, a spine that leans and twists, two-bone legs and arms by IK, the head) is set by a pose (`kdPose`), the body built round it of tubes and rounded volumes, and each frame rendered from it (`kdRender`): the surface sampled, projected as the camera sees (depth shows `KD_K` down the screen), kept where it's nearest, shaded from the upper left, laid in strokes that are cells of the surface (so they move with him and don't boil), a dark seam where a nearer part overlaps; then the features set by hand. Seen from the side the head and shoulders are cheated a little towards us (`KD_CHEAT`) so the visor and the chest show.
+
+- **Walk.** Eight frames, driven by the distance walked (`cycle`, shorter seen from in front by `depthCycle`), so the feet don't slide: contact, down (the body dips as the weight lands), passing, up. The hips and shoulders turn against each other and the pelvis sways over the standing foot; the head bobs less than the body; the arms swing against the legs a frame behind, the elbows bending more as they come forward; the pack lags a frame. He leans into the first steps (`g` frames for `start` s) and settles when he stops (two frames, `settle`).
+- **Idle.** Eight frames over `idle` s: two breaths and a slow shift of weight from foot to foot.
+- **Turning.** The facing he's drawn in turns towards the way he faces at `turn` rad/s, through the facings between (a half turn goes by facing the camera); a cast or a dash turns him at once.
+- **Cast.** The wind-back (held while a caster charges, and shown a moment on a tap as the arm snaps forward), the strike (the arm out to the fist, `castHand`; this is where the spell leaves), the follow-through and the recovery, the shoulders and hips turning into it; the legs keep walking. From the front and back the casting hand's own arm is used; from the side and three-quarters, the arm on the aim's side. `restHand` and `restBehind` give the other hand.
+- **Dash.** Leant hard and stretched along the way, pushing off the back foot, the arms swept back; its afterimages are the dash frame.
+- **Facings.** Five are drawn (S, SE, E, NE, N); the other three are mirrors. Every frame knows its hands (`hand`, `offHand`, so a held caster stays in the hand through the swing) and its brow lamp (`lamp`; the light and its shadows use the first idle frame's, so the light doesn't bob).
+- **Cost.** A frame takes about 1.5 ms to build. The first idle frame and the strike in each facing are built at the start; the rest as they're first wanted, and the walk, idle, settle, dash and the casts over idle legs one a draw in the background (`warm`).
 
 For creatures:
 
@@ -170,7 +176,7 @@ The sample's crawler and wisp (`zsprites.py`) show the idea.
 
 - **The outpost** is painted in `js/hubart.js` (helpers `hart…`; `hartStrokes` lays a region in short strokes from a value function). The stations (a brick forge with its chimney, anvil and fire; the rune bench; the locker; the altar and its floating shard; the uplink), the lanterns and the tents now stand among the walkers, sorted by their feet (`hubProps`, each with its own `hubDraw` and `paintOcclude`), so the Kindler passes behind them. The star is a faceted crystal in a loose amber halo; its lodelines fall in broken strokes. The portal is shaded in strokes, without its outline.
 - **Lived in.** `HUB_DRESSING` places crates, barrels, sacks, a banner, a hand cart, a tool rack and a fire ring, more as landers come down; a worn seed-star is inlaid in the flagstones and a cable runs from the uplink. The smith hammers at the anvil once one lander is down, and a settler sits by the fire from two.
-- **People.** Settlers are painted, about 36 px: hooded coats in four looks, a scarf, goggles with a teal glint, a lamp in the far hand, idle and a four-step walk. The Kindler's side view is broader, with his pack; from behind he's navy with royal-blue edges. Wick is a painted drone: a gunmetal dome with a dark glass band for its cyan eye, fins, a brass antenna and its violet lift glow.
+- **People.** Settlers are painted, about 36 px: hooded coats in four looks, a scarf, goggles with a teal glint, a lamp in the far hand, idle and a four-step walk. Wick is a painted drone: a gunmetal dome with a dark glass band for its cyan eye, fins, a brass antenna and its violet lift glow.
 - **Effects** (`js/castfx.js`, `T.paint.fx`): each element has a five-tone ramp. The Arc is a thick tapered crescent, white-hot on its outer edge. A swept ring (a Nova, a Well, a burst) is painted along its curve, not in rows (rows stacked into bands of dashes on its sides): white-hot outside, its colour within, its deepest tones on its inner edge so a pale ring (frost) holds on snow, strokes 4 to 9 px along it, a rare gap, loose pixels off it and short strokes trailing inside. A chain's arc and the storm's strike are forking bolts (`cfxBoltPath`, `cfxPaintBolt`): split at displaced middles at every scale, white-hot core, lit on the upper side, deep on the other, tapering to the ends, a new shape every few frames. A spell's light lies on the ground as loose strokes of its colour. A death is a splash and a puff rather than a spray of pixels; its splash has a wet lit edge and glowing flecks that die first, and in a dark place it's laid over the light a little.
 - **Settlers' heads** read as hooded faces: the hood's lit edge, the face in its opening (the cheek nearest the light lit, the hood's shadow behind), goggles a dark band with a bright glint.
 

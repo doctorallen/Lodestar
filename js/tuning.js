@@ -888,6 +888,16 @@ const T = {
       base: 0.47, light: 0.9, shade: 0.8, depth: 3, fall: 0.16, crease: 0.14, run: [2, 4], jitter: 0.32, rim: 0.85, rimHi: 0.35, under: 1, elite: 0.7,
       read: { top: 0.9, left: 0.6, lit: 0.28, glowLit: 0.6, pale: [255, 236, 200], shade: 0.85, dark: 0.55, glow: 0.7, shadow: [0.4, 0.62] },
     },
+    // The Kindler's animation (diver.js kindlerPick): cycle, art px walked
+    // a walk cycle seen from the side (two steps), shortened seen from in
+    // front by depthCycle of the view's foreshortening; tread, px a second
+    // the legs keep moving against a wall; startAt, the walk's first phase;
+    // start, s leant into the first steps; settle, s to the end of each
+    // stopping frame; idle, s an idle cycle (a weight shift, two breaths);
+    // turn, rad/s turning between facings; cast, where (of the pose) the
+    // wind-back, the strike and the follow-through end; warm, how many of the frames not
+    // yet wanted are built a draw (none, the draw one was wanted).
+    kindler: { cycle: 27, depthCycle: 0.5, tread: 30, startAt: 0.3, start: 0.2, settle: [0.08, 0.17], idle: 3.6, turn: 16, cast: [0.08, 0.32, 0.64], warm: 1 },
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the
