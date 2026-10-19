@@ -816,7 +816,7 @@ const T = {
     // colour, lightR its reach (a share of the light's), lightA how strongly;
     // arc, an Arc's crescent's thickness at its thickest (art px), light and
     // heavy.
-    fx: { lightR: 0.42, lightA: 0.8, arc: [4.5, 6.5] },
+    fx: { lightR: 0.42, lightA: 0.8, arc: [6, 8.5] },
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the

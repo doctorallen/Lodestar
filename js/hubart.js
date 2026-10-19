@@ -355,8 +355,10 @@ function hartUplink() {
     s.box(cx - 2, top - 3, cx + 2, top + 1, I, { lo: 1, hi: 4 });
     // the dish, on an arm to the left, its bowl to the sky
     line([cx - 2, 30], [9, 27], I[3]);
-    s.ell(8, 24, 7.5, 4.2, I, { lo: 1, hi: 5, bias: 0.15 });
-    s.ell(8.5, 23.2, 5.6, 2.6, I, { lo: 0, hi: 2, bias: -0.1 });
+    const DISH = ['#1a1e26', '#2c323e', '#454d5c', '#647084', '#8e9aae', '#b4c0d0'];
+    s.ell(8, 24, 7.5, 4.2, DISH, { lo: 1, hi: 5, bias: 0.2 });
+    s.ell(8.5, 23.2, 5.6, 2.6, DISH, { lo: 0, hi: 3, bias: 0.1 });
+    for (let a = 0; a < 1; a += 0.04) if (Math.cos(a * Math.PI * 2) < 0.2 && Math.sin(a * Math.PI * 2) < 0.3) s.px(8 + Math.cos(a * Math.PI * 2) * 7, 24 + Math.sin(a * Math.PI * 2) * 3.8, DISH[5]);
     line([8, 24], [10, 18], I[4]); s.px(10, 17, ART.pal.rune[0], true);
     // the console at its foot, its screen glowing
     s.box(31, 52, 43, 66, I, { lo: 1, hi: 4 });
