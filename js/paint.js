@@ -612,6 +612,7 @@ function paintOccludeActor(a, ox, oy) {
   let hw = 26, h = 66;
   if (a.piece) { const s = floraSprite(a.set, a.piece, 0); hw = (s.w >> 1) + 6; h = s.h + 4; }
   else if (a.strip) { hw = 30; h = 30; }
+  else if (a.crit) { hw = 14; h = 24; }
   else if (a.boss || a.type === 'keeper' || a.type === 'hollow') { hw = 60; h = 120; }
   else if (a.portal || a.wprop || a.wreck || a.tent !== undefined) { hw = 40; h = 96; }
   paintOcclude(fx - hw, fy - h, hw * 2, h + 4, fy, ox, oy);

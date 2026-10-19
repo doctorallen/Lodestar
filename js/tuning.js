@@ -840,6 +840,16 @@ const T = {
     // spread (px either way of its middle), h [the outer ones', the middle
     // ones'] (px), lean (px a px at its edges); flecks of it in the rock.
     ore: { crystals: [3, 4], spread: 5, h: [6, 10], lean: 0.18, flecks: 5 },
+    // Creatures (foespaint.js): a dark mass in short strokes, lit from the
+    // upper left. A letter grid's tone: base, plus its form's light (light
+    // and shade, how far a facing to or from the light moves it), less fall
+    // towards its feet and crease under another material, on a ramp of two
+    // deeper tones, its own four and a lighter one. run: [least, most] px a
+    // stroke; jitter: a stroke's tone, give or take; rim: the chance a lit
+    // top edge pixel catches the light (rimHi: the top tone); under: how
+    // dark its lowest edge goes. elite: how much of its lit rim takes its
+    // affix's colour.
+    foes: { base: 0.47, light: 0.9, shade: 0.8, depth: 3, fall: 0.16, crease: 0.14, run: [2, 4], jitter: 0.32, rim: 0.85, rimHi: 0.35, under: 1, elite: 0.7 },
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the

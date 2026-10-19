@@ -416,3 +416,12 @@ The designer approved moving the art from A+ to a painted style after Death Tras
 - **Ore is clusters of crystal prisms** breaking out of a dark socket in the rock's top, lit on the left facet, with a white glint and a glowing tip, flecks of the ore in the rock round it, and one crystal on the face. It stays the brightest, clearest thing in a scene; nothing in the flora is in an ore's colour or shape.
 - **Props and drops.** The spire, the waystones and the portals are drawn as before and then laid in strokes of the lodestone's ramp, with no sel-out (`pflRepaintProp`). The rift's tear is painted from its grid. Drops are small painted sprites: a heap of three prisms for ore and stuff, a cut gem for gear, each on a contact shadow.
 - **Cost.** Sprites and stamps are built once and cached, so a frame costs the same (deep median about 18 ms with the CPU slowed 4×, as before).
+
+## 2026-10-19: the creatures, painted (branch `painted-foes`)
+
+Every creature is repainted to `docs/PAINTED.md` (`js/foespaint.js`, `T.paint.foes`), keeping its size, anchor, silhouette and colours, so hitboxes and the bars over it don't move and each kind still reads apart on a phone.
+- **From shapes.** The crawler, wisp, construct, warden, target and the Hollow, and all eleven climes' creatures in every frame they had, are painted with `PntSpr` shapes (the old grids were the guide): dark masses in strokes lit from the upper left, a lit rim along the top, eyes as single bright pixels, crystals faceted and lit on their left. No outlines.
+- **From grids.** The Shard Keepers and the fighting plants keep their hand-drawn grids, painted in strokes on deeper ramps. Critters are flat colours with a lit top edge.
+- **New frames.** The crawler and the construct (and the warden) have a walk and a wind-up, the wisp and the Hollow a sway.
+- **Cues.** A struck creature still flashes a white rim. An elite keeps its pip, and its lit rim glows in its affix's colour instead of an outline.
+- **Cost.** A floor's creatures are painted as it's entered (about 40 ms for a region's common set with the CPU slowed 4×). A fight's frame costs what it did.

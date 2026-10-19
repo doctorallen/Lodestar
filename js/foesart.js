@@ -923,8 +923,8 @@ function foeSprite(type, frame, variant) {
     let pal = FOE_PAL[type], letters = FOE_LETTERS;
     if (variant === 'cracked') letters = Object.assign({}, FOE_LETTERS, { Z: ['core'] });
     if (variant === 'frozen') pal = Object.assign({}, pal, { hide: ['#1a2a40', '#3a5a80', '#7aa4cc', '#c8e8ff'], seam: ['#0e1a2a', '#1a2e48', '#2a4466'] });
-    s = buildArtSprite(rows, pal, letters, FOE_GLOWS, ART_CREATURE);
-    s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - footOff(1.5);
+    // painted (foespaint.js)
+    s = fpFoeSprite(type, frame, variant, rows, pal, letters);
   }
   _foeSprites.set(key, s);
   return s;
