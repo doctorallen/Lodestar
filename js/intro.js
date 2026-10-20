@@ -1051,7 +1051,7 @@ function introHubBegin() {
   // (inside his pod until its door opens)
   d.p.x = shot.from.x; d.p.y = shot.from.y - (shot.pod ? 10 : 0); d.p.fx = 0; d.p.fy = 1; d.p.walkT = 0;
   d.drone = null;
-  I.hub = { shot, k: 0, starDY: H.drop, lit: 0, amb: H.amb0, lode: 0, wick: false, hidden: !!shot.pod, door: 0 };
+  I.hub = { shot, k: 0, starDY: H.drop, lit: 0, amb: H.amb0, lode: 0, wick: false, hidden: !!shot.pod, door: 0, lamp: shot.pod ? 0 : 1 };
   introHubStep();
 }
 // Each step of the last shot: everything from the time, but the walk, which
@@ -1070,6 +1070,9 @@ function introHubStep() {
   const p = d.p, S = h.shot, walkAt = H.door[0] + 0.35;
   // out of the door: he's there in the doorway, then walks out
   if (h.hidden && t >= walkAt - 0.15) { h.hidden = false; p.x = S.from.x; p.y = S.from.y; }
+  // his suit lamp, off in the pod, flickering on as he looks out of the door
+  const lk = (t - walkAt + 0.05) / H.lampOn;
+  h.lamp = !S.pod ? 1 : h.hidden || lk <= 0 ? 0 : lk >= 1 ? 1 : [1, 0.15, 0.8, 0.3, 1][Math.floor(lk * 5)] * (0.4 + 0.6 * lk);
   // where he should be along his way by now, and a moment on
   const pace = T.player.speed * (1 + (d.stats.moveSpeed || 0) / 100) * H.walk, along = (u) => introAlong(S.path, Math.max(0, u - walkAt) * pace);
   const now = along(t), next = along(t + 0.15);

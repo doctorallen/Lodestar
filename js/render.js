@@ -96,6 +96,40 @@ function diverLampAt(d) {
   return { x: Math.round(p.x * AP) - s.ax + s.lamp.x, y: Math.round(p.y * AP) - s.ay + s.lamp.y };
 }
 
+// Is the suit lamp a beam (T.light.beam) rather than the round glow? The
+// pause screen's LAMP, else the default.
+function lampIsBeam() {
+  const s = typeof Save !== 'undefined' && Save.data && Save.data.settings;
+  return s && s.lamp ? s.lamp === 'beam' : !!T.light.beam.on;
+}
+
+// The suit lamp's beam this frame, or null when it's the round glow. From
+// the brow lamp of the facing he's drawn turned to, the way he's turned
+// (the rig's smoothed facing, diver.js kindlerPick; the aim, casting).
+// lx, ly: the brow lamp; x, y: where the cone starts, between the feet and
+// the lamp; ax, ay: its apex, set back behind that; dx, dy: the way it
+// points; r, i: reach and strength; core, main, edge: the half-angles of
+// its core, its edge and its faint halo's edge (cOut, that one's cosine);
+// sy, sr, si: the spill round him (centred under the lamp). All in art px
+// in the world. lv: lampLevels(d).
+function lampBeamOf(d, lv) {
+  if (!lampIsBeam()) return null;
+  const B = T.light.beam, p = d.p, A = d.kAnim, pose = p.castPose;
+  const ang = pose && pose.a !== undefined ? pose.a : A && A.p === p ? A.ang : Math.atan2(p.fy, p.fx);
+  const dx = Math.cos(ang), dy = Math.sin(ang), s = Sprites.diver[facingIndex(dx, dy)][0];
+  const feet = Math.round(p.y * AP), lx = Math.round(p.x * AP) - s.ax + s.lamp.x, ly = feet - s.ay + s.lamp.y;
+  const x = lx, y = Math.round(lerp(feet, ly, B.rise));
+  // your light draining: it narrows, and gutters now and then
+  const low = d.hub ? 0 : clamp(1 - d.pull / T.pull.dimAt, 0, 1), t = Game.realT;
+  const wob = Math.sin(t * 7.1) + Math.sin(t * 12.7 + 1.3) + Math.sin(t * 19.3 + 2.1);
+  const flick = 1 - B.low.flicker * low * clamp((wob - 1.2) / 1.2, 0, 1), nar = lerp(1, B.low.narrow, low), rad = Math.PI / 180;
+  return {
+    ang, dx, dy, lx, ly, x, y, ax: x - dx * B.back, ay: y - dy * B.back, feet, r: lv.r * B.reach, i: B.i * lv.lamp * flick,
+    core: B.core * nar * rad, main: B.edge * nar * rad, edge: B.edge * B.halo[0] * nar * rad, cOut: Math.cos(B.edge * B.halo[0] * nar * rad),
+    sy: Math.round((feet + ly) / 2), sr: lv.r * B.spill[0], si: lv.i * B.spill[1] * flick, flick,
+  };
+}
+
 // Which of the eight facings a direction is.
 function facingIndex(fx, fy) { return (Math.round(Math.atan2(fy, fx) / (Math.PI / 4)) + 8) % 8; }
 
@@ -673,7 +707,10 @@ function lampLevels(d) {
   if (!d.hub && d.pull < T.pull.dimAt) lamp *= lerp(T.pull.lampMin, 1, d.pull / T.pull.dimAt);
   // in daylight the lamp isn't needed; it comes on at dusk
   if (zl && sun > zl.lampAt) lamp *= 0.15;
-  return { amb, tint, lamp, r: Lt.lamp[0] * ATILE * lamp * (1 + (d.stats.lamp || 0) / 100), i: Lt.lamp[1] * lamp };
+  // (in the opening's last shot, off while he's in his pod, coming on as he
+  // looks out: intro.js; its reach kept, only its strength)
+  const on = d.hub && Intro.hub ? Intro.hub.lamp : 1;
+  return { amb, tint, lamp: lamp * on, r: Lt.lamp[0] * ATILE * lamp * (1 + (d.stats.lamp || 0) / 100), i: Lt.lamp[1] * lamp * on };
 }
 
 // ---------------------------------------------------------------------------
@@ -839,10 +876,14 @@ function renderFrame() {
   if (!d.hub) drawStorm(d, ox, oy, lights);
   const fx = vx(p.x), fy = vy(p.y);
 
+  // the lamp's beam, if it is one, and what shows of it in the air
+  const lv = lampLevels(d), beam = lampBeamOf(d, lv);
+  if (beam) drawBeamAir(d, beam, lv, ox, oy);
+
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
   // (dimmed at first in the opening's last shot, intro.js; only here, so the
   // floor isn't painted again for it)
-  const lv = lampLevels(d), ambLevel = lv.amb * (d.hub && Intro.hub ? Intro.hub.amb : 1), tint = lv.tint;
+  const ambLevel = lv.amb * (d.hub && Intro.hub ? Intro.hub.amb : 1), tint = lv.tint;
   const L = View.light;
   if (View.bakedFrom !== View.lights) bakeFloorLights(f);
   startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
@@ -858,10 +899,9 @@ function renderFrame() {
     else addLight(L, s.x - ox, s.y - oy, s.r * AP, s.i, s.c);
   }
   // the lamp, from the helm's brow, in its own warm white, stopped by the
-  // rock (shadow.js)
-  const lamp = diverLampAt(d);
-  // (none while he's still in his pod, in the opening: intro.js)
-  addLampLight(d, L, lamp.x, lamp.y, lv.r, d.hub && Intro.hub && Intro.hub.hidden ? 0 : lv.i, rgb01(DIVER_PAL.lamp[0]));
+  // rock (shadow.js): a round glow, or a beam the way he's turned
+  if (beam) addLampBeam(d, L, beam, rgb01(DIVER_PAL.lamp[0]));
+  else { const lamp = diverLampAt(d); addLampLight(d, L, lamp.x, lamp.y, lv.r, lv.i, rgb01(DIVER_PAL.lamp[0])); }
   lightScene(-ox, -oy);
   if (d.hub && Intro.hub) introHubOver(d, ox, oy);
   bloomScene(-ox, -oy);
