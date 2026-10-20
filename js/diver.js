@@ -27,8 +27,9 @@
 // and the cast's wind-back (held while charging), strike, follow-through
 // and recovery, the shoulders and hips turning into it. kindlerPick picks
 // the frame each draw (and turns him between facings over a moment);
-// frames are built as they're first wanted, and the rest in the
-// background a little each frame (kdWarm).
+// frames are all built while the game loads (kindlerEveryFrame), else as
+// they're first wanted, and the rest in the background a little each
+// frame (kdWarm).
 // ---------------------------------------------------------------------------
 
 // What the rest of the game reads: the lamp's and the circuits' colours.
@@ -580,6 +581,18 @@ function kdCastKey(face, slot, ph, legs) {
 function kdWarm(n) {
   for (let i = 0; i < n && KD.queue.length && !KD.built; i++) { const [f, k] = KD.queue.shift(); kdBase(f, k); }
   KD.built = 0;
+}
+
+// Every frame kindlerPick can ask for, as [facing (0-7), key], the likeliest
+// first: the loading builds them all (loader.js), so none is built in play.
+function kindlerEveryFrame() {
+  const out = [], seen = new Set(), n8 = [0, 1, 2, 3, 4, 5, 6, 7];
+  const add = (fi, k) => { if (!seen.has(fi + k)) { seen.add(fi + k); out.push([fi, k]); } };
+  const each = (fn) => { for (let fi = 0; fi < KD.faces.length; fi++) fn(fi, KD.faces[fi]); };
+  each((fi) => { for (const k of n8) add(fi, 'i' + k); for (const k of n8) add(fi, 'w' + k); });
+  each((fi) => { for (const k of n8) add(fi, 'g' + k); for (const k of ['sR0', 'sR1', 'sL0', 'sL1', 'd0', 'd1']) add(fi, k); });
+  for (const legs of ['i0'].concat(n8.map((k) => 'w' + k))) each((fi, f) => { for (const sl of ['main', 'off']) for (const ph of 'wsfr') add(fi, kdCastKey(f, sl, ph, legs)); });
+  return out;
 }
 
 // What render.js wants at the start: diver[facing][0], each facing's first

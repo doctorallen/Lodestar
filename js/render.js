@@ -828,6 +828,7 @@ function renderFrame() {
   // where a world point is on the view
   const vx = (wx) => Math.round(wx * AP) + ox, vy = (wy) => Math.round(wy * AP) + oy;
   // the diver's bolts: trails, flicker, a frost lance's glint (castfx.js)
+  cfxDrawTrails(ox, oy);
   for (const b of d.bolts) drawCastBolt(b, ox, oy, tick, lights);
   const shotCol = artBiome(f).glow;
   for (const sh of d.shots) {
@@ -852,18 +853,10 @@ function renderFrame() {
     lights.push({ x: gx, y: gy, r: TILE, i: 0.6, c: rgb01(col) });
   }
   for (const au of d.auras) {
-    const cx = vx(au.x), cy = vy(au.y - (au.follow ? 6 : 0)), k = Math.min(1, au.t / 0.4), R = au.r * AP;
     if (au.kind === 'glaive') drawCastGlaive(au, ox, oy, tick, lights);
     else if (au.kind === 'cloud') drawThunderhead(au, ox, oy, tick, lights);
-    else {
-      // a gravity well: a dark spiral drawing in, lit in its element
-      const col = au.col || ART.forms.well;
-      for (let n = 0, N = Math.round(24 * AP); n < N; n++) {
-        const a = n * 0.7 - Game.realT * 5, r = ((n * 3 + Game.realT * 30 * AP) % R);
-        dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.75), n % 3 ? '#2a1848' : col, true, k * (1 - r / R));
-      }
-      cfxLight(lights, cx, cy, au.r, 0.5 * k, rgb01(col));
-    }
+    // a gravity well (castfx.js)
+    else drawCastWell(au, ox, oy, tick, lights);
   }
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
   drawCastAir(d, ox, oy, tick, lights);
@@ -1043,7 +1036,7 @@ function drawProspector(d, ox, oy, tick, lights) {
   // blink while hurt; fall still while dying
   if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(spr, sx, sy);
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot), face);
-  if (p.ward > 0) cfxStrokeRing(fx, fy - ap(10), 12 * AP, 9 * AP, cfxRamp(p.wardS ? p.wardS.col : ART.forms.ward), 0.5 + 0.3 * Math.sin(Game.realT * 6), 77, true, 0.25);
+  if (p.ward > 0) cfxDrawWard(p, fx, fy, lights);
   // a charging hand gathers light, and flashes when it's full (its circle
   // is on the ground, its motes drawn in: castfx.js; an empty fist rings)
   for (const slot of ['main', 'off']) {
@@ -1329,9 +1322,9 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
       dot(Math.round(cx + Math.cos(b) * r * s2 / n), Math.round(cy + Math.sin(b) * r * s2 / n), PLANT_GLOW, true, k);
     }
   } else if (fx.kind === 'shatter') {
-    // shards of ice thrown out
-    const r = (1 - k) * 12 * AP;
-    cfxRays(cx, cy, r * 0.5, r + 2, 8, cfxRamp(ELEMENT_COLS.frost), cfxBand(k), cfxSeed(fx));
+    // facets of ice thrown out (castfx.js)
+    const r = Math.round((1 - k) * 12 * AP) + 2;
+    cfxShards(cx, cy, r, 4, cfxRamp(ELEMENT_COLS.frost), cfxBand(k), cfxSeed(fx), true);
   } else if (fx.kind === 'capture' || fx.kind === 'tether') {
     drawModuleFx(fx, cx, cy, k, lights, ox, oy);
   } else if (fx.kind === 'iceBurst' || fx.kind === 'steam' || fx.kind === 'flare' || fx.kind === 'overload' || fx.kind === 'wardBreak') {

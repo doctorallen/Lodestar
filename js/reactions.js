@@ -295,10 +295,11 @@ function drawEnemyStatus(d, e, spr, sx, sy, fx, fy, tick, lights) {
 function drawReactFx(fx, cx, cy, k, tick, lights) {
   const u = 1 - k;
   if (fx.kind === 'iceBurst') {
-    // shards of ice thrown out, and a broken ring at their tips
-    const r = Math.round((2 + u * fx.r) * AP), R = cfxRamp(ELEMENT_COLS.frost);
-    cfxRays(cx, cy, r * 0.45, r, 12, R, cfxBand(k), cfxSeed(fx));
-    cfxStrokeRing(cx, cy, r, Math.round(r * 0.7), R, cfxBand(k) * 0.8, cfxSeed(fx), false, 0.35);
+    // the ice bursts as a crystal does: long facets out on six axes, short
+    // ones between, a crisp ring at their tips
+    const r = Math.round((2 + u * fx.r) * AP);
+    cfxShards(cx, cy, r, 6, cfxRamp(ELEMENT_COLS.frost), cfxBand(k), cfxSeed(fx), true);
+    hlRingHard(cx, cy, r + 2, ELEMENT_COLS.frost, 0.7, k);
     cfxLight(lights, cx, cy, fx.r * 1.2, 0.9 * k, rgb01(ELEMENT_COLS.frost));
   } else if (fx.kind === 'steam') {
     // puffs that rise and thin out, in a few hard steps; their tops catch
@@ -312,18 +313,33 @@ function drawReactFx(fx, cx, cy, k, tick, lights) {
     }
     cfxLight(lights, cx, cy, fx.r, 0.35 * k, [0.85, 0.9, 0.95]);
   } else if (fx.kind === 'flare') {
-    const r = Math.max(2, Math.round((2 + u * fx.r) * AP)), R = cfxRamp('#fff2a0');
-    cfxStrokeRing(cx, cy, r, Math.round(r * 0.75), R, cfxBand(k), cfxSeed(fx), true, 0.2);
-    for (const [i, j] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) for (let s = 1; s < Math.round(ap(5) * k) + 2; s++) dot(cx + i * s, cy + j * s, R[s < 3 ? 4 : 3], true, cfxBand(k));
+    // blinding: a white diamond, a long flat streak across it (a lens's
+    // flare), a short one up and down, and a crisp ring running out
+    const r = Math.max(2, Math.round((2 + u * fx.r) * AP)), R = cfxRamp('#fff2a0'), b = cfxBand(k), L = Math.round(ap(fx.r) * (0.6 + u));
+    hlDiamond(cx, cy, 2 + Math.round(k * 2), '#ffffff', b);
+    for (let s = 1; s <= L; s++) { const c = R[s < L * 0.3 ? 4 : s < L * 0.7 ? 3 : 2]; dot(cx + s, cy, c, true, b); dot(cx - s, cy, c, true, b); }
+    for (let s = 1; s <= Math.round(L * 0.3); s++) { dot(cx, cy + s, R[3], true, b); dot(cx, cy - s, R[3], true, b); }
+    hlRingHard(cx, cy, r, '#fff2a0', 0.75, k);
     cfxLight(lights, cx, cy, fx.r * 1.6, 1.4 * k, rgb01('#fff2a0'));
   } else if (fx.kind === 'overload') {
-    const r = Math.round((3 + u * 10) * AP);
-    cfxRays(cx, cy, r * 0.4, r, 10, cfxRamp(ELEMENT_COLS.shock), cfxBand(k), cfxSeed(fx) + tick);
+    // four emitter nodes round it, arcs jumping between them and into it
+    const R = cfxRamp(ELEMENT_COLS.shock), b = cfxBand(k), ft = Math.floor(Game.realT * 30), sd = cfxSeed(fx), r = Math.round(ap(7) + u * ap(4));
+    const nodes = [[cx + r, cy], [cx, cy + Math.round(r * 0.75)], [cx - r, cy], [cx, cy - Math.round(r * 0.75)]];
+    for (let q = 0; q < 4; q++) {
+      const a = nodes[q], c = nodes[(q + 1) % 4];
+      if ((q + ft) % 2 === 0) cfxPaintBolt(cfxBoltPath(a[0], a[1], c[0], c[1], sd + ft + q, 0.25), R, b, 0.7, sd + q);
+      if (u < 0.5 && q === ft % 4) cfxPaintBolt(cfxBoltPath(a[0], a[1], cx, cy, sd + ft + 9, 0.3), R, b, 0.9, sd);
+      hlDiamond(a[0], a[1], 1, R[4], b, HL_GOLD[4]);
+    }
     cfxLight(lights, cx, cy, TILE * 1.6, 1.1 * k, rgb01(ELEMENT_COLS.shock));
   } else if (fx.kind === 'wardBreak') {
-    // the ward's ring breaking apart and falling
-    const r = Math.round((6 + u * 14) * AP);
-    cfxStrokeRing(cx, cy + Math.round(u * ap(4)), r, Math.round(r * 0.75), cfxRamp(ELEMENT_COLS.force), cfxBand(k), cfxSeed(fx), false, 0.2 + u * 0.5);
+    // the shell breaking into plates of hard light that fly out and fall,
+    // each switching off in scan-lines
+    const R = cfxRamp(ELEMENT_COLS.force), sd = cfxSeed(fx), b = cfxBand(k);
+    for (let q = 0; q < 10; q++) {
+      const a = (q / 10) * Math.PI * 2 + artHash(q, 1, sd) * 0.5, d = ap(6) + u * ap(10 + artHash(q, 2, sd) * 6), x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d * 0.75 + u * u * ap(8));
+      for (const [i, j] of [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1]]) if (u < 0.5 || (y + j) % 2) dot(x + i, y + j, j ? R[2] : R[q % 3 ? 3 : 4], true, b);
+    }
     cfxLight(lights, cx, cy, TILE * 1.4, 0.9 * k, rgb01(ELEMENT_COLS.force));
   }
 }

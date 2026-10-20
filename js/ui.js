@@ -547,9 +547,11 @@ UI.acts = {
     UI.report = null; UI.close();
     Story.starGrew();
   },
-  resumeRun: () => { UI.close(); resumeRun(); },
+  // (built while loading, if it was: loader.js)
+  resumeRun: () => { UI.close(); if (!loaderCarryOn()) resumeRun(); },
   dropRun: () => {
     UI.close();
+    Loader.landed = null;
     const r = Save.data.run;
     if (!r) return;
     Game.dive = newWorld({ sortie: true, terr: r.terr, depth: 1, zone: 'surface', cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], gotShard: r.gotShard, echoes: r.echoes, banked: r.banked });
