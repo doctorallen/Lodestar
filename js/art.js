@@ -97,9 +97,10 @@ const ART = {
   biomes: {
     rim: { floor: ['#22303a', '#2c3e4a', '#3a4e5c'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#9ccf4a' },
     choir: { floor: ['#282242', '#342c56', '#42386a'], rock: ['#06050e', '#0b0918', '#110e22', '#9a84d0'], front: ['#30285a', '#3e3470', '#504488'], glow: '#e070b0' },
-    // the outpost: cleared, graded ground under the sky, pale dust over
-    // packed earth (the land beyond comes in at its edges: hubground.js)
-    outpost: { sun: true, floor: ['#5c574d', '#6a6458', '#787163'], rock: ['#2a2620', '#322d26', '#3a342c', '#a8987a'], front: ['#4a4236', '#584e40', '#665b4a'], glow: '#ffd25a' },
+    // the outpost: cleared ground under the sky, trodden, packed earth (the
+    // land beyond comes in at its edges, and starstone spreads from the
+    // cradle: hubground.js)
+    outpost: { sun: true, floor: ['#574c3f', '#65594a', '#736656'], rock: ['#2a2620', '#322d26', '#3a342c', '#a8987a'], front: ['#4a4236', '#584e40', '#665b4a'], glow: '#ffd25a' },
     underforge: { floor: ['#33252a', '#402e34', '#503a40'], rock: ['#080506', '#0f090b', '#160d10', '#b07060'], front: ['#46282a', '#5a3436', '#704244'], glow: '#ff7a2a' },
   },
 };
