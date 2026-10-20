@@ -111,7 +111,7 @@ function installBot() {
     const orig = window.hurtPlayer;
     window.hurtPlayer = function (dmg, from) { Bot.lastHurt = from && from.type ? from.type + (from.elite ? '*' : '') : from && from.vx !== undefined ? 'shot' : 'other'; return orig(dmg, from); };
     const rec = window.recoverCache, leave = window.leaveCache, use = window.useSupply;
-    window.recoverCache = function (d, c) { Bot.packs.recovered++; return rec(d, c); };
+    window.recoverCache = function (d, c) { const n = rec(d, c); if (!Save.data.cache) Bot.packs.recovered++; return n; };
     window.leaveCache = function (d) { const r = leave(d); if (r.cache) Bot.packs.left++; if (r.old) Bot.packs.lost++; return r; };
     window.useSupply = function (k) { const ok = use(k); if (ok) Bot.packs.used[k] = (Bot.packs.used[k] || 0) + 1; return ok; };
   }
