@@ -742,12 +742,15 @@ function pntPaintChunk(f, i, j) {
 // Paints the chunks over floor px x0..x1, y0..y1 not yet painted, nearest
 // the middle first; with a budget (ms), stops once it's spent. Returns
 // true once they're all painted.
-function pntEnsure(f, x0, y0, x1, y1, budget) {
+// at: where to start from (floor px), else the middle; only: a circle
+// { x, y, r } outside which nothing is painted.
+function pntEnsure(f, x0, y0, x1, y1, budget, at, only) {
   const S = View.pnt;
   if (!S || S.f !== f || !S.left) return true;
   const i0 = Math.max(0, Math.floor(x0 / PNT_CH)), i1 = Math.min(S.nx - 1, Math.floor((x1 - 1) / PNT_CH)), j0 = Math.max(0, Math.floor(y0 / PNT_CH)), j1 = Math.min(S.ny - 1, Math.floor((y1 - 1) / PNT_CH));
-  const ci = (i0 + i1) / 2, cj = (j0 + j1) / 2, todo = [];
-  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (!S.done[j * S.nx + i]) todo.push([(i - ci) ** 2 + (j - cj) ** 2, i, j]);
+  const ci = at ? at.x / PNT_CH - 0.5 : (i0 + i1) / 2, cj = at ? at.y / PNT_CH - 0.5 : (j0 + j1) / 2, todo = [];
+  const outside = (i, j) => { if (!only) return false; const nx = clamp(only.x, i * PNT_CH, (i + 1) * PNT_CH), ny = clamp(only.y, j * PNT_CH, (j + 1) * PNT_CH); return Math.hypot(nx - only.x, ny - only.y) > only.r; };
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (!S.done[j * S.nx + i] && !outside(i, j)) todo.push([(i - ci) ** 2 + (j - cj) ** 2, i, j]);
   if (!todo.length) return true;
   todo.sort((a, b) => a[0] - b[0]);
   const t0 = performance.now();
@@ -760,12 +763,23 @@ function pntEnsure(f, x0, y0, x1, y1, budget) {
 // Before a frame (render.js): what's in view and near it now, what's
 // further out as time allows; and once it's quiet, the floor's lights
 // baked again if chunks were painted since (their faces now known).
-function pntFrame(f, camX, camY) {
+// reveal: while the view opens on arriving, the circle of it that shows
+// (portals.js portalRevealArt): only that must be painted before the
+// frame, and the rest of the view comes as the budget allows, so arriving
+// isn't one long frame. lead: floor px ahead of the view's middle (where
+// the diver is heading) to paint out from first.
+function pntFrame(f, camX, camY, reveal, lead) {
   const L = T.paint.lazy, m1 = L.near * ATILE, m2 = L.far * ATILE;
   // the place's light has changed a lot (kindled): painted again for it
   if (Math.abs(pntDarkness(f) - (View.pntLift || 0)) > 0.15) paintFloor(f);
+  if (reveal) {
+    pntEnsure(f, camX - m1, camY - m1, camX + View.w + m1, camY + View.h + m1, undefined, reveal, reveal);
+    pntEnsure(f, camX - m1, camY - m1, camX + View.w + m1, camY + View.h + m1, L.arrive, reveal);
+    return;
+  }
   pntEnsure(f, camX - m1, camY - m1, camX + View.w + m1, camY + View.h + m1);
-  const all = pntEnsure(f, camX - m2, camY - m2, camX + View.w + m2, camY + View.h + m2, L.budget);
+  const moving = lead && (lead.x || lead.y), mid = moving ? { x: camX + View.w / 2 + lead.x, y: camY + View.h / 2 + lead.y } : null;
+  const all = pntEnsure(f, camX - m2, camY - m2, camX + View.w + m2, camY + View.h + m2, L.budget, mid);
   const S = View.pnt;
   if (S && S.stale && all) { S.stale = false; View.bakedFrom = null; }
 }

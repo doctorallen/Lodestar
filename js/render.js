@@ -27,7 +27,7 @@ const VIEW_MIN = 176, VIEW_FIT = 0.9;
 const View = {
   canvas: null, ctx: null, w: 0, h: 0, scale: 1, camX: 0, camY: 0,
   em: null, emCtx: null, light: null, bloom: null, bloomCtx: null, over: null, overCtx: null, blooms: [], bloomSum: null,
-  floorFor: null, floorBuf: null, rockPx: null, floorCol: null, floorEm: null, floorImgs: null, lights: [], flora: [], floraLights: [], bake: null, bakedFrom: null,
+  floorFor: null, stage: null, floorBuf: null, rockPx: null, floorCol: null, floorEm: null, floorImgs: null, lights: [], flora: [], floraLights: [], bake: null, bakedFrom: null,
 };
 const Sprites = {};
 const Sparks = [];
@@ -213,21 +213,29 @@ function fillRockField(f, x0, y0, x1, y1) {
     }
 }
 
-function paintFloor(f) {
-  const P = pixBuf(f.w * ATILE, f.h * ATILE);
+function paintFloor(f) { for (const step of paintFloorSteps(f)) step(); }
+// The same, as steps a frame apart (the buffers are set up at once): the
+// rock field in strips, what grows, then the chunks' start and the lights.
+// Arriving somewhere, they're taken while the portal's iris is still shut
+// (render), so no one frame does it all.
+function paintFloorSteps(f) {
+  const P = pixBuf(f.w * ATILE, f.h * ATILE), n = 3, strip = Math.ceil(P.h / n);
   artLatticeFor(P.w, P.h);
   View.floorFor = f; View.floorBuf = P;
   View.rockPx = new Uint8Array(P.w * P.h);
-  fillRockField(f, 0, 0, P.w, P.h);
+  const steps = [];
+  for (let k = 0; k < n; k++) steps.push(() => fillRockField(f, 0, k * strip, P.w, (k + 1) * strip));
   // what grows here first: its beds are painted with the tiles
-  View.ugMeld = null;
-  View.flora = f.hub ? hgrFlora(f) : placeFlora(f, floraSetOf(f));
+  steps.push(() => { View.ugMeld = null; View.flora = f.hub ? hgrFlora(f) : placeFlora(f, floraSetOf(f)); });
   // the ground and the rock standing up over it are painted in chunks as
   // the view comes near them (paint.js, pntFrame)
-  pntFloorStart(f);
-  View.lights = floorLights(f);
-  View.floraLights = floraLights(View.flora);
-  View.bakedFrom = null;
+  steps.push(() => {
+    pntFloorStart(f);
+    View.lights = floorLights(f);
+    View.floraLights = floraLights(View.flora);
+    View.bakedFrom = null;
+  });
+  return steps;
 }
 
 // A tile's own generator: mulberry32, as an Rng would be, but one function
@@ -727,8 +735,22 @@ function renderFrame() {
   const d = Game.dive;
   if (!d) { View.emCtx.clearRect(0, 0, View.w, View.h); View.bloomCtx.clearRect(0, 0, View.w, View.h); return; }
   const f = d.floor, p = d.p, Lt = T.light, star = ART.pal.star;
-  // (and the creatures it holds are painted now, not mid-fight)
-  if (View.floorFor !== f) { paintFloor(f); fpWarm(d); }
+  // (and the creatures it holds are painted now, not mid-fight). Just
+  // arrived through a portal, behind its shut iris: a step a frame, the
+  // last frame (all iris) left on the screen meanwhile
+  if (View.floorFor !== f && !(View.stage && View.stage.f === f)) {
+    if (d.arrive && d.arrive.t < T.portal.arrive && !d.warp) { View.stage = { f, steps: paintFloorSteps(f) }; drawPortalIris(d, 0, 0); return; }
+    paintFloor(f); fpWarm(d);
+  }
+  if (View.stage) {
+    if (View.stage.f === f) {
+      View.stage.steps.shift()();
+      if (View.stage.steps.length) { drawPortalIris(d, 0, 0); return; }
+      // (the creatures it holds, a frame of their own)
+      if (!View.stage.warmed) { View.stage.warmed = true; View.stage.steps.push(() => fpWarm(d)); drawPortalIris(d, 0, 0); return; }
+    }
+    View.stage = null;
+  }
   // the camera, in art px
   const fw = f.w * ATILE, fh = f.h * ATILE, pxA = p.x * AP, pyA = p.y * AP;
   // (T.art.steadyCam: from the diver's whole art px, so he stands on the
@@ -745,7 +767,10 @@ function renderFrame() {
   // (the opening's last shot comes down from higher: intro.js)
   const camY = (View.camY = d.hub && Intro.hub ? introCamY(camY0) : camY0);
   // the floor's painted chunks in view and near it (paint.js)
-  pntFrame(f, camX, camY);
+  // (opening on arrival, only what shows; walking, out ahead of the diver
+  // first)
+  const lead = d.hub ? null : { x: Input.move.x * ap(T.paint.lazy.lead), y: Input.move.y * ap(T.paint.lazy.lead) };
+  pntFrame(f, camX, camY, portalRevealArt(d, camX, camY), lead);
   const sh = View.shake > 0.3 ? View.shake * AP : 0;
   // a world point x, y is drawn at Math.round(x * AP) + ox, Math.round(y * AP) + oy
   const ox = -camX + Math.round(FX_R.f(-sh, sh)), oy = -camY + Math.round(FX_R.f(-sh, sh)), ex = View.emCtx;

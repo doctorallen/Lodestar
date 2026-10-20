@@ -219,10 +219,14 @@ function drawPortalIris(d, ox, oy) {
         wave = 3 * Math.sin(3 * a - rb * 0.08 + ph);
         band = Math.sin(3 * a + 4 * Math.log(rb + 1) - ph) > 0.4 ? 1 : 0;
       }
+      // (well outside the edge, every pixel of the block is past its
+      // bright rings: only the bands and their dither, no distance each)
+      const far = !deep && rb - R + wave > 12;
       for (let y = by; y < by + 2 && y < h; y++)
         for (let x = bx; x < bx + 2 && x < w; x++) {
           const n = (y * w + x) * 4;
           if (deep) { px[n + 3] = 0; continue; }
+          if (far) { const c = ramp[band && bayerAt(x, y) >= 0.3 ? 1 : 0]; px[n] = c[0]; px[n + 1] = c[1]; px[n + 2] = c[2]; px[n + 3] = 255; continue; }
           const dx = (x - cx) / AP, dy = ((y - cy) * 1.15) / AP, e = Math.hypot(dx, dy) - R + wave;
           if (e < 0) { px[n + 3] = 0; continue; }
           // three arms winding in
@@ -233,6 +237,15 @@ function drawPortalIris(d, ox, oy) {
     }
   PortalIris.canvas.getContext('2d').putImageData(PortalIris.img, 0, 0);
   View.overCtx.drawImage(PortalIris.canvas, 0, 0);
+}
+// While the view opens on arrival, how much of the place shows: a circle
+// round the diver in the floor's art px { x, y, r }, or null when it's all
+// in view. (Outside it the iris is opaque, so the floor's painting there
+// can wait: paint.js pntFrame.)
+function portalRevealArt(d, camX, camY) {
+  if (d.warp || !d.arrive || d.arrive.t >= T.portal.arrive) return null;
+  const k = easeOutQuad(d.arrive.t / T.portal.arrive), x = d.p.x * AP, y = (d.p.y - 10) * AP, cx = x - camX, cy = y - camY;
+  return { x, y, r: k * Math.hypot(Math.max(cx, View.w - cx), Math.max(cy, View.h - cy)) * 1.05 + ap(5) };
 }
 const easeInQuad = (t) => t * t;
 const easeOutQuad = (t) => 1 - (1 - t) * (1 - t);
