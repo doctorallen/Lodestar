@@ -29,9 +29,11 @@ const T = {
 
   // Your light (d.pull): full in kindled land and at home, it drains in the
   // dark over T.world.light seconds. Below dimAt the lamp dims (to lampMin)
-  // and every waveEvery seconds `wave` more enemies stir in the dark; when
-  // it's gone the Hollow comes (and a Deep's lodeline goes dark).
-  pull: { dimAt: 0.5, lampMin: 0.6, waveEvery: 16, wave: 2 },
+  // and every waveEvery seconds `wave` more enemies stir in the dark (each
+  // by region: the Rim, the Choir, the Underforge and the Edge, so the first
+  // ring is a place to learn); when it's gone the Hollow comes (and a Deep's
+  // lodeline goes dark).
+  pull: { dimAt: 0.5, lampMin: 0.6, waveEvery: [26, 18, 14], wave: [1, 2, 2] },
 
   // Leaving takes a moment: standing in a lodeline, EXTRACT takes `extract`
   // seconds; an emergency recall works anywhere but takes `recall` seconds
@@ -286,12 +288,17 @@ const T = {
   // the move thumb (flickPx in flickMs) dashes too.
   dash: { speed: 230, time: 0.13, invuln: 0.22, cooldown: 0.55, flickPx: 26, flickMs: 90 },
   // How hits land: the world freezes for hitstop (heavy: heavyStop);
-  // knockback fades at knockDecay a second. The view doesn't shake (the
-  // designer found it unpleasant), but the shake values are kept at 0 so it
-  // can be tried again.
+  // knockback fades at knockDecay a second. The foe struck holds still for
+  // targetStop s (heavy: heavyTargetStop) as the knock takes it, and a hit
+  // of at least `flinch` of its health breaks off its wind-up, staggering it
+  // for flinchTime s (not a boss's or the Hollow's; once every flinchGap s).
+  // shotKnock: a bolt's or a lance's knock, px/s [plain, charged]. The view
+  // doesn't shake (the designer found it unpleasant), but the shake values
+  // are kept at 0 so it can be tried again.
   // A struck enemy wears a rim a pixel wide (render.js) for hurtFlash s;
   // no more than flashMost at once.
-  impact: { flashMost: 4, hitstop: 0.045, heavyStop: 0.09, stopGap: 0.15, shake: 0, heavyShake: 0, hurtShake: 0, knockDecay: 9 },
+  impact: { flashMost: 4, hitstop: 0.045, heavyStop: 0.09, stopGap: 0.15, shake: 0, heavyShake: 0, hurtShake: 0, knockDecay: 9,
+    targetStop: 0.07, heavyTargetStop: 0.13, flinch: 0.15, flinchTime: 0.25, flinchGap: 1.2, shotKnock: [75, 130] },
 
   // Circuits (circuits.js): a caster's row of slots, read left to right.
   // A Form starts a spell, Elements after it set its damage type, Glyphs
@@ -344,7 +351,7 @@ const T = {
     },
     forms: {
       arc: { cost: 3, mult: 0.9, close: true, refund: 2, refundMost: 3, range: 22, heldMult: 2.2, field: 14, slow: 0.6,
-        combo: [[1, 0.24, 0.3, 70, 4], [1, 0.24, 0.3, 70, 4], [1.7, 0.45, -0.1, 160, 9]] },
+        combo: [[1, 0.24, 0.3, 90, 4], [1, 0.24, 0.3, 90, 4], [1.7, 0.45, -0.1, 170, 9]] },
       glaive: { cost: 6, mult: 0.5, close: true, refund: 1, refundMost: 4, cd: 0.4, blades: 2, radius: 20, reach: 7, time: 3, spin: 7, again: 0.35, most: 3, knock: 60, field: 20 },
       bolt: { cost: 4, mult: 1.0, cd: 0.3, speed: 170, life: 1.2, field: 12 },
       lance: { cost: 6, mult: 1.1, cd: 0.35, speed: 210, life: 0.9, pierce: 4, field: 12 },
@@ -534,12 +541,20 @@ const T = {
   onHit: { shockRange: 48, shockMult: 0.5, chillSlow: 0.5, chillTime: 2 },
 
   // Enemies at level 1; each level multiplies hp by hpGrowth and damage by
-  // dmgGrowth. windup: the tell before an attack. weight: how often each
-  // turns up. No more than `attackers` (plus attackersPerDepth a floor)
-  // wind up at once; the rest circle.
+  // dmgGrowth. The first levels are gentler: hp × hpEarly at level 1,
+  // rising evenly to all of it at level hpFullAt (the Choir's furthest), so
+  // the Rim is for learning (not the Hollow's). windup: the tell before an
+  // attack. weight: how often each turns up. No more than `attackers` (plus
+  // attackersPerDepth a depth and attackersPerBiome a region, rounded down)
+  // wind up at once; the rest circle. Of the kinds that close in to fight
+  // (crawlers, droppers, crabs, constructs), only the nearest `press` (plus
+  // pressPerBiome a region) come in; the rest hold off at holdBack px,
+  // circling, until one falls. One woken by another, or by a noise, waits
+  // wakeStagger s (between the two) before it comes.
   // A heavy hit staggers anything but the warden for staggerTime.
   enemies: {
-    hpGrowth: 1.16, dmgGrowth: 1.07, aggro: 96, hurtFlash: 0.08, attackers: 2, attackersPerDepth: 0.34, staggerTime: 0.35,
+    hpGrowth: 1.16, dmgGrowth: 1.07, hpEarly: 0.5, hpFullAt: 8, aggro: 96, hurtFlash: 0.12, staggerTime: 0.35,
+    attackers: 1, attackersPerDepth: 0.34, attackersPerBiome: 0.75, press: 2, pressPerBiome: 1, holdBack: 72, wakeStagger: [0.5, 1.6],
     // crawlers close to `circle` px, circle for a moment, wind up, lunge,
     // then recover (open to a counter)
     crawler: { hp: 26, dmg: 14, speed: 36, radius: 5, circle: 28, windup: 0.38, lungeSpeed: 145, lungeTime: 0.28, recover: 0.55, weight: 5 },
@@ -630,8 +645,9 @@ const T = {
     // Underforge's)
     keeper: { hp: 455, enrageAt: 90, enrageSpeed: 1.3, afterPull: 30, dmg: 18, speed: 22, radius: 12, range: 100, windup: 0.75, cooldown: 1.8, chargeSpeed: 130, chargeTime: 0.6, dazed: 1.5, shotSpeed: 70, shots: 12, summonEvery: 7, broodMax: 4, magma: 0.35, magmaR: 18, magmaTime: 4, summon: 2 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },
-    // a room's enemies: perRoom + perDepth × depth, give or take one
-    perRoom: 1.4, perDepth: 0.55, maxPerRoom: 6,
+    // a room's enemies: perRoom + perDepth × depth + perBiome × region,
+    // give or take one
+    perRoom: 1.0, perDepth: 0.4, perBiome: 0.8, maxPerRoom: 6,
     // elites: chance eliteBase + eliteDepth × depth, to eliteMax; elites:
     // how often each affix comes up
     eliteBase: 0.06, eliteDepth: 0.035, eliteMax: 0.35, eliteHp: 2.5, eliteDmg: 1.3,
@@ -1140,6 +1156,31 @@ const T = {
   // its whole bob). ease: how quickly it catches up (a second); bob: [its
   // speed, how far (world px)].
   wick: { back: [7, 4], aside: [6, 3], up: 29, ease: 5, bob: [3, 1.5] },
+
+  // The opening (intro.js): five painted scenes that play on their own,
+  // the last in the outpost itself. scenes: each one's length (s); fade:
+  // the black into and out of each of the first four (s); capAt: when each
+  // of their captions starts (s), typed at cps characters a second;
+  // tapGuard: seconds before a tap counts; warm: seconds the outpost is
+  // still drawn under the first scene (so it's painted); sndWait: the
+  // longest (s) a cue waits for its sound to be rendered (sndbank.js). hub: the last
+  // shot, in seconds into it: the fade in from black; the star rising out
+  // of its cradle from `drop` art px down (over `rise`) and lighting (over
+  // `lit`); the outpost's light up from `amb0` of its own (over `ambUp`);
+  // its lodelines running out (over `lode`); the modules waking, the
+  // nearest the cradle first: [the first, then one every, each light of
+  // one after the one before]; the camera starting with the star `camAt`
+  // of the way down the view and coming down over `cam`; the Kindler's pod
+  // door open over `door`, his suit lamp flickering on over `lampOn` as he
+  // looks out, and him stepping out and `step` tiles on at
+  // `walk` of his pace; Wick lifting off his pack at `wickAt`; him turning
+  // to the star at `look`; Wick's lines at `caps`; and something in the
+  // dark over `dark`.
+  intro: {
+    scenes: [9, 9.5, 11, 9.5, 17.5], fade: 0.6, capAt: [1.0, 1.0, 1.2, 1.0], cps: 30, tapGuard: 0.4, warm: 1, sndWait: 2.5,
+    hub: { fadeIn: 0.9, drop: 34, rise: [0.6, 3.2], lit: [0.8, 2.8], amb0: 0.3, ambUp: [1.5, 9], lode: [2.8, 6], wake: [2.6, 0.2, 0.08], camAt: 0.42, cam: [3.4, 8.2], door: [5.8, 7.6], lampOn: 0.6, step: 1.6, walk: 0.42, wickAt: 7.4, look: 8.4, caps: [8.0, 12.6], dark: [14.2, 15.4] },
+  },
+
 
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
   // at once (ui.js; hints wait their turn).

@@ -279,7 +279,7 @@ function updatePull(dt) {
   const was = d.pull;
   d.pull = Math.max(0, d.pull - (dt / (d.pullTime || T.world.light)) * (1 - d.stats.pullSlow / 100));
   if (was > P.dimAt && d.pull <= P.dimAt) { UI.toast('Your light is fading', 'legendary'); Story.say('pullFading'); snd('lightLow'); }
-  if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { d.waveT = P.waveEvery; stirTheDark(d, P.wave); }
+  if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { const r = Math.min(d.biome || 0, P.wave.length - 1); d.waveT = P.waveEvery[r]; stirTheDark(d, P.wave[r]); }
   if (d.pull <= 0) theDarkComes(d);
 }
 
@@ -327,7 +327,7 @@ function startChannel(kind) {
   const max = { recall: L.recall, seal: T.rifts.seal, stone: T.world.waystone.channel, plant: T.world.plant }[kind] || L.extract;
   d.channel = { kind, t: 0, max, x: d.p.x, y: d.p.y, stone: kind === 'stone' ? stoneHere(d) : -1 };
   // the light draws attention
-  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, d.p.x, d.p.y) < L.noise) wake(d, e);
+  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, d.p.x, d.p.y) < L.noise) wake(d, e, true);
 }
 
 function breakChannel(why) {
@@ -439,7 +439,7 @@ function updateMining(dt) {
   if (p.mine.hitT <= 0) {
     p.mine.hitT = T.mine.hitEvery;
     // a drill is loud
-    if (d.stats.noisy) for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.mine.drillNoise) wake(d, e);
+    if (d.stats.noisy) for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.mine.drillNoise) wake(d, e, true);
     spawnSparks((tgt.tx + 0.5) * TILE, (tgt.ty + 0.5) * TILE, [ART.ores[o.id][3], '#ffffff'], 4);
     snd('mine', { tier: o.tier });
     buzz(6);

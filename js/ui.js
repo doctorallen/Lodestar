@@ -395,7 +395,9 @@ function drawUplink_() {
     <h3>SHARDS SET · ${set}/3</h3>${T.biomes.map(shardRow).join('')}
     ${call}
     ${log ? `<h3>THE LOG · ${kindled} KINDLED</h3>${log}` : ''}
-    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The Kindlers before you left logs out in the dark.</p>'}`;
+    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The Kindlers before you left logs out in the dark.</p>'}
+    <h3>THE LANDING</h3><p class="note">The Meridian's record of how we came down.</p>
+    <div class="menu"><button class="btn" data-act="replayIntro">WATCH THE LANDING AGAIN</button></div>`;
 }
 
 // How the last dive ended, over the outpost.
@@ -792,6 +794,8 @@ UI.acts = {
     UI.story = null; UI.close();
     if (st.done) st.done();
   },
+  // the opening again, from the uplink (intro.js)
+  replayIntro: () => { UI.close(); Intro.play(null); },
   // calling the colony down, at the uplink (story.js)
   callLanders: () => { if (Story.canCall()) Story.callLanders(() => UI.useStation('wreck')); },
   recall: () => {

@@ -545,12 +545,36 @@ const SND_CUES = {
     else if (a.style === 'wick') { sndTone(S, o, t, { f: 900, f2: 1250, glide: 0.06, w: 'triangle', a: 0.005, d: 0.03, g: 1 }); sndTone(S, o, t + 0.09, { f: 1150, f2: 850, glide: 0.06, w: 'triangle', a: 0.005, d: 0.03, g: 0.8 }); }
   } },
 
+  // The opening (intro.js): rendered ahead like the fight's sounds, one
+  // of each (sndbank.js, BANK_INTRO), first while it plays; each at its own
+  // speed (no spread), so its chords stay in the music's key.
+  // introScene: n, the scene (1-5)
+  introScene: { g: 0.2, gap: 0.5, pri: true, spread: 0, bank: (a) => [['intro.scene' + sndClamp(a.n || 1, 1, 5), 1]] },
+  // craft: the craft's engine far off in space; else the landing's roar
+  introThrust: { g: 0.26, gap: 1, pri: true, spread: 0, bank: (a) => [[a.craft ? 'intro.craft' : 'intro.thrust', 1]] },
+  introBeam: { g: 0.1, gap: 1, spread: 0, bank: () => [['intro.beam', 1]] },
+  introSite: { g: 0.12, gap: 1, spread: 0, bank: () => [['intro.site', 1]] },
+  introTouchdown: { g: 0.2, gap: 0.3, spread: 0.02, bank: () => [['intro.touchdown', 1]] },
+  introLock: { g: 0.24, gap: 1, pri: true, spread: 0, bank: () => [['intro.lock', 1]] },
+  introStarLit: { g: 0.28, gap: 1, pri: true, spread: 0, bank: () => [['intro.starLit', 1]] },
+  introPing: { g: 0.1, gap: 1, spread: 0, bank: () => [['intro.ping', 1]] },
+  // skipped: only a soft fall
+  introEnd: { g: 0.14, gap: 1, spread: 0, bank: (a) => [[a.skipped ? 'intro.skip' : 'intro.end', a.skipped ? 0.4 : 1]] },
+
   // the star, fed (the music's moments: music.js)
   starFeedStart: { music: true, fn() { Music.feedHeld = true; } },
   starFeedEnd: { music: true, fn() { Music.feedHeld = false; } },
   starFeed: { music: true, fn(S, o, t, a) { Music.fed(t, a); } },
   starGrow: { music: true, fn(S, o, t, a) { Music.grow(t, a); } },
 };
+
+// Whether a cue could sound now: its rendered buffers are ready (a cue
+// made live always is). The opening waits for its own (intro.js).
+function sndReady(name, opts) {
+  const cue = SND_CUES[name];
+  if (!cue || !cue.bank || !Snd.ready || typeof SndBank === 'undefined') return true;
+  return cue.bank(opts || {}).every(([k]) => SndBank.has(k));
+}
 
 // The hook the game calls: a cue by name, never an error, nothing before
 // the first tap.
@@ -573,8 +597,9 @@ function sndUnlock() {
       Music.build(Snd);
       // the fight's sounds (sndbank.js) are rendered while the game loads,
       // before the tap; if they weren't (no loading, or it failed), they're
-      // rendered now, between frames
-      if (typeof OfflineAudioContext !== 'undefined' && !SndBank.started) SndBank.start(ctx.sampleRate, 800).catch(() => {});
+      // rendered now, between frames (sooner while the opening plays: it
+      // wants its sounds now)
+      if (typeof OfflineAudioContext !== 'undefined' && !SndBank.started) SndBank.start(ctx.sampleRate, typeof Intro !== 'undefined' && Intro.on ? 150 : 800).catch(() => {});
       // a moment of silence started inside the tap wakes iOS's output
       const b = ctx.createBufferSource(); b.buffer = ctx.createBuffer(1, 1, ctx.sampleRate); b.connect(ctx.destination); b.start(0);
     }

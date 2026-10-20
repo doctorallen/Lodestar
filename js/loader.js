@@ -171,8 +171,9 @@ function loaderCoreJobs() {
       // (every sound's first variant; the rest for as long as the main
       // lane is busy, then in idle time once play has begun)
       fn: (job) => SndBank.start(BANK_RATE, 0, {
-        pace: (k, n) => { job.at(k, n, Math.min(1, k / SndBank.first)); return job.yield(); },
+        pace: (k, n) => { if (n) job.at(k, n, Math.min(1, k / SndBank.first)); return job.yield(); },
         enough: () => Loader.mainDone,
+        intro: typeof BANK_INTRO !== 'undefined' && !Save.data.introSeen,
       }),
     },
     // where you'll wake: the outpost, or the sortie that was under way
@@ -199,7 +200,8 @@ function loaderCoreJobs() {
 function loaderLateJobs() {
   return [
     typeof castfxWarm === 'function' && { label: 'PRIMING CIRCUITS', weight: 4, fn: (job) => castfxWarm(job) },
-    typeof Intro !== 'undefined' && Intro && typeof Intro.warm === 'function' && !(Save.data && Save.data.introSeen) && { label: 'RECOVERING THE DESCENT LOG', weight: 6, fn: (job) => Intro.warm(job) },
+    // the opening's painted scenes, for a new game (intro.js)
+    typeof Intro !== 'undefined' && (typeof Intro.warm === 'function' || typeof introPrebuild === 'function') && !Save.data.introSeen && { label: 'DEVELOPING THE LANDING RECORD', weight: 8, fn: (job) => loaderIntro(job) },
     { label: 'WAKING WICK', weight: 1, fn: () => loaderFirstView() },
   ];
 }
@@ -306,6 +308,22 @@ function loaderClimes(job) {
   }
   job.say('READING LIFE SIGNS · ' + list.length + (list.length === 1 ? ' CLIME' : ' CLIMES'));
   return loaderEach(job, work, (fn) => fn());
+}
+
+// The opening's first four scenes' pictures (its fifth is the outpost,
+// already painted), built for this screen, a scene a slice: it's measured
+// on its overlay, shown for that moment under the loading screen.
+function loaderIntro(job) {
+  if (typeof Intro.warm === 'function') return Intro.warm(job);
+  introSetup();
+  let n = 0;
+  return () => {
+    const el = Intro.el, was = el.hidden;
+    el.hidden = false;
+    try { introSize(); introPrebuild(n); } finally { el.hidden = was; }
+    job.at(++n, 4);
+    return n >= 4;
+  };
 }
 
 // The first view, drawn once where you stand: whatever's left to build for it.

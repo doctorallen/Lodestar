@@ -707,7 +707,10 @@ function lampLevels(d) {
   if (!d.hub && d.pull < T.pull.dimAt) lamp *= lerp(T.pull.lampMin, 1, d.pull / T.pull.dimAt);
   // in daylight the lamp isn't needed; it comes on at dusk
   if (zl && sun > zl.lampAt) lamp *= 0.15;
-  return { amb, tint, lamp, r: Lt.lamp[0] * ATILE * lamp * (1 + (d.stats.lamp || 0) / 100), i: Lt.lamp[1] * lamp };
+  // (in the opening's last shot, off while he's in his pod, coming on as he
+  // looks out: intro.js; its reach kept, only its strength)
+  const on = d.hub && Intro.hub ? Intro.hub.lamp : 1;
+  return { amb, tint, lamp: lamp * on, r: Lt.lamp[0] * ATILE * lamp * (1 + (d.stats.lamp || 0) / 100), i: Lt.lamp[1] * lamp * on };
 }
 
 // ---------------------------------------------------------------------------
@@ -733,10 +736,14 @@ function renderFrame() {
   // it as his place and the camera's round differently on an odd-sized
   // view)
   const steady = T.art.steadyCam, cxA = steady ? Math.round(pxA) - (View.w >> 1) : pxA - View.w / 2, cyA = steady ? Math.round(pyA) - (View.h >> 1) : pyA - View.h / 2;
-  const camX = (View.camX = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(cxA, 0, fw - View.w)));
+  const camX0 = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(cxA, 0, fw - View.w));
+  // (the opening's last shot starts over the star: intro.js)
+  const camX = (View.camX = d.hub && Intro.hub ? introCamX(camX0) : camX0);
   // at home the camera looks further up, to keep the star in sight
   const lookUp = ap(d.hub ? 56 : 8);
-  const camY = (View.camY = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h)));
+  const camY0 = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h));
+  // (the opening's last shot comes down from higher: intro.js)
+  const camY = (View.camY = d.hub && Intro.hub ? introCamY(camY0) : camY0);
   // the floor's painted chunks in view and near it (paint.js)
   pntFrame(f, camX, camY);
   const sh = View.shake > 0.3 ? View.shake * AP : 0;
@@ -874,7 +881,9 @@ function renderFrame() {
   if (beam) drawBeamAir(d, beam, lv, ox, oy);
 
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
-  const ambLevel = lv.amb, tint = lv.tint;
+  // (dimmed at first in the opening's last shot, intro.js; only here, so the
+  // floor isn't painted again for it)
+  const ambLevel = lv.amb * (d.hub && Intro.hub ? Intro.hub.amb : 1), tint = lv.tint;
   const L = View.light;
   if (View.bakedFrom !== View.lights) bakeFloorLights(f);
   startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
@@ -894,6 +903,7 @@ function renderFrame() {
   if (beam) addLampBeam(d, L, beam, rgb01(DIVER_PAL.lamp[0]));
   else { const lamp = diverLampAt(d); addLampLight(d, L, lamp.x, lamp.y, lv.r, lv.i, rgb01(DIVER_PAL.lamp[0])); }
   lightScene(-ox, -oy);
+  if (d.hub && Intro.hub) introHubOver(d, ox, oy);
   bloomScene(-ox, -oy);
   drawLifeShade(d, ox, oy);
 
@@ -949,7 +959,7 @@ function renderFrame() {
   }
   // the tools' marks and the outpost's labels too
   View.ctx = o;
-  try { drawToolHud(d, ox, oy); if (d.hub) drawStationLabels(d, ox, oy); else drawStormMark(d, ox, oy); drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
+  try { drawToolHud(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else drawStormMark(d, ox, oy); if (!Intro.hub) drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
   // stepping through a portal, or just through one: over everything
   drawPortalIris(d, ox, oy);
 }
@@ -1008,6 +1018,8 @@ function enemySprite(d, type) {
 function drawShadow(fx, fy, rx, up) { pshContact(fx, fy, rx, up || 0); }
 
 function drawProspector(d, ox, oy, tick, lights) {
+  // (still in his pod, in the opening: intro.js)
+  if (d.hub && Intro.hub && Intro.hub.hidden) return;
   const p = d.p;
   // casting: the pose, turned to the aim and leaning into it (castfx.js);
   // the legs keep walking. Charging a caster, the pose is held, wound back.
@@ -1065,6 +1077,8 @@ function drawDrone(d, fx, fy, lights) {
   d.droneT = Game.realT;
   const W = T.wick, tx = p.x - p.fx * W.back[0] - p.fy * W.aside[0], ty = p.y - p.fy * W.back[1] + p.fx * W.aside[1] - W.up;
   if (!d.drone) d.drone = { x: tx, y: ty };
+  // (in the opening, folded on the pack until it lifts off: intro.js)
+  if (Intro.hub && !Intro.hub.wick) { d.drone.x = p.x + 2; d.drone.y = p.y - 17; }
   const k = 1 - Math.exp(-W.ease * dt);
   d.drone.x += (tx - d.drone.x) * k; d.drone.y += (ty - d.drone.y) * k;
   const x = Math.round((d.drone.x - p.x) * AP) + fx, y = Math.round((d.drone.y - p.y + Math.sin(Game.realT * W.bob[0]) * W.bob[1]) * AP) + fy;
@@ -1198,7 +1212,9 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   else if ((e.state === 'chase' || e.state === 'circle') && Math.floor(e.bob * 8) % 2) lift = 1;
   else if (e.state === 'lunge') lift = 2;
   const shake = e.state === 'windup' ? (tick % 2 ? 1 : -1) : 0;
-  const fx = Math.round(e.x * AP) + ox, fy = Math.round(e.y * AP) + oy;
+  // struck: jolted an art px or two the way the hit pushes it while it holds
+  const jx = e.hitT > 0 ? Math.sign(Math.round(e.kvx / 20)) * (e.hitT > T.impact.targetStop ? 2 : 1) : 0, jy = e.hitT > 0 ? Math.sign(Math.round(e.kvy / 20)) : 0;
+  const fx = Math.round(e.x * AP) + ox + jx, fy = Math.round(e.y * AP) + oy + jy;
   if (fx < -60 || fy < -15 || fx > View.w + 60 || fy > View.h + 75) return;
   if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r), lift > 2 ? lift : 0);
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
