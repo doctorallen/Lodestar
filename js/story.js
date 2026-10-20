@@ -3,9 +3,10 @@
 // The story. You're a Kindler of the Lodestar Charter. Kindlers ride
 // seed-stars down to dead worlds, plant them, and carry their light outward,
 // spire by spire, until the colony waiting in orbit can land. This seed, the
-// Lodestar, came down by the book on a surveyed site with the Charter's base
-// modules, and it starts small, as every seed does: it's your first. The
-// Meridian, the colony ship, waits above.
+// Lodestar, was planted by the book on a surveyed site in the middle of the
+// world, and the Charter's base modules came down with it. A new seed starts
+// small: growing it is the Kindler's job, and this is your first. Wick has
+// done it before. The Meridian, the colony ship, waits above.
 //
 // The turn comes in ring 2, in the echoes (logs of the Kindlers before):
 // the world wasn't dead. The dark is its own living night, the Hollow is
@@ -31,6 +32,7 @@
 //   theEdge        first reaching the Edge
 //   firstSettlers  the first settlers at the outpost (said here, on coming
 //                  home, once storyKindledCount() brings a lander)
+//   firstFeed      the first time the star is fed at its altar (hub.js)
 // And:
 //   storyKindledCount()           territories kindled (0 with no world yet)
 //   storyLanders()                landers the Meridian can send
@@ -91,15 +93,17 @@ const WICK = {
   shardHome: 'Set it in the star, at the altar. It should reach further for it.',
   allShards: "All three. Our star's never shone like this. They'll see it from orbit.",
   echo: "An echo: a Kindler's log, from before us. I'll keep it at the uplink.",
+  // the first time the star is fed, at its altar (hub.js)
+  firstFeed: "By the book, then. A seed-star is planted small and fed the land's ore until it can light a world. Your first. You're doing fine.",
   // the world's (see the list at the top)
-  firstSpire: "Our first spire. Kindlers don't conquer. We just carry the light a little further than it was.",
+  firstSpire: "Our first spire. Your first, anyway. Kindlers don't conquer. We just carry the light a little further than it was.",
   firstKindled: "Kindled. The ground's warming already. Funny how quiet it went.",
   firstTide: "The dark's coming back in, like a tide. Hold the spire and it'll go out again. It always has.",
   firstDeep: "A Deep. Down here the star can't see us at all. Quick in, quicker out.",
   ring2: "The second ring. Nobody's mapped this far. Nobody but whoever left those logs.",
   ring3: "The third ring. The dark's thick enough to lean on out here. Stay close.",
   theEdge: "The Edge. Whatever this world has at its heart, it's out there. I don't think it's sleeping.",
-  firstSettlers: "The first lander's down. Settlers, on the rim. Try to look like you know what you're doing.",
+  firstSettlers: "The first lander's down, right on its pad. Settlers. Try to look like you've done this before.",
   // natures (natures.js)
   weakHit: "It hates that. I'll mark what each kind fears over its head: a point up for what hurts it, down for what it shrugs off.",
   resistHit: "That barely touched it. Some things shrug an element off. Try the other hand.",
@@ -137,14 +141,20 @@ const WICK = {
   foe_hound: "A wind-up hound. When the key stops, it runs, off the walls and all. After that it's spent.",
 };
 
-// The star, as it grows: a seed-star waking up where it fell.
+// The star, as it grows: a seed-star waking up where it was planted.
 const STAR_SPEAKS = {
   2: '…warm… you carry light back to me…',
-  3: '…I was meant to land softly. I remember the cold between, and then the stone…',
+  3: '…I remember the cold between, and then being set down. Gently. Here…',
   4: '…the ground is breathing. I did not know ground did that…',
-  5: '…there were others of me here, once. Very far down. Very dim…',
+  5: '…there were others of me here, once. Very far down. Very dim. Someone fed them too…',
   6: '…the dark does not hate me. I think it only wants me quieter…',
   7: '…I could fill this whole world. Tell me where to stop…',
+};
+// The first ore it ever takes, and the first Starmetal: said once each,
+// as the ore lands (Story.starTaste).
+const STAR_TASTES = {
+  first: '…oh. The ground here. It tastes older than I am…',
+  starmetal: '…this one tastes like me. Like a light that went out, long ago…',
 };
 // As each shard is set: another star's light, folded into its own.
 const SHARD_SPEAKS = [
@@ -159,12 +169,12 @@ const SHARD_SPEAKS = [
 const ECHOES = [
   { title: 'Halcyon, day 1', text: 'Planted clean. The Halcyon took first time and the rim lit up like a harbour. Dead world, as promised. Quiet as a held breath.' },
   { title: 'Halcyon, day 12', text: 'Third spire up. Each time, the land wakes a little: moss first, then lizards. The Charter says life rides down with the seed. I never knew it worked so fast.' },
-  { title: 'Halcyon, day 31', text: 'The dark pushes back hardest where we push hardest. It comes in like a tide, and it goes out like one. Weather does not do that.' },
+  { title: 'Halcyon, day 31', text: 'Fed the Halcyon a full cart tonight, by the book. The dark pushes back hardest where we push hardest. It comes in like a tide, and goes out like one. Weather does not do that.' },
   { title: 'Saltmarsh survey log', text: 'Ours is the fourth seed sent here. We found the other three. Not their capsules. Their light, gone dim under the ground, and something curled round each one.' },
   { title: 'Unsigned', text: 'Went out past my light. Things moved in the dark that never came for me. Feeding. Singing. Raising their young. I was the strange thing there.' },
-  { title: 'Halcyon, day 60', text: 'We called it dead because nothing here needed a sun. That was the whole mistake. Every spire I plant, something goes quiet.' },
+  { title: 'Halcyon, day 60', text: 'We called it dead because nothing here needed a sun. That was the whole mistake. Every spire I plant, something goes quiet. And the ore I carry up to her: I used to think the ground had no use for it.' },
   { title: 'Keeper notes', text: 'Cut into the thing in the lair. Under the shell was a Charter plate, worn smooth. Seed-star Wren, it said. Kindler unknown.' },
-  { title: 'Last log of the Halcyon', text: "I'm letting my star burn low. Not out. Just smaller. If you're the next one: you could light it all. Ask whose night it is first." },
+  { title: 'Last log of the Halcyon', text: "I've stopped feeding her. She burns low now. Not out. Just smaller. If you're the next one: you could light it all. Ask whose night it is first." },
 ];
 
 // The endings, at the Edge: kindle the heart, or leave it. The game goes on
@@ -174,7 +184,7 @@ const KINDLER_ENDINGS = {
     // the Kindler at the heart of the dark, the Lodestar's light pouring
     // into it
     'At the heart of the dark, you give it your light. All of it, the way a Kindler is taught.',
-    'Morning runs out from the Edge like water. It reaches the rim, and the old dim stars underground, and keeps going.',
+    'Morning runs out from the Edge like water. It reaches the outpost, and the old dim stars underground, and keeps going.',
     'The Hollow do not fight it. They thin, and pale, and are gone. Where they were, green comes up.',
     "Wick: It's a garden. A whole world of it. The Charter will call it a triumph.",
     'Wick: …It went very quiet, at the end. I keep listening for it.',
@@ -194,7 +204,7 @@ const KINDLER_ENDINGS = {
 // kindled for T.story.callLanders landers.
 const STORY_LANDING = [
   'The uplink sends one word to orbit: now.',
-  'The Meridian wakes its sleepers. By nightfall the landers are down on the rim, in your light.',
+  'The Meridian wakes its sleepers. By nightfall the landers are down on the pads round the star, in your light.',
   "Wick: That's the colony, then. We should probably tidy up.",
   // the Edge on the horizon past the last spire, dark, and very still
   'Out past the third ring, the Edge is still dark. Whatever waits at its heart is waiting for you.',
@@ -235,6 +245,7 @@ const SETTLER_LINES = {
     'My daughter left bread out past the lanterns. By morning it was gone, and a stone was left in its place.',
     'Those old logs you found. Does the Charter know?',
     "I don't mind the dark so much now. It's someone else's, that's all.",
+    "My boy asked what the ore was for, before the star ate it. I didn't have an answer.",
   ],
   place: [
     "I hear {place}'s lit now. I'd like to see it, one day.",
@@ -286,11 +297,13 @@ const Story = {
     UI.speak('WICK', WICK[id]);
   },
   // The star, when it grows: a line for every magnitude it passed (a big
-  // feed can pass two), and the attunement to spend.
-  starGrew() {
-    const s = Save.data, mag = magnitudeOf(s.star);
+  // feed can pass two), and the attunement to spend. (mag: the magnitude
+  // it has reached as drawn, when ore is still rising into it.)
+  starGrew(mag = magnitudeOf(Save.data.star)) {
+    const s = Save.data;
     if (s.magSeen === undefined) s.magSeen = mag;
     if (mag <= s.magSeen) return;
+    snd('starGrow', { mag });
     for (let m = s.magSeen + 1; m <= mag; m++) {
       if (STAR_SPEAKS[m]) UI.speak('THE STAR', STAR_SPEAKS[m], 'star');
     }
@@ -299,11 +312,22 @@ const Story = {
     Save.save();
   },
 
+  // An ore landing in the star: the first ever, and the first Starmetal,
+  // it remarks on, once each.
+  starTaste(ore) {
+    const said = Save.data.said || (Save.data.said = {});
+    for (const k of ['first', ore === 'starmetal' ? 'starmetal' : null]) {
+      if (!k || said['star_' + k]) continue;
+      said['star_' + k] = true;
+      UI.speak('THE STAR', STAR_TASTES[k], 'star');
+    }
+  },
+
   // The opening, the first time the game is played (intro.js). However it
   // ends, played out or skipped, it's seen.
   intro() {
     if (Save.data.introSeen) return false;
-    const seen = () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); UI.tip('hub', 'Walk to the portal under the star to set out'); };
+    const seen = () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); UI.tip('hub', 'Walk out any opening into the land next to the outpost, or take the portal'); };
     // a save from before circuits started over: one line to say why first
     if (Save.data.freshStart) UI.openStory([FRESH_START_LINE], () => Intro.play(seen));
     else Intro.play(seen);
@@ -383,8 +407,8 @@ function settlerSprite(look, frame, west) {
   return _settlerSprites[key];
 }
 
-// Where settlers stroll (tiles): the open plaza south of the stations.
-const SETTLER_SPOTS = [[8, 17], [14, 17], [11, 16], [9, 18], [13, 18], [7, 13], [15, 13], [10, 14], [12, 14], [11, 21]];
+// Where settlers stroll (tiles): about the plaza, between the modules.
+const SETTLER_SPOTS = [[17, 21], [23.5, 21], [20, 24.5], [17.5, 27], [23, 26], [11.5, 20.5], [29, 22], [16.5, 15], [24.5, 15], [20, 30.5]];
 
 // How many settlers stand at the outpost now.
 function settlerCount() {

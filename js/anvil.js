@@ -71,6 +71,7 @@ const Anvil = {
       j.sparks.push({ x: 60, y: 47, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: FX_R.f(0.3, 0.7) });
     }
     setTextIfChanged('anvil-call', grade === 'perfect' ? 'PERFECT' : grade === 'good' ? 'GOOD' : 'MISS');
+    snd('anvil', { grade });
     buzz(grade === 'miss' ? 10 : grade === 'good' ? 25 : 45);
     j.k++;
     j.zone = j.rng.f(0.22, 0.78);
@@ -170,6 +171,7 @@ const Reveal = {
       <div class="reveal-sub">${esc(itemKindLine(item))}${q !== undefined ? ` · ${['A rough forge', 'A fair forge', 'A fine forge', 'A masterwork'][q]}` : ''}</div>`;
     UI.show('screen-reveal');
     this.shownAt = Game.realT;
+    snd('reveal', { rarity: item.kind === 'relic' ? 'relic' : item.rarity });
     buzz(item.rarity === 'legendary' || item.rarity === 'set' ? 60 : 25);
   },
   done() {

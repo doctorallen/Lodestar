@@ -192,10 +192,9 @@ function pntGroundTones(f, x0, y0, x1, y1) {
   const v = new Float32Array(n), n1 = new Float32Array(n), n2 = new Float32Array(n), n3 = new Float32Array(n), cl = new Float32Array(n), mid = new Int16Array(n), jit = new Float32Array(n);
   // for each column, how many rows since rock above it (up to G.foot + 1)
   const since = new Uint8Array(n), F = G.foot, pk = sun ? G.patchSky : G.patchCave, J = G.jitter * (nt - 1) * 0.48;
-  // (the sinkhole is no wall: it falls away, painthole.js)
   // (what stands on it: its contact, sun and fixed lights' shadows, pshadow.js)
   const SHD = pshShadeFor(f);
-  const pit = View.pitPx, rk = (x, y) => x < 0 || y < 0 || x >= W || y >= Hp || (R[y * W + x] === 1 && !(pit && pit[y * W + x]));
+  const rk = (x, y) => x < 0 || y < 0 || x >= W || y >= Hp || R[y * W + x] === 1;
   for (let i = 0; i < n; i++) { let k = F + 1; for (let j = 1; j <= F; j++) if (rk(ax + i, y0 - j)) { k = j - 1; break; } since[i] = k; }
   for (let y = y0; y < y1; y++) {
     pntNoiseRow(n1, ax, n, y, G.swell, G.swell, seedH + 21);
@@ -204,7 +203,7 @@ function pntGroundTones(f, x0, y0, x1, y1) {
     artClumpRow(cl, ax, n, y, seedH);
     const row = y * W;
     for (let i = 0; i < n; i++) {
-      const x = ax + i, here = x < 0 || x >= W || (R[row + x] === 1 && !(pit && pit[row + x]));
+      const x = ax + i, here = x < 0 || x >= W || R[row + x] === 1;
       let val = G.base + (n1[i] - 0.5) * G.swellAmt + cl[i] * G.clump;
       // streaky light: patches of it, their edges torn in streaks
       const p = n2[i] * 0.65 + n3[i] * 0.35;
@@ -236,13 +235,7 @@ function pntGroundTones(f, x0, y0, x1, y1) {
 // How high each rock pixel of the footprint stands (art px), in View.rockH:
 // from its distance in from the rock's edge, a steep rise (the face) that
 // rounds over into a top, plus boulder bumps that grow in from the edge.
-// The sinkhole is not rock here: it falls away (painthole.js, phlPaintPit).
 function pntMaxLift() { const W = T.paint.wall; return W.face + W.bump + 1; }
-function pntIsRockPx(f, R, W, x, y) {
-  if (!R[y * W + x]) return false;
-  const P = View.pitPx;
-  return !(P && P[y * W + x]);
-}
 // The boulders: one a cell of a grid Bo px across (T.paint.wall.boulder),
 // each a dome, rounder or flatter-topped: its middle, 1 / its radii, its
 // height (a share of bump) and how flat its top. pntBoulderAt: the heap's
@@ -269,7 +262,7 @@ function pntBoulderAt(x, y, seed) {
 // window, capped; then heights for its inner part.
 let _pntDist = new Uint16Array(0);
 function pntHeights(f, x0, y0, x1, y1) {
-  const Wl = T.paint.wall, R = View.rockPx, Pp = View.pitPx, W = f.w * ATILE, Hp = f.h * ATILE, H = View.rockH, HF = View.rockHf;
+  const Wl = T.paint.wall, R = View.rockPx, W = f.w * ATILE, Hp = f.h * ATILE, H = View.rockH, HF = View.rockHf;
   const cap = Math.max(Wl.edge, Wl.ramp) + 2, m = cap + 1;
   const wx0 = Math.max(0, x0 - m), wy0 = Math.max(0, y0 - m), wx1 = Math.min(W, x1 + m), wy1 = Math.min(Hp, y1 + m), ww = wx1 - wx0, wh = wy1 - wy0;
   // (a border a pixel wide of rock round the window, so the passes need
@@ -281,8 +274,7 @@ function pntHeights(f, x0, y0, x1, y1) {
   for (let y = 0; y < wh; y++) {
     const o = (y + 1) * pw, r = (wy0 + y) * W + wx0;
     D[o] = BIG; D[o + pw - 1] = BIG;
-    if (Pp) for (let x = 0; x < ww; x++) D[o + 1 + x] = R[r + x] && !Pp[r + x] ? BIG : 0;
-    else for (let x = 0; x < ww; x++) D[o + 1 + x] = R[r + x] ? BIG : 0;
+    for (let x = 0; x < ww; x++) D[o + 1 + x] = R[r + x] ? BIG : 0;
   }
   for (let y = 1; y <= wh; y++) for (let k = y * pw + 1, e = k + ww; k < e; k++) {
     let d = D[k];
@@ -348,13 +340,13 @@ function paintRockArea(f, x0, y0, x1, y1) {
   // march: each pixel of rock notes how far its surface point is lifted
   // (a little past the area, as its edges look at their neighbours)
   const mx0 = Math.max(0, x0 - PNT_CELL), mx1 = Math.min(W, x1 + PNT_CELL), my0 = Math.max(0, y0 - 4), my1 = Math.min(Hp, y1 + 4);
-  const yTop = Math.min(Hp - 1, my1 - 1 + maxH), pit = View.pitPx;
+  const yTop = Math.min(Hp - 1, my1 - 1 + maxH);
   for (let x = mx0; x < mx1; x++) {
     let ymin = yTop + 1;
     for (let y = my0; y < my1; y++) LF[y * W + x] = 0;
     for (let y = yTop; y >= my0; y--) {
       const k = y * W + x;
-      if (R[k] && !(pit && pit[k])) {
+      if (R[k]) {
         const sy = y - H[k];
         if (sy < ymin) {
           for (let r = Math.max(sy, my0), e = Math.min(ymin, my1); r < e; r++) LF[r * W + x] = Math.min(255, y - r + 1);
@@ -476,6 +468,7 @@ function pntGraftLook(f) {
 function pntPaintRock(f, x0, y0, x1, y1) {
   const P = T.paint, Wl = P.wall, Rk = P.rock, Fc = P.facet, Sl = P.slab, HF = View.rockHf, LF = View.rockLift, Q = View.rockBuf, C32 = Q.col32, W = f.w * ATILE, Hp = f.h * ATILE;
   const b = artBiome(f), ramp = pntLook(b).rock, nt = ramp.length, seed = (f.seed ^ f.depth) | 0, rw = x1 - x0, rh = y1 - y0;
+  const ml = f.meld ? f.meld.to.map((_, k) => pntLook(hgrMeldLook(f, k)).rock) : null;
   const gl = pntGraftLook(f), gRamp = gl ? pntLook(gl).rock : null, g = f.graft, gcx = g ? (g.x + 0.5) * ATILE : 0, gcy = g ? (g.y + 0.5) * ATILE : 0, gR = g ? (g.r + 2) * ATILE : 0;
   const ll = Math.hypot(Rk.light[0], Rk.light[1], Rk.light[2]), lx = Rk.light[0] / ll, ly = Rk.light[1] / ll, lz = Rk.light[2] / ll;
   const hq = (x, y) => (x < 0 || y < 0 || x >= W || y >= Hp ? Wl.face : HF[y * W + x] / 16);
@@ -590,7 +583,9 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       if (!isRock(x, y + 1)) t = Math.min(t, Rk.foot);
       else if (!isRock(x, y + 2)) t = Math.min(t, Rk.foot + 1);
       t = Math.round(t);
-      const rp = gRamp && Math.abs(x - gcx) < gR && Math.abs(sy - gcy) < gR && graftAt(f, (x + 0.5) / AP - 0.5, (sy + 0.5) / AP - 0.5) ? gRamp : ramp;
+      let rp = gRamp && Math.abs(x - gcx) < gR && Math.abs(sy - gcy) < gR && graftAt(f, (x + 0.5) / AP - 0.5, (sy + 0.5) / AP - 0.5) ? gRamp : ramp;
+      // (at the outpost, the rock of the land beyond where its meld reaches)
+      if (ml) { const mk = hgrMeldAt(f, x, sy); if (mk >= 0) rp = ml[mk]; }
       C32[y * W + x] = rp[t < 0 ? 0 : t > nt - 1 ? nt - 1 : t];
     }
     let q = tbUp; tbUp = tb; tb = q; q = wbUp; wbUp = wb; wb = q;
@@ -673,27 +668,6 @@ function pntFloorStart(f) {
   View.rockBlk = new Int16Array(Math.ceil(W / PNT_BLK) * Math.ceil(Hp / PNT_BLK));
   View.rockBuf = pixBuf(W, Hp);
   View.rockBuf.col32 = new Uint32Array(View.rockBuf.col.buffer);
-  // the sinkhole's pixels, which never rise: 2 for the hole itself (an
-  // organic, broken edge: the pit's share of the tiles round a pixel,
-  // blended as the wall line is, plus noise, on the rock side of the wall
-  // line), 1 for the ground of its rim where the wall line runs between it
-  // and open ground (painted as ground: phlPaintPit)
-  let pit = null;
-  const PN = T.paint.hole.pitEdge, isPit = (i, j) => (floorTile(f, i, j) === TILE_PIT ? 1 : 0);
-  for (let ty = 0; ty < f.h; ty++) for (let tx = 0; tx < f.w; tx++) if (f.tiles[ty * f.w + tx] === TILE_PIT) {
-    pit = pit || new Uint8Array(W * Hp);
-    for (let y = ty * ATILE - ATILE / 2; y < (ty + 1.5) * ATILE; y++) for (let x = tx * ATILE - ATILE / 2; x < (tx + 1.5) * ATILE; x++) {
-      if (x < 0 || y < 0 || x >= W || y >= Hp || pit[y * W + x]) continue;
-      const gx = Math.floor(x / ATILE - 0.5), gy = Math.floor(y / ATILE - 0.5), u = x / ATILE - 0.5 - gx, v = y / ATILE - 0.5 - gy;
-      let p = 0, r = 0;
-      for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const t = floorTile(f, gx + i, gy + j); if (t === TILE_PIT) p++; else if (TILE_SOLID[t]) r++; }
-      const share = (isPit(gx, gy) * (1 - u) + isPit(gx + 1, gy) * u) * (1 - v) + (isPit(gx, gy + 1) * (1 - u) + isPit(gx + 1, gy + 1) * u) * v;
-      const e = share + (pntNoise(x, y, PN[0], PN[1], f.seed + 91) - 0.5) * PN[2] + (pntNoise(x, y, PN[3], PN[4], f.seed + 92) - 0.5) * PN[5];
-      if (e > 0.5 && View.rockPx[y * W + x] === 1) pit[y * W + x] = 2;
-      else if (p && !r) pit[y * W + x] = 1;
-    }
-  }
-  View.pitPx = pit;
   View.occCache = new Map(); View.pnrTiles = null;
   const nx = Math.ceil(W / PNT_CH), ny = Math.ceil(Hp / PNT_CH), hx = Math.ceil(W / PNT_HCH), hy = Math.ceil(Hp / PNT_HCH);
   View.pnt = { f, nx, ny, done: new Uint8Array(nx * ny), hnx: hx, hny: hy, hdone: new Uint8Array(hx * hy), left: nx * ny, stale: false };
@@ -754,6 +728,7 @@ function pntPaintChunk(f, i, j) {
   const tx0 = Math.floor(x0 / ATILE), ty0 = Math.floor(y0 / ATILE), tx1 = Math.ceil(x1 / ATILE) - 1, ty1 = Math.ceil(y1 / ATILE) - 1;
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) paintTileArt(f, tx, ty);
   paintGraft(f, tx0, ty0, tx1, ty1);
+  hgrPaintMeld(f, tx0, ty0, tx1, ty1);
   tintRift(f, x0, y0, x1, y1);
   paintRockArea(f, x0, y0, x1, y1);
   pntComposite(f, x0, y0, x1, y1);

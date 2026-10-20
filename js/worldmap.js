@@ -168,7 +168,7 @@ function drawMapCard() {
   const pill = `<span class="pill ${seen ? word : 'edge'}">${seen ? word.toUpperCase() : 'UNKNOWN'}</span>`;
   const row = (a, b) => `<div class="trow"><span>${a}</span><span>${b}</span></div>`;
   let h = `<div class="nm">${esc(t.name.toUpperCase())}</div><div class="sub">${t.home ? 'Ring 0 · home' : `Ring ${t.ring} · ${esc(seen ? climeName(t.clime) : 'beyond the light')}`}${pill}</div>`;
-  if (t.home) h += `<div class="goal">Home. The Lodestar hangs over the sinkhole, and every station is here. Its spire's light reaches the land next to it.</div>`;
+  if (t.home) h += `<div class="goal">Home. The Lodestar hangs over its cradle, and every station is here. Walk out any of its openings into the land next to it.</div>`;
   else if (!seen) h += `<div class="goal">Beyond the light. Nothing is known until it's walked.</div>` + row('ENEMIES', `level ${terrLevel(t)}+`);
   else {
     const ores = T.biomes[t.biome].ores.map((id) => T.ores[ORE_INDEX[id]].name).join(', ');

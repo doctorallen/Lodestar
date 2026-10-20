@@ -133,7 +133,7 @@ function floraSprite(set, piece, frame) {
 }
 // Which plants grow on a floor: its clime's own, if it has them; else the
 // surface's under the sky, or its biome's.
-function floraSetOf(f) { return f.hub ? 'rim' : f.clime && CLIME_FLORA[f.clime] ? f.clime : f.zone === 'surface' ? 'surface' : T.biomes[f.biome].id; }
+function floraSetOf(f) { return f.hub ? 'surface' : f.clime && CLIME_FLORA[f.clime] ? f.clime : f.zone === 'surface' ? 'surface' : T.biomes[f.biome].id; }
 
 function placeFlora(f, set) { return placeUndergrowth(f, set); }
 
@@ -144,7 +144,7 @@ function drawFlora(d, fl, ox, oy, lights) {
   if (fl.anchorT >= 0 && !TILE_SOLID[d.floor.tiles[fl.anchorT]]) return;
   const p = fl.piece, sky = View.ug && View.ug.sky;
   const frame = p.frames.length > 1 && !sky ? Math.floor(Game.realT * 2 + fl.phase * 2) % 2 : 0;
-  const spr = fl.top ? floraSprite(fl.set, p, frame) : ugMelted(floraSprite(fl.set, p, frame));
+  const spr = fl.top ? floraSprite(fl.set, p, frame) : ugMelted(floraSprite(fl.set, p, frame), fl.ug);
   const fx = Math.round(fl.x * AP) + ox, fy = Math.round(fl.y * AP) + oy;
   // (a hanging one from the lip of the face it hangs on: paintrock.js)
   const sx = Math.round(fx - spr.w / 2), sy = fl.top ? fy - (fl.lip === undefined ? (fl.lip = pnrLipAbove(fl.x * AP, fl.y * AP)) : fl.lip) : fy - spr.h + 1;
@@ -186,7 +186,8 @@ function paintFloor(f) {
   View.rockPx = new Uint8Array(P.w * P.h);
   fillRockField(f, 0, 0, P.w, P.h);
   // what grows here first: its beds are painted with the tiles
-  View.flora = placeFlora(f, floraSetOf(f));
+  View.ugMeld = null;
+  View.flora = f.hub ? hgrFlora(f) : placeFlora(f, floraSetOf(f));
   // the ground and the rock standing up over it are painted in chunks as
   // the view comes near them (paint.js, pntFrame)
   pntFloorStart(f);
@@ -211,10 +212,9 @@ function paintTileArt(f, tx, ty) {
   const rnd = tileRnd;
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
-  // (the sinkhole, falling away below the floor: painthole.js)
-  if (View.pitPx) phlPaintPit(P, f, tx, ty, ox, oy, b);
-  if (t === TILE_PIT) return;
-  if (f.clime) paintClimeTile(P, f, tx, ty, ox, oy, b);
+  if (f.clime || f.meldPainting >= 0) paintClimeTile(P, f, tx, ty, ox, oy, b);
+  // (the outpost's deck, pads and paths: hubground.js)
+  if (f.hub) hgrPaintGround(P, f, tx, ty, ox, oy);
   paintUndergrowth(P, f, tx, ty, ox, oy, b);
   // (ore and veins are on the rock layer: paint.js)
   if (t === TILE_PAD) paintDish(P, ox, oy);
@@ -245,6 +245,7 @@ function repaintAround(f, tx, ty) {
   pntGroundTones(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
   for (let y = ty - 3; y <= ty + below; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
   paintGraft(f, tx - 1, ty - 3, tx + 1, ty + below);
+  hgrPaintMeld(f, tx - 1, ty - 3, tx + 1, ty + below);
   tintRift(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
   pntRepaintRock(f, tx * T2, ty * T2, (tx + 1) * T2, (ty + 1) * T2, changed);
   // (the rock laid back over the ground's tiles too, where they're under it)
@@ -661,11 +662,11 @@ function bloomSceneWorld(cx, cy) {
 // light (i).
 function lampLevels(d) {
   const f = d.floor, Lt = T.light;
-  const cl = climeLight(f), zl0 = !d.hub && T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
+  const cl = climeLight(f), zl0 = T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
   // under the sky, the sun (sunOf: daylight in kindled land, a dim dusk in
-  // the dark, darker still at the Edge)
+  // the dark, darker still at the Edge; at home, as the star has grown)
   const sun = sunOf(d);
-  const amb = d.hub ? Lt.hubAmbient : zl ? Math.max(0.2, lerp(zl.dusk, zl.day, Math.min(1, sun))) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
+  const amb = zl ? Math.max(0.2, lerp(zl.dusk, zl.day, Math.min(1, sun))) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
   const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(sun * 1.5, 0, 1))) : (cl && cl.tint) || Lt.tint;
   // the lamp gutters out as the diver dies, and dims as your light fades
   let lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
@@ -698,7 +699,9 @@ function renderFrame() {
   // it as his place and the camera's round differently on an odd-sized
   // view)
   const steady = T.art.steadyCam, cxA = steady ? Math.round(pxA) - (View.w >> 1) : pxA - View.w / 2, cyA = steady ? Math.round(pyA) - (View.h >> 1) : pyA - View.h / 2;
-  const camX = (View.camX = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(cxA, 0, fw - View.w)));
+  const camX0 = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(cxA, 0, fw - View.w));
+  // (the opening's last shot starts over the star: intro.js)
+  const camX = (View.camX = d.hub && Intro.hub ? introCamX(camX0) : camX0);
   // at home the camera looks further up, to keep the star in sight
   const lookUp = ap(d.hub ? 56 : 8);
   const camY0 = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h));
@@ -857,9 +860,10 @@ function renderFrame() {
   // the lamp, from the helm's brow, in its own warm white, stopped by the
   // rock (shadow.js)
   const lamp = diverLampAt(d);
-  addLampLight(d, L, lamp.x, lamp.y, lv.r, lv.i, rgb01(DIVER_PAL.lamp[0]));
+  // (none while he's still in his pod, in the opening: intro.js)
+  addLampLight(d, L, lamp.x, lamp.y, lv.r, d.hub && Intro.hub && Intro.hub.hidden ? 0 : lv.i, rgb01(DIVER_PAL.lamp[0]));
   lightScene(-ox, -oy);
-  if (d.hub && Intro.hub) introHubSky(d, ox, oy);
+  if (d.hub && Intro.hub) introHubOver(d, ox, oy);
   bloomScene(-ox, -oy);
   drawLifeShade(d, ox, oy);
 
@@ -915,7 +919,7 @@ function renderFrame() {
   }
   // the tools' marks and the outpost's labels too
   View.ctx = o;
-  try { drawToolHud(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else { drawStormMark(d, ox, oy); drawExitMarks(d, ox, oy); } } finally { View.ctx = x; }
+  try { drawToolHud(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else drawStormMark(d, ox, oy); if (!Intro.hub) drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
   // stepping through a portal, or just through one: over everything
   drawPortalIris(d, ox, oy);
 }
@@ -974,6 +978,8 @@ function enemySprite(d, type) {
 function drawShadow(fx, fy, rx, up) { pshContact(fx, fy, rx, up || 0); }
 
 function drawProspector(d, ox, oy, tick, lights) {
+  // (still in his pod, in the opening: intro.js)
+  if (d.hub && Intro.hub && Intro.hub.hidden) return;
   const p = d.p;
   // casting: the pose, turned to the aim and leaning into it (castfx.js);
   // the legs keep walking. Charging a caster, the pose is held, wound back.

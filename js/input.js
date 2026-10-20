@@ -7,30 +7,31 @@
 // contextual action (SET OUT, EXTRACT). Upright the decks sit side by side
 // under the view; sideways they're either side of it. On a keyboard: WASD
 // or the arrows to move, J for the main hand, K for the off hand, Shift or
-// U to dash, Space or L to mine, E or Enter to act, I for cargo, Esc to
+// U to dash, Space or L to mine, E or Enter to act (held, to feed the star
+// at its altar), I for cargo, Esc to
 // pause, or to close the card or screen that's open. The tests drive the same interface through Input.bot.
 // ---------------------------------------------------------------------------
 
 const STICK_R = 44; // CSS px
 const STICK_DEAD = 6;
-const HOLD_BUTTONS = { main: 'btn-main', off: 'btn-off', mine: 'btn-mine' };
-const HOLD_KEYS = { main: ['KeyJ'], off: ['KeyK'], mine: ['Space', 'KeyL'] };
+const HOLD_BUTTONS = { main: 'btn-main', off: 'btn-off', mine: 'btn-mine', act: 'btn-act' };
+const HOLD_KEYS = { main: ['KeyJ'], off: ['KeyK'], mine: ['Space', 'KeyL'], act: ['KeyE', 'Enter'] };
 const DASH_KEYS = ['ShiftLeft', 'ShiftRight', 'KeyU'];
 
 const Input = {
   move: { x: 0, y: 0 },
   stick: null, // { id, bx, by, x, y } in client px
-  held: { main: null, off: null, mine: null }, // the pointer holding each button
+  held: { main: null, off: null, mine: null, act: null }, // the pointer holding each button
   actReq: false,
   dashReq: null, // true, or a direction from a flick
   keys: new Set(),
-  bot: null, // { x, y, main, off, mine, act, dash } from the tests
+  bot: null, // { x, y, main, off, mine, act, actHeld, dash } from the tests (act: a press; actHeld: still down)
   // each hand's button: down now, and a press or release since the game
   // last looked (they wait to be seen, so a hit's pause doesn't eat them)
   hands: { main: { down: false, pressed: false, released: false }, off: { down: false, pressed: false, released: false } },
 
   isHeld(k) {
-    if (this.bot) return !!this.bot[k];
+    if (this.bot) return !!this.bot[k === 'act' ? 'actHeld' : k];
     return this.held[k] !== null || HOLD_KEYS[k].some((c) => this.keys.has(c));
   },
   mining() { return this.isHeld('mine'); },

@@ -5,7 +5,8 @@
 // the pick is too weak for, crossing an edge into the neighbour, pausing,
 // the cargo screen, lighting the waystones and planting a spire, banking
 // at it and travelling home with the haul in the stash; the forge,
-// equipping what it makes, a reroll at the rune bench, feeding the star;
+// equipping what it makes, a reroll at the rune bench, feeding the star
+// (held at the altar, and ore kept from it);
 // your light running out, a recall, tools, rifts, a Deep, a Keeper; then a
 // fall that loses the cargo but not what's worn, and wakes at the last
 // spire.
@@ -140,12 +141,13 @@ async function phone(browser) {
   const v = await page.evaluate(() => ({ w: View.w, h: View.h, cssW: View.canvas.getBoundingClientRect().width, stageW: $('stage').getBoundingClientRect().width }));
   check(Math.min(v.w, v.h) >= 176 && v.cssW >= v.stageW - 1, `phone: the view is ${v.w}×${v.h}, ${v.cssW}px across a ${v.stageW}px stage`);
 
-  // the joystick walks (in from the opening, towards the middle, so a slow
-  // machine's extra real-time steps can't carry him back out to the outpost)
+  // the joystick walks
   await page.evaluate(calm);
   const before = await page.evaluate(() => [Game.dive.p.x, Game.dive.p.y]);
-  const inward = await page.evaluate(() => { const d = Game.dive, f = d.floor, dx = (f.w / 2) * TILE - d.p.x, dy = (f.h / 2) * TILE - d.p.y, m = Math.hypot(dx, dy) || 1; return [dx / m, dy / m]; });
   const [lx, ly] = await center(page, '#deck-left');
+  // (inward, away from the opening it came in by: walking out of it would
+  // go home)
+  const inward = await page.evaluate(() => { const e = Game.dive.floor.exits.find((x) => x.to === 0); return e ? [e.nx, e.ny] : [1, 0]; });
   await page.touchscreen.touchStart(lx, ly);
   for (let i = 1; i <= 5; i++) await page.touchscreen.touchMove(lx + i * 8 * inward[0], ly + i * 8 * inward[1]);
   check(await visible(page, '#stick-base'), 'phone: no joystick under the thumb');
@@ -161,10 +163,12 @@ async function phone(browser) {
   const hit = await page.evaluate(() => {
     const d = Game.dive, e = makeEnemy('crawler', d.p.x + 10, d.p.y, 1, null);
     e.aggro = true; d.enemies.push(e);
+    // (kept by name: the dark may send another while the button is held)
+    window._smokeCrawler = e;
     return e.hp;
   });
   await hold(page, '#btn-main', 0.5);
-  const left = await page.evaluate(() => Game.dive.enemies[Game.dive.enemies.length - 1].hp);
+  const left = await page.evaluate(() => window._smokeCrawler.hp);
   check(left < hit, `phone: ARC didn't hurt the crawler beside it (${hit} → ${left})`);
   await shot(page, 'smoke-fight');
   await page.evaluate(calm);
@@ -366,17 +370,32 @@ async function phone(browser) {
   await tap(page, '#card [data-act=closeCard]');
   await tap(page, '#screen-gear [data-act=back]');
 
-  // feeding the star at the altar: back out to watch it drink
+  // feeding the star at the altar: held, ore after ore rises into it, the
+  // plainest first; let go and it stops; ore marked kept stays
+  await page.evaluate(() => { for (const o of T.ores) delete Save.data.stash[o.id]; Save.data.stash.ferrite = 30; Save.data.stash.lumenite = 10; Save.data.keepOre = {}; });
   await page.evaluate(atStation, 'altar');
   await run(page, 0.05);
-  check(await page.evaluate(() => $('btn-act').textContent === 'FEED THE STAR'), 'phone: no FEED THE STAR at the altar');
-  await tap(page, '#btn-act');
-  await run(page, 0.05);
+  check(await page.evaluate(() => $('btn-act').textContent === 'FEED THE STAR' && !$('btn-act2').hidden && /^ATTUNE/.test($('btn-act2').textContent)), 'phone: no FEED THE STAR and ATTUNE at the altar');
   const pts = await page.evaluate(() => Save.data.star);
-  await tap(page, '#star-body [data-act=feed][data-arg="ferrite:10"]');
-  check(await page.evaluate((p) => Save.data.star === p + 10 && !Game.modal, pts), 'phone: feeding 10 Ferrite did not add 10 points and show the star');
-  await run(page, 0.4);
+  await hold(page, '#btn-act', 0.6);
+  await run(page, 0.05);
+  const fed = await page.evaluate((p) => { const s = Save.data, k = 30 - (s.stash.ferrite || 0); return [k, s.star - p, s.stash.lumenite, !!Game.dive.feed, (Game.dive.feedMotes || []).length]; }, pts);
+  check(fed[0] > 0 && fed[0] < 30 && fed[1] === fed[0] && fed[2] === 10, `phone: a short hold fed ${fed[0]} Ferrite for ${fed[1]} points (and Lumenite left ${fed[2]})`);
+  check(!fed[3], 'phone: feeding the star did not stop on letting go');
+  // (the last ores are still rising: they take T.star.feed.fly to land)
+  await run(page, (await page.evaluate(() => T.star.feed.fly)) + 0.3);
   await shot(page, 'smoke-feed');
+  check(await page.evaluate(() => !(Game.dive.feedMotes || []).length && JSON.parse(localStorage.getItem('lodestar.save.v4')).stash.ferrite === Save.data.stash.ferrite), 'phone: the ore fed never reached the star, or the save missed it');
+  // ATTUNE opens the star's screen: keep the Ferrite, then hold to the end
+  await tap(page, '#btn-act2');
+  check(await visible(page, '#screen-star'), 'phone: ATTUNE did not open the star');
+  await tap(page, '#star-body [data-act=keepOre][data-arg=ferrite]');
+  await tap(page, '#screen-star [data-act=back]');
+  const fe1 = await page.evaluate(() => Save.data.stash.ferrite), pts1 = await page.evaluate(() => Save.data.star);
+  await hold(page, '#btn-act', 2.5);
+  await run(page, 1);
+  check(await page.evaluate(([f, p]) => Save.data.stash.ferrite === f && !Save.data.stash.lumenite && Save.data.star === p + 40, [fe1, pts1]), 'phone: a long hold did not give all the Lumenite and keep the Ferrite');
+  await page.evaluate(() => { Save.data.keepOre = {}; });
 
   // your light runs out in dark land, and the Hollow comes; kindled land
   // fills it again
@@ -627,14 +646,19 @@ async function desktop(browser) {
   await page.close();
 }
 
-// The opening, played out: a tap shows the caption in full, the next tap
-// moves on; it plays through to the outpost and hands over there, with the
-// Kindler at the entry and the controls back; it's seen for good, and the
+// The opening, played out: the first tap brings the sound in, a tap then
+// shows the caption in full, the next moves on; it plays through to the
+// outpost and hands over there, the Kindler stepped out of his pod and the
+// controls back; it's seen for good, and the
 // uplink plays it again, which Esc ends.
 async function opening(browser) {
   const { page, errors } = await openGame(browser, PHONE);
   check(await page.evaluate(() => Intro.on && Intro.scene === 0), 'opening: a fresh game did not open on it');
   await run(page, 1.2);
+  // the first tap only brings the sound in
+  check(await visible(page, '#intro-sound'), 'opening: no TAP FOR SOUND before the first tap');
+  await tap(page, '#intro');
+  check(await page.evaluate(() => Intro.scene === 0 && !Intro.capKey.startsWith('0/0/' + STORY_INTRO[0][0].text.length) && $('intro-sound').hidden), 'opening: the first tap did more than bring the sound in');
   await tap(page, '#intro');
   check(await page.evaluate(() => Intro.scene === 0 && $('intro-cap').querySelector('.ghost').textContent === '' && $('intro-cap').textContent === STORY_INTRO[0][0].text), 'opening: a tap did not show the caption in full');
   await tap(page, '#intro');
@@ -646,17 +670,17 @@ async function opening(browser) {
   await run(page, 6);
   await shot(page, 'smoke-opening-hub');
   await run(page, last - 6 + 0.6);
-  const end = await page.evaluate(() => { const d = Game.dive, f = d.floor; return { on: Intro.on, modal: Game.modal, seen: Save.data.introSeen, at: Math.hypot(d.p.x - (f.entry.x + 0.5) * TILE, d.p.y - (f.entry.y + 0.5) * TILE), cam: View.camY, hidden: $('intro').hidden }; });
+  const end = await page.evaluate(() => { const d = Game.dive, to = introHubShot(d).to; return { on: Intro.on, modal: Game.modal, seen: Save.data.introSeen, at: Math.hypot(d.p.x - to.x, d.p.y - to.y), cam: View.camY, hidden: $('intro').hidden }; });
   check(!end.on && !end.modal && end.seen && end.hidden, `opening: it did not hand over: ${JSON.stringify(end)}`);
-  check(end.at < 3, `opening: the Kindler is ${end.at.toFixed(1)} px from the entry`);
-  // and it's his: the stick walks him
-  const y0 = await page.evaluate(() => Game.dive.p.y);
+  check(end.at < 3, `opening: the Kindler is ${end.at.toFixed(1)} px from where he steps out to`);
+  // and it's his: the stick walks him (towards the middle of the plaza)
+  const [x0, y0, ux, uy] = await page.evaluate(() => { const p = Game.dive.p, dx = OUTPOST_MIDDLE.x * TILE - p.x, dy = OUTPOST_MIDDLE.y * TILE - p.y, m = Math.hypot(dx, dy) || 1; return [p.x, p.y, dx / m, dy / m]; });
   const [hx, hy] = await center(page, '#deck-left');
   await page.touchscreen.touchStart(hx, hy);
-  for (let i = 1; i <= 5; i++) await page.touchscreen.touchMove(hx, hy + i * 8);
+  for (let i = 1; i <= 5; i++) await page.touchscreen.touchMove(hx + i * 8 * ux, hy + i * 8 * uy);
   await run(page, 0.4);
   await page.touchscreen.touchEnd();
-  check(await page.evaluate((y0) => Game.dive.p.y > y0 + 4, y0), 'opening: the stick did not walk after the hand-over');
+  check(await page.evaluate(([x0, y0]) => Math.hypot(Game.dive.p.x - x0, Game.dive.p.y - y0) > 4, [x0, y0]), 'opening: the stick did not walk after the hand-over');
   // seen for good: home again, no opening
   await page.evaluate(() => enterHub());
   check(await page.evaluate(() => !Intro.on), 'opening: it played again on coming home');

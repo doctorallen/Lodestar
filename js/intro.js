@@ -65,6 +65,8 @@ const Intro = {
     Game.modal = 'intro';
     Input.block();
     I.el.hidden = false;
+    I.heard = !introSoundWaits();
+    $('intro-sound').hidden = I.heard;
     document.body.classList.add('intro');
     document.body.classList.remove('intro-out');
     introSize();
@@ -86,6 +88,11 @@ const Intro = {
 };
 
 function introSnd(name, o) { if (typeof snd === 'function') snd(name, o); }
+// Whether the sound is still waiting for its first tap (and would play).
+function introSoundWaits() {
+  if (Intro.heard || typeof Snd === 'undefined' || Snd.failed || !window.AudioContext && !window.webkitAudioContext) return false;
+  return Snd.wanted() && !(Snd.ctx && Snd.ctx.state === 'running');
+}
 
 // The page's parts, once: the overlay takes every tap and key while it runs.
 function introSetup() {
@@ -96,8 +103,13 @@ function introSetup() {
   I.ctx = I.view.getContext('2d');
   I.el.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    if (e.target.closest('#intro-skip')) Intro.skip(); else Intro.hurry();
     Input.block();
+    if (e.target.closest('#intro-skip')) { Intro.skip(); return; }
+    // the first tap brings the sound in (a browser allows none before one:
+    // audio.js), and only that; the scene's own sound starts with it
+    // (as it was before this tap, which has already woken it)
+    if (!Intro.heard) { Intro.heard = true; $('intro-sound').hidden = true; setTimeout(() => introSnd('introScene', { n: Intro.scene + 1 }), 60); return; }
+    Intro.hurry();
   });
   window.addEventListener('keydown', (e) => {
     if (!Intro.on) return;
@@ -138,6 +150,8 @@ function introUpdate(dt) {
   // left): it's over
   if (Game.dive !== I.dive || (I.scene < 4 ? Game.modal !== 'intro' : Game.modal)) { introFinish(); return; }
   I.age += dt;
+  // the sound woken some other way (a key): no need to ask for a tap
+  if (!I.heard && !introSoundWaits()) { I.heard = true; $('intro-sound').hidden = true; }
   const t0 = I.t;
   I.t += dt;
   for (const [at, name, o] of INTRO_CUES[I.scene]) if (at > t0 && at <= I.t) introSnd(name, o);
@@ -170,10 +184,11 @@ function introFinish() {
   if (Game.modal === 'intro') Game.modal = null;
   const d = I.dive;
   if (I.hub && d && Game.dive === d) {
-    const f = d.floor, p = d.p;
-    // (skipped mid-walk: he's at the entry, Wick at his shoulder)
-    if (p.y > (f.entry.y + 0.5) * TILE + 1) { p.x = (f.entry.x + 0.5) * TILE; p.y = (f.entry.y + 0.5) * TILE; }
-    p.fx = 0; p.fy = -1; p.walkT = 0;
+    const S = I.hub.shot, p = d.p;
+    // (skipped mid-walk: he's out, Wick at his shoulder, facing the star)
+    if (Math.hypot(p.x - S.to.x, p.y - S.to.y) > 1) { p.x = S.to.x; p.y = S.to.y; }
+    const sx = S.star.x / AP - p.x, sy = S.star.y / AP - p.y, m = Math.hypot(sx, sy) || 1;
+    p.fx = sx / m; p.fy = sy / m; p.walkT = 0;
     if (!I.hub.wick) d.drone = null;
   }
   I.hub = null;
@@ -250,6 +265,11 @@ function introDraw() {
   I.fadeKey = '';
   const t = I.t, end = TI.scenes[I.scene];
   [introDrawCrossing, introDrawSurvey, introDrawDescent, introDrawOrbit][I.scene](c, t);
+  // sideways the caption lies over the picture's foot: a shade under it
+  if (I.w > I.h) {
+    const sh = introKeep(`capshade/${I.w}`, () => { const [cv, x] = makeCanvas(I.w, 80), g = x.createLinearGradient(0, 0, 0, 80); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.62)'); x.fillStyle = g; x.fillRect(0, 0, I.w, 80); return cv; });
+    c.drawImage(sh, 0, I.h - 80);
+  }
   // a scene fades in from black and out to it
   const f = TI.fade, a = t < f ? 1 - t / f : t > end - f ? (t - (end - f)) / f : 0;
   if (a > 0) { c.globalAlpha = Math.min(1, a); c.fillStyle = '#000'; c.fillRect(0, 0, I.w, I.h); c.globalAlpha = 1; }
@@ -259,7 +279,6 @@ function introDraw() {
 }
 function introPrebuild(n) {
   if (n < 4) [introCrossingKit, introSurveyKit, introDescentKit, introOrbitKit][n]();
-  else if (Intro.dive) introHubSkyPic(Intro.dive.floor.w * ATILE);
 }
 
 // A picture built once for this size of screen, and kept.
@@ -414,59 +433,51 @@ function introTwinkle(c, w, h, seed, t) {
 // ---------------------------------------------------------------------------
 // The Charter's craft, side on, going right: an engine block at the stern,
 // a long truss spine with the base modules clamped along it, and at the bow
-// a cradle of two arms round the seed-star. Two sizes (they're painted, not
-// scaled): S 1 close (scene 1), and small, far off (scene 2).
+// a cradle of two arms round the seed-star. Painted at a size k (not
+// scaled, so its strokes stay a pixel): 1.6 close (scene 1), 0.75 far
+// (scene 2). Its points: star, nozzle.
 // ---------------------------------------------------------------------------
-function introCraft() {
-  return introKeep('craft', () => {
-    const W = 136, H = 42, s = new PntSpr(W, H, 1201), P = INTRO_PAL, I = HART.iron, Hu = HART.hull, St = HART.steel;
+function introCraft(k) {
+  return introKeep('craft' + k, () => {
+    const X = (v) => Math.round(v * k), W = X(136), H = X(42), s = new PntSpr(W, H, 1201), P = INTRO_PAL, I = HART.iron, Hu = HART.hull, St = HART.steel;
+    const small = k < 1;
     // the truss spine: a beam, and a lattice above and below it
-    introPanel(s, 26, 19, 108, 23, Hu, 1202, { seam: 9, base: 0.55 });
-    for (let x = 28; x < 106; x += 6) {
-      s.limb([[x, 17], [x + 3, 14], [x + 6, 17]], 0.6, 0.6, (t, side) => I[side < 0 ? 4 : 2]);
-      s.limb([[x, 25], [x + 3, 28], [x + 6, 25]], 0.6, 0.6, (t, side) => I[side < 0 ? 3 : 1]);
+    introPanel(s, X(26), X(19), X(108), X(23), Hu, 1202, { seam: small ? 0 : X(9), base: 0.55 });
+    if (!small) for (let x = 28; x < 106; x += 6) {
+      s.limb([[X(x), X(17)], [X(x + 3), X(14)], [X(x + 6), X(17)]], 0.6, 0.6, (t, side) => I[side < 0 ? 4 : 2]);
+      s.limb([[X(x), X(25)], [X(x + 3), X(28)], [X(x + 6), X(25)]], 0.6, 0.6, (t, side) => I[side < 0 ? 3 : 1]);
     }
-    // the base modules, clamped on: above the spine and below it
+    // the base modules, clamped on: above the spine and below it, each with
+    // gunmetal end caps, an amber band, the mark and a hatch
     for (const [x0, y0, x1, y1, sd] of [[33, 5, 52, 16, 1], [55, 4, 75, 16, 2], [78, 7, 95, 16, 3], [38, 26, 60, 35, 4], [64, 26, 88, 36, 5]]) {
-      introPanel(s, x0, y0, x1, y1, P.plate, 1210 + sd, { seam: 11, base: y0 > 20 ? 0.45 : 0.62 });
-      // gunmetal end caps, the amber band, the mark
-      introPanel(s, x0, y0, x0 + 1, y1, St, 1220 + sd, { base: 0.5 });
-      introPanel(s, x1 - 1, y0, x1, y1, St, 1230 + sd, { base: 0.3 });
-      const by = y0 + ((y1 - y0) >> 1) + 1;
-      for (let x = x0 + 3; x < x1 - 2; x++) if ((x >> 1) % 2 === 0) s.px(x, by, P.amber[y0 > 20 ? 1 : 2]);
-      introMark(s, x0 + 5, y0 + 3, false);
+      const a0 = X(x0), b0 = X(y0), a1 = X(x1), b1 = X(y1), low = y0 > 20;
+      introPanel(s, a0, b0, a1, b1, P.plate, 1210 + sd, { seam: small ? 0 : X(11), base: low ? 0.45 : 0.62 });
+      if (small) continue;
+      introPanel(s, a0, b0, a0 + X(1.5), b1, St, 1220 + sd, { base: 0.5 });
+      introPanel(s, a1 - X(1.5), b0, a1, b1, St, 1230 + sd, { base: 0.3 });
+      const by = b0 + ((b1 - b0) >> 1) + 1;
+      for (let x = a0 + 3; x < a1 - 2; x++) if ((x >> 1) % 2 === 0) s.px(x, by, P.amber[low ? 1 : 2]);
+      introMark(s, a0 + X(5), b0 + X(3), k > 1.2);
+      // a hatch, and a status light
+      for (let y = b0 + X(3); y < b1 - X(2); y++) { s.px(a1 - X(5), y, Hu[1]); s.px(a1 - X(5) - 1, y, Hu[4]); }
+      s.px(a1 - X(4), b0 + X(3), sd % 2 ? '#7dffd8' : P.amber[3]);
     }
     // the engine block at the stern, its bell, and a ring of struts
-    s.box(6, 11, 30, 31, St, { lo: 0, hi: 4 });
-    introPanel(s, 9, 13, 27, 29, Hu, 1240, { seam: 6, base: 0.55 });
-    s.poly([[0, 15], [7, 17], [7, 26], [0, 28]], (x, y) => I[y < 18 ? 4 : y > 25 ? 0 : 2]);
-    for (let y = 16; y <= 27; y++) s.px(1, y, '#0a1424');
-    s.px(12, 14, P.amber[3]); s.px(16, 14, P.amber[2]); s.px(24, 28, '#7dffd8');
+    s.box(X(6), X(11), X(30), X(31), St, { lo: 0, hi: 4 });
+    introPanel(s, X(9), X(13), X(27), X(29), Hu, 1240, { seam: small ? 0 : X(6), base: 0.55 });
+    s.poly([[0, X(15)], [X(7), X(17)], [X(7), X(26)], [0, X(28)]], (x, y) => I[y < X(18) ? 4 : y > X(25) ? 0 : 2]);
+    for (let y = X(16); y <= X(27); y++) s.px(1, y, '#0a1424');
+    s.px(X(12), X(14), P.amber[3]); s.px(X(16), X(14), P.amber[2]); s.px(X(24), X(28), '#7dffd8');
     // the bow's cradle: two arms reaching round the seed-star
-    s.limb([[106, 19], [113, 9], [121, 7], [126, 11]], 2.2, 1.2, (t, side) => St[side < 0 ? 4 : side > 0 ? 1 : 2]);
-    s.limb([[106, 24], [113, 33], [121, 35], [126, 31]], 2.2, 1.2, (t, side) => St[side < 0 ? 3 : side > 0 ? 0 : 1]);
-    s.box(102, 17, 109, 26, St, { lo: 0, hi: 4 });
-    s.px(126, 10, P.amber[4]); s.px(126, 32, P.amber[3]);
-    introStarLight(s, 120, 21, 30, 1250);
+    s.limb([[X(106), X(19)], [X(113), X(9)], [X(121), X(7)], [X(126), X(11)]], 2.2 * k, 1.2 * k, (t, side) => St[side < 0 ? 4 : side > 0 ? 1 : 2]);
+    s.limb([[X(106), X(24)], [X(113), X(33)], [X(121), X(35)], [X(126), X(31)]], 2.2 * k, 1.2 * k, (t, side) => St[side < 0 ? 3 : side > 0 ? 0 : 1]);
+    s.box(X(102), X(17), X(109), X(26), St, { lo: 0, hi: 4 });
+    s.px(X(126), X(10), P.amber[4]); s.px(X(126), X(32), P.amber[3]);
+    introStarLight(s, X(120), X(21), X(30), 1250);
     // the seed itself
-    hartCrystal(s, 120, 13, 0, 30, 5.5, 0.55);
-    for (let n = 0; n < 4; n++) s.px(118 - n % 2, 18 + n, HART.star[6], true);
-    const o = s.done();
-    return Object.assign(o, { star: { x: 120, y: 21 }, nozzle: { x: 0, y: 21 } });
-  });
-}
-function introCraftSmall() {
-  return introKeep('craft-small', () => {
-    const W = 50, H = 18, s = new PntSpr(W, H, 1261), P = INTRO_PAL, St = HART.steel;
-    introPanel(s, 9, 8, 40, 9, HART.hull, 1262, { base: 0.5 });
-    for (const [x0, y0, x1, y1] of [[13, 3, 20, 7], [22, 3, 30, 7], [16, 11, 26, 14], [32, 4, 37, 7]]) introPanel(s, x0, y0, x1, y1, P.plate, 1263 + x0, { base: 0.6 });
-    s.box(2, 4, 10, 13, St, { lo: 0, hi: 4 });
-    s.limb([[40, 8], [44, 4], [47, 6]], 0.8, 0.6, (t, side) => St[side < 0 ? 4 : 2]);
-    s.limb([[40, 9], [44, 13], [47, 11]], 0.8, 0.6, (t, side) => St[side < 0 ? 3 : 1]);
-    introStarLight(s, 45, 9, 12, 1264);
-    hartCrystal(s, 45, 5, 0, 13, 2.4, 0.55);
-    s.px(16, 5, INTRO_PAL.mark); s.px(5, 5, P.amber[3]);
-    return Object.assign(s.done(), { star: { x: 45, y: 9 }, nozzle: { x: 2, y: 8 } });
+    hartCrystal(s, X(120), X(13), 0, X(30), 5.5 * k, 0.55);
+    for (let n = 0; n < X(4); n++) s.px(X(118) - n % 2, X(18) + n, HART.star[6], true);
+    return Object.assign(s.done(), { star: { x: X(120), y: X(21) }, nozzle: { x: 0, y: X(21) } });
   });
 }
 
@@ -476,9 +487,10 @@ function introCraftSmall() {
 // decks, a stern of engines, a tapering bow, and a row of small lights down
 // its flank where the pods are. Close (scene 4) and far (scene 1).
 // ---------------------------------------------------------------------------
-function introMeridian(far) {
-  return introKeep(far ? 'meridian-far' : 'meridian', () => {
-    const k = far ? 0.42 : 1, W = Math.round(236 * k) + 4, H = Math.round(48 * k) + 4, s = new PntSpr(W, H, far ? 1301 : 1302);
+function introMeridian(k) {
+  const far = k < 0.7;
+  return introKeep('meridian' + k, () => {
+    const W = Math.round(236 * k) + 4, H = Math.round(48 * k) + 4, s = new PntSpr(W, H, far ? 1301 : 1302);
     const Hu = HART.hull, St = HART.steel, I = HART.iron, X = (v) => Math.round(v * k) + 2, Y = (v) => Math.round(v * k) + 2;
     const top = Y(16), bot = Y(32);
     // the hull: a long cylinder, lit along its top
@@ -575,7 +587,7 @@ function introLimbY(P, x) { const dx = x - P.pcx; return Math.abs(dx) >= P.R ? I
 // ---------------------------------------------------------------------------
 function introCrossingKit() {
   const I = Intro;
-  return { bg: introSpace(I.w, I.h, 1401), far: introStarLayer(I.w, I.h, Math.round(I.w * I.h / 260), 1402, false), mid: introStarLayer(I.w, I.h, Math.round(I.w * I.h / 900), 1403, true), near: introStarLayer(I.w, I.h, Math.round(I.w * I.h / 3200), 1404, true), craft: introCraft(), mer: introMeridian(true) };
+  return { bg: introSpace(I.w, I.h, 1401), far: introStarLayer(I.w, I.h, Math.round(I.w * I.h / 260), 1402, false), mid: introStarLayer(I.w, I.h, Math.round(I.w * I.h / 900), 1403, true), near: introStarLayer(I.w, I.h, Math.round(I.w * I.h / 3200), 1404, true), craft: introCraft(1.6), mer: introMeridian(0.55) };
 }
 function introDrawCrossing(c, t) {
   const I = Intro, K = introCrossingKit(), cr = K.craft, m = K.mer;
@@ -583,19 +595,19 @@ function introDrawCrossing(c, t) {
   introDrift(c, K.far, t * 1.5); introDrift(c, K.mid, t * 4); introDrift(c, K.near, t * 9);
   introTwinkle(c, I.w, I.h, 1405, t);
   // the Meridian far behind and below, following
-  const mx = Math.round(I.cx - I.sw * 0.4 + t * 1.6), my = Math.round(I.cy + I.sh * 0.2);
+  const mx = Math.round(I.cx - Math.min(I.sw * 0.42, 150) + t * 1.6), my = Math.round(I.cy + Math.min(I.sh * 0.2, 90));
   c.drawImage(m.c, mx, my);
-  introPlume(c, mx + m.nozzle.x, my + m.nozzle.y, -1, 0, 7, 0.45, 1406, 0.6);
-  introGlow(c, introHalo(6, 4, INTRO_PAL.thrust.slice(0, 3), 1407, 40), mx + m.nozzle.x - 2, my + m.nozzle.y, 0.6);
+  introPlume(c, mx + m.nozzle.x, my + m.nozzle.y, -1, 0, 10, 0.45, 1406, 0.8);
+  introGlow(c, introHalo(8, 5, INTRO_PAL.thrust.slice(0, 3), 1407, 50), mx + m.nozzle.x - 2, my + m.nozzle.y, 0.6);
   // the craft, easing in to the middle, riding a little
-  const x = Math.round(I.cx - cr.w / 2 - 14 + introOut(Math.min(1, t / 8)) * 18), y = Math.round(I.cy - I.sh * 0.12 - cr.h / 2 + Math.sin(t * 0.9) * 1.2);
-  introPlume(c, x + cr.nozzle.x, y + cr.nozzle.y, -1, 0, 26, 0.85 + 0.15 * Math.sin(t * 9), 1408, 1.6);
-  introGlow(c, introHalo(14, 9, INTRO_PAL.thrust.slice(0, 4), 1409, 160), x + cr.nozzle.x - 4, y + cr.nozzle.y, 0.7);
+  const x = Math.round(I.cx - cr.w / 2 - 10 + introOut(Math.min(1, t / 8)) * 14), y = Math.round(I.cy - Math.min(I.sh * 0.03, 12) - cr.h / 2 + Math.sin(t * 0.9) * 1.2);
+  introPlume(c, x + cr.nozzle.x, y + cr.nozzle.y, -1, 0, 40, 0.85 + 0.15 * Math.sin(t * 9), 1408, 2.4);
+  introGlow(c, introHalo(22, 13, INTRO_PAL.thrust.slice(0, 4), 1409, 260), x + cr.nozzle.x - 6, y + cr.nozzle.y, 0.7);
   c.drawImage(cr.c, x, y);
   // the seed-star's own light, breathing
   const sx = x + cr.star.x, sy = y + cr.star.y, br = 0.75 + 0.15 * Math.sin(t * 1.7);
-  introGlow(c, introHalo(34, 30, ['#3a1e08', '#6a3a12', '#a0601e', '#d08c30', '#eeb24a', '#ffd987'], 1410, 700), sx, sy, 0.55 * br);
-  introGlow(c, introHalo(12, 12, ['#a0601e', '#eeb24a', '#ffd987', '#fff4d6'], 1411, 160), sx, sy, 0.8 * br);
+  introGlow(c, introHalo(54, 46, ['#3a1e08', '#6a3a12', '#a0601e', '#d08c30', '#eeb24a', '#ffd987'], 1410, 1300), sx, sy, 0.55 * br);
+  introGlow(c, introHalo(18, 18, ['#a0601e', '#eeb24a', '#ffd987', '#fff4d6'], 1411, 300), sx, sy, 0.8 * br);
 }
 
 // ---------------------------------------------------------------------------
@@ -605,7 +617,7 @@ function introSurveyKit() {
   const I = Intro, R = Math.round(Math.max(I.sw, I.sh * 0.6) * 1.3), top = I.sy + Math.round(I.sh * 0.4);
   return {
     bg: introSpace(I.w, I.h, 1501, 0.15), far: introStarLayer(I.w, I.h, Math.round(I.w * I.h / 300), 1502, false), mid: introStarLayer(I.w, I.h, Math.round(I.w * I.h / 1100), 1503, true),
-    planet: introPlanet(`survey/${I.w}/${I.h}`, I.w, I.h, I.cx, top + R, R, 1504), craft: introCraftSmall(),
+    planet: introPlanet(`survey/${I.w}/${I.h}`, I.w, I.h, I.cx, top + R, R, 1504), craft: introCraft(0.75),
     // the site: right of middle, a little way down the face
     site: { x: I.cx + Math.round(I.sw * 0.1), y: top + Math.round(Math.min(I.sh * 0.32, (I.h - top) * 0.4)) },
   };
@@ -617,10 +629,10 @@ function introDrawSurvey(c, t) {
   introTwinkle(c, I.w, Math.round(introLimbY(P, I.cx)), 1505, t);
   c.drawImage(P.c, 0, 0);
   // the craft high over it, drifting right
-  const x = Math.round(I.cx - cr.w / 2 - 20 + t * 2.2), y = Math.round(I.sy + I.sh * 0.14), bx = x + cr.w - 18, by = y + cr.h - 3;
-  introPlume(c, x + cr.nozzle.x, y + cr.nozzle.y, -1, 0, 8, 0.6, 1506, 0.6);
+  const x = Math.round(I.cx - cr.w / 2 - 20 + t * 2.2), y = Math.round(I.sy + I.sh * 0.12), bx = x + cr.star.x - 4, by = y + cr.h - 2;
+  introPlume(c, x + cr.nozzle.x, y + cr.nozzle.y, -1, 0, 14, 0.6, 1506, 0.9);
   c.drawImage(cr.c, x, y);
-  introGlow(c, introHalo(10, 9, ['#6a3a12', '#d08c30', '#ffd987'], 1507, 90), x + cr.star.x, y + cr.star.y, 0.7);
+  introGlow(c, introHalo(16, 14, ['#6a3a12', '#d08c30', '#ffd987'], 1507, 150), x + cr.star.x, y + cr.star.y, 0.7);
   // the sweep: out across the face and back to the site, then held on it
   const L0 = I.cx - I.sw * 0.42, L1 = I.cx + I.sw * 0.42, sweep = [0.8, 4.4], back = [4.4, 5.6];
   let sx = site.x, spread = 2;
@@ -675,19 +687,21 @@ function introDrawSurvey(c, t) {
 }
 
 // ---------------------------------------------------------------------------
-// Scene 3: coming down. The site at night from low over the ground: a
-// levelled pad with the survey's amber stakes at its corners, dark plain
-// and far mesas. The base modules come down first (two far, two near), each
-// on its thrusters, then the cradle with the seed in it; dust blows out
-// along the ground, the thrusters' light lies on it in strokes. The cradle's
-// arms close on the seed, its lights come on one by one, a ring of gold.
+// Scene 3: coming down, close. The site at night from low over the ground:
+// a levelled pad with the survey's amber stakes at its corners, the plain
+// and far mesas. The Charter's modules come down on their thrusters, the
+// very ones that stand at the outpost (hubart.js: the fabricator, the rune
+// bench, the Kindler's pod, the locker), then the planting cradle with the
+// seed-star seated in its arms; dust blows out along the ground, the
+// thrusters' light lies on it in strokes. Then the cradle locks: its lamps
+// come on one by one, and a ring of gold runs out along the ground.
 // ---------------------------------------------------------------------------
 function introDescentKit() {
   const I = Intro;
   return introKeep(`descent/${I.w}/${I.h}`, () => {
-    const hz = I.sy + Math.round(I.sh * 0.5), gy = I.sy + Math.round(I.sh * 0.78), w = I.w, h = I.h;
+    const hz = I.sy + Math.round(I.sh * 0.3), gy = I.sy + Math.round(I.sh * 0.62), w = I.w, h = I.h;
     // the ground, and the far mesas standing on the horizon
-    const L = introLayer(w, h), V = new Float32Array(w * h).fill(-1), padRx = Math.round(Math.min(I.sw * 0.42, 120)), padRy = Math.round(padRx * 0.2);
+    const L = introLayer(w, h), V = new Float32Array(w * h).fill(-1), padRx = Math.round(Math.min(I.sw * 0.48, 160)), padRy = Math.round(padRx * 0.3);
     const ridge = (x) => hz - 2 - Math.round(Math.max(0, pntNoise(x, 0, 38, 1, 1601) - 0.35) * 40 + pntNoise(x, 0, 9, 1, 1602) * 4);
     // the sky low down: a faint dusty glow along the horizon, fewer stars
     const S = new Float32Array(w * h).fill(-1);
@@ -722,105 +736,63 @@ function introDescentKit() {
     const gs = g.done();
     L.x.putImageData(L.img, 0, 0);
     L.x.drawImage(gs.c, 0, 0);
-    // the modules (far ones smaller) and the cradle with the seed in it,
-    // its arms open, half closed and closed
-    const fx = Math.round(Math.min(I.sw * 0.17, 46)), nx = Math.round(Math.min(I.sw * 0.31, 86));
+    // each: where it lands (feet), its picture, its thrusters (from its
+    // feet), when it sets off and lands
+    const bx = Math.round(Math.min(I.sw * 0.27, 110)), fx = Math.round(Math.min(I.sw * 0.33, 130));
+    const jets = (spr) => [[-Math.round(spr.w * 0.3), -1], [Math.round(spr.w * 0.3), -1]];
+    const fall = [
+      { x: I.cx - bx, y: gy - 34, spr: hartForge(), t0: 0.4, t1: 4.1 },
+      { x: I.cx + bx, y: gy - 30, spr: hartRunes(), t0: 0.7, t1: 4.4 },
+      { x: I.cx - fx, y: gy + 30, spr: hartPod(0), t0: 1.4, t1: 5.3 },
+      { x: I.cx + fx, y: gy + 26, spr: hartLocker(), t0: 1.8, t1: 5.6 },
+      { x: I.cx, y: gy, spr: hartCradle(), cradle: true, t0: 2.6, t1: 7.0 },
+    ];
+    for (const o of fall) o.jets = o.cradle ? [[-26, -2], [26, -2]] : jets(o.spr);
     return {
-      ground: L.c, hz, gy, padRx, padRy,
-      stakes: [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => ({ x: I.cx + Math.round(a * padRx * 0.82), y: gy + Math.round(b * padRy * 0.6) })),
-      // each: x, where it lands (feet), its picture, when it sets off and lands
-      fall: [
-        { x: I.cx - fx, y: gy - padRy + 3, spr: introModule(true, 1), t0: 0.4, t1: 4.3 },
-        { x: I.cx + fx, y: gy - padRy + 4, spr: introModule(true, 2), t0: 0.7, t1: 4.6 },
-        { x: I.cx - nx, y: gy + 3, spr: introModule(false, 3), t0: 1.4, t1: 5.5 },
-        { x: I.cx + nx, y: gy + 4, spr: introModule(false, 4), t0: 1.8, t1: 5.8 },
-        { x: I.cx, y: gy + 1, spr: introCradle(0), cradle: true, t0: 2.6, t1: 7.0 },
-      ],
+      ground: L.c, hz, gy, padRx, padRy, fall,
+      stakes: [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a2, b2]) => ({ x: I.cx + Math.round(a2 * padRx * 0.86), y: gy + Math.round(b2 * padRy * 0.7) })),
     };
   });
 }
-// A base module, front on: a Charter-blue box on gunmetal, an amber band,
-// the mark, landing legs out, two thrusters under it.
-function introModule(far, seed) {
-  return introKeep(`module/${far}/${seed}`, () => {
-    const W = far ? 28 : 40, H = far ? 26 : 36, s = new PntSpr(W, H, 1700 + seed), P = INTRO_PAL, St = HART.steel, I = HART.iron, bw = W - 6, bh = far ? 15 : 21, x0 = 3, y0 = 2;
-    // legs first (behind), then the body
-    s.limb([[x0 + 3, y0 + bh - 2], [x0 - 1, H - 2]], 1, 0.7, (t, side) => I[side < 0 ? 3 : 1]);
-    s.limb([[x0 + bw - 3, y0 + bh - 2], [x0 + bw + 1, H - 2]], 1, 0.7, (t, side) => I[side < 0 ? 2 : 0]);
-    s.px(x0 - 1, H - 1, I[3]); s.px(x0 - 2, H - 1, I[2]); s.px(x0 + bw + 1, H - 1, I[2]); s.px(x0 + bw + 2, H - 1, I[1]);
-    introPanel(s, x0, y0 + 2, x0 + bw, y0 + bh, P.plate, 1710 + seed, { seam: far ? 13 : 17, base: far ? 0.5 : 0.62 });
-    // the roof, a lit gunmetal lip
-    introPanel(s, x0 + 1, y0, x0 + bw - 1, y0 + 2, St, 1720 + seed, { base: 0.7 });
-    for (let x = x0 + 2; x < x0 + bw - 1; x++) if ((x >> 1) % 2 === 0) s.px(x, y0 + bh - 4, P.amber[2]);
-    introMark(s, x0 + (bw >> 1), y0 + (far ? 7 : 9), !far);
-    s.px(x0 + bw - 3, y0 + 4, '#7dffd8');
-    // the thrusters' bells under it
-    for (const nx of [x0 + 5, x0 + bw - 5]) s.poly([[nx - 2, y0 + bh + 1], [nx + 2, y0 + bh + 1], [nx + 3, y0 + bh + 4], [nx - 3, y0 + bh + 4]], (x, y) => I[x < nx ? 3 : 1]);
-    return Object.assign(s.done(), { ax: W >> 1, ay: H - 1, jets: [[x0 + 5 - (W >> 1), y0 + bh + 4 - (H - 1)], [x0 + bw - 5 - (W >> 1), y0 + bh + 4 - (H - 1)]] });
-  });
-}
-// The cradle: a low hexagonal platform, gunmetal with a lit lip and amber
-// sockets along its face, three arms, and the seed in it. arms: 0 open, 1
-// half, 2 closed on the seed.
-function introCradle(arms) {
-  return introKeep(`cradle/${arms}`, () => {
-    const W = 64, H = 54, s = new PntSpr(W, H, 1750 + arms), St = HART.steel, I = HART.iron, cx = 32, py = 40;
-    // the back arm, behind the seed
-    s.limb([[cx, py - 4], [cx + 1, py - 22], [cx, py - 30 + arms * 2]], 1.6, 1.1, (t, side) => I[side < 0 ? 2 : 0]);
-    // the seed, sitting in its cradle
-    hartCrystal(s, cx, py - 30, 0, py - 6, 7, 0.55);
-    for (let n = 0; n < 5; n++) s.px(cx - 2 - (n % 2), py - 24 + n, HART.star[6], true);
-    // the platform: a lit top, a darker face
-    s.poly([[cx - 26, py - 4], [cx + 26, py - 4], [cx + 30, py], [cx - 30, py]], (x, y) => (y < py - 3 ? St[3] : HART.hull[5 - ((x >> 2) % 2)]));
-    introPanel(s, cx - 30, py, cx + 30, py + 7, HART.hull, 1760, { seam: 15, base: 0.55 });
-    for (let x = cx - 26; x <= cx + 26; x += 6) s.px(x, py + 3, '#2a1608');
-    // the side arms: open (splayed out), half, closed in on the seed
-    const reach = [[17, 30], [14, 27], [11, 22]][arms];
-    for (const sd of [-1, 1]) {
-      const bx = cx + sd * 25, tip = [cx + sd * reach[0], py - reach[1]], knee = [cx + sd * (reach[0] + 8 - arms * 3), py - 14 - arms * 2];
-      s.limb([[bx, py - 3], knee, tip], 2.2, 1.3, (t, side) => (side < 0 ? St[sd < 0 ? 3 : 2] : HART.hull[side > 0 ? 2 : 4]));
-      s.px(tip[0], tip[1], INTRO_PAL.amber[arms === 2 ? 4 : 1]);
-    }
-    // thrusters under the platform
-    for (const nx of [cx - 18, cx + 18]) s.poly([[nx - 3, py + 7], [nx + 3, py + 7], [nx + 4, py + 11], [nx - 4, py + 11]], (x, y) => I[x < nx ? 3 : 1]);
-    return Object.assign(s.done(), { ax: cx, ay: py + 11, jets: [[-18, 0], [18, 0]], star: { x: 0, y: -29 }, lights: [-26, -20, -14, -8, -2, 4, 10, 16, 22, 26].map((x) => [x, -8]) });
-  });
-}
 function introDrawDescent(c, t) {
-  const I = Intro, K = introDescentKit(), kit = introCrossingKit(), A = INTRO_PAL.amber;
+  const I = Intro, K = introDescentKit(), kit = introCrossingKit(), A = INTRO_PAL.amber, lock = 7.4, top = -10;
   c.drawImage(kit.bg, 0, 0);
   introDrift(c, kit.far, 40 + t * 0.6); introDrift(c, kit.mid, 90 + t * 1.2);
   c.drawImage(K.ground, 0, 0);
   // the survey's stakes, blinking amber at the pad's corners
-  K.stakes.forEach((s, i) => { const on = (Math.floor(t * 1.6) + i) % 2 === 0; introDot(c, s.x, s.y - 2, A[on ? 4 : 1]); introDot(c, s.x, s.y - 1, HART.iron[3]); introDot(c, s.x, s.y, HART.iron[2]); if (on) introGlow(c, introHalo(4, 2, ['#5a2c0a', '#d88c30'], 1801, 14), s.x, s.y - 1, 0.6); });
-  const lock = 7.4, top = -10;
+  K.stakes.forEach((s, i) => { const on = (Math.floor(t * 1.6) + i) % 2 === 0; introDot(c, s.x, s.y - 3, A[on ? 4 : 1]); for (let k = 0; k < 3; k++) introDot(c, s.x, s.y - 2 + k, HART.iron[3 - (k >> 1)]); if (on) introGlow(c, introHalo(5, 3, ['#5a2c0a', '#d88c30'], 1801, 18), s.x, s.y - 2, 0.7); });
+  // the thrusters' light and dust on the ground first, then each lander in
+  // order, the furthest first
   for (const o of K.fall) {
-    const k = introProg(t, [o.t0, o.t1]), land = t >= o.t1, spr = o.cradle ? introCradle(t < lock ? 0 : t < lock + 0.15 ? 1 : 2) : o.spr;
     if (t < o.t0) continue;
-    const y = Math.round(lerp(top - 4, o.y, introOut(k))), x = Math.round(o.x + (land ? 0 : Math.sin(t * 2.3 + o.t0 * 5) * (1 - k) * 2));
-    // thrust: a hard burn low down, cut at touchdown
-    const thr = land ? Math.max(0, 1 - (t - o.t1) / 0.35) * 0.6 : 0.45 + 0.55 * k * k, hgt = o.y - y;
-    // its light on the ground under it, and the dust it blows out
-    if (thr > 0 && hgt < 90) {
-      const near = 1 - hgt / 90, gl = introHalo(o.cradle ? 30 : 22, o.cradle ? 7 : 5, INTRO_PAL.thrust.slice(0, 4), 1802, o.cradle ? 220 : 150);
-      introGlow(c, gl, o.x, o.y - 1, thr * near * 0.9);
+    const k = introProg(t, [o.t0, o.t1]), land = t >= o.t1, y = Math.round(lerp(top - o.spr.h, o.y, introOut(k)));
+    const thr = land ? Math.max(0, 1 - (t - o.t1) / 0.4) * 0.6 : 0.45 + 0.55 * k * k, hgt = o.y - y;
+    if (thr > 0 && hgt < 130) {
+      const near = 1 - hgt / 130, rx = Math.round(o.spr.w * 0.55 + 12), gl = introHalo(rx, Math.round(rx * 0.3), INTRO_PAL.thrust.slice(0, 4), 1802, Math.round(rx * 9));
+      introGlow(c, gl, o.x, o.y - 1, Math.min(1, thr * near * 1.3));
     }
-    introDust(c, o, t, x);
-    for (const [jx, jy] of spr.jets) introPlume(c, x + jx, y + jy + 1, 0, 1, o.cradle ? 22 : 16, thr, 1803 + jx, 1.2);
+    introDust(c, o, t, o.x);
+  }
+  for (const o of K.fall) {
+    if (t < o.t0) continue;
+    const k = introProg(t, [o.t0, o.t1]), land = t >= o.t1, spr = o.spr;
+    const y = Math.round(lerp(top - spr.h, o.y, introOut(k))), x = Math.round(o.x + (land ? 0 : Math.sin(t * 2.3 + o.t0 * 5) * (1 - k) * 2));
+    const thr = land ? Math.max(0, 1 - (t - o.t1) / 0.4) * 0.6 : 0.45 + 0.55 * k * k;
+    for (const [jx, jy] of o.jets) introPlume(c, x + jx, y + jy, 0, 1, o.cradle ? 30 : 22, thr, 1803 + jx, 1.6);
     c.drawImage(spr.c, x - spr.ax, y - spr.ay);
-    if (o.cradle) {
-      // the seed's light, faint until it's planted, and then the lock
-      const sx = x + spr.star.x, sy = y + spr.star.y;
-      introGlow(c, introHalo(16, 14, ['#3a1e08', '#6a3a12', '#a0601e', '#d08c30'], 1804, 160), sx, sy, 0.55 + (t > lock ? 0.25 : 0));
-      introGlow(c, introHalo(40, 8, ['#2a1606', '#4a2a0e', '#7a4a18'], 1807, 260), x, o.y - 2, (0.35 + (t > lock ? 0.3 : 0)) * clamp(1 - (o.y - y) / 60, 0, 1));
-      if (t > lock) spr.lights.forEach(([lx, ly], i) => { if (t > lock + 0.15 + i * 0.07) { introDot(c, x + lx, y + ly + 3, A[4]); introGlow(c, introHalo(3, 2, ['#5a2c0a', '#ffb030'], 1805, 8), x + lx, y + ly + 3, 0.5); } });
-      if (t > lock + 0.1 && t < lock + 2.2) {
-        // a ring of gold along the ground, out from the cradle
-        const q = (t - lock - 0.1) / 2.1, r = 8 + q * K.padRx * 1.3, tick = Math.floor(Game.realT * 10);
-        for (let n = 0; n < 60; n++) {
-          const a = (n / 60) * Math.PI * 2 + artHash(n, tick, 1806) * 0.08;
-          introDash(c, o.x + Math.cos(a) * r - 1, o.y + Math.sin(a) * r * 0.22, 2, HART.star[n % 3 ? 4 : 5], (1 - q) * 0.7);
-        }
+    if (!o.cradle) continue;
+    // the seed seated in its arms, faint until it's planted: lower than it
+    // will hang over the cradle by T.intro.hub.drop, as the last shot starts
+    const st = hartStar(2), sx = x, sy = y - Math.round((OUTPOST_CRADLE.y - STAR_AT.y) * ATILE) + T.intro.hub.drop;
+    c.globalAlpha = 0.8; c.drawImage(st.c, sx - st.ax, sy - st.ay); c.globalAlpha = 1;
+    introGlow(c, introHalo(28, 24, ['#3a1e08', '#6a3a12', '#a0601e', '#d08c30'], 1804, 420), sx, sy, 0.5 + (t > lock ? 0.25 : 0));
+    // the lock: its lamps on one by one, and a ring of gold along the ground
+    if (t > lock) spr.lamps.forEach(([lx, ly], i) => { if (t > lock + 0.15 + i * 0.12) { introDot(c, x - spr.ax + lx, y - spr.ay + ly, HART.star[6]); introGlow(c, introHalo(5, 4, ['#6a3a12', '#ffb030', '#ffe48a'], 1805, 22), x - spr.ax + lx, y - spr.ay + ly, 0.8); } });
+    if (t > lock + 0.1 && t < lock + 2.4) {
+      const q = (t - lock - 0.1) / 2.3, r = 30 + q * K.padRx * 1.3, tick = Math.floor(Game.realT * 10);
+      for (let n = 0; n < 90; n++) {
+        const a2 = (n / 90) * Math.PI * 2 + artHash(n, tick, 1806) * 0.06;
+        introDash(c, o.x + Math.cos(a2) * r - 1, o.y - 6 + Math.sin(a2) * r * 0.3, 2, HART.star[n % 3 ? 4 : 5], (1 - q) * 0.75);
       }
     }
   }
@@ -828,7 +800,7 @@ function introDrawDescent(c, t) {
 // Dust blown out along the ground from under a lander as it comes in:
 // short strokes of the ground's colour, each a puff on its own path.
 function introDust(c, o, t, x) {
-  const D = INTRO_PAL.dust, low = o.t0 + (o.t1 - o.t0) * 0.62, end = o.t1 + 0.6, sz = o.cradle ? 1 : o.y < Intro.cy + 10 ? 0.6 : 0.85;
+  const D = INTRO_PAL.dust, low = o.t0 + (o.t1 - o.t0) * 0.55, end = o.t1 + 0.7, sz = o.cradle ? 1.4 : o.y < Intro.cy + 10 ? 0.9 : 1.15;
   if (t < low) return;
   for (let j = 0; j < 60; j++) {
     const born = low + j * 0.06;
@@ -850,79 +822,110 @@ function introOrbitKit() {
   const I = Intro, R = Math.round(Math.max(I.sw, I.sh) * 1.6), top = I.sy + Math.round(I.sh * 0.62);
   return {
     bg: introSpace(I.w, I.h, 1901, 0.28), far: introStarLayer(I.w, I.h, Math.round(I.w * I.h / 280), 1902, false), mid: introStarLayer(I.w, I.h, Math.round(I.w * I.h / 1000), 1903, true),
-    planet: introPlanet(`orbit/${I.w}/${I.h}`, I.w, I.h, I.cx - Math.round(I.sw * 0.2), top + R, R, 1904), ship: introMeridian(false),
+    planet: introPlanet(`orbit/${I.w}/${I.h}`, I.w, I.h, I.cx - Math.round(I.sw * 0.2), top + R, R, 1904), ship: introMeridian(1.15),
     seed: { x: I.cx + Math.round(I.sw * 0.22), y: top + 14 }, hall: introHall(),
   };
 }
-// The sleep deck: a dark bay of ribbed gunmetal, a cold strip of light
-// along its top, and the pods racked in rows, each a capsule lying on its
-// side with a long frosted window: in it a settler asleep, head on a
-// pillow, the Charter's blue blanket to the shoulder, lit faintly teal from
-// inside. Wider than the screen, so it can pan.
+// The sleep deck, close: a dark bay of ribbed gunmetal, a cold strip of
+// light along its top, and the pods racked in rows, each a capsule lying on
+// its side with a long frosted window. In each a settler asleep: head on a
+// pillow, eyes closed, the Charter's blue blanket to the shoulder, lit
+// faintly teal from inside. The middle row sits in the middle of the
+// screen, the rows above and below cut by its edges. Wider than the
+// screen, so it can pan.
 function introHall() {
   const I = Intro;
   return introKeep(`hall/${I.w}/${I.h}`, () => {
-    const w = I.w + 160, h = I.h, L = introLayer(w, h), V = new Float32Array(w * h), y0 = I.sy + Math.round(I.sh * 0.03);
+    const w = I.w + 200, h = I.h, L = introLayer(w, h), V = new Float32Array(w * h), mid = I.cy - 44, gap = 104;
+    const rows = [mid - gap, mid, mid + gap];
     for (let y = 0; y < h; y++)
       for (let x = 0; x < w; x++) {
-        const rib = x % 130, near = Math.max(0, 1 - Math.abs(y - y0 - 4) / 90);
-        let v = 0.14 + near * 0.26 + (pntNoise(x, y, 40, 12, 1911) - 0.5) * 0.1;
-        if (rib < 4) v = rib === 0 ? 0.42 + near * 0.3 : rib === 3 ? 0.06 : 0.24;
+        const rib = x % 260, near = Math.max(0, 1 - Math.abs(((y - mid + 30) % gap + gap) % gap - 6) / 60);
+        let v = 0.12 + near * 0.18 + (pntNoise(x, y, 40, 12, 1911) - 0.5) * 0.1;
+        if (rib < 5) v = rib === 0 ? 0.42 : rib === 4 ? 0.05 : 0.24;
         V[y * w + x] = clamp(v, 0, 1);
       }
     introStrokes(L, V, introRamp(HART.hull), 1912, 0.1);
-    const B = introRamp(INTRO_PAL.glass);
-    for (let x = 0; x < w; x++) if (x % 130 > 6) for (let y = y0; y < y0 + 2; y++) L.d[y * w + x] = B[y === y0 ? 5 : 4];
-    const rows = [0.15, 0.42, 0.69].map((f) => I.sy + Math.round(I.sh * f));
-    // the racks: a lit rail under each row, its shadow under that
-    const St = introRamp(HART.steel);
+    // a cold strip of light over each row, and the rails they rest on
+    const G = introRamp(INTRO_PAL.glass), St = introRamp(HART.steel), Hu = introRamp(HART.hull);
     for (const ry of rows) for (let x = 0; x < w; x++) {
-      const a = ry + 47;
+      if (x % 260 > 8) for (const y of [ry - 30, ry - 29]) if (y >= 0 && y < h) L.d[y * w + x] = G[y === ry - 30 ? 5 : 4];
+      const a = ry + 80;
+      if (a + 8 >= h) continue;
       L.d[a * w + x] = St[artHash(x >> 2, a, 1916) < 0.7 ? 3 : 4]; L.d[(a + 1) * w + x] = St[2]; L.d[(a + 2) * w + x] = St[1];
-      for (let k = 3; k < 9; k++) if (artHash(x >> 1, a + k, 1917) < 0.9 - k * 0.1) L.d[(a + k) * w + x] = introRamp(HART.hull)[0];
+      for (let k = 3; k < 9; k++) if (artHash(x >> 1, a + k, 1917) < 0.9 - k * 0.1) L.d[(a + k) * w + x] = Hu[0];
     }
-    const bg = introFlush(L);
-    const pods = [0, 1, 2].map((n) => introPod(1920 + n * 7, n));
-    return { bg, w, pods, rows };
+    return { bg: introFlush(L), w, rows, pods: [0, 1, 2].map((n) => introPod(1920 + n * 7, n)) };
   });
 }
+// A pod, close: 236 × 82, the sleeper's face about 20 px. Two pictures, the
+// blanket over the chest a pixel higher in the second, for the breath.
 function introPod(seed, look) {
-  const W = 120, H = 46, s = new PntSpr(W, H, seed), G = INTRO_PAL.glass, Hu = HART.hull, St = HART.steel, P = INTRO_PAL.plate;
-  // the shell: a long capsule, lit along its top, rounded at its ends,
-  // darker down its belly
-  hartStrokes(s, 0, 2, W - 1, H - 1, (x, y) => {
-    const u = (x - W / 2) / (W / 2), v = (y - 2) / (H - 3), end = Math.max(0, Math.abs(u) - 0.93) / 0.07;
-    if (end * end + (v * 2 - 1) ** 2 > 1 && Math.abs(u) > 0.93) return null;
-    return 0.72 - v * 0.62 + (y === 2 ? 0.2 : 0) - (u > 0.9 ? 0.2 : 0) + (u < -0.9 ? 0.1 : 0);
-  }, St, seed + 1, { lo: 0, hi: 4, jit: 0.08 });
-  for (let x = 3; x < W - 3; x++) s.px(x, H - 4, Hu[2]);
-  // the window
-  const gx0 = 9, gx1 = W - 25, gy0 = 9, gy1 = 32;
-  hartStrokes(s, gx0, gy0, gx1, gy1, (x, y) => 0.62 - ((y - gy0) / (gy1 - gy0)) * 0.42 - ((x - gx0) / (gx1 - gx0)) * 0.12, G, seed + 2, { lo: 1, hi: 4, jit: 0.08 });
-  // the sleeper: a pillow, the head turned up, the blanket to the shoulder
-  const hx = gx0 + 12, hy = gy0 + 11, skin = [['#2a1c1a', '#4a3430', '#6e4e44', '#8e6a5a', '#a88470'], ['#1e1612', '#34261e', '#4e3a2c', '#6a5038', '#82644a'], ['#2c2224', '#4c3a3a', '#705654', '#927470', '#b09088']][look % 3];
-  s.ell(hx - 4, hy + 3, 7, 3.5, ['#3a4448', '#56646a', '#74848a', '#90a0a4'], { lo: 0, hi: 3 });
-  s.ell(hx, hy, 5.2, 5.8, skin, { lo: 1, hi: 4 });
-  const hair = ['#140c0a', '#20140e', '#2c1c14'];
-  hartStrokes(s, hx - 6, hy - 6, hx + 3, hy + 1, (x, y) => ((x - hx + 1) ** 2 / 20 + (y - hy + 1) ** 2 / 26 < 1 && (x < hx - 1 || y < hy - 3) ? 0.5 : null), hair, seed + 3);
-  s.px(hx + 2, hy - 1, skin[0]); s.px(hx + 3, hy - 1, skin[1]); s.px(hx + 3, hy + 1, skin[3]); s.px(hx + 2, hy + 3, skin[1]);
-  hartStrokes(s, hx + 5, hy - 2, gx1 - 3, gy1 - 1, (x, y) => {
-    const top = hy + 1 - Math.round(Math.sin(((x - hx - 5) / 10) * Math.PI) * (x < hx + 15 ? 3 : 0)) + Math.round(Math.sin(x * 0.3) * 0.6);
-    return y < top ? null : 0.62 - (y - top) * 0.06 + (y === top ? 0.2 : 0);
-  }, P, seed + 4, { lo: 1, hi: 4, jit: 0.06 });
-  // the glass over it: frost along its top and corners, a glint at its left
-  for (let n = 0; n < 34; n++) {
-    const fx = gx0 + Math.floor(artHash(n, 1, seed) * (gx1 - gx0)), fy = artHash(n, 2, seed) < 0.6 ? gy0 + (n % 2) : gy1 - (n % 2);
-    s.px(fx, fy, G[5]); if (n % 3 === 0) s.px(fx + 1, fy, G[4]);
-  }
-  for (let k = 0; k < 6; k++) s.px(gx0 + 2 + k, gy0 + 2 + (k >> 1), G[5]);
-  for (let y = gy0 - 1; y <= gy1 + 1; y++) { s.px(gx0 - 1, y, St[3]); s.px(gx1 + 1, y, Hu[1]); }
-  for (let x = gx0 - 1; x <= gx1 + 1; x++) { s.px(x, gy0 - 1, St[4]); s.px(x, gy1 + 1, Hu[1]); }
-  // the panel at its foot: a readout, a light (drawn each frame)
-  s.box(W - 21, 11, W - 8, 29, HART.iron, { lo: 0, hi: 3 });
-  for (let k = 0; k < 4; k++) s.px(W - 18 + k * 2, 15, k % 2 ? '#1c5a40' : '#2e8a64');
-  introMark(s, W - 14, 24, false);
-  return Object.assign(s.done(), { light: { x: W - 14, y: 19 }, glass: { x: (gx0 + gx1) >> 1, y: (gy0 + gy1) >> 1, rx: (gx1 - gx0) >> 1 } });
+  const make = (breath) => {
+    const W = 236, H = 82, s = new PntSpr(W, H, seed), G = INTRO_PAL.glass, Hu = HART.hull, St = HART.steel;
+    // the shell: a long capsule, lit along its top, rounded at its ends,
+    // darker down its belly
+    hartStrokes(s, 0, 2, W - 1, H - 1, (x, y) => {
+      const u = (x - W / 2) / (W / 2), v = (y - 2) / (H - 3), end = Math.max(0, Math.abs(u) - 0.94) / 0.06;
+      if (Math.abs(u) > 0.94 && end * end + (v * 2 - 1) ** 2 > 1) return null;
+      return 0.74 - v * 0.62 + (y <= 3 ? 0.2 : 0) - (u > 0.92 ? 0.2 : 0) + (u < -0.92 ? 0.1 : 0);
+    }, St, seed + 1, { lo: 0, hi: 4, jit: 0.07 });
+    for (let x = 4; x < W - 4; x++) { s.px(x, H - 6, Hu[2]); s.px(x, 12, St[2]); }
+    for (let x = 20; x < W - 20; x += 40) for (let y = 4; y < 11; y++) s.px(x, y, St[1]);
+    // the window, and what's behind it
+    const gx0 = 16, gx1 = W - 52, gy0 = 16, gy1 = 66;
+    hartStrokes(s, gx0, gy0, gx1, gy1, (x, y) => 0.75 - ((y - gy0) / (gy1 - gy0)) * 0.5 - ((x - gx0) / (gx1 - gx0)) * 0.15, G, seed + 2, { lo: 0, hi: 2, jit: 0.05 });
+    const skin = [['#2a1a16', '#4a2e26', '#6e4a3c', '#8e6a56', '#aa8670', '#c4a088'], ['#1e140f', '#33221a', '#4e3626', '#6a4c36', '#86644a', '#a07c5c'], ['#2c2022', '#4c3838', '#6e5452', '#90726c', '#ae9088', '#c8aca2']][look % 3];
+    const hair = [['#120a08', '#1e120c', '#2e1c12'], ['#0c0806', '#16100c', '#221812'], ['#3a2a1a', '#56402a', '#74583a']][look % 3];
+    const hx = gx0 + 36, hy = gy0 + 21;
+    // the pillow
+    s.ell(hx - 8, hy + 6, 22, 9, ['#2c3a3e', '#46585e', '#62767c', '#7e9298', '#98aaae'], { lo: 0, hi: 4 });
+    // the head, reclined on the pillow and turned a little to us: a face
+    // in its hair, eyes closed
+    s.ell(hx, hy, 9, 11, skin, { lo: 1, hi: 5, jit: 0.15, bias: 0.12 });
+    hartStrokes(s, hx - 12, hy - 14, hx + 12, hy + 10, (x, y) => {
+      const u = (x - hx) / 10.5, v = (y - hy + 1) / 12.5;
+      if (u * u + v * v > 1) return null;
+      // (the face's oval left bare)
+      const fu = (x - hx - 1) / 7, fv = (y - hy - 2) / 8.5;
+      return fu * fu + fv * fv < 1 ? null : 0.3 + (v < -0.4 ? 0.35 : 0) + (u < -0.5 ? -0.1 : 0);
+    }, hair, seed + 3, { jit: 0.15 });
+    // brows, the closed eyes (a lit lid over a dark line of lashes), the
+    // nose's shadow, the mouth
+    for (const ex of [hx - 3, hx + 3]) {
+      s.px(ex - 1, hy - 2, skin[2]); s.px(ex, hy - 2, skin[1]); s.px(ex + 1, hy - 2, skin[2]);
+      s.px(ex - 1, hy, skin[5]); s.px(ex, hy, skin[5]); s.px(ex + 1, hy, skin[4]);
+      s.px(ex - 1, hy + 1, skin[0]); s.px(ex, hy + 1, skin[0]); s.px(ex + 1, hy + 1, skin[1]);
+    }
+    s.px(hx + 1, hy + 3, skin[5]); s.px(hx + 1, hy + 4, skin[4]); s.px(hx + 2, hy + 4, skin[1]); s.px(hx, hy + 5, skin[2]);
+    s.px(hx, hy + 7, skin[1]); s.px(hx + 1, hy + 7, skin[0]); s.px(hx + 2, hy + 7, skin[1]); s.px(hx + 1, hy + 8, skin[4]);
+    s.px(hx - 5, hy + 3, skin[5]); s.px(hx + 5, hy + 3, skin[4]);
+    // the collar of the undersuit, then the blanket from the shoulder down
+    // its length, folds in it, rising over the chest
+    for (let x = hx - 6; x < hx + 10; x++) for (let y = hy + 11; y < hy + 14; y++) s.px(x, y, HART.charter[y === hy + 11 ? 4 : 2]);
+    hartStrokes(s, hx - 8, gy0 + 14, gx1 - 3, gy1 - 1, (x, y) => {
+      const ch = x - hx - 20, rise = ch > -10 && ch < 30 ? Math.round(Math.sin(((ch + 10) / 40) * Math.PI) * (4 + breath)) : 0;
+      const top = hy + 12 - rise + Math.round(Math.sin(x * 0.18) * 0.8);
+      if (y < top) return null;
+      const fold = Math.sin(x * 0.35 + y * 0.6) > 0.82 ? -0.18 : 0;
+      return 0.66 - (y - top) * 0.025 + (y === top ? 0.22 : 0) + fold;
+    }, ['#090c1a', '#10162c', '#182140', '#222e56', '#2e3e6c', '#3e5084'], seed + 4, { lo: 1, hi: 5, jit: 0.05 });
+    // the glass over it: a teal wash, frost along its edges, a glint
+    for (let y = gy0; y <= gy1; y++) for (let x = gx0; x <= gx1; x++) { const c = s.get(x, y); if (c) s.px(x, y, mix(c, '#3a7c80', 0.22)); }
+    for (let n = 0; n < 90; n++) {
+      const fx = gx0 + Math.floor(artHash(n, 1, seed) * (gx1 - gx0)), top = artHash(n, 2, seed) < 0.55, fy = top ? gy0 + Math.floor(artHash(n, 3, seed) ** 2 * 5) : gy1 - Math.floor(artHash(n, 3, seed) ** 2 * 4);
+      s.px(fx, fy, G[5]); if (n % 3 === 0) s.px(fx + 1, fy, G[4]);
+    }
+    for (let k = 0; k < 14; k++) { s.px(gx0 + 6 + k, gy0 + 3 + (k >> 1), G[5]); s.px(gx0 + 8 + k, gy0 + 3 + (k >> 1), G[4]); }
+    for (let y = gy0 - 2; y <= gy1 + 2; y++) { s.px(gx0 - 2, y, St[4]); s.px(gx0 - 1, y, St[3]); s.px(gx1 + 1, y, Hu[1]); s.px(gx1 + 2, y, Hu[2]); }
+    for (let x = gx0 - 2; x <= gx1 + 2; x++) { s.px(x, gy0 - 2, St[4]); s.px(x, gy0 - 1, St[3]); s.px(x, gy1 + 1, Hu[1]); s.px(x, gy1 + 2, Hu[2]); }
+    // the panel at its foot: a readout, a light (drawn each frame), the mark
+    s.box(W - 44, 20, W - 14, 60, HART.iron, { lo: 0, hi: 3 });
+    for (let k = 0; k < 4; k++) for (let x = W - 38; x < W - 22 - k * 3; x++) s.px(x, 28 + k * 4, k % 2 ? '#1c5a40' : '#2e8a64');
+    introMark(s, W - 29, 52, true);
+    return Object.assign(s.done(), { light: { x: W - 20, y: 30 }, glass: { x: (gx0 + gx1) >> 1, y: (gy0 + gy1) >> 1 }, face: { x: hx, y: hy } });
+  };
+  return [make(0), make(1)];
 }
 function introDrawOrbit(c, t) {
   const I = Intro, K = introOrbitKit(), cut = 4.6, mix2 = clamp((t - cut) / 0.9, 0, 1);
@@ -936,32 +939,34 @@ function introDrawOrbit(c, t) {
     introDot(c, K.seed.x, K.seed.y, HART.star[5]);
     introGlow(c, introHalo(4, 3, ['#6a3a12', '#d08c30', '#ffd987'], 1906, 18), K.seed.x, K.seed.y, pulse);
     // the ship, passing slowly left over the limb
-    const s = K.ship, x = Math.round(I.cx - s.w / 2 + 16 - t * 4.5), y = Math.round(I.cy - I.sh * 0.1 - s.h / 2);
+    const s = K.ship, x = Math.round(I.cx - s.w / 2 + 14 - t * 3.5), y = Math.round(I.cy - Math.min(I.sh * 0.08, 30) - s.h / 2);
     c.save(); c.translate(x + s.w, y); c.scale(-1, 1); c.drawImage(s.c, 0, 0); c.restore();
     // a few of its pods' lights breathing
     for (let i = 0; i < 9; i++) {
-      const px = x + s.w - 30 - Math.floor(artHash(i, 1, 1907) * (s.w - 60)), py = y + (i % 2 ? 21 : 26), k = Math.max(0, Math.sin(t * 1.3 + i * 1.7));
+      const px = x + s.w - 34 - Math.floor(artHash(i, 1, 1907) * (s.w - 70)), py = y + Math.round((i % 2 ? 21 : 26) * 1.15) + 2, k = Math.max(0, Math.sin(t * 1.3 + i * 1.7));
       introDot(c, px, py, '#bafff0', k * 0.9);
     }
-    introPlume(c, x + s.w - s.nozzle.x, y + s.nozzle.y - 9, 1, 0, 6, 0.3, 1908, 0.5);
-    introPlume(c, x + s.w - s.nozzle.x, y + s.nozzle.y + 9, 1, 0, 6, 0.3, 1909, 0.5);
+    introPlume(c, x + s.w - s.nozzle.x, y + s.nozzle.y - 10, 1, 0, 8, 0.3, 1908, 0.6);
+    introPlume(c, x + s.w - s.nozzle.x, y + s.nozzle.y + 10, 1, 0, 8, 0.3, 1909, 0.6);
   }
   if (mix2 > 0) {
-    // inside: the rows of the sleeping, the view drifting slowly along
-    const H = K.hall, pan = (t - cut) * 8, gl = introHalo(48, 16, ['#06201c', '#0c3a32', '#16584a', '#2a8a72'], 1915, 500);
+    // inside: the rows of the sleeping, the view drifting slowly along;
+    // each breathes, slowly, out of time with the others
+    const H = K.hall, pan = (t - cut) * 5, gl = introHalo(90, 26, ['#06201c', '#0c3a32', '#16584a', '#2a8a72'], 1915, 1400);
     c.globalAlpha = mix2;
-    c.drawImage(H.bg, -Math.round(pan * 0.7) - 30, 0);
+    c.drawImage(H.bg, -Math.round(pan * 0.7) - 40, 0);
     H.rows.forEach((ry, r) => {
-      for (let i = -1; i < 6; i++) {
-        const x = Math.round(i * 130 + (r % 2 ? -52 : 6) - pan), pod = H.pods[(i + r * 2 + 6) % 3];
-        if (x > I.w || x + pod.w < 0) continue;
+      for (let i = -1; i < 4; i++) {
+        const x = Math.round(I.cx - 92 + i * 260 + (r === 1 ? 0 : r === 0 ? -150 : 110) - pan), pods = H.pods[(i + r * 2 + 6) % 3], ph = t * 0.55 + i * 1.9 + r * 2.6;
+        if (x > I.w || x + 236 < 0) continue;
+        const pod = pods[Math.sin(ph) > 0.2 ? 1 : 0], k = 0.5 + 0.5 * Math.sin(ph);
         c.drawImage(pod.c, x, ry);
-        const ph = t * 0.7 + i * 1.9 + r * 2.6, k = 0.5 + 0.5 * Math.sin(ph);
-        // the faint light inside each, breathing, and its status light
-        introGlow(c, gl, x + pod.glass.x, ry + pod.glass.y, mix2 * (0.25 + 0.25 * k));
-        const blink = (ph % 6.3) < 0.5;
-        introDot(c, x + pod.light.x, ry + pod.light.y, blink ? '#d8fff0' : INTRO_PAL.pod, mix2 * (0.55 + 0.45 * k));
-        if (blink) introGlow(c, introHalo(4, 3, ['#0c3a26', '#1f8a5a', '#5cffb4'], 1910, 18), x + pod.light.x, ry + pod.light.y, mix2);
+        // the faint light inside each, and its status light
+        introGlow(c, gl, x + pod.glass.x, ry + pod.glass.y, mix2 * (0.22 + 0.18 * k));
+        const blink = ((t * 0.9 + i * 2.3 + r * 1.1) % 4.2) < 0.4;
+        introDot(c, x + pod.light.x, ry + pod.light.y, blink ? '#d8fff0' : INTRO_PAL.pod, mix2 * (0.6 + 0.4 * k));
+        introDot(c, x + pod.light.x + 1, ry + pod.light.y, INTRO_PAL.pod, mix2 * (0.4 + 0.4 * k));
+        if (blink) introGlow(c, introHalo(5, 4, ['#0c3a26', '#1f8a5a', '#5cffb4'], 1910, 26), x + pod.light.x, ry + pod.light.y, mix2);
       }
     });
     c.globalAlpha = 1;
@@ -970,35 +975,68 @@ function introDrawOrbit(c, t) {
 
 // ---------------------------------------------------------------------------
 // Scene 5, the last shot, in the outpost itself: the game draws it, and
-// reads Intro.hub for the camera, the star's rise and light, how far the
-// outpost's light has come up, the stations lighting and Wick. Where things
-// are comes from the outpost's own data, so the shot follows the outpost:
-//   the star and its cradle: STAR_AT (hub.js);
-//   where the Kindler stands when it's over: the floor's entry
-//     (makeHubFloor, floor.js), and he steps out from `step` tiles south;
-//   the stations the light runs out to: HUB_STATIONS (floor.js);
-//   somewhere dark: a tile of the pit away from the light.
+// reads Intro.hub for the camera, the star rising out of its cradle and
+// lighting, the outpost's light coming up, each module waking in turn, the
+// Kindler's pod door and Wick. Where things are comes from the outpost's own
+// data, so the shot follows the outpost:
+//   the star over its cradle: STAR_AT, OUTPOST_CRADLE (hub.js, floor.js);
+//   the Kindler's own habitat pod, and its door: floor.site.home, hartPod;
+//   the modules that wake: HUB_STATIONS, the cradle, the light masts
+//     (LANTERNS), the pod;
+//   somewhere dark: the land past the opening nearest where it ends.
 // ---------------------------------------------------------------------------
 function introHubShot(d) {
-  const f = d.floor, H = T.intro.hub, star = { x: Math.round(STAR_AT.x * ATILE), y: Math.round(STAR_AT.y * ATILE) };
-  const entry = { x: (f.entry.x + 0.5) * TILE, y: (f.entry.y + 0.5) * TILE };
-  let from = { x: entry.x, y: entry.y + H.step * TILE };
-  if (TILE_SOLID[floorTile(f, Math.floor(from.x / TILE), Math.floor(from.y / TILE))]) from = Object.assign({}, entry);
-  const stations = HUB_STATIONS.filter((s) => s.id !== 'dummy').map((s) => ({ id: s.id, x: Math.round((s.x + 0.5) * ATILE), y: Math.round((s.y + 0.5) * ATILE) }));
-  let dark = null;
-  for (const [dx, dy] of [[-3.5, 3.2], [3.6, 3.0], [-2, 3.8]]) {
-    const tx = Math.floor(STAR_AT.x + dx), ty = Math.floor(STAR_AT.y + dy);
-    if (floorTile(f, tx, ty) === TILE_PIT) { dark = { x: Math.round((tx + 0.5) * ATILE), y: Math.round((ty + 0.5) * ATILE) }; break; }
+  const f = d.floor, S = f.site, H = T.intro.hub, cr = OUTPOST_CRADLE;
+  const star = { x: Math.round(STAR_AT.x * ATILE), y: Math.round(STAR_AT.y * ATILE) };
+  const walkable = (q) => !TILE_SOLID[floorTile(f, Math.floor(q.x / TILE), Math.floor(q.y / TILE))];
+  // he steps out of his pod's door and walks out from it; with no pod, from
+  // the entry
+  // (a step out of the door, then towards the middle of the plaza, as far
+  // as the ground's clear)
+  let pod = S && S.home, from = null;
+  if (pod) {
+    const spr = hartPod(0), dx = (spr.door.x + spr.door.w / 2 - spr.ax) / AP;
+    from = { x: pod.x * TILE + dx, y: pod.y * TILE + 1 };
+    if (!walkable(from)) pod = null;
   }
-  return { star, entry, from, stations, dark };
+  if (!pod) from = { x: (f.entry.x + 0.5) * TILE, y: (f.entry.y + 0.5) * TILE };
+  // (the pod itself is in the way too, and rock may stand before its door:
+  // then he steps out along its front)
+  const inPod = (q) => pod && Math.abs(q.x / TILE - pod.x) < 1.25 && q.y / TILE > pod.y - 1.6 && q.y / TILE < pod.y - 0.05;
+  const clear = (a, b) => { for (let k = 1, n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 3); k <= n; k++) { const q = { x: a.x + (b.x - a.x) * k / n, y: a.y + (b.y - a.y) * k / n }; if (!walkable(q) || inPod(q)) return false; } return true; };
+  const path = [from];
+  if (pod) {
+    const out = [[0, 0.7], [0, 0.4], [-1.5, 0.3], [1.5, 0.3]].map(([a, b]) => ({ x: from.x + a * TILE, y: from.y + b * TILE })).find((q) => clear(from, q));
+    if (out) path.push(out);
+  }
+  const last = path[path.length - 1], mx = OUTPOST_MIDDLE.x * TILE - last.x, my = OUTPOST_MIDDLE.y * TILE - last.y, ma = Math.atan2(my, mx);
+  find: for (const turn of [0, 0.5, -0.5, 1, -1]) for (let k = H.step; k > 0.3; k -= 0.2) {
+    const q = { x: last.x + Math.cos(ma + turn) * k * TILE, y: last.y + Math.sin(ma + turn) * k * TILE };
+    if (clear(last, q)) { path.push(q); break find; }
+  }
+  const to = path[path.length - 1];
+  // the modules waking, the nearest the cradle first: its own lamps, the
+  // stations, the light masts, the pod
+  const wake = [{ key: 'cradle', x: cr.x, y: cr.y }].concat(
+    HUB_STATIONS.filter((s) => s.id !== 'dummy').map((s) => ({ key: s.id, x: s.x + 0.5, y: s.y + 0.5 })),
+    LANTERNS.map(([x, y], k) => ({ key: 'mast' + k, x: x + 0.5, y: y + 0.5 })),
+    pod ? [{ key: 'pod0', x: pod.x, y: pod.y }] : []);
+  wake.sort((p, q) => Math.hypot(p.x - cr.x, (p.y - cr.y) * 1.3) - Math.hypot(q.x - cr.x, (q.y - cr.y) * 1.3));
+  const at = {};
+  wake.forEach((w, i) => { at[w.key] = H.wake[0] + i * H.wake[1]; });
+  // the dark: just in from the opening nearest where he'll stand
+  const ex = (f.exits || []).slice().sort((p, q) => Math.hypot(p.ax * TILE - to.x, p.ay * TILE - to.y) - Math.hypot(q.ax * TILE - to.x, q.ay * TILE - to.y))[0];
+  const dark = ex ? { x: Math.round((ex.x + 0.5 + ex.nx * 0.6) * ATILE), y: Math.round((ex.y + 0.5 + ex.ny * 0.6) * ATILE) } : null;
+  return { star, from, to, path, pod, wake: at, dark };
 }
 function introHubBegin() {
-  const I = Intro, d = I.dive, shot = introHubShot(d);
+  const I = Intro, d = I.dive, shot = introHubShot(d), H = T.intro.hub;
   Game.modal = null;
   Input.block();
-  d.p.x = shot.from.x; d.p.y = shot.from.y; d.p.fx = 0; d.p.fy = -1; d.p.walkT = 0;
+  // (inside his pod until its door opens)
+  d.p.x = shot.from.x; d.p.y = shot.from.y - (shot.pod ? 10 : 0); d.p.fx = 0; d.p.fy = 1; d.p.walkT = 0;
   d.drone = null;
-  I.hub = { shot, k: 0, starDY: T.intro.hub.drop, lit: 0, amb: T.intro.hub.amb0, wick: false };
+  I.hub = { shot, k: 0, starDY: H.drop, lit: 0, amb: H.amb0, lode: 0, wick: false, hidden: !!shot.pod, door: 0 };
   introHubStep();
 }
 // Each step of the last shot: everything from the time, but the walk, which
@@ -1010,72 +1048,64 @@ function introHubStep() {
   h.starDY = H.drop * (1 - introOut(introProg(t, H.rise)));
   h.lit = introEase(introProg(t, H.lit));
   h.amb = lerp(H.amb0, 1, introEase(introProg(t, H.ambUp)));
+  h.lode = introEase(introProg(t, H.lode));
   h.k = introEase(introProg(t, H.cam));
   h.wick = t >= H.wickAt;
-  const p = d.p, ey = h.shot.entry.y, pace = T.player.speed * (1 + (d.stats.moveSpeed || 0) / 100) * H.walk;
-  const want = Math.max(ey, h.shot.from.y - Math.max(0, t - H.walkAt) * pace);
-  if (p.y > want + 3) { p.y = want; p.x = h.shot.entry.x; }
-  Input.move.x = 0;
-  Input.move.y = t >= H.walkAt && p.y > ey + 0.5 ? -H.walk : 0;
+  h.door = t < H.door[0] ? 0 : t < H.door[1] ? 1 : t < H.door[1] + 0.3 ? 1 - (t - H.door[1]) / 0.3 : 0;
+  const p = d.p, S = h.shot, walkAt = H.door[0] + 0.35;
+  // out of the door: he's there in the doorway, then walks out
+  if (h.hidden && t >= walkAt - 0.15) { h.hidden = false; p.x = S.from.x; p.y = S.from.y; }
+  // where he should be along his way by now, and a moment on
+  const pace = T.player.speed * (1 + (d.stats.moveSpeed || 0) / 100) * H.walk, along = (u) => introAlong(S.path, Math.max(0, u - walkAt) * pace);
+  const now = along(t), next = along(t + 0.15);
+  if (!h.hidden && Math.hypot(p.x - now.x, p.y - now.y) > 4) { p.x = now.x; p.y = now.y; }
+  const vx = next.x - p.x, vy = next.y - p.y, m = Math.hypot(vx, vy), go = !h.hidden && t >= walkAt && m > 0.6;
+  Input.move.x = go ? (vx / m) * H.walk : 0;
+  Input.move.y = go ? (vy / m) * H.walk : 0;
+  // there, he turns to look up at the star
+  if (t >= H.look) { const sx = S.star.x / AP - p.x, sy = S.star.y / AP - p.y, m = Math.hypot(sx, sy) || 1; p.fx = sx / m; p.fy = sy / m; }
 }
-// The camera: from high, the star well up in the view, down to where play
-// keeps it (camY: where it would be).
+// The point `dist` world px along a path of points (its end, past it).
+function introAlong(path, dist) {
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1], b = path[i], L = Math.hypot(b.x - a.x, b.y - a.y);
+    if (dist <= L) return { x: a.x + (b.x - a.x) * (dist / (L || 1)), y: a.y + (b.y - a.y) * (dist / (L || 1)) };
+    dist -= L;
+  }
+  return path[path.length - 1];
+}
+// How far a module has woken (0 dark, 1 lit), flickering on; i: which of
+// its lights (they come on one after another). Always 1 outside the shot.
+function introWake(key, i = 0) {
+  const h = Intro.hub;
+  if (!h || h.shot.wake[key] === undefined) return 1;
+  const k = (Intro.t - h.shot.wake[key] - i * T.intro.hub.wake[2]) / 0.35;
+  return k <= 0 ? 0 : k >= 1 ? 1 : (Math.floor(k * 9) % 3 === 1 ? 0.25 : 1) * (0.4 + 0.6 * k);
+}
+// The camera: from high over the site, the star well up in the view, down
+// to where play keeps it (camX, camY: where it would be).
+function introCamX(camX) {
+  const h = Intro.hub, fw = Intro.dive.floor.w * ATILE, x0 = clamp(h.shot.star.x - (View.w >> 1), 0, Math.max(0, fw - View.w));
+  return Math.round(lerp(x0, camX, h.k));
+}
 function introCamY(camY) {
-  const h = Intro.hub, y0 = h.shot.star.y - Math.round(View.h * T.intro.hub.camAt);
-  return Math.round(lerp(Math.min(y0, camY), camY, h.k));
+  const h = Intro.hub, y0 = Math.max(0, Math.min(h.shot.star.y - Math.round(View.h * T.intro.hub.camAt), camY - Math.round(View.h * 0.3)));
+  return Math.round(lerp(y0, camY, h.k));
 }
-// Over the lit frame (render.js): the sky above the outpost while the
-// camera is high, the light running out from the star to each station, and
-// once, late, something in the dark.
-function introHubSky(d, ox, oy) {
-  const I = Intro, h = I.hub, t = I.t, x = View.ctx;
-  // the sky and the far land, laid over the top of the floor
-  if (oy > -20) {
-    const W = d.floor.w * ATILE, sky = introHubSkyPic(W);
-    x.drawImage(sky, ox, oy - sky.height + 30);
-    // the Meridian, a light crossing high up
-    const mx = Math.round(ox + ((t * 7 + 60) % W)), my = oy - 170;
-    if (my > -2) { x.fillStyle = '#e8f4ff'; x.fillRect(mx, my, 1, 1); x.globalAlpha = 0.4; x.fillRect(mx - 1, my, 1, 1); x.globalAlpha = 1; }
-  }
-  introHubLights(h, ox, oy, t);
+// The Kindler's pod door, open while he steps out: dark inside, its warm
+// light spilling out. (x, y: the pod's sprite's corner on the view.)
+function introPodDoor(spr, x, y, lights) {
+  const h = Intro.hub;
+  if (!h || !h.door || !spr.door) return;
+  const D = spr.door, open = Math.round(D.w * h.door), c = View.ctx;
+  c.fillStyle = '#120a06'; c.fillRect(x + D.x + 1, y + D.y + 1, open - 1, D.h - 1);
+  for (let k = 0; k < 6; k++) dot(x + D.x + 1 + ((k * 3) % Math.max(1, open - 1)), y + D.y + 2 + k * 2, '#ffb860', true, 0.5 * h.door);
+  lights.push({ x: x + D.x + (D.w >> 1), y: y + D.y + D.h, r: TILE * 1.6, i: 0.7 * h.door, c: rgb01('#ffb860') });
 }
-// The sky over the outpost, W art px across: the dark with its stars, and
-// the far land's ridge along the foot, its lower edge broken where it lies
-// over the floor's top.
-function introHubSkyPic(W) {
-  return introKeep(`hubsky/${W}`, () => {
-    const SH = 260, L = introLayer(W, SH), V = new Float32Array(W * SH).fill(-1), M = new Float32Array(W * SH).fill(-1);
-    const ridge = (x2) => SH - 22 - Math.round(pntNoise(x2, 0, 30, 1, 2001) * 18 + pntNoise(x2, 0, 7, 1, 2002) * 5);
-    for (let y = 0; y < SH; y++)
-      for (let x2 = 0; x2 < W; x2++) {
-        const r = ridge(x2);
-        if (y < r) V[y * W + x2] = 0.08 + 0.3 * (y / SH) ** 3 + (pntNoise(x2, y, 50, 14, 2003) - 0.5) * 0.08;
-        else if (y < SH - 10 || artHash(x2 >> 2, y, 2004) < (SH - y) / 10) M[y * W + x2] = 0.08 + (y - r) / 60 + (pntNoise(x2, y, 9, 3, 2005) - 0.5) * 0.1;
-      }
-    introStrokes(L, V, introRamp(INTRO_PAL.space), 2006, 0.1);
-    introStrokes(L, M, introRamp(INTRO_PAL.rock), 2007, 0.12);
-    L.x.putImageData(L.img, 0, 0);
-    const st = introStarLayer(W, SH - 40, Math.round(W * SH / 300), 2008, true);
-    L.x.drawImage(st, 0, 0);
-    return L.c;
-  });
-}
-function introHubLights(h, ox, oy, t) {
-  const H = T.intro.hub;
-  // the light running out to the stations, and each catching it
-  const sx = h.shot.star.x + ox, sy = h.shot.star.y + oy, r = (t - H.ping) * H.pingSpeed;
-  if (r > 0) {
-    const far = Math.max(...h.shot.stations.map((s) => Math.hypot(s.x - h.shot.star.x, (s.y - h.shot.star.y) / 0.75)));
-    if (r < far + 20) ringDots(sx, sy, r, ART.pal.star[3], 0.55 * (1 - r / (far + 20)), true);
-    for (const s of h.shot.stations) {
-      const at = Math.hypot(s.x - h.shot.star.x, (s.y - h.shot.star.y) / 0.75), age = (r - at) / H.pingSpeed;
-      if (age < 0 || age > 0.8) continue;
-      const cx = s.x + ox, cy = s.y + oy;
-      ringDots(cx, cy - 4, 3 + age * 14, ART.pal.star[3], 1 - age / 0.8, true);
-      for (let n = 0; n < 6; n++) dot(cx - 5 + n * 2, cy - 6 - Math.round(age * (10 + n * 3)), ART.pal.star[n % 2 ? 2 : 3], true, 1 - age / 0.8);
-    }
-  }
-  // late, in the dark of the pit, two cold points, for a moment
-  const dk = h.shot.dark, a = Math.sin(clamp((t - H.dark[0]) / (H.dark[1] - H.dark[0]), 0, 1) * Math.PI) * 0.45;
+// Over the lit frame (render.js): late, out in the dark land past the
+// nearest opening, two cold points, for a moment.
+function introHubOver(d, ox, oy) {
+  const h = Intro.hub, H = T.intro.hub, dk = h.shot.dark;
+  const a = Math.sin(clamp((Intro.t - H.dark[0]) / (H.dark[1] - H.dark[0]), 0, 1) * Math.PI) * 0.5;
   if (dk && a > 0.02) { dot(dk.x + ox, dk.y + oy, INTRO_PAL.cold, true, a); dot(dk.x + ox + 3, dk.y + oy, INTRO_PAL.cold, true, a); }
 }

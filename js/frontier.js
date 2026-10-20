@@ -171,6 +171,7 @@ function updateFrontier(d, dt) {
       if (!ts.lit.includes(h.k)) ts.lit.push(h.k);
       ts.done = true;
       UI.toast('The waystones burn', 'legendary');
+      snd('waystonesBurn');
       buzz(40);
     }
   }
@@ -182,7 +183,8 @@ function updateFrontier(d, dt) {
 // Walking off the edge into the neighbour it faces (0: home).
 function crossTo(d, to) {
   d.p.mine = null; d.channel = null;
-  d.warp = { t: 0, at: null, zone: isKindled(to) ? 'surface' : 'dusk', go: () => (to === 0 ? goHome('walk') : enterTerritory(to, { from: d.terr })) };
+  d.warp = { t: 0, at: null, zone: isKindled(to) ? 'surface' : 'dusk', go: () => (to === 0 ? goHome('walk', d.terr) : enterTerritory(to, { from: d.terr })) };
+  snd('portal');
   buzz(20);
 }
 
@@ -222,6 +224,7 @@ function bankAtSpire(d, quiet) {
   Save.save();
   saveRun(d);
   if (quiet) return;
+  snd('bank');
   const what = [stuffLines(r.got), r.n ? `${r.n} piece${r.n > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(', ');
   UI.toast(what ? `Banked: ${what}` : 'Nothing to bank', what ? 'legendary' : undefined);
 }
@@ -235,18 +238,20 @@ function travelFrom(d, to) {
 }
 function travelDone(d, to) {
   bankAtSpire(d, true);
+  snd('travel');
   d.warp = { t: 0, at: null, zone: 'surface', go: () => (to === 0 ? goHome('spire') : enterTerritory(to, { spire: true })) };
 }
 
 // Home: everything carried is banked, contracts settle, and the report.
-function goHome(how) {
+// from: the territory walked home from, if walked.
+function goHome(how, from) {
   const d = Game.dive;
   bankHaul(d, true);
   Save.data.run = null;
   Save.data.lastSpire = 0;
   const b = d.banked, contracts = settleContracts(d, b.stuff);
   Save.save();
-  enterHub({ banked: b.stuff, items: b.items, fed: b.fed, learned: b.learned, contracts, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), how, kindled: (d.tally && d.tally.kindled) || 0 });
+  enterHub({ banked: b.stuff, items: b.items, fed: b.fed, learned: b.learned, contracts, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), how, kindled: (d.tally && d.tally.kindled) || 0 }, { from });
 }
 
 // Where a sortie got to, for the report.
@@ -277,6 +282,7 @@ function stoneLit(d, k) {
     d.hold = { k, t: 0, waveT: W.waveEvery };
   } else ts.lit.push(k);
   // (what's left to do is the goal's, over the view: goalLines)
+  snd('waystone');
   buzz(30);
 }
 
@@ -308,6 +314,7 @@ function kindleTerritory(d) {
   const line = typeof kindleLogLine === 'function' ? kindleLogLine(t.clime, t.name) : '';
   if (line) UI.toast(line, 'log');
   Story.say('firstKindled');
+  snd('kindle');
   buzz(60);
 }
 
@@ -521,7 +528,7 @@ function drawWorldUnder(d, ox, oy, lights) {
 
 // Over the lit scene: where each opening leads, and its way out.
 function drawExitMarks(d, ox, oy) {
-  if (!d.sortie || d.deep || !d.floor.exits) return;
+  if (!(d.sortie || d.hub) || d.deep || !d.floor.exits) return;
   const p = d.p, blink = Math.floor(Game.realT * 3) % 2;
   for (const e of d.floor.exits) {
     const wx = (e.x + 0.5 + e.nx * 0.5) * TILE, wy = (e.y + 0.5 + e.ny * 0.5) * TILE, m = dist(wx, wy, p.x, p.y) / TILE;

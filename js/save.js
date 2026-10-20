@@ -40,6 +40,7 @@ function cleanSave(s) {
   s.codex = (s.codex || []).filter((k) => LEGENDARIES[k]);
   // what Wick knows of each kind's nature, and the resonances' Codex
   if (!s.natures || typeof s.natures !== 'object') s.natures = {};
+  if (!s.keepOre || typeof s.keepOre !== 'object') s.keepOre = {};
   if (!s.resCodex || typeof s.resCodex !== 'object') s.resCodex = { kindling: [0, 1, 2] };
   for (const id of Object.keys(s.resCodex)) { const r = RESONANCES.find((x) => x.id === id); if (!r || !Array.isArray(s.resCodex[id])) delete s.resCodex[id]; else s.resCodex[id] = s.resCodex[id].filter((i) => Number.isInteger(i) && i >= 0 && i < r.seq.length); }
 }
@@ -54,6 +55,8 @@ const Save = {
       attune: {}, tips: {}, settings: { haptics: true }, world: null, lastSpire: 0,
       blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start),
       tools: ['compass'], tool: 'compass', codex: [], natures: {}, resCodex: { kindling: [0, 1, 2] },
+      // the ores the star is never given (marked at the altar)
+      keepOre: {},
     };
   },
   load() {

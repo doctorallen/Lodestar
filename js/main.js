@@ -38,6 +38,7 @@ function frame(now) {
     if (n === 5) _acc = 0;
     _resizeT -= dt;
     if (_resizeT <= 0) { _resizeT = 0.5; fitLayout(); resizeView(); }
+    Snd.tick(dt);
   } catch (e) {
     noteError(e);
   }

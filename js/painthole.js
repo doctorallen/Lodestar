@@ -10,12 +10,11 @@
 // the light. So:
 //   a pool, lava or ice: its surface lies T.paint.hole[kind] px down, under
 //     a bank face on its far side (hazards.js, paintHazardPixels);
-//   the sinkhole: its far wall drops away into the dark (phlPaintPit);
 //   a vent: its throat's far wall, fire at the bottom (paintVent).
 // The near rim catches the light; the far rim is a face's lit lip. All is
 // laid in strokes on the clime's rock ramp, seeded by place, so a region
 // painted again matches. Only the picture changes: the footprint of each
-// (collision, hazardAt, the pit's tiles) is as it was.
+// (collision, hazardAt) is as it was.
 // ---------------------------------------------------------------------------
 
 // How far down a hazard's surface lies (art px; 0 for none).
@@ -68,7 +67,7 @@ function phlStrokes(x0, y, seed) {
 // lighter at the lip, darker down it, lighter turned to the light, laid in
 // strokes; strata (long strokes a shade or two off, as on the rock's
 // faces) and now and then a crack down it, lit on its left.
-function phlWallTone(q, n, s, x, x0, y, seed, B = T.paint.hole.wall) {
+function phlWallTone(q, n, s, x, x0, y, seed, B) {
   const H = T.paint.hole, u = n > 1 ? Math.min(1, q / (n - 1)) : 0;
   let t = B[0] + (B[1] - B[0]) * Math.pow(u, H.wallPow) + s * B[2] + _phlJit[x - x0] * H.jitter;
   const off = (artHash(y, 3, seed + 301) * 16) | 0, sc = (x + off) >> 4;
@@ -99,74 +98,6 @@ function phlPut(P, x, y, c, glow) {
 function phlNearLip(P, x, y, b, step) {
   const GR = pntLook(b).ground, t = View.groundTone[y * P.w + x] + step;
   phlPut(P, x, y, GR[t > 6 ? 6 : t]);
-}
-
-let _phlRims = new Int32Array(0);
-// ---- the sinkhole ------------------------------------------------------------
-// The outpost's pit (View.pitPx), over tile tx, ty: each column's far wall
-// from its rim down, darker and darker into soot, then the dark (in faint
-// strokes); the near rim lit. Under rock, the wall carries on the rock's
-// face downwards, with no lip. Pixels of the tile not in the pit are left.
-function phlPaintPit(P, f, tx, ty, ox, oy, b) {
-  const pit = View.pitPx, W = P.w, Hp = P.h;
-  if (!pit) return;
-  let any = false;
-  for (let y = Math.max(0, oy - 1); y < oy + ATILE && !any; y++) for (let x = ox; x < ox + ATILE; x++) if (pit[y * W + x]) { any = true; break; }
-  if (!any) return;
-  const H = T.paint.hole, D = H.pit, R = View.rockPx, RK = phlRamp(b), nt = RK.length, seed = (f.seed ^ f.depth) | 0, x0 = ox - 8;
-  // (the pit's own pixels on the hole's side of the smooth wall line)
-  const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < Hp && pit[y * W + x] === 2;
-  const GR = pntLook(b).ground;
-  const abyss = [pntU32([2, 2, 4]), pntU32([5, 5, 9]), pntU32([9, 8, 15])];
-  // (at home, the star hanging over it: where, and its gold, dimmed)
-  const lit = f.hub && typeof STAR_AT !== 'undefined' ? [STAR_AT.x * ATILE, STAR_AT.y * ATILE, [0.55, 0.85].map((k) => pntU32(pntMixRgb(rgbOf(ART.pal.star[1]), [0, 0, 0], 1 - k)))] : null;
-  // each column's rim for each row of the tile (as phlRimRow), from x0 - 2
-  const cw = ATILE + 4, RIM = _phlRims.length >= cw * ATILE ? _phlRims : (_phlRims = new Int32Array(cw * ATILE));
-  for (let i = 0; i < cw; i++) {
-    const x = ox - 2 + i;
-    let top = -1;
-    for (let y = Math.max(0, oy - D - 2); y < oy + ATILE; y++) {
-      if (!inside(x, y)) top = -1; else if (top < 0) top = y;
-      if (y >= oy) RIM[(y - oy) * cw + i] = top < 0 ? y + 2 : Math.max(top, y - D - 1);
-    }
-  }
-  const rimAt = (x, y) => RIM[(y - oy) * cw + x - ox + 2];
-  for (let y = oy; y < oy + ATILE; y++) {
-    phlStrokes(x0, y, seed + 311);
-    for (let x = ox; x < ox + ATILE; x++) {
-      const k = y * W + x;
-      if (!inside(x, y)) {
-        // the rim's ground (which the wall line had as solid), and the near
-        // rim, lit
-        if (pit[k] === 1 && R[k]) phlPut(P, x, y, GR[View.groundTone[k]]);
-        if ((!R[k] || pit[k] === 1) && inside(x, y - 1)) phlNearLip(P, x, y, b, H.lip);
-        else if ((!R[k] || pit[k] === 1) && inside(x, y - 2)) phlNearLip(P, x, y, b, H.lip - 2);
-        continue;
-      }
-      const rim = rimAt(x, y), q = y - rim;
-      if (q >= D) {
-        // the dark: a few faint strokes
-        const m = _phlMid[x - x0] + x0;
-        phlPut(P, x, y, abyss[artHash(m, y, seed + 317) < 0.15 ? 2 : artHash(m, y >> 1, seed + 318) < 0.5 ? 1 : 0]);
-        continue;
-      }
-      const under = rim > 0 && R[(rim - 1) * W + x] === 1 && !pit[(rim - 1) * W + x];
-      const fc = (rimAt(x + 2, y) - rimAt(x - 2, y)) / 4;
-      let t = phlWallTone(q, D, fc < -1 ? -1 : fc > 1 ? 1 : fc, x, x0, y, seed) - H.pitFade * Math.pow(q / D, 2);
-      // the lip, lit where it's ground (a rock's face carries on unbroken)
-      if (q === 0 && !under) t = Math.max(t, H.lipTone[0]);
-      else if (q === 0) t -= 1;
-      // soot, more of it lower down
-      if (t < 0.6 || artHash(_phlMid[x - x0] + x0, y, seed + 319) < Math.pow(q / D, 1.5) * 0.8) { phlPut(P, x, y, abyss[q / D < 0.7 ? 2 : 1]); continue; }
-      // the star's light on the far wall, as loose strokes of its gold,
-      // thicker nearer it and fading down into the dark
-      if (lit) {
-        const m = _phlMid[x - x0] + x0, dd = Math.hypot(m - lit[0], (y - lit[1]) * 1.4) / H.starLick[0];
-        if (dd < 1 && artHash(m, y, seed + 321) < (1 - dd) * (1 - dd) * H.starLick[1] * (1 - q / D)) { phlPut(P, x, y, lit[2][t > 4 ? 1 : 0]); continue; }
-      }
-      phlPut(P, x, y, RK[phlClampT(t, nt)]);
-    }
-  }
 }
 
 // ---- in the water --------------------------------------------------------------

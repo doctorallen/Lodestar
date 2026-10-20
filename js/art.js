@@ -55,7 +55,7 @@ const ART = {
     star: ['#3a2a14', '#8a6430', '#d8ae5c', '#fff2c8'],
     shell: ['#0e0a10', '#1c1520', '#302434', '#4a3a4e'], eyeglow: ['#ff3d3d'], crystal: ['#a070ff'], coreglow: ['#fff4e0'], legs: ['#060407'],
   },
-  // the surface round the sinkhole, under the sun: each region's badlands.
+  // the surface round the outpost, under the sun: each region's badlands.
   // Mesa tops stay darker than the dust, and cast shadow to the south-east.
   surface: {
     rim: { sun: true, floor: ['#5a4632', '#6a543c', '#7a6248'], rock: ['#2a2018', '#33271d', '#3c2e22', '#a08060'], front: ['#4a3626', '#5a4430', '#6a523a'], glow: '#ffd25a' },
@@ -97,8 +97,9 @@ const ART = {
   biomes: {
     rim: { floor: ['#22303a', '#2c3e4a', '#3a4e5c'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#9ccf4a' },
     choir: { floor: ['#282242', '#342c56', '#42386a'], rock: ['#06050e', '#0b0918', '#110e22', '#9a84d0'], front: ['#30285a', '#3e3470', '#504488'], glow: '#e070b0' },
-    // the outpost: worn flagstones on the rim, the same dark rock round it
-    outpost: { paving: true, floor: ['#2a2b33', '#34363f', '#40434d'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#9ccf4a' },
+    // the outpost: cleared, graded ground under the sky, pale dust over
+    // packed earth (the land beyond comes in at its edges: hubground.js)
+    outpost: { sun: true, floor: ['#5c574d', '#6a6458', '#787163'], rock: ['#2a2620', '#322d26', '#3a342c', '#a8987a'], front: ['#4a4236', '#584e40', '#665b4a'], glow: '#ffd25a' },
     underforge: { floor: ['#33252a', '#402e34', '#503a40'], rock: ['#080506', '#0f090b', '#160d10', '#b07060'], front: ['#46282a', '#5a3436', '#704244'], glow: '#ff7a2a' },
   },
 };

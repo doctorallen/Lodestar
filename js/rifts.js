@@ -109,9 +109,11 @@ function graftAt(f, x, y) {
   return Math.hypot(x - cx, y - cy) / TILE <= g.r - 0.5 + 1.1 * Math.sin(3 * a + g.p1) + 0.6 * Math.sin(5 * a + g.p2);
 }
 
-// How a tile looks: the floor's own, or while the graft is being painted,
-// the graft's.
+// How a tile looks: the floor's own, or while the graft (or the outpost's
+// meld) is being painted, the graft's.
 function tileArt(f, tx, ty) {
+  // (the outpost's meld: the land beyond an opening, hubground.js)
+  if (f.meldPainting >= 0) return hgrMeldLook(f, f.meldPainting);
   if (f.graft && f.paintingGraft) {
     const id = T.biomes[f.graft.biome].id;
     return CLIME_ART[f.graft.clime] || (f.graft.sky ? ART.surface[id] : ART.biomes[id]);
@@ -205,6 +207,7 @@ function useRift(d) {
     if (bodyHits(d.floor, p.x, p.y, T.player.radius)) p.y = (h.gate.y + 0.5) * TILE;
     p.invuln = Math.max(p.invuln, 0.5);
     spawnSparks(p.x, p.y - 6, [RIFT_PAL.riftedge[0], RIFT_PAL.riftcyan[0]], 14);
+    snd('riftGate');
     buzz(20);
     Story.say('riftGate');
   } else startChannel('seal');
@@ -223,6 +226,7 @@ function sealRift() {
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, cx, cy) < T.leave.noise) wake(d, e);
   spawnSparks(cx, cy - 10, [RIFT_PAL.riftedge[0], RIFT_PAL.riftcyan[0], '#ffffff'], 30);
   UI.toast('The tear closes', 'legendary');
+  snd('seal');
   Story.say('riftSealed');
   buzz(40);
 }

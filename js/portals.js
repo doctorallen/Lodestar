@@ -175,6 +175,7 @@ function stepThrough(d, i) {
   const w = d.floor.ways[i];
   d.warp = { t: 0, at: w, zone: d.ways[i], clime: d.wayClimes && d.wayClimes[i] };
   d.p.mine = null; d.channel = null;
+  snd('portal');
   buzz(20);
 }
 

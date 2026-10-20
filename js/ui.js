@@ -110,7 +110,13 @@ const UI = {
     $('card').addEventListener('click', (e) => { if (e.target === $('card')) { if (Game.realT - UI.openedAt >= T.ui.tapGuard) UI.acts.closeCard(); } else UI.onTap(e); });
     $('btn-pause').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.openPause(); });
     $('btn-cargo').addEventListener('click', () => { if (Game.dive && !Game.dive.hub && !Game.modal) UI.openCargo(); });
-    $('btn-act2').addEventListener('pointerdown', (e) => { e.preventDefault(); if (Game.dive && !Game.dive.hub && !Game.modal) UI.openMap('travel'); });
+    // TRAVEL at a spire; at the star's altar, ATTUNE (its screen)
+    $('btn-act2').addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (!Game.dive || Game.modal) return;
+      if (!Game.dive.hub) UI.openMap('travel');
+      else if (actionHere() === 'altar') UI.show('screen-star');
+    });
     $('build').textContent = BUILD_INFO;
     // the anvil takes a tap anywhere; the reveal, a tap once it has risen
     $('screen-anvil').addEventListener('pointerdown', (e) => { if (e.target.closest('[data-act]')) return; e.preventDefault(); if (Game.realT - UI.openedAt > 0.3) Anvil.strike(); });
@@ -129,7 +135,7 @@ const UI = {
       return;
     }
     const fn = UI.acts[el.dataset.act];
-    if (fn) fn(el.dataset.arg);
+    if (fn) { snd('tap'); fn(el.dataset.arg); }
   },
 
   show(id) {
@@ -171,15 +177,15 @@ const UI = {
 
   // Walking up to a station in the outpost (or an ancient forge in a dive).
   useStation(id) {
-    if (id === 'forge' || id === 'fieldForge') { UI.forge.field = id === 'fieldForge'; UI.show('screen-forge'); }
+    if (id === 'forge' || id === 'fieldForge') { UI.forge.field = id === 'fieldForge'; UI.show('screen-forge'); snd('forgeOpen'); }
     else if (id === 'altar') {
-      if (Story.setShards()) { feedStarFx(Game.dive, 40, 0); return; }
+      if (Story.setShards()) { feedStarFx(Game.dive, 40, 0); snd('starFeed', { tier: 6, rate: 8, n: 24, stream: true }); return; }
       UI.show('screen-star');
     }
     else if (id === 'locker') { UI.gearRunes = false; UI.show('screen-gear'); }
     else if (id === 'runes') { UI.gearRunes = true; UI.show('screen-gear'); }
     else if (id === 'setout') UI.openMap('setout');
-    else if (id === 'wreck') UI.show('screen-wreck');
+    else if (id === 'wreck') { UI.show('screen-wreck'); snd('uplink'); }
   },
   // The world map: 'setout' at the outpost's portal, 'travel' at a spire.
   openMap(mode) {
@@ -193,6 +199,7 @@ const UI = {
     $('pause-cargo').hidden = home; $('pause-abandon').hidden = home; $('pause-note').hidden = home; $('pause-recall').hidden = home;
     $('pause-beacon').hidden = home || Game.dive.tool !== 'beacon' || !!Game.dive.beaconUsed || !!Game.dive.beacon;
     if (!home) $('pause-recall').textContent = `EMERGENCY RECALL · LOSE ${Math.round(recallCost(Game.dive) * 100)}%`;
+    drawSoundButtons();
     UI.show('screen-pause');
   },
   openCargo() { UI.show('screen-cargo'); },
@@ -220,6 +227,7 @@ const UI = {
       box.className = 'speech ' + l.style;
       box.innerHTML = `<b>${esc(l.who)}</b> ${esc(l.text)}`;
       box.dataset.line = l.text;
+      snd('speak', { style: l.style });
     }
     if ((l.t -= dt) <= 0) UI.lines.shift();
   },
@@ -333,12 +341,13 @@ const UI = {
     const rh = a === 'rift' && riftHere(d);
     let way = '';
     if (a === 'way') way = !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'STEP THROUGH: ' + wayPlaceName(d, wayHere(d)).toUpperCase();
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: 'PLANT THE SPIRE', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: 'PLANT THE SPIRE', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
-    // at a spire (or a beacon's light), TRAVEL too
-    const travel = a === 'extract' && d.sortie && !d.deep, b2 = $('btn-act2');
-    if (b2.hidden !== !travel) b2.hidden = !travel;
+    // at a spire (or a beacon's light), TRAVEL too; at the altar, ATTUNE
+    const travel = a === 'extract' && d.sortie && !d.deep, attune = a === 'altar', b2 = $('btn-act2');
+    if (b2.hidden !== !(travel || attune)) b2.hidden = !(travel || attune);
+    if (travel || attune) { const pts = attune ? attunePointsLeft(Save.data) : 0; setTextIfChanged('btn-act2', travel ? 'TRAVEL' : pts > 0 ? `ATTUNE · ${pts}` : 'ATTUNE'); }
   },
 };
 
@@ -374,7 +383,7 @@ function drawUplink_() {
   // the landers: one for every few territories kindled
   const kindled = storyKindledCount(), landers = storyLanders(), every = T.story.landerEvery, need = T.story.callLanders;
   const landerNote = `Kindled: ${kindled} territor${kindled === 1 ? 'y' : 'ies'}. The Meridian can send a lander for every ${every}, so ${landers ? `${landers} can come down` : 'none can come down yet'}${landers < need ? `; ${(landers + 1) * every - kindled} more for the next` : ''}.`;
-  const call = Story.landersCalled() ? '<p class="note">The colony is down. The rim is theirs now, and the dark beyond it is still yours to walk.</p>'
+  const call = Story.landersCalled() ? '<p class="note">The colony is down. The ground round the star is theirs now, and the dark beyond it is still yours to walk.</p>'
     : Story.canCall() ? '<div class="menu"><button class="btn primary" data-act="callLanders">CALL THE LANDERS</button></div>'
     : `<p class="note">The colony can land when all three shards are set in the star and there's ground for ${need} landers (${need * every} territories kindled).</p>`;
   // the log: a line for each territory kindled
@@ -617,18 +626,21 @@ function statLine(st) {
 }
 
 function drawStar() {
-  const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag], pts = attunePointsLeft(s);
-  const feed = T.ores.filter((o) => s.stash[o.id]).map((o) => `<div class="row static"><span class="row-text"><span class="row-name">${esc(o.name)} × ${s.stash[o.id]}</span><span class="row-sub">${orePoints(o.id)} point${orePoints(o.id) > 1 ? 's' : ''} each</span></span>
-      <button class="mini" data-act="feed" data-arg="${o.id}:10">FEED 10</button><button class="mini" data-act="feed" data-arg="${o.id}:all">ALL</button></div>`).join('');
+  const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag], pts = attunePointsLeft(s), keep = s.keepOre || {};
+  // the ore banked, in the order the star takes it, each to give or keep
+  const ores = T.ores.filter((o) => s.stash[o.id]).map((o) => `<div class="row static"><img class="icon" src="${stuffIconUrl(o.id)}" alt=""><span class="row-text"><span class="row-name">${keep[o.id] ? '★ ' : ''}${esc(o.name)} × ${s.stash[o.id]}</span><span class="row-sub">${keep[o.id] ? 'Kept for the forge' : `Given · ${orePoints(o.id)} point${orePoints(o.id) > 1 ? 's' : ''} each`}</span></span>
+      <button class="mini fav ${keep[o.id] ? 'on' : ''}" data-act="keepOre" data-arg="${o.id}">${keep[o.id] ? '★ KEPT' : '☆ KEEP'}</button></div>`).join('');
   const att = Object.entries(T.attune).map(([id, A]) => {
     const r = s.attune[id] || 0;
     return `<div class="row static"><span class="row-text"><span class="row-name">${A.name} ${r}/${A.max}</span><span class="row-sub">${A.text} a rank</span></span><button class="mini" data-act="attune" data-arg="${id}" ${pts > 0 && r < A.max ? '' : 'disabled'}>+</button></div>`;
   }).join('');
   $('star-body').innerHTML = `
     <div class="mag">MAGNITUDE ${mag}${next !== undefined ? ` · ${s.star}/${next}` : ''}</div>
-    <p class="note">Ore fed to the star makes it grow. Each magnitude gives an attunement point, makes the star's light likelier to reach down into a Deep, a recall gentler, and now and then a pocket slot more.</p>
-    <h3>FEED THE STAR</h3>${feed || '<p class="note">No ore banked.</p>'}
-    <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3>${att}`;
+    <p class="note">Each magnitude gives an attunement point, makes the star's light likelier to reach down into a Deep, a recall gentler, and now and then a pocket slot more.</p>
+    <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3>${att}
+    <h3>WHAT THE STAR MAY TAKE</h3>
+    <p class="note">Hold FEED THE STAR at the altar and it takes your ore, the plainest first, faster the longer you hold. Let go to stop. Ore you keep stays for the forge.</p>
+    ${ores || '<p class="note">No ore banked.</p>'}`;
 }
 
 function drawCargo() {
@@ -865,6 +877,7 @@ UI.acts = {
     }
     F.imprint = null;
     if (!F.field) Save.save();
+    snd('forgeFire');
     Anvil.start({ bp: F.bp, ore: F.ore, part: bp.parts ? F.part : null, exotic, imprint, field: !!F.field });
   },
   equip: (slot) => {
@@ -920,6 +933,7 @@ UI.acts = {
     Save.data.items.push(item);
     Save.save();
     UI.closeCard();
+    snd('unseal');
     Reveal.show(item, 'stash', UI.screen);
   },
   reroll: (i) => { const it = UI.card.item; if (spendOre(runeOre(it), T.runes.reroll)) { rerollAffix(Save.rng(), it, Number(i)); afterChange(); } },
@@ -966,16 +980,15 @@ UI.acts = {
     UI.toast('Salvaged for ' + stuffLines(got));
     afterChange();
   },
-  feed: (arg) => {
-    const [id, n] = arg.split(':'), s = Save.data, before = magnitudeOf(s.star);
-    const k = n === 'all' ? s.stash[id] || 0 : Math.min(10, s.stash[id] || 0);
-    if (!k || !spendOre(id, k)) return;
-    s.star += k * orePoints(id);
-    const after = magnitudeOf(s.star);
-    Save.save();
-    // out to the outpost, to watch the star drink it
-    if (Game.dive && Game.dive.hub) { UI.close(); feedStarFx(Game.dive, k, after > before ? after : 0); if (after > before) Story.starGrew(); }
-    else UI.redraw();
+  // an ore kept for the forge, or given to the star again
+  keepOre: (id) => { const k = Save.data.keepOre || (Save.data.keepOre = {}); if (k[id]) delete k[id]; else k[id] = true; Save.save(); UI.redraw(); },
+  // the pause screen's sound settings: on, soft, off, round again
+  soundSet: (kind) => {
+    const s = Save.data.settings || (Save.data.settings = {}), v = Snd.level(kind);
+    s[kind] = v >= 1 ? T.sound.soft : v > 0 ? 0 : 1;
+    Save.saveField('settings');
+    Snd.applyLevels(false);
+    drawSoundButtons();
   },
   attune: (id) => {
     const s = Save.data;
@@ -985,6 +998,13 @@ UI.acts = {
   },
 };
 
+
+// The pause screen's sound settings, as they stand.
+function drawSoundButtons() {
+  const word = (k) => { const v = Snd.level(k); return v >= 1 ? 'ON' : v > 0 ? 'SOFT' : 'OFF'; };
+  setTextIfChanged('pause-music', `MUSIC: ${word('music')}`);
+  setTextIfChanged('pause-sfx', `SOUNDS: ${word('sfx')}`);
+}
 
 // A caster's stones moved into another, slot for slot; what doesn't fit goes
 // to `list`.
