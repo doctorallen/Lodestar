@@ -30,8 +30,11 @@ const DESKTOP = { width: 1280, height: 800 };
 
 // Opens the game in a fresh page with an empty save (or with `save`, a save
 // object written before the game loads), and resolves once it's ready.
-// `errors` fills with page errors and console errors.
-async function openGame(browser, { width = 390, height = 844, mobile = true, save = null, query = '' } = {}) {
+// `errors` fills with page errors and console errors. A new game opens on
+// the opening, then Wick's offer to walk you through (onboard.js), with
+// only the essentials awake; `onboard: 'all'` wakes everything and skips
+// the offer and every tutorial, for tests that aren't about onboarding.
+async function openGame(browser, { width = 390, height = 844, mobile = true, save = null, query = '', onboard = null } = {}) {
   const page = await browser.newPage();
   await page.setViewport(mobile ? { width, height, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } : { width, height });
   const errors = [];
@@ -50,6 +53,7 @@ async function openGame(browser, { width = 390, height = 844, mobile = true, sav
     if (mobile) await page.touchscreen.tap(width / 2, height / 2); else await page.mouse.click(width / 2, height / 2);
   }
   await page.waitForFunction(() => typeof Game !== 'undefined' && Game.ready, { timeout: 30000 });
+  if (onboard === 'all') await page.evaluate(() => Onboard.testAll());
   return { page, errors };
 }
 

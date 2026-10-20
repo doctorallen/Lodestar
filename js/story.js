@@ -40,6 +40,7 @@
 //                  (structures.js)
 //   wick_<id>      each of Wick's upgrades, the first time it does its
 //                  thing (wick.js)
+//   wake_<key>     a system waking for a new Kindler (onboard.js)
 // And:
 //   storyKindledCount()           territories kindled (0 with no world yet)
 //   storyLanders()                landers the Meridian can send
@@ -78,13 +79,13 @@ const STORY_INTRO = [
 
 // Wick, the first time each thing happens. Dry, and kind.
 const WICK = {
-  firstDive: "Out we go. Mine what glows, and watch your light. Out in the dark it only lasts so long.",
-  firstParts: 'Parts, from what you killed. A lot of teeth, for a dead world. The forge can work them into gear.',
+  firstDive: 'Out we go. Mine what glows, and watch your light.',
+  firstParts: 'Parts. A lot of teeth, for a dead world. The forge wants them.',
   firstBlueprint: "A blueprint. Charter make, older than ours. Get it home and we'll learn it.",
   firstForge: 'Strike when the marker crosses the glow. The recipe is the recipe; good strikes only add to it.',
   // modules (modules.js, gearui.js)
-  module: "The suit caught its pattern. That's a module: what it was, set in a lattice. Socket it at home.",
-  research: "The forge studies anything new we carry in. It's worked out what it can make from it.",
+  module: "The suit caught its pattern. A module. Socket it at home.",
+  research: "The forge studied what we brought in. New recipes.",
   moduleUp: 'Denser ore, a bigger lattice. It holds more of what it caught now.',
   unravel: "Unravelled. The threads keep, though. They'll grow or mend another lattice.",
   rift: 'A tear in the world. Things leak through. Seal it, and something solid is left behind.',
@@ -94,7 +95,7 @@ const WICK = {
   rift_inversion: "Daylight, down here. It's coming out of the tear, not from us.",
   riftGate: 'I will never get used to that.',
   riftSealed: 'Riftglass. Forge with it, and the piece comes out a tier above its ore.',
-  storm: "A lodestorm. The star's restless. Where the ground flickers, the sky's about to hit. It charges ore, if we let it.",
+  storm: "A lodestorm. Where the ground flickers, the sky's about to hit.",
   riftSpawn: "Something came through the tear. It'll keep coming until we seal it.",
   pullFading: "Our light's thinning here. We shouldn't stay much longer.",
   // the first Deep under each outer region
@@ -106,9 +107,9 @@ const WICK = {
   allShards: "All three. Our star's never shone like this. They'll see it from orbit.",
   echo: "An echo: a Kindler's log, from before us. I'll keep it at the uplink.",
   // the first time the star is fed, at its altar (hub.js)
-  firstFeed: "By the book, then. A seed-star is planted small and fed light until it can light a world: every heart kindled, every deep place found. Your first. You're doing fine.",
+  firstFeed: "By the book: fed light until it can light a world. You're doing fine.",
   // the light of deeds (deeds.js), the first of each kind
-  firstHeartlight: "Feel that? The heart's light. It's bound to you now, whatever happens. Take it home to the star.",
+  firstHeartlight: "Feel that? The heart's light. It's yours now. Take it home to the star.",
   firstDeeplight: "Deeplight. It's been down here a long time. It rides with the cargo, so mind it.",
   // the star's reach: a spire planted where its light can't hold yet
   starReach: "Our star can't reach this far yet. Bring it more light, and the spire will hold.",
@@ -118,7 +119,7 @@ const WICK = {
   // supplies (supplies.js)
   firstSupply: 'Old ore still has its uses. The fabricator makes supplies from it.',
   // the world's (see the list at the top)
-  firstSpire: "Our first spire. Your first, anyway. Kindlers don't conquer. We just carry the light a little further than it was.",
+  firstSpire: "Our first spire. Kindlers don't conquer. We just carry the light further.",
   firstKindled: "Kindled. The ground's warming already. Funny how quiet it went.",
   firstTide: "The dark's coming back in, like a tide. Hold the spire and it'll go out again. It always has.",
   firstDeep: "A Deep. Down here the star can't see us at all. Quick in, quicker out.",
@@ -128,7 +129,7 @@ const WICK = {
   firstSettlers: "The first lander's down, right on its pad. Settlers. Try to look like you've done this before.",
   // the outpost's buildings, as each comes down to its plot (structures.js)
   bld_bay: "A bay of my own. Charging cradle, spare fins, a window. I'll try not to get used to it.",
-  bld_refinery: "The refinery's down. Injectors and Lightcells come out stronger now, and it'll go further if we feed it.",
+  bld_refinery: "The refinery's down. Injectors and Lightcells come out stronger now.",
   bld_relay: "The relay's up. The spires can hear the outpost now: a recall's quicker, and so is banking.",
   bld_quarters: "Quarters. The Meridian sent two volunteers down already. They spin threads. Volunteers is their word.",
   // Wick's upgrades, the first time each does its thing (wick.js)
@@ -136,8 +137,18 @@ const WICK = {
   wick_lamp: "I'll keep a light on behind us. You watch ahead.",
   wick_shield: "Got that one. Give me a while before the next.",
   wick_spark: "Sorry. Reflex. They gave me teeth, small ones.",
+  // a system waking for a new Kindler (onboard.js), once each
+  wake_spells: 'A new core. The rig\'s spells can be rebuilt now, at the locker.',
+  wake_modules: 'The tuning bench is awake. Caught modules go there.',
+  wake_altar: 'Light from a deed. The star\'s altar is awake: feed it.',
+  wake_supplies: 'The fabricator\'s on. SUPPLIES, beside the forge.',
+  wake_gear: 'The forge has armour and charms for us now.',
+  wake_tools: 'New tools at the forge. Carry one from the portal.',
+  wake_buildings: 'The Meridian will drop buildings now. Plans at the forge.',
+  wake_wick: 'Fit me with something. The forge\'s WICK tab.',
+  wake_uplink: 'The uplink\'s warm. The Meridian is listening.',
   // natures (natures.js)
-  weakHit: "It hates that. I'll mark what each kind fears over its head: a point up for what hurts it, down for what it shrugs off.",
+  weakHit: "It hates that. I'll mark what each kind fears over its head.",
   resistHit: "That barely touched it. Some things shrug an element off. Try the other spell.",
   warded: "That one's warded. Only something blunt will crack its shell.",
   wardBroken: 'The ward is down. Everything works on it now.',
@@ -364,7 +375,7 @@ const Story = {
   // ends, played out or skipped, it's seen.
   intro() {
     if (Save.data.introSeen) return false;
-    const seen = () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); UI.tip('hub', 'Walk out any opening into the land next to the outpost, or take the portal'); };
+    const seen = () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); if (!Onboard.offer()) UI.tip('hub', 'Walk out any opening, or take the portal'); };
     // a save from before circuits started over: one line to say why first
     if (Save.data.freshStart) UI.openStory([FRESH_START_LINE], () => Intro.play(seen));
     else Intro.play(seen);

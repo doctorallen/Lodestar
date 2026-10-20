@@ -10,12 +10,12 @@
 // ---------------------------------------------------------------------------
 
 const TOOLS = {
-  compass: { name: 'Lodestone Compass', icon: 'compass', text: 'An arrow to the spire, or the way to the nearest kindled land; in a Deep, to its shaft of light or the portal on.' },
-  oresense: { name: 'Ore Sense', icon: 'lens', text: 'Veins nearby glint through the dark, and an arrow points to the nearest beyond the view.' },
-  radar: { name: 'Threat Radar', icon: 'radar', text: 'Marks at the edge of the view for what is out there: red for the dangerous, violet for the Hollow.' },
-  map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each place as you walk it, with its portals, spire and waystones once seen.' },
-  lens: { name: 'Capture Lens', icon: 'lure', text: "The suit's capture field reaches further: creatures leave modules half again as often." },
-  beacon: { name: 'Lode Beacon', icon: 'beacon', text: "Once a sortie: call a spire's light down where you stand, to bank and travel from, and to stand in while your light comes back. It takes a few seconds to land, and its light draws everything near." },
+  compass: { name: 'Lodestone Compass', icon: 'compass', text: 'Points to the spire, or the nearest kindled land.' },
+  oresense: { name: 'Ore Sense', icon: 'lens', text: 'Nearby veins glint through the dark.' },
+  radar: { name: 'Threat Radar', icon: 'radar', text: "Marks what's out there at the view's edge." },
+  map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each place as you walk it.' },
+  lens: { name: 'Capture Lens', icon: 'lure', text: 'Creatures leave modules half again as often.' },
+  beacon: { name: 'Lode Beacon', icon: 'beacon', text: "Once a sortie, call a spire's light down where you stand." },
 };
 const TOOL_IDS = ['compass', 'oresense', 'radar', 'beacon', 'map', 'lens'];
 

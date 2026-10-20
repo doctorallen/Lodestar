@@ -76,11 +76,11 @@ function spellPanel(it, edit, c) {
     h += `<div class="spell${L.res ? ' res' : ''}"><div class="spell-head"><b class="spell-key">${i ? 'B' : 'A'}</b><span class="spell-name">${esc(spellName(sp))}</span></div><div class="circuit">${tiles}</div><p class="spell-line${L.warn ? ' warn' : ''}">${esc(L.text)}</p></div>`;
   });
   if (!edit) return h;
-  if (!c.part) return h + '<p class="note">Tap a part to change it.</p>';
+  if (!c.part) return h;
   const [i, key] = c.part.split(':'), sp = it.spells[Number(i)], sel = spellGet(sp, key), kind = spellPartKind(key);
   const list = groupStones(Save.data.items).filter((x) => stoneKind(x.stone) === kind);
   h += `<div class="drawer"><div class="drawer-head"><span>${i === '1' ? 'B' : 'A'} · ${STONE_KIND_NAMES[kind].toUpperCase()}${sel ? ' · ' + esc(stoneWords(sel.stone).name.toUpperCase()) : ''}</span>${sel ? '<button class="mini" data-act="partOut">TAKE OUT</button>' : ''}</div>
-    <div class="drawer-row">${list.length ? list.map((x) => stoneTile(x, { act: 'partPut', arg: x.stone + ':' + x.tier, count: x.n })).join('') : `<span class="note">No spare ${STONE_KIND_NAMES[kind]} cores. Forge them: CORES.</span>`}</div></div>`;
+    <div class="drawer-row">${list.length ? list.map((x) => stoneTile(x, { act: 'partPut', arg: x.stone + ':' + x.tier, count: x.n })).join('') : '<span class="note">None spare.</span>'}</div></div>`;
   return h;
 }
 // ▲ or ▼ against what's worn in the slot it would go in
@@ -112,9 +112,12 @@ const UI = {
       if (!Game.dive || Game.modal) return;
       if (!Game.dive.hub) UI.openMap('travel');
       else if (actionHere() === 'altar') UI.show('screen-star');
-      else if (actionHere() === 'forge') UI.show('screen-supplies');
+      else if (actionHere() === 'forge' && onboardHas('supplies')) UI.show('screen-supplies');
     });
     $('build').textContent = BUILD_INFO;
+    // the tutorials' overlay and the ?s (tutor.js); the walkthrough's ✕
+    Tutor.init();
+    $('guide').querySelector('.guide-stop').addEventListener('click', () => Guide.stop());
     // the anvil takes a tap anywhere; the reveal, a tap once it has risen
     $('screen-anvil').addEventListener('pointerdown', (e) => { if (e.target.closest('[data-act]')) return; e.preventDefault(); if (Game.realT - UI.openedAt > 0.3) Anvil.strike(); });
     $('screen-reveal').addEventListener('pointerdown', (e) => { e.preventDefault(); if (Game.realT - Reveal.shownAt > 0.7) Reveal.done(); });
@@ -150,9 +153,11 @@ const UI = {
     UI.openedAt = Game.realT;
     Input.block();
     UI.redraw();
+    Tutor.auto(id);
   },
 
   close() {
+    Onboard.closed(UI.screen);
     for (const s of document.querySelectorAll('.screen')) s.hidden = true;
     UI.closeCard();
     UI.screen = null;
@@ -324,6 +329,9 @@ const UI = {
     document.body.classList.toggle('home', !!(d && d.hub));
     if (Game.modal === 'screen-reveal' && Reveal.item && Game.realT - Reveal.shownAt > 2.2) Reveal.done();
     UI.pumpToasts();
+    Onboard.tick(dt || 0);
+    Guide.update(dt || 0);
+    Tutor.frame();
     if (!d) return;
     if (d.hub) {
       setTextIfChanged('hud-depth', `THE LODESTAR · MAGNITUDE ${magnitudeOf(Save.data.star)}`);
@@ -333,7 +341,7 @@ const UI = {
     const hpW = Math.round(hp * 100) + '%', chW = Math.round(ch * 100) + '%';
     if ($('hp-fill').style.width !== hpW) $('hp-fill').style.width = hpW;
     if ($('ch-fill').style.width !== chW) $('ch-fill').style.width = chW;
-    $('hud-goal').hidden = !(d.hub ? drawNextHud() : drawGoalHud(d));
+    $('hud-goal').hidden = !(d.hub ? !Guide.on() && drawNextHud() : drawGoalHud(d));
     const pW = Math.round(d.pull * 100) + '%';
     if ($('pull-fill').style.width !== pW) $('pull-fill').style.width = pW;
     $('hud-pull').classList.toggle('fading', d.pull < T.pull.dimAt);
@@ -369,7 +377,7 @@ const UI = {
     if (btn.hidden !== !a) btn.hidden = !a;
     // at a spire (or a beacon's light), TRAVEL too; at the altar, ATTUNE; at
     // the fabricator, SUPPLIES (supplies.js)
-    const travel = a === 'extract' && d.sortie && !d.deep, attune = a === 'altar', sup = a === 'forge' && d.hub, b2 = $('btn-act2');
+    const travel = a === 'extract' && d.sortie && !d.deep, attune = a === 'altar', sup = a === 'forge' && d.hub && onboardHas('supplies'), b2 = $('btn-act2');
     if (b2.hidden !== !(travel || attune || sup)) { b2.hidden = !(travel || attune || sup); document.body.classList.toggle('act2', !b2.hidden); }
     if (travel || attune || sup) { const pts = attune ? attunePointsLeft(Save.data) : 0; setTextIfChanged('btn-act2', travel ? 'TRAVEL' : sup ? 'SUPPLIES' : pts > 0 ? `ATTUNE · ${pts}` : 'ATTUNE'); }
   },
@@ -385,7 +393,7 @@ function drawResume() {
   if (!r) return;
   const n = Object.values(r.cargo || {}).reduce((a, b) => a + b, 0) + (r.items || []).length;
   const t = terrOf(r.terr);
-  $('resume-text').textContent = `You were out in ${t ? t.name : 'the world'}${r.deep ? `, in its Deep (site ${r.deep})` : ''}, carrying ${n ? n + ' things' : 'nothing yet'}. Carry on from where you came in, or give up: your haul stays there in your pack.`;
+  $('resume-text').textContent = `Out in ${t ? t.name : 'the world'}${r.deep ? `, its Deep (site ${r.deep})` : ''}, carrying ${n}. Give up, and it waits in your pack.`;
 }
 
 function drawStory() {
@@ -402,26 +410,24 @@ function drawUplink_() {
   const s = Save.data, set = Story.shardsSet();
   const shardRow = (b, i) => {
     const has = (s.shards || []).includes(i);
-    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Take it to the altar') : `In its Keeper's Lair, at the bottom of the Deep under the furthest territory of ring ${i + 1}`}</span></span></div>`;
+    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Set it at the altar') : `A Keeper holds it · ring ${i + 1}`}</span></span></div>`;
   };
   // the landers: one for every few territories kindled
   const kindled = storyKindledCount(), landers = storyLanders(), every = T.story.landerEvery, need = T.story.callLanders;
-  const landerNote = `Kindled: ${kindled} territor${kindled === 1 ? 'y' : 'ies'}. The Meridian can send a lander for every ${every}, so ${landers ? `${landers} can come down` : 'none can come down yet'}${landers < need ? `; ${(landers + 1) * every - kindled} more for the next` : ''}.`;
-  const call = Story.landersCalled() ? '<p class="note">The colony is down. The ground round the star is theirs now, and the dark beyond it is still yours to walk.</p>'
+  const landerNote = `${kindled} kindled${landers < need ? ` · ${(landers + 1) * every - kindled} more for the next` : ''}`;
+  const call = Story.landersCalled() ? '<p class="note">The colony is down.</p>'
     : Story.canCall() ? '<div class="menu"><button class="btn primary" data-act="callLanders">CALL THE LANDERS</button></div>'
-    : `<p class="note">The colony can land when all three shards are set in the star and there's ground for ${need} landers (${need * every} territories kindled).</p>`;
+    : `<p class="note">To call the colony: 3 shards set, ${need * every} kindled.</p>`;
   // the log: a line for each territory kindled
   const log = storyKindled().map((t) => `<div class="echo"><p>${esc(kindleLogLine(t.clime, t.name))}</p></div>`).join('');
   const echoes = (s.echoes || []).map((i) => `<div class="echo"><b>${esc(ECHOES[i].title)}</b><p>${esc(ECHOES[i].text)}</p></div>`).join('');
   $('wreck-body').innerHTML = `
-    <p class="note">The colony ship Meridian waits in orbit, its settlers asleep. This mast is how it hears us.</p>
-    <h3>LANDERS · ${landers}</h3><p class="note">${esc(landerNote)}</p>
-    <h3>SHARDS SET · ${set}/3</h3>${T.biomes.map(shardRow).join('')}
+    <h3>LANDERS · ${landers}</h3><div class="up-landers"><p class="note">${esc(landerNote)}</p></div>
+    <h3>SHARDS SET · ${set}/3</h3><div class="up-shards">${T.biomes.map(shardRow).join('')}</div>
     ${call}
+    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3><div class="up-echoes">${echoes || '<p class="note">None yet.</p>'}</div>
     ${log ? `<h3>THE LOG · ${kindled} KINDLED</h3>${log}` : ''}
-    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The Kindlers before you left logs out in the dark.</p>'}
-    <h3>THE LANDING</h3><p class="note">The Meridian's record of how we came down.</p>
-    <div class="menu"><button class="btn" data-act="replayIntro">WATCH THE LANDING AGAIN</button></div>`;
+    <div class="menu"><button class="btn quiet" data-act="replayIntro">WATCH THE LANDING AGAIN</button></div>`;
 }
 
 // How the last dive ended, over the outpost.
@@ -442,7 +448,7 @@ function drawReport() {
     title = r.died ? 'YOU FELL' : 'YOU GAVE UP';
     // the haul waits where it was (deeds.js)
     const c = r.cache;
-    if (c) row('YOUR PACK', 'gold', `In ${c.where}: ${[stuffLines(c.cargo), gear(c.items), c.blueprints.length ? `${c.blueprints.length} blueprint${c.blueprints.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}. Go back for it. Fall again first and it's lost.`);
+    if (c) row('YOUR PACK', 'gold', `In ${c.where}: ${[stuffLines(c.cargo), gear(c.items), c.blueprints.length ? `${c.blueprints.length} blueprint${c.blueprints.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}`);
     const o = r.oldCache;
     if (o) row('LOST', 'bad', `Your older pack, in ${o.where}: ${[stuffLines(o.cargo), gear(o.items)].filter(Boolean).join(', ') || 'what was in it'}`);
     const before = r.earlier && [stuffLines(r.earlier.stuff || {}), gear(r.earlier.items)].filter(Boolean).join(', ');
@@ -452,9 +458,9 @@ function drawReport() {
   if (r.kindled) row('KINDLED', 'gold', `${r.kindled} territor${r.kindled > 1 ? 'ies' : 'y'}`);
   const learned = r.learned || [];
   if (learned.length) row('LEARNED', 'gold', learned.map((id) => BLUEPRINTS[id].name).join(', '));
-  if (r.shard) row('SHARD', 'gold', 'Set it in the star at the altar.');
+  if (r.shard) row('SHARD', 'gold', 'Set it at the altar');
   if (r.settlers) row('SETTLERS', 'good', `+${r.settlers} threads`);
-  if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the uplink`);
+  if (r.echoes) row('ECHOES', 'gold', `${r.echoes} · at the uplink`);
   // the star: the light this sortie earned, what's waiting at the altar,
   // and how far to the next magnitude
   const s = Save.data, mag = magnitudeOf(s.star), lo = T.star.levels[mag - 1], hi = T.star.levels[mag], L = r.light || {}, wait = lightWaiting();
@@ -462,7 +468,7 @@ function drawReport() {
   let star = '';
   if (earned || wait) {
     const k = hi ? Math.min(1, (s.star - lo) / (hi - lo)) : 1, k2 = hi ? Math.min(1, (s.star + wait - lo) / (hi - lo)) : 1;
-    star = `<div class="rep-star"><div class="rep-row"><span class="rep-label gold">THE STAR</span><span class="rep-text">${earned ? `+${esc(earned)}. ` : ''}${wait} light waiting: feed it to the star at the altar${hi ? ` (${Math.max(0, hi - s.star)} to magnitude ${mag + 1})` : ''}.</span></div><div class="bar rep-bar"><div class="fill wait" style="width:${Math.round(k2 * 100)}%"></div><div class="fill" style="width:${Math.round(k * 100)}%"></div></div></div>`;
+    star = `<div class="rep-star"><div class="rep-row"><span class="rep-label gold">THE STAR</span><span class="rep-text">${[earned ? `+${esc(earned)}` : '', `${wait} waiting`, hi ? `${Math.max(0, hi - s.star)} to magnitude ${mag + 1}` : ''].filter(Boolean).join(' · ')}</span></div><div class="bar rep-bar"><div class="fill wait" style="width:${Math.round(k2 * 100)}%"></div><div class="fill" style="width:${Math.round(k * 100)}%"></div></div></div>`;
   }
   $('report-title').textContent = title;
   $('report-body').innerHTML = `<p class="rep-where">${esc(where)}</p>${rows.join('')}${star}`;
@@ -472,42 +478,33 @@ function drawReport() {
 // those not made yet (they're made at the forge).
 function drawToolRows() {
   const s = Save.data;
-  return `<h3>TOOLS · CARRY ONE</h3>` + TOOL_IDS.map((id) => {
+  return `<h3>TOOLS</h3>` + TOOL_IDS.map((id) => {
     const t = TOOLS[id], own = toolOwned(id), open = toolOpen(id), on = s.tool === id, known = id === 'compass' || s.blueprints.includes('tool_' + id);
-    const sub = own ? esc(t.text) : !known ? 'Not yet known: the forge will work it out from something you bring home.' : open ? `Made at the forge (TOOLS). ${esc(t.text)}` : `The star must reach magnitude ${T.tools[id].mag}.`;
+    const sub = own ? esc(t.text) : !known ? 'Not yet known.' : open ? 'Make it at the forge.' : `Magnitude ${T.tools[id].mag}.`;
     const tag = own ? (on ? '<span class="row-tag r-legendary">CARRIED</span>' : '') : '';
     return `<div class="row ${own ? '' : 'static'} ${on ? 'on' : ''}" ${own && !on ? `data-act="carryTool" data-arg="${id}"` : ''} ${own || (open && known) ? '' : 'style="opacity:.55"'}><img class="icon" src="${toolIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(t.name)}</span><span class="row-sub">${sub}</span></span>${tag}</div>`;
   }).join('');
 }
 
-// The star's screen, at its altar: its magnitude, the light waiting, what
-// grows it and what it opens, and the attunements.
+// The star's screen, at its altar: its magnitude, the light waiting, its
+// reach, and the attunements. (What grows it is behind the ?: tutor.js.)
 function drawStar() {
-  const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag], pts = attunePointsLeft(s), wait = lightWaiting();
-  const light = LIGHT_IDS.slice().reverse().map((id) => `<div class="row static"><img class="icon" src="${lightIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(LIGHT_KINDS[id].name)} × ${s.stash[id] || 0}</span><span class="row-sub">${esc(LIGHT_KINDS[id].text)}</span></span></div>`).join('');
+  const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag], lo = T.star.levels[mag - 1], pts = attunePointsLeft(s), wait = lightWaiting();
+  const k = (v) => Math.round(Math.min(1, next ? (v - lo) / (next - lo) : 1) * 100);
+  const light = LIGHT_IDS.slice().reverse().map((id) => `<span class="mat"><img class="cost-icon" src="${lightIconUrl(id)}" alt="">${s.stash[id] || 0} ${esc(LIGHT_KINDS[id].name)}</span>`).join('');
   const shards = Story.shardsHeld() - Story.shardsSet();
   const att = Object.entries(T.attune).map(([id, A]) => {
     const r = s.attune[id] || 0;
-    return `<div class="row static"><span class="row-text"><span class="row-name">${A.name} ${r}/${A.max}</span><span class="row-sub">${A.text} a rank</span></span><button class="mini" data-act="attune" data-arg="${id}" ${pts > 0 && r < A.max ? '' : 'disabled'}>+</button></div>`;
+    return `<div class="row static"><span class="row-text"><span class="row-name">${A.name} ${r}/${A.max}</span><span class="row-sub">${A.text}</span></span><button class="mini" data-act="attune" data-arg="${id}" ${pts > 0 && r < A.max ? '' : 'disabled'}>+</button></div>`;
   }).join('');
-  const D = T.deeds, ring = (r) => `ring ${r}`;
-  const grows = [
-    `Kindling a territory: ${D.heart.slice(1, 4).map((n, i) => `${n} heartlight in ${ring(i + 1)}`).join(', ')}, ${D.heart[4]} at the Edge.`,
-    `Reaching a Deep's end the first time: ${D.deepEnd[1]} deeplight in ring 1 to ${D.deepEnd[4]} at the Edge, ${D.deepSite} more for each site past the first.`,
-    `An ancient forge found: ${D.forge} deeplight. An echo: ${D.echo}.`,
-    `A Keeper's shard, set here: ${T.story.shardStar}.`,
-  ];
-  const reach = T.star.ringMag.slice(2).map((m, i) => `<span class="${mag >= m ? 'ok' : ''}">${i + 2 === 4 ? 'The Edge' : 'Ring ' + (i + 2)}: magnitude ${m}${mag >= m ? ' ✓' : ''}</span>`).join(' · ');
+  const reach = T.star.ringMag.slice(2).map((m, i) => `<span class="reach-chip${mag >= m ? ' ok' : ''}">${i + 2 === 4 ? 'EDGE' : 'RING ' + (i + 2)} · MAG ${m}${mag >= m ? ' ✓' : ''}</span>`).join('');
   $('star-body').innerHTML = `
     <div class="mag">MAGNITUDE ${mag}${next !== undefined ? ` · ${s.star}/${next}` : ''}</div>
-    ${wait ? `<div class="bar rep-bar star-bar"><div class="fill wait" style="width:${Math.round(Math.min(1, next ? (s.star + wait - T.star.levels[mag - 1]) / (next - T.star.levels[mag - 1]) : 1) * 100)}%"></div><div class="fill" style="width:${Math.round(Math.min(1, next ? (s.star - T.star.levels[mag - 1]) / (next - T.star.levels[mag - 1]) : 1) * 100)}%"></div></div>` : ''}
+    <div class="bar rep-bar star-bar"><div class="fill wait" style="width:${k(s.star + wait)}%"></div><div class="fill" style="width:${k(s.star)}%"></div></div>
     <h3>LIGHT WAITING · ${wait}${shards > 0 ? ` · ${shards} SHARD${shards > 1 ? 'S' : ''}` : ''}</h3>
-    <p class="note">${wait ? 'Hold FEED THE STAR at the altar and the light rises into it, mote by mote, faster the longer you hold. Let go to stop.' : 'None yet. The star grows from what you do out there, not from ore: bring its light home.'}</p>
-    ${light}
-    <h3>WHAT GROWS IT</h3><div class="next-steps">${grows.map((l) => `<p>${esc(l)}</p>`).join('')}</div>
-    <h3>ITS REACH</h3><p class="note">A spire holds only where the star's light reaches. ${reach}.</p>
-    <p class="note">Each magnitude also gives an attunement point.</p>
-    <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3>${att}`;
+    <div class="mats light-chips">${light}</div>
+    <h3>REACH</h3><div class="reach">${reach}</div>
+    <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3><div class="att-list">${att}</div>`;
 }
 
 function drawCargo() {
@@ -519,17 +516,17 @@ function drawCargo() {
   const heart = (d.tally && d.tally.light && d.tally.light.heartlight) || 0, pack = Save.data.cache;
   $('cargo-body').innerHTML = `
     <div class="mag">CARRYING ${cargoCount(d)}</div>
-    <p class="note">No limit. If you fall, it all stays in your pack where you fell. Bank at a spire to keep it safe.</p>
-    ${pack ? `<p class="note gold">Your old pack waits in ${esc(pack.where)}.</p>` : ''}
-    ${heart ? `<p class="note">${heart} heartlight earned: safe whatever happens.</p>` : ''}
+    <p class="note center">A fall leaves it all in your pack.</p>
+    ${pack ? `<p class="note gold">Your old pack: ${esc(pack.where)}</p>` : ''}
+    ${heart ? `<p class="note">+${heart} heartlight, safe</p>` : ''}
     <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">None yet.</p>'}
-    ${supplyMakeHtml()}
-    ${d.blueprints.length ? `<h3>BLUEPRINTS · LEARNED WHEN BANKED</h3>${d.blueprints.map((b) => `<div class="row static"><img class="icon" src="${recipeIconUrl(b.id)}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint</span></span></div>`).join('')}` : ''}
+    ${onboardHas('supplies') ? supplyMakeHtml() : ''}
+    ${d.blueprints.length ? `<h3>BLUEPRINTS</h3>${d.blueprints.map((b) => `<div class="row static"><img class="icon" src="${recipeIconUrl(b.id)}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint</span></span></div>`).join('')}` : ''}
     ${mods.length ? `<h3>MODULES · ${mods.length}</h3>${mods.map((m) => moduleRow(m, 'cardCargo', m.uid, moduleTag(m, Save.data.equip))).join('')}` : ''}
     ${items ? `<h3>FOUND</h3>${items}` : ''}
-    <h3>WORN · ALWAYS SAFE</h3>${worn}
+    <h3>WORN · SAFE</h3>${worn}
     <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL</button></div>
-    <p class="note">A recall takes you home with everything. Stand still for ${Math.round(relayRecallTime())} s.</p>`;
+    <p class="note center">It loses nothing. Stand still ${Math.round(relayRecallTime())} s.</p>`;
 }
 // What a stack in the cargo is, in a word or two.
 function stuffKindWord(id) { return ORE_INDEX[id] !== undefined ? 'Ore' : parsePart(id) ? 'Creature part' : isLight(id) ? 'Light for the star' : id === 'thread' ? 'Threads' : 'Exotic material'; }
@@ -547,11 +544,11 @@ function cardBar(where, extra = '') {
 // Ore or an exotic in the cargo: how much, and dropping some.
 function drawStuffCard(id) {
   const n = (Game.dive && Game.dive.cargo[id]) || 0, x = T.exotics.find((e) => e.id === id), pk = parsePart(id);
-  const what = id === 'thread' ? 'A module unravelled. Threads pay to upgrade a module.'
+  const what = id === 'thread' ? 'Pays to upgrade modules.'
     : x ? (x.element ? `Forges a ${CIRCUIT_ELEMENTS[x.element].name} core.` : x.retired ? 'Old stock: unravelled into threads at home.' : x.tierUp ? 'Forge with it: a tier above its ore.' : x.modSlot ? 'Forge it into a rig frame: +1 Mod slot.' : '')
-    : pk ? (PARTS[pk.kind].family ? `A creature part, for the forge: ${Object.keys(BLUEPRINTS).filter((b) => BLUEPRINTS[b].need && BLUEPRINTS[b].need[pk.kind] && !BLUEPRINTS[b].stone).map((b) => BLUEPRINTS[b].name.toLowerCase()).join(', ') || 'cores'} take it.` : "A warden's heart. It forges a Ward core.")
+    : pk ? (PARTS[pk.kind].family ? 'For the forge: recipes name what they take.' : 'Forges a Ward core.')
     : isLight(id) ? LIGHT_KINDS[id].text
-    : `Tier ${T.ores[ORE_INDEX[id]].tier} ore. Forge with it, or make supplies from it.`;
+    : `Tier ${T.ores[ORE_INDEX[id]].tier} ore.`;
   $('card-body').innerHTML = cardBar('IN YOUR CARGO') + `<div class="card-scroll">
     <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${id === 'thread' ? 'Threads' : x ? 'Exotic material' : pk ? 'Creature part' : isLight(id) ? 'Light for the star' : 'Ore'}</div></div></div>
     <p class="base">${esc(what)}</p>

@@ -232,7 +232,9 @@ function killEnemy(e) {
     if (rng.chance(T.story.echoElite)) drop({ echo: true });
     if (rng.chance(T.circuits.resonance.elite) && !codexAllWhole()) drop({ resStone: true });
   } else {
-    if (rng.chance(L.part)) parts(rng.chance(L.partTwo) ? 2 : 1);
+    // (a foe Wick calls up on the first landing always leaves one: onboard.js)
+    if (e.guide) parts(1);
+    else if (rng.chance(L.part)) parts(rng.chance(L.partTwo) ? 2 : 1);
     if (rng.chance(L.exotic)) drop({ exotic: randomExotic(rng) });
     if (rng.chance(L.relic)) drop({ item: makeRelic(tier) });
   }
@@ -283,7 +285,7 @@ function updatePickups(dt) {
       // a small +n in the stuff's colour, not a toast: pickups are many
       const pk = parsePart(dr.stuff);
       d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : pk ? ART.parts[pk.kind] : '#ffffff' });
-      if (pk) UI.tip('parts', 'Creature parts are what you forge with: each recipe names the kinds it takes');
+      if (pk) UI.tip('parts', 'Creature parts: the forge takes them');
       dr.gone = true;
       continue;
     }
@@ -295,7 +297,7 @@ function updatePickups(dt) {
       d.blueprints.push({ id: dr.blueprint });
       snd('blueprint');
       UI.toast(`Blueprint: ${BLUEPRINTS[dr.blueprint].name}. Bring it home to learn it`, 'legendary');
-      UI.tip('blueprint', 'A blueprint is learned once it is banked, at a spire or at home');
+      UI.tip('blueprint', 'A blueprint is learned once banked');
       dr.gone = true;
       continue;
     }
@@ -307,7 +309,7 @@ function updatePickups(dt) {
       UI.toast(`Module: ${dr.item.name}`, dr.item.rarity);
       snd('loot', { rarity: dr.item.rarity });
       Story.say('module');
-      UI.tip('module', 'Socket modules into your gear at home: free, as often as you like');
+      UI.tip('module', 'Socket modules at home. Free');
     } else if (dr.item) { UI.tip('gear', 'Tap CARGO to look at what you found'); d.items.push(dr.item); UI.toast(dr.item.kind === 'relic' ? 'A sealed relic' : dr.item.name, dr.item.rarity); snd('loot', { rarity: dr.item.kind === 'relic' ? 'relic' : dr.item.rarity }); }
     else { d.cargo[dr.exotic] = (d.cargo[dr.exotic] || 0) + 1; UI.toast(T.exotics.find((x) => x.id === dr.exotic).name, 'exotic'); snd('loot', { rarity: 'exotic' }); }
     dr.gone = true;

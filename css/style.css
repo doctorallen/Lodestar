@@ -679,3 +679,58 @@ body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s;
 }
 @media (prefers-reduced-motion: reduce) { .ld-halo, .ld-ring, .ld-ring::after, .ld-go { animation: none; } }
 .tile.t-empty small { letter-spacing: 0; font-size: 8px; }
+
+/* ---------------------------------------------------------------------------
+   Onboarding (onboard.js, tutor.js): the ? in a header and the top bar,
+   Wick's line over the view on the first landing, the button it points at,
+   and the tutorial's dim with its holes, the ring and Wick's bubble */
+.head-help {
+  flex: none; width: 40px; height: 40px; padding: 0;
+  background: none; color: var(--dim); border: 1px solid var(--line); border-radius: 50%;
+  font: inherit; font-size: 16px; font-weight: bold; line-height: 1;
+}
+.head-help:active { color: var(--ink); border-color: var(--ink); }
+.icon-btn.help { min-width: 32px; color: var(--dim); font-weight: normal; border-radius: 50%; }
+.tut-wick { width: 38px; height: 38px; flex: none; image-rendering: pixelated; }
+.tut-wick.big { width: 76px; height: 76px; margin-bottom: 4px; }
+.guide {
+  position: absolute; left: 8px; right: 8px; top: 6px; z-index: 6; max-width: 420px; margin: 0 auto;
+  display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 6px;
+  background: rgba(8, 12, 18, 0.92); border: 1px solid #3a5a68; font-size: 13px; line-height: 1.35;
+}
+.guide[hidden] { display: none; }
+.guide .tut-wick { width: 30px; height: 30px; }
+.guide-line { flex: 1; min-width: 0; color: #eaf6f4; }
+.guide-stop { flex: none; width: 36px; height: 36px; padding: 0; background: none; color: var(--dim); border: 1px solid var(--line); font: inherit; font-size: 14px; }
+/* (the news goes under it) */
+body.guiding:not(.modal) .toasts { top: calc(104px + env(safe-area-inset-top)); }
+.deck-btn.guide-pulse { animation: guide-pulse 1s ease-in-out infinite; }
+@keyframes guide-pulse { 50% { box-shadow: 0 0 0 4px rgba(255, 210, 122, 0.85), 0 0 18px rgba(255, 210, 122, 0.6); } }
+
+.tutor { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+.tutor[hidden] { display: none; }
+.tut-dim { position: absolute; inset: 0; background: rgba(2, 3, 6, 0.72); pointer-events: auto; touch-action: none; }
+.tut-ring { position: absolute; border: 2px solid var(--gold); box-shadow: 0 0 12px rgba(240, 192, 80, 0.6); pointer-events: none; animation: tut-ring 1.2s ease-in-out infinite; }
+@keyframes tut-ring { 50% { box-shadow: 0 0 2px rgba(240, 192, 80, 0.3); } }
+.tut-say {
+  position: absolute; display: flex; gap: 10px; align-items: flex-start; padding: 10px;
+  background: #0b0f16; border: 1px solid #3a5a68; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.8);
+  pointer-events: auto; text-align: left;
+}
+.tut-body { flex: 1; min-width: 0; }
+.tut-line { margin: 0 0 6px; font-size: 14px; line-height: 1.4; color: #eaf6f4; }
+.tutor.ref .tut-line { color: var(--gold); font-size: 12px; letter-spacing: 0.16em; }
+.tut-ref p { margin: 0 0 7px; font-size: 12px; line-height: 1.45; color: var(--ink); padding-left: 10px; border-left: 2px solid #2a3a48; }
+.tut-btns { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.tut-step { flex: 1; color: var(--dim); font-size: 11px; }
+.tut-skip { min-height: 32px; padding: 0 10px; background: none; color: var(--dim); border: 1px solid var(--line); font: inherit; font-size: 11px; letter-spacing: 0.1em; }
+.tut-ok { min-height: 36px; padding: 0 14px; background: var(--gold); color: #111; border: none; font: inherit; font-size: 12px; font-weight: bold; letter-spacing: 0.1em; }
+.tut-skip[hidden], .tut-ok[hidden] { display: none; }
+/* materials: an icon, how many, what */
+.mats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
+.mat { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+/* the star's reach, a chip a ring */
+.reach { display: flex; flex-wrap: wrap; gap: 6px; }
+.reach-chip { font-size: 11px; letter-spacing: 0.06em; padding: 4px 7px; border: 1px solid var(--line); color: var(--dim); }
+.reach-chip.ok { color: var(--gold); border-color: #5a4a20; }
+.light-chips { margin: 4px 0; }
