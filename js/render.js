@@ -701,7 +701,9 @@ function renderFrame() {
   const camX = (View.camX = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(cxA, 0, fw - View.w)));
   // at home the camera looks further up, to keep the star in sight
   const lookUp = ap(d.hub ? 56 : 8);
-  const camY = (View.camY = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h)));
+  const camY0 = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h));
+  // (the opening's last shot comes down from higher: intro.js)
+  const camY = (View.camY = d.hub && Intro.hub ? introCamY(camY0) : camY0);
   // the floor's painted chunks in view and near it (paint.js)
   pntFrame(f, camX, camY);
   const sh = View.shake > 0.3 ? View.shake * AP : 0;
@@ -835,7 +837,9 @@ function renderFrame() {
   const fx = vx(p.x), fy = vy(p.y);
 
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
-  const lv = lampLevels(d), ambLevel = lv.amb, tint = lv.tint;
+  // (dimmed at first in the opening's last shot, intro.js; only here, so the
+  // floor isn't painted again for it)
+  const lv = lampLevels(d), ambLevel = lv.amb * (d.hub && Intro.hub ? Intro.hub.amb : 1), tint = lv.tint;
   const L = View.light;
   if (View.bakedFrom !== View.lights) bakeFloorLights(f);
   startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
@@ -855,6 +859,7 @@ function renderFrame() {
   const lamp = diverLampAt(d);
   addLampLight(d, L, lamp.x, lamp.y, lv.r, lv.i, rgb01(DIVER_PAL.lamp[0]));
   lightScene(-ox, -oy);
+  if (d.hub && Intro.hub) introHubSky(d, ox, oy);
   bloomScene(-ox, -oy);
   drawLifeShade(d, ox, oy);
 
@@ -910,7 +915,7 @@ function renderFrame() {
   }
   // the tools' marks and the outpost's labels too
   View.ctx = o;
-  try { drawToolHud(d, ox, oy); if (d.hub) drawStationLabels(d, ox, oy); else { drawStormMark(d, ox, oy); drawExitMarks(d, ox, oy); } } finally { View.ctx = x; }
+  try { drawToolHud(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else { drawStormMark(d, ox, oy); drawExitMarks(d, ox, oy); } } finally { View.ctx = x; }
   // stepping through a portal, or just through one: over everything
   drawPortalIris(d, ox, oy);
 }
@@ -1026,6 +1031,8 @@ function drawDrone(d, fx, fy, lights) {
   d.droneT = Game.realT;
   const W = T.wick, tx = p.x - p.fx * W.back[0] - p.fy * W.aside[0], ty = p.y - p.fy * W.back[1] + p.fx * W.aside[1] - W.up;
   if (!d.drone) d.drone = { x: tx, y: ty };
+  // (in the opening, folded on the pack until it lifts off: intro.js)
+  if (Intro.hub && !Intro.hub.wick) { d.drone.x = p.x + 2; d.drone.y = p.y - 17; }
   const k = 1 - Math.exp(-W.ease * dt);
   d.drone.x += (tx - d.drone.x) * k; d.drone.y += (ty - d.drone.y) * k;
   const x = Math.round((d.drone.x - p.x) * AP) + fx, y = Math.round((d.drone.y - p.y + Math.sin(Game.realT * W.bob[0]) * W.bob[1]) * AP) + fy;

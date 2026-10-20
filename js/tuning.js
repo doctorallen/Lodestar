@@ -1054,6 +1054,26 @@ const T = {
   // speed, how far (world px)].
   wick: { back: [7, 4], aside: [6, 3], up: 29, ease: 5, bob: [3, 1.5] },
 
+  // The opening (intro.js): five painted scenes that play on their own,
+  // the last in the outpost itself. scenes: each one's length (s); fade:
+  // the black into and out of each of the first four (s); capAt: when each
+  // of their captions starts (s), typed at cps characters a second;
+  // tapGuard: seconds before a tap counts; warm: seconds the outpost is
+  // still drawn under the first scene (so it's painted). hub: the last shot, in seconds
+  // into it: the fade in from black; the star rising from `drop` art px
+  // down (over `rise`) and lighting (over `lit`); the outpost's light up
+  // from `amb0` of its own (over `ambUp`); the light running out to the
+  // stations from `ping` at `pingSpeed` art px a second; the camera
+  // starting with the star `camAt` of the way down the view and coming
+  // down over `cam`; the Kindler stepping out from `step` tiles south of
+  // the entry at `walk` of his pace from `walkAt`; Wick lifting off his
+  // pack at `wickAt`; Wick's lines at `caps`; and something in the dark
+  // over `dark`.
+  intro: {
+    scenes: [9, 9.5, 11, 9.5, 17], fade: 0.6, capAt: [1.0, 1.0, 1.2, 1.0], cps: 30, tapGuard: 0.4, warm: 1,
+    hub: { fadeIn: 0.9, drop: 30, rise: [0.4, 3.0], lit: [0.8, 2.8], amb0: 0.3, ambUp: [1.5, 9], ping: 2.6, pingSpeed: 120, camAt: 0.42, cam: [3.4, 8], step: 2, walk: 0.42, walkAt: 4.2, wickAt: 5.8, caps: [6.6, 11.6], dark: [13.2, 14.4] },
+  },
+
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
   // at once (ui.js; hints wait their turn).
   ui: { tapGuard: 0.4, toasts: 2 },

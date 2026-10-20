@@ -53,9 +53,10 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/paint.js` | The painted style (docs/PAINTED.md): stroke ramps and strokes, the ground's tones, the rock rising as a heightfield from a steep three-quarter camera, occlusion, lazy painting in chunks, and the painted sprite builder |
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
 | `js/climes.js` | Climes: each one's palette, flora, critters and weather; rolling and naming them |
-| `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
+| `js/story.js` | The story: the opening's captions, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
 | `js/hub.js` | The outpost: stations, the star over the pit, lanterns, the uplink, the settlement's tents, feeding the star |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
+| `js/intro.js` | The opening: five painted scenes that play on their own (the crossing, the survey, the landing, the Meridian, the outpost), their captions, SKIP and tap to hurry, and the last shot drawn by the game itself as the camera comes down and hands the Kindler over |
 | `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp; Wick |
 | `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
 | `js/blueprints.js` | What can be forged: blueprints (casters, gear, stones), creature parts |

@@ -493,3 +493,32 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .tcard .menu { margin-top: 8px; }
 .pill { display: inline-block; font-size: 10px; letter-spacing: 0.08em; padding: 2px 5px; border: 1px solid currentColor; margin-left: 6px; vertical-align: 1px; }
 .pill.kindled, .pill.home { color: var(--gold); } .pill.contested { color: #ff5ad8; } .pill.dark { color: #a77bff; } .pill.edge { color: var(--dim); }
+
+/* the opening (intro.js): a canvas over the whole screen, the caption where
+   the decks are (sideways, over the foot of the view), SKIP in the corner.
+   The bars and decks are hidden under it, and come back as it hands over. */
+.intro { position: absolute; inset: 0; z-index: 15; overflow: hidden; touch-action: none; }
+.intro[hidden] { display: none; }
+#intro-view { position: absolute; left: 0; top: 0; image-rendering: pixelated; }
+.intro-cap {
+  position: absolute; left: 20px; right: 20px; top: calc(100% - var(--deck-h) + 22px);
+  max-width: 340px; margin: 0 auto; pointer-events: none;
+  font-size: 16px; line-height: 1.6; text-align: left; color: var(--ink);
+  text-shadow: 0 1px 0 #000, 0 0 6px #000, 0 0 12px #000;
+  opacity: 0; transition: opacity 0.45s;
+}
+.intro-cap.on { opacity: 1; }
+.intro-cap .ghost { visibility: hidden; }
+.intro-cap b { display: block; color: #7dffd8; letter-spacing: 0.14em; font-size: 12px; margin-bottom: 4px; }
+#app.wide .intro-cap { top: auto; bottom: calc(14px + env(safe-area-inset-bottom)); max-width: min(520px, calc(100vw - 340px)); }
+.intro-skip {
+  position: absolute; top: calc(6px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right));
+  min-height: 44px; padding: 0 14px;
+  background: rgba(7, 8, 10, 0.6); color: var(--ink); border: 1px solid #5a5548;
+  font: inherit; font-size: 12px; letter-spacing: 0.16em;
+}
+.intro-skip:active { background: var(--ink); color: #111; }
+body.intro #topbar > *, body.intro .deck > *, body.intro .toasts, body.intro .speech { opacity: 0; pointer-events: none; }
+body.intro #deck-left { border-right-color: transparent; }
+#app.wide .intro-cap.said { background: rgba(8, 10, 16, 0.85); border: 1px solid #2a3a48; padding: 8px 12px; }
+body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s; }

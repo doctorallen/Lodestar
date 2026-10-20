@@ -12,6 +12,7 @@ let _acc = 0, _last = 0, _resizeT = 0;
 function step(dtReal) {
   Game.realT += dtReal;
   Input.update(dtReal);
+  introUpdate(dtReal);
   updateSparks(dtReal);
   UI.frame(dtReal);
   View.shake = (View.shake || 0) * Math.exp(-14 * dtReal);
@@ -40,8 +41,15 @@ function frame(now) {
   } catch (e) {
     noteError(e);
   }
-  try { renderFrame(); } catch (e) { noteError(e); }
+  try { renderAll(); } catch (e) { noteError(e); }
   requestAnimationFrame(frame);
+}
+
+// A frame: the game, and the opening over it while it plays (its first
+// scenes cover the screen, and the game isn't drawn under them).
+function renderAll() {
+  if (!introCovers()) renderFrame();
+  introDraw();
 }
 
 const Errors = [];
@@ -88,7 +96,7 @@ function boot() {
     }
   });
   Game.step = step;
-  Game.render = renderFrame;
+  Game.render = renderAll;
   Game.ready = true;
   enterHub();
   window.addEventListener('pagehide', () => { if (Game.dive && !Game.dive.hub) saveRun(Game.dive); });

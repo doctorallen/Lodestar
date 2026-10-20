@@ -3,9 +3,9 @@
 // The story. You're a Kindler of the Lodestar Charter. Kindlers ride
 // seed-stars down to dead worlds, plant them, and carry their light outward,
 // spire by spire, until the colony waiting in orbit can land. This seed, the
-// Lodestar, struck wrong, cracked, and sank into a sinkhole; you and Wick
-// climbed out of the landing capsule onto its rim. The Meridian, the colony
-// ship, waits above.
+// Lodestar, came down by the book on a surveyed site with the Charter's base
+// modules, and it starts small, as every seed does: it's your first. The
+// Meridian, the colony ship, waits above.
 //
 // The turn comes in ring 2, in the echoes (logs of the Kindlers before):
 // the world wasn't dead. The dark is its own living night, the Hollow is
@@ -13,8 +13,8 @@
 // Their shards strengthen the Lodestar so its light reaches further. At the
 // Edge, the heart of the dark, you choose: kindle it, or leave it.
 //
-// It's told in a short opening; by Wick, the Kindler's drone, in a line the
-// first time something happens; by the star, which speaks as it grows; in
+// It's told in a short animated opening (intro.js); by Wick, the
+// Kindler's drone, in a line the first time something happens; by the star, which speaks as it grows; in
 // eight echoes, read at the uplink; by the settlers, as the outpost fills;
 // and in one line in the log for each territory kindled.
 //
@@ -45,27 +45,26 @@
 // circuits.
 const FRESH_START_LINE = 'The land round the star is one world now, to walk and kindle territory by territory, so your outpost starts afresh.';
 
-// The opening: five panels, a tap each. The panels are words only for now;
-// what each should show, when they get art:
+// The opening (intro.js): five painted scenes, a caption or two each, that
+// play on their own; the last is the outpost itself, and Wick speaks.
+// What each shows is in intro.js.
 const STORY_INTRO = [
-  // a seed-star falling through the dark between stars, a capsule riding
-  // its wake, the Charter's mark (the pale gold seed-star the Kindler wears
-  // on the chest) on the capsule's side
-  'The Lodestar Charter sends seed-stars to dead worlds. A Kindler rides down with each one, to plant it and carry its light outward.',
-  // the star striking stone at a bad angle, a crack of light across it,
-  // the ground giving way into a sinkhole
-  'This seed struck wrong. It cracked, and sank into a hole in the world. The capsule came down on the rim.',
-  // the Meridian high above, small and patient against the stars, its
-  // settlers asleep in rows
-  'High above, the colony ship Meridian waits in orbit. Its settlers sleep until there is ground lit enough to land on.',
-  // the Kindler climbing out of the capsule: the blue Charter suit with its
-  // amber circuits, the faced helm's dark glass and its brow lamp lit; Wick,
-  // grey with its teal eye, over a shoulder; the star over the pit, its
-  // light reaching only a few steps
-  "I'm Wick, your drone. The star's hurt, but it's alive. For now its light barely reaches the rim.",
-  // the outpost's first lantern lit, the dark all round it, and the
-  // Kindler's brow lamp turned out towards it
-  'So we do what Kindlers do. Feed it, carry its light out spire by spire, and call the landers down when the ground can hold them.',
+  // the Charter's craft crossing the dark between stars, the seed-star in
+  // its cradle at the bow, the Meridian following far behind
+  [{ text: 'The Lodestar Charter sends seed-stars to dead worlds. A Kindler rides down with each one, to plant it.' }],
+  // the survey's beam sweeping the dark world below, a site marked
+  [{ text: 'The survey sweeps the dark below and marks a site. Bedrock, level, nothing moving.' }],
+  // the seed and the base modules coming down on their thrusters, the
+  // cradle locking
+  [{ text: 'The seed comes down by the book, the base with it. The cradle takes it, and locks.' }],
+  // the Meridian in orbit; inside, its settlers asleep in rows
+  [{ text: 'Above, the colony ship Meridian waits. Its settlers sleep until there is ground lit enough to land on.' }],
+  // the outpost: the star rising over its cradle and lighting, the Kindler
+  // stepping out, Wick lifting off the pack
+  [
+    { who: 'WICK', text: "I'm Wick, your drone. Your first planting? They all start this small." },
+    { who: 'WICK', text: 'Feed it the land\'s ore. Carry its light out, spire by spire, until the Meridian can land.' },
+  ],
 ];
 
 // Wick, the first time each thing happens. Dry, and kind.
@@ -300,12 +299,14 @@ const Story = {
     Save.save();
   },
 
-  // The opening, the first time the game is played.
+  // The opening, the first time the game is played (intro.js). However it
+  // ends, played out or skipped, it's seen.
   intro() {
     if (Save.data.introSeen) return false;
-    // a save from before circuits started over: one line to say why
-    const lines = Save.data.freshStart ? [FRESH_START_LINE].concat(STORY_INTRO) : STORY_INTRO;
-    UI.openStory(lines, () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); UI.tip('hub', 'Walk to the portal under the star to set out'); });
+    const seen = () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); UI.tip('hub', 'Walk to the portal under the star to set out'); };
+    // a save from before circuits started over: one line to say why first
+    if (Save.data.freshStart) UI.openStory([FRESH_START_LINE], () => Intro.play(seen));
+    else Intro.play(seen);
     return true;
   },
 

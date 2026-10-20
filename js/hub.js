@@ -24,9 +24,10 @@ const STAR_AT = { x: 11.5, y: 5.6 }; // tiles: over the middle of the pit
 // what lies about the plaza stand among the walkers: hubProps.)
 function drawHubUnder(d, ox, oy, tick, lights) {
   const mag = magnitudeOf(Save.data.star), star = ART.pal.star, k = mag >= 5 ? 3 : 2;
-  const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE) + oy, st = hartStar(k);
+  // (in the opening's last shot the star rises into place and lights: intro.js)
+  const ih = Intro.hub, sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE) + oy + (ih ? Math.round(ih.starDY) : 0), st = hartStar(k);
   // the lodelines, falling from the star's foot into the dark
-  if (mag > 0) { const L = hartLodelines(Math.min(mag, 8), Math.floor(Game.realT * 6) % 4); drawArtSprite(L, sx - L.ax, sy + (st.h - 15 - st.ay) - 4); }
+  if (mag > 0 && (!ih || ih.lit > 0.9)) { const L = hartLodelines(Math.min(mag, 8), Math.floor(Game.realT * 6) % 4); drawArtSprite(L, sx - L.ax, sy + (st.h - 15 - st.ay) - 4); }
   // the plaza's flat dressing: cables, scuffs
   drawHubGround(d, ox, oy);
   // the forge's fire on the ground before it, flickering
@@ -73,13 +74,16 @@ function drawHubStation(d, a, ox, oy, lights) {
 // Over everything: the Lodestar itself, bigger as it grows, in its halo.
 function drawHubOver(d, ox, oy, lights) {
   const mag = magnitudeOf(Save.data.star), k = mag >= 5 ? 3 : 2;
-  const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE + Math.sin(Game.realT * 1.2) * 2 * AP) + oy;
+  // (in the opening's last shot it rises into place and lights: intro.js)
+  const ih = Intro.hub, lit = ih ? ih.lit : 1;
+  const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE + Math.sin(Game.realT * 1.2) * 2 * AP) + oy + (ih ? Math.round(ih.starDY) : 0);
   const pulse = d.feedT > 0 ? d.feedT : 0, halo = hartHalo(k, Math.floor(Game.realT * 3) % 2), st = hartStar(k);
-  View.ctx.globalAlpha = 0.8;
+  View.ctx.globalAlpha = 0.8 * lit;
   View.ctx.drawImage(halo.c, sx - halo.ax, sy - halo.ay - 4);
-  View.ctx.globalAlpha = 1;
+  View.ctx.globalAlpha = View.emCtx.globalAlpha = 0.35 + 0.65 * lit;
   drawArtSprite(st, sx - st.ax, sy - st.ay);
-  lights.push({ x: sx, y: sy, r: TILE * (4 + mag * 0.4 + pulse * 3), i: 1.1 + pulse, c: rgb01(ART.pal.star[2]) });
+  View.ctx.globalAlpha = View.emCtx.globalAlpha = 1;
+  lights.push({ x: sx, y: sy, r: TILE * (4 + mag * 0.4 + pulse * 3) * (0.35 + 0.65 * lit), i: (1.1 + pulse) * (0.3 + 0.7 * lit), c: rgb01(ART.pal.star[2]) });
   if (pulse > 0) ringDots(sx, sy, (20 + (1 - pulse) * 30) * AP, ART.pal.star[3], pulse, true);
 }
 
