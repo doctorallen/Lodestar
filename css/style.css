@@ -387,7 +387,8 @@ body.rapt .toasts { display: none; }
 /* the forge: blueprints in a strip along the top, FORGE kept in reach */
 .bp-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 76px; grid-template-columns: none; overflow-x: auto; touch-action: pan-x pan-y; scroll-snap-type: x proximity; padding-bottom: 4px; }
 .bp-strip .bp { scroll-snap-align: center; }
-.forge-go { position: sticky; bottom: 0; background: var(--bg); padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); margin: 0; }
+/* (in the flow, not stuck to the bottom: stuck, it hid the costs above it) */
+.forge-go { background: var(--bg); padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); margin: 0; }
 h3 .dim { color: var(--dim); font-weight: normal; }
 .forge-go .btn small { display: block; font-size: 11px; letter-spacing: 0.08em; margin-top: 2px; }
 .card .card-menu .btn { font-size: 13px; letter-spacing: 0.1em; padding-left: 4px; padding-right: 4px; }
@@ -551,7 +552,7 @@ body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s;
 .sock-tile.s-empty { --c: #3a3f4c; border-style: dotted; color: var(--dim); background: #0b0c10; }
 .sock-tile.s-empty b { font-size: 16px; line-height: 1; }
 .sock-tile.sel { outline: 2px solid var(--gold); outline-offset: 2px; clip-path: none; }
-.sock-tile.mini { width: 9px; min-height: 0; height: 9px; padding: 0; margin: 2px; border-width: 1px; clip-path: none; transform: rotate(45deg); background: var(--c); }
+.sock-tile.mini { width: 9px; min-width: 0; min-height: 0; height: 9px; padding: 0; margin: 2px; border-width: 1px; clip-path: none; transform: rotate(45deg); background: var(--c); }
 .sock-tile.mini.s-empty { background: transparent; border-style: solid; border-color: #6a6f7c; }
 .sockets-row { display: flex; gap: 8px; margin: 6px 0 4px; flex-wrap: wrap; }
 .mini-sockets { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }

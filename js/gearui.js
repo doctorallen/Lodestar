@@ -210,6 +210,9 @@ function drawForge() {
     </div>`;
   const on = document.querySelector('#forge-body .bp.on');
   if (on && on.scrollIntoView && UI.forge.scroll) { UI.forge.scroll = false; on.scrollIntoView({ block: 'nearest' }); }
+  // (a recipe chosen: its panel, costs and FORGE button brought into view)
+  const panel = document.querySelector('#forge-body .recipe-panel');
+  if (panel && panel.scrollIntoView && UI.forge.showPanel) { UI.forge.showPanel = false; panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
 }
 
 // The Codex: every resonance as a silhouette, its slot count and the parts
@@ -512,7 +515,7 @@ Object.assign(UI.acts, {
   forgeOre: (id) => { UI.forge.ore = id; UI.redraw(); },
   forgeSize: (n) => { UI.forge.size = Number(n); UI.redraw(); },
   forgeExotic: (id) => { UI.forge.exotic = UI.forge.exotic === id ? null : id; UI.redraw(); },
-  forgeBp: (id) => { UI.forge.bp = id; UI.forge.codex = false; UI.forge.size = null; UI.redraw(); },
+  forgeBp: (id) => { UI.forge.bp = id; UI.forge.codex = false; UI.forge.size = null; UI.forge.showPanel = true; UI.redraw(); },
   // a close-to-making row: that recipe, in that ore
   forgeGo: (arg) => { const [id, ore] = arg.split(':'); Object.assign(UI.forge, { bp: id, ore: ore || UI.forge.ore, codex: false, size: null }); UI.redraw(); },
   forgeTab: (tab) => {
