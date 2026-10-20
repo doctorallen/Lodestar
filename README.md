@@ -56,7 +56,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
 | `js/hub.js` | The outpost: stations, the star over its cradle and its lodelines across the ground, light masts, starstone, the uplink, the settlement's landers and pods, feeding the star |
 | `js/hubart.js` | The outpost, painted: the Charter's modules, the star and its cradle, starstone, light masts, landers, pods and people; the ancient forges in the land |
-| `js/hubground.js` | The outpost's ground: its edges melding into each neighbour's land (ground, plants, rock), the Charter's plates, pads and marked paths |
+| `js/hubground.js` | The outpost's ground: packed earth, the starstone spreading from the cradle as the star grows, its edges melding into each neighbour's land (ground, plants, rock), the landing pads, faint trodden tracks; `outpostGroundAt` (what's underfoot) |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
 | `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp; Wick |
 | `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |

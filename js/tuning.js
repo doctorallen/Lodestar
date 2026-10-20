@@ -138,6 +138,16 @@ const T = {
     // stone: the starstone on the modules, a cluster on each spot from
     // magnitude 2, the next spot every `spread` magnitudes, a crystal more
     // every `grow` (at most `most`), glowing from glowFrom crystals' worth.
+    // ground: the starstone spreading into the ground from the cradle,
+    // reach [tiles at magnitude 1, more each magnitude], flattened by
+    // squash; its edge wandering `wander` tiles by two noises (wobble: px
+    // across a bump of each); tendrils [how far they creep ahead (tiles),
+    // the ridge's cut, its noise's px]; vein: its gold veins' two noises
+    // [across, down, across, down] (px), cut by veinCut [the bright, the
+    // fine]; front: how deep the gold front at its edge is (tiles); glint:
+    // the bright veins' glow near the cradle [the share of strokes lit at
+    // the cradle, how strongly].
+    ground: { reach: [2.2, 1.85], squash: 0.82, wander: 1.4, wobble: [70, 26], tendril: [3.2, 0.9, 38], vein: [34, 15, 12, 7], veinCut: [0.965, 0.975], front: 0.09, glint: [0.35, 0.5] },
     lode: { reach: [4, 2.4], speed: 26, dark: 0.45 },
     stone: { spread: 1.4, grow: 2, most: 5, glowFrom: 4 },
   },
@@ -869,19 +879,19 @@ const T = {
     // site (hubground.js): the outpost's ground. tear: where the land beyond
     // comes in, its border torn by two noises ([across, down] px, each) by
     // tearAmt. squash: how much a circle on the ground is flattened by the
-    // camera. deck, gravel: the Charter's deck plates and the paths' packed
-    // gravel, seven tones each; plate: a plate [w, h] (px); deckTone: a
-    // plate's tone from the ground's [base, times]; walkW: a walkway's half
-    // width (tiles); mark: the amber
-    // of the markings [dark, light]; star: the seed-star's [dark, light];
-    // lamp: a pad's landing lights. padR: a pad's radius, pathW a path's
-    // half width (tiles); dash: the dashes along a path's edges (px).
+    // camera. deck: a landing pad's plates, lodestone: the starstone in the
+    // ground, seven tones each (by the ground's tone); vein: its gold, dark
+    // to light. mark: the amber of a pad's ring [dark, light]; star: the
+    // seed-star's [dark, light]; lamp: a pad's landing lights. padR: a pad's
+    // radius (tiles). pathW: a trodden track's half width (tiles), trod how
+    // dark it wears the earth.
     site: {
       tear: [9, 3, 30, 10], tearAmt: 0.85, squash: 0.72,
       deck: ['#232833', '#2d3340', '#383f4d', '#444c5b', '#515a6a', '#5e6879', '#6e7889'],
-      gravel: ['#3e3a34', '#4a453d', '#565047', '#625b51', '#6e675c', '#7b7366', '#888072'],
-      plate: [30, 20], deckTone: [1.6, 0.75], walkW: 0.7, mark: [[150, 104, 40], [214, 160, 66]], star: [[200, 180, 130], [238, 222, 176]], lamp: '#ffc860',
-      padR: 2.2, pathW: 0.95, dash: 9,
+      lodestone: ['#13141b', '#1b1e27', '#242833', '#2e3340', '#3a404d', '#474e5c', '#58606f'],
+      vein: ['#3e3424', '#6e5a34', '#a68a4e', '#d8bc76', '#fff0c0'],
+      mark: [[150, 104, 40], [214, 160, 66]], star: [[200, 180, 130], [238, 222, 176]], lamp: '#ffc860',
+      padR: 2.2, pathW: 0.9, trod: 0.72,
     },
     // hole (painthole.js): what lies below the floor. depth: how far down a
     // hazard's surface lies (art px), shade how far (a share of it) its
