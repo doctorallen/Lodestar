@@ -105,7 +105,7 @@ const WICK = {
   starReach: "Our star can't reach this far yet. Bring it more light, and the spire will hold.",
   // a fall leaves the pack where it fell (deeds.js), and it's found again
   firstCache: "Your pack's still out there. We can go back for it.",
-  firstRecover: "Still where you left it. The dark isn't a thief, it seems.",
+  firstRecover: "Still where you left it. Nothing out here touched it.",
   // supplies (supplies.js)
   firstSupply: 'Old ore still has its uses. The fabricator makes supplies from it.',
   // the world's (see the list at the top)

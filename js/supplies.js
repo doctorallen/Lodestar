@@ -89,6 +89,7 @@ function useSupply(kind) {
   const id = supplyBest(kind);
   if (!id) return false;
   const g = Number(id.slice(-1)), p = d.p, S = T.supplies;
+  supplyFloorCheck(d);
   if (kind === 'injector') {
     if (p.hp >= d.stats.maxHp) { UI.toast('Your health is full'); return false; }
     const n = Math.round(d.stats.maxHp * S.injector.heal[g - 1]);
@@ -131,8 +132,10 @@ function cycleSupply() {
 function inFlare(d) { return !!(d.flares && d.flares.some((f) => dist(f.x, f.y, d.p.x, d.p.y) < f.r)); }
 
 // Every step: flares burn down, charges arm and wait.
+// (what was set down stays on its floor: a new place starts clear)
+function supplyFloorCheck(d) { if (d.supplyFloor !== d.floor) { d.supplyFloor = d.floor; d.flares = []; d.charges = []; } }
 function updateSupplies(d, dt) {
-  if (d.supplyFloor !== d.floor) { d.supplyFloor = d.floor; d.flares = []; d.charges = []; return; }
+  supplyFloorCheck(d);
   if (d.flares && d.flares.length) { for (const f of d.flares) f.t -= dt; d.flares = d.flares.filter((f) => f.t > 0); }
   if (!d.charges || !d.charges.length) return;
   const S = T.supplies.charge;
