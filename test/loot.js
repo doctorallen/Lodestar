@@ -165,7 +165,7 @@ for (const f of ['save-v5-home.json', 'save-v5-run.json']) {
   const s = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
   const old = JSON.parse(JSON.stringify(s));
   // what the old gear's affixes added up to, worn and stashed
-  const sum = (list) => { const o = {}; for (const it of list) for (const a of it.affixes || []) o[a.id] = Math.round(((o[a.id] || 0) + a.v) * 10) / 10; return o; };
+  const sum = (list) => { const o = {}; for (const it of list) for (const a of it.affixes || []) o[a.id] = Math.round(((o[a.id] || 0) + a.v) * 10) / 10; return Object.keys(o).sort().map((k) => k + ' ' + o[k]).join(', '); };
   const oldAll = Object.values(old.equip).filter(Boolean).concat(old.items, old.run ? old.run.items : [], old.run ? old.run.pocket.filter((e) => e.item).map((e) => e.item) : []);
   const oldPowers = oldAll.filter((it) => it.power).map((it) => it.power).sort().join(), oldSets = oldAll.filter((it) => it.set).length;
   if (!G.migrateGearSave(s) || s.v !== 6 || G.migrateGearSave(s)) fail(`${f}: migrated wrong`);
@@ -176,7 +176,7 @@ for (const f of ['save-v5-home.json', 'save-v5-run.json']) {
     if (it.kind === 'caster' && !it.slots) fail(`${f}: ${it.name} lost its circuit`);
   }
   for (const m of mods) checkModuleLoose(m, `${f} ${m.name}`);
-  if (JSON.stringify(sum(mods)) !== JSON.stringify(sum(oldAll))) fail(`${f}: affixes ${JSON.stringify(sum(mods))} were ${JSON.stringify(sum(oldAll))}`);
+  if (sum(mods) !== sum(oldAll)) fail(`${f}: affixes ${sum(mods)} were ${sum(oldAll)}`);
   if (mods.filter((m) => m.power).map((m) => m.power).sort().join() !== oldPowers || mods.filter((m) => m.set).length !== oldSets) fail(`${f}: powers or set pieces lost`);
   if (s.equip.main.name !== 'Scrap Gauntlet' || s.equip.main.slots[0].stone !== 'arc') fail(`${f}: the starting gauntlet changed`);
   if (!s.items.some((it) => it.fav)) fail(`${f}: a kept piece lost its mark`);

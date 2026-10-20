@@ -812,9 +812,42 @@ async function spellcraft(browser) {
   await page.close();
 }
 
+// A save made before modules (test/fixtures, from the code before them):
+// it loads, its gear is bases with modules in their sockets, its stats
+// are what they were, and the locker, the bench and a card all open.
+async function oldSave(browser) {
+  const fs = require('fs'), path = require('path');
+  for (const f of ['save-v5-home.json', 'save-v5-run.json']) {
+    const save = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
+    const { page, errors } = await openFresh(browser, Object.assign({ save }, PHONE));
+    const r = await page.evaluate(() => {
+      const s = Save.data, mods = SLOTS.flatMap((k) => baseModules(s.equip[k])).concat(s.items.filter((x) => x.kind === 'module'));
+      const out = { v: s.v, bases: SLOTS.every((k) => !s.equip[k] || Array.isArray(s.equip[k].sockets)), mods: mods.length, lode: mods.some((m) => m.power === 'lodeheart'), armor: computeStats(s.equip, s.attune).armor, run: !!s.run };
+      if (s.run) { UI.close(); resumeRun(); out.resumed = !!Game.dive && Game.dive.items.every((it) => it.kind === 'module' || it.kind === 'relic' || Array.isArray(it.sockets)); UI.close(); abandonDive(); UI.close(); }
+      out.powers = mods.filter((x) => x.power).map((x) => x.power);
+      UI.close(); UI.useStation('locker'); const m = mods.find((x) => x.power) || mods[0]; UI.openCard(m, 'stash', m.uid); UI.closeCard();
+      UI.close(); UI.useStation('runes'); UI.acts.benchMod(mods[0].uid);
+      out.bench = /REROLL|UPGRADE/.test($('card-body').textContent);
+      UI.closeCard(); UI.close(); UI.useStation('forge');
+      out.forge = UI.screen === 'screen-forge' || UI.screen === 'screen-research';
+      return out;
+    });
+    // the worn plate's 7 armor, its own +5 and the pick's +4, as before
+    check(r.v === 6 && r.bases && r.mods >= 5 && r.lode && r.bench && r.forge && (f !== 'save-v5-home.json' || r.armor === 16), `old save ${f}: ${JSON.stringify(r)}`);
+    if (f === 'save-v5-run.json') check(r.run && r.resumed, `old save ${f}: the sortie under way did not come back as bases and modules (${JSON.stringify(r)})`);
+    await page.evaluate(() => { UI.close(); UI.useStation('locker'); });
+    await new Promise((res) => setTimeout(res, 450));
+    if (f === 'save-v5-home.json') await shot(page, 'smoke-oldsave-locker');
+    check(!errors.length, `old save ${f}: ` + errors.join(' | '));
+    check(!(await page.evaluate(() => Errors.length)), `old save ${f}: ` + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
+    await page.close();
+  }
+}
+
 (async () => {
   const browser = await launch();
   try {
+    await oldSave(browser);
     await spellcraft(browser);
     await opening(browser);
     await phone(browser);

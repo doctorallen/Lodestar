@@ -407,9 +407,9 @@ function researchIconUrl(r) {
 // ---------------------------------------------------------------------------
 // A piece with rolled affixes becomes a base of its recipe and tier (its
 // numbers kept), and what it rolled becomes a module of its rarity in its
-// first socket (or with `spill` if it has none): its affixes, its power or
-// its set piece, so nothing it did is lost.
-function migrateOldPiece(it, spill) {
+// first socket (or with `spill`, if it has none or it's `loose`): its
+// affixes, its power or its set piece, so nothing it did is lost.
+function migrateOldPiece(it, spill, loose) {
   if (!it || !KIND_SLOT[it.kind] || Array.isArray(it.sockets)) return it;
   const bpId = it.bp && BLUEPRINTS[it.bp] && BLUEPRINTS[it.bp].kind === it.kind ? it.bp : KIND_BLUEPRINT[it.kind];
   const keepName = /^(Scrap Gauntlet|Cracked Wand|Rusty Pick)$/.test(it.name || '');
@@ -425,7 +425,7 @@ function migrateOldPiece(it, spill) {
     if (power) m.power = power;
     if (set) m.set = set;
     m.name = rarity === 'rare' && it.name ? it.name : moduleName(new Rng(it.uid || 1), m);
-    if (base.sockets.length) base.sockets[0] = m; else spill.push(m);
+    if (base.sockets.length && !loose) base.sockets[0] = m; else spill.push(m);
   }
   return base;
 }
@@ -437,10 +437,11 @@ function migrateGearSave(s) {
   if ((s.v || 0) >= 6) return false;
   const spill = [];
   for (const k of Object.keys(s.equip || {})) s.equip[k] = migrateOldPiece(s.equip[k], spill);
-  s.items = (s.items || []).map((it) => migrateOldPiece(it, spill));
+  // (a stashed or carried piece's module lies beside it, where it's seen)
+  s.items = (s.items || []).map((it) => migrateOldPiece(it, spill, true));
   s.items.push(...spill.splice(0));
   if (s.run) {
-    s.run.items = (s.run.items || []).map((it) => migrateOldPiece(it, spill));
+    s.run.items = (s.run.items || []).map((it) => migrateOldPiece(it, spill, true));
     s.run.items.push(...spill.splice(0));
     for (const e of s.run.pocket || []) if (e.item) e.item = migrateOldPiece(e.item, spill);
     s.items.push(...spill.splice(0));
@@ -504,8 +505,9 @@ function moduleDropSprite(col) {
   for (let y = 0; y < 12; y++) {
     const half = y < 3 ? y + 1 : y > 9 ? 12 - y : 3;
     for (let i = -half; i <= half; i++) {
-      const c = i < -1 ? r[3] : i < 1 ? r[2] : i < 2 ? r[1] : r[0];
-      S.px(4 + i, y, c, c !== r[0]);
+      // the lit faces and the bright edge glow a little; the rest is lit
+      const c = i < -1 ? r[3] : i < 1 ? (i === -1 ? r[3] : r[2]) : i < 2 ? r[1] : r[0];
+      S.px(4 + i, y, c, i === -1 || (y < 3 && i < 1));
     }
   }
   S.px(3, 3, W, true); S.px(3, 4, r[3], true);
@@ -551,8 +553,9 @@ function drawModuleFx(fx, cx, cy, k, lights, ox, oy) {
   const p = Game.dive.p, px = Math.round(p.x * AP) + ox, py = Math.round((p.y - 8) * AP) + oy;
   const n = Math.max(4, Math.round(Math.hypot(px - cx, py - cy) / 3));
   for (let i = 0; i <= n; i++) if (i % 2 === 0) dot(Math.round(cx + ((px - cx) * i) / n), Math.round(cy + ((py - cy) * i) / n), fx.col, true, 0.5 * k);
-  for (let m = 0; m < 4; m++) {
-    const t = Math.min(1, (1 - k) * 1.4 + m * 0.12);
-    dot(Math.round(cx + (px - cx) * t), Math.round(cy + (py - cy) * t), m % 2 ? '#ffffff' : fx.col, true, 1 - t * 0.5);
+  for (let m = 0; m < 5; m++) {
+    const t = Math.min(1, (1 - k) * 1.3 + m * 0.1), x = Math.round(cx + (px - cx) * t), y = Math.round(cy - ap(5) + (py - cy + ap(5)) * t), c = m % 2 ? '#ffffff' : fx.col;
+    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(x + i, y + j, c, true, 1 - t * 0.4);
   }
+  lights.push({ x: px, y: py, r: TILE, i: 0.5 * k, c: rgb01(fx.col) });
 }
