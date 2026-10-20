@@ -33,19 +33,19 @@
 // its exotic.
 const BLUEPRINTS = {
   // casters: the main or off hand. Their slots hold the circuit
-  wand: { name: 'Wand', kind: 'caster', cat: 'caster', style: 'wand', ore: 8, need: { any: 2 }, mult: 1, start: true, text: 'Quick to cast.' },
-  gauntlet: { name: 'Gauntlet', kind: 'caster', cat: 'caster', style: 'gauntlet', ore: 9, need: { any: 2 }, mult: 1, start: true, text: 'Close Forms cost 1 charge less.' },
-  staff: { name: 'Staff', kind: 'caster', cat: 'caster', style: 'staff', ore: 10, need: { ether: 3 }, mult: 1, text: 'More slots. Slower to cast, and every reach is wider.' },
+  wand: { name: 'Wand', kind: 'caster', cat: 'caster', style: 'wand', ore: 16, need: { any: 2 }, mult: 1, start: true, text: 'Quick to cast.' },
+  gauntlet: { name: 'Gauntlet', kind: 'caster', cat: 'caster', style: 'gauntlet', ore: 18, need: { any: 2 }, mult: 1, start: true, text: 'Close Forms cost 1 charge less.' },
+  staff: { name: 'Staff', kind: 'caster', cat: 'caster', style: 'staff', ore: 20, need: { ether: 3 }, mult: 1, text: 'More slots. Slower to cast, and every reach is wider.' },
   // armor
-  plate: { name: 'Plate', kind: 'armor', cat: 'armor', style: 'plate', ore: 10, need: { any: 2 }, mult: 1, start: true, text: 'Armor and health.' },
-  weave: { name: 'Weave', kind: 'armor', cat: 'armor', style: 'weave', ore: 7, need: { fiber: 3 }, mult: 0.55, implicit: { dashCd: -30, moveSpeed: 5 }, text: 'Light. Dash 30% more often, and move a little faster.' },
-  shell: { name: 'Shell', kind: 'armor', cat: 'armor', style: 'shell', ore: 12, need: { chitin: 3 }, mult: 1.6, implicit: { moveSpeed: -8 }, text: 'Heavy. Much more armor, a little slower.' },
+  plate: { name: 'Plate', kind: 'armor', cat: 'armor', style: 'plate', ore: 20, need: { any: 2 }, mult: 1, start: true, text: 'Armor and health.' },
+  weave: { name: 'Weave', kind: 'armor', cat: 'armor', style: 'weave', ore: 14, need: { fiber: 3 }, mult: 0.55, implicit: { dashCd: -30, moveSpeed: 5 }, text: 'Light. Dash 30% more often, and move a little faster.' },
+  shell: { name: 'Shell', kind: 'armor', cat: 'armor', style: 'shell', ore: 24, need: { chitin: 3 }, mult: 1.6, implicit: { moveSpeed: -8 }, text: 'Heavy. Much more armor, a little slower.' },
   // charms
-  charm: { name: 'Charm', kind: 'charm', cat: 'charm', style: 'charm', ore: 6, need: { any: 2 }, start: true, text: 'Takes modules of any family.' },
-  lantern: { name: 'Lantern', kind: 'charm', cat: 'charm', style: 'lantern', ore: 6, need: { spore: 2 }, implicit: { lamp: 30, pullSlow: 20 }, text: 'A brighter lamp, and your light fades 20% slower.' },
+  charm: { name: 'Charm', kind: 'charm', cat: 'charm', style: 'charm', ore: 12, need: { any: 2 }, start: true, text: 'Takes modules of any family.' },
+  lantern: { name: 'Lantern', kind: 'charm', cat: 'charm', style: 'lantern', ore: 12, need: { spore: 2 }, implicit: { lamp: 30, pullSlow: 20 }, text: 'A brighter lamp, and your light fades 20% slower.' },
   // picks, with the tools
-  pick: { name: 'Pick', kind: 'pick', cat: 'tool', style: 'pick', ore: 12, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
-  drill: { name: 'Drill', kind: 'pick', cat: 'tool', style: 'drill', ore: 12, need: { cog: 2 }, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },
+  pick: { name: 'Pick', kind: 'pick', cat: 'tool', style: 'pick', ore: 20, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
+  drill: { name: 'Drill', kind: 'pick', cat: 'tool', style: 'drill', ore: 22, need: { cog: 2 }, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },
 };
 // The carried tools (tools.js), made once: their cost is T.tools[id].cost,
 // and the star must have reached T.tools[id].mag.

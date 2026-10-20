@@ -354,10 +354,10 @@ async function phone(browser) {
   await tap(page, '#forge-body [data-act=forgeBp][data-arg=gauntlet]');
   await tap(page, '#forge-body [data-act=forgeOre][data-arg=ferrite]');
   await shot(page, 'smoke-forge');
-  check(await page.evaluate(() => /9 Ferrite/.test($('forge-body').textContent) && /2 creature parts/.test($('forge-body').textContent) && /1 module socket/.test($('forge-body').textContent)), 'phone: the gauntlet\'s recipe does not say what it costs and makes');
+  check(await page.evaluate(() => new RegExp(BLUEPRINTS.gauntlet.ore + ' Ferrite').test($('forge-body').textContent) && /2 creature parts/.test($('forge-body').textContent) && /1 module socket/.test($('forge-body').textContent)), 'phone: the gauntlet\'s recipe does not say what it costs and makes');
   const parts0 = await page.evaluate(() => partsHave(Save.data.stash, 'any'));
   await tap(page, '#forge-body [data-act=craft]');
-  check(await page.evaluate((p0) => Save.data.stash.ferrite === 31 && partsHave(Save.data.stash, 'any') === p0 - 2, parts0), 'phone: forging a gauntlet did not cost 9 Ferrite and 2 creature parts');
+  check(await page.evaluate((p0) => Save.data.stash.ferrite === 40 - BLUEPRINTS.gauntlet.ore && partsHave(Save.data.stash, 'any') === p0 - 2, parts0), 'phone: forging a gauntlet did not cost its Ferrite and 2 creature parts');
   await shot(page, 'smoke-anvil');
   const [ax, ay] = await center(page, '#anvil-canvas');
   for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.touchscreen.tap(ax, ay); await sleep(60); }

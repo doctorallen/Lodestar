@@ -65,8 +65,8 @@ for (const id of G.BP_IDS.filter((x) => G.BLUEPRINTS[x].kind === 'stone')) for (
 }
 // paying a cost takes exactly it, and an unpaid one takes nothing
 {
-  const src = { ferrite: 20, cog1: 1, cog2: 2 }, cost = G.recipeCost('gauntlet', 'ferrite', 4);
-  if (!G.recipePay(cost, src) || src.ferrite !== 20 - cost.ore.n || G.partsHave(src, 'cog') !== 3 - cost.parts[0].n || src.cog1) fail(`paying a gauntlet: ${JSON.stringify(src)}`);
+  const src = { ferrite: 40, cog1: 1, cog2: 2 }, cost = G.recipeCost('gauntlet', 'ferrite', 4);
+  if (!G.recipePay(cost, src) || src.ferrite !== 40 - cost.ore.n || G.partsHave(src, 'cog') !== 3 - cost.parts[0].n || src.cog1) fail(`paying a gauntlet: ${JSON.stringify(src)}`);
   const before = JSON.stringify(src);
   if (G.recipePay(G.recipeCost('staff', 'ferrite'), src) || JSON.stringify(src) !== before) fail('an unpaid cost took something');
 }

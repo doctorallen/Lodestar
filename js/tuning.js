@@ -744,7 +744,7 @@ const T = {
   gear: {
     stat: [0, 0.05, 0.1, 0.15], masterSocket: 1,
     sockets: [1, 1, 2, 2, 2, 3], pickSockets: [1, 1, 1, 1, 2, 2],
-    size: { wand: [3, 4], gauntlet: [3, 4], staff: [4, 5, 6] }, sizeOre: 3, sizeParts: 1,
+    size: { wand: [3, 4], gauntlet: [3, 4], staff: [4, 5, 6] }, sizeOre: 5, sizeParts: 1,
   },
   // Modules (modules.js): a dying creature's strongest thread, caught by
   // the suit's capture field and set in a lattice crystal. Rolled loot,
@@ -774,9 +774,9 @@ const T = {
     drop: { foe: 0.07, elite: 0.65, boss: 2, keeper: 3, deep: 1.4, early: { found: 8, mult: 2.6 }, lens: 1.5 },
     keeperLegend: 3,
     affixes: { common: 1, magic: 2, rare: 3, legendary: 2, set: 1 },
-    value: 0.65,
+    value: 0.6,
     fits: { caster: 4, armor: 2.5, charm: 2, pick: 1.5 },
-    upgrade: { ore: 6, threads: [0, 4, 8, 14, 20, 28] },
+    upgrade: { ore: 10, threads: [0, 4, 8, 14, 20, 28] },
     reroll: { threads: 3, perTier: 2, ore: 2 },
     fuse: { threads: 8, perTier: 3, ore: 4, boost: 0.15 },
     enrich: { shards: 1, threads: 4 },
