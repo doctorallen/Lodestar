@@ -14,11 +14,11 @@ const esc = escapeHtml;
 
 // "12 Ferrite, 2 Voltaic crystal"
 function stuffLines(stash) {
-  return stuffIds().filter((id) => stash[id]).map((id) => `${stash[id]} ${id === 'thread' ? (stash[id] === 1 ? 'thread' : 'threads') : stuffName(id)}`).join(', ');
+  return stuffIds().filter((id) => stash[id]).map((id) => `${stash[id]} ${id === 'thread' && stash[id] === 1 ? 'Thread' : stuffName(id)}`).join(', ');
 }
 const exoticName = (id) => T.exotics.find((x) => x.id === id).name;
 const stuffIds = () => T.ores.map((o) => o.id).concat(PART_STACK_IDS, T.exotics.map((x) => x.id), ['thread'], LIGHT_IDS);
-const stuffName = (id) => (id === 'thread' ? 'Thread' : ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : parsePart(id) ? partName(id) : isLight(id) ? LIGHT_KINDS[id].name : exoticName(id));
+const stuffName = (id) => (id === 'thread' ? 'Threads' : ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : parsePart(id) ? partName(id) : isLight(id) ? LIGHT_KINDS[id].name : exoticName(id));
 
 // A cost that can't be missed: the material's icon, how many and what,
 // and how many there are, in red when it's short.

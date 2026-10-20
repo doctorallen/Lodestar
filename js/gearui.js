@@ -39,14 +39,14 @@ function moduleRow(m, act, arg, tag = '', sub = '') {
 // Cost tags for a bench cost from `src`.
 function benchCostTags(cost, src) {
   const out = [];
-  if (cost.threads) out.push(costTag('thread', cost.threads, src.thread || 0, cost.threads === 1 ? 'thread' : 'threads'));
+  if (cost.threads) out.push(costTag('thread', cost.threads, src.thread || 0, cost.threads === 1 ? 'Thread' : 'Threads'));
   if (cost.ore) out.push(costTag(cost.ore.id, cost.ore.n, src[cost.ore.id] || 0));
   for (const s of cost.stuff || []) out.push(costTag(s.id, s.n, src[s.id] || 0));
   return out.join(' ');
 }
 // "need 3 more Lumenite and 2 threads"
 function shortWords(short) {
-  return short.map((x) => (x.part ? partWords(x.part, x.n) : `${x.n} ${x.id === 'thread' ? (x.n === 1 ? 'thread' : 'threads') : stuffName(x.id)}`)).join(', ');
+  return short.map((x) => (x.part ? partWords(x.part, x.n) : `${x.n} ${x.id === 'thread' && x.n === 1 ? 'Thread' : stuffName(x.id)}`)).join(', ');
 }
 // Where a module is: in the stash, or in a worn base's socket (or one
 // in the stash). { m, base, i, slot } or null.
