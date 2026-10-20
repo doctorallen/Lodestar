@@ -353,7 +353,7 @@ const Music = {
     const A = d.kAnim;
     if (A && A.walk > 0 && !(d.p.dashT > 0) && !(d.dying > 0)) {
       const half = Math.floor(A.ph * 2);
-      if (this.stepHalf >= 0 && half !== this.stepHalf) snd('step', { ground: musGround(d) });
+      if (this.stepHalf >= 0 && half !== this.stepHalf) snd('step', { ground: sndGroundAt(d, d.p.x, d.p.y), foot: half });
       this.stepHalf = half;
     } else this.stepHalf = -1;
     if (d.hub) {
@@ -378,13 +378,6 @@ const Music = {
   },
 };
 
-// What the Kindler walks on, for footsteps.
-function musGround(d) {
-  if (d.hub) return 'flag';
-  if (d.wading === HAZ_CODES.pool) return 'splash';
-  if (d.wading === HAZ_CODES.slick) return 'ice';
-  return SND_CLIME_GROUND[d.clime] || 'stone';
-}
 // Where the outpost's forge stands (world px), at home.
 function musForgeAt() {
   const d = typeof Game !== 'undefined' && Game.dive, f = d && d.hub && typeof HUB_STATIONS !== 'undefined' && HUB_STATIONS.find((s) => s.id === 'forge');
