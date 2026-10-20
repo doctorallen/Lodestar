@@ -151,6 +151,9 @@ const T = {
     // the cradle, how strongly].
     ground: { reach: [2.2, 1.85], squash: 0.82, wander: 1.4, wobble: [70, 26], tendril: [3.2, 0.9, 38], vein: [34, 15, 12, 7], veinCut: [0.965, 0.975], front: 0.09, glint: [0.35, 0.5] },
     lode: { reach: [4, 2.4], speed: 26, dark: 0.45 },
+    // pool: the star's light, lying on the ground round the cradle: its
+    // reach and strength [at magnitude 0, more each magnitude] (tiles).
+    pool: { r: [6, 1.1], i: [1.1, 0.08] },
     stone: { spread: 1.4, grow: 2, most: 5, glowFrom: 4 },
   },
   // Climes: the kind of country a site is, rolled when the way to it is
@@ -1087,9 +1090,16 @@ const T = {
     // and forge: min, the share from which they cast; k as lampK; dark, as
     // lamp; full: the share that casts the full shadow; near: what moves
     // casts only within this share of the lamp's reach of the Kindler.
+    // star: the star over the cradle at home: h, how high it hangs (px);
+    // its reach r [tiles at magnitude 0, more each] and strength i [the
+    // same]; k as lampK; full as home's; drop [at magnitude 1, at 8]: how
+    // dark its shadows are; spread [the same]: how soft they are; lamp: how
+    // much the Kindler's brow lamp, overhead, takes from its shadows of
+    // what moves; kMove as k, for what moves. homeLamp: the lamp casts at
+    // home from this strength (at dusk), for the few things nearest it.
     shadow: {
       walls: true, baked: true, eye: 26, rays: 1.25, step: 2, reach: 3, top: 0,
-      cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, near: 1 }, hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
+      cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, near: 1 }, star: { h: 74, r: [17, 2], i: [1.3, 0.15], k: [0.5, 2.6], kMove: [0.5, 1.6], full: 0.3, drop: [0.72, 0.9], spread: [1.6, 0.7], lamp: 0.3 }, homeLamp: [0.5, 3], hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
     },
   },
 

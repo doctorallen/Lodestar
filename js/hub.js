@@ -125,7 +125,10 @@ function drawHubOver(d, ox, oy, lights) {
   View.ctx.drawImage(halo.c, sx - halo.ax, sy - halo.ay - 4);
   View.ctx.globalAlpha = 1;
   drawArtSprite(st, sx - st.ax, sy - st.ay);
-  lights.push({ x: sx, y: sy, r: TILE * (4 + mag * 0.4 + pulse * 3), i: 1.1 + pulse, c: rgb01(ART.pal.star[2]) });
+  // its light: a pool on the ground round the cradle, wider and brighter
+  // as it grows (T.outpost.pool), from a little under the star
+  const P = T.outpost.pool, cy = Math.round((STAR_AT.y + OUTPOST_CRADLE.y) / 2 * ATILE) + oy;
+  lights.push({ x: sx, y: cy, r: TILE * (P.r[0] + P.r[1] * mag + pulse * 3), i: P.i[0] + P.i[1] * mag + pulse, c: rgb01(ART.pal.star[2]) });
   if (pulse > 0) ringDots(sx, sy, (20 + (1 - pulse) * 30) * AP, ART.pal.star[3], pulse, true);
 }
 
