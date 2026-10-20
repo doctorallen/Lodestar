@@ -112,6 +112,12 @@ function outpostGroundAt(x, y) {
   if (k >= 0) return hgrMeldTerr(f, k).clime || 'earth';
   return hgrStoneAt(f, gx, gy, hgrStoneReach(magnitudeOf(Save.data.star))) ? 'starstone' : 'earth';
 }
+// The footsteps' material at home (audio.js sndGroundAt): starstone rings
+// like stone, the cleared earth is dirt, the land beyond its own clime's.
+if (typeof Snd !== 'undefined') Snd.hubGround = (x, y) => {
+  const g = outpostGroundAt(x, y);
+  return !g ? null : g === 'starstone' ? 'stone' : g === 'earth' ? 'dirt' : g === 'metal' ? 'metal' : SND_CLIME_GROUND[g] || 'dirt';
+};
 // The cleared earth's own marks, the starstone, the trodden tracks out to
 // the openings and the landing pads, over one tile's ground (paintTileArt,
 // after the ground and before what grows on it, so the shadows of what
