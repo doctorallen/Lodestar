@@ -29,29 +29,32 @@ function costTag(id, n, have, name = stuffName(id)) {
 function iconImg(item, cls = 'icon') { return `<img class="${cls}" src="${itemIconUrl(item)}" alt="">`; }
 function itemRow(item, act, arg, tag = '') {
   if (item.kind === 'module') return moduleRow(item, act, arg, tag);
-  return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name ${item.q ? 'q-' + item.q : 'r-' + item.rarity}">${item.fav ? '★ ' : ''}${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span><span class="row-gems">${isCaster(item) ? miniCircuit(item) : ''}${item.sockets ? miniSockets(item) : ''}</span></span>${tag}</button>`;
+  return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name ${item.q ? 'q-' + item.q : 'r-' + item.rarity}">${item.fav ? '★ ' : ''}${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span><span class="row-gems">${isCaster(item) ? miniSpells(item) : ''}${item.sockets ? miniSockets(item) : ''}</span></span>${tag}</button>`;
 }
 
 // ---------------------------------------------------------------------------
-// Circuits on the screens: a stone as a tile, a caster's row of them, and
-// the drawer of stones to socket
+// Spells on the screens: a core as a tile, the rig's two spells, and the
+// drawer of cores to set in them
 // ---------------------------------------------------------------------------
 const STONE_ORDER = Object.keys(CIRCUIT_FORMS).concat(Object.keys(CIRCUIT_ELEMENTS), Object.keys(CIRCUIT_GLYPHS));
 
-// A stone as a tile: a Form's is stone with a heavy rim, an Element's filled
-// with its colour, a Glyph's etched with a dashed rim; or an empty slot.
-// st: a stone, or { stone, tier }; opts: { act, arg, sel, mini, count }.
+// A core as a tile: a Form's with a heavy rim, an Element's filled with its
+// colour, a Mod's with a dashed rim; or an empty part, labelled with the
+// kind it takes. st: a core, or { stone, tier }; opts: { act, arg, sel,
+// mini, count, kind (an empty one's) }.
 function stoneTile(st, opts = {}) {
-  const tag = opts.act ? 'button' : 'span', cls = `${opts.sel ? ' sel' : ''}${opts.mini ? ' mini' : ''}${opts.linked ? ' linked' : ''}`;
+  const tag = opts.act ? 'button' : 'span', cls = `${opts.sel ? ' sel' : ''}${opts.mini ? ' mini' : ''}`;
   const attrs = opts.act ? ` data-act="${opts.act}" data-arg="${opts.arg}"` : '';
-  if (!st) return `<${tag} class="tile t-empty${cls}"${attrs} aria-label="Empty slot"><b>·</b>${opts.mini ? '' : '<small>EMPTY</small>'}</${tag}>`;
+  if (!st) return `<${tag} class="tile t-empty${cls}"${attrs} aria-label="Empty ${opts.kind ? STONE_KIND_NAMES[opts.kind] : 'part'}"><b>·</b>${opts.mini ? '' : `<small>${opts.kind ? STONE_KIND_NAMES[opts.kind].toUpperCase() : 'EMPTY'}</small>`}</${tag}>`;
   const W = stoneWords(st.stone), k = stoneKind(st.stone);
   const img = opts.mini ? '' : `<img src="${stoneIconUrl(st.stone)}" alt="">`;
   const sub = opts.mini ? '' : `<small>${opts.count ? '×' + opts.count + ' · ' : ''}T${st.tier}</small>`;
   return `<${tag} class="tile t-${k}${cls}" style="--c:${stoneTint(st.stone)}"${attrs} aria-label="${esc(W.name)}, tier ${st.tier}">${img}<b>${W.abbr}</b>${sub}</${tag}>`;
 }
-function miniCircuit(it) { return `<span class="mini-circuit">${it.slots.map((s) => stoneTile(s, { mini: true })).join('')}</span>`; }
-// The stones in a list, one entry for each kind and tier: { stone, tier, n }.
+// A spell's parts, in order: [key, core].
+const spellParts = (sp) => [['form', sp.form], ['el', sp.el]].concat(sp.mods.map((m, k) => ['m' + k, m]));
+function miniSpells(it) { return (it.spells || []).map((sp) => `<span class="mini-circuit">${spellParts(sp).map(([key, c]) => stoneTile(c, { mini: true, kind: spellPartKind(key) })).join('')}</span>`).join(''); }
+// The cores in a list, one entry for each kind and tier: { stone, tier, n }.
 function groupStones(items) {
   const m = new Map();
   for (const it of items) {
@@ -62,32 +65,22 @@ function groupStones(items) {
   return [...m.values()].sort((a, b) => STONE_ORDER.indexOf(a.stone) - STONE_ORDER.indexOf(b.stone) || b.tier - a.tier);
 }
 
-// A caster's circuit on its card: the row of slots, what it costs, what it
-// does in words; and at home, the drawer to socket stones from (free).
-function circuitPanel(it, edit, c, drawer = edit) {
-  if (edit && (typeof c.slot !== 'number' || c.slot >= it.slots.length)) c.slot = Math.max(0, it.slots.indexOf(null));
-  const R = circuitReadout(it), links = it.links || [];
-  // a linked pair: a chain drawn between its two tiles
-  const tiles = it.slots.map((st, i) => (i ? `<span class="link${links.includes(i - 1) ? ' linked' : ''}" aria-hidden="true"></span>` : '') + stoneTile(st, Object.assign(edit ? { act: 'slotPick', arg: i, sel: drawer && c.slot === i } : {}, { linked: slotLinked(links, i) }))).join('');
-  let h = `<h3>CIRCUIT · ${it.slots.length} SLOTS${links.length ? ' · 2 LINKED' : ''}</h3><div class="circuit${it.slots.length > 5 ? ' long' : ''}">${tiles}</div>`;
-  // a resonance: a gold banner when it's live; a stir when it's a stone away
-  const near = resonanceNear(it);
-  if (near && near.live) h += `<div class="res-banner on">✦ RESONANCE · ${esc(near.live.name.toUpperCase())}</div><p class="res-text">${esc(capFirst(near.live.text))}. It hits ${Math.round((resonanceMult(it) - 1) * 100)}% harder.</p>`;
-  else if (near && near.stir) h += `<div class="res-banner stir">Resonance stirs…${codexWhole(near.stir) ? ` one stone from ${esc(near.stir.name)}` : ''}</div>`;
-  h += `<p class="circuit-cost">Costs <b>${R.cost} charge</b> a cast · held, <b>${R.held} charge</b>${R.close ? ' · close Forms give charge back' : ''}</p>`;
-  h += `<div class="readout">${R.lines.map((l) => `<p${l.warn ? ' class="warn"' : l.ore ? ' class="ore"' : l.link ? ' class="linked"' : ''}>${esc(l.text)}</p>`).join('')}</div>`;
-  if (!edit) return h + (c.where === 'cargo' || c.where === 'worn' ? '<p class="note">Its stones can be changed at home, at the locker.</p>' : '');
-  if (!drawer) return h + '<p class="note">Tap a slot to change its stone.</p>';
-  const sel = it.slots[c.slot], have = groupStones(Save.data.items);
-  const grp = (kind, label, none) => {
-    const list = have.filter((x) => stoneKind(x.stone) === kind);
-    return `<div class="drawer-grp"><div class="gl">${label}</div><div class="drawer-row">${list.length ? list.map((x) => stoneTile(x, { act: 'slotPut', arg: x.stone + ':' + x.tier, count: x.n })).join('') : `<span class="note">${none}</span>`}</div></div>`;
-  };
-  h += `<div class="drawer"><div class="drawer-head"><span>SLOT ${c.slot + 1} · ${sel ? `${esc(stoneWords(sel.stone).name.toUpperCase())} · TIER ${sel.tier}` : 'EMPTY'}</span>${sel ? '<button class="mini" data-act="slotEmpty">TAKE OUT</button>' : ''}</div>
-    <p class="note">Tap a stone to set it in slot ${c.slot + 1}. Socketing is free: change it as often as you like.</p>
-    ${grp('form', 'FORMS · THE SHAPE', 'No spare Form stones: forge them at the forge.')}
-    ${grp('element', 'ELEMENTS · THE DAMAGE', 'No Element stones: forge them from exotics, or Force from ore.')}
-    ${grp('glyph', 'GLYPHS · WHAT CHANGES IT', 'No Glyph stones: forge them from creature parts.')}</div>`;
+// The rig's two spells on its card: each a row of its parts, its name
+// (BOLT · SHOCK · CHAIN) and one short line; at home, a part tapped opens
+// the drawer of the cores that fit it (free to change). c.part: the chosen
+// part, as 'i:key'.
+function spellPanel(it, edit, c) {
+  let h = '';
+  it.spells.forEach((sp, i) => {
+    const L = spellLine(it, sp), tiles = spellParts(sp).map(([key, core]) => stoneTile(core, Object.assign({ kind: spellPartKind(key) }, edit ? { act: 'partPick', arg: `${i}:${key}`, sel: c.part === `${i}:${key}` } : {}))).join('');
+    h += `<div class="spell${L.res ? ' res' : ''}"><div class="spell-head"><b class="spell-key">${i ? 'B' : 'A'}</b><span class="spell-name">${esc(spellName(sp))}</span></div><div class="circuit">${tiles}</div><p class="spell-line${L.warn ? ' warn' : ''}">${esc(L.text)}</p></div>`;
+  });
+  if (!edit) return h;
+  if (!c.part) return h;
+  const [i, key] = c.part.split(':'), sp = it.spells[Number(i)], sel = spellGet(sp, key), kind = spellPartKind(key);
+  const list = groupStones(Save.data.items).filter((x) => stoneKind(x.stone) === kind);
+  h += `<div class="drawer"><div class="drawer-head"><span>${i === '1' ? 'B' : 'A'} · ${STONE_KIND_NAMES[kind].toUpperCase()}${sel ? ' · ' + esc(stoneWords(sel.stone).name.toUpperCase()) : ''}</span>${sel ? '<button class="mini" data-act="partOut">TAKE OUT</button>' : ''}</div>
+    <div class="drawer-row">${list.length ? list.map((x) => stoneTile(x, { act: 'partPut', arg: x.stone + ':' + x.tier, count: x.n })).join('') : '<span class="note">None spare.</span>'}</div></div>`;
   return h;
 }
 // ▲ or ▼ against what's worn in the slot it would go in
@@ -104,8 +97,8 @@ function compareTag(item, equip) {
 const UI = {
   openedAt: 0,
   screen: null,
-  card: null, // { item, where, key, slot (the circuit's chosen slot), sock (the chosen socket), focus ('circuit' or 'modules'), bench, fuse }
-  forge: { bp: null, ore: null, size: null, exotic: null, field: false },
+  card: null, // { item, where, key, part (the chosen spell part, 'i:key'), sock (the chosen socket), focus ('spells' or 'modules'), bench }
+  forge: { bp: null, ore: null, exotic: null, field: false },
 
   init() {
     for (const s of document.querySelectorAll('.screen')) s.addEventListener('click', (e) => UI.onTap(e));
@@ -119,9 +112,12 @@ const UI = {
       if (!Game.dive || Game.modal) return;
       if (!Game.dive.hub) UI.openMap('travel');
       else if (actionHere() === 'altar') UI.show('screen-star');
-      else if (actionHere() === 'forge') UI.show('screen-supplies');
+      else if (actionHere() === 'forge' && onboardHas('supplies')) UI.show('screen-supplies');
     });
     $('build').textContent = BUILD_INFO;
+    // the tutorials' overlay and the ?s (tutor.js); the walkthrough's ✕
+    Tutor.init();
+    $('guide').querySelector('.guide-stop').addEventListener('click', () => Guide.stop());
     // the anvil takes a tap anywhere; the reveal, a tap once it has risen
     $('screen-anvil').addEventListener('pointerdown', (e) => { if (e.target.closest('[data-act]')) return; e.preventDefault(); if (Game.realT - UI.openedAt > 0.3) Anvil.strike(); });
     $('screen-reveal').addEventListener('pointerdown', (e) => { e.preventDefault(); if (Game.realT - Reveal.shownAt > 0.7) Reveal.done(); });
@@ -157,9 +153,11 @@ const UI = {
     UI.openedAt = Game.realT;
     Input.block();
     UI.redraw();
+    Tutor.auto(id);
   },
 
   close() {
+    Onboard.closed(UI.screen);
     for (const s of document.querySelectorAll('.screen')) s.hidden = true;
     UI.closeCard();
     UI.screen = null;
@@ -202,16 +200,15 @@ const UI = {
   },
   openPause() {
     const home = !!(Game.dive && Game.dive.hub);
-    $('pause-cargo').hidden = home; $('pause-abandon').hidden = home; $('pause-note').hidden = home; $('pause-recall').hidden = home;
+    $('pause-cargo').hidden = home; $('pause-note').hidden = home; $('pause-recall').hidden = home;
     $('pause-beacon').hidden = home || Game.dive.tool !== 'beacon' || !!Game.dive.beaconUsed || !!Game.dive.beacon;
-    if (!home) $('pause-recall').textContent = `EMERGENCY RECALL · LOSE ${Math.round(recallCost(Game.dive) * 100)}%`;
     drawSoundButtons();
     UI.show('screen-pause');
   },
   openCargo() { UI.show('screen-cargo'); },
 
   openCard(item, where, key) {
-    UI.card = { item, where, key, slot: null };
+    UI.card = { item, where, key, part: null };
     $('card').hidden = false;
     UI.openedAt = Game.realT;
     drawCard();
@@ -332,6 +329,9 @@ const UI = {
     document.body.classList.toggle('home', !!(d && d.hub));
     if (Game.modal === 'screen-reveal' && Reveal.item && Game.realT - Reveal.shownAt > 2.2) Reveal.done();
     UI.pumpToasts();
+    Onboard.tick(dt || 0);
+    Guide.update(dt || 0);
+    Tutor.frame();
     if (!d) return;
     if (d.hub) {
       setTextIfChanged('hud-depth', `THE LODESTAR · MAGNITUDE ${magnitudeOf(Save.data.star)}`);
@@ -341,7 +341,7 @@ const UI = {
     const hpW = Math.round(hp * 100) + '%', chW = Math.round(ch * 100) + '%';
     if ($('hp-fill').style.width !== hpW) $('hp-fill').style.width = hpW;
     if ($('ch-fill').style.width !== chW) $('ch-fill').style.width = chW;
-    $('hud-goal').hidden = !drawGoalHud(d);
+    $('hud-goal').hidden = !(d.hub ? !Guide.on() && drawNextHud() : drawGoalHud(d));
     const pW = Math.round(d.pull * 100) + '%';
     if ($('pull-fill').style.width !== pW) $('pull-fill').style.width = pW;
     $('hud-pull').classList.toggle('fading', d.pull < T.pull.dimAt);
@@ -351,33 +351,33 @@ const UI = {
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
     $('hud-ch').classList.toggle('low', p.lowCharge > 0);
     if (!d.hub) setTextIfChanged('hud-depth', d.deep ? `THE DEEP ${d.deep.site}/${d.deep.of}` : d.terr ? terrOf(d.terr).name.toUpperCase() : '');
-    setTextIfChanged('btn-cargo', `CARGO ${cargoUsed(d)}/${st.cargo}`);
+    setTextIfChanged('btn-cargo', `CARGO ${cargoCount(d)}`);
     drawSupplyDeck(d);
     const eq = Save.data.equip;
+    const rig = isCaster(eq.main) ? eq.main : null;
     for (const slot of ['main', 'off']) {
-      // each hand's button shows its circuit's first Form
-      const it = eq[slot], P = isCaster(it) ? parseCircuit(it.slots, it.links) : null, g = P && P.groups[0];
-      const form = it ? (g ? g.form : null) : 'arc', tier = g ? g.tier : 1, btn = $('btn-' + slot), key = `${it ? it.uid : 'fist'}:${form}:${tier}`;
+      // each spell's button shows its Form
+      const sp = rig && rigSpell(rig, slot === 'off' ? 1 : 0), form = rig ? spellForm(sp) : 'arc', btn = $('btn-' + slot), key = `${rig ? rig.uid : 'fist'}:${form}`;
       if (btn.dataset.key !== key) {
         btn.dataset.key = key;
-        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt')}" alt=""><span>${!it ? 'FIST' : form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
+        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt')}" alt=""><span>${!rig ? 'FIST' : form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
       }
       const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
       btn.classList.toggle('charging', lv > 0 && lv < 1);
       btn.classList.toggle('charged', lv >= 1);
     }
-    if ($('btn-off').hidden !== !eq.off) $('btn-off').hidden = !eq.off;
+    if ($('btn-off').hidden !== !rig) $('btn-off').hidden = !rig;
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     const rh = a === 'rift' && riftHere(d);
     let way = '';
     if (a === 'way') way = !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'STEP THROUGH: ' + wayPlaceName(d, wayHere(d)).toUpperCase();
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `FEED THE STAR · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'TUNE', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `FEED THE STAR · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
     // at a spire (or a beacon's light), TRAVEL too; at the altar, ATTUNE; at
     // the fabricator, SUPPLIES (supplies.js)
-    const travel = a === 'extract' && d.sortie && !d.deep, attune = a === 'altar', sup = a === 'forge' && d.hub, b2 = $('btn-act2');
+    const travel = a === 'extract' && d.sortie && !d.deep, attune = a === 'altar', sup = a === 'forge' && d.hub && onboardHas('supplies'), b2 = $('btn-act2');
     if (b2.hidden !== !(travel || attune || sup)) { b2.hidden = !(travel || attune || sup); document.body.classList.toggle('act2', !b2.hidden); }
     if (travel || attune || sup) { const pts = attune ? attunePointsLeft(Save.data) : 0; setTextIfChanged('btn-act2', travel ? 'TRAVEL' : sup ? 'SUPPLIES' : pts > 0 ? `ATTUNE · ${pts}` : 'ATTUNE'); }
   },
@@ -393,7 +393,7 @@ function drawResume() {
   if (!r) return;
   const n = Object.values(r.cargo || {}).reduce((a, b) => a + b, 0) + (r.items || []).length;
   const t = terrOf(r.terr);
-  $('resume-text').textContent = `A sortie was under way: ${t ? t.name : 'out in the world'}${r.deep ? `, in its Deep (site ${r.deep})` : ''}, carrying ${n ? n + ' things' : 'nothing yet'}. Carry on from where you came in, or give it up and lose the cargo (the pocket and what you banked are safe).`;
+  $('resume-text').textContent = `Out in ${t ? t.name : 'the world'}${r.deep ? `, its Deep (site ${r.deep})` : ''}, carrying ${n}. Give up, and it waits in your pack.`;
 }
 
 function drawStory() {
@@ -410,26 +410,24 @@ function drawUplink_() {
   const s = Save.data, set = Story.shardsSet();
   const shardRow = (b, i) => {
     const has = (s.shards || []).includes(i);
-    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${has ? 'Recovered' : 'Held by the Keeper'} · ${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Take it to the altar') : `In its Keeper's Lair, at the bottom of the Deep under the furthest territory of ring ${i + 1}`}</span></span></div>`;
+    return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Set it at the altar') : `A Keeper holds it · ring ${i + 1}`}</span></span></div>`;
   };
   // the landers: one for every few territories kindled
   const kindled = storyKindledCount(), landers = storyLanders(), every = T.story.landerEvery, need = T.story.callLanders;
-  const landerNote = `Kindled: ${kindled} territor${kindled === 1 ? 'y' : 'ies'}. The Meridian can send a lander for every ${every}, so ${landers ? `${landers} can come down` : 'none can come down yet'}${landers < need ? `; ${(landers + 1) * every - kindled} more for the next` : ''}.`;
-  const call = Story.landersCalled() ? '<p class="note">The colony is down. The ground round the star is theirs now, and the dark beyond it is still yours to walk.</p>'
+  const landerNote = `${kindled} kindled${landers < need ? ` · ${(landers + 1) * every - kindled} more for the next` : ''}`;
+  const call = Story.landersCalled() ? '<p class="note">The colony is down.</p>'
     : Story.canCall() ? '<div class="menu"><button class="btn primary" data-act="callLanders">CALL THE LANDERS</button></div>'
-    : `<p class="note">The colony can land when all three shards are set in the star and there's ground for ${need} landers (${need * every} territories kindled).</p>`;
+    : `<p class="note">To call the colony: 3 shards set, ${need * every} kindled.</p>`;
   // the log: a line for each territory kindled
   const log = storyKindled().map((t) => `<div class="echo"><p>${esc(kindleLogLine(t.clime, t.name))}</p></div>`).join('');
   const echoes = (s.echoes || []).map((i) => `<div class="echo"><b>${esc(ECHOES[i].title)}</b><p>${esc(ECHOES[i].text)}</p></div>`).join('');
   $('wreck-body').innerHTML = `
-    <p class="note">The colony ship Meridian waits in orbit, its settlers asleep. This mast is how it hears us.</p>
-    <h3>LANDERS · ${landers}</h3><p class="note">${esc(landerNote)}</p>
-    <h3>SHARDS SET · ${set}/3</h3>${T.biomes.map(shardRow).join('')}
+    <h3>LANDERS · ${landers}</h3><div class="up-landers"><p class="note">${esc(landerNote)}</p></div>
+    <h3>SHARDS SET · ${set}/3</h3><div class="up-shards">${T.biomes.map(shardRow).join('')}</div>
     ${call}
+    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3><div class="up-echoes">${echoes || '<p class="note">None yet.</p>'}</div>
     ${log ? `<h3>THE LOG · ${kindled} KINDLED</h3>${log}` : ''}
-    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The Kindlers before you left logs out in the dark.</p>'}
-    <h3>THE LANDING</h3><p class="note">The Meridian's record of how we came down.</p>
-    <div class="menu"><button class="btn" data-act="replayIntro">WATCH THE LANDING AGAIN</button></div>`;
+    <div class="menu"><button class="btn quiet" data-act="replayIntro">WATCH THE LANDING AGAIN</button></div>`;
 }
 
 // How the last dive ended, over the outpost.
@@ -445,34 +443,24 @@ function drawReport() {
   const got = [stuffLines(r.banked || r.lost || {}), gear(r.items)].filter(Boolean).join(', ');
   const rows = [], row = (label, cls, text) => rows.push(`<div class="rep-row"><span class="rep-label ${cls}">${label}</span><span class="rep-text">${esc(text)}</span></div>`);
   let title;
-  if (r.recalled) {
-    title = 'RECALLED';
-    if (got) row('BANKED', 'good', got);
-    const lost = [stuffLines(r.recalled.lost), gear({ length: r.recalled.lostItems })].filter(Boolean).join(', ');
-    if (lost) row('THE DARK KEPT', 'bad', lost);
-  } else if (r.banked) { title = 'HOME'; row('BANKED', 'good', got || 'Nothing this time'); }
+  if (r.banked) { title = r.recalled ? 'RECALLED' : 'HOME'; row('BANKED', 'good', got || 'Nothing this time'); }
   else {
     title = r.died ? 'YOU FELL' : 'YOU GAVE UP';
-    if (r.died) {
-      // the haul waits where it fell (deeds.js)
-      const c = r.cache;
-      if (c) row('YOUR PACK', 'gold', `Left where you fell, in ${c.where}: ${[stuffLines(c.cargo), gear(c.items), c.blueprints.length ? `${c.blueprints.length} blueprint${c.blueprints.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}. Go back for it: it waits there once. Fall again before you reach it, and it's lost.`);
-      const o = r.oldCache;
-      if (o) row('LOST TO THE DARK', 'bad', `Your older pack, in ${o.where}: ${[stuffLines(o.cargo), gear(o.items)].filter(Boolean).join(', ') || 'what was in it'}`);
-    } else if (got) row('LOST', 'bad', got);
+    // the haul waits where it was (deeds.js)
+    const c = r.cache;
+    if (c) row('YOUR PACK', 'gold', `In ${c.where}: ${[stuffLines(c.cargo), gear(c.items), c.blueprints.length ? `${c.blueprints.length} blueprint${c.blueprints.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}`);
+    const o = r.oldCache;
+    if (o) row('LOST', 'bad', `Your older pack, in ${o.where}: ${[stuffLines(o.cargo), gear(o.items)].filter(Boolean).join(', ') || 'what was in it'}`);
     const before = r.earlier && [stuffLines(r.earlier.stuff || {}), gear(r.earlier.items)].filter(Boolean).join(', ');
     if (before) row('BANKED BEFORE', 'good', before);
     if (r.wake) row('YOU WAKE', 'gold', `At the spire of ${r.wake}`);
   }
   if (r.kindled) row('KINDLED', 'gold', `${r.kindled} territor${r.kindled > 1 ? 'ies' : 'y'}`);
-  if (r.kept && (r.kept.items.length || Object.keys(r.kept.stuff).length)) row('POCKET KEPT', 'gold', [stuffLines(r.kept.stuff), r.kept.items.map((i) => i.name).join(', ')].filter(Boolean).join(', '));
-  const learned = (r.learned || []).concat((r.kept && r.kept.blueprints) || []);
+  const learned = r.learned || [];
   if (learned.length) row('LEARNED', 'gold', learned.map((id) => BLUEPRINTS[id].name).join(', '));
-  if (r.lostBlueprints) row('BLUEPRINTS LOST', 'bad', `${r.lostBlueprints}, with the cargo`);
-  if (r.shard) row('SHARD', 'gold', 'Carried home. Set it in the star at the altar.');
-  for (const c of r.contracts || []) row('CONTRACT DONE', 'good', `${contractText(c)}: ${contractRewardText(c)}`);
-  if (r.contracts && r.contracts.bonus) row('THE WHOLE BOARD', 'gold', `Supplies besides: ${r.contracts.bonus.join(', ')}`);
-  if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the uplink`);
+  if (r.shard) row('SHARD', 'gold', 'Set it at the altar');
+  if (r.settlers) row('SETTLERS', 'good', `+${r.settlers} threads`);
+  if (r.echoes) row('ECHOES', 'gold', `${r.echoes} · at the uplink`);
   // the star: the light this sortie earned, what's waiting at the altar,
   // and how far to the next magnitude
   const s = Save.data, mag = magnitudeOf(s.star), lo = T.star.levels[mag - 1], hi = T.star.levels[mag], L = r.light || {}, wait = lightWaiting();
@@ -480,7 +468,7 @@ function drawReport() {
   let star = '';
   if (earned || wait) {
     const k = hi ? Math.min(1, (s.star - lo) / (hi - lo)) : 1, k2 = hi ? Math.min(1, (s.star + wait - lo) / (hi - lo)) : 1;
-    star = `<div class="rep-star"><div class="rep-row"><span class="rep-label gold">THE STAR</span><span class="rep-text">${earned ? `+${esc(earned)}. ` : ''}${wait} light waiting: feed it to the star at the altar${hi ? ` (${Math.max(0, hi - s.star)} to magnitude ${mag + 1})` : ''}.</span></div><div class="bar rep-bar"><div class="fill wait" style="width:${Math.round(k2 * 100)}%"></div><div class="fill" style="width:${Math.round(k * 100)}%"></div></div></div>`;
+    star = `<div class="rep-star"><div class="rep-row"><span class="rep-label gold">THE STAR</span><span class="rep-text">${[earned ? `+${esc(earned)}` : '', `${wait} waiting`, hi ? `${Math.max(0, hi - s.star)} to magnitude ${mag + 1}` : ''].filter(Boolean).join(' · ')}</span></div><div class="bar rep-bar"><div class="fill wait" style="width:${Math.round(k2 * 100)}%"></div><div class="fill" style="width:${Math.round(k * 100)}%"></div></div></div>`;
   }
   $('report-title').textContent = title;
   $('report-body').innerHTML = `<p class="rep-where">${esc(where)}</p>${rows.join('')}${star}`;
@@ -490,42 +478,33 @@ function drawReport() {
 // those not made yet (they're made at the forge).
 function drawToolRows() {
   const s = Save.data;
-  return `<h3>TOOLS · CARRY ONE</h3>` + TOOL_IDS.map((id) => {
+  return `<h3>TOOLS</h3>` + TOOL_IDS.map((id) => {
     const t = TOOLS[id], own = toolOwned(id), open = toolOpen(id), on = s.tool === id, known = id === 'compass' || s.blueprints.includes('tool_' + id);
-    const sub = own ? esc(t.text) : !known ? 'Not yet known: the forge will work it out from something you bring home.' : open ? `Made at the forge (TOOLS). ${esc(t.text)}` : `The star must reach magnitude ${T.tools[id].mag}.`;
+    const sub = own ? esc(t.text) : !known ? 'Not yet known.' : open ? 'Make it at the forge.' : `Magnitude ${T.tools[id].mag}.`;
     const tag = own ? (on ? '<span class="row-tag r-legendary">CARRIED</span>' : '') : '';
     return `<div class="row ${own ? '' : 'static'} ${on ? 'on' : ''}" ${own && !on ? `data-act="carryTool" data-arg="${id}"` : ''} ${own || (open && known) ? '' : 'style="opacity:.55"'}><img class="icon" src="${toolIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(t.name)}</span><span class="row-sub">${sub}</span></span>${tag}</div>`;
   }).join('');
 }
 
-// The star's screen, at its altar: its magnitude, the light waiting, what
-// grows it and what it opens, and the attunements.
+// The star's screen, at its altar: its magnitude, the light waiting, its
+// reach, and the attunements. (What grows it is behind the ?: tutor.js.)
 function drawStar() {
-  const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag], pts = attunePointsLeft(s), wait = lightWaiting();
-  const light = LIGHT_IDS.slice().reverse().map((id) => `<div class="row static"><img class="icon" src="${lightIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(LIGHT_KINDS[id].name)} × ${s.stash[id] || 0}</span><span class="row-sub">${esc(LIGHT_KINDS[id].text)}</span></span></div>`).join('');
+  const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag], lo = T.star.levels[mag - 1], pts = attunePointsLeft(s), wait = lightWaiting();
+  const k = (v) => Math.round(Math.min(1, next ? (v - lo) / (next - lo) : 1) * 100);
+  const light = LIGHT_IDS.slice().reverse().map((id) => `<span class="mat"><img class="cost-icon" src="${lightIconUrl(id)}" alt="">${s.stash[id] || 0} ${esc(LIGHT_KINDS[id].name)}</span>`).join('');
   const shards = Story.shardsHeld() - Story.shardsSet();
   const att = Object.entries(T.attune).map(([id, A]) => {
     const r = s.attune[id] || 0;
-    return `<div class="row static"><span class="row-text"><span class="row-name">${A.name} ${r}/${A.max}</span><span class="row-sub">${A.text} a rank</span></span><button class="mini" data-act="attune" data-arg="${id}" ${pts > 0 && r < A.max ? '' : 'disabled'}>+</button></div>`;
+    return `<div class="row static"><span class="row-text"><span class="row-name">${A.name} ${r}/${A.max}</span><span class="row-sub">${A.text}</span></span><button class="mini" data-act="attune" data-arg="${id}" ${pts > 0 && r < A.max ? '' : 'disabled'}>+</button></div>`;
   }).join('');
-  const D = T.deeds, ring = (r) => `ring ${r}`;
-  const grows = [
-    `Kindling a territory: ${D.heart.slice(1, 4).map((n, i) => `${n} heartlight in ${ring(i + 1)}`).join(', ')}, ${D.heart[4]} at the Edge.`,
-    `Reaching a Deep's end the first time: ${D.deepEnd[1]} deeplight in ring 1 to ${D.deepEnd[4]} at the Edge, ${D.deepSite} more for each site past the first.`,
-    `An ancient forge found: ${D.forge} deeplight. An echo: ${D.echo}.`,
-    `A Keeper's shard, set here: ${T.story.shardStar}.`,
-  ];
-  const reach = T.star.ringMag.slice(2).map((m, i) => `<span class="${mag >= m ? 'ok' : ''}">${i + 2 === 4 ? 'The Edge' : 'Ring ' + (i + 2)}: magnitude ${m}${mag >= m ? ' ✓' : ''}</span>`).join(' · ');
+  const reach = T.star.ringMag.slice(2).map((m, i) => `<span class="reach-chip${mag >= m ? ' ok' : ''}">${i + 2 === 4 ? 'EDGE' : 'RING ' + (i + 2)} · MAG ${m}${mag >= m ? ' ✓' : ''}</span>`).join('');
   $('star-body').innerHTML = `
     <div class="mag">MAGNITUDE ${mag}${next !== undefined ? ` · ${s.star}/${next}` : ''}</div>
-    ${wait ? `<div class="bar rep-bar star-bar"><div class="fill wait" style="width:${Math.round(Math.min(1, next ? (s.star + wait - T.star.levels[mag - 1]) / (next - T.star.levels[mag - 1]) : 1) * 100)}%"></div><div class="fill" style="width:${Math.round(Math.min(1, next ? (s.star - T.star.levels[mag - 1]) / (next - T.star.levels[mag - 1]) : 1) * 100)}%"></div></div>` : ''}
+    <div class="bar rep-bar star-bar"><div class="fill wait" style="width:${k(s.star + wait)}%"></div><div class="fill" style="width:${k(s.star)}%"></div></div>
     <h3>LIGHT WAITING · ${wait}${shards > 0 ? ` · ${shards} SHARD${shards > 1 ? 'S' : ''}` : ''}</h3>
-    <p class="note">${wait ? 'Hold FEED THE STAR at the altar and the light rises into it, mote by mote, faster the longer you hold. Let go to stop.' : 'None yet. The star grows from what you do out there, not from ore: bring its light home.'}</p>
-    ${light}
-    <h3>WHAT GROWS IT</h3><div class="next-steps">${grows.map((l) => `<p>${esc(l)}</p>`).join('')}</div>
-    <h3>ITS REACH</h3><p class="note">A spire holds only where the star's light reaches. ${reach}.</p>
-    <p class="note">Each magnitude also gives an attunement point, makes the star's light likelier to reach down into a Deep, a recall gentler, and now and then a pocket slot more.</p>
-    <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3>${att}`;
+    <div class="mats light-chips">${light}</div>
+    <h3>REACH</h3><div class="reach">${reach}</div>
+    <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3><div class="att-list">${att}</div>`;
 }
 
 function drawCargo() {
@@ -533,25 +512,24 @@ function drawCargo() {
   if (!d) return;
   const mods = d.items.filter((it) => it.kind === 'module'), items = d.items.filter((it) => it.kind !== 'module').map((it) => itemRow(it, 'cardCargo', it.uid, compareTag(it, Save.data.equip))).join('');
   const worn = SLOTS.filter((k) => Save.data.equip[k]).map((k) => itemRow(Save.data.equip[k], 'cardWorn', k, `<span class="slot">${SLOT_NAMES[k]}</span>`)).join('');
-  const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${ORE_INDEX[id] !== undefined ? 'Ore' : parsePart(id) ? 'Creature part' : isLight(id) ? 'Light for the star' : id === 'thread' ? 'Threads, from a module unravelled' : 'Exotic material'} · weighs ${isLight(id) ? 'nothing' : d.cargo[id]}</span></span></button>`).join('');
+  const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${stuffKindWord(id)}</span></span></button>`).join('');
   const heart = (d.tally && d.tally.light && d.tally.light.heartlight) || 0, pack = Save.data.cache;
-  const slots = pocketSlots(), pocket = d.pocket.map((e, i) => `<div class="row static">${e.item ? iconImg(e.item) : e.blueprint ? `<img class="icon" src="${recipeIconUrl(e.blueprint)}" alt="">` : `<img class="icon" src="${stuffIconUrl(e.stuff)}" alt="">`}<span class="row-text"><span class="row-name ${e.item ? 'r-' + e.item.rarity : e.blueprint ? 'r-legendary' : ''}">${esc(e.item ? e.item.name : e.blueprint ? 'Blueprint: ' + BLUEPRINTS[e.blueprint].name : `${stuffName(e.stuff)} × ${e.n}`)}</span><span class="row-sub">In the pocket</span></span><button class="mini" data-act="unpocket" data-arg="${i}">TAKE OUT</button></div>`).join('');
   $('cargo-body').innerHTML = `
-    <div class="mag">CARGO ${cargoUsed(d)}/${d.stats.cargo}</div>
-    <h3>POCKET · ${d.pocket.length}/${slots}</h3>
-    ${pocket || '<p class="note">Empty. Whatever you pocket comes home even if you fall: tap something below to pocket it.</p>'}
-    ${heart ? `<p class="note">${heart} heartlight earned this sortie: bound to you, safe whatever happens.</p>` : ''}
-    <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">No ore yet.</p>'}
-    ${supplyMakeHtml()}
-    ${d.blueprints.length ? `<h3>BLUEPRINTS · LEARNED WHEN BANKED</h3>${d.blueprints.map((b, i) => `<div class="row static"><img class="icon" src="${recipeIconUrl(b.id)}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint · weighs 1</span></span>${d.pocket.length < pocketSlots() ? `<button class="mini" data-act="pocketBp" data-arg="${i}">POCKET</button>` : ''}</div>`).join('')}` : ''}
-    <h3>MODULES · ${mods.length} · WEIGH ${T.modules.weight} EACH</h3>${mods.map((m) => moduleRow(m, 'cardCargo', m.uid, moduleTag(m, Save.data.equip))).join('') || '<p class="note">None caught yet. When a creature falls, the suit catches its pattern now and then.</p>'}
+    <div class="mag">CARRYING ${cargoCount(d)}</div>
+    <p class="note center">A fall leaves it all in your pack.</p>
+    ${pack ? `<p class="note gold">Your old pack: ${esc(pack.where)}</p>` : ''}
+    ${heart ? `<p class="note">+${heart} heartlight, safe</p>` : ''}
+    <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">None yet.</p>'}
+    ${onboardHas('supplies') ? supplyMakeHtml() : ''}
+    ${d.blueprints.length ? `<h3>BLUEPRINTS</h3>${d.blueprints.map((b) => `<div class="row static"><img class="icon" src="${recipeIconUrl(b.id)}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint</span></span></div>`).join('')}` : ''}
+    ${mods.length ? `<h3>MODULES · ${mods.length}</h3>${mods.map((m) => moduleRow(m, 'cardCargo', m.uid, moduleTag(m, Save.data.equip))).join('')}` : ''}
     ${items ? `<h3>FOUND</h3>${items}` : ''}
-    <h3>CONTRACTS</h3>${contractRows(d)}
-    <h3>WORN</h3>${worn}
-    <p class="note">What you wear, your pocket and your supplies are safe. If you fall, the rest of the cargo stays where you fell, in your pack: go back for it once. Fall again first and it's lost. Bank at a spire to be sure of it.</p>
-    ${pack ? `<p class="note gold">Your pack waits in ${esc(pack.where)}.</p>` : ''}
-    <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL · LOSE ${Math.round(recallCost(d) * 100)}%</button></div>`;
+    <h3>WORN · SAFE</h3>${worn}
+    <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL</button></div>
+    <p class="note center">It loses nothing. Stand still ${Math.round(relayRecallTime())} s.</p>`;
 }
+// What a stack in the cargo is, in a word or two.
+function stuffKindWord(id) { return ORE_INDEX[id] !== undefined ? 'Ore' : parsePart(id) ? 'Creature part' : isLight(id) ? 'Light for the star' : id === 'thread' ? 'Threads' : 'Exotic material'; }
 
 // ---------------------------------------------------------------------------
 // The cards (gearui.js draws the gear's)
@@ -566,16 +544,15 @@ function cardBar(where, extra = '') {
 // Ore or an exotic in the cargo: how much, and dropping some.
 function drawStuffCard(id) {
   const n = (Game.dive && Game.dive.cargo[id]) || 0, x = T.exotics.find((e) => e.id === id), pk = parsePart(id);
-  const what = id === 'thread' ? 'A module unravelled. Threads pay for work at the rune bench: a tier up, a trait rerolled, two fused.'
-    : x ? (x.element ? `Forged into a ${CIRCUIT_ELEMENTS[x.element].name} stone, it gives a spell ${CIRCUIT_ELEMENTS[x.element].name.toLowerCase()} damage: ${CIRCUIT_ELEMENTS[x.element].status}. Worked into a caster, the stone comes with it.` : x.id === 'bloodresin' ? 'At the rune bench, a trait rerolled with it comes out leech: a share of the damage you deal heals you.' : x.tierUp ? 'Left where a rift was sealed. Worked into a piece at the forge, it comes out a tier above its ore; at the rune bench, it imprints a power.' : 'At the rune bench, it adds a trait to a common or magic module.')
-    : pk ? (PARTS[pk.kind].family ? `A creature part, for the forge: ${Object.keys(BLUEPRINTS).filter((b) => BLUEPRINTS[b].need && BLUEPRINTS[b].need[pk.kind] && !BLUEPRINTS[b].stone).map((b) => BLUEPRINTS[b].name.toLowerCase()).join(', ') || 'stones'} take it.` : "A warden's heart. At the rune bench, it imprints a power the forge remembers into a module.")
+  const what = id === 'thread' ? 'Pays to upgrade modules.'
+    : x ? (x.element ? `Forges a ${CIRCUIT_ELEMENTS[x.element].name} core.` : x.retired ? 'Old stock: unravelled into threads at home.' : x.tierUp ? 'Forge with it: a tier above its ore.' : x.modSlot ? 'Forge it into a rig frame: +1 Mod slot.' : '')
+    : pk ? (PARTS[pk.kind].family ? 'For the forge: recipes name what they take.' : 'Forges a Ward core.')
     : isLight(id) ? LIGHT_KINDS[id].text
-    : `Tier ${T.ores[ORE_INDEX[id]].tier} ore. Forge with it, or make supplies from it.`;
+    : `Tier ${T.ores[ORE_INDEX[id]].tier} ore.`;
   $('card-body').innerHTML = cardBar('IN YOUR CARGO') + `<div class="card-scroll">
     <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${id === 'thread' ? 'Threads' : x ? 'Exotic material' : pk ? 'Creature part' : isLight(id) ? 'Light for the star' : 'Ore'}</div></div></div>
     <p class="base">${esc(what)}</p>
     <div class="menu">
-      ${n && Game.dive.pocket.length < pocketSlots() ? `<button class="btn" data-act="pocket" data-arg="${T.cargo.pocketStack}">POCKET ${Math.min(n, T.cargo.pocketStack)} (SAFE IF YOU FALL)</button>` : ''}
       ${n ? `<button class="btn danger" data-act="dropStuff" data-arg="1">DROP 1</button>` : ''}
       ${n > 5 ? `<button class="btn danger" data-act="dropStuff" data-arg="5">DROP 5</button>` : ''}
       ${n > 1 ? `<button class="btn danger" data-act="dropStuff" data-arg="all">DROP ALL</button>` : ''}
@@ -594,20 +571,25 @@ UI.acts = {
   go: (id) => UI.show(id),
   back: () => UI.close(),
   resume: () => UI.close(),
-  abandon: () => abandonDive(),
+  // START OVER, from the pause screen: a screen that says what's lost, then
+  // a second tap on its button (Save.startOver), and the game starts again
+  restartAsk: () => UI.show('screen-restart'),
+  restartBack: () => UI.openPause(),
+  startOver: () => { Save.startOver(); UI.close(); location.reload(); },
   closeReport: () => {
     UI.report = null; UI.close();
     Story.starGrew();
   },
   // (built while loading, if it was: loader.js)
   resumeRun: () => { UI.close(); if (!loaderCarryOn()) resumeRun(); },
+  // giving up a sortie found under way: back where it came in, and the
+  // haul left there in the pack, as a fall would (game.js loseDive)
   dropRun: () => {
     UI.close();
+    if (!Save.data.run) return;
+    if (!loaderCarryOn()) resumeRun();
     Loader.landed = null;
-    const r = Save.data.run;
-    if (!r) return;
-    Game.dive = newWorld({ sortie: true, terr: r.terr, depth: 1, zone: 'surface', cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], gotShard: r.gotShard, echoes: r.echoes, banked: r.banked });
-    abandonDive();
+    loseDive(false);
   },
   storyNext: () => {
     const st = UI.story;
@@ -628,33 +610,6 @@ UI.acts = {
   },
   beacon: () => { UI.close(); plantBeacon(); },
   carryTool: (id) => { if (toolOwned(id)) { Save.data.tool = id; Save.save(); UI.redraw(); } },
-  swapContract: (id) => { if (swapContract(id)) UI.redraw(); },
-  // the pocket: what's in it comes home whatever happens
-  pocket: (n) => {
-    const d = Game.dive, c = UI.card;
-    if (d.pocket.length >= pocketSlots()) return;
-    if (c.stuff) {
-      const k = Math.min(Number(n) || T.cargo.pocketStack, d.cargo[c.stuff] || 0);
-      if (!k) return;
-      d.cargo[c.stuff] -= k; if (!d.cargo[c.stuff]) delete d.cargo[c.stuff];
-      d.pocket.push({ stuff: c.stuff, n: k });
-    } else { removeFrom(d.items, c.item); d.pocket.push({ item: c.item }); }
-    UI.closeCard(); UI.redraw();
-  },
-  unpocket: (i) => {
-    const d = Game.dive, e = d.pocket[Number(i)];
-    if (!e) return;
-    d.pocket.splice(Number(i), 1);
-    if (e.item) d.items.push(e.item); else if (e.blueprint) d.blueprints.push({ id: e.blueprint }); else d.cargo[e.stuff] = (d.cargo[e.stuff] || 0) + e.n;
-    UI.redraw();
-  },
-  pocketBp: (i) => {
-    const d = Game.dive, b = d.blueprints[Number(i)];
-    if (!b || d.pocket.length >= pocketSlots()) return;
-    d.blueprints.splice(Number(i), 1);
-    d.pocket.push({ blueprint: b.id });
-    UI.redraw();
-  },
   closeCard: () => { UI.closeCard(); UI.redraw(); },
   cardEquip: (slot) => UI.openCard(Save.data.equip[slot], 'equip', slot),
   cardStash: (uid) => UI.openCard(findStash(uid), 'stash', uid),
@@ -704,8 +659,15 @@ function drawSoundButtons() {
   setTextIfChanged('pause-lamp', `LAMP: ${lampIsBeam() ? 'BEAM' : 'GLOW'}`);
 }
 
-// A caster's stones moved into another, slot for slot; what doesn't fit goes
-// to `list`.
-function moveCircuit(from, to, list) {
-  from.slots.forEach((st, i) => { if (!st) return; if (i < to.slots.length) to.slots[i] = st; else list.push(st); from.slots[i] = null; });
+// A frame's cores moved into another, part for part; a Mod the new one has
+// no slot for goes to `list`.
+function moveSpells(from, to, list) {
+  from.spells.forEach((sp, i) => {
+    const dst = to.spells[i];
+    for (const [key, c] of spellParts(sp)) {
+      if (!c) continue;
+      spellSet(sp, key, null);
+      if (key[0] !== 'm' || Number(key.slice(1)) < dst.mods.length) spellSet(dst, key, c); else list.push(c);
+    }
+  });
 }

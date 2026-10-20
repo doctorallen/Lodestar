@@ -1,79 +1,74 @@
-'use strict';
 // ---------------------------------------------------------------------------
-// Circuits: how a caster's spell is built, and how it's cast. A caster (a
-// wand, a gauntlet or a staff) holds a row of slots, each empty or holding a
-// stone, and a press of its hand's button casts the whole row, read left to
-// right:
-//   - a Form starts a group: the spell's shape (Arc, Glaive, Bolt, Lance,
-//     Orb, Nova, Well, Ward);
-//   - Elements after it set its damage type, two at most (the damage is
-//     split between them and both statuses are applied); with none, Force;
-//   - Glyphs change the Form to their left (Split, Amplify, Quicken, Chain,
-//     Echo, Pierce, Linger, Trigger);
-//   - two Forms in a row fire together, and both are paid for;
-//   - Trigger makes the next Form fire from where this one hits or ends;
-//   - stones before the first Form do nothing.
-// A cast costs the sum of its groups' charge: each Form's cost times its
-// glyphs' (a gauntlet takes 1 off a close Form). Close Forms (Arc, Glaive)
+// Spells: how the rig's two are built, and how they're cast. The rig is a
+// Charter suit's wrist projector; its frame (forged from ore that sets its
+// tier) drives two spells, A from the right wrist and B from the left, each
+// its own button. A spell is three cores, in no order:
+//   - a Form: its shape (Arc, Glaive, Bolt, Lance, Orb, Nova, Well, Ward);
+//   - an Element: its damage and status (Force, Shock, Frost, Ember,
+//     Blight); with none, Force;
+//   - a Mod: what changes it (Split, Amplify, Quicken, Chain, Echo, Pierce,
+//     Linger). A better frame has a second Mod slot (T.circuits.rig).
+// A cast costs its Form's charge times its Mods'. Close Forms (Arc, Glaive)
 // give charge back for each foe they hit. Holding the button charges the
 // cast: harder, for more charge; a held Arc bursts into a Nova instead.
+// With no Form, a spell casts a weak spark.
 //
-// A caster's ore favours an element (affinity): a spell of it is attuned,
-// harder and with a longer status, and each ore has a way of its own. A
-// masterwork caster may have a linked pair of slots, where a Glyph counts
-// twice. A circuit that fills its caster with a resonance's exact stones
-// wakes into a named spell (resonance.js). What each element's status does
-// with another's is in reactions.js; what each foe makes of an element, in
-// natures.js.
+// A frame's ore favours an element (affinity): a spell of it is attuned,
+// harder and with a longer status (Resonite favours resonances instead). A
+// spell holding all of a resonance's cores wakes it into a named spell
+// (resonance.js). What each element's status does with another's is in
+// reactions.js; what each foe makes of an element, in natures.js.
 //
-// The words are here; every number is in T.circuits.
+// The cores are kept as items of kind 'stone' (the save's old name); the
+// Mods are CIRCUIT_GLYPHS. The words are here; every number is in
+// T.circuits.
 // ---------------------------------------------------------------------------
 
-// The parts, in words. range: how far it works, for the readout.
+// The parts, in words: abbr for the buttons and tiles, text for the card's
+// one short line.
 const CIRCUIT_FORMS = {
-  arc: { name: 'Arc', abbr: 'ARC', range: 'close', text: () => 'a sweep of light in front of you. Tap, tap, tap: the third is heavy and staggers. Held, it bursts into a Nova' },
-  glaive: { name: 'Glaive', abbr: 'GLV', range: 'close', text: () => `two blades of light circle you for ${T.circuits.forms.glaive.time} s, cutting what they touch` },
-  bolt: { name: 'Bolt', abbr: 'BLT', range: 'mid', text: () => 'a fast bolt at the nearest foe' },
-  lance: { name: 'Lance', abbr: 'LNC', range: 'far', text: () => `a long lance that pierces a line, up to ${T.circuits.forms.lance.pierce + 1} foes` },
-  orb: { name: 'Orb', abbr: 'ORB', range: 'mid', text: () => 'a slow orb that drifts at the aim, pulsing damage round itself' },
-  nova: { name: 'Nova', abbr: 'NOV', range: 'area', text: () => 'a burst all round you' },
-  well: { name: 'Well', abbr: 'WEL', range: 'area', text: () => 'a knot of gravity at the aim that drags foes in and stuns them' },
-  ward: { name: 'Ward', abbr: 'WRD', range: 'guard', text: () => `a shield that soaks damage for ${T.circuits.forms.ward.time} s; its element hurts what strikes it` },
+  arc: { name: 'Arc', abbr: 'ARC', text: () => 'a sweep in front; the third hit staggers; held, a Nova' },
+  glaive: { name: 'Glaive', abbr: 'GLV', text: () => `two blades circle you for ${T.circuits.forms.glaive.time} s` },
+  bolt: { name: 'Bolt', abbr: 'BLT', text: () => 'a fast bolt at the nearest foe' },
+  lance: { name: 'Lance', abbr: 'LNC', text: () => `pierces a line of ${T.circuits.forms.lance.pierce + 1}` },
+  orb: { name: 'Orb', abbr: 'ORB', text: () => 'a slow orb that pulses as it drifts' },
+  nova: { name: 'Nova', abbr: 'NOV', text: () => 'a burst all round you' },
+  well: { name: 'Well', abbr: 'WEL', text: () => 'drags foes in and stuns them' },
+  ward: { name: 'Ward', abbr: 'WRD', text: () => `a shield for ${T.circuits.forms.ward.time} s that hurts what hits it` },
 };
 const CIRCUIT_ELEMENTS = {
-  force: { name: 'Force', abbr: 'FRC', status: 'knocks foes back, and heavy hits stagger; a second heavy hit stuns' },
-  shock: { name: 'Shock', abbr: 'SHK', status: 'hits can arc to the next foe, and five overload it' },
-  frost: { name: 'Frost', abbr: 'FRO', status: 'chills, and three chills freeze solid' },
-  ember: { name: 'Ember', abbr: 'EMB', status: 'sets foes burning, and burns stack and spread' },
-  blight: { name: 'Blight', abbr: 'BLG', status: 'poisons, and poison on the poisoned spreads' },
+  force: { name: 'Force', abbr: 'FRC', status: 'knocks back; two heavy hits stun' },
+  shock: { name: 'Shock', abbr: 'SHK', status: 'arcs to the next foe; five overload' },
+  frost: { name: 'Frost', abbr: 'FRO', status: 'chills; three freeze solid' },
+  ember: { name: 'Ember', abbr: 'EMB', status: 'burns, and burns spread' },
+  blight: { name: 'Blight', abbr: 'BLG', status: 'poisons, and poison spreads' },
 };
-// forms: the Forms it changes (all, if none are named).
+// The Mods. forms: the Forms it changes (all, if none are named).
 const CIRCUIT_GLYPHS = {
-  split: { name: 'Split', abbr: 'SPL', text: () => `three at once, each at ${Math.round(T.circuits.glyphs.split.mult * 100)}%` },
-  amplify: { name: 'Amplify', abbr: 'AMP', text: () => `${Math.round((T.circuits.glyphs.amplify.area - 1) * 100)}% wider and ${Math.round((T.circuits.glyphs.amplify.dmg - 1) * 100)}% harder` },
-  quicken: { name: 'Quicken', abbr: 'QCK', text: () => 'a third cheaper, and faster to cast' },
-  chain: { name: 'Chain', abbr: 'CHN', text: () => `each hit leaps to ${T.circuits.glyphs.chain.jumps} more foes`, forms: ['arc', 'glaive', 'bolt', 'lance', 'orb', 'nova', 'well'] },
-  echo: { name: 'Echo', abbr: 'ECH', text: () => `casts again ${T.circuits.glyphs.echo.delay} s later at ${Math.round(T.circuits.glyphs.echo.mult * 100)}%` },
+  split: { name: 'Split', abbr: 'SPL', text: () => `three at once, each ${Math.round(T.circuits.glyphs.split.mult * 100)}%` },
+  amplify: { name: 'Amplify', abbr: 'AMP', text: () => `${Math.round((T.circuits.glyphs.amplify.area - 1) * 100)}% wider, ${Math.round((T.circuits.glyphs.amplify.dmg - 1) * 100)}% harder` },
+  quicken: { name: 'Quicken', abbr: 'QCK', text: () => 'a third cheaper and quicker' },
+  chain: { name: 'Chain', abbr: 'CHN', text: () => `hits leap to ${T.circuits.glyphs.chain.jumps} more`, forms: ['arc', 'glaive', 'bolt', 'lance', 'orb', 'nova', 'well'] },
+  echo: { name: 'Echo', abbr: 'ECH', text: () => `casts again at ${Math.round(T.circuits.glyphs.echo.mult * 100)}%` },
   pierce: { name: 'Pierce', abbr: 'PRC', text: () => `passes through ${T.circuits.glyphs.pierce.more} more`, forms: ['bolt', 'lance'] },
-  linger: { name: 'Linger', abbr: 'LNG', text: () => `leaves a field of its element where it ends, for ${T.circuits.glyphs.linger.time} s` },
-  trigger: { name: 'Trigger', abbr: 'TRG', text: () => 'the next Form fires from where this one hits or ends' },
+  linger: { name: 'Linger', abbr: 'LNG', text: () => `leaves a field for ${T.circuits.glyphs.linger.time} s` },
 };
-const STONE_KIND_NAMES = { form: 'Form', element: 'Element', glyph: 'Glyph' };
+// What each kind of core is called.
+const STONE_KIND_NAMES = { form: 'Form', element: 'Element', glyph: 'Mod' };
 // Which two elements react, and as what (reactions.js does it).
 const REACT_PAIRS = { 'force|frost': 'shatter', 'frost|shock': 'conduct', 'ember|frost': 'steam', 'blight|frost': 'brittle', 'blight|ember': 'pyre', 'ember|shock': 'flare', 'ember|force': 'scatter', 'force|shock': 'jolt' };
 const reactPair = (a, b) => REACT_PAIRS[a < b ? a + '|' + b : b + '|' + a] || null;
-// What a pair of elements on one Form sets off, in a word (the readout).
-function reactPairName(els) { const r = els.length > 1 && reactPair(els[0], els[1]); return r ? capFirst(r) : null; }
 
-// Resonances: exact circuits that wake into named spells (resonance.js).
-// One must fill its caster exactly.
+// Resonances: named spells (resonance.js). A spell wakes one when its cores
+// hold all of the resonance's parts (a Form, an Element and one or two
+// Mods), in any order; a four-part one needs a frame with two Mod slots.
 const RESONANCES = [
-  { id: 'thunderhead', name: 'Thunderhead', seq: ['orb', 'shock', 'linger'], text: 'the orb stops overhead and becomes a stormcloud, striking the nearest foe below until it fades' },
-  { id: 'shatterglass', name: 'Shatterglass', seq: ['lance', 'frost', 'echo'], text: 'the echo lance shatters everything chilled along its line for double, flinging shards out to either side' },
-  { id: 'kindling', name: 'Kindling Arc', seq: ['arc', 'ember', 'quicken'], text: 'every third arc sets the ground in front of you alight in a crescent' },
-  { id: 'wildfire', name: 'Wildfire', seq: ['orb', 'ember', 'split', 'linger'], text: 'three orbs leave burning trails; plants catch, and the fire runs through them' },
-  { id: 'stormglaive', name: 'Stormglaive', seq: ['glaive', 'shock', 'chain', 'amplify'], text: 'the orbiting blades arc lightning to every foe within reach' },
-  { id: 'starfall', name: 'Starfall', seq: ['bolt', 'force', 'split', 'trigger', 'nova'], text: 'three bolts arc high and meet as a falling star: a crater, a stun, a ring of light' },
+  { id: 'thunderhead', name: 'Thunderhead', parts: ['orb', 'shock', 'linger'], text: 'the orb stops overhead as a stormcloud, striking the foe below' },
+  { id: 'shatterglass', name: 'Shatterglass', parts: ['lance', 'frost', 'echo'], text: 'the echo lance shatters the chilled for double' },
+  { id: 'kindling', name: 'Kindling Arc', parts: ['arc', 'ember', 'quicken'], text: 'every third arc lights the ground in a crescent' },
+  { id: 'wildfire', name: 'Wildfire', parts: ['orb', 'ember', 'split', 'linger'], text: 'three orbs leave burning trails' },
+  { id: 'stormglaive', name: 'Stormglaive', parts: ['glaive', 'shock', 'chain', 'amplify'], text: 'the blades arc lightning to every foe near' },
+  { id: 'starfall', name: 'Starfall', parts: ['bolt', 'force', 'split', 'amplify'], text: 'three bolts meet as a falling star that stuns' },
 ];
 
 const stoneKind = (id) => (CIRCUIT_FORMS[id] ? 'form' : CIRCUIT_ELEMENTS[id] ? 'element' : CIRCUIT_GLYPHS[id] ? 'glyph' : null);
@@ -81,21 +76,21 @@ const stoneWords = (id) => CIRCUIT_FORMS[id] || CIRCUIT_ELEMENTS[id] || CIRCUIT_
 const isCaster = (it) => !!it && it.kind === 'caster';
 const capFirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-// What a stone does, in a line (its card, the forge).
+// What a core does, in a short line (its card, the forge).
 function stoneLine(id) {
   const k = stoneKind(id);
-  if (k === 'form') return `${capFirst(CIRCUIT_FORMS[id].text())}. A Form starts a spell.`;
-  if (k === 'element') return `${CIRCUIT_ELEMENTS[id].name} damage: ${CIRCUIT_ELEMENTS[id].status}. Put it after a Form.`;
-  if (k === 'glyph') return `${capFirst(CIRCUIT_GLYPHS[id].text())}. It changes the Form to its left.`;
+  if (k === 'form') return capFirst(CIRCUIT_FORMS[id].text()) + '.';
+  if (k === 'element') return `${CIRCUIT_ELEMENTS[id].name}: ${CIRCUIT_ELEMENTS[id].status}.`;
+  if (k === 'glyph') return capFirst(CIRCUIT_GLYPHS[id].text()) + '.';
   return '';
 }
 
-// A stone's colour on the screens (its tile's rim): its own (ART.stones).
+// A core's colour on the screens (its tile's rim): its own (ART.stones).
 function stoneTint(id) {
   const k = stoneKind(id), S = ART.stones[k === 'element' ? id : k];
-  return S ? (k === 'form' ? ART.stones.formRim : S.body[3]) : ART.glyphTeal;
+  return k === 'form' ? ART.stones.formRim : k === 'element' && S ? S.body[3] : ART.glyphTeal;
 }
-// A stone's colour in play: an Element's own, a Form's, or a Glyph's teal.
+// A core's colour in play: an Element's own, a Form's, or a Mod's teal.
 function stoneCol(id) {
   const k = stoneKind(id);
   if (k === 'element') return id === 'force' ? ELEMENT_COLS.force : ELEMENT_COLS[id];
@@ -104,188 +99,163 @@ function stoneCol(id) {
 }
 
 // ---------------------------------------------------------------------------
-// Reading a circuit
+// The rig's spells
 // ---------------------------------------------------------------------------
-
-// The groups a row of slots makes: { form, tier, els, glyphs: { id: count },
-// stones, triggered (set off by the one before), next (the one it sets
-// off) }, and what does nothing: loose (stones before the first Form, a
-// third Element or the same one twice) and dangling (a Trigger with no Form
-// after it). links: the caster's linked pairs (each the first slot of one);
-// a Glyph in a linked slot counts twice.
-function parseCircuit(slots, links) {
-  const groups = [], loose = [];
-  let g = null, link = false;
-  (slots || []).forEach((s, si) => {
-    if (!s) return;
-    const id = s.stone, k = stoneKind(id);
-    if (k === 'form') {
-      const ng = { form: id, tier: s.tier, els: [], glyphs: {}, stones: [s], triggered: link, next: null };
-      if (link && g) g.next = ng;
-      groups.push(ng); g = ng; link = false;
-    } else if (!g || !k) loose.push(s);
-    else if (k === 'element') { if (g.els.length < 2 && !g.els.includes(id)) { g.els.push(id); g.stones.push(s); } else loose.push(s); }
-    else {
-      if (id === 'trigger' && !g.glyphs.trigger) link = true;
-      g.glyphs[id] = (g.glyphs[id] || 0) + (slotLinked(links, si) && id !== 'trigger' ? 2 : 1);
-      g.stones.push(s);
-    }
-  });
-  return { groups, loose, dangling: link };
+// A spell: { form, el, mods: [core | null, ...] }, each core an item
+// { kind: 'stone', stone, tier } or null.
+function emptySpell(mods) { return { form: null, el: null, mods: new Array(mods).fill(null) }; }
+// How many Mod slots a spell of a frame has: one, and a second from a frame
+// of T.circuits.rig.mod2Tier or better, a masterwork, or a Lodestone shard.
+function rigModSlots(tier, q, shard) {
+  const R = T.circuits.rig;
+  return R.mods + (tier >= R.mod2Tier || q >= 3 || shard ? 1 : 0);
 }
-// Whether slot i is one of a linked pair.
-function slotLinked(links, i) { return !!links && links.some((a) => a === i || a + 1 === i); }
+// A rig's spell i (0 or 1), or null.
+const rigSpell = (it, i) => (it && it.spells && it.spells[i]) || null;
+// A spell's cores, in a list (no empty ones).
+const spellCores = (sp) => (sp ? [sp.form, sp.el].concat(sp.mods || []).filter(Boolean) : []);
+// Where a core goes in a spell: 'form', 'el' or 'm0', 'm1'.
+const spellPartOf = (id) => (stoneKind(id) === 'form' ? 'form' : stoneKind(id) === 'element' ? 'el' : 'm');
+function spellGet(sp, key) { return key[0] === 'm' ? sp.mods[Number(key.slice(1))] || null : sp[key] || null; }
+function spellSet(sp, key, core) { if (key[0] === 'm') sp.mods[Number(key.slice(1))] = core; else sp[key] = core; }
+// The kind of core a part of a spell takes.
+const spellPartKind = (key) => (key === 'form' ? 'form' : key === 'el' ? 'element' : 'glyph');
 
-// The resonance a full circuit makes, if any.
-function circuitResonance(slots) {
-  if (!slots || slots.some((s) => !s)) return null;
-  const ids = slots.map((s) => s.stone);
-  return RESONANCES.find((r) => r.seq.length === ids.length && r.seq.every((x, i) => x === ids[i])) || null;
+// What a spell fires as: { form, tier, els, glyphs: { id: count }, stones },
+// or null with no Form.
+function spellGroup(sp) {
+  if (!sp || !sp.form) return null;
+  const g = { form: sp.form.stone, tier: sp.form.tier, els: sp.el ? [sp.el.stone] : [], glyphs: {}, stones: [sp.form] };
+  if (sp.el) g.stones.push(sp.el);
+  for (const m of sp.mods || []) if (m) { g.glyphs[m.stone] = (g.glyphs[m.stone] || 0) + 1; g.stones.push(m); }
+  return g;
 }
 
-const casterBase = (it) => T.circuits.bases[((it && bpOf(it)) || {}).style] || T.circuits.bases.wand;
+// The resonance a spell wakes, if any: the largest whose parts its cores
+// all hold.
+function spellResonance(sp) {
+  if (!sp || !sp.form) return null;
+  const mods = (sp.mods || []).filter(Boolean).map((m) => m.stone);
+  let best = null;
+  for (const r of RESONANCES) {
+    if (r.parts[0] !== sp.form.stone || r.parts[1] !== (sp.el ? sp.el.stone : null)) continue;
+    const left = mods.slice();
+    if (!r.parts.slice(2).every((id) => { const i = left.indexOf(id); if (i < 0) return false; left.splice(i, 1); return true; })) continue;
+    if (!best || r.parts.length > best.parts.length) best = r;
+  }
+  return best;
+}
+
+// A spell in words: "BOLT · SHOCK · CHAIN" (empty parts left out; none at
+// all: "EMPTY").
+function spellName(sp) {
+  const w = spellCores(sp).map((c) => stoneWords(c.stone).name.toUpperCase());
+  return w.length ? w.join(' · ') : 'EMPTY';
+}
+
+const rigBase = () => T.circuits.rig;
 
 // ---------------------------------------------------------------------------
 // Ore affinity
 // ---------------------------------------------------------------------------
-// A caster's ore: the one it's named for (its tier's), or null (the fist).
+// A frame's ore: the one it's named for (its tier's), or null (the fist).
 function casterOre(it) { return it && !it.fist && it.tier >= 1 ? oreOfTier(it.tier).id : null; }
 // Its ore's way (T.circuits.ores), or {}.
 const casterOreWay = (it) => (casterOre(it) && T.circuits.ores[casterOre(it)]) || {};
 // The element its ore favours, or null.
 const casterAffinity = (it) => casterOreWay(it).el || null;
-// Which of a spell's elements its caster is attuned to.
+// Which of a spell's elements its frame is attuned to.
 function attunedEls(it, els) { const a = casterAffinity(it); return a && els.includes(a) ? [a] : []; }
-// How much harder a spell of these elements hits from this caster: the
-// attuned share of its elements, at T.circuits.attuned.dmg.
+// How much harder a spell of these elements hits from this frame.
 function affinityMult(it, els) { return 1 + (T.circuits.attuned.dmg * attunedEls(it, els).length) / Math.max(1, els.length); }
-// How much stronger its glyphs are (sigilite's way).
-const glyphPow = (it) => 1 + (casterOreWay(it).glyphs || 0);
-// A glyph's number made stronger: what it adds or takes is k × as much.
-const glyphMore = (v, k) => 1 + (v - 1) * k;
+// A frame's ore, in a short line ("Attuned: Shock"), or ''.
+function rigOreLine(it) {
+  const way = casterOreWay(it);
+  if (way.el) return `Attuned: ${CIRCUIT_ELEMENTS[way.el].name}`;
+  if (way.resonance) return `Resonances +${Math.round(way.resonance * 100)}%`;
+  return '';
+}
 
-// A group's charge: its Form's cost (less a gauntlet's 1 for a close Form,
-// and ferrite's for a Glaive), times each of its glyphs', at least 1.
-function groupCost(g, B, way = {}) {
-  const F = T.circuits.forms[g.form];
-  let c = F.cost - (F.close && B.closeCost ? B.closeCost : 0) - (g.form === 'glaive' && way.glaive ? way.glaive : 0);
+// A spell's charge: its Form's cost times each of its Mods', at least 1.
+function groupCost(g) {
+  let c = T.circuits.forms[g.form].cost;
   for (const id in g.glyphs) c *= Math.pow(T.circuits.glyphs[id].cost, g.glyphs[id]);
   return Math.max(1, c);
 }
-// What a press of the caster costs, in charge, to a tenth.
-function circuitCost(it, P = parseCircuit(it.slots, it.links)) {
-  if (!P.groups.length) return T.circuits.spark.cost;
-  const B = casterBase(it), way = casterOreWay(it);
-  return Math.round(P.groups.reduce((n, g) => n + groupCost(g, B, way), 0) * 10) / 10;
+// What a press of a spell costs, in charge, to a tenth.
+function spellCost(sp) {
+  const g = spellGroup(sp);
+  return g ? Math.round(groupCost(g) * 10) / 10 : T.circuits.spark.cost;
 }
-// How long the hand waits after a press: its slowest group's wait (an
-// Arc's by its place in the combo), by Quicken, the base and lumenite.
-function handWait(it, P, step) {
-  const C = T.circuits, B = casterBase(it), q = glyphMore(C.glyphs.quicken.cd, glyphPow(it)), fast = 1 + (casterOreWay(it).cast || 0);
-  if (!P.groups.length) return (C.spark.cd * B.cd) / fast;
-  let w = 0;
-  for (const g of P.groups) {
-    if (g.triggered) continue;
-    const F = C.forms[g.form], cd = g.form === 'arc' ? F.combo[step % F.combo.length][1] : F.cd;
-    w = Math.max(w, cd * Math.pow(q, g.glyphs.quicken || 0));
-  }
-  return (w * B.cd) / fast;
+// How long a spell waits after a press (an Arc's by its place in the
+// combo), by Quicken and the frame.
+function spellWait(g, step) {
+  const C = T.circuits, R = rigBase();
+  if (!g) return C.spark.cd * R.cd;
+  const F = C.forms[g.form], cd = g.form === 'arc' ? F.combo[step % F.combo.length][1] : F.cd;
+  return cd * Math.pow(C.glyphs.quicken.cd, g.glyphs.quicken || 0) * R.cd;
 }
-// How much harder a group hits for its stones' tiers.
+// How much harder a spell hits for its cores' tiers.
 function stonePower(g) {
   const C = T.circuits;
   let m = 1 + C.stoneGrowth * (g.tier - 1);
   for (const s of g.stones.slice(1)) m *= 1 + C.otherGrowth * (s.tier - 1);
   return m;
 }
-// A group's colour: its first Element's, else its Form's.
+// A spell's colour: its Element's, else its Form's.
 const groupCol = (g) => (g.els[0] ? stoneCol(g.els[0]) : ART.forms[g.form]);
-// A caster's colour as it casts: its first Form's group's.
-function circuitCol(it) {
-  const P = parseCircuit(it && it.slots, it && it.links);
-  return P.groups.length ? groupCol(P.groups[0]) : ART.forms.bolt;
-}
-// The first Form in a caster's circuit, for its hand's button.
-function firstForm(it) { const P = parseCircuit(it && it.slots, it && it.links); return P.groups.length ? P.groups[0].form : null; }
+function spellCol(sp) { const g = spellGroup(sp); return g ? groupCol(g) : ART.forms.bolt; }
+// A spell's Form, for its button.
+function spellForm(sp) { return sp && sp.form ? sp.form.stone : null; }
 
-// What a circuit does, in plain words: { lines: [{ text, warn }], cost,
-// held }. lines are sentences; cost and held are charge.
-function circuitReadout(it) {
-  const C = T.circuits, P = parseCircuit(it.slots, it.links), B = casterBase(it), lines = [], ore = casterOre(it), way = casterOreWay(it);
-  const oreName = ore ? T.ores[ORE_INDEX[ore]].name : '';
-  const els = (g) => (g.els.length ? g.els : ['force']);
-  if (it.slots.some(Boolean) && (!it.slots[0] || stoneKind(it.slots[0].stone) !== 'form') && P.groups.length) lines.push({ text: 'A circuit starts with a Form: what comes before the first one does nothing.', warn: true });
-  P.groups.forEach((g, i) => {
-    const F = C.forms[g.form], W = CIRCUIT_FORMS[g.form], E = els(g);
-    let t = (g.triggered ? 'Then, from where it hits or ends: ' : i ? 'Together with it: ' : '') + `${W.name}, ${W.text()}. `;
-    t += `It deals ${E.map((e) => CIRCUIT_ELEMENTS[e].name).join(' and ')} damage${E.length > 1 ? ', split between them' : ''}: ${E.map((e) => CIRCUIT_ELEMENTS[e].status).join('; ')}.`;
-    const fx = [], idle = [];
-    for (const id in g.glyphs) {
-      const G = CIRCUIT_GLYPHS[id], n = g.glyphs[id];
-      if (id === 'trigger') continue;
-      if (G.forms && !G.forms.includes(g.form)) { idle.push(G.name); continue; }
-      fx.push(`${G.name}${n > 1 ? ` ×${n}` : ''}: ${G.text()}`);
-    }
-    if (fx.length) t += ' ' + fx.map((x) => x + '.').join(' ');
-    if (idle.length) t += ` ${idle.join(' and ')} does nothing for a${/^[AEIOU]/.test(W.name) ? 'n' : ''} ${W.name}.`;
-    if (F.close) t += ` Close: each foe it hits gives back ${F.refund} charge (${F.refundMost} at most a cast).`;
-    const pair = reactPairName(E);
-    if (pair) t += ` Its two elements react on their own: ${pair}.`;
-    const att = attunedEls(it, E);
-    if (att.length) t += ` Attuned to its ${oreName}: ${CIRCUIT_ELEMENTS[att[0]].name} hits ${Math.round(C.attuned.dmg * 100)}% harder${E.length > 1 ? ' (its share)' : ''}, and its status lasts longer.`;
-    lines.push({ text: t });
-  });
-  // the ore's own way, and linked slots
-  if (ore) {
-    const own = [];
-    if (way.el) own.push(`attuned to ${CIRCUIT_ELEMENTS[way.el].name}`);
-    if (way.glaive) own.push(`Glaives cost ${way.glaive} less`);
-    if (way.cast) own.push(`casts ${Math.round(way.cast * 100)}% faster`);
-    if (way.resonance) own.push(`resonances ${Math.round(way.resonance * 100)}% stronger`);
-    if (way.lance) own.push(`Lances reach ${Math.round((way.lance - 1) * 100)}% further`);
-    if (way.glyphs) own.push(`Glyphs ${Math.round(way.glyphs * 100)}% stronger`);
-    if (way.slots) own.push(`${way.slots} more slot than its base`);
-    if (own.length) lines.push({ text: `${oreName}: ${own.join('; ')}.`, ore: true });
-  }
-  for (const a of it.links || []) lines.push({ text: `Slots ${a + 1} and ${a + 2} are linked: a Glyph in either counts twice.`, link: true });
-  if (P.dangling) lines.push({ text: 'The Trigger at the end has nothing to set off: put a Form after it.', warn: true });
-  if (P.loose.length && P.groups.length) lines.push({ text: `Doing nothing: ${P.loose.map((s) => stoneWords(s.stone).name).join(', ')}.`, warn: true });
-  if (!P.groups.length) lines.push({ text: it.slots.some(Boolean) ? 'No Form, so nothing to shape it: it casts a weak spark.' : 'Empty: it casts a weak spark. Put a Form in the first slot.', warn: true });
-  const cost = circuitCost(it, P);
-  return { lines, cost, held: Math.round(cost * C.chargedCost * 10) / 10, close: P.groups.some((g) => C.forms[g.form].close) };
+// A spell's one short line for its card: its cost, then what's worth
+// knowing: a resonance, a Mod that does nothing, the attuned element.
+// { text, warn, res }.
+function spellLine(it, sp) {
+  const g = spellGroup(sp), cost = spellCost(sp);
+  if (!g) return { text: spellCores(sp).length ? 'No Form: a weak spark' : 'Empty: a weak spark', warn: true };
+  const res = spellResonance(sp), bits = [`${cost} charge`];
+  const idle = Object.keys(g.glyphs).filter((id) => CIRCUIT_GLYPHS[id].forms && !CIRCUIT_GLYPHS[id].forms.includes(g.form));
+  if (res) bits.push(`✦ ${res.name}`);
+  else if (idle.length) return { text: `${bits[0]} · ${idle.map((id) => CIRCUIT_GLYPHS[id].name).join(', ')} does nothing here`, warn: true };
+  else if (attunedEls(it, g.els.length ? g.els : ['force']).length) bits.push('attuned');
+  return { text: bits.join(' · '), res };
 }
 
 // ---------------------------------------------------------------------------
 // Casting
 // ---------------------------------------------------------------------------
 
-// What an empty main hand casts: a free Arc at the fist's power.
-function fistCaster() { return { kind: 'caster', bp: 'gauntlet', base: { power: T.hands.fist }, slots: [{ stone: 'arc', tier: 1 }], affixes: [], fist: true }; }
+// What casts with no rig worn: a free Arc at the fist's power (spell A).
+function fistCaster() { const sp = emptySpell(1); sp.form = { kind: 'stone', stone: 'arc', tier: 1 }; return { kind: 'caster', bp: 'rig', base: { power: T.hands.fist }, spells: [sp, emptySpell(1)], sockets: [], affixes: [], fist: true }; }
 
-// A press (or a release, charged) of a hand's button: its whole circuit.
+// A press (or a release, charged) of a spell's button: slot 'main' casts
+// spell A from the right wrist, 'off' spell B from the left.
 function castHand(slot, item, h, charged) {
-  const d = Game.dive, p = d.p, C = T.circuits, it = item || fistCaster(), B = casterBase(it);
-  const style = (bpOf(it) || {}).style || 'wand', P = parseCircuit(it.slots, it.links), res = circuitResonance(it.slots);
-  let cost = it.fist ? 0 : circuitCost(it, P);
+  const d = Game.dive, p = d.p, C = T.circuits, it = item || fistCaster(), R = rigBase();
+  const sp = rigSpell(it, slot === 'off' ? 1 : 0), g = spellGroup(sp), res = spellResonance(sp);
+  let cost = it.fist ? 0 : spellCost(sp);
   if (charged) cost *= C.chargedCost;
   if (p.charge < cost) { p.lowCharge = 0.4; snd('noCharge'); return false; }
   p.charge -= cost;
+  // (counted, for the first landing's walkthrough: onboard.js)
+  const cn = d.casts || (d.casts = {});
+  cn[slot] = (cn[slot] || 0) + 1;
   // an Arc's combo: a press soon after the last carries it on
-  const arc = P.groups.some((g) => !g.triggered && g.form === 'arc');
+  const arc = !!g && g.form === 'arc';
   h.step = arc && !charged && h.comboT > 0 ? (h.step + 1) % C.forms.arc.combo.length : 0;
-  h.cd = handWait(it, P, h.step) / (1 + d.stats.castSpeed / 100);
+  h.cd = spellWait(g, h.step) / (1 + d.stats.castSpeed / 100);
   h.comboT = arc && !charged ? T.hands.comboWindow + h.cd : 0;
-  d.castRange = B.aim;
-  const first = P.groups.filter((g) => !g.triggered);
-  castFxStart(d, it, slot, style, charged, first.length ? first.map((g) => (charged && g.form === 'arc' ? 'nova' : g.form)) : ['spark']);
-  snd('cast', { form: first.length ? (charged && first[0].form === 'arc' ? 'nova' : first[0].form) : 'spark', els: first.length ? first[0].els : null, charged, step: h.step, res: !!res });
-  const cx = { item: it, power: it.base.power, style, charged, step: h.step, from: null, aim: null, mult: res ? resonanceMult(it) : 1, spread: 0, echo: false, res: res ? res.id : null };
+  d.castRange = R.aim;
+  const form = g ? (charged && g.form === 'arc' ? 'nova' : g.form) : 'spark';
+  castFxStart(d, it, slot, charged, [form], g ? groupCol(g) : ART.forms.bolt);
+  snd('cast', { form, els: g ? g.els : null, charged, step: h.step, res: !!res });
+  const cx = { item: it, power: it.base.power, charged, step: h.step, from: null, aim: null, mult: res ? resonanceMult(it) : 1, spread: 0, echo: false, res: res ? res.id : null };
   if (res) resonanceCast(res, d);
   // the Twice-Told: everything again, fanned a little
-  for (let k = 0; k < (it.power === 'echo' || casterHasPower(it, 'echo') ? 2 : 1); k++) {
+  for (let k = 0; k < (casterHasPower(it, 'echo') ? 2 : 1); k++) {
     const c = k ? Object.assign({}, cx, { spread: 0.25 }) : cx;
-    if (!first.length) fireSpark(c);
-    for (const g of first) fireGroup(g, c);
+    if (!g) fireSpark(c); else fireGroup(g, c);
   }
   return true;
 }
@@ -300,25 +270,23 @@ function circuitAim(from, range, exclude, aim) {
   return { target: null, a: aim !== null && aim !== undefined ? aim : Math.atan2(p.fy, p.fx) };
 }
 
-// A group's state as it fires: { g, cx, form, F, refund, refundLeft, close,
-// els, att (its attuned elements), dmg, col, area, chain, linger, gk (its
-// glyphs' strength) }.
+// A spell's state as it fires: { g, cx, form, F, refund, refundLeft, close,
+// els, att (its attuned elements), dmg, col, area, chain, linger }.
 function circuitGroupState(g, cx) {
-  const d = Game.dive, C = T.circuits, Gl = C.glyphs, n = (id) => g.glyphs[id] || 0, st = d.stats, B = C.bases[cx.style] || C.bases.wand, gk = glyphPow(cx.item);
+  const d = Game.dive, C = T.circuits, Gl = C.glyphs, n = (id) => g.glyphs[id] || 0, st = d.stats, R = rigBase();
   // a held Arc bursts into a Nova (from the diver)
   const form = cx.charged && g.form === 'arc' && !cx.from ? 'nova' : g.form;
   const F = C.forms[g.form], close = !!F.close;
   const els = g.els.length ? g.els.slice() : ['force'];
-  let dmg = cx.power * F.mult * stonePower(g) * Math.pow(glyphMore(Gl.amplify.dmg, gk), n('amplify')) * cx.mult * (1 + st.spellDmg / 100 + (close ? st.closeDmg / 100 : 0)) * affinityMult(cx.item, els);
+  let dmg = cx.power * F.mult * stonePower(g) * Math.pow(Gl.amplify.dmg, n('amplify')) * cx.mult * (1 + st.spellDmg / 100 + (close ? st.closeDmg / 100 : 0)) * affinityMult(cx.item, els);
   if (cx.charged) dmg *= g.form === 'arc' ? F.heldMult : C.chargedMult;
-  return { g, cx, form, F: C.forms[form], refund: F.refund || 0, refundLeft: close ? F.refundMost : 0, close, els, att: attunedEls(cx.item, els), dmg, col: groupCol(g), area: B.area * Math.pow(glyphMore(Gl.amplify.area, gk), n('amplify')), chain: n('chain'), linger: n('linger'), gk };
+  return { g, cx, form, F: C.forms[form], refund: F.refund || 0, refundLeft: close ? F.refundMost : 0, close, els, att: attunedEls(cx.item, els), dmg, col: groupCol(g), area: R.area * Math.pow(Gl.amplify.area, n('amplify')), chain: n('chain'), linger: n('linger') };
 }
 
-// A group fires: each Split of it, an Echo later, and what it triggers.
-// cx: { item, power, style, charged, step (an Arc's), from (a point it
-// fires from, or null for the diver), aim, mult, spread, echo (this is an
-// echo's recast), exclude (a foe not to aim at first), res (the caster's
-// resonance) }.
+// A spell fires: each Split of it, and an Echo later. cx: { item, power,
+// charged, step (an Arc's), from (a point it fires from, or null for the
+// diver), aim, mult, spread, echo (this is an echo's recast), exclude (a
+// foe not to aim at first), res (the spell's resonance) }.
 function fireGroup(g, cx) {
   const d = Game.dive;
   if (!d) return;
@@ -326,7 +294,7 @@ function fireGroup(g, cx) {
   const s = circuitGroupState(g, cx), form = s.form;
   // a resonance may fire it its own way (resonance.js)
   if (cx.res && resonanceFire(s)) return;
-  const split = n('split'), k = split ? 1 + 2 * split : 1, mult = split ? Gl.split.mult * s.gk : 1;
+  const split = n('split'), k = split ? 1 + 2 * split : 1, mult = split ? Gl.split.mult : 1;
   if (form === 'glaive') castGlaive(s, k, mult);
   else if (form === 'ward') castWard(s, k * mult);
   else for (let i = 0; i < k; i++) {
@@ -338,33 +306,22 @@ function fireGroup(g, cx) {
     else castShot(s, off, mult, inst);
   }
   if (n('echo') && !cx.echo) {
-    for (let e = 1; e <= n('echo'); e++) d.later.push({ t: Gl.echo.delay * e, fn: () => { if (!cx.from) castFxEcho(d); fireGroup(g, Object.assign({}, cx, { mult: cx.mult * Gl.echo.mult * s.gk, echo: true })); } });
+    for (let e = 1; e <= n('echo'); e++) d.later.push({ t: Gl.echo.delay * e, fn: () => { if (!cx.from) castFxEcho(d); fireGroup(g, Object.assign({}, cx, { mult: cx.mult * Gl.echo.mult, echo: true })); } });
   }
 }
 
-// One shot of a group: when it first hits something, or ends, it sets off
-// the Form it triggers (once); where it ends, it leaves a Linger's field.
+// One shot of a spell: where it ends, it leaves a Linger's field.
 function circuitInstance(s, mult) {
-  const inst = {
-    fired: false,
-    hit(x, y, foe, a) {
-      if (inst.fired) return;
-      inst.fired = true;
-      const next = s.g.next;
-      if (next) fireGroup(next, Object.assign({}, s.cx, { from: { x, y }, aim: a, exclude: foe, mult: s.cx.mult * mult, echo: false, spread: 0 }));
-    },
-    end(x, y, a) {
-      inst.hit(x, y, null, a);
-      if (s.linger) lingerField(s, x, y, mult);
-    },
+  return {
+    hit() {},
+    end(x, y) { if (s.linger) lingerField(s, x, y, mult); },
   };
-  return inst;
 }
 
 // A Linger's field: the group's element on the ground, hurting what's in it.
 function lingerField(s, x, y, mult) {
   const Gl = T.circuits.glyphs.linger, t = Gl.time * s.linger;
-  Game.dive.puddles.push({ x, y, r: s.F.field * s.area, t, max: t, dps: s.dmg * mult * Gl.dps * s.gk, mine: true, els: s.els, att: s.att, col: s.col, every: Gl.every });
+  Game.dive.puddles.push({ x, y, r: s.F.field * s.area, t, max: t, dps: s.dmg * mult * Gl.dps, mine: true, els: s.els, att: s.att, col: s.col, every: Gl.every });
 }
 
 // A foe struck by a group: crits, its elements, knockback (more for Force),
@@ -389,7 +346,7 @@ function circuitLeap(s, from, dmg) {
     let next = null, bd = G.range * s.area;
     for (const o of d.enemies) { if (o.dead || o.hid || hit.includes(o)) continue; const m = dist(o.x, o.y, cur.x, cur.y); if (m < bd) { bd = m; next = o; } }
     if (!next) break;
-    k *= Math.min(1, G.falloff * (s.gk || 1));
+    k *= G.falloff;
     d.fx.push({ kind: 'arc', x: cur.x, y: cur.y - 5, x2: next.x, y2: next.y - 5, t: 0.18, max: 0.18, col: s.col });
     circuitHit(s, next, k, { noChain: true });
     hit.push(next); cur = next;
@@ -456,7 +413,7 @@ function castNova(s, i, k, mult, inst) {
 // then drags and grinds what's in it until it fades (circuitAuras).
 function castWell(s, off, mult, inst) {
   const d = Game.dive, p = d.p, cx = s.cx, F = s.F, r = F.radius * s.area;
-  const aim = circuitAim(cx.from, casterBase(cx.item).aim, cx.exclude, cx.aim), a = aim.a + off;
+  const aim = circuitAim(cx.from, rigBase().aim, cx.exclude, cx.aim), a = aim.a + off;
   let x, y;
   if (cx.from) { x = cx.from.x + Math.cos(a) * (off ? r * F.splitOut : 0); y = cx.from.y + Math.sin(a) * (off ? r * F.splitOut : 0); }
   else if (aim.target && !off) { x = aim.target.x; y = aim.target.y; }
@@ -485,8 +442,8 @@ function castGlaive(s, k, mult) {
 }
 
 // Ward: a shield that soaks damage for a while; what strikes it is struck
-// back with its element. When it breaks or fades, it sets off what it
-// triggers and leaves its Linger's field.
+// back with its element. When it breaks or fades, it leaves its Linger's
+// field.
 function castWard(s, k) {
   const d = Game.dive, p = d.p, cx = s.cx, F = s.F;
   p.ward = Math.max(p.ward, cx.power * F.soak * s.area * k * cx.mult * (cx.charged ? T.circuits.chargedMult : 1));
@@ -507,11 +464,11 @@ function wardGone(p) {
 // bigger and passes through more.
 function castShot(s, off, mult, inst) {
   const d = Game.dive, cx = s.cx, F = s.F, form = s.form, C = T.circuits;
-  const aim = circuitAim(cx.from, casterBase(cx.item).aim, cx.exclude, cx.aim), a = aim.a + off + cx.spread;
+  const aim = circuitAim(cx.from, rigBase().aim, cx.exclude, cx.aim), a = aim.a + off + cx.spread;
   const o = cx.from || d.p, big = cx.charged && form !== 'orb';
   const n = (id) => s.g.glyphs[id] || 0;
   d.bolts.push({
-    x: o.x, y: o.y - (cx.from ? 6 : 8), vx: Math.cos(a) * F.speed, vy: Math.sin(a) * F.speed, dmg: s.dmg * mult, kind: form, t: F.life * (form === 'lance' ? casterOreWay(cx.item).lance || 1 : 1),
+    x: o.x, y: o.y - (cx.from ? 6 : 8), vx: Math.cos(a) * F.speed, vy: Math.sin(a) * F.speed, dmg: s.dmg * mult, kind: form, t: F.life,
     // resonances: Wildfire's burning trail, Shatterglass's echo lance
     wild: cx.res === 'wildfire' && form === 'orb', trailD: 0, shatter: cx.res === 'shatterglass' && form === 'lance' && cx.echo,
     chain: form === 'bolt' ? (d.stats.powers.stormcaller ? 2 : 0) + n('chain') * C.glyphs.chain.jumps : 0,
@@ -521,10 +478,10 @@ function castShot(s, off, mult, inst) {
   });
 }
 
-// What a caster with no Form casts: a weak bolt.
+// What a spell with no Form casts: a weak bolt.
 function fireSpark(cx) {
   const d = Game.dive, S = T.circuits.spark;
-  const s = { g: { form: 'spark', els: [], glyphs: {}, next: null }, cx, form: 'spark', F: S, refund: 0, refundLeft: 0, els: ['force'], att: attunedEls(cx.item, ['force']), dmg: cx.power * S.mult * (cx.charged ? T.circuits.chargedMult : 1) * (1 + d.stats.spellDmg / 100), col: ART.forms.bolt, area: 1, chain: 0, linger: 0, gk: 1 };
+  const s = { g: { form: 'spark', els: [], glyphs: {} }, cx, form: 'spark', F: S, refund: 0, refundLeft: 0, els: ['force'], att: attunedEls(cx.item, ['force']), dmg: cx.power * S.mult * (cx.charged ? T.circuits.chargedMult : 1) * (1 + d.stats.spellDmg / 100), col: ART.forms.bolt, area: 1, chain: 0, linger: 0 };
   castShot(s, 0, 1, circuitInstance(s, 1));
 }
 

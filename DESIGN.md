@@ -52,9 +52,9 @@ The Lodestar is the seed-star the Charter sent down with you, planted in the mid
 - **Its light.** The star's light reaches the land next to the outpost, and every spire planted further out carries it on. Out in the dark, your own light drains; in kindled land and at home it fills again.
 - **The star grows from deeds, not ore.** What the Kindler does gives light, in motes carried home and fed to the star at its altar, a point each; the points raise the star's **magnitude**. Ore is for the forge and for supplies, never for the star.
   - **Heartlight:** kindling a territory, 12 in ring 1, 16 in ring 2, 24 in ring 3, 32 at the Edge. It's bound to the Kindler the moment the spire stands, safe from any fall.
-  - **Deeplight:** first reaching a Deep's end (its deep vein, or its Keeper's lair), 8 in ring 1 to 20 at the Edge and 4 more for each site past the first; each ancient forge found, 4; each echo, 8. It rides in the cargo and weighs nothing, so a fall leaves it in the pack and a recall can cost some: the push-your-luck stays.
+  - **Deeplight:** first reaching a Deep's end (its deep vein, or its Keeper's lair), 8 in ring 1 to 20 at the Edge and 4 more for each site past the first; each ancient forge found, 4; each echo, 8. It rides in the cargo, so a fall leaves it in the pack: the push-your-luck stays.
   - **Shards:** a Keeper's heart-shard, set at the altar, 40 at once.
-  - **Magnitudes** at 0, 12, 40, 100, 200, 340, 520 and 740 light: the first kindling reaches magnitude 2, about half of ring 1 magnitude 3. Each gives an attunement point, a Deep's lodelines a little likelier, a gentler emergency recall, and now and then another pocket slot; the tools open at 2 and 3.
+  - **Magnitudes** at 0, 12, 40, 100, 200, 340, 520 and 740 light: the first kindling reaches magnitude 2, about half of ring 1 magnitude 3. Each gives an attunement point and a Deep's lodelines a little likelier; the tools open at 2 and 3.
 - **The star is the world's gate.** A spire holds only where the star's light reaches: ring 1 from the start, ring 2 from magnitude 3, ring 3 from 5, the Edge from 7. You can walk anywhere, mine, fight and go down into Deeps, but not kindle past its reach. Kindling every territory of a ring and reaching its Keeper's lair always gives enough for the next ring's, so you're never stuck; with Deeps, echoes and the shard, about two thirds of a ring does it.
 - **The feeding is a ritual, not a shop.** At the altar, hold FEED THE STAR: mote after mote of light rises from the Kindler's hands, bows up over the altar's bowl and drops into the star, faster the longer you hold (from 2.5 a second to 22 within about 2 s). Deeplight goes first, a cold blue-white spark wound round by a fainter twin; heartlight last, a warm gold spark with a cross of light, the crescendo. The flow rests a beat between them. Let go and it stops. The star brightens as each lands and swells with a ring of light at each magnitude reached. The button says what's going and how much is left (GIVING HEARTLIGHT · 24).
   - **The star's screen** (ATTUNE, beside it at the altar): the magnitude and a bar with the light waiting, each kind of light, what grows it, its reach, and the attunements.
@@ -66,13 +66,13 @@ The Lodestar is the seed-star the Charter sent down with you, planted in the mid
 ## The loop
 
 1. **At the Lodestar:**
-   - forge bases (casters, plate, charms, picks), tools and the stones circuits are built from; the forge studies what's new and reveals recipes;
-   - socket modules and build circuits at the locker; work modules at the rune bench, and salvage what you don't need;
+   - forge bases (rig frames, plate, charms, picks), tools and the cores spells are built from; the forge studies what's new and reveals recipes;
+   - socket modules and build the rig's two spells at the locker; upgrade modules (at the locker or the tuning bench), and salvage what you don't need;
    - unseal relics, make supplies from old ore, feed the star the light your deeds earned, and spend attunements.
 2. **Set out:** walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to any spire, and the tool to carry (walking out carries the last one chosen).
 3. **Push into the dark:** cross from territory to territory. In dark land your light drains, the enemies are out, and the ore is worth taking.
-4. **Mine, fight, kindle:** work on a territory's heart goal, or just take what you can carry. Some territories have a Deep below, a short dungeon richer in ore.
-5. **Bank or fall:** bank at any spire (or walk home). If you fall, what you wear, your supplies and what's in your pocket are safe; the cargo stays where you fell, in your pack, to go back for once, and you wake at the last spire you touched.
+4. **Mine, fight, kindle:** work on a territory's heart goal, or just take what you can. There's no limit to what you carry. Some territories have a Deep below, a short dungeon richer in ore.
+5. **Bank or fall:** bank at any spire (or walk home, or recall). If you fall, what you wear and your supplies are safe; the whole cargo stays where you fell, in your pack, to go back for once, and you wake at the last spire you touched.
 
 ## The world
 
@@ -90,10 +90,10 @@ The world is rolled once for each save from its seed (world.js) and kept in the 
 - **Each territory has a fixed clime and a name** (a surface clime, leaning to its region's as the old sites did), a heart goal, and sometimes a Deep.
 - **Territories are site-sized surface maps,** built by the floor generator from the world's seed and the territory's id (`generateTerritory`), so climes, hazards, undergrowth and rifts all apply and it's the same map every visit. Each has an opening at its edge for each neighbour, on the side facing it. Walking into one plays the portal transition (no shake) and you arrive at the matching opening in the neighbour, with a gold or grey label saying where it goes. They have a cavern fewer than a site did but more veins in each, so dark land is worth mining.
 - **What persists:** a territory's state (dark, contested, kindled), its goal's progress, its tear sealed, and veins mined. Mined veins grow back after a few sorties in dark land; in kindled land they don't. Enemies come back each time you enter dark land. Kindled land is quiet: critters and now and then a straggler.
-- **Your light** (the old star's pull) drains in dark land over about 75 s and fills in kindled land and at home. Below half your lamp dims and the dark stirs more creatures every so often (one every 26 s in the Rim, two every 18 s in the Choir, two every 14 s beyond); at nothing the Hollow comes, in every dark territory you enter until it's back. Dark land is under a dim dusk; kindled land under daylight.
-- **Spires.** Each kindled territory has one at its heart: a standing lodestone obelisk with a gold beam, and the outpost has its own. At a spire, **BANK** (1.5 s standing still, like the old EXTRACT) puts the cargo and the pocket in the stash, and the sortie goes on. **TRAVEL** opens the world map: tap any spire to go there, or the star to go home; travelling banks first. The first ring-1 territory, the gentlest, starts kindled by the outpost's own spire, so the first sortie is gentle.
-- **A fall** wakes you at the last spire you touched (the outpost if none). The pocket comes home; the rest of the cargo (ore, exotics, deeplight, gear, blueprints) stays where you fell: **your pack**, a Charter-blue pack on its side with its strap light still on and a faint beacon rising over it, in that territory or that site of its Deep. It's marked on the world map (a small amber pack), named on its territory's card, and in the place it stands labelled YOUR PACK, or a pip at the view's edge points to it. Walk to it and it's yours again, once (what doesn't fit stays in it). Fall again before you reach it and the older pack is lost: there's only ever one, the newest. The report says where it lies and what's in it, and what was lost. It's kept in the save, and if the site is built differently when you come back (a Keeper's lair after its shard is taken), it stands on the nearest open ground. Giving up still loses the cargo.
-- **Going home** (walking in, or travelling from a spire) banks everything and settles contracts. The star isn't fed by the ride home any more: its growth is in the deeds. The **emergency recall** works anywhere: 4 s standing still, home, and the dark keeps a share of the cargo (15% plus 6% for each depth, less 2% a magnitude past the first). It stays because the pack doesn't make it pointless: a recall brings most of the haul home now, a fall leaves all of it out there in the dark, where you came close to dying, for a walk back.
+- **Your light** (the old star's pull) drains in dark land over about 3 minutes (180 s) and fills in kindled land and at home. Below 40% your lamp dims and the dark stirs more creatures every so often (one every 26 s in the Rim, two every 18 s in the Choir, two every 14 s beyond); at nothing the Hollow comes, in every dark territory you enter until it's back. Dark land is under a dim dusk; kindled land under daylight.
+- **Spires.** Each kindled territory has one at its heart: a standing lodestone obelisk with a gold beam, and the outpost has its own. At a spire, **BANK** (1.5 s standing still, like the old EXTRACT) puts the cargo in the stash, and the sortie goes on. **TRAVEL** opens the world map: tap any spire to go there, or the star to go home; travelling banks first. The first ring-1 territory, the gentlest, starts kindled by the outpost's own spire, so the first sortie is gentle.
+- **A fall** wakes you at the last spire you touched (the outpost if none). All of the cargo (ore, exotics, deeplight, gear, blueprints) stays where you fell: **your pack**, a Charter-blue pack on its side with its strap light still on and a faint beacon rising over it, in that territory or that site of its Deep. It's marked on the world map (a small amber pack), named on its territory's card, and in the place it stands labelled YOUR PACK, or a pip at the view's edge points to it. Walk to it and it's all yours again, once. Fall again before you reach it and the older pack is lost: there's only ever one, the newest. The report says where it lies and what's in it, and what was lost. It's kept in the save, and if the site is built differently when you come back (a Keeper's lair after its shard is taken), it stands on the nearest open ground. Giving up a sortie (offered when the game reopens with one under way) leaves the pack where you came in, as a fall would, and goes home.
+- **Going home** (walking in, or travelling from a spire) banks everything. The star isn't fed by the ride home any more: its growth is in the deeds. The **emergency recall** works anywhere: 4 s standing still (2 s with the Forward Relay), and home with everything. Moving or being hit breaks it, so it's a way out of a quiet corner, not out of a fight; a fall leaves all of it out there in the dark, where you came close to dying, for a walk back.
 - **Kindling.** A territory's heart goal, for now one of two:
   - **Light the waystones:** three old pylons, each a 2.5 s channel whose light wakes everything near; the last must then be held, standing in its light for 20 s while the dark sends more.
   - **Seal the tear:** a rift sits on the territory's heart (a graft or an ore wake); seal it, early and safe or late and rich.
@@ -102,8 +102,7 @@ The world is rolled once for each save from its seed (world.js) and kept in the 
 - **Saved as you go.** A sortie is saved on arriving anywhere and whenever the page is hidden; reopening the game offers to carry on from where you came in.
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room at depth 3 or more. It charges and fires rings of orbs. It drops three rare-or-better pieces and often a relic.
-- **Cargo is limited** (40 units, more from attunements and affixes). Ore, exotics and modules weigh 1, bases and relics 3. You can drop gear to make room.
-- **The pocket.** A few cargo slots whose contents come home even after a fall (the rest waits in the pack): 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
+- **Carry it all.** There's no cargo limit and no weight; the top bar's CARGO shows how many things you carry. The push-your-luck is the fall: everything carried waits in the pack where you fell.
 - **(proposed, stage 2)** More heart goals (purge the nest, cap the vents, carry the seed, break the Keeper), scouting, tithes and boons, richer kindled looks and settlers, optional dark tides on border territories. **(stage 3)** Keepers as ring gates, pick and spell gates, the Edge's own content.
 
 ## Climes
@@ -135,19 +134,9 @@ Every territory and every site of a Deep is also a **clime**: the kind of countr
 
 About a third of sorties set out under a **Lodestorm**. On the surface, every 20 s a strike falls within 6 tiles of the diver, marked by a tightening, flickering ring a second before. It hurts whatever stands in it (diver and enemies alike, the enemies with shock), and when it finds an ore vein it charges it into the biome's better ore. A storm is a hazard to dodge and a reason to stand near a vein when the ring appears.
 
-## Contracts
+## What's next
 
-Three small goals are always posted at the portal, so every sortie, even a short one, works towards something. Each is settled when you come home (walking in, travelling from a spire, or a recall), never after a fall:
-- bring home some ore (a common amount of the lower ore, a few of the better), counting all that was banked on the way;
-- bring down some creatures of a kind;
-- walk into a ring of the world;
-- seal a rift;
-- kindle a territory;
-- go down into a Deep.
-
-Each leaves an exotic, three parts, a riftglass, a supply of the newest region's grade, or a resonance stone (while the Codex has pages to fill), and a new one takes its place. Contracts don't pay the star: it grows only from deeds. Progress shows in the cargo screen mid-sortie.
-
-The board keeps moving: never two of a kind; 70% of hauls are set in the furthest region reached; one that has stood for 3 sorties is replaced; one may be swapped for free each time home; and meeting all three in one sortie pays a Mending Injector and a Lightcell besides.
+One suggested goal at a time, the plainest first: a shard to set, the light waiting at the altar (first if it makes a magnitude), the pack to fetch, the gentlest land beside the light to kindle, a Deep to reach the end of, a Keeper's shard, the magnitude the next ring needs. It's shown at the portal (NEXT) and as a small line over the view at home (`nextGoal`, deeds.js). (Contracts, three posted goals that paid things, were cut: DECISIONS.md, 2026-10-20.)
 
 ## Tools
 
@@ -159,7 +148,6 @@ The diver carries one tool, chosen at the portal before setting out. Each change
 | Ore Sense | 2 | Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the pick can break. |
 | Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
 | Surveyor's Map | 3 | A map of each place, drawn as you walk it, in the view's corner, with its openings, portals, spire, waystones and ancient forge once seen. |
-| Deep Satchel | 3 | One more pocket slot. |
 | Capture Lens | 2 | Modules half again as likely. Revealed by research once the first module comes home; made from Lumenite and threads. |
 | Lode Beacon | 2 | Once a sortie, from the pause menu: call a spire's light down where you stand, where no spire is: you can bank and travel from it, and standing in it brings your light back slowly. In a Deep it's a lodeline. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
 
@@ -222,7 +210,7 @@ All of them glow brighter while winding up, so you can see the attack coming. En
 
 ### Each clime's own creature
 
-Every clime has a creature found nowhere else: about 30% of what a room holds in its clime, and elsewhere only where a rift's graft of that clime brings one or two (not the eel or the dropper, which need their water or a roof). The crawler, wisp, construct and the fighting flora are the rest, everywhere. Each has its own attack, tied to its clime and its hazard, and like every enemy it shows its attack first (a red line, ring or mark, and it glows brighter as it winds up), a dash crosses every one, and it takes its turn with the others. Each leaves the creature part that suits it, can be an elite, and grows with the level like the rest. Wick says a word on each the first time it shows itself, and a hunt contract can name one (from a clime that leans to an open biome, or to none).
+Every clime has a creature found nowhere else: about 30% of what a room holds in its clime, and elsewhere only where a rift's graft of that clime brings one or two (not the eel or the dropper, which need their water or a roof). The crawler, wisp, construct and the fighting flora are the rest, everywhere. Each has its own attack, tied to its clime and its hazard, and like every enemy it shows its attack first (a red line, ring or mark, and it glows brighter as it winds up), a dash crosses every one, and it takes its turn with the others. Each leaves the creature part that suits it, can be an elite, and grows with the level like the rest. Wick says a word on each the first time it shows itself.
 
 | Clime | Creature | Attack | Tell | Nature (weak / resists) | Part |
 |---|---|---|---|---|---|
@@ -251,24 +239,23 @@ While a skink is under the sand, an eel under the water or a dropper on the roof
 | The Choir | Crystal caverns that sing when struck | Resonite (3), Aetherglass (4) |
 | The Underforge | Ancient machine ruins near magma | Sigilite (5), Starmetal (6) |
 
-- **Exotic materials** drop from elites and the warden, and now and then from anything else.
+- **Exotic materials** drop from elites and the warden, and now and then from anything else. (Bloodresin is retired: it fed the old reroll, no longer drops, and what was banked became threads.)
 
 ## Crafting (the heart of the game)
 
 Gear is two halves: a **base you craft**, exactly what its recipe says, and **modules you find**, rolled loot that slots into it and gives it its identity. Joy comes in layers: a find each fight (a module), a craft each trip home (a base, an upgrade), an unlock every few sessions (the star).
 
-- **Each half has its own currency:** bases are made from ore and creature parts; modules come from what you kill; their work at the rune bench is paid in **threads** (from salvaging modules) and ore.
+- **Each half has its own currency:** bases are made from ore and creature parts; modules come from what you kill; their upgrades are paid in **threads** (from salvaging modules) and ore.
 
 ### Bases, at the forge
 
-- **A recipe is known and exact.** The forge shows, for the ore you choose, the base's tier (the ore's), its stats, its circuit slots (a caster's) and its **module sockets**, and the cost of every resource by name, with how many you have. There are no random affixes on a crafted base.
-- **The anvil only adds.** Three strikes set the temper: rough as the recipe says, fair +5% on its numbers, fine +10%, a masterwork +15%, a module socket more and, on a caster, its second and third slots linked. A fine forge or better makes a stone a tier higher.
+- **A recipe is known and exact.** The forge shows, for the ore you choose, the base's tier (the ore's), its stats, a rig frame's Mod slots and its **module sockets**, and the cost of every resource by name, with how many you have. There are no random affixes on a crafted base.
+- **The anvil only adds.** Three strikes set the temper: rough as the recipe says, fair +5% on its numbers, fine +10%, a masterwork +15%, a module socket more and, on a rig frame, a second Mod slot. A fine forge or better makes a core a tier higher.
 - **Sockets** by tier: 1 at tiers 1–2, 2 at 3–5, 3 at Starmetal; a pick 1 (2 at 5–6), the rusty pick none.
-- **A caster's size is chosen:** a wand or gauntlet 3 or 4 circuit slots, a staff 4, 5 or 6; each slot past the first costs 5 ore and a part more. A resonance must fill its caster exactly, so the size is a choice, not luck.
-- **What it takes:** the recipe's ore (any ore: it sets the tier; a wand 12, a gauntlet 14, a staff 18, plate 16, a weave 12, a shell 20, a charm or lantern 10, a pick 12, a drill 18) and parts. The plain recipes known from the start (wand, gauntlet, plate, charm, pick) take any creature's parts; the rest name their creature: staff 3 ether, weave 3 fibre, shell 3 chitin, lantern 2 spores, drill 2 cogs.
-- **Optional exotics:** riftglass forges a base a tier above its ore; an elemental exotic worked into a caster brings its Element's stone out with it.
-- **The forge's tabs,** in two rows: CASTERS, ARMOR, CHARMS, TOOLS (picks and the carried tools), STONES, BUILDINGS (the outpost's buildings), WICK (Wick's upgrades) and the CODEX. A dot marks what can be made now, a tick what's built or fitted. At the top, **CLOSE TO MAKING** names up to two recipes better than what's worn that are short by a little, and what they're missing.
-- **Stones** for circuits (Combat and builds) are recipes too: a Form's 6 ore and 2 ether; an Element's 4 ore and its exotic (Force needs none); a Glyph's 5 ore and 3 of its creature's parts (chitin Pierce and Split, ether Echo, cogs Quicken, fibre Linger and Trigger, spores Chain, any Amplify).
+- **What it takes:** the recipe's ore (any ore: it sets the tier; a rig frame 14, plate 21, a weave 16, a shell 26, a charm or lantern 13, a pick 15, a drill 23) and parts. The plain recipes known from the start (the rig frame, plate, charm, pick) take any creature's parts; the rest name their creature: weave 3 fibre, shell 3 chitin, lantern 2 spores, drill 2 cogs.
+- **Optional exotics:** riftglass forges a base a tier above its ore; an elemental exotic worked into a rig frame brings its Element's core out with it; a Lodestone shard worked into a frame gives its spells a second Mod slot.
+- **The forge's tabs:** FRAMES, PICKS (the pick and the drill), CORES, ARMOR, CHARMS, TOOLS (the carried tools), BUILDINGS (the outpost's buildings), WICK (Wick's upgrades) and the CODEX (the resonances); a new game shows only FRAMES and PICKS, and the rest appear as they wake (Onboarding, below). A dot marks what can be made now, a tick what's built or fitted. At the top, **CLOSE TO MAKING** names up to two recipes better than what's worn that are short by a little, and what they're missing.
+- **Cores** for spells (Combat and builds) are recipes too: a Form's 6 ore and 2 ether (a Ward's, a warden's heart); an Element's 4 ore and its exotic (Force needs none); a Mod's 5 ore and 3 of its creature's parts (chitin Pierce and Split, ether Echo, cogs Quicken, fibre Linger, spores Chain, any Amplify).
 - **Tools** are made once at the forge, from the stash, when the star has grown enough (Tools).
 
 ### Research
@@ -277,80 +264,59 @@ Recipes are revealed by research, instantly, at the forge. When you bring home s
 
 | Brought home | Reveals |
 |---|---|
-| Lumenite | Lantern, Nova stone |
-| Resonite | Staff, Drill |
-| Aetherglass | Lance stone, Well stone |
+| Lumenite | Lantern, Nova core |
+| Resonite | Drill |
+| Aetherglass | Lance core, Well core |
 | Sigilite | Shell |
-| Chitin | Pierce and Split stones |
-| Ether | Echo stone |
-| Cog | Quicken stone |
-| Fibre | Linger and Trigger stones |
-| Spore | Chain stone |
-| A warden's heart | Ward stone |
-| An elemental exotic | its Element's stone |
+| Chitin | Pierce and Split cores |
+| Ether | Echo core |
+| Cog | Quicken core |
+| Fibre | Linger core |
+| Spore | Chain core |
+| A warden's heart | Ward core |
+| An elemental exotic | its Element's core |
 | The first module | the Capture Lens |
-| A module from a snapjaw, a wisp, a construct | Weave, Orb stone, Glaive stone |
+| A module from a snapjaw, a wisp, a construct | Weave, Orb core, Glaive core |
 
-Known from the start: the wand, gauntlet, plate, charm and pick, the Arc and Bolt, Force and Amplify, and the tools. Blueprints are gone as drops; an old save's blueprints are known recipes.
+Known from the start: the rig frame, plate, charm and pick, the Arc and Bolt, Force and Amplify, and the tools. Blueprints are gone as drops; an old save's blueprints are known recipes.
 
 ## Loot
 
 - **Drops are materials, and modules.** Each creature leaves its own part, graded by the biome; elites and wardens more, and now and then an exotic or a sealed relic.
 - **Modules** are the Diablo layer. The dark's creatures are made of the world's own living energy; when one dies, its pattern unravels, and the Charter suit's capture field catches the strongest thread of it and sets it in a blank lattice crystal. Rarity is how much of the pattern was caught.
   - **Few but meaningful:** a kill leaves one 7% of the time, an elite 65% (magic or better), a warden two and a Keeper three (rare or better, a tier up, a Keeper's legendaries three times likelier). A Deep's chances are 1.4 times, the Capture Lens 1.5 times, and the first eight modules ever come 2.6 times as often. About three or four a sortie.
-  - **In the field:** the creature's energy draws in and collapses into a small faceted crystal in its rarity's colour, which glints now and then (rare and better stand in a beam). Walked over, the capture field's tether pulls a few motes to the Kindler. A module weighs 1 in the cargo.
-  - **Rolled:** for a caster, armor, a charm or a pick (a creature's family leans it: a crawler's to defense, a wisp's to spell, a construct's to close, a snapjaw's to utility, a spitter's to mining, each clime creature its own). Traits by rarity: common 1, magic 2, rare 3, legendary 2 and a power, set 1 and the set bonus; each at 60% of an old item affix (there are more sockets than there were pieces). Their tier is where they were caught, so deeper modules roll higher.
+  - **In the field:** the creature's energy draws in and collapses into a small faceted crystal in its rarity's colour, which glints now and then (rare and better stand in a beam). Walked over, the capture field's tether pulls a few motes to the Kindler.
+  - **Rolled:** for the rig, armor, a charm or a pick (a creature's family leans it: a crawler's to defense, a wisp's to spell, a construct's to close, a snapjaw's to utility, a spitter's to mining, each clime creature its own). Traits by rarity: common 1, magic 2, rare 3, legendary 2 and a power, set 1 and the set bonus; each at 60% of an old item affix (there are more sockets than there were pieces). Their tier is where they were caught, so deeper modules roll higher.
   - **The card** says where it was caught ("Caught from an elite Wisp, Bloomfen"), its traits with how well each rolled, and UPGRADE or DOWNGRADE against what's in the socket it would take.
-- **Socketing is free** at home, at the locker: tap a base, tap a socket, tap a module from the drawer, each line saying what it would change. A better base takes the old one's modules (and circuit) when equipped.
-- **The rune bench** works modules, paid in threads and ore:
+- **Socketing is free** at home, at the locker: tap a base, tap a socket, tap a module from the drawer, each line saying what it would change. A better base takes the old one's modules (and a frame its cores) when equipped.
+- **Working a module is UPGRADE and SALVAGE, nothing else.** Both are buttons on its card at home, at the locker or the **tuning bench** (the outpost station that lists every module, socketed first):
   - **Upgrade** a tier (its lattice regrown in denser ore): 10 ore of the new tier and 4, 8, 14, 20 or 28 threads; every trait that grows with the tier grows.
-  - **Reroll** one trait, the rest locked: 3 threads (+2 a tier above 1) and 2 ore of its tier. With Bloodresin, the new trait is leech.
-  - **Fuse** two of the same kind: keep a trait of each (a power or the set counts as one), at the higher tier, each 15% stronger; both are used up, and everything else on them is lost. 8 threads (+3 a tier) and 4 ore.
-  - **Add a trait** with a Lodestone shard (common to magic, magic to rare), and 4 threads.
-  - **Imprint** a power the forge remembers (Imprinting).
-- **Salvage** a module into threads (common 1, magic 2, rare 4, legendary or set 7, +1 a tier above 1); a base into 40% of its ore (its modules and stones come out whole), now and then an exotic. SALVAGE ALL ▼ breaks down every base and module marked ▼ that isn't kept (★).
+  - **Salvage** a module into threads (common 1, magic 2, rare 4, legendary or set 7, +1 a tier above 1); a base into 40% of its ore (its modules and cores come out whole), now and then an exotic. SALVAGE ALL ▼ breaks down every base and module marked ▼ that isn't kept (★).
+  - Legendaries are found, never made: there's no reroll, fusing, adding a trait or imprinting.
 - **Sealed relics** open at home into a rare module or better.
-- **Legendary powers** change how you play; a module carries one, and a caster's acts on its own circuit:
+- **Legendary powers** change how you play; a module carries one:
 
 | Name | Kind | Power |
 |---|---|---|
 | Faultline | pick | Breaking a vein sends out a shockwave |
-| Twice-Told | caster | Every Form in its circuit fires twice |
-| Redwake | caster | Critical hits heal |
+| Twice-Told | rig | Every spell fires twice |
+| Redwake | rig | Critical hits heal |
 | Lodeheart | armour or charm | Kills heal and pull in nearby loot |
-| Stormcaller | caster | Bolts chain to two more enemies |
+| Stormcaller | rig | Bolts chain to two more enemies |
 
 - **Sets.** Prospector's Regalia: three set modules (Edge for a pick, Seam for armor, Token for a charm). 2 socketed give +20% mining speed and +6 cargo; 3 heal you when you break a vein and give +20% chance of double ore.
 
-### Imprinting
-
-Salvaging a legendary module at home writes its power into the forge's **Codex**. At the rune bench, a module of a kind that power suits, with no power or set, can be imprinted with it for a heart (any grade) or 2 riftglass, and 6 threads: it turns legendary, keeping its traits.
-
 ## Combat and builds
 
-- **Everything is a spell.** Each hand holds a caster, and each caster holds a short **circuit** of stones. Close range is a spell too: the Arc and the Glaive replaced the blade, the spear, the hammer, the whip and the spin.
-- **Slots:** main hand, off hand, pick, armor and charm. Each hand has its own button, which shows its circuit's first Form.
-  - **A press casts the whole circuit**, for charge. A press during a cooldown is held over until the cooldown ends, so taps never get lost.
+- **Everything is a spell, cast from the rig.** The rig is the Charter suit's wrist projector: a bracer on each forearm, an amber lens on its back. Its **frame** (forged at FRAMES, its ore setting its tier and power) drives **two spells**: A from the right wrist, B from the left, each its own button, which shows its Form. Nothing is held: the Kindler thrusts a fist at the aim and the light leaves the wrist. Close range is a spell too: the Arc and the Glaive.
+- **Slots:** the rig, pick, armor and charm.
+  - **A press casts the spell**, for charge. A press during a cooldown is held over until the cooldown ends, so taps never get lost.
   - **Holding charges it:** 1.8× the damage for 1.5× the charge; charged bolts and lances are bigger and pass through more. A held Arc bursts into a Nova of its element instead.
-  - An empty main hand casts a free Arc with the fist.
-- **Casters:**
-
-  | Caster | Slots | Its way |
-  |---|---|---|
-  | Wand | 3–4 | Quick: the hand waits 15% less |
-  | Gauntlet | 3–4 | Close Forms cost 1 charge less |
-  | Staff | 4–6 | Slower (30% more wait), every reach 30% wider |
-
-- **The circuit**, read left to right:
-  - a **Form** starts a spell: its shape and range;
-  - **Elements** after it set its damage type, two at most (the damage split between them, both statuses applied); with none, it's Force;
-  - **Glyphs** change the Form to their left;
-  - two Forms in a row fire together, and both are paid for;
-  - **Trigger** makes the next Form fire from where this one hits or ends;
-  - stones before the first Form do nothing; a circuit with no Form casts a weak spark.
-- **Charge** is the mana. It refills on its own. A cast costs the sum of its Forms' costs, each times its glyphs'. **Close Forms give charge back** for each foe they hit (2 a foe, 3 foes at most), so fighting close keeps the casting going.
-- **Socketing is free** at the locker: tap a caster, tap a slot, tap a stone from the drawer. The card says in words what the circuit does and what it costs.
-- **You start with a Scrap Gauntlet `ARC · – · –` and a Cracked Wand `BOLT · – · –`**, so the first fight has close and far, and both have room to grow.
+  - With no rig worn, spell A is a free Arc.
+- **A spell is three cores, in no order:** one **Form** (its shape and range), one **Element** (its damage and status; with none, Force) and one **Mod** (what changes it). A better frame has **two Mod slots**: Resonite or denser, a masterwork, or a Lodestone shard worked in at the forge. No Form: a weak spark.
+- **Charge** is the mana. It refills on its own. A cast costs its Form's charge times its Mods'. **Close Forms give charge back** for each foe they hit (2 a foe, 3 foes at most), so fighting close keeps the casting going.
+- **Setting cores is free** at the locker: tap the rig, tap a part of a spell, tap a core from the drawer (it shows only the kind that part takes). Each spell reads as its name, `BOLT · SHOCK · CHAIN`, and one short line: its charge, and a resonance it wakes, or a Mod that does nothing for its Form.
+- **You start with the Scrap Rig: A `ARC`, B `BOLT`**, so the first fight has close and far, and both have room to grow.
 
 | Form | Range | Charge | What it does |
 |---|---|---|---|
@@ -363,7 +329,7 @@ Salvaging a legendary module at home writes its power into the forge's **Codex**
 | Well | area | 10 | A knot of gravity at the aim: yanks and stuns, then drags and grinds |
 | Ward | guard | 9 | A shield that soaks damage for 5 s; its element hurts what strikes it |
 
-| Glyph | Charge × | What it does to the Form to its left |
+| Mod | Charge × | What it does |
 |---|---|---|
 | Split | 1.3 | Three at once, each at 60% (a Glaive's blades tripled, a Ward's soak) |
 | Amplify | 1.2 | 50% wider and 20% harder |
@@ -372,10 +338,9 @@ Salvaging a legendary module at home writes its power into the forge's **Codex**
 | Echo | 1.25 | Casts again 0.4 s later at 60% |
 | Pierce | 1.1 | Passes through 3 more (bolts and lances) |
 | Linger | 1.2 | Leaves a field of its element where it ends, for 3 s |
-| Trigger | 1 | The next Form fires from where this one hits or ends |
 
-- Two of a glyph stack: two Splits fire five, two Echoes cast twice more, and so on.
-- **Reactions** (reactions.js). Every element leaves its status on a foe for 3 s. A second element hitting a foe that still carries another's reacts, in either order, and two elements on one Form react on their own. Each reaction's name flashes over its target in the pixel hand, and Wick explains it the first time.
+- With two Mod slots, two of a Mod stack: two Splits fire five, two Echoes cast twice more.
+- **Reactions** (reactions.js). Every element leaves its status on a foe for 3 s. A second element hitting a foe that still carries another's reacts, in either order: so spell A's element and spell B's play off each other. Each reaction's name flashes over its target in the pixel hand, and Wick explains it the first time.
 
   | Reaction | Elements | What it does |
   |---|---|---|
@@ -394,38 +359,27 @@ Salvaging a legendary module at home writes its power into the forge's **Codex**
   | Stun | a second heavy Force hit | stunned for 1 s |
 
   A boss takes a third of a stun, freeze, blinding or loss; the Hollow none.
-- **Ore affinity.** A caster's ore (the one it's named for) favours an element. A spell of it is attuned: 25% harder (by its share of the spell's elements) and its status lasts half again as long. Each ore has a way of its own, shown on the caster's card and its readout:
+- **Ore affinity.** A frame's ore (the one it's named for) favours an element: a spell of it is attuned, 25% harder and its status half again as long. One line on its card: Ferrite Force, Lumenite Shock, Aetherglass Frost, Sigilite Ember, Starmetal Blight; Resonite none, but its resonances are 25% stronger.
+- **Resonances** (resonance.js): named spells, found by trying. A spell whose cores hold all of a resonance's parts, in any order, wakes it (a Mod over doesn't matter); the four-part ones need two Mod slots. A resonant spell hits 50% harder (a Resonite frame more), and does something its parts alone don't:
 
-  | Ore | Attuned to | And |
-  |---|---|---|
-  | Ferrite | Force | Glaives cost 1 less |
-  | Lumenite | Shock | casts 10% faster |
-  | Resonite | nothing | resonances 25% stronger |
-  | Aetherglass | Frost | Lances reach 35% further |
-  | Sigilite | Ember | Glyphs 10% stronger |
-  | Starmetal | nothing | one slot more than its base |
-
-- **Linked slots.** A masterwork caster has an even chance of a linked pair of slots, a gold chain between them. A Glyph in either counts twice, in what it does and what it costs.
-- **Resonances** (resonance.js): exact circuits that wake into named spells. One must fill its caster exactly, so a 3-slot wand is worth keeping and a 5-slot staff is a find. A resonant circuit hits 50% harder (Resonite more), and does something its parts alone don't:
-
-  | Resonance | Circuit | What it does |
+  | Resonance | Cores | What it does |
   |---|---|---|
   | Thunderhead | ORB SHOCK LINGER | the orb stops overhead and becomes a stormcloud, drifting over the nearest foe and striking it every 0.4 s for 4 s |
   | Shatterglass | LANCE FROST ECHO | the echo lance shatters the chilled along its line for double, flinging shards to either side |
   | Kindling Arc | ARC EMBER QUICKEN | every third arc sets the ground in front alight in a crescent |
   | Wildfire | ORB EMBER SPLIT LINGER | three orbs leave burning trails; plants catch, and the fire runs through them (for show) |
   | Stormglaive | GLAIVE SHOCK CHAIN AMPLIFY | the blades arc lightning to every foe within reach |
-  | Starfall | BOLT FORCE SPLIT TRIGGER NOVA | three bolts rise and meet as a falling star: a crater, a stun, a ring of light |
+  | Starfall | BOLT FORCE SPLIT AMPLIFY | three bolts rise and meet as a falling star: a crater, a stun, a ring of light |
 
-  The forge's **Codex** shows each as a silhouette with its slot count (`ORB · ? · LINGER`); **resonance stones** show its parts one at a time: elites drop them now and then, they lie by ancient forges, and contracts pay them. Kindling Arc is known from the start, and building or casting one fills in its page. At the locker, a circuit a stone away from one on a caster of the right size says *resonance stirs…*, and a live one wears a gold banner with its name.
-- **(proposed)** The Lode and Rift elements, with more Forms, Glyphs and resonances.
+  The forge's **Codex** shows each as a row of unknown cores with its count; **resonance traces** show its parts one at a time: elites drop them now and then, they lie by ancient forges. Kindling Arc is known from the start, and building or casting one fills in its page. On the rig's card a resonant spell's line goes gold with its name.
+- **(proposed)** The Lode and Rift elements, with more Forms, Mods and resonances.
 - **The dash** is a quick burst that nothing can touch, from DASH or a flick of the move thumb. It's how you get out of a lunge or a charge.
 - **Impact:**
   - a hit stops the world for an instant (the view doesn't shake: the designer found it unpleasant);
   - damage numbers pop off;
-  - the caster is drawn in hand and the diver casts with it (castfx.js); an Arc is a crescent of light swept across in front, the heavy third thicker and wider, throwing sparks.
+  - the spell leaves the wrist projector as the Kindler thrusts a fist at the aim (castfx.js); an Arc is a crescent of light swept across in front, the heavy third thicker and wider, throwing sparks.
 - **The player is the Kindler,** in the Charter's blue and amber.
-  - A near-black navy suit with amber-gold circuits, royal blue plate at the pauldrons, cuffs, belt and gloves, and a pale gold seed-star on the chest.
+  - A near-black navy suit with amber-gold circuits, royal blue plate at the pauldrons, belt and gloves, the rig's bracers flaring to the wrists with an amber lens on each, and a pale gold seed-star on the chest.
   - A faced helm: an opaque blue shell, a faceplate of plain dark glass with a blue-white glint, and a warm-white brow lamp over it. The brow lamp is the lamp you see by, and its light and shadows come from it. From behind, a ridge runs down the helm and an air port sits on the back.
   - Blue is for everything solid and amber for every light; there's no teal on the suit.
   - Drawn in 8 facings, with a 4-frame walk.
@@ -435,7 +389,7 @@ Salvaging a legendary module at home writes its power into the forge's **Codex**
 
 Home is a place you walk, not a menu. It's the middle territory of the world: a cleared site round the star, its Charter base compact in the middle, every station a few steps apart:
 - **The Lodestar** hangs over its planting cradle, bobbing, and grows bigger as it grows stronger. Its lodelines run out across the ground along the paths to the openings, one more for every magnitude, reaching further as it grows, and all the way and brighter towards land already kindled.
-- **The base** came down with the seed: Charter modules (the fabricator, the locker, the rune bench, the star's altar, the uplink, the portal's gate, the Kindler's habitat pod) standing on the cleared site's packed earth, landing pads round them, and faint trodden tracks out to the openings. Supply containers stand stacked by the modules. **Starstone** is the star's own growth: the ground round the cradle turns to gold-veined lodestone, a small ring at magnitude 1, spreading further at each magnitude (to the modules by about 4 or 5, most of the cleared site by 8), its edge creeping ahead in tendrils; and gold and lodestone crystal grows up the modules' feet and edges.
+- **The base** came down with the seed: Charter modules (the fabricator, the locker, the tuning bench, the star's altar, the uplink, the portal's gate, the Kindler's habitat pod) standing on the cleared site's packed earth, landing pads round them, and faint trodden tracks out to the openings. Supply containers stand stacked by the modules. **Starstone** is the star's own growth: the ground round the cradle turns to gold-veined lodestone, a small ring at magnitude 1, spreading further at each magnitude (to the modules by about 4 or 5, most of the cleared site by 8), its edge creeping ahead in tendrils; and gold and lodestone crystal grows up the modules' feet and edges.
 - **The light.** The outpost is the star's own ground, the first lit land, under the sky like kindled land; its daylight rises with the star, from a low warm light at magnitude 1 to full day by magnitude 6. Light masts round the ring come on, one for every magnitude.
 - **Ways out.** An opening on its edge towards each land next to it, as a territory has, labelled with the land's name; walk out of one into that land, and walk back in through its opening home. Near each opening the cleared ground grades into the land beyond: its ground, its plants and its rock, so each side of the outpost looks like the land past it.
 - **The settlement.** For each lander the *Meridian* sends (one for every 3 territories kindled), a lander on a pad, a habitat pod and a lamp beside it, and a settler on the plaza, up to six; all of them once the colony's called.
@@ -444,24 +398,23 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
 | Station | What it does |
 |---|---|
 | The portal (SET OUT) | In a Charter gate. The world map: a territory next to the outpost to walk out into, or a spire to set out to, and the tool to carry |
-| The forge (FORGE, SUPPLIES) | The Charter's fabricator. Recipes by tab, each exact: casters, plate, charms, picks and tools, and Form, Element and Glyph stones, from banked ore, parts and exotics. Studies what's new (research). Every forge is played on the anvil. SUPPLIES, beside FORGE, makes supplies from ore |
-| The rune bench (REWORK) | Work a module: upgrade its tier, reroll a trait, fuse two, add a trait, imprint a power; paid in threads and ore |
-| The locker (OPEN LOCKER) | What's worn, its module sockets and circuits, the stash's modules, bases and stones, stats; equip, socket modules and build circuits (free), salvage, unseal relics, KEEP |
+| The forge (FORGE, SUPPLIES) | The Charter's fabricator. Recipes by tab, each exact: rig frames, Form, Element and Mod cores, plate, charms, picks and tools, from banked ore, parts and exotics. Studies what's new (research). Every forge is played on the anvil. SUPPLIES, beside FORGE, makes supplies from ore |
+| The tuning bench (TUNE) | Every module, socketed first: tap one to UPGRADE it (threads and the new tier's ore) or SALVAGE it (threads) |
+| The locker (OPEN LOCKER) | What's worn, the rig's two spells and every module socket, the stash's modules, frames, bases and cores, stats; equip, socket modules and set cores (free), upgrade and salvage, unseal relics, KEEP |
 | The star's altar (THE STAR) | Hold FEED THE STAR and the light your deeds earned rises into the star, mote by mote, faster the longer you hold, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements. A shard carried home is set here instead (SET THE SHARD) |
 | The practice target | A construct that takes every hit and never falls, for trying combos |
 | The uplink (THE UPLINK) | A relay mast to the *Meridian* in orbit: the landers it can send, the shards set, the echoes, and calling the colony down |
 
 - **The anvil.** Each forge is three hammer strikes: a marker sweeps a bar, faster each time and dragging as it crosses the glowing zone, and you tap while it's in the zone.
   - A strike in the zone is good, and one in its marked middle is perfect.
-  - The strikes add up to a quality from rough to masterwork, which only adds to the recipe (Crafting): +5%, +10% or +15% on its numbers, and a masterwork a module socket more and a linked pair of slots.
-  - A fine forge raises a stone's tier.
-- **The reveal.** A forged piece rises in a beam of its quality's colour (an unsealed or fused module, its rarity's), then its card opens.
+  - The strikes add up to a quality from rough to masterwork, which only adds to the recipe (Crafting): +5%, +10% or +15% on its numbers, and a masterwork a module socket more and a frame's second Mod slot.
+  - A fine forge raises a core's tier.
+- **The reveal.** A forged piece rises in a beam of its quality's colour (an unsealed module, its rarity's), then its card opens.
 - **After a sortie,** a report says what came home or what was lost (and where you wake, after a fall), then you're back on the plaza or at that spire.
 
 | Attunement | Each rank (up to 5) |
 |---|---|
 | Vitality | +15 max health |
-| Capacity | +6 cargo |
 | Proximity | +8% close spell damage |
 | Clarity | +8% spell damage |
 | Stride | +5% move speed |
@@ -472,9 +425,9 @@ The Charter planned more base than came down with the seed. Each building has a 
 | Building | Magnitude | Costs | What it does |
 |---|---|---|---|
 | Drone Bay | 2 | 8 Ferrite, 15 threads | Wick can be fitted with upgrades (the forge's WICK tab) |
-| Refinery | 2 | 8 Lumenite, 30 threads | At SUPPLIES: 4 of an ore and 2 threads refine into 1 of the next ore up (one already brought home) |
-| Forward Relay | 3 | 10 Resonite, 60 threads, 3 chitin | An emergency recall takes half the time and loses half as much; banking and travel at a spire are quicker |
-| Settlers' Quarters | 4 | 8 Aetherglass, 90 threads, a Lodestone shard | A fourth contract on the board, each settled pays 6 threads besides; two more settlers, and their lines |
+| Refinery | 2 | 4 Lumenite, 35 threads | Level 1 of 3: supplies stronger (below). Upgraded at SUPPLIES: level 2 at magnitude 3 for 6 Resonite and 50 threads, level 3 at magnitude 5 for 6 Sigilite and 90 threads. Also 4 of an ore and 2 threads refine into 1 of the next ore up (one already brought home) |
+| Forward Relay | 3 | 5 Resonite, 70 threads, 3 chitin | An emergency recall takes half the time; banking and travel at a spire are quicker |
+| Settlers' Quarters | 4 | 4 Aetherglass, 100 threads, a Lodestone shard | Each time you come home the settlers bring 6 threads; two more settlers, and their lines |
 
 ### Wick's upgrades
 Fitted once at the forge's WICK tab, once the Drone Bay stands; each can be turned off and on at the locker, free. Each shows what it does, and Wick says a line the first time. Numbers in `T.wickUp`.
@@ -487,47 +440,53 @@ Fitted once at the forge's WICK tab, once the Drone Bay stands; each can be turn
 | Spark | 4 | 8 Aetherglass, 65 threads, 3 cogs | Every 2.6 s, a shock at the nearest awake foe within 4 tiles: 7% of its health |
 
 ### Fewer trips home
-- **Salvage in the field:** break found gear down into ore in the cargo, so it isn't all weight. Ore that doesn't fit is left on the floor.
 - **Ancient forges:** from depth 3, a floor sometimes has one in a side cavern. It forges from what you carry, on the same anvil, and the piece goes in your cargo.
-- **Supplies in the field:** MAKE, in the cargo screen, makes Mending Injectors, Lightcells and Flares from the ore you carry.
+- **Supplies in the field:** MAKE, in the cargo screen, makes Mending Injectors and Lightcells from the ore you carry.
 - **The pack waits:** a fall leaves the haul where it fell, to go back for once.
 
 ## Supplies
 
-Once the star isn't fed ore, old ore needs a use: it makes supplies, consumables carried on the belt (4 of each kind, safe whatever happens, spent when used). Each comes in three grades, one from each region's ore: the Rim's makes the plain ones (I), the Choir's better (II), the Underforge's the best (III).
+Once the star isn't fed ore, old ore needs a use: it makes supplies, carried on the belt (4 of each, safe whatever happens, spent when used). Two kinds, no grades:
 
-| Supply | What it does (I / II / III) | Takes (of the grade's two ores) | In the field |
-|---|---|---|---|
-| Mending Injector | heals 35 / 55 / 80% of your health at once | 6 of the plainer (Ferrite, Resonite, Sigilite) | yes |
-| Lightcell | gives back 25 / 40 / 60% of your light, in dark land or a Deep | 5 of the rarer (Lumenite, Aetherglass, Starmetal) | yes |
-| Flare | set at your feet, lights 4 / 5 / 6 tiles round for 40 / 50 / 60 s; standing in it, your light doesn't drain | 3 plainer, 2 rarer | yes |
-| Ward Cell | a ward soaking 30 / 60 / 100 damage for 20 s | 4 plainer, 2 rarer | home only |
-| Blast Charge | set at your feet, it arms in 0.8 s and blasts the first foe within 18 px, hurting all within 34 px (61 / 110 / 199 damage, about twice the health of a crawler of the grade's region) | 5 plainer, 1 rarer | home only |
+| Supply | What it does (no Refinery / levels 1, 2, 3) |
+|---|---|
+| Mending Injector | heals 35 / 50 / 65 / 80% of your health at once |
+| Lightcell | gives back 30 / 40 / 50 / 60% of your light, in dark land or a Deep |
 
-- **Made at home** at the fabricator: SUPPLIES, beside FORGE, a screen of its own with each kind, what's carried and a MAKE for each grade with its cost. The recipes are plain data (`CONSUMABLE_RECIPES` in `js/supplies.js`, category Consumables), so the forge can list them too.
-- **Made in the field:** MAKE in the cargo screen, the simple ones (injectors, Lightcells, Flares), from the ore carried.
-- **Used from the deck:** one quick-use slot in the right deck's top-left corner shows the chosen kind's icon, name and grade and how many are carried; a tap uses its best grade. The small ▸ beside it moves the slot to the next kind carried. Q uses, R moves on, on a keyboard.
-- **Contracts** sometimes pay one, and the whole board two.
+- **Cost:** one is paid in the plainest ore there's enough of, the higher tiers costing fewer: 6 Ferrite, 4 Lumenite, 3 Resonite, 2 Aetherglass, 2 Sigilite or 1 Starmetal. The button's cost names the ore it will take.
+- **Made at home** at the fabricator: SUPPLIES, beside FORGE: the two kinds, how many carried, MAKE with its cost; under them the Refinery's level and its next upgrade, and refining.
+- **Made in the field:** MAKE in the cargo screen, from the ore carried (only what can be made is listed).
+- **Used from the deck:** each has its own small round button at the top of the right deck, MEND (green) and LIGHT (gold), with its icon and how many on a badge; dim at none. Q and R on a keyboard.
+- An older save's graded supplies merge into the two kinds; its Flares, Ward Cells and Blast Charges (cut) come back as 5 of their grade's plainer ore each.
+
+## Onboarding: a little at a time
+
+A new Kindler isn't shown everything at once (`js/onboard.js`, `js/tutor.js`; DECISIONS.md, 2026-10-20).
+- **Systems wake when their moment comes.** A new game has walking, mining, both spells (the Scrap Rig comes with ARC and BOLT), the dash, the portal and the openings, the forge's FRAMES and PICKS tabs and the locker's worn gear. The rest wakes, and stays awake: changing the rig's cores (the locker's drawer, CORES, CODEX) with the first core beyond the starting ones, researched or forged; module sockets, the locker's modules and the tuning bench with the first module caught; the star's altar and ATTUNE with the first light of a deed; SUPPLIES, MEND and LIGHT and the cargo's MAKE with the first ore brought home (after the walkthrough's pick, if it's running); ARMOR and CHARMS after the first thing forged; TOOLS, BUILDINGS and the uplink at magnitude 2 (the uplink also with an echo or a shard); WICK with the Drone Bay. A station not yet awake stands dark and unlit at the outpost, its name dim with OFFLINE under it, and has no button. Each unlock is worked out from progress, so no save ever finds anything locked that it has used; a save from before onboarding opens with everything awake and every tutorial seen. Wick says a line as each wakes.
+- **The first landing.** After the opening, Wick offers to walk you through it: WALK ME THROUGH IT or I KNOW THE DRILL. Walked through, one line of Wick's sits at the top of the view, the button that matters pulses, and a gold ring and chevron mark the spot on the world (an arrow at the view's edge when it's off it): out of the lit opening into the gentle land, a vein mined, a foe Wick calls up (ARC, then BOLT, then DASH, then finish it), a pick's 15 Ferrite and a part, home (walk back, or RECALL), and a Ferrite pick at the forge, whose tutorial takes over; then NEXT. It's eased: Ferrite gives two a vein while it runs, and the foes it calls always leave a part. ✕ on its line stops it. Either choice still wakes the systems a little at a time.
+- **Tutorials: Wick points, you do.** The forge, the locker, the tuning bench, the star's screen, SUPPLIES, the portal's map and the uplink each run a tutorial of three to five steps the first time they open: the screen dims but for the one thing that matters and the way out (✕, which ends it), Wick says one short line by his portrait, and the step is done when you do it (tap what's lit, or NEXT for something only shown). A small SKIP is always there; a tap anywhere else does nothing. Each screen's header has a ? that plays its tutorial again, then a short reference: the explanations that used to sit on the screens. The ? in the top bar pauses the world and walks the HUD.
+- **Plain screens.** Labels of a word or two, numbers with icons, at most one short line on a card; no notes paragraphs. Costs always name their resource; a screen's way out is always in sight.
+- **At home, NEXT is marked:** when the next goal is the altar (light waiting, a shard), the altar has a faint violet ring.
 
 ## Controls
 
 - **Upright:** a floating joystick under the left thumb (a quick flick dashes). Under the right thumb, a cluster:
-  - the main hand, big, in the corner;
-  - the off hand;
+  - spell A, big, in the corner;
+  - spell B;
   - DASH;
   - MINE, held to dig;
   - the contextual SET OUT, STEP THROUGH or EXTRACT above them;
-  - the supply slot, in the deck's top-left corner, and ▸ beside it for the next kind.
+  - MEND and LIGHT, the two supplies, side by side at the deck's top-left.
 - **Sideways:** the view stands in the middle with the controls either side, as in NEO.
 - Close Forms aim at the nearest enemy in reach, and the rest at the nearest in sight. Mining targets the ore you're facing.
-- CARGO in the top bar shows what you carry, ore and exotics included. Tap anything to equip it or drop it mid-sortie. Dropped ore lies on the floor as a glowing heap you can pick back up.
+- CARGO in the top bar shows how many things you carry; its screen lists them, ore and exotics included. Tap anything to equip it or drop it mid-sortie. The pause screen has START OVER, which asks first (a screen saying everything is lost, then a second tap) and wipes all but the settings. Dropped ore lies on the floor as a glowing heap you can pick back up.
 - **Keyboard:**
   - WASD or the arrows to move,
-  - J for the main hand and K for the off hand,
+  - J for spell A and K for spell B,
   - Shift or U to dash,
   - Space or L to mine,
   - E or Enter to act, I for cargo, Esc to pause,
-  - Q to use a supply, R for the next kind.
+  - Q for a Mending Injector, R for a Lightcell.
 
 ## Presentation
 
@@ -582,9 +541,9 @@ The aim is broad and rough rather than narrow and polished. Everything below is 
 - the world: rings of territories, light, spires, kindling, Deeps;
 - cargo, death, and saving in localStorage.
 
-The autopilot (`test/bot.js`) plays whole careers from a fresh save, out into the world and home again. Over 24 sorties it usually kindles most of ring 1 and walks into ring 2, ends at magnitude 4–5, and falls in about a fifth of its sorties, fewer as the land round it is kindled.
+The autopilot (`test/bot.js`) plays whole careers from a fresh save, out into the world and home again. With three minutes of light and no cargo limit, over 24 sorties it usually kindles 25–35 territories, ends at magnitude 7–8, and falls in about 4% of its sorties, mostly early (DECISIONS.md, 2026-10-20, leaner rules).
 
 ## Open questions
 
 - Pacing: how long a sortie and a career should take for a person rather than the bot.
-- What a sortie gives back when you fall, if anything. For now it gives nothing but what was banked and pocketed.
+- What a sortie gives back when you fall, if anything. For now it gives nothing but what was banked; the rest waits in the pack.

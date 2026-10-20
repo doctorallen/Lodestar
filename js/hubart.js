@@ -381,14 +381,17 @@ function hartOldForgeGlow(frame) {
 }
 
 // ---------------------------------------------------------------------------
-// The rune bench: a Charter workstation. A steel bench on a frame, a
-// cabinet of the Charter's blue under its right end, and on its top a dark
-// etching plate with its runes glowing, rune stones laid out on it, and a
-// work lamp on a jointed arm (its light at lamp).
+// The tuning bench: a Charter workstation, where modules are upgraded and
+// unravelled. A steel bench on a frame, a cabinet of the Charter's blue
+// under its right end, and on its top a dark work plate with a lattice
+// cradle's ring lit amber in it and readouts either side, modules and a
+// core laid out at its ends, and a work lamp on a jointed arm (its light
+// at lamp). (Its station keeps the id 'runes', from when it was the rune
+// bench.)
 // ---------------------------------------------------------------------------
 function hartRunes() {
   return hartKeep('runes', () => {
-    const W = 46, H = 40, FY = 38, s = new PntSpr(W, H, 601), Hu = HART.hull, CB = HART.charter, S = HART.slate, glow = ART.pal.arcane[0], gdim = '#6a4c9a';
+    const W = 46, H = 40, FY = 38, s = new PntSpr(W, H, 601), Hu = HART.hull, CB = HART.charter, S = HART.slate, glow = '#ffb030', gdim = '#8a4a16';
     // the frame's legs, and the cabinet under the right end
     for (const lx of [4, 21]) { hartStrokes(s, lx, 20, lx + 2, FY - 1, (x) => 0.6 - (x - lx) * 0.2, Hu, 602 + lx); s.px(lx - 1, FY, Hu[1]); s.px(lx + 3, FY, Hu[1]); }
     hartBlock(s, 26, 43, 20, 21, FY - 1, CB, 603, 0);
@@ -396,18 +399,18 @@ function hartRunes() {
     for (const x of [33, 36]) { s.px(x, 25, HART.steel[4]); s.px(x, 33, HART.steel[4]); }
     for (let x = 26; x <= 43; x++) s.px(x, FY, Hu[0]);
     for (let x = 4; x <= 24; x++) s.px(x, 31, Hu[2]);
-    // the top: a steel slab from above and its front edge, the etching
-    // plate set into it
+    // the top: a steel slab from above and its front edge, the work plate
+    // set into it
     hartBlock(s, 1, 44, 8, 17, 20, Hu, 610, 2);
     hartStrokes(s, 8, 10, 36, 15, (x, y) => 0.3 + (36 - x) * 0.004, S, 611, { jit: 0.1 });
     for (let x = 8; x <= 36; x++) { s.px(x, 9, Hu[1]); s.px(x, 16, Hu[5]); }
-    // the runes etched in the plate: a ring, and marks either side
+    // the cradle's ring in the plate, and readouts either side
     const R = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     for (let a = 0; a < 16; a++) { const x = Math.round(22 + Math.cos(a / 16 * Math.PI * 2) * 5), y = Math.round(12.5 + Math.sin(a / 16 * Math.PI * 2) * 2); s.px(x, y, a % 4 ? gdim : glow, a % 4 === 0); }
     s.px(22, 12, glow, true);
     for (const [cx, cy] of [[11, 12], [15, 14], [29, 11], [33, 13]]) { s.px(cx, cy, glow, true); for (const [i, j] of R.slice(0, (cx * 3) % 4 + 1)) s.px(cx + i, cy + j, gdim, true); }
-    // rune stones laid out at its ends, an amber light on the frame
-    const stones = [[40, 12, ART.stones.form.body], [42, 15, ART.stones.glyph.body], [4, 13, ART.stones.ember.body]];
+    // a module and a core laid out at its ends, amber lights on the frame
+    const stones = [[40, 12, ART.stones.form.body], [42, 15, CB], [4, 13, ART.stones.ember.body]];
     for (const [x, y, ramp] of stones) s.ell(x, y, 1.8, 1.3, ramp, { lo: 0, hi: 3 });
     for (let x = 2; x <= 43; x += 6) s.px(x, 18, HART.amber[1]);
     // the work lamp: an arm up off the back, bent over the plate

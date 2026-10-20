@@ -9,12 +9,13 @@
 // and it comes down on its thrusters the first time the plot is in view.
 // Each does one clear thing:
 //   bay       the Drone Bay: Wick can be fitted with upgrades (wick.js)
-//   refinery  old ore refined up a grade, at the fabricator (supplies.js)
-//   relay     the Forward Relay: a quicker, gentler recall, quicker
-//             banking and travel at a spire (game.js)
-//   quarters  the Settlers' Quarters: a contract more on the board, each
-//             settled pays threads besides (contracts.js), and settlers
-//             (story.js)
+//   refinery  stronger supplies, more with each level (upgraded at the
+//             fabricator's SUPPLIES screen: supplies.js), and old ore
+//             refined up a grade there
+//   relay     the Forward Relay: a quicker recall, quicker banking and
+//             travel at a spire (game.js)
+//   quarters  the Settlers' Quarters: threads each time you come home,
+//             and settlers (story.js)
 // They're painted in hubart.js (structureSprite), stand among the walkers
 // (hub.js hubProps), cast shadows from the star (pshadow.js) and grow
 // starstone with the star, as the stations do.
@@ -27,15 +28,15 @@ const STRUCTURES = {
   },
   refinery: {
     short: 'Refinery', label: 'REFINERY', line: 'bld_refinery',
-    text: () => `Refines old ore up a grade at the fabricator (SUPPLIES): ${T.structures.refinery.n} of an ore and ${T.structures.refinery.threads} threads make 1 of the next ore up. For when a recipe is short of its ore.`,
+    text: () => `Makes supplies stronger, and can be upgraded twice more at SUPPLIES. It also refines ${T.structures.refinery.n} of an ore and ${T.structures.refinery.threads} threads into 1 of the next ore up.`,
   },
   relay: {
     short: 'Relay', label: 'RELAY', line: 'bld_relay',
-    text: () => `Carries the outpost's reach out to the spires: an emergency recall takes half the time and loses half as much, and banking or travelling at a spire is quicker.`,
+    text: () => 'An emergency recall takes half the time, and banking or travelling at a spire is quicker.',
   },
   quarters: {
     short: 'Quarters', label: 'QUARTERS', line: 'bld_quarters',
-    text: () => `Room for more of the colony, and work for you: a ${['', 'fourth', 'fifth'][T.structures.quarters.contracts] || 'further'} contract on the board, posted by the settlers, and every contract settled pays ${T.structures.quarters.pay} threads besides. ${T.structures.quarters.settlers} more settlers come to live here.`,
+    text: () => `Room for ${T.structures.quarters.settlers} more settlers. Each time you come home, they bring you ${T.structures.quarters.pay} threads.`,
   },
 };
 
@@ -212,7 +213,32 @@ function structureIconUrl(id) {
 // ---------------------------------------------------------------------------
 // What they do
 // ---------------------------------------------------------------------------
-// The Refinery: the ores that can be refined, each into the next ore up,
+// The Refinery's level: 0 until it stands, 1 once it does, and up to
+// 1 + the upgrades in T.structures.refinery.levels (Save.data.refineryLv).
+function refineryLevel(s = Save.data) {
+  if (!structureStands('refinery')) return 0;
+  return clamp(Math.round(s.refineryLv || 1), 1, 1 + T.structures.refinery.levels.length);
+}
+// The next upgrade ({ mag, cost }) or null.
+function refineryNext() { const lv = refineryLevel(); return lv ? T.structures.refinery.levels[lv - 1] || null : null; }
+// What stops the next upgrade, or ''.
+function refineryBlock() {
+  const n = refineryNext(), st = Save.data.stash;
+  if (!n) return 'top level';
+  if (magnitudeOf(Save.data.star) < n.mag) return `needs magnitude ${n.mag}`;
+  for (const k in n.cost) if ((st[k] || 0) < n.cost[k]) return `need ${n.cost[k]} ${stuffName(k)}`;
+  return '';
+}
+function upgradeRefinery() {
+  const n = refineryNext(), st = Save.data.stash;
+  if (!n || refineryBlock()) return false;
+  for (const k in n.cost) { st[k] -= n.cost[k]; if (!st[k]) delete st[k]; }
+  Save.data.refineryLv = refineryLevel() + 1;
+  Save.save();
+  return true;
+}
+
+// Refining: the ores that can be refined, each into the next ore up,
 // that ore having been brought home already. [{ from, to }]
 function refineRoutes(s = Save.data) {
   const out = [];
@@ -233,28 +259,40 @@ function refineOre(from) {
   Save.save();
   return true;
 }
-// The REFINE section of the fabricator's SUPPLIES screen (supplies.js).
+// The Refinery's part of the fabricator's SUPPLIES screen (supplies.js):
+// its level and the next upgrade, then refining.
 function refineHtml() {
-  const s = Save.data, R = T.structures.refinery;
-  if (!structureBuilt('refinery')) return '';
-  if (!structureStands('refinery')) return '<h3>REFINE</h3><p class="note">The Refinery is coming down to its plot. Go and see it land.</p>';
+  const s = Save.data, R = T.structures.refinery, top = 1 + R.levels.length;
+  if (!onboardHas('buildings')) return '';
+  if (!structureBuilt('refinery')) return `<h3 class="refine-head">REFINERY</h3><p class="note">Not built yet: BUILDINGS, at the forge.</p>`;
+  if (!structureStands('refinery')) return '<h3 class="refine-head">REFINERY</h3><p class="note">Coming down to its plot.</p>';
+  const lv = refineryLevel(), n = refineryNext(), why = refineryBlock();
+  let h = `<h3 class="refine-head">REFINERY · LEVEL ${lv}/${top}</h3>`;
+  if (n) {
+    const cost = Object.keys(n.cost).map((k) => costTag(k, n.cost[k], s.stash[k] || 0)).join(' ');
+    h += `<div class="row static refine-row"><span class="row-text"><span class="row-name">Level ${lv + 1}: ${esc(supplyPowerText(lv + 1))}</span><span class="cost-list">${cost}</span></span><button class="mini" data-act="upgradeRefinery" ${why ? 'disabled' : ''}>${why.startsWith('needs') ? esc(why.toUpperCase()) : 'UPGRADE'}</button></div>`;
+  } else h += '<p class="note">Top level.</p>';
   const rows = refineRoutes().map((r) => {
     const ok = (s.stash[r.from] || 0) >= R.n && (s.stash.thread || 0) >= R.threads;
     return `<div class="row static refine-row"><img class="icon" src="${stuffIconUrl(r.to)}" alt=""><span class="row-text"><span class="row-name">1 ${esc(stuffName(r.to))}</span><span class="cost-list">${costTag(r.from, R.n, s.stash[r.from] || 0)} ${costTag('thread', R.threads, s.stash.thread || 0)}</span></span><button class="mini" data-act="refine" data-arg="${r.from}" ${ok ? '' : 'disabled'}>REFINE</button></div>`;
   }).join('');
-  return `<h3>REFINE <span class="dim">· THE REFINERY</span></h3><p class="note">${R.n} of an ore and ${R.threads} threads make 1 of the next ore up, for a recipe that's short.</p>${rows || '<p class="note">Bring home a second ore, and the Refinery can make it from the first.</p>'}`;
+  return h + `<h3>REFINE · ORE UP A GRADE</h3>${rows || '<p class="note">Needs a second ore.</p>'}`;
 }
 
-// The Forward Relay: an emergency recall's time and share, banking's time.
+// The Forward Relay: an emergency recall's time, banking's time.
 function relayRecallTime() { return T.leave.recall * (structureStands('relay') ? T.structures.relay.recall : 1); }
-function relayLoss() { return structureStands('relay') ? T.structures.relay.loss : 1; }
 function relayBankTime() { return T.leave.extract * (structureStands('relay') ? T.structures.relay.bank : 1); }
 
-// The Settlers' Quarters: the contracts on the board, and what each pays
-// besides.
-function contractsPosted() { return T.contracts.posted + (structureStands('quarters') ? T.structures.quarters.contracts : 0); }
-function contractThreads() { return structureStands('quarters') ? T.structures.quarters.pay : 0; }
+// The Settlers' Quarters: threads, each time you come home (frontier.js
+// goHome). Returns how many.
+function quartersPay() {
+  if (!structureStands('quarters')) return 0;
+  const n = T.structures.quarters.pay, st = Save.data.stash;
+  st.thread = (st.thread || 0) + n;
+  return n;
+}
 
 Object.assign(UI.acts, {
   refine: (from) => { if (refineOre(from)) { UI.toast(`Refined: 1 ${stuffName(refineRoutes().find((r) => r.from === from).to)}`, 'legendary'); snd('forgePress', {}); UI.redraw(); } },
+  upgradeRefinery: () => { if (upgradeRefinery()) { UI.toast(`Refinery level ${refineryLevel()}: supplies are stronger`, 'legendary'); snd('forgePress', {}); UI.redraw(); } },
 });

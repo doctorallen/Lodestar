@@ -11,32 +11,35 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | | Phone | Keyboard |
 |---|---|---|
 | Move | Left thumb, anywhere on the left deck | WASD / arrows |
-| Main hand (cast its caster's circuit; an Arc combos): tap to cast, hold to charge | The big button | J |
-| Off hand | The blue button | K |
+| Spell A, from the right wrist (an Arc combos): tap to cast, hold to charge | The big button | J |
+| Spell B, from the left wrist | The blue button | K |
 | Dash | DASH, or flick the move thumb | Shift / U |
 | Mine | MINE, held | Space / L |
 | Set out / step through / bank / light / plant | The button that appears at a portal, a spire, a waystone or a heart | E / Enter |
 | Travel | TRAVEL, over BANK at a spire | |
 | Cargo (and MAKE: supplies from the ore carried) | CARGO in the top bar | I |
-| Use a supply / the next kind | The slot in the right deck's top-left corner / ▸ beside it | Q / R |
-| Pause (and the MUSIC, SOUNDS and LAMP settings) | II | Esc / P |
+| Use a Mending Injector / a Lightcell | MEND / LIGHT, the two small buttons at the right deck's top | Q / R |
+| Pause (the MUSIC, SOUNDS and LAMP settings, and START OVER) | II | Esc / P |
+| How it works (the HUD; a screen's own ? in its header) | ? in the top bar | |
 
 The loop:
 1. Walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to a spire.
 2. Cross from territory to territory by the openings at their edges. Mine ore and fight what finds you.
-3. Watch the gold meter, your light: it drains in dark land and fills in kindled land. When it's gone, something hunts you.
+3. Watch the gold meter, your light: it lasts about three minutes in dark land and fills in kindled land. When it's gone, something hunts you.
 4. Light a territory's waystones or seal the tear at its heart, then plant a spire there, and it's kindled for good, and its heartlight is yours for the star. A spire holds only where the star's light reaches: ring 2 from magnitude 3, ring 3 from 5, the Edge from 7.
-5. At a spire, BANK your cargo, or TRAVEL to another spire or home. An emergency recall works anywhere and loses part of the cargo.
-6. If you fall, you wake at the last spire you touched. What you wear, your supplies and your pocket are safe; the rest of the cargo waits where you fell, in your pack, to go back for once. Fall again first and it's lost.
+5. Carry as much as you like. At a spire, BANK your cargo, or TRAVEL to another spire or home. An emergency recall works anywhere and loses nothing, but you stand still for a few seconds.
+6. If you fall, you wake at the last spire you touched. What you wear and your supplies are safe; all the cargo waits where you fell, in your pack, to go back for once. Fall again first and it's lost.
 7. Some territories have a portal down into a Deep: a short dungeon of richer ore. Its end, the first time, gives deeplight for the star, as do ancient forges and echoes.
 
+A new game starts with the essentials: after the opening, Wick offers to walk you through your first landing, and the rest of the outpost wakes as its moment comes (a station not yet awake stands dark, OFFLINE). Each screen's ? replays its tutorial and a short reference; the ? in the top bar walks the HUD.
+
 At home, walk the outpost's stations:
-- the forge: recipes, each saying exactly what it makes and costs, and the BUILDINGS and WICK tabs, where the outpost's buildings are built (each comes down to its plot) and Wick is fitted with upgrades; it studies anything new you bring home and reveals what it can make from it; strike the anvil well and it adds to the piece; its Codex shows the resonances and the powers it remembers; SUPPLIES beside it makes injectors, Lightcells, flares, Ward Cells and charges from old ore, and refines ore up a grade once the Refinery stands;
-- the locker: your gear (crafted bases), the modules you've caught socketed into them, and each caster's circuit, built from stones; socketing is free; and Wick's upgrades, each turned off or on, free;
-- the rune bench: work a module: a tier up, one trait rerolled, two fused, a trait added, a power imprinted; paid in threads (salvaged modules) and ore;
+- the forge: recipes, each saying exactly what it makes and costs, and the BUILDINGS and WICK tabs, where the outpost's buildings are built (each comes down to its plot) and Wick is fitted with upgrades; it studies anything new you bring home and reveals what it can make from it; strike the anvil well and it adds to the piece; its Codex shows the resonances found so far; SUPPLIES beside it makes Mending Injectors and Lightcells from your plainest ore, upgrades the Refinery (each level makes both stronger) and refines ore up a grade once it stands;
+- the locker: your gear (crafted bases), the modules you've caught socketed into them, and the rig's two spells, each a Form, an Element and a Mod core (two Mods from a better frame); changing them is free; a module's card upgrades it (threads and ore) or salvages it (threads); and Wick's upgrades, each turned off or on, free;
+- the tuning bench: every module in one list, to upgrade or salvage;
 - the star's altar: hold FEED THE STAR and the light your deeds earned (heartlight, deeplight) rises into it, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements;
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
-- the portal: what's next, the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
+- the portal: what's next (one goal, also shown over the view at home), the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
 
 ## Files
 
@@ -47,7 +50,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/util.js` | DOM shortcut, error capture, seeded `Rng`, maths, colours, sprite helpers |
 | `js/version.js` | The build stamp, written by `.githooks/pre-commit` |
 | `js/tuning.js` | Every gameplay number, the ores, exotics and biomes |
-| `js/save.js` | The save in localStorage |
+| `js/save.js` | The save in localStorage, and an older save's casters turned into rig frames and its circuits into the rig's two spells |
 | `js/loader.js` | The loading screen, the Charter's systems booting up: a list of tasks (`loaderAdd`) run in slices with an honest bar, building ahead what play would otherwise build mid-fight (the sound bank, every Kindler frame, the place you'll land in, painted and drawn once, ring 1's creatures and plants), then TAP TO BEGIN |
 | `js/audio.js` | Sound, made in code with Web Audio: the engine (started by the first tap, suspended when hidden, the settings), the effects (the opening's cues among them), and `snd(name, opts)`, the hook the game calls |
 | `js/music.js` | The music that grows with the star and thins in the dark, each place's own sound, the turn's unease; footsteps, heartbeat, stings and landers it listens for |
@@ -64,14 +67,14 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/hubground.js` | The outpost's ground: packed earth, the starstone spreading from the cradle as the star grows, its edges melding into each neighbour's land (ground, plants, rock), the landing pads and the buildings' plots, faint trodden tracks; `outpostGroundAt` (what's underfoot) |
 | `js/anvil.js` | The forging minigame (its quality only adds), and the reveal of what arrives |
 | `js/intro.js` | The opening: five painted scenes that play on their own (the crossing, the survey, the landing, the Meridian, the outpost), their captions, SKIP and tap to hurry, and the last shot drawn by the game itself as the modules wake, the camera comes down and the Kindler steps out of their pod and is handed over |
-| `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp; Wick |
-| `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
-| `js/blueprints.js` | What can be made: the recipes (bases, stones, tools) and their costs, research (what reveals each), creature parts |
-| `js/art2.js` | Art for crafting and the story: new item icons, parts, stones, the uplink, a tent, the Shard Keepers |
+| `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, the rig's bracers and lenses, hand points and brow lamp; Wick |
+| `js/circuits.js` | Spells: the Forms, Elements and Mods in words, the rig's two spells (a Form, an Element, one or two Mods), their charge, name and line, the resonances they wake, ore affinity; casting each Form, echoes, fields; what's in flight and what lingers |
+| `js/blueprints.js` | What can be made: the recipes (bases, rig frames, cores, tools) and their costs, research (what reveals each), creature parts |
+| `js/art2.js` | Art for crafting and the story: new item icons (the rig frame), parts, cores, the uplink, a tent, the Shard Keepers |
 | `js/art3.js` | The sunlit surface's palette and plants, the rift, tool icons |
 | `js/foesart.js` | Each clime's own creature: its frames drawn by hand at 24 px, and its colours |
-| `js/items.js` | Affixes, rarities, legendaries, the set; crafted bases (their stats, sockets and circuit slots), stones, relics; forging, salvage; stats |
-| `js/modules.js` | Modules: rolling them, what a kill leaves, sockets, the rune bench's work (upgrade, reroll, fuse, enrich, imprint, salvage), research, an old save's gear turned into bases and modules, and how a module looks (its icon, the crystal on the ground, its capture and tether) |
+| `js/items.js` | Affixes, rarities, legendaries, the set; crafted bases (their stats, sockets and a frame's Mod slots), cores, relics; forging, salvage; stats |
+| `js/modules.js` | Modules: rolling them, what a kill leaves, sockets, a module's upgrade and salvage, research, an old save's gear turned into bases and modules, and how a module looks (its icon, the crystal on the ground, its capture and tether) |
 | `js/game.js` | Game state, a sortie's play: walking, mining, your light, channels, and how it ends |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
 | `js/foes.js` | Each clime's own creature: where it's placed, what it does, its tells and signs |
@@ -80,27 +83,28 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/portals.js` | The portals: a Deep's, its ways on and the outpost's, drawn in their destination's colour; stepping through, and the same moment crossing an edge or travelling |
 | `js/frontier.js` | Playing the world: sorties, entering territories, your light, spires (banking and travel), waystones and kindling, the Deeps, a fall waking at a spire; the spire and waystones drawn |
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
-| `js/contracts.js` | The three posted contracts, their tallies and rewards |
 | `js/deeds.js` | The star grows from deeds: heartlight and deeplight, what each deed gives, the star's reach over the rings, the pack a fall leaves and recovering it, what's next from home, and rescaling an older save's star |
-| `js/tools.js` | The carried tools: compass, ore sense, radar, map, satchel, beacon |
+| `js/tools.js` | The carried tools: compass, ore sense, radar, map, beacon, lens |
 | `js/hazards.js` | Each clime's hazard at play (pools, ice, lava, vents, spores), and painting a clime's ground |
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |
 | `js/undergrowth.js` | How flora grows into a place (cosmetic): habitat, drifts, stands of tall grass, beds and ground cover painted into the floor, moss and roots on the walls, wind and stir |
 | `js/shadow.js` | Shadows from the light: the rock stops the diver's lamp (and the floor's fixed lights) |
 | `js/pshadow.js` | Cast shadows of what stands on the ground: silhouettes from the lamp, the sun and the outpost's lanterns, and contact shadows |
 | `js/render.js` | The pixel view (art px, 1.5 to a world px), the floor canvas, lighting and bloom, sparks |
-| `js/castfx.js` | How a cast looks (cosmetic): the Charter's technology: the muzzle at the fist, the circuit sigil, lock-ons, motes, swept rings, an Arc's crescent, a Glaive's blades, an Orb, slugs and beams, a lance's scar, a Well, a Ward, impacts and marks on the ground |
+| `js/castfx.js` | How a cast looks (cosmetic): the Charter's technology: the muzzle at the wrist, the circuit sigil, lock-ons, motes, swept rings, an Arc's crescent, a Glaive's blades, an Orb, slugs and beams, a lance's scar, a Well, a Ward, impacts and marks on the ground |
 | `js/hardlight.js` | The hard-light shapes the spells are built from: crisp lines, diamonds, hexagons, lock-on brackets, sigils, pressure waves, lattices, the seed-star; `castfxWarm()` paints them before a fight |
 | `js/natures.js` | What each enemy is weak to and resists (`elementMultFor`), by kind, clime and elite affix; what Wick has learned; the marks over a foe and the WEAK and RESIST numbers |
 | `js/reactions.js` | Elements' statuses on enemies and the reactions between them (Shatter, Conduct, Steam…), the self stacks (Overload, Freeze…), and how they look |
-| `js/resonance.js` | The six resonances as spells (Thunderhead, Shatterglass, Kindling Arc, Wildfire, Stormglaive, Starfall) and how they look; the Codex and resonance stones |
+| `js/resonance.js` | The six resonances as spells (Thunderhead, Shatterglass, Kindling Arc, Wildfire, Stormglaive, Starfall) and how they look; the Codex and resonance traces |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
-| `js/ui.js` | The Lodestar, star, cargo and pause screens, the report, the screens' plumbing, a caster's circuit on its card (and the drawer of stones), the top bar |
-| `js/gearui.js` | The gear screens: the forge (recipes by tab, close to making, research's reveal), the locker, the rune bench, and the cards for bases and modules |
+| `js/ui.js` | The Lodestar, star, cargo and pause screens, the report, the screens' plumbing, the rig's spells on its card (and the drawer of cores), the top bar |
+| `js/gearui.js` | The gear screens: the forge (recipes by tab, close to making, research's reveal), the locker, the tuning bench, and the cards for bases and modules |
 | `js/structures.js` | The outpost's buildings (the Drone Bay, the Refinery, the Forward Relay, the Settlers' Quarters): built once at the forge, coming down to their plots, drawn there, and what each does |
 | `js/wick.js` | Wick's upgrades (the Scanner, the Lamp, the Hex Shield, the Spark): fitted at the forge, turned off and on at the locker, and at work out in the land |
-| `js/supplies.js` | Supplies from old ore: the recipes as data (`CONSUMABLE_RECIPES`), making them at home and in the field, the deck's quick-use slot, their effects (flares, charges) and the SUPPLIES screen |
+| `js/supplies.js` | The two supplies (Mending Injector, Lightcell): their cost in ore, making them at home and in the field, their two deck buttons, using them, the SUPPLIES screen, and an older save's supplies converted |
 | `js/worldmap.js` | The world map (SET OUT at the portal, TRAVEL at a spire) in pixel art, a territory's card, and the heart goal over the view |
+| `js/onboard.js` | Bringing a new Kindler in: what's awake yet (each unlock worked out from progress, everything for an old save), Wick's offer after the opening, the guided first landing (its line over the view, the button it pulses, the marker on the world), the dark stations |
+| `js/tutor.js` | The tutorials, as data a screen each: the dim with its holes, Wick's line, the step done when it's done; SKIP, the ? in each header and the top bar, and each screen's short reference |
 | `js/main.js` | Boot, then the loading (`bootEnter` after its tap), the fixed-step loop, the upright and sideways layouts |
 | `test/` | Static checks, floor and world generation with golden hashes, the gear tables (bases, modules, the bench, the migration of `fixtures/`, saves made before modules), a headless smoke run, and the autopilot (`botlib.js`) playing careers |
 

@@ -8,31 +8,32 @@
 //   works the heart goal while it has the light and health for it (the
 //   waystones, the tear, planting the spire), mines what its pick can
 //   break, now and then goes down into a Deep, and turns back towards lit
-//   land when the cargo is nearly full, it's hurt, or the light is low;
+//   land when it carries a good haul (BOT_HAUL: there's no limit, so it
+//   sets its own), it's hurt, or the light is low;
 //   then it banks at a spire and travels home, or walks home. Returns how
 //   it ended.
 //   Bot.home() spends the haul like a player might: the forge studies
 //   what's new, it equips any better base, forges a better pick, then
-//   keeps every slot up (casters, plate and a charm, the one furthest
-//   behind first, in the best ore it can pay for, striking the anvil
-//   fairly), forges the stones its circuits want and sockets them (an Arc
-//   in the gauntlet, a Bolt or Lance in the other hand, with an element
-//   and glyphs as it finds them), socketing the best modules, upgrading
-//   those behind its gear from ore to spare and now and then rerolling a
-//   weak trait, salvages the rest (modules into threads),
+//   keeps every slot up (the rig's frame, plate and a charm, the one
+//   furthest behind first, in the best ore it can pay for, striking the
+//   anvil fairly), forges the cores its spells want and sets them (spell A
+//   an Arc, B a Bolt or Lance, each with an element and Mods as it finds
+//   them), socketing the best modules, upgrading those behind its gear
+//   from ore to spare, salvages the rest (modules into threads),
 //   unseals relics, sets any shard and feeds the light its deeds earned to
 //   the star (held at the altar), makes supplies from old ore at the
 //   fabricator, builds the outpost's buildings and fits Wick's upgrades
-//   as the stash can spare them (refining ore for its next pick once the
-//   Refinery stands), and spends attunements. Out there it uses its supplies (an
-//   injector when hurt, a Lightcell when its light is low, a Ward Cell at a
-//   Keeper or an elite, a charge in a crowd, a flare while it holds a
-//   waystone), goes back for the pack a fall left before anything else,
+//   as the stash can spare them (upgrading the Refinery, and refining ore
+//   for its next pick once it stands), and spends attunements. Out there it
+//   uses its supplies (an injector when hurt, a Lightcell when its light
+//   is low), goes back for the pack a fall left before anything else,
 //   and only kindles where the star's light reaches.
 //   Bot.career({ sorties }) does both over and over from a fresh save.
 
 function installBot() {
   const STEP = 1 / 60;
+  // the haul it turns back with (the old cargo limit)
+  const BOT_HAUL = 40;
 
   // steps on foot from the diver to every tile, round a clime's lava and
   // vents (the generator never lets them cut anything off)
@@ -100,11 +101,11 @@ function installBot() {
     return bd < 40 ? best : null;
   }
 
-  // How well a hand's circuit does against a foe: its first group's
-  // elements against the foe's nature (as Wick would show it, or the truth
-  // once hit), twice as good for Force against a warded shell.
-  function handScore(it, foe) {
-    const P = it ? parseCircuit(it.slots, it.links) : null, g = P && P.groups[0], els = g && g.els.length ? g.els : ['force'];
+  // How well a spell does against a foe: its element against the foe's
+  // nature (as Wick would show it, or the truth once hit), twice as good
+  // for Force against a warded shell.
+  function handScore(sp, foe) {
+    const g = spellGroup(sp), els = g && g.els.length ? g.els : ['force'];
     let k = elementMult(foe, els);
     if (foe.ward > 0 && els.includes('force')) k *= 2;
     return k;
@@ -200,7 +201,7 @@ function installBot() {
     const skipOre = new Set(), skipFoe = new Set();
     let progressT = 0, progress = '', aim = null;
     Bot.lastHurt = null;
-    const result = () => ({ target, ring: terrOf(target).ring, level: terrLevel(terrOf(target)), clime: terrOf(target).clime, kills: d.kills, cargo: cargoUsed(d) + Object.values((d.banked && d.banked.stuff) || {}).reduce((a, b) => a + b, 0), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t), deep: !!(d.tally && d.tally.deeps), kindled: kindledCount() - kindled0, lastHurt: Bot.lastHurt, hollow: d.enemies.some((e) => e.type === 'hollow' && !e.dead) });
+    const result = () => ({ target, ring: terrOf(target).ring, level: terrLevel(terrOf(target)), clime: terrOf(target).clime, kills: d.kills, cargo: cargoCount(d) + Object.values((d.banked && d.banked.stuff) || {}).reduce((a, b) => a + b, 0), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t), deep: !!(d.tally && d.tally.deeps), kindled: kindledCount() - kindled0, lastHurt: Bot.lastHurt, hollow: d.enemies.some((e) => e.type === 'hollow' && !e.dead) });
     const at = (x, y) => { const w = d.floor.w; return y * w + x; };
     while (t < maxTime) {
       if (Game.dive !== d) { ended = UI.report && UI.report.recalled ? 'recalled' : UI.report && UI.report.banked ? 'home' : 'died'; break; }
@@ -208,7 +209,7 @@ function installBot() {
       if (d.warp) { for (let k = 0; k < 6; k++) Game.step(STEP); t += 0.1; continue; }
       const p = d.p, st = d.stats, f = d.floor, steps = stepsFromMe(d), ts = terrPeek(d.terr) || {}, T0 = terrOf(d.terr);
       Input.bot = { x: 0, y: 0 };
-      const now = [d.kills, cargoUsed(d), d.terr, d.deep && d.deep.site, (ts.lit || []).length, ts.done, ts.state].join();
+      const now = [d.kills, cargoCount(d), d.terr, d.deep && d.deep.site, (ts.lit || []).length, ts.done, ts.state].join();
       if (now !== progress) { progress = now; progressT = t; }
       else if (t - progressT > 20 && aim) { (aim.ore !== undefined ? skipOre.add(aim.ore) : skipFoe.add(aim.foe)); aim = null; progressT = t; }
       const hollow = d.enemies.find((e) => !e.dead && e.type === 'hollow');
@@ -218,11 +219,11 @@ function installBot() {
       const foeM = foe ? dist(foe.x, foe.y, p.x, p.y) : 1e9, close = foe && (foeM < 40 || (foe.state === 'windup' && foeM < 70));
       // dim: no more light than the walk back to lit land takes, and a bit
       const lead = d.deep ? 0.3 : (() => { const g = compassTargetWorld(d, steps), n = g ? steps[at(g.x, g.y)] : 30; return (Math.max(0, n) / 3.2 + 3) / T.world.light; })();
-      const full = cargoUsed(d) >= st.cargo * 0.92, hurt = p.hp < st.maxHp * 0.3, dim = !d.kindled && d.pull < lead;
+      const full = cargoCount(d) >= BOT_HAUL * 0.92, hurt = p.hp < st.maxHp * 0.3, dim = !d.kindled && d.pull < lead;
       if (!d.kindled && (full || hurt || dim || (t > 420 && d.terr === target))) back = true;
       if (d.terr === target && d.kindled && !P.deep) back = true;
       // back in lit land with light again: push out once more, if it's fit
-      const canPush = pushes < 3 && p.hp > st.maxHp * 0.6 && t < 360 && cargoUsed(d) < st.cargo * 0.7;
+      const canPush = pushes < 3 && p.hp > st.maxHp * 0.6 && t < 360 && cargoCount(d) < BOT_HAUL * 0.7;
       const action = actionHere();
       let goal = null; // where to walk, if not fighting or mining
       let act = false, mine = true;
@@ -244,7 +245,7 @@ function installBot() {
         } else if (back || d.terr === target) {
           // bank, push out again if it's fit, or go home: at a spire, travel
           // home; else walk home
-          const spire = f.pad && hasSpire(d.terr), carrying = cargoUsed(d) > 0 || d.items.length;
+          const spire = f.pad && hasSpire(d.terr), carrying = cargoCount(d) > 0 || d.items.length;
           if (canPush && !(spire && carrying)) { back = false; pushes++; target = plan(0).target; }
           else if (spire) { if (action === 'extract') { if (carrying) act = true; else travelFrom(d, 0); } else goal = f.pad; }
           else { const e = f.exits.find((x) => x.to === 0) || exitTowards(d, 0); goal = e; }
@@ -275,16 +276,10 @@ function installBot() {
       // the pack a fall left, when it lies here: before anything else
       const pk = cacheHere(d);
       if (pk && !d.channel && !(hollow && dist(hollow.x, hollow.y, p.x, p.y) < 60)) { const at = cacheSpot(d, pk); goal = { x: Math.floor(at.x / TILE), y: Math.floor(at.y / TILE) }; act = false; mine = false; }
-      // supplies: an injector when hurt, a Lightcell when the light's low,
-      // a Ward Cell at a Keeper or an elite, a charge in a crowd, a flare
-      // while holding a waystone
+      // supplies: an injector when hurt, a Lightcell when the light's low
       if (!d.channel || d.hold) {
-        const near = d.enemies.filter((e) => !e.dead && !e.hid && e.type !== 'dummy' && dist(e.x, e.y, p.x, p.y) < 50);
-        if (p.hp < st.maxHp * 0.35 && supplyBest('injector')) useSupply('injector');
-        else if (!d.kindled && d.pull < 0.2 && supplyBest('cell')) useSupply('cell');
-        else if (p.ward <= 0 && near.some((e) => e.boss || e.elite) && supplyBest('ward')) useSupply('ward');
-        else if (near.length >= 3 && supplyBest('charge') && !(d.charges || []).length) useSupply('charge');
-        else if (d.hold && !inFlare(d) && d.pull < 0.6 && supplyBest('flare')) useSupply('flare');
+        if (p.hp < st.maxHp * 0.35 && supplyCount('injector')) useSupply('injector');
+        else if (!d.kindled && d.pull < 0.2 && supplyCount('cell')) useSupply('cell');
       }
       Bot.why = [d.terr, target, !!d.deep, d.kindled, back, action, !!foe, !!hollow, full, hurt, dim].join(',');
       if (act) Input.bot.act = true;
@@ -299,11 +294,12 @@ function installBot() {
         aim = { foe };
         if (m > 14) goTile(d, steps, Math.floor(foe.x / TILE), Math.floor(foe.y / TILE));
         // tap, don't hold: alternate presses make combos; dash out of a tell.
-        // With the choice, not the hand whose elements the foe resists (and
+        // With the choice, not the spell whose element the foe resists (and
         // Force for a warded shell)
-        const tap = (iter++ & 1) === 0, mf = firstForm(Save.data.equip.main), mainClose = !Save.data.equip.main || mf === 'arc' || mf === 'glaive';
-        const inMain = mainClose ? m < 30 : m < 120, inOff = m < 120 && !!Save.data.equip.off;
-        const sm = handScore(Save.data.equip.main, foe), so = handScore(Save.data.equip.off, foe);
+        const rig = Save.data.equip.main, spA = rigSpell(rig, 0), spB = rigSpell(rig, 1);
+        const tap = (iter++ & 1) === 0, mf = spellForm(spA), mainClose = !rig || mf === 'arc' || mf === 'glaive';
+        const inMain = mainClose ? m < 30 : m < 120, inOff = m < 120 && !!rig;
+        const sm = handScore(spA, foe), so = handScore(spB, foe);
         // (a hand the foe shrugs off rests while the other can reach it)
         const skip = inMain && inOff ? (sm < 0.8 && so > sm * 1.3 ? 'main' : so < 0.8 && sm > so * 1.3 ? 'off' : null) : null;
         // (still a tap at a time: a button down two turns running is a hold,
@@ -356,7 +352,7 @@ function installBot() {
       if (lv >= (sv.botBest || 1) && (sv.botWins = (sv.botWins || 0) + 1) >= 2) { sv.botBest = (sv.botBest || 1) + 1; sv.botWins = 0; }
     }
     const r = result();
-    if (!ended) { if (Game.dive === d) abandonDive(); ended = 'timeout'; }
+    if (!ended) { if (Game.dive === d) { loseDive(false); UI.close(); } ended = 'timeout'; }
     // a fall wakes at a spire: home from there to spend the haul
     if (Game.dive && !Game.dive.hub) { const w = Game.dive; UI.close(); w.cargo = {}; goHome('spire'); }
     UI.close();
@@ -373,7 +369,7 @@ function installBot() {
     // unseal relics
     for (const r of s.items.filter((i) => i.kind === 'relic')) { UI.openCard(r, 'stash', r.uid); acts.unseal(); Reveal.done(); UI.closeCard(); log.push('unsealed'); }
     const best = () => {
-      // equip any base better than what's worn (casters: below); its
+      // equip any base better than what's worn (frames: below); its
       // modules move across
       for (const it of s.items.slice()) {
         const slot = compareSlot(s.equip, it);
@@ -382,10 +378,10 @@ function installBot() {
       }
     };
     best();
-    // forge: a recipe in an ore, at a size, striking the anvil fairly
-    const forge = (bpId, oreId, size) => {
-      if (!s.blueprints.includes(bpId) || recipeShort(recipeCost(bpId, oreId, size), s.stash).length) return false;
-      Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, size: size || null, exotic: null, codex: false });
+    // forge: a recipe in an ore, striking the anvil fairly
+    const forge = (bpId, oreId) => {
+      if (!s.blueprints.includes(bpId) || recipeShort(recipeCost(bpId, oreId), s.stash).length) return false;
+      Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, exotic: null, codex: false });
       acts.craft();
       if (Anvil.job) { Anvil.finish(1); Reveal.done(); }
       return true;
@@ -405,8 +401,8 @@ function installBot() {
     UI.closeCard();
     log.push(...circuits(forge));
     log.push(...modules());
-    // salvage what's left: bases into ore, modules into threads (the
-    // rune bench's work is paid in them)
+    // salvage what's left: bases into ore, modules into threads (a
+    // module's upgrade is paid in them)
     for (const it of s.items.filter((i) => i.kind !== 'stone' && i.kind !== 'relic' && !i.fav)) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
     UI.closeCard();
     // the outpost's buildings and Wick's upgrades from what the gear left
@@ -416,36 +412,35 @@ function installBot() {
     log.push(...makeSupplies());
     const fed = feedStar();
     if (fed) log.push(`fed the star ${fed}`);
-    for (const id of ['vitality', 'proximity', 'capacity', 'vitality', 'clarity', 'stride', 'capacity']) if (attunePointsLeft(s) > 0) acts.attune(id);
+    for (const id of ['vitality', 'proximity', 'vitality', 'clarity', 'stride', 'proximity']) if (attunePointsLeft(s) > 0) acts.attune(id);
     Save.save();
     UI.close();
     return log;
   }
 
-  // Puts a base on (its circuit and modules move across, as the locker
-  // does it).
+  // Puts a base on (its cores and modules move across, as the locker does
+  // it).
   function wear(it, slot) {
     if (!it || !Save.data.items.includes(it)) return;
     UI.openCard(it, 'stash', it.uid);
     UI.acts.equip(slot);
     UI.closeCard();
   }
-  // How far behind a worn base is: its tier (the scrap gauntlet and the
-  // cracked wand count as below Ferrite; nothing worn, below that).
+  // How far behind a worn base is: its tier (the Scrap Rig counts as below
+  // Ferrite; nothing worn, below that).
   function wornTier(slot) {
     const cur = Save.data.equip[slot];
     return !cur ? -1 : /^(Scrap|Cracked) /.test(cur.name) ? 0 : cur.tier;
   }
-  // Gear as a player keeps it up: every slot (the casters, plate and a
+  // Gear as a player keeps it up: every slot (the rig's frame, plate and a
   // charm) forged again in better ore whenever there's enough, the slot
-  // furthest behind first, in the best ore it can pay for (a caster as big
-  // as it can afford), keeping back what the next pick takes. A gauntlet in
-  // the main hand; a staff in the off hand once known, else a wand.
+  // furthest behind first, in the best ore it can pay for, keeping back
+  // what the next pick takes.
   function forgeGear(forge, pickOre) {
     const s = Save.data, log = [];
     const reserve = (o) => (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0);
-    const afford = (bpId, o, size) => { const c = recipeCost(bpId, o.id, size); return s.blueprints.includes(bpId) && (s.stash[o.id] || 0) - reserve(o) >= c.ore.n && !recipeShort(c, s.stash).length; };
-    const wants = { main: ['gauntlet'], off: ['staff', 'wand'], armor: ['plate'], charm: ['charm'] };
+    const afford = (bpId, o) => { const c = recipeCost(bpId, o.id); return s.blueprints.includes(bpId) && (s.stash[o.id] || 0) - reserve(o) >= c.ore.n && !recipeShort(c, s.stash).length; };
+    const wants = { main: ['rig'], armor: ['plate'], charm: ['charm'] };
     const tried = new Set();
     for (let k = 0; k < 8; k++) {
       // the slot furthest behind that something better can be made for
@@ -456,11 +451,9 @@ function installBot() {
         for (const o of T.ores.slice().reverse()) {
           if (o.tier <= cur) break;
           for (const bpId of wants[slot]) {
-            const bp = BLUEPRINTS[bpId], sizes = bp.kind === 'caster' ? casterSizes(bpId).slice().reverse() : [null];
-            const size = sizes.find((n) => afford(bpId, o, n));
-            if (size === undefined || !forge(bpId, o.id, size)) continue;
+            if (!afford(bpId, o) || !forge(bpId, o.id)) continue;
             wear(s.items[s.items.length - 1], slot);
-            log.push(`forged ${bpId} in ${o.name}${size ? ' ×' + size : ''} for ${slot}`);
+            log.push(`forged ${bpId} in ${o.name} for ${slot}`);
             made = true;
             break;
           }
@@ -477,15 +470,14 @@ function installBot() {
   // Modules as a player might work them: every module back out, then each
   // worn base's sockets filled with the best of its kind (the main hand
   // first); then, with threads and ore to spare, a tier up for the best
-  // socketed module that's behind its base, and now and then a reroll of
-  // a weak trait. Keeps one spare of each kind in the stash; the rest go
-  // to salvage.
+  // socketed module that's behind its base. Keeps one spare of each kind
+  // in the stash; the rest go to salvage.
   function modules() {
     const s = Save.data, log = [];
     for (const k of SLOTS) { const b = s.equip[k]; if (b && b.sockets) b.sockets.forEach((m, i) => { if (m) { s.items.push(m); b.sockets[i] = null; } }); }
     const pool = s.items.filter((x) => x.kind === 'module').sort((a, b) => moduleWorth(b) - moduleWorth(a));
     let n = 0;
-    for (const k of ['main', 'off', 'armor', 'charm', 'pick']) {
+    for (const k of ['main', 'armor', 'charm', 'pick']) {
       const b = s.equip[k];
       if (!b || !b.sockets) continue;
       for (let i = 0; i < b.sockets.length; i++) {
@@ -508,13 +500,6 @@ function installBot() {
       if (!next) break;
       benchPay(upgradeCost(next), s.stash); moduleUpgrade(next); s.botUps = (s.botUps || 0) + 1;
       log.push(`upgraded ${next.name} to ${next.tier}`);
-    }
-    // a reroll of the weakest trait now and then
-    const [w] = socketed.map(([m]) => m).filter((m) => m.affixes.length > 1).sort((a, b) => moduleWorth(b) - moduleWorth(a));
-    if (w && Math.random() < 0.3 && !benchShort(rerollCost(w), s.stash).length && (s.stash.thread || 0) > 20) {
-      const i = w.affixes.map((a, j) => [a.v * (AFFIX_WORTH[a.id] || 0.3), j]).sort((a, b) => a[0] - b[0])[0][1];
-      benchPay(rerollCost(w), s.stash); moduleReroll(Save.rng(), w, i); s.botRerolls = (s.botRerolls || 0) + 1;
-      log.push(`rerolled ${w.name}`);
     }
     // one spare of each kind, kept
     for (const f of MOD_FITS) { const spare = s.items.filter((x) => x.kind === 'module' && x.fits === f).sort((a, b) => moduleWorth(b) - moduleWorth(a)); spare.forEach((m, i) => { m.fav = i === 0; }); }
@@ -543,6 +528,13 @@ function installBot() {
       Bot.built[id] = Bot.n;
       log.push((bp.structure ? 'built ' : 'fitted ') + recipeName(id));
     }
+    // the Refinery's next level, at SUPPLIES, once the stash can spare it
+    for (let n = refineryNext(); n && !refineryBlock(); n = refineryNext()) {
+      const spare = Object.keys(n.cost).every((k) => !ORE_INDEX.hasOwnProperty(k) || (s.stash[k] || 0) - n.cost[k] >= (pickOre && k === pickOre.id ? BLUEPRINTS.pick.ore : 0));
+      if (!spare || !upgradeRefinery()) break;
+      Bot.built['refinery' + refineryLevel()] = Bot.n;
+      log.push('Refinery level ' + refineryLevel());
+    }
     UI.close();
     return log;
   }
@@ -568,39 +560,36 @@ function installBot() {
 
   // Supplies from old ore, as a player might: the region's ore behind the
   // one its pick is working through is spare, the current one's is kept
-  // back for gear. Injectors most, then Lightcells, a Ward Cell, a charge
-  // and a flare, the best grade it can pay for.
+  // back for gear (30 of it). Injectors most, then Lightcells.
   function makeSupplies() {
     const s = Save.data, log = [], power = s.equip.pick ? s.equip.pick.base.power : 1, region = Math.floor((power - 1) / 2);
-    const want = [['injector', 4], ['cell', 2], ['ward', 1], ['charge', 1], ['flare', 1]];
+    const want = [['injector', 4], ['cell', 2]];
     const spare = (ore) => { const i = ORE_INDEX[ore], r = Math.floor(i / 2); return (s.stash[ore] || 0) - (r >= region ? 30 : 0); };
     for (const [kind, n] of want) {
-      for (let k = 0; k < n && supplyCount(kind) < n; k++) {
-        const r = [3, 2, 1].map((g) => supplyRecipe(kind + g)).find((x) => Object.keys(x.cost).every((o) => spare(o) >= x.cost[o]));
-        if (!r || !makeSupply(r.id, false)) break;
-        log.push('made ' + r.name);
+      while (supplyCount(kind) < n) {
+        const c = supplyCost(s.stash);
+        if (!c.ok || spare(c.ore) < c.n || !makeSupply(kind, false)) break;
+        log.push('made ' + SUPPLY_KINDS[kind].name);
       }
     }
     return log;
   }
 
-  // The circuits a player might build: the gauntlet an Arc (Quicken,
-  // Amplify, Chain), the other hand a Lance if it has one, else a Bolt
-  // (Pierce or Split, Amplify), each with an Element if it has the exotic.
-  // It forges the stones it wants from what's in the stash (a Form again
-  // when its ore is a tier better), with home's forge(bp, ore), then
-  // sockets them.
+  // The spells a player might build: spell A an Arc (Quicken, Amplify),
+  // B a Lance if it has one, else a Bolt (Split or Pierce, Amplify), each
+  // with an Element if it has the exotic. It forges the cores it wants from
+  // what's in the stash (a core again when its ore is a tier better), with
+  // home's forge(bp, ore), then sets them.
   function circuits(forge) {
-    const s = Save.data, log = [];
-    const want = {
-      main: ['arc', 'el', 'quicken', 'amplify', 'chain', 'linger'],
-      off: [s.blueprints.includes('form_lance') ? 'lance' : 'bolt', 'el', s.blueprints.includes('form_lance') ? 'split' : 'pierce', 'amplify', 'echo', 'chain'],
-    };
+    const s = Save.data, log = [], rig = s.equip.main;
+    if (!rig || !rig.spells) return log;
+    const lance = s.blueprints.includes('form_lance');
+    const want = [['arc', ['quicken', 'amplify']], [lance ? 'lance' : 'bolt', [lance ? 'split' : 'pierce', 'amplify']]];
     // the elements, best first: by how often the kinds it meets fear them
     // and how seldom they shrug them off
     const worth = (el) => ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'].reduce((n, t) => { const v = (natureTable(t) || {})[el]; return n + T.enemies[t].weight * (v ? T.circuits.resist[v] : 1); }, 0);
     const elements = ['shock', 'frost', 'ember', 'blight'].sort((a, b) => worth(b) - worth(a));
-    const have = (id) => s.items.filter((x) => x.kind === 'stone' && x.stone === id).concat(['main', 'off'].flatMap((k) => (s.equip[k] ? s.equip[k].slots.filter((x) => x && x.stone === id) : [])));
+    const have = (id) => s.items.filter((x) => x.kind === 'stone' && x.stone === id).concat(rig.spells.flatMap(spellCores).filter((x) => x.stone === id));
     // (keeping back what the next pick takes)
     const pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
     const bestOre = (bp) => T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) - (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0) >= bp.ore + 4);
@@ -611,36 +600,29 @@ function installBot() {
       if (!ore) return false;
       const top = Math.max(0, ...have(id).map((x) => x.tier));
       if (top >= ore.tier) return false;
-      if (forge(bpId, ore.id)) { log.push(`forged ${id} stone in ${ore.name}`); return true; }
+      if (forge(bpId, ore.id)) { log.push(`forged ${id} core in ${ore.name}`); return true; }
       return false;
     };
-    for (const k of ['main', 'off']) {
-      const it = s.equip[k];
-      if (!it) continue;
-      const n = it.slots.length;
-      for (const id of want[k].slice(0, n)) {
-        if (id !== 'el') { make(id); continue; }
-        // an element: one this hand hasn't, from an exotic it has
-        const own = elements.filter((e) => have(e).length);
-        if (own.length < 2) { const e = elements.find((x) => !have(x).length && s.stash[STONE_ELEMENTS[x]] && s.blueprints.includes('el_' + x)); if (e) make(e); }
-      }
+    const n = rigMods(rig);
+    for (const [form, mods] of want) {
+      make(form);
+      for (const id of mods.slice(0, n)) make(id);
     }
-    // socket: every stone back to the stash, then each hand's best
-    for (const k of ['main', 'off']) { const it = s.equip[k]; if (!it) continue; it.slots.forEach((x, i) => { if (x) { s.items.push(x); it.slots[i] = null; } }); }
+    // an element for each spell, from an exotic it has
+    if (elements.filter((e) => have(e).length).length < 2) { const e = elements.find((x) => !have(x).length && s.stash[STONE_ELEMENTS[x]] && s.blueprints.includes('el_' + x)); if (e) make(e); }
+    // set them: every core back to the stash, then each spell's best
+    for (const sp of rig.spells) for (const c of spellCores(sp)) s.items.push(c);
+    rig.spells = rig.spells.map(() => emptySpell(n));
     const take = (id) => { const st = s.items.filter((x) => x.kind === 'stone' && x.stone === id).sort((a, b) => b.tier - a.tier)[0]; if (st) s.items.splice(s.items.indexOf(st), 1); return st || null; };
     const used = [];
-    for (const k of ['main', 'off']) {
-      const it = s.equip[k];
-      if (!it) continue;
-      let i = 0;
-      for (const id of want[k]) {
-        if (i >= it.slots.length) break;
-        let st;
-        if (id === 'el') { const e = elements.find((x) => !used.includes(x) && s.items.some((y) => y.stone === x)) || elements.find((x) => s.items.some((y) => y.stone === x)); st = e ? take(e) : null; if (st) used.push(e); }
-        else st = take(id) || (id === 'lance' ? take('bolt') : null);
-        if (st) it.slots[i++] = st;
-      }
-    }
+    want.forEach(([form, mods], i) => {
+      const sp = rig.spells[i];
+      sp.form = take(form) || (form === 'lance' ? take('bolt') : null);
+      const e = elements.find((x) => !used.includes(x) && s.items.some((y) => y.stone === x)) || elements.find((x) => s.items.some((y) => y.stone === x));
+      if (e) { sp.el = take(e); used.push(e); }
+      let k = 0;
+      for (const id of mods) { if (k >= n) break; const st = take(id); if (st) sp.mods[k++] = st; }
+    });
     Save.save();
     return log;
   }
@@ -655,13 +637,13 @@ function installBot() {
       r.home = home();
       r.mag = magnitudeOf(s.star);
       r.pick = s.equip.pick ? s.equip.pick.base.power : 0;
-      r.hands = ['main', 'off'].map((k) => (s.equip[k] ? `${s.equip[k].name} t${s.equip[k].tier} [${s.equip[k].slots.map((x) => (x ? x.stone : '-')).join(' ')}]` : 'fist')).join(' / ');
+      r.hands = s.equip.main ? `${s.equip.main.name} t${s.equip.main.tier} [${s.equip.main.spells.map(spellName).join(' / ')}]` : 'fist';
       r.maxHp = computeStats(s.equip, s.attune).maxHp;
-      r.gearTier = ['main', 'off', 'armor', 'charm', 'pick'].map((k) => (s.equip[k] ? s.equip[k].tier : 0));
+      r.gearTier = ['main', 'armor', 'charm', 'pick'].map((k) => (s.equip[k] ? s.equip[k].tier : 0));
       const mods = SLOTS.flatMap((k) => (s.equip[k] && s.equip[k].sockets ? s.equip[k].sockets.filter(Boolean) : []));
       r.socketed = mods.length; r.sockets = SLOTS.reduce((a, k) => a + (s.equip[k] && s.equip[k].sockets ? s.equip[k].sockets.length : 0), 0);
       r.modTiers = mods.map((m) => m.tier); r.modRarities = mods.map((m) => m.rarity[0]).join('');
-      r.found = s.modsFound || 0; r.ups = s.botUps || 0; r.rerolls = s.botRerolls || 0; r.threads = s.stash.thread || 0;
+      r.found = s.modsFound || 0; r.ups = s.botUps || 0; r.threads = s.stash.thread || 0;
       r.kindledAll = kindledCount();
       r.star = s.star;
       r.packs = JSON.parse(JSON.stringify(Bot.packs));

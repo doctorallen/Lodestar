@@ -35,7 +35,7 @@
 // strike it or aim at it. Numbers in T.enemies; looks in foesart.js.
 // ---------------------------------------------------------------------------
 
-// [name, plural] for the screens and contracts
+// [name, plural] for the screens
 const FOE_NAMES = {
   skink: ['Dune Skink', 'dune skinks'], tusker: ['Tusker', 'tuskers'], wraith: ['Ash Wraith', 'ash wraiths'], lurker: ['Bog Lurker', 'bog lurkers'],
   dropper: ['Ceiling Dropper', 'ceiling droppers'], eel: ['Pool Eel', 'pool eels'], crab: ['Slag Crab', 'slag crabs'], weaver: ['Rootweaver', 'rootweavers'],

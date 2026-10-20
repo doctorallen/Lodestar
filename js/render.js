@@ -979,7 +979,7 @@ function renderFrame() {
   }
   // the tools' marks and the outpost's labels too
   View.ctx = o;
-  try { drawToolHud(d, ox, oy); drawWickHud(d, ox, oy); drawDeedsHud(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else drawStormMark(d, ox, oy); if (!Intro.hub) drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
+  try { drawToolHud(d, ox, oy); drawWickHud(d, ox, oy); drawDeedsHud(d, ox, oy); drawGuideMarks(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else drawStormMark(d, ox, oy); if (!Intro.hub) drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
   // stepping through a portal, or just through one: over everything
   drawPortalIris(d, ox, oy);
 }
@@ -1042,12 +1042,12 @@ function drawProspector(d, ox, oy, tick, lights) {
   if (d.hub && Intro.hub && Intro.hub.hidden) return;
   const p = d.p;
   // casting: the pose, turned to the aim and leaning into it (castfx.js);
-  // the legs keep walking. Charging a caster, the pose is held, wound back.
+  // the legs keep walking. Charging a spell, the pose is held, wound back.
   let cast = p.cast && p.cast.t > 0 && p.cast.a !== undefined && !(p.mine && !p.mine.refused) ? p.cast : null;
   if (!cast && !(p.mine && !p.mine.refused))
     for (const slot of ['main', 'off']) {
-      const h = p.hands[slot], it = Save.data.equip[slot];
-      if (h.holding && isCaster(it) && chargeLevel(h) > 0) { cast = { a: castFxAim(d), slot, style: (bpOf(it) || {}).style || 'wand', t: 1, max: 1, charging: true }; break; }
+      const h = p.hands[slot], it = Save.data.equip.main;
+      if (h.holding && isCaster(it) && chargeLevel(h) > 0) { cast = { a: castFxAim(d), slot, t: 1, max: 1, charging: true }; break; }
     }
   p.castPose = cast;
   // the frame, and the way he's drawn facing (turning: diver.js)
@@ -1064,12 +1064,12 @@ function drawProspector(d, ox, oy, tick, lights) {
   if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(spr, sx, sy);
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot), face);
   if (p.ward > 0) cfxDrawWard(p, fx, fy, lights);
-  // a charging hand gathers light, and flashes when it's full (its circle
-  // is on the ground, its motes drawn in: castfx.js; an empty fist rings)
+  // a charging wrist gathers light, and flashes when it's full (its circle
+  // is on the ground, its motes drawn in: castfx.js; with no rig, a ring)
   for (const slot of ['main', 'off']) {
-    const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0, it = Save.data.equip[slot];
+    const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0, it = Save.data.equip.main;
     if (lv <= 0) continue;
-    const col = castFxCol(it);
+    const col = castFxCol(it, slot);
     if (!isCaster(it)) ringDots(fx, fy - ap(10), (15 - lv * 5) * AP, col, lv >= 1 ? (tick % 2 ? 1 : 0.5) : 0.25 + lv * 0.5, true);
     cfxLight(lights, fx, fy - ap(10), TILE * (0.8 + lv), 0.3 + lv * 0.6, rgb01(col));
   }
@@ -1135,62 +1135,32 @@ function handOf(p, spr, sx, sy, slot, face = { x: p.fx, y: p.fy }) {
   return { x: sx + spr.w - 1 - h.x, y: sy + h.y };
 }
 
-// The casters in hand (drawFocusHeld). which(slot): whether to draw that
-// hand now (behind the body, or in front); face: the way the diver faces.
+// The rig's two wrist projectors (drawRigHeld): which(slot): whether to
+// draw that wrist's light now (behind the body, or in front); face: the way
+// the diver faces.
 function drawHeld(d, spr, sx, sy, tick, lights, which, face = { x: d.p.fx, y: d.p.fy }) {
-  const p = d.p, eq = Save.data.equip;
-  if (p.mine && !p.mine.refused) return;
-  for (const slot of ['main', 'off']) {
-    const it = eq[slot];
-    if (!which(slot) || !isCaster(it)) continue;
-    drawFocusHeld(d, it, handOf(p, spr, sx, sy, slot, face), lights, slot, tick);
-  }
+  const p = d.p, it = Save.data.equip.main;
+  if ((p.mine && !p.mine.refused) || !isCaster(it)) return;
+  for (const slot of ['main', 'off']) if (which(slot)) drawRigHeld(d, it, handOf(p, spr, sx, sy, slot, face), lights, slot, tick);
 }
 
-// A focus in hand, by its style: a wand's orb floats over the hand; a
-// staff is a shaft with the orb at its head; a gauntlet's knuckles glow.
-// Casting, it's held out at the aim: a wand flicks out and back, a staff
-// lifts its head and swings it down at the aim, a gauntlet punches. A charge
-// makes it burn brighter. Where it is goes to castfx.js, for the motes a
-// charge draws in.
-function drawFocusHeld(d, it, hand, lights, slot, tick) {
-  const p = d.p, F = T.castFx, col = castFxCol(it), style = (bpOf(it) || {}).style || 'wand', h = p.hands[slot];
+// A wrist's projector, its lens on the bracer (the sprite's: diver.js).
+// Nothing is held: casting, the fist is thrust at the aim and the light
+// leaves just past it, a flare of the spell's colour; charging, it gathers
+// there, a ring closing round it, flashing when full. Where it is goes to
+// castfx.js, for the motes a charge draws in.
+function drawRigHeld(d, it, hand, lights, slot, tick) {
+  const p = d.p, F = T.castFx, col = castFxCol(it, slot), h = p.hands[slot];
   const cast = p.castPose && p.castPose.slot === slot ? p.castPose : null;
   const lv = h && h.holding ? chargeLevel(h) : 0, full = lv >= 1;
   const k = cast ? 1 - cast.t / cast.max : 1, out = cast ? (k < F.thrust ? 1 : 1 - (k - F.thrust) / (1 - F.thrust)) : 0, flare = cast && !cast.charging ? 1 - k : 0;
-  const ca = cast ? Math.cos(cast.a) : 0, sa = cast ? Math.sin(cast.a) : 0, reach = (F.reach[style] || 0) * out;
-  const bob = cast ? 0 : Math.round(Math.sin(Game.realT * 4 + (hand.x & 3)) * AP);
-  let x, y;
-  if (style === 'staff') {
-    // the head lifts, then swings down at the aim
-    // (held, it leans a little the way the diver faces, clear of the helm)
-    const lean = Math.abs(p.fx) > 0.3 ? Math.sign(p.fx) * ap(2) : 0;
-    const lifting = cast && k < F.thrust * 0.5, hx = cast && !lifting ? Math.round(hand.x + ca * (ap(7) + reach)) : hand.x + (cast ? 0 : lean);
-    const hy = cast && !lifting ? Math.round(hand.y + sa * (ap(7) + reach) - ap(2)) : hand.y - ap(9) + bob - (lifting ? F.lift : 0);
-    const bx = cast && !lifting ? Math.round(hand.x - ca * ap(4)) : hand.x, by = cast && !lifting ? Math.round(hand.y - sa * ap(4) + ap(2)) : hand.y + ap(5);
-    pixelLine(bx, by, hx, hy + 2, ART.pal.wood[3]);
-    pixelLine(bx + 1, by, hx + 1, hy + 2, ART.pal.wood[1]);
-    x = hx; y = hy;
-  } else if (style === 'gauntlet') {
-    x = Math.round(hand.x + ca * reach); y = Math.round(hand.y + sa * reach) - (cast ? 0 : 1);
-  } else {
-    x = Math.round(hand.x + ca * (reach + 2)); y = Math.round(hand.y + sa * (reach + 2)) - (cast ? ap(1) : ap(3)) + bob;
-  }
+  const ca = cast ? Math.cos(cast.a) : 0, sa = cast ? Math.sin(cast.a) : 0, reach = F.reach * out;
+  const x = Math.round(hand.x + ca * reach), y = Math.round(hand.y + sa * reach) - (cast ? 0 : 1);
   CFX.focusAt[slot] = { x: (x + View.camX) / AP - p.x, y: (y + View.camY) / AP - p.y };
+  if (!cast && lv <= 0) return;
+  // the light leaving the projector: a small cross, its heart white
   const heart = full && tick % 2 ? col : '#ffffff', rim = full && tick % 2 ? '#ffffff' : col;
-  if (style === 'gauntlet') {
-    // a knuckle-glow: a small cross on the fist
-    for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) dot(x + i, y + j, i || j ? rim : heart, true);
-  } else {
-    // an orb: a white heart, its colour round it (a staff's is bigger)
-    const R = style === 'staff' ? 3 : 2;
-    for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
-      const e = Math.abs(i) + Math.abs(j);
-      if (e > R || (e === R && i && j && R === 2)) continue;
-      dot(x + i, y + j, e === 0 || (e === 1 && i <= 0 && j <= 0) ? heart : e === R && R === 3 ? mix(col, '#000000', 0.3) : rim, true);
-    }
-  }
-  // a charge: a ring of light round it, closing as it fills
+  for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) dot(x + i, y + j, i || j ? rim : heart, true, cast && !lv ? Math.max(0.35, 1 - k) : 1);
   if (lv > 0.3) ringDots(x, y, (6 - lv * 3) * AP, col, full ? 1 : 0.5, true);
   cfxLight(lights, x, y, TILE * (0.9 + flare + lv * 1.2), 0.5 + flare + lv * 0.8, rgb01(col));
 }

@@ -1,0 +1,1109 @@
+{
+ "v": 6,
+ "uid": 127,
+ "crafts": 48,
+ "dives": 9,
+ "star": 911,
+ "magSeen": 4,
+ "stash": {
+  "ferrite": 48,
+  "fiber1": 15,
+  "cog1": 37,
+  "riftglass": 3,
+  "ether1": 45,
+  "emberglass": 5,
+  "frostglass": 6,
+  "chitin1": 4,
+  "spore1": 30,
+  "lumenite": 17,
+  "lodeshard": 1,
+  "voltaic": 3,
+  "bloodresin": 2,
+  "blightcap": 2,
+  "heart1": 1
+ },
+ "items": [
+  {
+   "uid": 2,
+   "kind": "stone",
+   "stone": "arc",
+   "tier": 1,
+   "rarity": "magic",
+   "affixes": [],
+   "name": "Arc stone"
+  },
+  {
+   "uid": 109,
+   "kind": "stone",
+   "stone": "quicken",
+   "tier": 1,
+   "rarity": "magic",
+   "affixes": [],
+   "name": "Quicken stone"
+  },
+  {
+   "uid": 121,
+   "kind": "charm",
+   "bp": "charm",
+   "tier": 2,
+   "q": 0,
+   "rarity": "common",
+   "base": {},
+   "affixes": [],
+   "sockets": [
+    null
+   ],
+   "name": "Lumenite Charm"
+  },
+  {
+   "uid": 122,
+   "kind": "pick",
+   "bp": "pick",
+   "tier": 3,
+   "q": 0,
+   "rarity": "common",
+   "base": {
+    "power": 4,
+    "speed": 1.36
+   },
+   "affixes": [],
+   "sockets": [
+    null
+   ],
+   "name": "Resonite Pick"
+  },
+  {
+   "uid": 123,
+   "kind": "armor",
+   "bp": "weave",
+   "tier": 2,
+   "q": 0,
+   "rarity": "common",
+   "base": {
+    "armor": 4,
+    "hp": 18
+   },
+   "affixes": [],
+   "sockets": [
+    null
+   ],
+   "name": "Lumenite Weave"
+  },
+  {
+   "uid": 124,
+   "kind": "caster",
+   "bp": "staff",
+   "tier": 3,
+   "q": 0,
+   "rarity": "common",
+   "base": {
+    "power": 12.6
+   },
+   "affixes": [],
+   "sockets": [
+    null,
+    null
+   ],
+   "slots": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "fav": true,
+   "name": "Resonite Staff"
+  },
+  {
+   "uid": 125,
+   "kind": "relic",
+   "tier": 2,
+   "rarity": "relic",
+   "affixes": [],
+   "name": "Sealed relic"
+  },
+  {
+   "uid": 126,
+   "kind": "stone",
+   "stone": "frost",
+   "tier": 2,
+   "rarity": "magic",
+   "affixes": [],
+   "name": "Frost stone"
+  },
+  {
+   "uid": 4,
+   "kind": "module",
+   "fits": "charm",
+   "tier": 2,
+   "rarity": "legendary",
+   "affixes": [
+    {
+     "id": "armor",
+     "v": 4
+    },
+    {
+     "id": "mineSpeed",
+     "v": 19
+    },
+    {
+     "id": "castSpeed",
+     "v": 12
+    }
+   ],
+   "src": {
+    "was": "Lodeheart"
+   },
+   "power": "lodeheart",
+   "name": "Lodeheart"
+  },
+  {
+   "uid": 5,
+   "kind": "module",
+   "fits": "pick",
+   "tier": 3,
+   "rarity": "set",
+   "affixes": [
+    {
+     "id": "oreLuck",
+     "v": 17
+    },
+    {
+     "id": "moveSpeed",
+     "v": 5
+    }
+   ],
+   "src": {
+    "was": "Prospector's Pick"
+   },
+   "set": "regalia",
+   "name": "Prospector's Edge"
+  },
+  {
+   "uid": 6,
+   "kind": "module",
+   "fits": "armor",
+   "tier": 2,
+   "rarity": "rare",
+   "affixes": [
+    {
+     "id": "magnet",
+     "v": 10
+    },
+    {
+     "id": "regen",
+     "v": 0.7
+    },
+    {
+     "id": "armor",
+     "v": 4
+    }
+   ],
+   "src": {
+    "was": "Hollow Veil"
+   },
+   "name": "Hollow Veil"
+  },
+  {
+   "uid": 7,
+   "kind": "module",
+   "fits": "caster",
+   "tier": 3,
+   "rarity": "magic",
+   "affixes": [
+    {
+     "id": "chargeRegen",
+     "v": 24
+    },
+    {
+     "id": "chill",
+     "v": 13
+    }
+   ],
+   "src": {
+    "was": "Humming Resonite Staff"
+   },
+   "name": "Humming Lattice"
+  },
+  {
+   "uid": 16,
+   "kind": "stone",
+   "stone": "trigger",
+   "tier": 2,
+   "rarity": "magic",
+   "affixes": [],
+   "name": "Trigger stone"
+  },
+  {
+   "uid": 17,
+   "kind": "stone",
+   "stone": "linger",
+   "tier": 1,
+   "rarity": "magic",
+   "affixes": [],
+   "name": "Linger stone"
+  },
+  {
+   "uid": 18,
+   "kind": "caster",
+   "bp": "wand",
+   "tier": 2,
+   "q": 1,
+   "rarity": "common",
+   "base": {
+    "power": 9.1
+   },
+   "affixes": [],
+   "sockets": [
+    null
+   ],
+   "slots": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "name": "Lumenite Wand"
+  },
+  {
+   "uid": 19,
+   "kind": "module",
+   "fits": "armor",
+   "tier": 2,
+   "rarity": "rare",
+   "affixes": [
+    {
+     "id": "moveSpeed",
+     "v": 4
+    },
+    {
+     "id": "cargo",
+     "v": 2
+    },
+    {
+     "id": "magnet",
+     "v": 6
+    }
+   ],
+   "name": "Woven Ward",
+   "woven": true
+  },
+  {
+   "uid": 20,
+   "kind": "module",
+   "fits": "charm",
+   "tier": 2,
+   "rarity": "legendary",
+   "affixes": [
+    {
+     "id": "chargeRegen",
+     "v": 8
+    },
+    {
+     "id": "cargo",
+     "v": 3
+    }
+   ],
+   "name": "Lodeheart",
+   "power": "lodeheart",
+   "imprinted": true
+  }
+ ],
+ "equip": {
+  "main": {
+   "uid": 1,
+   "kind": "caster",
+   "bp": "gauntlet",
+   "tier": 1,
+   "q": 0,
+   "rarity": "common",
+   "base": {
+    "power": 5
+   },
+   "affixes": [],
+   "sockets": [
+    {
+     "uid": 15,
+     "kind": "module",
+     "fits": "caster",
+     "tier": 1,
+     "rarity": "rare",
+     "affixes": [
+      {
+       "id": "moveSpeed",
+       "v": 5
+      },
+      {
+       "id": "magnet",
+       "v": 6
+      },
+      {
+       "id": "chargeRegen",
+       "v": 9
+      }
+     ],
+     "name": "Ember Eye"
+    }
+   ],
+   "slots": [
+    {
+     "uid": 110,
+     "kind": "stone",
+     "stone": "arc",
+     "tier": 2,
+     "rarity": "magic",
+     "affixes": [],
+     "name": "Arc stone"
+    },
+    {
+     "uid": 103,
+     "kind": "stone",
+     "stone": "ember",
+     "tier": 1,
+     "rarity": "magic",
+     "affixes": [],
+     "name": "Ember stone"
+    },
+    {
+     "uid": 120,
+     "kind": "stone",
+     "stone": "quicken",
+     "tier": 2,
+     "rarity": "magic",
+     "affixes": [],
+     "name": "Quicken stone"
+    }
+   ],
+   "name": "Scrap Gauntlet"
+  },
+  "off": {
+   "uid": 8,
+   "kind": "caster",
+   "bp": "staff",
+   "tier": 3,
+   "q": 3,
+   "rarity": "common",
+   "base": {
+    "power": 14.5
+   },
+   "affixes": [],
+   "sockets": [
+    {
+     "uid": 14,
+     "kind": "module",
+     "fits": "caster",
+     "tier": 3,
+     "rarity": "legendary",
+     "affixes": [
+      {
+       "id": "crit",
+       "v": 5
+      },
+      {
+       "id": "castSpeed",
+       "v": 9
+      }
+     ],
+     "power": "echo",
+     "name": "Twice-Told"
+    },
+    null,
+    null
+   ],
+   "slots": [
+    {
+     "uid": 9,
+     "kind": "stone",
+     "stone": "bolt",
+     "tier": 2,
+     "rarity": "magic",
+     "affixes": [],
+     "name": "Bolt stone"
+    },
+    {
+     "uid": 10,
+     "kind": "stone",
+     "stone": "force",
+     "tier": 1,
+     "rarity": "magic",
+     "affixes": [],
+     "name": "Force stone"
+    },
+    {
+     "uid": 11,
+     "kind": "stone",
+     "stone": "split",
+     "tier": 2,
+     "rarity": "magic",
+     "affixes": [],
+     "name": "Split stone"
+    },
+    {
+     "uid": 12,
+     "kind": "stone",
+     "stone": "trigger",
+     "tier": 1,
+     "rarity": "magic",
+     "affixes": [],
+     "name": "Trigger stone"
+    },
+    {
+     "uid": 13,
+     "kind": "stone",
+     "stone": "nova",
+     "tier": 3,
+     "rarity": "magic",
+     "affixes": [],
+     "name": "Nova stone"
+    }
+   ],
+   "links": [
+    1
+   ],
+   "name": "Starfall Staff",
+   "fav": true
+  },
+  "pick": {
+   "uid": 106,
+   "kind": "pick",
+   "bp": "pick",
+   "tier": 2,
+   "q": 0,
+   "rarity": "common",
+   "base": {
+    "power": 3,
+    "speed": 1.24
+   },
+   "affixes": [],
+   "sockets": [
+    {
+     "uid": 1,
+     "kind": "module",
+     "fits": "pick",
+     "tier": 2,
+     "rarity": "common",
+     "affixes": [
+      {
+       "id": "maxCharge",
+       "v": 8
+      }
+     ],
+     "src": {
+      "was": "Lumenite Pick"
+     },
+     "name": "Plain lattice"
+    }
+   ],
+   "name": "Lumenite Pick"
+  },
+  "armor": {
+   "uid": 118,
+   "kind": "armor",
+   "bp": "plate",
+   "tier": 2,
+   "q": 0,
+   "rarity": "common",
+   "base": {
+    "armor": 7,
+    "hp": 24
+   },
+   "affixes": [],
+   "sockets": [
+    {
+     "uid": 2,
+     "kind": "module",
+     "fits": "armor",
+     "tier": 2,
+     "rarity": "rare",
+     "affixes": [
+      {
+       "id": "maxHp",
+       "v": 15
+      },
+      {
+       "id": "moveSpeed",
+       "v": 4
+      },
+      {
+       "id": "armor",
+       "v": 7
+      }
+     ],
+     "src": {
+      "was": "Pale Mantle"
+     },
+     "name": "Pale Mantle"
+    }
+   ],
+   "name": "Lumenite Plate"
+  },
+  "charm": {
+   "uid": 102,
+   "kind": "charm",
+   "bp": "charm",
+   "tier": 1,
+   "q": 0,
+   "rarity": "common",
+   "base": {},
+   "affixes": [],
+   "sockets": [
+    {
+     "uid": 3,
+     "kind": "module",
+     "fits": "charm",
+     "tier": 1,
+     "rarity": "common",
+     "affixes": [
+      {
+       "id": "spellDmg",
+       "v": 15
+      }
+     ],
+     "src": {
+      "was": "Ferrite Charm"
+     },
+     "name": "Plain lattice"
+    }
+   ],
+   "name": "Ferrite Charm"
+  }
+ },
+ "attune": {
+  "vitality": 3
+ },
+ "tips": {
+  "darkLand": true,
+  "mine": true,
+  "parts": true,
+  "haz_spores": true,
+  "spire": true,
+  "blueprint": true,
+  "gear": true,
+  "lodeline": true
+ },
+ "settings": {
+  "haptics": true
+ },
+ "world": {
+  "seed": 202,
+  "territories": {
+   "1": {
+    "state": "kindled",
+    "visits": 6,
+    "mined": [
+     [
+      2042,
+      1
+     ],
+     [
+      2094,
+      1
+     ],
+     [
+      1729,
+      1
+     ],
+     [
+      1730,
+      1
+     ]
+    ],
+    "sealed": true,
+    "done": true,
+    "spire": true
+   },
+   "2": {
+    "state": "contested",
+    "visits": 1,
+    "mined": [
+     [
+      1107,
+      6
+     ],
+     [
+      1106,
+      6
+     ],
+     [
+      1158,
+      6
+     ],
+     [
+      1318,
+      6
+     ],
+     [
+      1370,
+      6
+     ],
+     [
+      1369,
+      6
+     ],
+     [
+      1368,
+      6
+     ],
+     [
+      1642,
+      6
+     ],
+     [
+      1643,
+      6
+     ],
+     [
+      1695,
+      6
+     ],
+     [
+      1694,
+      6
+     ],
+     [
+      1746,
+      6
+     ],
+     [
+      1745,
+      6
+     ],
+     [
+      1378,
+      6
+     ]
+    ],
+    "sealed": true,
+    "done": true
+   },
+   "3": {
+    "state": "dark",
+    "visits": 3,
+    "mined": [
+     [
+      746,
+      7
+     ],
+     [
+      694,
+      7
+     ],
+     [
+      642,
+      7
+     ],
+     [
+      802,
+      7
+     ],
+     [
+      750,
+      7
+     ],
+     [
+      698,
+      7
+     ],
+     [
+      699,
+      7
+     ],
+     [
+      1228,
+      7
+     ],
+     [
+      1280,
+      7
+     ],
+     [
+      1693,
+      7
+     ],
+     [
+      1641,
+      7
+     ],
+     [
+      1642,
+      7
+     ],
+     [
+      1834,
+      7
+     ],
+     [
+      1886,
+      7
+     ],
+     [
+      1529,
+      8
+     ],
+     [
+      1581,
+      8
+     ]
+    ]
+   },
+   "4": {
+    "state": "kindled",
+    "done": true,
+    "starter": true,
+    "visits": 5,
+    "mined": []
+   },
+   "5": {
+    "state": "kindled",
+    "visits": 9,
+    "mined": [
+     [
+      1801,
+      3
+     ],
+     [
+      1749,
+      3
+     ],
+     [
+      1373,
+      4
+     ],
+     [
+      1372,
+      4
+     ],
+     [
+      1320,
+      4
+     ]
+    ],
+    "lit": [
+     0,
+     1,
+     2
+    ],
+    "done": true,
+    "spire": true
+   },
+   "6": {
+    "state": "dark",
+    "visits": 5,
+    "mined": [
+     [
+      1955,
+      9
+     ],
+     [
+      2008,
+      9
+     ],
+     [
+      2007,
+      9
+     ],
+     [
+      2060,
+      9
+     ],
+     [
+      590,
+      9
+     ],
+     [
+      692,
+      9
+     ],
+     [
+      1084,
+      9
+     ]
+    ]
+   },
+   "7": {
+    "state": "kindled",
+    "visits": 8,
+    "mined": [
+     [
+      2539,
+      5
+     ],
+     [
+      2591,
+      5
+     ],
+     [
+      2643,
+      5
+     ],
+     [
+      2644,
+      5
+     ],
+     [
+      2021,
+      5
+     ],
+     [
+      2022,
+      5
+     ],
+     [
+      1970,
+      5
+     ],
+     [
+      1971,
+      5
+     ],
+     [
+      1332,
+      6
+     ],
+     [
+      1331,
+      6
+     ],
+     [
+      1330,
+      6
+     ],
+     [
+      1278,
+      6
+     ],
+     [
+      1382,
+      6
+     ],
+     [
+      1328,
+      6
+     ],
+     [
+      1327,
+      6
+     ],
+     [
+      1233,
+      6
+     ],
+     [
+      1285,
+      6
+     ],
+     [
+      1065,
+      6
+     ],
+     [
+      1117,
+      6
+     ],
+     [
+      1169,
+      6
+     ],
+     [
+      1168,
+      6
+     ]
+    ],
+    "lit": [
+     0,
+     1,
+     2
+    ],
+    "done": true,
+    "spire": true
+   }
+  },
+  "sorties": 9
+ },
+ "lastSpire": 0,
+ "blueprints": [
+  "wand",
+  "gauntlet",
+  "plate",
+  "charm",
+  "pick",
+  "form_arc",
+  "form_bolt",
+  "el_force",
+  "el_shock",
+  "el_frost",
+  "el_ember",
+  "el_blight",
+  "glyph_split",
+  "glyph_amplify",
+  "glyph_quicken",
+  "glyph_chain",
+  "glyph_echo",
+  "glyph_pierce",
+  "glyph_linger",
+  "glyph_trigger",
+  "form_glaive",
+  "form_ward",
+  "form_nova",
+  "weave",
+  "form_lance",
+  "tool_oresense",
+  "tool_radar",
+  "tool_beacon",
+  "tool_map",
+  "tool_satchel",
+  "bld_bay",
+  "bld_refinery",
+  "bld_relay",
+  "bld_quarters",
+  "wick_scan",
+  "wick_lamp",
+  "wick_shield",
+  "wick_spark"
+ ],
+ "tools": [
+  "compass"
+ ],
+ "tool": "compass",
+ "codex": [
+  "echo",
+  "lodeheart"
+ ],
+ "natures": {
+  "snapjaw": {
+   "force": 1,
+   "ember": 1,
+   "shock": 1
+  },
+  "wisp": {
+   "force": 1,
+   "ember": 1,
+   "shock": 1
+  },
+  "crawler": {
+   "force": 1,
+   "ember": 1,
+   "shock": 1
+  },
+  "construct": {
+   "force": 1,
+   "ember": 1,
+   "shock": 1
+  },
+  "spitter": {
+   "force": 1,
+   "ember": 1,
+   "shock": 1
+  },
+  "lurker": {
+   "force": 1,
+   "ember": 1,
+   "shock": 1
+  },
+  "warden.rim": {
+   "force": 1
+  },
+  "skink": {
+   "force": 1,
+   "ember": 1
+  },
+  "weaver": {
+   "force": 1,
+   "shock": 1,
+   "ember": 1
+  },
+  "hound": {
+   "shock": 1,
+   "ember": 1
+  },
+  "wraith": {
+   "shock": 1,
+   "ember": 1
+  }
+ },
+ "resCodex": {
+  "kindling": [
+   0,
+   1,
+   2
+  ],
+  "starfall": [
+   0,
+   3,
+   4
+  ],
+  "wildfire": [
+   1
+  ]
+ },
+ "said": {
+  "storm": true,
+  "rift": true,
+  "rift_bloom": true,
+  "firstDive": true,
+  "resistHit": true,
+  "riftSpawn": true,
+  "react_stun": true,
+  "pullFading": true,
+  "riftSealed": true,
+  "firstKindled": true,
+  "firstSpire": true,
+  "rift_graft": true,
+  "warded": true,
+  "foe_lurker": true,
+  "wardBroken": true,
+  "shifting": true,
+  "foe_skink": true,
+  "weakHit": true,
+  "react_scatter": true,
+  "react_inferno": true,
+  "resStone": true,
+  "foe_weaver": true,
+  "firstSettlers": true,
+  "resonance": true,
+  "react_flare": true,
+  "react_overload": true,
+  "firstDeep": true,
+  "foe_hound": true,
+  "foe_wraith": true
+ },
+ "run": null,
+ "contracts": [
+  {
+   "id": 13,
+   "kind": "seal",
+   "age": 1,
+   "n": 1,
+   "star": 75,
+   "reward": "parts",
+   "part": "chitin1",
+   "parts": 3
+  },
+  {
+   "id": 14,
+   "kind": "hunt",
+   "age": 1,
+   "type": "snapjaw",
+   "n": 7,
+   "star": 75,
+   "reward": "exotic",
+   "exotic": "lodeshard"
+  },
+  {
+   "id": 15,
+   "kind": "reach",
+   "age": 1,
+   "ring": 2,
+   "star": 75,
+   "reward": "parts",
+   "part": "chitin1",
+   "parts": 3
+  }
+ ],
+ "contractN": 15,
+ "botWins": 1,
+ "swapped": false,
+ "botBest": 4,
+ "studied": []
+}

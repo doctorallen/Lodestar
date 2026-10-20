@@ -8,8 +8,9 @@
 // The diver runs on real time; the world runs on dt × Game.timeScale.
 //
 // What the diver wears is safe whatever happens; what's in the cargo
-// (ore, exotics, gear, relics) is banked only at a spire or at home. The
-// cargo is saved only when it's banked, so closing the page mid-sortie
+// (ore, exotics, gear, relics) is banked only at a spire or at home, and
+// there's no limit to it: a fall leaves all of it in the pack (deeds.js).
+// The cargo is saved only when it's banked, so closing the page mid-sortie
 // can't smuggle it home.
 // ---------------------------------------------------------------------------
 
@@ -37,7 +38,7 @@ function newWorld(fields) {
   return Object.assign({
     seed: 0, biome: 0, depth: 0, floor: null, target: null, time: 0, kills: 0, dying: 0,
     rng: new Rng(1), stats,
-    cargo: {}, items: [], blueprints: [], pocket: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], auras: [], later: [], flow: null, flowAt: -1,
+    cargo: {}, items: [], blueprints: [], enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], auras: [], later: [], flow: null, flowAt: -1,
     pull: 1, pullTime: T.world.light, waveT: 0, channel: null, padDark: false,
     p: {
       x: 0, y: 0, fx: 0, fy: 1, walkT: 0, mine: null,
@@ -53,7 +54,6 @@ function newWorld(fields) {
 // from, to come in at the opening from it. at.quiet: built while the game
 // loads, with nothing said yet (hubWelcome says it).
 function enterHub(report, at = {}) {
-  if (report) Save.data.swapped = false;
   const f = outpostFloor(worldState().seed);
   f.solids = outpostSolids(f);
   const d = (Game.dive = newWorld({ hub: true, floor: f, zone: 'surface', sun: outpostSun() }));
@@ -72,7 +72,8 @@ function enterHub(report, at = {}) {
 function hubWelcome(report) {
   UI.close();
   if (report) UI.openReport(report);
-  else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk out any opening into the land next to the outpost, or take the portal');
+  // (after the opening, once: Wick's offer to walk you through it)
+  else if (!Save.data.run && !Story.intro() && !Onboard.offer()) UI.tip('hub', 'Walk out any opening, or take the portal');
 }
 // The daylight over the outpost: the star's own ground, brighter as it
 // grows (T.outpost.sun).
@@ -106,7 +107,7 @@ function saveRun(d) {
   const b = d.beacon;
   Save.data.run = {
     seed: d.sortieSeed, terr: d.terr, how: d.how, deep: d.deep ? d.deep.site : 0, tool: d.tool,
-    cargo: d.cargo, items: d.items, blueprints: d.blueprints, pocket: d.pocket, banked: d.banked, far: d.far, maxRing: d.maxRing,
+    cargo: d.cargo, items: d.items, blueprints: d.blueprints, banked: d.banked, far: d.far, maxRing: d.maxRing,
     hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, pullTime: d.pullTime, kills: d.kills, time: d.time, mined: d.mined || [],
     gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b ? { x: b.x, y: b.y, t: b.t, landed: b.landed } : null,
     sealed: !!(d.deep && d.rift && !d.rift.open), storm: !!d.storm, tally: d.tally || {}, keeperDown: !!(d.zone === 'lair' && d.keeper && d.keeper.dead), lairT: d.lairT || 0,
@@ -126,7 +127,7 @@ function resumeRun() {
   if (r.deep) { d.terr = r.terr; enterDeepSite(r.deep); } else enterTerritory(r.terr, r.how || {});
   const f = d.floor;
   if (r.deep) { for (const i of r.mined || []) if (f.tiles[i] === TILE_ORE) { f.tiles[i] = TILE_FLOOR; f.ore[i] = 0; } d.mined = (r.mined || []).slice(); }
-  Object.assign(d, { cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], kills: r.kills || 0, time: r.time || 0, gotShard: r.gotShard, echoes: r.echoes, beaconUsed: r.beaconUsed });
+  Object.assign(d, { cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], kills: r.kills || 0, time: r.time || 0, gotShard: r.gotShard, echoes: r.echoes, beaconUsed: r.beaconUsed });
   d.p.hp = Math.min(d.stats.maxHp, r.hp || d.stats.maxHp);
   if (!d.kindled) d.pull = r.pull === undefined ? 1 : r.pull;
   // a lair whose Keeper had fallen: still fallen, its shard still there
@@ -221,7 +222,7 @@ function updateDive(dtReal, dt) {
   updateBolts(dt);
   updateAuras(dt);
   updateCombatFx(dt);
-  if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); updateSupplies(d, dt); }
+  if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); }
   else { updateSettlers(d, dt); updateStarFeed(d, dtReal); updateStructures(d, dtReal); }
   if (!d.hub) updateWick(d, dt);
   updatePickups(dtReal);
@@ -260,7 +261,8 @@ function actionHere() {
   const d = Game.dive;
   if (!d || d.dying || d.warp) return null;
   const near = (tx, ty, r) => dist(d.p.x, d.p.y, (tx + 0.5) * TILE, (ty + 0.5) * TILE) < r;
-  if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && near(s.x, s.y, s.id === 'wreck' ? 30 : 20)); return s ? s.id : null; }
+  // (a station not yet awake has no button: onboard.js)
+  if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && stationAwake(s.id) && near(s.x, s.y, s.id === 'wreck' ? 30 : 20)); return s ? s.id : null; }
   const t = floorTile(d.floor, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
   if (t === TILE_PAD && !d.padDark && !d.channel) return 'extract';
   if (d.sortie && !d.channel && stoneHere(d) >= 0) return 'stone';
@@ -278,8 +280,6 @@ function updatePull(dt) {
   const d = Game.dive, P = T.pull;
   if (d.kindled && !d.deep) { d.pull = 1; return; }
   if (d.pull <= 0) return;
-  // a flare's light holds yours (supplies.js)
-  if (inFlare(d)) return;
   // in a lair the Keeper holds the dark off while it lives, but its rage grows
   if (d.zone === 'lair' && d.keeper && !d.keeper.dead) {
     if (!d.keeper.enraged && (d.lairT = (d.lairT || 0) + dt) >= T.enemies.keeper.enrageAt) { d.keeper.enraged = true; UI.toast('The Keeper rages', 'legendary'); }
@@ -363,10 +363,6 @@ function updateChannel(dt) {
   }
 }
 
-// The share of the cargo an emergency recall costs here.
-// (the Forward Relay halves it: structures.js)
-function recallCost(d) { const L = T.leave; return clamp(L.recallLoss + L.recallPerDepth * d.depth - L.recallPerMag * (magnitudeOf(Save.data.star) - 1), L.recallMin, L.recallMax) * relayLoss(); }
-
 // ---------------------------------------------------------------------------
 // Walking: a circle against the floor's smooth wall line (rockAt), felt at
 // its centre and eight points round its edge. Enemies use it too.
@@ -445,7 +441,6 @@ function updateMining(dt) {
   const refuse = (why, msg) => { if (!p.mine || p.mine.i !== tgt.i || p.mine.refused !== why) { p.mine = { i: tgt.i, prog: 0, hitT: 0, refused: why }; UI.toast(msg); snd('mineRefuse'); } };
   if (!pick) return refuse('nopick', 'You need a pick');
   if (o.tier > pick.base.power) return refuse('weak', `Your pick can't break ${o.name}`);
-  if (cargoUsed(d) >= d.stats.cargo) { UI.tip('full', 'Full: bank it at a spire, or carry it home'); return refuse('full', 'Cargo full'); }
   if (!p.mine || p.mine.i !== tgt.i || p.mine.refused) p.mine = { i: tgt.i, prog: 0, hitT: 0 };
   p.mine.prog += (dt * T.mine.speed * pick.base.speed * (1 + d.stats.mineSpeed / 100)) / o.hardness;
   p.mine.hitT -= dt;
@@ -467,7 +462,8 @@ function breakOre(tgt, o) {
   f.ore[tgt.i] = 0;
   let n = d.rng.i(T.mine.yield[0], T.mine.yield[1]);
   if (d.rng.f(100) < st.oreLuck) n *= 2;
-  n = Math.min(st.cargo - cargoUsed(d), n);
+  // (the first landing's walkthrough is eased: onboard.js)
+  n += onboardOreBonus(d, o);
   d.cargo[o.id] = (d.cargo[o.id] || 0) + n;
   d.p.mine = null;
   repaintAround(f, tgt.tx, tgt.ty);
@@ -486,19 +482,6 @@ function breakOre(tgt, o) {
 // ---------------------------------------------------------------------------
 // Leaving
 // ---------------------------------------------------------------------------
-// Everything in the pocket goes home, whatever happens.
-function bankPocket(d) {
-  Save.data.run = null;
-  const s = Save.data.stash, kept = { stuff: {}, items: [], blueprints: [] };
-  for (const e of d.pocket) {
-    if (e.item) { Save.data.items.push(e.item); kept.items.push(e.item); }
-    else if (e.blueprint) { learnBlueprint(e.blueprint); kept.blueprints.push(e.blueprint); }
-    else { s[e.stuff] = (s[e.stuff] || 0) + e.n; kept.stuff[e.stuff] = (kept.stuff[e.stuff] || 0) + e.n; }
-  }
-  d.pocket = [];
-  return kept;
-}
-
 function learnBlueprint(id) { if (!Save.data.blueprints.includes(id)) Save.data.blueprints.push(id); }
 
 // Blueprints carried home are learned.
@@ -517,17 +500,17 @@ function extractDive() {
   else bankAtSpire(d);
 }
 
-// Dying, or giving up. What's worn and what's in the pocket are kept. A
-// fall leaves the cargo where it fell, the Kindler's pack, to go back for
-// once (an older pack is lost: deeds.js), and wakes the diver at the last
-// spire touched (the outpost if none); giving up loses the cargo and goes
-// home.
+// A fall, or a sortie given up (on coming back to the game: ui.js
+// dropRun). What's worn is kept, and the whole cargo stays where it was,
+// the Kindler's pack, to go back for once (an older pack is lost:
+// deeds.js). A fall wakes the diver at the last spire touched (the outpost
+// if none); giving up goes home.
 function loseDive(died) {
-  const d = Game.dive, kept = bankPocket(d), b = d.banked || { stuff: {}, items: [] };
-  ageContracts();
+  const d = Game.dive, b = d.banked || { stuff: {}, items: [] };
+  Save.data.run = null;
   const at = died ? Save.data.lastSpire || 0 : 0;
-  const left = died ? leaveCache(d) : null;
-  const report = { lost: d.cargo, items: d.items, died, kept, lostBlueprints: d.blueprints.length, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), earlier: b, wake: at ? terrOf(at).name : '', cache: left && left.cache, oldCache: left && left.old, light: (d.tally && d.tally.light) || {} };
+  const left = leaveCache(d);
+  const report = { died, gaveUp: !died, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), earlier: b, wake: at ? terrOf(at).name : '', cache: left && left.cache, oldCache: left && left.old, light: (d.tally && d.tally.light) || {} };
   Save.save();
   if (at && hasSpire(at)) { startSortie({ terr: at, spire: true }); UI.openReport(report); }
   else enterHub(report);
@@ -535,25 +518,5 @@ function loseDive(died) {
   if (left && left.cache) Story.say('firstCache');
 }
 
-// An emergency recall: home, but the dark keeps a share of the cargo (the
-// pocket is safe, and so is what was banked).
-function recallDive() {
-  const d = Game.dive, cost = recallCost(d), lost = {};
-  let lostItems = 0;
-  for (const k in d.cargo) {
-    // a share of each stack, rounded up or down by chance, so a single
-    // exotic is a gamble rather than a certainty either way
-    const share = d.cargo[k] * cost, gone = Math.floor(share) + (d.rng.chance(share % 1) ? 1 : 0);
-    if (gone) lost[k] = gone;
-    d.cargo[k] -= gone;
-    if (d.cargo[k] <= 0) delete d.cargo[k];
-  }
-  d.items = d.items.filter(() => { if (d.rng.chance(cost)) { lostItems++; return false; } return true; });
-  bankHaul(d);
-  Save.data.run = null;
-  const b = d.banked, contracts = settleContracts(d, b.stuff);
-  Save.save();
-  enterHub({ banked: b.stuff, items: b.items, learned: b.learned, light: (d.tally && d.tally.light) || {}, shard: d.gotShard, echoes: d.echoes, contracts, where: sortieWhere(d), recalled: { lost, lostItems, cost } });
-}
-
-function abandonDive() { loseDive(false); }
+// An emergency recall: home with everything, only slower than a spire.
+function recallDive() { goHome('recall'); }

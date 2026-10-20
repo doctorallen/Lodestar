@@ -9,12 +9,12 @@
 // the field; an old save's blueprints are known recipes, and the save keeps
 // them under that name.)
 //
-// Gear is a crafted base: a caster, plate or a charm, or a pick. Its recipe
-// and the ore it's made in set exactly what it is (its stats, its circuit
-// slots, its module sockets); the anvil only adds. What gives a piece its
-// identity is the modules socketed into it (modules.js). The forge also
-// makes the stones a caster's circuit is built from (circuits.js), and the
-// carried tools (tools.js).
+// Gear is a crafted base: a rig frame, plate or a charm, or a pick. Its
+// recipe and the ore it's made in set exactly what it is (its stats, a
+// frame's Mod slots, its module sockets); the anvil only adds. What gives a
+// piece its identity is the modules socketed into it (modules.js). The
+// forge also makes the cores the rig's spells are built from (circuits.js),
+// and the carried tools (tools.js).
 //
 // Parts come from what you kill: each kind of creature leaves its own, in
 // three grades (one a biome). The plain recipes known from the start take
@@ -25,31 +25,29 @@
 // cat: the forge's tab ('structure': the outpost's buildings; 'wick':
 // Wick's upgrades): the forge shows a tab for any cat that has a recipe
 // (RECIPE_CATS).
-// kind: which slot it goes in (a stone or a tool is neither). ore: how much
+// kind: which slot it goes in (a core or a tool is neither). ore: how much
 // of the chosen ore makes it (a tool names its own, in T.tools). need: the
 // parts it takes, by kind ('any': any creature's). mult: the base stat
 // against a plain piece of its kind at the same tier. implicit: what it
-// always does. A stone's recipe names its stone; an Element's is made from
-// its exotic.
+// always does. A core's recipe names its core (the save's old word: stone);
+// an Element's is made from its exotic.
 const BLUEPRINTS = {
-  // casters: the main or off hand. Their slots hold the circuit
-  wand: { name: 'Wand', kind: 'caster', cat: 'caster', style: 'wand', ore: 12, need: { any: 2 }, mult: 1, start: true, text: 'Quick to cast.' },
-  gauntlet: { name: 'Gauntlet', kind: 'caster', cat: 'caster', style: 'gauntlet', ore: 14, need: { any: 2 }, mult: 1, start: true, text: 'Close Forms cost 1 charge less.' },
-  staff: { name: 'Staff', kind: 'caster', cat: 'caster', style: 'staff', ore: 18, need: { ether: 3 }, mult: 1, text: 'More slots. Slower to cast, and every reach is wider.' },
+  // the rig: one frame, worn on both wrists, driving both spells
+  rig: { name: 'Rig', kind: 'caster', cat: 'caster', style: 'rig', ore: 14, need: { any: 2 }, mult: 1, start: true },
   // armor
-  plate: { name: 'Plate', kind: 'armor', cat: 'armor', style: 'plate', ore: 16, need: { any: 2 }, mult: 1, start: true, text: 'Armor and health.' },
-  weave: { name: 'Weave', kind: 'armor', cat: 'armor', style: 'weave', ore: 12, need: { fiber: 3 }, mult: 0.55, implicit: { dashCd: -30, moveSpeed: 5 }, text: 'Light. Dash 30% more often, and move a little faster.' },
-  shell: { name: 'Shell', kind: 'armor', cat: 'armor', style: 'shell', ore: 20, need: { chitin: 3 }, mult: 1.6, implicit: { moveSpeed: -8 }, text: 'Heavy. Much more armor, a little slower.' },
+  plate: { name: 'Plate', kind: 'armor', cat: 'armor', style: 'plate', ore: 21, need: { any: 2 }, mult: 1, start: true, text: 'Armor and health.' },
+  weave: { name: 'Weave', kind: 'armor', cat: 'armor', style: 'weave', ore: 16, need: { fiber: 3 }, mult: 0.55, implicit: { dashCd: -30, moveSpeed: 5 }, text: 'Light. Dash 30% more often, and move a little faster.' },
+  shell: { name: 'Shell', kind: 'armor', cat: 'armor', style: 'shell', ore: 26, need: { chitin: 3 }, mult: 1.6, implicit: { moveSpeed: -8 }, text: 'Heavy. Much more armor, a little slower.' },
   // charms
-  charm: { name: 'Charm', kind: 'charm', cat: 'charm', style: 'charm', ore: 10, need: { any: 2 }, start: true, text: 'Takes modules of any family.' },
-  lantern: { name: 'Lantern', kind: 'charm', cat: 'charm', style: 'lantern', ore: 10, need: { spore: 2 }, implicit: { lamp: 30, pullSlow: 20 }, text: 'A brighter lamp, and your light fades 20% slower.' },
+  charm: { name: 'Charm', kind: 'charm', cat: 'charm', style: 'charm', ore: 13, need: { any: 2 }, start: true, text: 'Takes modules of any family.' },
+  lantern: { name: 'Lantern', kind: 'charm', cat: 'charm', style: 'lantern', ore: 13, need: { spore: 2 }, implicit: { lamp: 30, pullSlow: 20 }, text: 'A brighter lamp, and your light fades 20% slower.' },
   // picks, with the tools
-  pick: { name: 'Pick', kind: 'pick', cat: 'tool', style: 'pick', ore: 12, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
-  drill: { name: 'Drill', kind: 'pick', cat: 'tool', style: 'drill', ore: 18, need: { cog: 2 }, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },
+  pick: { name: 'Pick', kind: 'pick', cat: 'pick', style: 'pick', ore: 15, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
+  drill: { name: 'Drill', kind: 'pick', cat: 'pick', style: 'drill', ore: 23, need: { cog: 2 }, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },
 };
 // The carried tools (tools.js), made once: their cost is T.tools[id].cost,
 // and the star must have reached T.tools[id].mag.
-for (const id of ['oresense', 'radar', 'beacon', 'map', 'satchel', 'lens']) BLUEPRINTS['tool_' + id] = { name: id, kind: 'tool', cat: 'tool', tool: id, start: id !== 'lens' };
+for (const id of ['oresense', 'radar', 'beacon', 'map', 'lens']) BLUEPRINTS['tool_' + id] = { name: id, kind: 'tool', cat: 'tool', tool: id, start: id !== 'lens' };
 // The outpost's buildings (structures.js) and Wick's upgrades (wick.js),
 // each made once at home: known from the first day, their cost is
 // T.structures[id].cost or T.wickUp[id].cost, and the star must have
@@ -62,11 +60,11 @@ for (const id of STRUCTURE_IDS) BLUEPRINTS['bld_' + id] = { name: STRUCTURE_NAME
 for (const id of WICK_UP_IDS) BLUEPRINTS['wick_' + id] = { name: WICK_UP_NAMES[id], kind: 'wick', cat: 'wick', wick: id, start: true };
 // Recipes made once, for a fixed cost (no ore to choose, no anvil).
 const recipeOnce = (bp) => !!bp && (bp.kind === 'tool' || bp.kind === 'structure' || bp.kind === 'wick');
-// Stones (circuits.js): a Form's needs ether; an Element's, its exotic
-// (Force, only ore); a Glyph's, its creature's parts.
+// Cores (circuits.js): a Form's needs ether (a Ward's, a warden's heart);
+// an Element's, its exotic (Force, only ore); a Mod's, its creature's parts.
 const STONE_FORMS = ['arc', 'glaive', 'bolt', 'lance', 'orb', 'nova', 'well', 'ward'];
 const STONE_ELEMENTS = { force: null, shock: 'voltaic', frost: 'frostglass', ember: 'emberglass', blight: 'blightcap' };
-const STONE_GLYPHS = { split: 'chitin', amplify: 'any', quicken: 'cog', chain: 'spore', echo: 'ether', pierce: 'chitin', linger: 'fiber', trigger: 'fiber' };
+const STONE_GLYPHS = { split: 'chitin', amplify: 'any', quicken: 'cog', chain: 'spore', echo: 'ether', pierce: 'chitin', linger: 'fiber' };
 for (const f of STONE_FORMS) BLUEPRINTS['form_' + f] = { name: CIRCUIT_FORMS[f].name, kind: 'stone', cat: 'stone', stone: f, stoneKind: 'form', start: f === 'arc' || f === 'bolt' };
 for (const e in STONE_ELEMENTS) BLUEPRINTS['el_' + e] = { name: CIRCUIT_ELEMENTS[e].name, kind: 'stone', cat: 'stone', stone: e, stoneKind: 'element', exotic: STONE_ELEMENTS[e], start: e === 'force' };
 for (const g in STONE_GLYPHS) BLUEPRINTS['glyph_' + g] = { name: CIRCUIT_GLYPHS[g].name, kind: 'stone', cat: 'stone', stone: g, stoneKind: 'glyph', start: g === 'amplify' };
@@ -75,19 +73,19 @@ for (const id in BLUEPRINTS) {
   if (bp.kind !== 'stone') continue;
   const S = T.circuits.stones[bp.stoneKind];
   bp.ore = S.ore;
-  if (bp.stoneKind === 'form') bp.need = { ether: S.parts };
+  if (bp.stoneKind === 'form') bp.need = bp.stone === 'ward' ? { heart: 1 } : { ether: S.parts };
   else if (bp.stoneKind === 'glyph') bp.need = { [STONE_GLYPHS[bp.stone]]: S.parts };
   else bp.need = {};
 }
 const BP_IDS = Object.keys(BLUEPRINTS);
 // The forge's tabs, in order.
-const RECIPE_CATS = [['CASTERS', 'caster'], ['ARMOR', 'armor'], ['CHARMS', 'charm'], ['TOOLS', 'tool'], ['STONES', 'stone'], ['BUILDINGS', 'structure'], ['WICK', 'wick']];
+const RECIPE_CATS = [['FRAMES', 'caster'], ['PICKS', 'pick'], ['CORES', 'stone'], ['ARMOR', 'armor'], ['CHARMS', 'charm'], ['TOOLS', 'tool'], ['BUILDINGS', 'structure'], ['WICK', 'wick']];
 // what a piece made before blueprints is
-const KIND_BLUEPRINT = { caster: 'wand', armor: 'plate', charm: 'charm', pick: 'pick' };
+const KIND_BLUEPRINT = { caster: 'rig', armor: 'plate', charm: 'charm', pick: 'pick' };
 const bpOf = (item) => (item && item.kind !== 'module' && item.kind !== 'relic' && item.kind !== 'stone' ? BLUEPRINTS[item.bp || KIND_BLUEPRINT[item.kind]] || null : null);
-// the recipe a stone is forged from
+// the recipe a core is forged from
 const bpOfStone = (stone) => BLUEPRINTS[BP_IDS.find((id) => BLUEPRINTS[id].stone === stone)] || null;
-const recipeName = (id) => { const bp = BLUEPRINTS[id]; return bp.tool ? TOOLS[bp.tool].name : bp.kind === 'stone' ? bp.name + ' stone' : bp.kind === 'wick' ? "Wick's " + bp.name : bp.name; };
+const recipeName = (id) => { const bp = BLUEPRINTS[id]; return bp.tool ? TOOLS[bp.tool].name : bp.kind === 'stone' ? bp.name + ' core' : bp.kind === 'wick' ? "Wick's " + bp.name : bp.name; };
 
 // Research: what the forge studies, and the recipes it reveals. of: an
 // ore, a part's kind, an exotic, or a module caught from a kind of
@@ -95,13 +93,13 @@ const recipeName = (id) => { const bp = BLUEPRINTS[id]; return bp.tool ? TOOLS[b
 // when the forge is opened, the forge studies it (modules.js).
 const RESEARCH = [
   { id: 'ore:lumenite', of: 'lumenite', opens: ['lantern', 'form_nova'] },
-  { id: 'ore:resonite', of: 'resonite', opens: ['staff', 'drill'] },
+  { id: 'ore:resonite', of: 'resonite', opens: ['drill'] },
   { id: 'ore:aetherglass', of: 'aetherglass', opens: ['form_lance', 'form_well'] },
   { id: 'ore:sigilite', of: 'sigilite', opens: ['shell'] },
   { id: 'part:chitin', of: 'chitin', opens: ['glyph_pierce', 'glyph_split'] },
   { id: 'part:ether', of: 'ether', opens: ['glyph_echo'] },
   { id: 'part:cog', of: 'cog', opens: ['glyph_quicken'] },
-  { id: 'part:fiber', of: 'fiber', opens: ['glyph_linger', 'glyph_trigger'] },
+  { id: 'part:fiber', of: 'fiber', opens: ['glyph_linger'] },
   { id: 'part:spore', of: 'spore', opens: ['glyph_chain'] },
   { id: 'part:heart', of: 'heart', opens: ['form_ward'] },
   { id: 'ex:voltaic', of: 'voltaic', opens: ['el_shock'] },
@@ -163,20 +161,18 @@ function partWords(kind, n) {
   return `${n} ${w}${n === 1 || /fibre|chitin|ether/.test(w) ? '' : 's'}`;
 }
 
-// What a recipe costs, made in an ore (oreId; a tool names its own) and,
-// for a caster, at a size (its circuit slots): { ore: { id, n } | null,
-// parts: [{ kind, n }], exotic: id | null, stuff: [{ id, n }] (a tool's
-// costs besides parts) }.
-function recipeCost(bpId, oreId, size) {
+// What a recipe costs, made in an ore (oreId; a tool names its own):
+// { ore: { id, n } | null, parts: [{ kind, n }], exotic: id | null,
+// stuff: [{ id, n }] (a tool's costs besides parts) }.
+function recipeCost(bpId, oreId) {
   const bp = BLUEPRINTS[bpId], out = { ore: null, parts: [], exotic: null, stuff: [] };
   if (recipeOnce(bp)) {
     const c = bp.kind === 'tool' ? T.tools[bp.tool].cost : bp.kind === 'structure' ? T.structures[bp.structure].cost : T.wickUp[bp.wick].cost;
     for (const k in c) if (PARTS[k]) out.parts.push({ kind: k, n: c[k] }); else out.stuff.push({ id: k, n: c[k] });
     return out;
   }
-  const extra = bp.kind === 'caster' ? Math.max(0, (size || casterSizes(bpId)[0]) - casterSizes(bpId)[0]) : 0;
-  out.ore = { id: oreId, n: bp.ore + extra * T.gear.sizeOre };
-  for (const k in bp.need) out.parts.push({ kind: k, n: bp.need[k] + (out.parts.length ? 0 : extra * T.gear.sizeParts) });
+  out.ore = { id: oreId, n: bp.ore };
+  for (const k in bp.need) out.parts.push({ kind: k, n: bp.need[k] });
   if (bp.exotic) out.exotic = bp.exotic;
   return out;
 }
@@ -199,6 +195,3 @@ function recipePay(cost, src) {
   if (cost.exotic) { src[cost.exotic] -= 1; if (!src[cost.exotic]) delete src[cost.exotic]; }
   return true;
 }
-// The sizes a caster's recipe can be made at (its circuit slots), smallest
-// first.
-function casterSizes(bpId) { return T.gear.size[(BLUEPRINTS[bpId] || {}).style] || T.gear.size.wand; }

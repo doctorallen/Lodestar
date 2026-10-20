@@ -9,11 +9,10 @@
 // its tier. Modules socket into crafted bases (items.js), free to swap at
 // home, and carry the affixes, the legendary powers and the set.
 //
-// At the rune bench a module can be grown a tier (its lattice regrown in
-// denser ore), one trait rewoven (the rest locked), two woven into one
-// (a trait of each), enriched with a Lodestone shard, or imprinted with a
-// power the forge remembers. Salvaged, it unravels into threads, which pay
-// for all of that.
+// A module can be grown a tier (its lattice regrown in denser ore, every
+// trait stronger), for threads and the new tier's ore: UPGRADE, on its card
+// at the locker or the tuning bench. Salvaged, it unravels into threads.
+// That's all the work there is: legendaries are found, never made.
 //
 // Also here: what a kill leaves (moduleDrops), research (what the forge
 // studies, and the recipes it reveals), an old save's gear turned into
@@ -36,7 +35,7 @@ const foeWord = (type) => FOE_WORDS[type] || (typeof FOE_NAMES !== 'undefined' &
 // magic one by its first trait's family; a rare one in two words; a
 // legendary for its power, a set piece for its set.
 const MOD_PREFIX = { close: 'Keen', spell: 'Humming', defense: 'Sturdy', utility: 'Light', mining: "Delver's", shock: 'Voltaic', leech: 'Thirsting', chill: 'Rimed' };
-const MOD_FIRST = ['Grim', 'Hollow', 'Ember', 'Ashen', 'Star', 'Dusk', 'Iron', 'Pale', 'Rune', 'Vein', 'Night', 'Storm', 'Thorn', 'Deep'];
+const MOD_FIRST = ['Grim', 'Hollow', 'Ember', 'Ashen', 'Star', 'Dusk', 'Iron', 'Pale', 'Flux', 'Vein', 'Night', 'Storm', 'Thorn', 'Deep'];
 const MOD_SECOND = {
   caster: ['Eye', 'Whisper', 'Spark', 'Choir', 'Coil', 'Lens'], armor: ['Ward', 'Mantle', 'Hide', 'Bulwark', 'Husk', 'Scale'],
   charm: ['Sigil', 'Knot', 'Mark', 'Seal', 'Token', 'Glim'], pick: ['Tooth', 'Auger', 'Crag', 'Delve', 'Bite', 'Vein'],
@@ -178,14 +177,13 @@ function unsealRelic(rng, relic) {
 // ---------------------------------------------------------------------------
 // Sockets: free at home, as often as you like
 // ---------------------------------------------------------------------------
-// Where a module would go: the worn base of its kind with an empty socket
-// (a caster: either hand), else the one whose weakest module is weakest.
-// { slot, i (the socket), cur (what's there, or null) }, or null if no
-// worn base of its kind has a socket.
+// Where a module would go: the worn base of its kind, its empty socket,
+// else the socket whose module is weakest. { slot, i (the socket), cur
+// (what's there, or null) }, or null if no worn base of its kind has a
+// socket.
 function moduleTarget(equip, m) {
-  const slots = m.fits === 'caster' ? ['main', 'off'] : [KIND_SLOT[m.fits]];
   let best = null;
-  for (const slot of slots) {
+  for (const slot of [KIND_SLOT[m.fits]]) {
     const b = equip[slot];
     if (!b || !b.sockets || !b.sockets.length) continue;
     const empty = b.sockets.indexOf(null);
@@ -230,7 +228,7 @@ function moveModules(from, to, list) {
 }
 
 // ---------------------------------------------------------------------------
-// The rune bench
+// Working a module: a tier up, or unravelled
 // ---------------------------------------------------------------------------
 // A cost: { threads, ore: { id, n } | null, stuff: [{ id, n }] }. What's
 // short of it in `src`, and paying it.
@@ -268,88 +266,6 @@ function moduleUpgrade(m) {
   if (m.tier >= T.ores.length) return false;
   m.affixes = m.affixes.map((a) => rescaleAffix(a, m.tier, m.tier + 1));
   m.tier++;
-  return true;
-}
-
-// One trait rewoven, the rest locked: a new affix of the module's kind, at
-// its tier. `lean`: a family to reweave it into (Bloodresin's: leech).
-function rerollCost(m) {
-  const R = T.modules.reroll;
-  return { threads: R.threads + R.perTier * (m.tier - 1), ore: { id: oreOfTier(m.tier).id, n: R.ore } };
-}
-function moduleReroll(rng, m, i, lean) {
-  if (!m.affixes[i]) return false;
-  const rest = { affixes: m.affixes.filter((_, j) => j !== i), tier: m.tier };
-  const fams = KIND_FAMILIES[m.fits], old = AFFIXES[m.affixes[i].id].family;
-  // never the trait it had, if there's another to be had
-  let fresh = lean ? rollModuleAffix(rng, rest, [lean]) : null;
-  for (let k = 0; !fresh && k < 8; k++) { const a = rollModuleAffix(rng, rest, fams.includes(old) ? fams : fams.concat([old])); if (a && (a.id !== m.affixes[i].id || k === 7)) fresh = a; }
-  if (!fresh) return false;
-  m.affixes[i] = fresh;
-  if (m.rarity === 'magic' && i === 0 && !m.woven) m.name = moduleName(rng, m);
-  return true;
-}
-
-// Two woven into one: a trait of each kept, at the higher tier, a little
-// stronger; both are used up. The first's kind of base.
-function fuseCost(a, b) {
-  const F = T.modules.fuse, tier = Math.max(a.tier, b.tier);
-  return { threads: F.threads + F.perTier * (tier - 1), ore: { id: oreOfTier(tier).id, n: F.ore } };
-}
-// Why two traits can't be woven together, or null if they can.
-function fuseProblem(a, ta, b, tb) {
-  if (!a || !b || a === b) return 'Choose two modules';
-  const A = moduleTraits(a).find((t) => t.key === ta), B = moduleTraits(b).find((t) => t.key === tb);
-  if (!A || !B) return 'Choose a trait from each';
-  if (A.aff && B.aff && A.aff.id === B.aff.id) return 'The same trait twice will not hold';
-  const special = [ta, tb].filter((k) => k === 'power' || k === 'set').length;
-  if (special > 1) return 'A lattice holds one power or set, not two';
-  if (tb === 'power' && !LEGENDARIES[b.power].kinds.includes(a.fits)) return `${LEGENDARIES[b.power].name} can't sit in ${KIND_PHRASE[a.fits]} module`;
-  if (tb === 'set' && !SETS[b.set].pieces[a.fits]) return `The set has no piece for ${KIND_PHRASE[a.fits]}`;
-  return null;
-}
-function moduleFuse(rng, a, ta, b, tb) {
-  if (fuseProblem(a, ta, b, tb)) return null;
-  const tier = Math.max(a.tier, b.tier), k = 1 + T.modules.fuse.boost;
-  const m = { uid: newItemUid(), kind: 'module', fits: a.fits, tier, rarity: 'rare', affixes: [], woven: true, src: a.src };
-  for (const [from, key] of [[a, ta], [b, tb]]) {
-    if (key === 'power') m.power = from.power;
-    else if (key === 'set') m.set = from.set;
-    else m.affixes.push(rescaleAffix(from.affixes[Number(key.slice(1))], from.tier, tier, k));
-  }
-  if (m.power) m.rarity = 'legendary';
-  if (m.set) m.rarity = 'set';
-  m.name = moduleName(rng, m);
-  return m;
-}
-
-// A Lodestone shard and threads add a trait (common to magic, magic to
-// rare).
-function canEnrich(m) { return !m.woven && (m.rarity === 'common' || m.rarity === 'magic'); }
-function enrichCost() { const E = T.modules.enrich; return { threads: E.threads, ore: null, stuff: [{ id: 'lodeshard', n: E.shards }] }; }
-function moduleEnrich(rng, m) {
-  if (!canEnrich(m)) return false;
-  const a = rollModuleAffix(rng, m, KIND_FAMILIES[m.fits]);
-  if (!a) return false;
-  m.affixes.push(a);
-  m.rarity = m.rarity === 'common' ? 'magic' : 'rare';
-  m.name = moduleName(rng, m);
-  return true;
-}
-
-// A power the forge remembers (the Codex: every legendary salvaged at
-// home), set into a module that has no power or set: it turns legendary.
-// Paid with a heart (the lowest grade there is) or riftglass, and threads.
-function imprintPowers(m) { return m.power || m.set ? [] : (Save.data.codex || []).filter((k) => LEGENDARIES[k] && LEGENDARIES[k].kinds.includes(m.fits)); }
-function imprintCost(src) {
-  const I = T.modules.imprint;
-  for (const g of [1, 2, 3]) if ((src[partId('heart', g)] || 0) > 0) return { threads: I.threads, ore: null, stuff: [{ id: partId('heart', g), n: 1 }] };
-  return { threads: I.threads, ore: null, stuff: [{ id: 'riftglass', n: I.glass }] };
-}
-function moduleImprint(m, power) {
-  if (m.power || m.set || !LEGENDARIES[power] || !LEGENDARIES[power].kinds.includes(m.fits)) return false;
-  m.power = power; m.rarity = 'legendary'; m.imprinted = true;
-  m.name = LEGENDARIES[power].name;
   return true;
 }
 

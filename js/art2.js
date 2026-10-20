@@ -9,9 +9,10 @@
 // only; it redefines none of SPRITE_CHARS'.
 //   ICON_ROWS2: item icons. W/w steel, G plate and T/t tool take the ore's
 //     colours the way ICON_ROWS do (itemIconUrl overrides steel, plate and
-//     tool with the ore's ramp).
-//   Stones (stoneIconUrl): a pebble for a Form, a cut gem for an Element, a
-//     tablet for a Glyph, in its ore's colours, its rune glowing in its own.
+//     tool with the ore's ramp); g is the Charter's blue, a and v its amber
+//     light (the rig frame's).
+//   Cores (stoneIconUrl): a round lens for a Form, a sealed cell for an
+//     Element, a square chip for a Mod, each its mark lit in its light.
 //   PART_ROWS: creature parts; PART_PAL[part][tier - 1] recolours one for the
 //     biome it came from (1 Rim, 2 Choir, 3 Underforge).
 //   UPLINK_ROWS: the Meridian uplink, its light dark and lit, for the
@@ -21,69 +22,29 @@
 // Drawn for the crafting and the story; loaded by art.js (art2Sprite).
 // ---------------------------------------------------------------------------
 
-const ART2_LETTERS = {"F":["fiber"],"f":["fiber",0],"N":["chitin"],"n":["chitin",0],"U":["star"],"Z":["shardglow"],"z":["shardwarm"],"I":["ether"],"J":["print"],"k":["spore"],"e":["sporeglow"],"b":["hull"],"d":["hull",0],"o":["beacon"],"q":["lens"],"m":["moss"],"u":["flesh"],"i":["fleshglow"],"r":["slag"],"y":["magma"],"p":["bone"]};
-const ART2_GLOWS = ["shardglow","shardwarm","ether","sporeglow","beacon","fleshglow","magma"];
-const ART2_PAL = {"fiber":["#151a10","#2e3a22","#4a5c34","#6c8048"],"chitin":["#140e14","#2c2030","#4a3850","#6e5878"],"shardglow":["#fff6dc"],"shardwarm":["#ffc860"],"ether":["#9fe8ff"],"print":["#0c1424","#18284a","#284470","#4a70a8"],"spore":["#1e1218","#492b3c","#75465b","#a46b7f"],"sporeglow":["#d8e890"],"hull":["#0e1014","#1c2028","#2e3440","#4a5262"],"beacon":["#fff0c0"],"lens":["#0a0c10","#1a1e26","#2a303c"],"moss":["#121a10","#2b3c23","#445e37","#638249"],"flesh":["#1e1218","#492b3c","#75465b","#a46b7f"],"fleshglow":["#a6c84a"],"slag":["#1a1210","#3a2823","#5b3e37","#7f584b"],"magma":["#ff7a2a"],"bone":["#2a2620","#5d5544","#8f8568","#c3b692"]};
+const ART2_LETTERS = {"g":["charter"],"a":["rigglow"],"v":["riglight"],"F":["fiber"],"f":["fiber",0],"N":["chitin"],"n":["chitin",0],"U":["star"],"Z":["shardglow"],"z":["shardwarm"],"I":["ether"],"J":["print"],"k":["spore"],"e":["sporeglow"],"b":["hull"],"d":["hull",0],"o":["beacon"],"q":["lens"],"m":["moss"],"u":["flesh"],"i":["fleshglow"],"r":["slag"],"y":["magma"],"p":["bone"]};
+const ART2_GLOWS = ["rigglow","riglight","shardglow","shardwarm","ether","sporeglow","beacon","fleshglow","magma"];
+const ART2_PAL = {"charter":["#0a0b16","#141932","#1c2f80","#2f5cd8","#86b0ff"],"rigglow":["#ffb030"],"riglight":["#ffe48a"],"fiber":["#151a10","#2e3a22","#4a5c34","#6c8048"],"chitin":["#140e14","#2c2030","#4a3850","#6e5878"],"shardglow":["#fff6dc"],"shardwarm":["#ffc860"],"ether":["#9fe8ff"],"print":["#0c1424","#18284a","#284470","#4a70a8"],"spore":["#1e1218","#492b3c","#75465b","#a46b7f"],"sporeglow":["#d8e890"],"hull":["#0e1014","#1c2028","#2e3440","#4a5262"],"beacon":["#fff0c0"],"lens":["#0a0c10","#1a1e26","#2a303c"],"moss":["#121a10","#2b3c23","#445e37","#638249"],"flesh":["#1e1218","#492b3c","#75465b","#a46b7f"],"fleshglow":["#a6c84a"],"slag":["#1a1210","#3a2823","#5b3e37","#7f584b"],"magma":["#ff7a2a"],"bone":["#2a2620","#5d5544","#8f8568","#c3b692"]};
 
 const ICON_ROWS2 = {
-  // a short rod of the ore, bound in leather at the grip, a glowing
-  // crystal at its tip
-  wand: [
-    "..............RR..",
-    ".............RAAR.",
-    "............RAAAAR",
-    "............RAAAAR",
-    ".............RAAR.",
-    "............MMRR..",
-    "...........MWM....",
-    "..........MWM.....",
-    ".........DWM......",
-    "........DDM.......",
-    ".......DDD........",
-    "......DDD.........",
-    ".....DDD..........",
-    "....BBD...........",
-    "...BBB............",
-    "..BBB.............",
-    ".MBB..............",
-    ".MM...............",
-  ],
-  staff: [
-    "............AAAA..",
-    "...........AAQQAA.",
-    "...........AQQQQA.",
-    ".........M.AQQQQAM",
-    ".........M.AAQQAAM",
-    "..........M.AAAA..",
-    "..........DD......",
-    ".........DDMM.M...",
-    "........MM........",
-    ".......DD.........",
-    "......DD..........",
-    ".....DD...........",
-    ".....DD...........",
-    "....MM............",
-    "...DD.............",
-    "..DD..............",
-    ".DD...............",
-    "DD................",
-  ],
-  gauntlet: [
-    "...G.G.G.....",
-    "..GG.GG.GG...",
-    "..GG.GG.GG.G.",
-    "..GGGGGGGG.GG",
-    "..GGGGGGGGGGG",
-    "..GGRRRGGGGG.",
-    "..GRAAARGGG..",
-    "..GRAAARGGG..",
-    "..GGRRRGGGG..",
-    "..GGGGGGGGG..",
-    "...MMMMMMM...",
-    "...BBBBBBB...",
-    "...BBMBBBB...",
-    "...BBBBBBB...",
-    "...MMMMMMM...",
+  // the rig frame: a bracer of the Charter's blue seen from the side, its
+  // open elbow end on the left and banded in its ore, its projector's lens
+  // amber on its back, and the light leaving the wrist end
+  rig: [
+    "..................",
+    "..................",
+    "..................",
+    "..WWWggggggggWW...",
+    ".WdddWgggaavgWWg..",
+    ".WdddWggggaggWWgg.",
+    "WddddWgggggggWWggv",
+    "WddddWgggggggWWgva",
+    "WddddWgggggggWWggv",
+    ".WdddWgggggggWWgg.",
+    ".WdddWgggggggWWg..",
+    "..WWWggggggggWW...",
+    "..................",
+    "..................",
   ],
   weave: [
     ".....FFFF.....",
@@ -566,15 +527,16 @@ const KEEPER_ROWS = {
 const KEEPER_PAL = {"rim":{"shell":["#0c0a0c","#1a161a","#2c242c","#443844"],"legs":["#060407"],"flesh":["#1e1218","#492b3c","#75465b","#a46b7f"],"fleshglow":["#a6c84a"],"moss":["#121a10","#2b3c23","#445e37","#638249"]},"choir":{"shell":["#0a0a18","#16162c","#262848","#3c4068"],"bone":["#2a2420","#5f5346","#94826b","#d0b997"],"flesh":["#22141c","#502d49","#7d4970","#ae689f"],"fleshglow":["#d0609e"]},"underforge":{"slag":["#140c0a","#2e1c18","#4a2e28","#6a443a"],"plate":["#1c1210","#34221c","#523830","#7a5648"],"metal":["#1a1210","#402b21","#65442f","#8f603e"],"magma":["#ff7a2a"]}};
 
 // ---------------------------------------------------------------------------
-// The stones a circuit is built from. Each is drawn at the art's size, 18 px
-// square (20 with its sel-out, shown at 2× on the screens): its shape says
-// its kind, its rune which it is (7 px square, carved: a dark step under and
-// right of every stroke), and its colours what it is (ART.stones: plain
-// stone with a gold rune for a Form, its own colours for an Element, teal for
-// a Glyph), never its ore's, so none looks like ore or loot. The tier is
-// said beside it, not in its colour.
+// The cores a spell is built from: Charter hardware, each drawn at the art's
+// size, 18 px square (20 with its sel-out, shown at 2× on the screens). Its
+// shape says its kind: a Form's is a round lens in a blue housing, an
+// Element's a sealed cell of its element with metal caps, a Mod's a square
+// chip with pins. Its mark (7 px square) says which it is, lit in its light
+// (ART.stones: amber for a Form, teal for a Mod, an Element's own), never
+// its ore's, so none looks like ore or loot. The tier is said beside it,
+// not in its colour. (Kept under their old name, stones.)
 // ---------------------------------------------------------------------------
-const STONE_RUNES = {
+const STONE_MARKS = {
   arc: ['.......', '..###..', '.#...#.', '#.....#', '#.....#', '.......', '.......'],
   glaive: ['#.....#', '.#...#.', '..#.#..', '...#...', '..#.#..', '.#...#.', '#.....#'],
   bolt: ['.......', '....#..', '.....#.', '#######', '.....#.', '....#..', '.......'],
@@ -595,9 +557,10 @@ const STONE_RUNES = {
   echo: ['.#..#..', '..#..#.', '..#..#.', '..#..#.', '..#..#.', '.#..#..', '.......'],
   pierce: ['...#...', '...#...', '#.###.#', '...#...', '...#...', '..###..', '...#...'],
   linger: ['.......', '.#...#.', '#.#.#.#', '...#...', '.#...#.', '#.#.#.#', '...#...'],
-  trigger: ['...#...', '.#####.', '.#...#.', '###.###', '.#...#.', '.#####.', '...#...'],
 };
-// The rows of a stone: its body by its kind's shape, its rune carved in.
+// The rows of a core: its body by its kind's shape (W), its housing, caps or
+// pins (M), its mark lit in it (R), a dark ring round the mark (w) so it
+// reads.
 const _stoneRows = new Map();
 function stoneRows(stone) {
   let rows = _stoneRows.get(stone);
@@ -606,17 +569,18 @@ function stoneRows(stone) {
   for (let y = 0; y < N; y++) {
     g.push([]);
     for (let x = 0; x < N; x++) {
-      const dx = Math.abs(x - c), dy = Math.abs(y - c);
-      const inside = kind === 'form' ? dx * dx + dy * dy * 1.1 <= 8.9 * 8.9
-        : kind === 'element' ? dx <= 7.5 && dy <= 8.5 && dx * 1.0 + dy * 0.62 <= 8.6
-        : dx <= 7.5 && dy <= 7.5 && dx + dy <= 13;
-      g[y].push(inside ? 'W' : '.');
+      const dx = Math.abs(x - c), dy = Math.abs(y - c), r = Math.hypot(dx, dy);
+      let ch = '.';
+      if (kind === 'form') ch = r <= 8.6 ? (r > 6.6 ? 'M' : 'W') : '.';
+      else if (kind === 'element') ch = dx <= 6 && dy <= 8.5 && !(dx > 4.5 && dy > 7) ? (dy > 6.5 ? 'M' : 'W') : '.';
+      else ch = dx <= 6.5 && dy <= 6.5 ? 'W' : (dx <= 8.5 && dy <= 5.5 && Math.round(y) % 2 === 0 && dx > 6.5) || (dy <= 8.5 && dx <= 5.5 && Math.round(x) % 2 === 0 && dy > 6.5) ? 'M' : '.';
+      g[y].push(ch);
     }
   }
-  const R = STONE_RUNES[stone] || STONE_RUNES.force, o = Math.round(c - 3);
+  const R = STONE_MARKS[stone] || STONE_MARKS.force, o = Math.round(c - 3);
   for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) if (R[y][x] === '#') g[o + y][o + x] = 'R';
-  // carved: the stone's darkest step under and to the right of each stroke
-  for (let y = 0; y < N - 1; y++) for (let x = 0; x < N - 1; x++) if (g[y][x] === 'R') for (const [i, j] of [[1, 1], [0, 1]]) if (g[y + j][x + i] === 'W') g[y + j][x + i] = 'w';
+  // a dark ring round the mark's strokes, so the light reads on the body
+  for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) if (g[y][x] === 'W' && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([i, j]) => g[y + j][x + i] === 'R')) g[y][x] = 'w';
   rows = artNative(g.map((r) => r.join('')), 1);
   _stoneRows.set(stone, rows);
   return rows;
@@ -626,7 +590,7 @@ function stoneIconUrl(stone) {
   let url = _iconCache.get(key);
   if (!url) {
     const k = stoneKind(stone), S = ART.stones[k === 'element' ? stone : k] || ART.stones.form;
-    url = buildArtSprite(stoneRows(stone), { steel: S.body, rune: [S.rune] }, undefined, undefined, { scale: 1 }).c.toDataURL();
+    url = buildArtSprite(stoneRows(stone), { steel: S.body, rune: [S.rune], metal: ART.stones.housing }, undefined, undefined, { scale: 1 }).c.toDataURL();
     _iconCache.set(key, url);
   }
   return url;

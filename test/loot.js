@@ -1,19 +1,21 @@
 'use strict';
 // The gear tables, without a browser. Crafted bases: every recipe in every
-// ore at every quality (and every size, for a caster) comes out exactly as
-// its recipe says, with the anvil only ever adding (stats, a masterwork's
-// socket and linked pair), no affixes and empty sockets; costs that name
-// real things and grow with a caster's size. Modules: thousands rolled at
-// every level, tier and floor of rarity, checked for their rarity's
-// traits, no trait twice, traits only from families their kind can take,
-// powers that fit, set pieces only where the set has one, positive values
-// within their range, and a name; upgrading, rerolling, fusing, enriching
-// and imprinting by the rules; salvage giving threads. Research reveals
-// every recipe not known from the start. Old saves (made on the code from
-// before modules) turn into bases and modules with nothing they did lost.
-// Outfits add up within the caps. Then thousands of random circuits parse
-// by the rules, cost what their parts add up to, and read in words with
-// nothing missing; and the star's magnitudes.
+// ore at every quality comes out exactly as its recipe says, with the anvil
+// only ever adding (stats, a masterwork's socket and a frame's second Mod
+// slot), no affixes and empty sockets; costs that name real things. A rig
+// frame's two spells have one Mod slot, two from Resonite up, a
+// masterwork or a Lodestone shard. Modules: thousands rolled at every
+// level, tier and floor of rarity, checked for their rarity's traits, no
+// trait twice, traits only from families their kind can take, powers that
+// fit, set pieces only where the set has one, positive values within
+// their range, and a name; upgrading by the rules; salvage giving threads.
+// Research reveals every recipe not known from the start. Old saves (from
+// before modules, and from before the rig) turn into bases, modules and
+// rig frames with nothing they did lost: every core kept, the circuits
+// the rig's two spells. Outfits add up within the caps. Then thousands of
+// random spells cost what their parts add up to, read in a short line with
+// nothing missing, and wake the resonances whose parts they hold; and the
+// star's magnitudes.
 const fs = require('fs');
 const path = require('path');
 const { sandbox } = require('./sandbox');
@@ -29,46 +31,47 @@ const gearIds = G.BP_IDS.filter((id) => ['caster', 'armor', 'charm', 'pick'].inc
 for (const id of gearIds) {
   const bp = G.BLUEPRINTS[id];
   for (const ore of G.T.ores) {
-    const sizes = bp.kind === 'caster' ? G.casterSizes(id) : [null];
-    for (const size of sizes) {
-      const plain = G.forgeItem(id, ore.id, null, 0, size), at = `${id} in ${ore.id}${size ? ' at ' + size : ''}`;
-      if (plain.kind !== bp.kind || plain.bp !== id || plain.tier !== ore.tier) fail(`${at}: came out ${plain.kind} ${plain.bp} tier ${plain.tier}`);
-      if (plain.affixes.length) fail(`${at}: a crafted base rolled affixes`);
-      if (plain.sockets.length !== G.socketCount(bp.kind, ore.tier, 0) || plain.sockets.some(Boolean)) fail(`${at}: sockets ${plain.sockets.length}`);
-      if (!plain.name || bad(plain.name) || bad(G.itemBaseLine(plain)) || bad(G.itemKindLine(plain))) fail(`${at}: "${plain.name}" / "${G.itemBaseLine(plain)}"`);
-      if (bp.kind === 'caster' && plain.slots.length !== size + (ore.id === 'starmetal' ? 1 : 0)) fail(`${at}: ${plain.slots.length} circuit slots`);
-      if (bp.kind === 'caster' && (plain.links || plain.slots.some(Boolean))) fail(`${at}: a rough forge linked slots or came with stones`);
-      const nums = (it) => Object.values(it.base);
-      for (let q = 1; q <= 3; q++) {
-        const it = G.forgeItem(id, ore.id, null, q, size);
-        if (nums(it).some((v, i) => v < nums(plain)[i])) fail(`${at}: quality ${q} took something away (${JSON.stringify(it.base)} against ${JSON.stringify(plain.base)})`);
-        if (it.sockets.length !== plain.sockets.length + (q >= 3 ? G.T.gear.masterSocket : 0)) fail(`${at}: quality ${q} has ${it.sockets.length} sockets`);
-        if (bp.kind === 'caster' && it.slots.length !== plain.slots.length) fail(`${at}: quality ${q} changed the circuit slots`);
-        if (bp.kind === 'caster' && !!it.links !== (q >= 3)) fail(`${at}: quality ${q} links ${it.links}`);
-        if (it.affixes.length) fail(`${at}: quality ${q} rolled affixes`);
-      }
-      if (bp.kind === 'pick' && plain.base.power !== ore.tier + 1) fail(`${at}: a pick that breaks tier ${plain.base.power}`);
-      const cost = G.recipeCost(id, ore.id, size);
-      if (!(cost.ore.n > 0) || cost.ore.id !== ore.id || !cost.parts.length || cost.parts.some((p) => !(p.n > 0) || !(G.PARTS[p.kind] || p.kind === 'any'))) fail(`${at}: costs ${JSON.stringify(cost)}`);
-      if (size && size > G.casterSizes(id)[0] && G.recipeCost(id, ore.id, size).ore.n <= G.recipeCost(id, ore.id).ore.n) fail(`${at}: a bigger caster costs no more`);
+    const plain = G.forgeItem(id, ore.id, null, 0), at = `${id} in ${ore.id}`;
+    if (plain.kind !== bp.kind || plain.bp !== id || plain.tier !== ore.tier) fail(`${at}: came out ${plain.kind} ${plain.bp} tier ${plain.tier}`);
+    if (plain.affixes.length) fail(`${at}: a crafted base rolled affixes`);
+    if (plain.sockets.length !== G.socketCount(bp.kind, ore.tier, 0) || plain.sockets.some(Boolean)) fail(`${at}: sockets ${plain.sockets.length}`);
+    if (!plain.name || bad(plain.name) || bad(G.itemBaseLine(plain)) || bad(G.itemKindLine(plain))) fail(`${at}: "${plain.name}" / "${G.itemBaseLine(plain)}"`);
+    const mods = (it) => it.spells.map((sp) => sp.mods.length).join();
+    if (bp.kind === 'caster' && (plain.spells.length !== 2 || mods(plain) !== (ore.tier >= G.T.circuits.rig.mod2Tier ? '2,2' : '1,1'))) fail(`${at}: spells with ${mods(plain)} Mod slots`);
+    if (bp.kind === 'caster' && (plain.slots || plain.links || plain.spells.some((sp) => G.spellCores(sp).length))) fail(`${at}: a frame came with cores, slots or links`);
+    const nums = (it) => Object.values(it.base);
+    for (let q = 1; q <= 3; q++) {
+      const it = G.forgeItem(id, ore.id, null, q);
+      if (nums(it).some((v, i) => v < nums(plain)[i])) fail(`${at}: quality ${q} took something away (${JSON.stringify(it.base)} against ${JSON.stringify(plain.base)})`);
+      if (it.sockets.length !== plain.sockets.length + (q >= 3 ? G.T.gear.masterSocket : 0)) fail(`${at}: quality ${q} has ${it.sockets.length} sockets`);
+      if (bp.kind === 'caster' && mods(it) !== (q >= 3 || ore.tier >= G.T.circuits.rig.mod2Tier ? '2,2' : '1,1')) fail(`${at}: quality ${q} has ${mods(it)} Mod slots`);
+      if (it.affixes.length) fail(`${at}: quality ${q} rolled affixes`);
     }
+    if (bp.kind === 'pick' && plain.base.power !== ore.tier + 1) fail(`${at}: a pick that breaks tier ${plain.base.power}`);
+    const cost = G.recipeCost(id, ore.id);
+    if (!(cost.ore.n > 0) || cost.ore.id !== ore.id || !cost.parts.length || cost.parts.some((p) => !(p.n > 0) || !(G.PARTS[p.kind] || p.kind === 'any'))) fail(`${at}: costs ${JSON.stringify(cost)}`);
   }
-  // riftglass forges a tier higher; an elemental exotic in a caster brings its stone
+  // riftglass forges a tier higher; an elemental exotic in a frame brings
+  // its core; a Lodestone shard, a second Mod slot
   const rg = G.forgeItem(id, 'ferrite', 'riftglass', 0);
   if (rg.tier !== 2) fail(`${id}: riftglass forged tier ${rg.tier}`);
-  if (bp.kind === 'caster' && !(G.forgeItem(id, 'ferrite', 'voltaic', 0).withStone || {}).stone) fail(`${id}: Voltaic crystal brought no Shock stone`);
+  if (bp.kind === 'caster' && !(G.forgeItem(id, 'ferrite', 'voltaic', 0).withStone || {}).stone) fail(`${id}: Voltaic crystal brought no Shock core`);
+  if (bp.kind === 'caster' && G.rigMods(G.forgeItem(id, 'ferrite', 'lodeshard', 0)) !== 2) fail(`${id}: a Lodestone shard gave no second Mod slot`);
+  if (bp.kind !== 'caster' && G.forgeItem(id, 'ferrite', 'lodeshard', 0).spells) fail(`${id}: a shard gave a non-frame spells`);
 }
-// stones: their ore's tier, one more from a fine forge
+// cores: their ore's tier, one more from a fine forge
 for (const id of G.BP_IDS.filter((x) => G.BLUEPRINTS[x].kind === 'stone')) for (let q = 0; q < 4; q++) {
   const st = G.forgeItem(id, 'lumenite', null, q);
-  if (st.kind !== 'stone' || st.stone !== G.BLUEPRINTS[id].stone || st.tier !== 2 + (q >= 2 ? 1 : 0)) fail(`${id} at quality ${q}: ${JSON.stringify(st)}`);
+  if (st.kind !== 'stone' || st.stone !== G.BLUEPRINTS[id].stone || st.tier !== 2 + (q >= 2 ? 1 : 0) || !/ core$/.test(st.name)) fail(`${id} at quality ${q}: ${JSON.stringify(st)}`);
 }
+// no wand, gauntlet, staff or Trigger left to make
+for (const id of ['wand', 'gauntlet', 'staff', 'glyph_trigger']) if (G.BLUEPRINTS[id]) fail(`${id} can still be made`);
 // paying a cost takes exactly it, and an unpaid one takes nothing
 {
-  const src = { ferrite: 40, cog1: 1, cog2: 2 }, cost = G.recipeCost('gauntlet', 'ferrite', 4);
-  if (!G.recipePay(cost, src) || src.ferrite !== 40 - cost.ore.n || G.partsHave(src, 'cog') !== 3 - cost.parts[0].n || src.cog1) fail(`paying a gauntlet: ${JSON.stringify(src)}`);
+  const src = { ferrite: 40, cog1: 1, cog2: 2 }, cost = G.recipeCost('rig', 'ferrite');
+  if (!G.recipePay(cost, src) || src.ferrite !== 40 - cost.ore.n || G.partsHave(src, 'cog') !== 3 - cost.parts[0].n || src.cog1) fail(`paying a rig: ${JSON.stringify(src)}`);
   const before = JSON.stringify(src);
-  if (G.recipePay(G.recipeCost('staff', 'ferrite'), src) || JSON.stringify(src) !== before) fail('an unpaid cost took something');
+  if (G.recipePay(G.recipeCost('shell', 'ferrite'), src) || JSON.stringify(src) !== before) fail('an unpaid cost took something');
 }
 
 // --- modules ---------------------------------------------------------------
@@ -90,16 +93,6 @@ for (let seed = 1; seed <= 4000; seed++) {
     if (up.tier !== m.tier + 1) fail(`${at}: upgraded to tier ${up.tier}`);
     up.affixes.forEach((a, i) => { if (a.id !== m.affixes[i].id || a.v < m.affixes[i].v || (!G.AFFIXES[a.id].flat && !(a.v > m.affixes[i].v))) fail(`${at}: upgrading ${m.affixes[i].id} ${m.affixes[i].v} gave ${a.v}`); });
   } else if (cost || G.moduleUpgrade(up)) fail(`${at}: a tier 6 module upgraded`);
-  // a reroll: the one trait changes, the rest stay
-  if (m.affixes.length) {
-    const rr = JSON.parse(JSON.stringify(m)), i = seed % m.affixes.length;
-    G.moduleReroll(rng, rr, i);
-    checkModule(rr, `${at} rerolled`);
-    rr.affixes.forEach((a, j) => { if (j !== i && JSON.stringify(a) !== JSON.stringify(m.affixes[j])) fail(`${at}: a reroll changed a locked trait`); });
-    if (G.KIND_FAMILIES[m.fits].includes('leech') && !m.affixes.some((a) => a.id === 'leech')) { const lr = JSON.parse(JSON.stringify(m)); G.moduleReroll(rng, lr, i, 'leech'); if (lr.affixes[i].id !== 'leech') fail(`${at}: a Bloodresin reroll came out ${lr.affixes[i].id}`); }
-  }
-  // enriching: a trait more, a rarity up
-  if (G.canEnrich(m)) { const en = JSON.parse(JSON.stringify(m)); G.moduleEnrich(rng, en); if (en.affixes.length !== m.affixes.length + 1 || en.rarity !== (m.rarity === 'common' ? 'magic' : 'rare')) fail(`${at}: enriched to ${en.rarity} with ${en.affixes.length}`); checkModule(en, `${at} enriched`); }
   if (!(G.salvageThreads(m) > 0)) fail(`${at}: salvage gives no threads`);
   if (G.compareLines(m, m).length) fail(`${at}: differs from itself`);
   for (const l of G.compareLines(m, null)) if (bad(l.text)) fail(`${at}: "${l.text}"`);
@@ -122,21 +115,6 @@ function checkModule(m, at) {
   if (m.set && !G.SETS[m.set].pieces[m.fits]) fail(`${at}: a set piece for a ${m.fits}`);
   if (bad(G.itemKindLine(m)) || G.moduleTraits(m).some((t) => bad(t.text))) fail(`${at}: words`);
 }
-// fusing: a trait of each, at the higher tier, stronger; the rules hold
-for (let seed = 1; seed <= 1500; seed++) {
-  const rng = new G.Rng(seed * 31), fits = ['caster', 'armor', 'charm', 'pick'][seed % 4];
-  const a = G.makeModule(rng, fits, 1 + (seed % 5), { rarity: ['magic', 'rare', 'legendary', 'set'][seed % 4] }), b = G.makeModule(rng, fits, 1 + (seed % 3), { rarity: ['rare', 'legendary', 'magic'][seed % 3] });
-  const ta = G.moduleTraits(a)[seed % G.moduleTraits(a).length].key, tb = G.moduleTraits(b)[(seed >> 2) % G.moduleTraits(b).length].key;
-  const problem = G.fuseProblem(a, ta, b, tb), m = G.moduleFuse(rng, a, ta, b, tb), at = `fuse ${seed} ${ta}+${tb}`;
-  if (problem) { if (m) fail(`${at}: fused despite "${problem}"`); continue; }
-  if (!m) { fail(`${at}: nothing came out`); continue; }
-  checkModule(m, at);
-  if (m.tier !== Math.max(a.tier, b.tier) || m.fits !== a.fits || G.moduleTraits(m).length !== 2) fail(`${at}: tier ${m.tier}, ${G.moduleTraits(m).length} traits`);
-  for (const [from, key] of [[a, ta], [b, tb]]) if (key[0] === 'a') { const o = from.affixes[Number(key.slice(1))], n = m.affixes.find((x) => x.id === o.id); if (!n || n.v < o.v) fail(`${at}: ${o.id} ${o.v} came out ${n && n.v}`); }
-}
-if (!G.fuseProblem(G.makeModule(new G.Rng(1), 'caster', 1, { rarity: 'legendary', power: 'echo' }), 'power', G.makeModule(new G.Rng(2), 'caster', 1, { rarity: 'legendary', power: 'bloodedge' }), 'power')) fail('two powers fused into one module');
-// imprinting a remembered power
-{ const m = G.makeModule(new G.Rng(3), 'armor', 2, { rarity: 'rare' }); if (!G.moduleImprint(m, 'lodeheart') || m.rarity !== 'legendary' || m.power !== 'lodeheart' || G.moduleImprint(m, 'echo')) fail('imprinting is wrong'); }
 // sockets: a module only into a base of its kind; moved across whole
 {
   const base = G.makeBase('plate', 3, 3), list = [], m1 = G.makeModule(new G.Rng(4), 'armor', 1, { rarity: 'magic' }), m2 = G.makeModule(new G.Rng(5), 'caster', 1, {});
@@ -144,7 +122,7 @@ if (!G.fuseProblem(G.makeModule(new G.Rng(1), 'caster', 1, { rarity: 'legendary'
   const other = G.makeBase('shell', 1, 0);
   G.moveModules(base, other, list);
   if (other.sockets[0] !== m1 || base.sockets.some(Boolean)) fail('modules did not move across');
-  const eq = { main: G.makeBase('wand', 1), off: null, armor: other, charm: null, pick: null };
+  const eq = { main: G.makeBase('rig', 1), armor: other, charm: null, pick: null };
   const t = G.moduleTarget(eq, G.makeModule(new G.Rng(6), 'armor', 1, {}));
   if (!t || t.slot !== 'armor') fail('a module finds no worn base of its kind');
 }
@@ -161,26 +139,44 @@ for (const id of Object.keys(G.CIRCUIT_FORMS).concat(Object.keys(G.CIRCUIT_ELEME
 }
 
 // --- an old save -----------------------------------------------------------
-for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json', 'save-main-run.json']) {
+const coreIds = (list) => list.flatMap((x) => (x && x.kind === 'stone' ? [x] : x && x.kind === 'caster' ? (x.slots || []).filter(Boolean).concat((x.spells || []).flatMap(G.spellCores)) : [])).filter((c) => c.stone !== 'trigger').map((c) => c.stone + c.tier).sort().join();
+for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json', 'save-main-run.json', 'save-v6-home.json']) {
   const s = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
   const old = JSON.parse(JSON.stringify(s));
-  // what the old gear's affixes added up to, worn and stashed
-  const sum = (list) => { const o = {}; for (const it of list) for (const a of it.affixes || []) o[a.id] = Math.round(((o[a.id] || 0) + a.v) * 10) / 10; return Object.keys(o).sort().map((k) => k + ' ' + o[k]).join(', '); };
-  const oldAll = Object.values(old.equip).filter(Boolean).concat(old.items, old.run ? old.run.items : [], old.run ? old.run.pocket.filter((e) => e.item).map((e) => e.item) : []);
-  const oldPowers = oldAll.filter((it) => it.power).map((it) => it.power).sort().join(), oldSets = oldAll.filter((it) => it.set).length;
-  if (!G.migrateGearSave(s) || s.v !== 6 || G.migrateGearSave(s)) fail(`${f}: migrated wrong`);
-  const pieces = Object.values(s.equip).filter(Boolean).concat(s.items, s.run ? s.run.items : [], s.run ? s.run.pocket.filter((e) => e.item).map((e) => e.item) : []);
-  const mods = pieces.filter((x) => x.kind === 'module').concat(pieces.flatMap((x) => (x.sockets || []).filter(Boolean)));
+  // what the old gear's affixes added up to, worn and stashed (the cargo
+  // trait is gone with the cargo limit)
+  const sum = (list) => { const o = {}; for (const it of list) for (const a of it.affixes || []) if (G.AFFIXES[a.id]) o[a.id] = Math.round(((o[a.id] || 0) + a.v) * 10) / 10; return Object.keys(o).sort().map((k) => k + ' ' + o[k]).join(', '); };
+  const v5 = (old.v || 5) < 6;
+  if (v5 && (!G.migrateGearSave(s) || s.v !== 6 || G.migrateGearSave(s))) fail(`${f}: migrated wrong to modules`);
+  const mid = JSON.parse(JSON.stringify(s)), all = (x) => Object.values(x.equip).filter(Boolean).concat(x.items, x.run ? x.run.items : [], x.run ? (x.run.pocket || []).filter((e) => e.item).map((e) => e.item) : []);
+  const modsOf = (list) => list.filter((x) => x.kind === 'module').concat(list.flatMap((x) => (x.sockets || []).filter(Boolean)));
+  const oldMods = modsOf(all(mid)), oldCores = coreIds(all(mid)), oldThreads = (mid.stash.thread || 0) + ((mid.stash.bloodresin || 0) + all(mid).flatMap((x) => (x.kind === 'stone' ? [x] : x.slots || [])).filter((c) => c && c.stone === 'trigger').length) * G.T.retiredThreads;
+  if (!G.migrateRigSave(s) || s.v !== 7 || G.migrateRigSave(s)) fail(`${f}: migrated wrong to the rig`);
+  s.items = s.items.map(G.cleanSaveItem).filter(Boolean);
+  for (const k of Object.keys(s.equip)) s.equip[k] = G.cleanSaveItem(s.equip[k]);
+  const pieces = all(s), mods = modsOf(pieces);
   for (const it of pieces) {
     if (G.KIND_SLOT[it.kind] && (!Array.isArray(it.sockets) || it.affixes.length || it.power || it.set)) fail(`${f}: ${it.name} is not a base`);
-    if (it.kind === 'caster' && !it.slots) fail(`${f}: ${it.name} lost its circuit`);
+    if (it.kind === 'caster' && (it.bp !== 'rig' || it.slots || it.links || !it.spells || it.spells.length !== 2 || /Wand|Staff|Gauntlet/.test(it.name))) fail(`${f}: ${it.name} is not a rig frame`);
+    if (it.kind === 'stone' && !G.stoneKind(it.stone)) fail(`${f}: a ${it.stone} core is left`);
   }
+  if ('off' in s.equip || s.codex || s.stash.bloodresin) fail(`${f}: the off hand, the Codex of powers or Bloodresin is left`);
   for (const m of mods) checkModuleLoose(m, `${f} ${m.name}`);
-  if (sum(mods) !== sum(oldAll)) fail(`${f}: affixes ${sum(mods)} were ${sum(oldAll)}`);
-  if (mods.filter((m) => m.power).map((m) => m.power).sort().join() !== oldPowers || mods.filter((m) => m.set).length !== oldSets) fail(`${f}: powers or set pieces lost`);
-  if (s.equip.main.name !== 'Scrap Gauntlet' || s.equip.main.slots[0].stone !== 'arc') fail(`${f}: the starting gauntlet changed`);
-  if (!s.items.some((it) => it.fav)) fail(`${f}: a kept piece lost its mark`);
-  if (old.blueprints.some((id) => !s.blueprints.includes(id))) fail(`${f}: a known blueprint was forgotten`);
+  if (sum(mods) !== sum(oldMods)) fail(`${f}: affixes ${sum(mods)} were ${sum(oldMods)}`);
+  if (mods.length !== oldMods.length) fail(`${f}: ${mods.length} modules, were ${oldMods.length}`);
+  if (coreIds(pieces) !== oldCores) fail(`${f}: cores ${coreIds(pieces)} were ${oldCores}`);
+  if ((s.stash.thread || 0) !== oldThreads) fail(`${f}: ${s.stash.thread} threads, not ${oldThreads}`);
+  // the worn main hand's circuit is spell A, the off hand's spell B
+  const A = mid.equip.main && mid.equip.main.slots, B = mid.equip.off && mid.equip.off.slots, first = (sl, k) => (sl || []).find((c) => c && G.stoneKind(c.stone) === k);
+  const r = s.equip.main;
+  for (const [sp, sl, w] of [[r.spells[0], A, 'A'], [r.spells[1], B, 'B']]) {
+    const id = (c) => (c && c.stone) || null;
+    if (id(sp.form) !== id(first(sl, 'form')) || id(sp.el) !== id(first(sl, 'element')) || id(sp.mods[0]) !== id(first(sl, 'glyph'))) fail(`${f}: spell ${w} is ${G.spellName(sp)}, from ${(sl || []).map((c) => c && c.stone)}`);
+  }
+  if (/Scrap Gauntlet/.test(mid.equip.main.name) && r.name !== 'Scrap Rig') fail(`${f}: the Scrap Gauntlet became ${r.name}`);
+  if (mid.equip.off && !s.items.some((x) => x.kind === 'caster' && x.uid === mid.equip.off.uid)) fail(`${f}: the off hand's frame is not in the stash`);
+  if (!pieces.some((it) => it.fav)) fail(`${f}: a kept piece lost its mark`);
+  if (old.blueprints.some((id) => G.BLUEPRINTS[id] && !s.blueprints.includes(id)) || !s.blueprints.includes('rig')) fail(`${f}: a known recipe was forgotten, or the rig isn't known`);
   if (!s.items.some((it) => it.kind === 'relic')) fail(`${f}: a relic was lost`);
 }
 function checkModuleLoose(m, at) {
@@ -189,79 +185,59 @@ function checkModuleLoose(m, at) {
 
 // --- outfits stay within the caps ------------------------------------------
 for (let seed = 1; seed <= 400; seed++) {
-  const rng = new G.Rng(seed * 7), eq = { main: G.makeBase('gauntlet', 6, 3), off: G.makeBase('staff', 6, 3), pick: G.makeBase('pick', 6, 3), armor: G.makeBase('plate', 6, 3), charm: G.makeBase('charm', 6, 3) };
+  const rng = new G.Rng(seed * 7), eq = { main: G.makeBase('rig', 6, 3), pick: G.makeBase('pick', 6, 3), armor: G.makeBase('plate', 6, 3), charm: G.makeBase('charm', 6, 3) };
   for (const k in eq) eq[k].sockets = eq[k].sockets.map(() => G.makeModule(rng, eq[k].kind, 6, { rarity: rng.pick(['rare', 'legendary', 'set']) }));
-  const st = G.computeStats(eq, { vitality: 5, proximity: 5, capacity: 5, clarity: 5, stride: 5 });
+  const st = G.computeStats(eq, { vitality: 5, proximity: 5, clarity: 5, stride: 5 });
   for (const k in G.T.caps) if (st[k] > G.T.caps[k]) fail(`outfit ${seed}: ${k} ${st[k]} over its cap`);
   if (!(st.maxHp > G.T.player.hp)) fail(`outfit ${seed}: plate added no health`);
   if (bad(JSON.stringify(st))) fail(`outfit ${seed}: ${JSON.stringify(st)}`);
 }
 {
-  const eq = { main: null, off: null, pick: G.makeBase('pick', 2), armor: G.makeBase('plate', 2), charm: G.makeBase('charm', 2) };
+  const eq = { main: null, pick: G.makeBase('pick', 2), armor: G.makeBase('plate', 2), charm: G.makeBase('charm', 2) };
   for (const k of ['pick', 'armor', 'charm']) eq[k].sockets[0] = G.makeModule(new G.Rng(1), k, 2, { rarity: 'set' });
   const st = G.computeStats(eq, {});
   if (st.sets.regalia !== 3 || !st.regalia3) fail('three set modules don\'t make the set');
 }
 const start = G.startingGear();
-if (start.pick.base.power !== 1 || start.pick.sockets.length || start.main.base.power !== 5 || start.main.bp !== 'gauntlet' || start.main.slots.length !== 3 || start.main.slots[0].stone !== 'arc' || start.off.bp !== 'wand' || start.off.slots[0].stone !== 'bolt' || start.main.sockets.length !== 1) fail('the starting gear changed');
+if (start.pick.base.power !== 1 || start.pick.sockets.length || start.main.base.power !== 5 || start.main.bp !== 'rig' || start.main.name !== 'Scrap Rig' || G.spellName(start.main.spells[0]) !== 'ARC' || G.spellName(start.main.spells[1]) !== 'BOLT' || G.rigMods(start.main) !== 1 || start.main.sockets.length !== 1 || 'off' in start) fail('the starting gear changed');
 
-// circuits: random rows of stones, read by the rules
-const ids = Object.keys(G.CIRCUIT_FORMS).concat(Object.keys(G.CIRCUIT_ELEMENTS), Object.keys(G.CIRCUIT_GLYPHS));
-const kindOf = (id) => G.stoneKind(id);
+// spells: random cores, read by the rules
+const kindIds = (k) => Object.keys(k === 'form' ? G.CIRCUIT_FORMS : k === 'element' ? G.CIRCUIT_ELEMENTS : G.CIRCUIT_GLYPHS);
 const C = G.T.circuits;
 for (let seed = 1; seed <= 4000; seed++) {
-  const rng = new G.Rng(seed * 13), n = rng.i(3, 6), bp = rng.pick(['wand', 'gauntlet', 'staff']);
-  const slots = Array.from({ length: n }, () => (rng.chance(0.15) ? null : G.makeStone(rng.pick(ids), rng.i(1, 6))));
-  const P = G.parseCircuit(slots), at = `circuit ${seed} [${slots.map((s) => (s ? s.stone : '-')).join(' ')}]`;
-  // every stone is in a group or loose, once
-  const placed = P.groups.reduce((k, g) => k + g.stones.length, 0) + P.loose.length;
-  if (placed !== slots.filter(Boolean).length) fail(`${at}: ${placed} stones placed of ${slots.filter(Boolean).length}`);
-  // what comes before the first Form is loose
-  const firstForm = slots.findIndex((s) => s && kindOf(s.stone) === 'form');
-  for (let i = 0; i < (firstForm < 0 ? n : firstForm); i++) if (slots[i] && !P.loose.includes(slots[i])) fail(`${at}: a stone before the first Form did something`);
-  for (const g of P.groups) {
-    if (g.els.length > 2 || new Set(g.els).size !== g.els.length) fail(`${at}: a Form with elements ${g.els}`);
-    if (kindOf(g.form) !== 'form') fail(`${at}: a group of ${g.form}`);
+  const rng = new G.Rng(seed * 13), n = rng.i(1, 2), sp = G.emptySpell(n), core = (k) => (rng.chance(0.15) ? null : G.makeStone(rng.pick(kindIds(k)), rng.i(1, 6)));
+  sp.form = core('form'); sp.el = core('element'); sp.mods = sp.mods.map(() => core('glyph'));
+  const it = { kind: 'caster', bp: 'rig', tier: rng.i(1, 6), base: { power: 6 }, affixes: [], spells: [sp, G.emptySpell(n)] }, at = `spell ${seed} [${G.spellName(sp)}]`;
+  const g = G.spellGroup(sp);
+  if (!!g !== !!sp.form) fail(`${at}: a spell ${g ? 'with' : 'without'} a group`);
+  if (g && (g.els.length > 1 || g.stones.length !== G.spellCores(sp).length)) fail(`${at}: its group ${JSON.stringify(g.els)}`);
+  // the cost is its Form's times its Mods'
+  let want = C.spark.cost;
+  if (g) { want = C.forms[g.form].cost; for (const m of sp.mods) if (m) want *= C.glyphs[m.stone].cost; want = Math.max(1, want); }
+  if (Math.abs(G.spellCost(sp) - want) > 0.06) fail(`${at}: costs ${G.spellCost(sp)}, not ${want}`);
+  const L = G.spellLine(it, sp);
+  if (!L.text || bad(L.text) || L.text.length > 60) fail(`${at}: "${L.text}"`);
+  // a resonance wakes when the spell holds all its parts
+  const res = G.spellResonance(sp), ids = G.spellCores(sp).map((c) => c.stone);
+  for (const r of G.RESONANCES) {
+    const left = ids.slice(), holds = r.parts.every((id) => { const i = left.indexOf(id); if (i < 0) return false; left.splice(i, 1); return true; });
+    if (holds && (!res || res.parts.length < r.parts.length)) fail(`${at}: holds ${r.name} but wakes ${res && res.name}`);
   }
-  // a Trigger links its Form to the next, and only then
-  P.groups.forEach((g, i) => { const nx = P.groups[i + 1]; if (!!(g.glyphs.trigger && nx) !== !!(nx && nx.triggered && g.next === nx)) fail(`${at}: a Trigger's link is wrong`); });
-  if (P.dangling !== !!(P.groups.length && P.groups[P.groups.length - 1].glyphs.trigger)) fail(`${at}: a Trigger at the end isn't marked`);
-  // the cost is the sum of the groups', each its Form's times its glyphs'
-  const it = { kind: 'caster', bp, slots, base: { power: 6 }, affixes: [] };
-  let want = 0;
-  for (const g of P.groups) { const F = C.forms[g.form]; let c = F.cost - (F.close && bp === 'gauntlet' ? 1 : 0); for (const id in g.glyphs) c *= Math.pow(C.glyphs[id].cost, g.glyphs[id]); want += Math.max(1, c); }
-  if (!P.groups.length) want = C.spark.cost;
-  const cost = G.circuitCost(it);
-  if (Math.abs(cost - want) > 0.06) fail(`${at}: costs ${cost}, not ${want}`);
-  const R = G.circuitReadout(it);
-  for (const l of R.lines) if (/NaN|undefined|\[object/.test(l.text)) fail(`${at}: "${l.text}"`);
-  if (!R.lines.length) fail(`${at}: says nothing`);
+  if (res && !res.parts.every((id) => ids.includes(id))) fail(`${at}: wakes ${res.name} without its parts`);
 }
-// the parse, by the rules
-const SS = (...a) => a.map((id) => (id ? G.makeStone(id, 1) : null));
-const P1 = G.parseCircuit(SS('lance', 'frost', 'pierce', 'trigger', 'nova', 'shock'));
-if (P1.groups.length !== 2 || !P1.groups[1].triggered || P1.groups[0].next !== P1.groups[1] || P1.groups[1].els[0] !== 'shock' || P1.groups[0].els[0] !== 'frost') fail('LANCE FROST PIERCE TRIGGER NOVA SHOCK does not parse as a lance that sets off a shock nova');
-const P2 = G.parseCircuit(SS('bolt', 'nova'));
-if (P2.groups.length !== 2 || P2.groups[1].triggered) fail('two Forms in a row do not fire together');
-const P3 = G.parseCircuit(SS('shock', 'arc', 'ember', 'frost', 'blight'));
-if (P3.loose.length !== 2 || P3.groups[0].els.join() !== 'ember,frost') fail('a stone before the Form, or a third Element, did something');
-const P4 = G.parseCircuit(SS('bolt', 'split', 'trigger'));
-if (!P4.dangling) fail('a Trigger at the end is not marked as setting off nothing');
-if (G.circuitCost({ bp: 'wand', slots:SS('arc', 'quicken') }) !== Math.round(3 * C.glyphs.quicken.cost * 10) / 10) fail('ARC QUICKEN does not cost a third less');
-if (G.circuitCost({ bp: 'gauntlet', slots:SS('arc', null, null) }) !== C.forms.arc.cost - 1) fail('a gauntlet does not take 1 off a close Form');
-// a Glyph in a linked slot counts twice, in what it does and what it costs
-const PL = G.parseCircuit(SS('bolt', 'split', 'echo'), [1]);
-if (PL.groups[0].glyphs.split !== 2 || PL.groups[0].glyphs.echo !== 2) fail('a Glyph in a linked slot does not count twice');
-if (G.parseCircuit(SS('bolt', 'split', 'echo'), [0]).groups[0].glyphs.echo !== 1) fail('a slot outside the linked pair counts twice');
-if (G.circuitCost({ bp: 'wand', slots: SS('bolt', 'split', null), links: [1] }) !== Math.round(C.forms.bolt.cost * C.glyphs.split.cost * C.glyphs.split.cost * 10) / 10) fail('a linked Glyph does not cost twice');
-// ore affinity: Ferrite's Glaive costs less; the attuned hit harder
-if (G.circuitCost({ bp: 'wand', tier: 1, slots: SS('glaive') }) !== C.forms.glaive.cost - C.ores.ferrite.glaive) fail('a Ferrite Glaive does not cost less');
-if (G.circuitCost({ bp: 'wand', tier: 2, slots: SS('glaive') }) !== C.forms.glaive.cost) fail('a Lumenite Glaive costs less');
-if (G.affinityMult({ tier: 2 }, ['shock']) !== 1 + C.attuned.dmg || G.affinityMult({ tier: 2 }, ['frost']) !== 1 || G.affinityMult({ tier: 2 }, ['shock', 'frost']) !== 1 + C.attuned.dmg / 2) fail('Lumenite is not attuned to Shock by its share');
-// resonances fill the caster exactly
+// Quicken a third cheaper; Mods in either order the same
+{
+  const mk = (...ids) => { const sp = G.emptySpell(2); sp.form = G.makeStone(ids[0], 1); sp.el = ids[1] ? G.makeStone(ids[1], 1) : null; sp.mods = [ids[2], ids[3]].map((x) => (x ? G.makeStone(x, 1) : null)); return sp; };
+  if (G.spellCost(mk('arc', null, 'quicken')) !== Math.round(C.forms.arc.cost * C.glyphs.quicken.cost * 10) / 10) fail('ARC QUICKEN does not cost a third less');
+  if (G.spellCost(mk('bolt', null, 'split', 'echo')) !== G.spellCost(mk('bolt', null, 'echo', 'split'))) fail('the Mods\' order changes the cost');
+  if ((G.spellResonance(mk('orb', 'ember', 'linger', 'split')) || {}).id !== 'wildfire' || (G.spellResonance(mk('orb', 'shock', 'echo', 'linger')) || {}).id !== 'thunderhead') fail('resonances do not wake in any order, or with a Mod over');
+  if (G.spellResonance(mk('orb', 'ember', 'linger')) || G.spellResonance(mk('bolt', 'force', 'split'))) fail('a resonance woke without all its parts');
+}
+// ore affinity: the attuned hit harder
+if (G.affinityMult({ tier: 2 }, ['shock']) !== 1 + C.attuned.dmg || G.affinityMult({ tier: 2 }, ['frost']) !== 1) fail('Lumenite is not attuned to Shock');
+// every resonance is made of parts there are, a Form, an Element and Mods
 for (const r of G.RESONANCES) {
-  if (!r.seq.every((id) => ids.includes(id))) fail(`${r.name} needs a part outside the core set`);
-  if (!G.circuitResonance(SS(...r.seq)) || G.circuitResonance(SS(...r.seq, null))) fail(`${r.name}: a resonance must fill its caster exactly`);
+  if (G.stoneKind(r.parts[0]) !== 'form' || G.stoneKind(r.parts[1]) !== 'element' || r.parts.slice(2).some((id) => G.stoneKind(id) !== 'glyph') || r.parts.length < 3 || r.parts.length > 4) fail(`${r.name} isn't a Form, an Element and one or two Mods`);
 }
 
 // the star
