@@ -28,8 +28,9 @@
 // a screen opening, as the tests do) it counts as seen.
 //
 // Every helper here is named intro…; numbers are in T.intro. Sound cues go
-// through snd() if the game has it: introScene { n }, introBeam, introSite,
-// introThrust, introTouchdown, introLock, introStarLit, introPing, introEnd.
+// through snd() if the game has it (audio.js; rendered ahead in sndbank.js):
+// introScene { n }, introThrust { craft }, introBeam, introSite,
+// introTouchdown, introLock, introStarLit, introPing, introEnd { skipped }.
 // ---------------------------------------------------------------------------
 
 // Colours, dark to light, beside the outpost's (HART) and the Kindler's (KP).
@@ -56,12 +57,14 @@ const Intro = {
   on: false, scene: 0, t: 0, age: 0, done: null, dive: null, hub: null,
   el: null, view: null, ctx: null, w: 0, h: 0, k: 1, sizeKey: '',
   sx: 0, sy: 0, sw: 0, sh: 0, cx: 0, cy: 0,
-  kept: new Map(), capKey: '', fadeKey: '', walkFrom: null,
+  kept: new Map(), capKey: '', fadeKey: '', sndQ: [],
   // the opening, from the top; done once it's over, however it ends
   play(done) {
     introSetup();
     const I = Intro;
-    Object.assign(I, { on: true, scene: 0, t: 0, age: 0, done, dive: Game.dive, hub: null, capKey: '', fadeKey: '' });
+    Object.assign(I, { on: true, scene: 0, t: 0, age: 0, done, dive: Game.dive, hub: null, capKey: '', fadeKey: '', sndQ: [] });
+    // (its sounds rendered now, if the sound's already going: a replay)
+    if (typeof SndBank !== 'undefined' && SndBank.started) SndBank.want(BANK_INTRO, () => Intro.on).catch(() => {});
     Game.modal = 'intro';
     Input.block();
     I.el.hidden = false;
@@ -87,7 +90,15 @@ const Intro = {
   },
 };
 
-function introSnd(name, o) { if (typeof snd === 'function') snd(name, o); }
+// A sound cue, if the game has sound (audio.js). The opening's are
+// rendered ahead (sndbank.js); one not ready yet waits a little for it
+// (introUpdate), and is let go if it would come too late.
+function introSnd(name, o) {
+  if (typeof snd !== 'function') return;
+  // (a scene's bed or a long roar can come in late; a moment can't)
+  if (typeof sndReady === 'function' && Snd.ready && !sndReady(name, o)) { Intro.sndQ.push({ name, o, at: Intro.age, wait: /Scene|Thrust|Beam/.test(name) ? T.intro.sndWait : 0.3 }); return; }
+  snd(name, o);
+}
 // Whether the sound is still waiting for its first tap (and would play).
 function introSoundWaits() {
   if (Intro.heard || typeof Snd === 'undefined' || Snd.failed || !window.AudioContext && !window.webkitAudioContext) return false;
@@ -138,7 +149,7 @@ function introCaps(n) {
 const INTRO_CUES = [
   [[0.4, 'introThrust', { craft: true }]],
   [[0.8, 'introBeam'], [5.7, 'introSite']],
-  [[0.6, 'introThrust'], [4.3, 'introTouchdown'], [5.6, 'introTouchdown'], [7.0, 'introTouchdown'], [7.4, 'introLock']],
+  [[0.6, 'introThrust'], [4.1, 'introTouchdown'], [5.3, 'introTouchdown'], [7.0, 'introTouchdown'], [7.4, 'introLock']],
   [],
   [[1.4, 'introStarLit'], [2.6, 'introPing']],
 ];
@@ -152,6 +163,8 @@ function introUpdate(dt) {
   I.age += dt;
   // the sound woken some other way (a key): no need to ask for a tap
   if (!I.heard && !introSoundWaits()) { I.heard = true; $('intro-sound').hidden = true; }
+  // the cues waiting for their sounds to be rendered
+  if (I.sndQ.length) I.sndQ = I.sndQ.filter((q) => { if (I.age - q.at > q.wait) return false; if (!sndReady(q.name, q.o)) return true; snd(q.name, q.o); return false; });
   const t0 = I.t;
   I.t += dt;
   for (const [at, name, o] of INTRO_CUES[I.scene]) if (at > t0 && at <= I.t) introSnd(name, o);
@@ -198,6 +211,8 @@ function introFinish() {
   document.body.classList.remove('intro');
   document.body.classList.add('intro-out');
   setTimeout(() => document.body.classList.remove('intro-out'), 1200);
+  // its sounds let go (a replay renders them again)
+  if (typeof SndBank !== 'undefined') setTimeout(() => { if (!Intro.on) SndBank.drop(BANK_INTRO); }, 4000);
   const done = I.done;
   I.done = null; I.dive = null;
   if (done) done();

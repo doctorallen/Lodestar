@@ -537,88 +537,21 @@ const SND_CUES = {
     else if (a.style === 'wick') { sndTone(S, o, t, { f: 900, f2: 1250, glide: 0.06, w: 'triangle', a: 0.005, d: 0.03, g: 1 }); sndTone(S, o, t + 0.09, { f: 1150, f2: 850, glide: 0.06, w: 'triangle', a: 0.005, d: 0.03, g: 0.8 }); }
   } },
 
-  // The opening (intro.js): long, soft and layered, a film's sound more
-  // than a game's, in the bank's manner (sndbank.js: detuned stacks, FM
-  // bodies, a sub with harmonics, glassy pings) but played live, one at a
-  // time, through a long convolution hall of their own (sndIntroHall). Each
-  // scene has its chord and its air; the thrusters are a low roar, the
-  // survey's beam a slow sweep of filtered air, the cradle's lock two
-  // muffled clunks and a chime, the star lighting a rising swell of its own
-  // chord. Nothing bright over the low pass.
+  // The opening (intro.js): rendered ahead like the fight's sounds, one
+  // of each (sndbank.js, BANK_INTRO), first while it plays; each at its own
+  // speed (no spread), so its chords stay in the music's key.
   // introScene: n, the scene (1-5)
-  introScene: { g: 0.2, gap: 0.5, pri: true, fn(S, o, t, a) {
-    const n = a.n || 1, chords = { 1: [-12, -5, 2, 7], 2: [-12, -7, -2, 5], 3: [-17, -12, -5, 0], 4: [-12, -3, 4, 9], 5: [-12, 0, 4, 7, 12] }, C = chords[n] || chords[1];
-    sndIntroWet(S, o, 0.55);
-    C.forEach((st, i) => bkStack(S, o, t + i * 0.12, { f: sndHz(st), n: 3, spread: 12, w: 'warm', lp: 300, lp2: n === 4 ? 900 : 1500, sweep: 2.5, a: 1.6, hold: 1.8, d: 1.6, g: (n === 5 ? 0.6 : 0.5) / Math.sqrt(C.length), trem: [0.15 + i * 0.07, 0.25] }));
-    // the air of the place: space, the planet's thin wind, the ship's hum
-    if (n <= 2) sndNoise(S, o, t, { ft: 'lowpass', f: 300, f2: 760, glide: 4, q: 0.6, a: 1.8, hold: 2.5, d: 1.6, g: 0.3 });
-    if (n === 3) sndNoise(S, o, t, { f: 420, f2: 300, glide: 5, q: 0.5, a: 1.2, hold: 3, d: 1.5, g: 0.28 });
-    if (n === 4) { bkFM(S, o, t, { f: 110, ratio: 1.5, i0: 0.6, i1: 0.3, id: 2, a: 1.2, hold: 4, d: 1.4, g: 0.18, lp: 600, trem: [0.4, 0.3] }); bkPings(S, o, t + 1.6, 3, 2.5, { f: [1500, 2400], d: [0.4, 0.8], g: [0.04, 0.08] }); }
-    if (n === 5) sndBell(S, o, t + 0.8, sndHz(12), 0.16, 1.6, 0.4);
-  } },
-  // the thrusters: a low roar building as they burn harder, a breath of
-  // air over it, a sub carrying harmonics; craft: the craft's engine in
-  // space, far and steady
-  introThrust: { g: 0.3, gap: 1, pri: true, fn(S, o, t, a) {
-    sndIntroWet(S, o, 0.3);
-    if (a.craft) {
-      sndNoise(S, o, t, { ft: 'lowpass', f: 160, f2: 260, glide: 6, a: 1.5, hold: 4, d: 1.5, g: 0.5 });
-      bkStack(S, o, t, { f: 55, n: 3, spread: 18, w: 'warm', lp: 240, a: 1.5, hold: 4, d: 1.5, g: 0.4, trem: [0.6, 0.2] });
-      return;
-    }
-    sndNoise(S, o, t, { ft: 'lowpass', f: 140, f2: 700, glide: 5.5, a: 1.2, hold: 4.5, d: 0.6, g: 0.85 });
-    sndNoise(S, o, t + 1, { f: 1200, f2: 2200, glide: 4, q: 0.6, a: 1.5, hold: 3, d: 0.5, g: 0.12 });
-    bkFM(S, o, t, { f: 46, f2: 62, glide: 6, ratio: 1.41, i0: 2.5, i1: 1.2, id: 3, lp: 420, a: 1.5, hold: 4, d: 0.6, g: 0.4, trem: [7, 0.15] });
-    bkSub(S, o, t + 0.5, 52, 60, 2.5, 0.5, 4);
-  } },
-  // the survey's beam sweeping: filtered air drawn slowly across, a pure
-  // tone wavering in it, faint glass as it reads the ground
-  introBeam: { g: 0.18, gap: 1, fn(S, o, t) {
-    sndIntroWet(S, o, 0.5);
-    sndNoise(S, o, t, { f: 500, f2: 2400, glide: 3.6, q: 2.5, a: 0.6, hold: 2.8, d: 0.6, g: 0.6 });
-    bkStack(S, o, t, { f: sndHz(9), n: 2, spread: 8, w: 'sine', lp: 2000, a: 0.8, hold: 2.6, d: 0.8, g: 0.25, trem: [5, 0.3] });
-    bkPings(S, o, t + 0.6, 6, 3, { f: [1800, 3200], d: [0.08, 0.2], g: [0.03, 0.07] });
-  } },
-  // the site marked: two soft glass notes a fifth apart
-  introSite: { g: 0.2, gap: 1, fn(S, o, t) { sndIntroWet(S, o, 0.6); sndBell(S, o, t, sndHz(14), 0.35, 0.9, 0); sndBell(S, o, t + 0.22, sndHz(21), 0.3, 1.1, 0); } },
-  // a module down: a soft, heavy settling, the thrust cut
-  introTouchdown: { g: 0.26, gap: 0.3, fn(S, o, t) {
-    sndIntroWet(S, o, 0.3);
-    bkFM(S, o, t, { f: 90, f2: 55, glide: 0.25, ratio: 1.37, i0: 2, i1: 0.2, id: 0.08, lp: 600, a: 0.01, d: 0.22, g: 0.6 });
-    bkSub(S, o, t, 70, 48, 0.25, 0.8);
-    sndNoise(S, o, t, { ft: 'lowpass', f: 600, f2: 160, glide: 0.5, a: 0.02, d: 0.3, g: 0.6 });
-  } },
-  // the cradle locking: two clunks of its arms, and its chime
-  introLock: { g: 0.3, gap: 1, pri: true, fn(S, o, t) {
-    sndIntroWet(S, o, 0.45);
-    for (const dt of [0, 0.16]) {
-      bkFM(S, o, t + dt, { f: 150, f2: 96, glide: 0.06, ratio: 2.41, i0: 3, i1: 0.3, id: 0.02, lp: 1200, a: 0.002, d: 0.07, g: 0.55 });
-      sndNoise(S, o, t + dt, { f: 900, q: 1.6, a: 0.002, d: 0.04, g: 0.45 });
-    }
-    sndBell(S, o, t + 0.45, sndHz(12), 0.3, 1.2, 0);
-    sndBell(S, o, t + 0.5, sndHz(19), 0.2, 1.4, 0);
-    sndSwell(S, o, t + 0.4, [-12, 0, 7], 0.35, 0.4, 1.6, 'warm', 1100, 0);
-  } },
-  // the star lighting: its chord swelling up out of a low breath, a glassy
-  // shimmer and a bell at the top
-  introStarLit: { g: 0.3, gap: 1, pri: true, fn(S, o, t) {
-    sndIntroWet(S, o, 0.6);
-    sndNoise(S, o, t, { ft: 'lowpass', f: 200, f2: 2600, glide: 1.8, a: 1.2, d: 0.8, g: 0.3 });
-    [-12, 0, 4, 7, 12, 16].forEach((st, i) => bkStack(S, o, t + 0.2 + i * 0.08, { f: sndHz(st), n: 3, spread: 10, w: 'warm', lp: 400, lp2: 2000, sweep: 1.6, a: 1.3, hold: 0.6, d: 1.8, g: 0.32 }));
-    bkPings(S, o, t + 1.2, 10, 1.5, { f: [1600, 3600], d: [0.2, 0.5], g: [0.03, 0.08] });
-    sndBell(S, o, t + 1.4, sndHz(24), 0.25, 1.6, 0);
-  } },
-  // the modules waking round it: soft chimes, one after another, rising
-  introPing: { g: 0.14, gap: 1, fn(S, o, t) {
-    sndIntroWet(S, o, 0.6);
-    [0, 4, 7, 9, 12, 16, 19].forEach((n, i) => sndBell(S, o, t + i * 0.42, sndHz(n), 0.3 - i * 0.02, 0.7, 0));
-  } },
-  // over: a settling chord as play begins; skipped, only a soft fall
-  introEnd: { g: 0.18, gap: 1, fn(S, o, t, a) {
-    if (a.skipped) { sndNoise(S, o, t, { ft: 'lowpass', f: 900, f2: 200, glide: 0.4, a: 0.02, d: 0.25, g: 0.4 }); return; }
-    sndIntroWet(S, o, 0.5);
-    [0, 7, 12].forEach((st) => bkStack(S, o, t, { f: sndHz(st), n: 3, spread: 10, w: 'warm', lp: 1300, a: 0.3, d: 1.4, g: 0.3 }));
-  } },
+  introScene: { g: 0.2, gap: 0.5, pri: true, spread: 0, bank: (a) => [['intro.scene' + sndClamp(a.n || 1, 1, 5), 1]] },
+  // craft: the craft's engine far off in space; else the landing's roar
+  introThrust: { g: 0.26, gap: 1, pri: true, spread: 0, bank: (a) => [[a.craft ? 'intro.craft' : 'intro.thrust', 1]] },
+  introBeam: { g: 0.1, gap: 1, spread: 0, bank: () => [['intro.beam', 1]] },
+  introSite: { g: 0.12, gap: 1, spread: 0, bank: () => [['intro.site', 1]] },
+  introTouchdown: { g: 0.2, gap: 0.3, spread: 0.02, bank: () => [['intro.touchdown', 1]] },
+  introLock: { g: 0.24, gap: 1, pri: true, spread: 0, bank: () => [['intro.lock', 1]] },
+  introStarLit: { g: 0.28, gap: 1, pri: true, spread: 0, bank: () => [['intro.starLit', 1]] },
+  introPing: { g: 0.1, gap: 1, spread: 0, bank: () => [['intro.ping', 1]] },
+  // skipped: only a soft fall
+  introEnd: { g: 0.14, gap: 1, spread: 0, bank: (a) => [[a.skipped ? 'intro.skip' : 'intro.end', a.skipped ? 0.4 : 1]] },
 
   // the star, fed (the music's moments: music.js)
   starFeedStart: { music: true, fn() { Music.feedHeld = true; } },
@@ -627,24 +560,12 @@ const SND_CUES = {
   starGrow: { music: true, fn(S, o, t, a) { Music.grow(t, a); } },
 };
 
-// The opening's own hall (its cues only): a long convolution reverb, its
-// impulse the bank's (bkImpulse), built the first time it's wanted, into
-// the effects' bus so the setting quiets it too. sndIntroWet sends a cue's
-// output into it, `wet` of it.
-function sndIntroHall(S) {
-  if (S.introHall && S.introHall.context === S.ctx) return S.introHall;
-  const c = S.ctx, ir = bkImpulse(c.sampleRate, 2.4, false), ib = c.createBuffer(2, ir[0].length, c.sampleRate);
-  ib.copyToChannel(ir[0], 0); ib.copyToChannel(ir[1], 1);
-  const cv = c.createConvolver(), lp = c.createBiquadFilter();
-  cv.buffer = ib; lp.type = 'lowpass'; lp.frequency.value = 4500;
-  cv.connect(lp); lp.connect(S.sfx);
-  S.introHall = cv;
-  return cv;
-}
-function sndIntroWet(S, o, wet) {
-  const g = S.ctx.createGain();
-  g.gain.value = wet;
-  o.node.connect(g); g.connect(sndIntroHall(S));
+// Whether a cue could sound now: its rendered buffers are ready (a cue
+// made live always is). The opening waits for its own (intro.js).
+function sndReady(name, opts) {
+  const cue = SND_CUES[name];
+  if (!cue || !cue.bank || !Snd.ready || typeof SndBank === 'undefined') return true;
+  return cue.bank(opts || {}).every(([k]) => SndBank.has(k));
 }
 
 // The hook the game calls: a cue by name, never an error, nothing before
@@ -667,7 +588,8 @@ function sndUnlock() {
       Snd.build(ctx, true);
       Music.build(Snd);
       // the fight's sounds, rendered between frames (sndbank.js)
-      if (typeof OfflineAudioContext !== 'undefined') SndBank.start(ctx.sampleRate, 800).catch(() => {});
+      // (sooner while the opening plays: it wants its sounds now)
+      if (typeof OfflineAudioContext !== 'undefined') SndBank.start(ctx.sampleRate, typeof Intro !== 'undefined' && Intro.on ? 150 : 800).catch(() => {});
       // a moment of silence started inside the tap wakes iOS's output
       const b = ctx.createBufferSource(); b.buffer = ctx.createBuffer(1, 1, ctx.sampleRate); b.connect(ctx.destination); b.start(0);
     }

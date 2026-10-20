@@ -396,6 +396,71 @@ const BANK_STEPS = {
 const BANK_STEP_G = { snow: 0.9, dirt: 1, gravel: 0.8, ash: 0.75, moss: 0.85, mud: 0.9, stone: 0.9, metal: 0.8, ice: 0.8, water: 1, wood: 0.8, roots: 0.9 };
 for (const m of Object.keys(BANK_STEPS)) BANK['step.' + m] = { dur: 0.3, rate: 32000, n: 5, g: BANK_STEP_G[m], verb: m === 'stone' || m === 'metal' ? 'room' : null, wet: 0.12, drive: 1.1, fn: BANK_STEPS[m] };
 
+// The opening's sounds (intro.js; audio.js plays them): long, soft and
+// layered, a film's sound more than a game's, each in the hall, once
+// (n 1), mono and at half the rate (nothing in them is over 8 kHz). Each
+// scene has its chord (in the star's D) and its air; the thrusters are a
+// low roar, the survey's beam a slow sweep of filtered air, the cradle's
+// lock two muffled clunks and a chime, the star lighting a rising swell of
+// its own chord, the modules waking soft chimes. They're rendered first
+// while the opening plays, in the order it wants them (BANK_INTRO), and let
+// go once it's over.
+const BANK_INTRO_CHORDS = [[-12, -5, 2, 7], [-12, -7, -2, 5], [-17, -12, -5, 0], [-12, -3, 4, 9], [-12, 0, 4, 7, 12]];
+const bkIntro = (dur, wet, fn) => ({ dur, verb: 'hall', wet, n: 1, rate: 24000, drive: 1.1, fn });
+BANK_INTRO_CHORDS.forEach((C, k) => {
+  const n = k + 1;
+  BANK['intro.scene' + n] = bkIntro(9, 0.45, (R, o, t) => {
+    C.forEach((st, i) => bkStack(R, o, t + i * 0.12, { f: sndHz(st), n: 3, spread: 12, w: 'warm', lp: 300, lp2: n === 4 ? 900 : 1500, sweep: 2.5, a: 1.6, hold: 1.8, d: 1.2, g: (n === 5 ? 0.6 : 0.5) / Math.sqrt(C.length), trem: [0.15 + i * 0.07, 0.25] }));
+    // the air of the place: space, the planet's thin wind, the ship's hum
+    if (n <= 2) sndNoise(R, o, t, { ft: 'lowpass', f: 300, f2: 760, glide: 4, q: 0.6, a: 1.8, hold: 2.5, d: 1.2, g: 0.3 });
+    if (n === 3) sndNoise(R, o, t, { f: 420, f2: 300, glide: 5, q: 0.5, a: 1.2, hold: 3, d: 1.2, g: 0.28 });
+    if (n === 4) { bkFM(R, o, t, { f: 110, ratio: 1.5, i0: 0.6, i1: 0.3, id: 2, a: 1.2, hold: 4, d: 1.2, g: 0.18, lp: 600, trem: [0.4, 0.3] }); bkPings(R, o, t + 1.6, 3, 2.5, { f: [1500, 2400], d: [0.4, 0.8], g: [0.04, 0.08] }); }
+    if (n === 5) sndBell(R, o, t + 0.8, sndHz(12), 0.16, 1.6, 0);
+  });
+});
+Object.assign(BANK, {
+  'intro.craft': bkIntro(8, 0.3, (R, o, t) => {
+    sndNoise(R, o, t, { ft: 'lowpass', f: 160, f2: 260, glide: 6, a: 1.5, hold: 4, d: 1.2, g: 0.5 });
+    bkStack(R, o, t, { f: 55, n: 3, spread: 18, w: 'warm', lp: 240, a: 1.5, hold: 4, d: 1.2, g: 0.4, trem: [0.6, 0.2] });
+  }),
+  'intro.thrust': bkIntro(8, 0.25, (R, o, t) => {
+    sndNoise(R, o, t, { ft: 'lowpass', f: 140, f2: 700, glide: 5.5, a: 1.2, hold: 4.5, d: 0.6, g: 0.85 });
+    sndNoise(R, o, t + 1, { f: 1200, f2: 2200, glide: 4, q: 0.6, a: 1.5, hold: 3, d: 0.5, g: 0.12 });
+    bkFM(R, o, t, { f: 46, f2: 62, glide: 6, ratio: 1.41, i0: 2.5, i1: 1.2, id: 3, lp: 420, a: 1.5, hold: 4, d: 0.6, g: 0.4, trem: [7, 0.15] });
+    bkSub(R, o, t + 0.5, 52, 60, 2.5, 0.5, 4);
+  }),
+  'intro.beam': bkIntro(6, 0.5, (R, o, t) => {
+    sndNoise(R, o, t, { f: 500, f2: 2400, glide: 3.6, q: 2.5, a: 0.6, hold: 2.8, d: 0.6, g: 0.6 });
+    bkStack(R, o, t, { f: sndHz(9), n: 2, spread: 8, w: 'sine', lp: 2000, a: 0.8, hold: 2.6, d: 0.8, g: 0.25, trem: [5, 0.3] });
+    bkPings(R, o, t + 0.6, 6, 3, { f: [1800, 3200], d: [0.08, 0.2], g: [0.03, 0.07] });
+  }),
+  'intro.site': bkIntro(4, 0.55, (R, o, t) => { sndBell(R, o, t, sndHz(14), 0.35, 0.9, 0); sndBell(R, o, t + 0.22, sndHz(21), 0.3, 1.1, 0); }),
+  'intro.touchdown': bkIntro(3, 0.3, (R, o, t) => {
+    bkFM(R, o, t, { f: 90, f2: 55, glide: 0.25, ratio: 1.37, i0: 2, i1: 0.2, id: 0.08, lp: 600, a: 0.01, d: 0.22, g: 0.6 });
+    bkSub(R, o, t, 70, 48, 0.25, 0.8);
+    sndNoise(R, o, t, { ft: 'lowpass', f: 600, f2: 160, glide: 0.5, a: 0.02, d: 0.3, g: 0.6 });
+  }),
+  'intro.lock': bkIntro(6, 0.45, (R, o, t) => {
+    for (const dt of [0, 0.16]) {
+      bkFM(R, o, t + dt, { f: 150, f2: 96, glide: 0.06, ratio: 2.41, i0: 3, i1: 0.3, id: 0.02, lp: 1200, a: 0.002, d: 0.07, g: 0.55 });
+      sndNoise(R, o, t + dt, { f: 900, q: 1.6, a: 0.002, d: 0.04, g: 0.45 });
+    }
+    sndBell(R, o, t + 0.45, sndHz(12), 0.3, 1.2, 0);
+    sndBell(R, o, t + 0.5, sndHz(19), 0.2, 1.4, 0);
+    sndSwell(R, o, t + 0.4, [-12, 0, 7], 0.35, 0.4, 1.4, 'warm', 1100, 0);
+  }),
+  'intro.starLit': bkIntro(8, 0.5, (R, o, t) => {
+    sndNoise(R, o, t, { ft: 'lowpass', f: 200, f2: 2600, glide: 1.8, a: 1.2, d: 0.8, g: 0.3 });
+    [-12, 0, 4, 7, 12, 16].forEach((st, i) => bkStack(R, o, t + 0.2 + i * 0.08, { f: sndHz(st), n: 3, spread: 10, w: 'warm', lp: 400, lp2: 2000, sweep: 1.6, a: 1.3, hold: 0.6, d: 1.5, g: 0.32 }));
+    bkPings(R, o, t + 1.2, 10, 1.5, { f: [1600, 3600], d: [0.2, 0.5], g: [0.03, 0.08] });
+    sndBell(R, o, t + 1.4, sndHz(24), 0.25, 1.6, 0);
+  }),
+  'intro.ping': bkIntro(5, 0.55, (R, o, t) => { [0, 4, 7, 9, 12, 16, 19].forEach((n, i) => sndBell(R, o, t + i * 0.42, sndHz(n), 0.3 - i * 0.02, 0.7, 0)); }),
+  'intro.end': bkIntro(5, 0.45, (R, o, t) => { [0, 7, 12].forEach((st) => bkStack(R, o, t, { f: sndHz(st), n: 3, spread: 10, w: 'warm', lp: 1300, a: 0.3, d: 1.2, g: 0.3 })); }),
+  'intro.skip': bkIntro(1.2, 0.2, (R, o, t) => { sndNoise(R, o, t, { ft: 'lowpass', f: 900, f2: 200, glide: 0.4, a: 0.02, d: 0.25, g: 0.4 }); }),
+});
+const BANK_INTRO = ['intro.scene1', 'intro.craft', 'intro.scene2', 'intro.beam', 'intro.site', 'intro.scene3', 'intro.thrust', 'intro.touchdown', 'intro.lock', 'intro.scene4', 'intro.scene5', 'intro.starLit', 'intro.ping', 'intro.end', 'intro.skip'];
+
 // How many of each to render (BANK_N of the commonest, two of the rest,
 // one of the long rare ones), and the order (the commonest first).
 const BANK_N = 4;
@@ -404,7 +469,7 @@ const BANK_ORDER = ['hit.force', 'hit.shock', 'hit.frost', 'hit.ember', 'hit.bli
 
 const SndBank = {
   bufs: {}, started: false, done: false, bytes: 0, rate: BANK_RATE, irs: null, noise: null, ms: 0,
-  has(k) { const b = this.bufs[k]; return !!(b && b.length); },
+  has(k) { const b = this.bufs[k]; return !!(b && b !== 'busy' && b.length); },
   // a variant, not the one just played
   pick(k) {
     const b = this.bufs[k];
@@ -422,6 +487,8 @@ const SndBank = {
     this.rate = Math.min(BANK_RATE, rate || BANK_RATE);
     const t0 = performance.now();
     this.irs = {};
+    // (the opening's own first, while it plays)
+    if (typeof Intro !== 'undefined' && Intro.on) await this.want(BANK_INTRO, () => Intro.on);
     for (const k of BANK_ORDER) {
       const B = BANK[k], n = B.n || (B.dur > 1.5 ? 1 : BANK_MANY.has(k) ? BANK_N : 2);
       this.bufs[k] = this.bufs[k] || [];
@@ -433,6 +500,23 @@ const SndBank = {
     }
     this.ms = performance.now() - t0;
     this.done = true;
+  },
+  // Renders those of keys not yet rendered, in turn, while still() (the
+  // opening's, while it plays); drop lets them go again.
+  async want(keys, still = () => true) {
+    if (!this.rate || !this.irs) return;
+    for (const k of keys) {
+      if (!still()) return;
+      if (this.has(k) || this.bufs[k] === 'busy') continue;
+      this.bufs[k] = 'busy';
+      const b = await this.renderOne(BANK[k], 0);
+      this.bufs[k] = b ? [b] : [];
+      if (b) this.bytes += b.length * b.numberOfChannels * 4;
+      await new Promise((r) => setTimeout(r, BANK_GAP));
+    }
+  },
+  drop(keys) {
+    for (const k of keys) { const b = this.bufs[k]; if (b && b.length && b !== 'busy') for (const x of b) this.bytes -= x.length * x.numberOfChannels * 4; delete this.bufs[k]; }
   },
   async renderOne(B, v) {
     const rate = Math.min(this.rate, B.rate || this.rate), ch = B.ch || 1, c = new OfflineAudioContext(ch, Math.ceil(B.dur * rate), rate);

@@ -687,6 +687,8 @@ async function opening(browser) {
   // the uplink plays it again; Esc ends it
   await page.evaluate(atStation, 'wreck');
   await page.evaluate(() => UI.useStation('wreck'));
+  // (past the screen's tap guard in the game's own time, however slow its frames)
+  await page.waitForFunction(() => Game.realT - UI.openedAt > T.ui.tapGuard + 0.05, { timeout: 10000 });
   await tap(page, '#wreck-body [data-act=replayIntro]');
   check(await page.evaluate(() => Intro.on && Game.modal === 'intro'), 'opening: the uplink did not play it again');
   await sleep(450);

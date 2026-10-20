@@ -1116,7 +1116,8 @@ const T = {
   // the black into and out of each of the first four (s); capAt: when each
   // of their captions starts (s), typed at cps characters a second;
   // tapGuard: seconds before a tap counts; warm: seconds the outpost is
-  // still drawn under the first scene (so it's painted). hub: the last
+  // still drawn under the first scene (so it's painted); sndWait: the
+  // longest (s) a cue waits for its sound to be rendered (sndbank.js). hub: the last
   // shot, in seconds into it: the fade in from black; the star rising out
   // of its cradle from `drop` art px down (over `rise`) and lighting (over
   // `lit`); the outpost's light up from `amb0` of its own (over `ambUp`);
@@ -1129,7 +1130,7 @@ const T = {
   // to the star at `look`; Wick's lines at `caps`; and something in the
   // dark over `dark`.
   intro: {
-    scenes: [9, 9.5, 11, 9.5, 17.5], fade: 0.6, capAt: [1.0, 1.0, 1.2, 1.0], cps: 30, tapGuard: 0.4, warm: 1,
+    scenes: [9, 9.5, 11, 9.5, 17.5], fade: 0.6, capAt: [1.0, 1.0, 1.2, 1.0], cps: 30, tapGuard: 0.4, warm: 1, sndWait: 2.5,
     hub: { fadeIn: 0.9, drop: 34, rise: [0.6, 3.2], lit: [0.8, 2.8], amb0: 0.3, ambUp: [1.5, 9], lode: [2.8, 6], wake: [2.6, 0.2, 0.08], camAt: 0.42, cam: [3.4, 8.2], door: [5.8, 7.6], step: 1.6, walk: 0.42, wickAt: 7.4, look: 8.4, caps: [8.0, 12.6], dark: [14.2, 15.4] },
   },
 
