@@ -220,7 +220,8 @@ function updateDive(dtReal, dt) {
   updateAuras(dt);
   updateCombatFx(dt);
   if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); updateSupplies(d, dt); }
-  else { updateSettlers(d, dt); updateStarFeed(d, dtReal); }
+  else { updateSettlers(d, dt); updateStarFeed(d, dtReal); updateStructures(d, dtReal); }
+  if (!d.hub) updateWick(d, dt);
   updatePickups(dtReal);
   if (Input.consumeAct()) {
     const a = actionHere();
@@ -330,7 +331,8 @@ function stirTheDark(d, n) {
 function startChannel(kind) {
   const d = Game.dive, L = T.leave;
   if (!d || d.hub || d.dying || d.channel) return;
-  const max = { recall: L.recall, seal: T.rifts.seal, stone: T.world.waystone.channel, plant: T.world.plant }[kind] || L.extract;
+  // (the Forward Relay makes a recall, banking and travel quicker: structures.js)
+  const max = { recall: relayRecallTime(), seal: T.rifts.seal, stone: T.world.waystone.channel, plant: T.world.plant }[kind] || relayBankTime();
   d.channel = { kind, t: 0, max, x: d.p.x, y: d.p.y, stone: kind === 'stone' ? stoneHere(d) : -1 };
   // the light draws attention
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, d.p.x, d.p.y) < L.noise) wake(d, e, true);
@@ -360,7 +362,8 @@ function updateChannel(dt) {
 }
 
 // The share of the cargo an emergency recall costs here.
-function recallCost(d) { const L = T.leave; return clamp(L.recallLoss + L.recallPerDepth * d.depth - L.recallPerMag * (magnitudeOf(Save.data.star) - 1), L.recallMin, L.recallMax); }
+// (the Forward Relay halves it: structures.js)
+function recallCost(d) { const L = T.leave; return clamp(L.recallLoss + L.recallPerDepth * d.depth - L.recallPerMag * (magnitudeOf(Save.data.star) - 1), L.recallMin, L.recallMax) * relayLoss(); }
 
 // ---------------------------------------------------------------------------
 // Walking: a circle against the floor's smooth wall line (rockAt), felt at

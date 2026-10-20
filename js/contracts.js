@@ -42,12 +42,13 @@ function newContract(rng, without = []) {
   return c;
 }
 
-// Three on the board, always, no two of a kind.
+// Three on the board, always (a fourth with the Settlers' Quarters:
+// structures.js), no two of a kind.
 function fillContracts() {
   const s = Save.data;
   s.contracts = (s.contracts || []).filter((c) => c && c.kind && T.contracts.kinds[c.kind]);
   const rng = Save.rng();
-  while (s.contracts.length < T.contracts.posted) s.contracts.push(newContract(rng, s.contracts.map((c) => c.kind)));
+  while (s.contracts.length < contractsPosted()) s.contracts.push(newContract(rng, s.contracts.map((c) => c.kind)));
 }
 
 // An expedition over, however it ended: what's stood too long is replaced.
@@ -83,7 +84,7 @@ function contractText(c) {
 }
 function contractRewardText(c) {
   const thing = c.reward === 'exotic' ? stuffName(c.exotic) : c.reward === 'parts' ? `${c.parts} ${partName(c.part).toLowerCase()}` : c.reward === 'resonance' ? 'a resonance stone (the Codex)' : c.reward === 'supply' && supplyRecipe(c.supply) ? `a ${supplyRecipe(c.supply).name}` : 'riftglass';
-  return `Pays ${thing}`;
+  return `Pays ${thing}${contractThreads() ? ` and ${contractThreads()} threads` : ''}`;
 }
 
 // How far along a contract is in the dive under way.
@@ -120,13 +121,15 @@ function settleContracts(d, banked) {
     else ok = contractProgress(c, d) >= contractGoal(c);
     if (!ok) continue;
     done.push(c);
+    // the settlers pay their threads besides (the Settlers' Quarters)
+    if (contractThreads()) s.stash.thread = (s.stash.thread || 0) + contractThreads();
     if (c.reward === 'resonance') { revealResonancePart(Save.rng()); continue; }
     if (c.reward === 'supply' && supplyRecipe(c.supply)) { const b = supplyBelt(); b[c.supply] = (b[c.supply] || 0) + 1; continue; }
     const key = c.reward === 'exotic' ? c.exotic : c.reward === 'parts' ? c.part : 'riftglass';
     s.stash[key] = (s.stash[key] || 0) + (c.reward === 'parts' ? c.parts : 1);
   }
   // the whole board at once: supplies besides, in the newest region's grade
-  if (done.length >= T.contracts.posted) {
+  if (done.length >= contractsPosted()) {
     const g = Math.min(3, T.biomes.map((b, i) => i).filter((i) => regionReached(i)).length), b = supplyBelt();
     done.bonus = ['injector' + g, 'cell' + g].slice(0, T.contracts.board).map((id) => { b[id] = (b[id] || 0) + 1; return supplyRecipe(id).name; });
   }

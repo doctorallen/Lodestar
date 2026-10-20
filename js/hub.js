@@ -318,8 +318,9 @@ function settlementSize() {
 }
 // What stands at home among the walkers, in order of their feet: the
 // stations, the cradle, the uplink, the gate, the light masts, the pods,
-// the landers and what's stacked by the modules, the smith and the
-// settlers (story.js). Each draws itself (hubDraw).
+// the landers and what's stacked by the modules, the buildings built
+// (structures.js), the smith and the settlers (story.js). Each draws
+// itself (hubDraw).
 function hubProps(d) {
   const out = [], n = settlementSize(), mag = hubStarMag(d), S = d.floor.site;
   for (const s of HUB_STATIONS) {
@@ -340,6 +341,8 @@ function hubProps(d) {
     }
   }
   for (const it of HUB_DRESSING) if (n >= it.from) out.push({ dress: it, hubDraw: drawHubDressing, hidden: true, y: it.y * TILE });
+  // the buildings on their plots (structures.js)
+  for (const b of structureProps(d)) out.push(b);
   if (n >= 1) { const f = HUB_STATIONS.find((s) => s.id === 'forge'); out.push({ smith: true, hubDraw: drawHubSmith, hidden: true, y: (f.y + 0.5) * TILE + 8 }); }
   if (n >= 2 && S) out.push({ sitter: true, hubDraw: drawHubSitter, hidden: true, y: hubSitterAt(S)[1] * TILE });
   return out.concat(d.settlers || []);
@@ -472,4 +475,5 @@ function drawStationLabels(d, ox, oy) {
     const a = clamp(1.1 - (m - 2) / 4, 0.45, 1);
     drawLabel(STATION_LABELS[s.id], Math.round(x * AP) + ox, Math.round((y + STATION_LABEL_Y[s.id]) * AP) + oy, m < 2 ? '#fff2c8' : '#c8bca0', a);
   }
+  drawStructureLabels(d, ox, oy);
 }

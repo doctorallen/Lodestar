@@ -10,7 +10,9 @@
 // an old save's gear turned into bases and modules; feeding the star the
 // light of deeds (held at the altar), supplies made at the fabricator and
 // from the cargo, and used from the deck; the star's reach; your light
-// running out, a recall, tools, rifts, a Deep, a Keeper; then a fall that
+// running out, a recall, tools, the Drone Bay built and coming down to its
+// plot, Wick's Scanner fitted, turned off and on, and pinging out in the
+// land, rifts, a Deep, a Keeper; then a fall that
 // leaves the cargo in a pack where it fell (not what's worn), wakes at the
 // last spire, and the pack recovered. An older save's star is rescaled.
 // Held sideways, the decks sit either side of the view. Opened again with
@@ -522,6 +524,62 @@ async function phone(browser) {
   check(tools.out, 'phone: in dark land the compass did not point towards lit land');
   check(tools.planted && !tools.again, 'phone: the beacon was not planted once, and only once (and refused by a spire)');
   check(tools.lands, "phone: the beacon did not land a spire's light to bank at");
+
+  // the outpost's buildings and Wick's upgrades: the Drone Bay built at the
+  // forge's BUILDINGS tab comes down to its plot once it's in view; Wick's
+  // Scanner fitted at the WICK tab, turned off and on again at the locker;
+  // out in the land it pings, and the veins near are marked
+  await page.evaluate(() => {
+    const s = Save.data; window._starWas = s.star; s.star = T.star.levels[2] + 1;
+    Object.assign(s.stash, { ferrite: 60, thread: 60, spore1: 4 });
+    UI.close(); enterHub(); UI.close(); researchStudy(); openForge(false);
+  });
+  await run(page, 0.5);
+  await tap(page, '#forge-body [data-act=forgeTab][data-arg=structure]');
+  const tab = await page.evaluate(() => (!document.querySelector('#forge-body [data-act=forgeBp][data-arg=wick_scan]') && /BUILDINGS · 0 OF 4 BUILT/.test($('forge-body').textContent)) || JSON.stringify([Game.modal, UI.forge.bp, Save.data.built, Save.data.blueprints.filter((x) => /^(bld|wick)_/.test(x)), $('forge-body').textContent.slice(0, 200)]));
+  check(tab === true, 'phone: the forge has no BUILDINGS tab ' + tab);
+  await tap(page, '#forge-body [data-act=forgeBp][data-arg=bld_bay]');
+  await tap(page, '#forge-body [data-act=craft]');
+  const bay = await page.evaluate(() => {
+    const s = Save.data, built = structureBuilt('bay') && s.landing === 'bay' && s.stash.thread === 60 - T.structures.bay.cost.thread;
+    UI.close();
+    // (its plot in view: it comes down, and stands)
+    const d = Game.dive, p = d.floor.site.plots[0];
+    d.p.x = (p.x + 0.5) * TILE; d.p.y = (p.y + 2.5) * TILE; Game.render();
+    let down = false;
+    for (let i = 0; i < 60 * (T.structures.land.time + 0.5); i++) { Game.step(1 / 60); if (i % 10 === 0) Game.render(); if (d.landing) down = true; }
+    Game.render();
+    return { built, down, stands: structureStands('bay') && !s.landing, drawn: hubProps(d).some((a) => a.structure === 'bay') };
+  });
+  check(bay.built, 'phone: the Drone Bay was not built from the stash');
+  check(bay.down && bay.stands && bay.drawn, `phone: the Drone Bay did not come down to its plot (${JSON.stringify(bay)})`);
+  await shot(page, 'smoke-dronebay');
+  await page.evaluate(() => { UI.close(); openForge(false); });
+  await run(page, 0.5);
+  await tap(page, '#forge-body [data-act=forgeTab][data-arg=wick]');
+  await tap(page, '#forge-body [data-act=forgeBp][data-arg=wick_scan]');
+  await tap(page, '#forge-body [data-act=craft]');
+  check(await page.evaluate(() => wickOn('scan')), "phone: Wick's Scanner was not fitted");
+  await page.evaluate(() => { UI.close(); UI.useStation('locker'); });
+  await run(page, 0.5);
+  await tap(page, '#gear-body [data-act=wickToggle][data-arg=scan]');
+  const off = await page.evaluate(() => !wickOn('scan') && wickFitted('scan'));
+  await tap(page, '#gear-body [data-act=wickToggle][data-arg=scan]');
+  check(off && (await page.evaluate(() => wickOn('scan'))), "phone: Wick's Scanner did not turn off and on at the locker");
+  const ping = await page.evaluate(() => {
+    UI.close(); startSortie({ terr: ring1(null), from: 0 }); sturdy();
+    const d = Game.dive, f = d.floor;
+    // (beside a vein)
+    for (let i = 0; i < f.tiles.length; i++) if (f.tiles[i] === TILE_ORE) { const x = i % f.w, y = Math.floor(i / f.w); if (!TILE_SOLID[floorTile(f, x, y + 1)]) { d.p.x = (x + 0.5) * TILE; d.p.y = (y + 1.5) * TILE; break; } }
+    wickState(d).scanT = 0.01;
+    for (let i = 0; i < 20; i++) Game.step(1 / 60);
+    Game.render();
+    const sc = d.wk.scan, out = { ping: !!sc, veins: sc ? sc.veins.length : 0 };
+    UI.close(); abandonDive(); UI.close();
+    Save.data.star = window._starWas;
+    return out;
+  });
+  check(ping.ping && ping.veins > 0, `phone: Wick's Scanner did not ping, marking the veins near (${JSON.stringify(ping)})`);
 
   // a Deep: a portal down from a territory, its sites built as the old
   // expeditions were, and back up by its last portal

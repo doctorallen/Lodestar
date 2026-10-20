@@ -95,6 +95,8 @@ function hurtPlayer(dmg, from) {
     const soak = Math.min(p.ward, dmg); p.ward -= soak; dmg -= soak;
     if (p.ward <= 0) wardGone(p);
   }
+  // Wick's shield, once a fight, when it would leave you low (wick.js)
+  if (dmg > 0 && wickShieldBlocks(d, dmg)) { p.invuln = T.player.hurtInvuln; return; }
   p.hp -= dmg;
   shakeView(T.impact.hurtShake);
   d.nums.push({ x: p.x, y: p.y - 22, v: Math.max(1, Math.round(dmg)), t: 0.8, hurt: true });
