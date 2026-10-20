@@ -129,9 +129,9 @@ const WICK = {
   firstSettlers: "The first lander's down, right on its pad. Settlers. Try to look like you've done this before.",
   // the outpost's buildings, as each comes down to its plot (structures.js)
   bld_bay: "A bay of my own. Charging cradle, spare fins, a window. I'll try not to get used to it.",
-  bld_refinery: "The refinery's down. Four of the old ore for one of the new, and it wants threads for the trouble. Fair.",
-  bld_relay: "The relay's up. The spires can hear the outpost now: a recall's quicker, and gentler on the cargo.",
-  bld_quarters: "Quarters. The Meridian sent two volunteers down already. Volunteers is their word.",
+  bld_refinery: "The refinery's down. Injectors and Lightcells come out stronger now, and it'll go further if we feed it.",
+  bld_relay: "The relay's up. The spires can hear the outpost now: a recall's quicker, and so is banking.",
+  bld_quarters: "Quarters. The Meridian sent two volunteers down already. They spin threads. Volunteers is their word.",
   // Wick's upgrades, the first time each does its thing (wick.js)
   wick_scan: "Ping. That's me. Ore, your pack, anything with a pattern in it: I'll mark what I find.",
   wick_lamp: "I'll keep a light on behind us. You watch ahead.",

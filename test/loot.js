@@ -164,8 +164,9 @@ for (const id of Object.keys(G.CIRCUIT_FORMS).concat(Object.keys(G.CIRCUIT_ELEME
 for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json', 'save-main-run.json']) {
   const s = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
   const old = JSON.parse(JSON.stringify(s));
-  // what the old gear's affixes added up to, worn and stashed
-  const sum = (list) => { const o = {}; for (const it of list) for (const a of it.affixes || []) o[a.id] = Math.round(((o[a.id] || 0) + a.v) * 10) / 10; return Object.keys(o).sort().map((k) => k + ' ' + o[k]).join(', '); };
+  // what the old gear's affixes added up to, worn and stashed (the cargo
+  // trait is gone with the cargo limit)
+  const sum = (list) => { const o = {}; for (const it of list) for (const a of it.affixes || []) if (G.AFFIXES[a.id]) o[a.id] = Math.round(((o[a.id] || 0) + a.v) * 10) / 10; return Object.keys(o).sort().map((k) => k + ' ' + o[k]).join(', '); };
   const oldAll = Object.values(old.equip).filter(Boolean).concat(old.items, old.run ? old.run.items : [], old.run ? old.run.pocket.filter((e) => e.item).map((e) => e.item) : []);
   const oldPowers = oldAll.filter((it) => it.power).map((it) => it.power).sort().join(), oldSets = oldAll.filter((it) => it.set).length;
   if (!G.migrateGearSave(s) || s.v !== 6 || G.migrateGearSave(s)) fail(`${f}: migrated wrong`);
@@ -191,7 +192,7 @@ function checkModuleLoose(m, at) {
 for (let seed = 1; seed <= 400; seed++) {
   const rng = new G.Rng(seed * 7), eq = { main: G.makeBase('gauntlet', 6, 3), off: G.makeBase('staff', 6, 3), pick: G.makeBase('pick', 6, 3), armor: G.makeBase('plate', 6, 3), charm: G.makeBase('charm', 6, 3) };
   for (const k in eq) eq[k].sockets = eq[k].sockets.map(() => G.makeModule(rng, eq[k].kind, 6, { rarity: rng.pick(['rare', 'legendary', 'set']) }));
-  const st = G.computeStats(eq, { vitality: 5, proximity: 5, capacity: 5, clarity: 5, stride: 5 });
+  const st = G.computeStats(eq, { vitality: 5, proximity: 5, clarity: 5, stride: 5 });
   for (const k in G.T.caps) if (st[k] > G.T.caps[k]) fail(`outfit ${seed}: ${k} ${st[k]} over its cap`);
   if (!(st.maxHp > G.T.player.hp)) fail(`outfit ${seed}: plate added no health`);
   if (bad(JSON.stringify(st))) fail(`outfit ${seed}: ${JSON.stringify(st)}`);

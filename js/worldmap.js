@@ -212,8 +212,8 @@ function drawMapCard() {
   $('map-card').innerHTML = `<div class="tcard">${h}${btns.length ? `<div class="menu">${btns.join('')}</div>` : ''}</div>`;
 }
 
-// The screen: the map, its card, and at the outpost the tool to carry,
-// the contracts and the tools.
+// The screen: the map, its card, and at the outpost what's next (one goal),
+// the tool to carry and the tools.
 function drawSetOut() {
   const s = Save.data, travel = UI.mapMode === 'travel';
   $('setout-title').textContent = travel ? 'TRAVEL' : 'SET OUT';
@@ -224,8 +224,21 @@ function drawSetOut() {
   if (travel) { $('setout-body').innerHTML = `<p class="note">Tap a spire to travel there, or the star to go home. Travelling banks what you carry first.</p>`; return; }
   const owned = TOOL_IDS.filter(toolOwned);
   const carry = `<h3>CARRYING</h3><div class="chips">${owned.map((id) => `<button class="chip ${s.tool === id ? 'on' : ''}" data-act="carryTool" data-arg="${id}"><img class="chip-icon" src="${toolIconUrl(id)}" alt="">${esc(TOOLS[id].name)}</button>`).join('')}</div>`;
-  $('setout-body').innerHTML = nextStepsHtml() + carry + `<p class="note">Tap a territory for its card. Walk out into any land next to the outpost, or set out to any spire. Your light drains in dark land and fills again in kindled land.</p>`
-    + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME${s.swapped ? '' : ' · ONE SWAP A TRIP'}</h3>${contractRows(null)}` + drawToolRows();
+  $('setout-body').innerHTML = nextGoalHtml() + carry + `<p class="note">Tap a land for its card. Your light lasts about ${Math.round(T.world.light / 60)} minutes in dark land and fills again in kindled land.</p>` + drawToolRows();
+}
+
+// At home, what's next over the view (#hud-goal), a line. True if shown.
+// (worked out twice a second, not every frame)
+function drawNextHud() {
+  if (Intro.on || Intro.hub) return false;
+  const el = $('hud-goal');
+  if (!(Game.realT < (el.nextAt || 0) && el.dataset.next)) {
+    el.nextAt = Game.realT + 0.5;
+    const html = `<b>NEXT</b><div>${esc(nextGoal())}</div>`;
+    if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
+    el.dataset.next = '1';
+  }
+  return true;
 }
 
 // The heart goal over the view, in dark land (#hud-goal). True if shown.
@@ -234,6 +247,7 @@ function drawGoalHud(d) {
   if (!lines) return false;
   const html = '<b>TO KINDLE</b>' + lines.map((l) => `<div class="${l[0] === '◆' ? 'done' : l[0] === '◇' || l[0] === '◈' ? '' : 'dim'}">${esc(l)}</div>`).join('');
   const el = $('hud-goal');
+  el.dataset.next = '';
   if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
   return true;
 }

@@ -22,26 +22,21 @@ const T = {
   // speed.
   mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 1], drillNoise: 90 }, // a drill wakes what's within drillNoise px
 
-  // Cargo is counted in units: ore and exotics weigh 1, gear and relics
-  // itemWeight. The pocket: slots (by magnitude, 1 to 8) whose contents
-  // survive a fall; an ore stack in one holds at most pocketStack.
-  cargo: { capacity: 40, itemWeight: 3, pocket: [1, 1, 2, 2, 3, 3, 3, 3], pocketStack: 10 },
-
   // Your light (d.pull): full in kindled land and at home, it drains in the
   // dark over T.world.light seconds. Below dimAt the lamp dims (to lampMin)
   // and every waveEvery seconds `wave` more enemies stir in the dark (each
   // by region: the Rim, the Choir, the Underforge and the Edge, so the first
   // ring is a place to learn); when it's gone the Hollow comes (and a Deep's
-  // lodeline goes dark).
-  pull: { dimAt: 0.5, lampMin: 0.6, waveEvery: [26, 18, 14], wave: [1, 2, 2] },
+  // lodeline goes dark). (With three minutes of light, the dim stretch is
+  // shorter in share and the waves further apart than with 75 s, so the
+  // dark presses about as hard a minute.)
+  pull: { dimAt: 0.4, lampMin: 0.6, waveEvery: [30, 22, 17], wave: [1, 2, 2] },
 
   // Leaving takes a moment: standing in a lodeline, EXTRACT takes `extract`
-  // seconds; an emergency recall works anywhere but takes `recall` seconds
-  // and loses a share of the cargo, recallLoss + recallPerDepth a site, less
-  // recallPerMag for each magnitude past the first (between recallMin and
-  // recallMax). Moving or being hit breaks either. Starting one wakes
-  // anything within `noise` px.
-  leave: { extract: 1.5, recall: 4, recallLoss: 0.15, recallPerDepth: 0.06, recallPerMag: 0.02, recallMin: 0.05, recallMax: 0.7, noise: 160 },
+  // seconds; an emergency recall works anywhere, loses nothing, but takes
+  // `recall` seconds standing still. Moving or being hit breaks either.
+  // Starting one wakes anything within `noise` px.
+  leave: { extract: 1.5, recall: 4, noise: 160 },
 
   // Floors: a w × h tile grid of lumpy caverns (radius roomR tiles, at least
   // roomGap apart) joined by tunnels that wander (meander: how hard the
@@ -109,7 +104,7 @@ const T = {
       { n: 12, r: 63, band: 4, region: 2 },
       { n: 10, r: 79, band: 3, region: 2, edge: true },
     ],
-    edgeDepth: 4, light: 75,
+    edgeDepth: 4, light: 180,
     goals: { waystones: { weight: 3, perRing: 0 }, rift: { weight: 1, perRing: 0.5 } },
     deep: { chance: 0.35, sites: [1, 3] },
     exits: { apart: 9, tunnelR: 1.2, reach: 9, inward: 3 },
@@ -207,14 +202,6 @@ const T = {
   // side. reach: how near its threshold (px) the diver must stand. light:
   // [radius in tiles, strength], times sunLight under the sky.
   portal: { enter: 0.45, arrive: 0.7, reach: 11, light: [2.6, 1.0], sunLight: 0.55 },
-  // Contracts: how many are posted and how often each kind comes up. Each
-  // pays a thing (the star grows only from deeds); the whole board met in
-  // one sortie pays `board` supplies more.
-  // newest: the share of hauls set in the furthest region reached;
-  // stale: how many sorties one stands before it's replaced.
-  // A hunt names a clime's own creature (one whose clime leans to a region
-  // reached, or to none) with the chance huntSignature, huntN [least, most].
-  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, kindle: 2, deep: 1 }, board: 2, newest: 0.7, stale: 3, huntSignature: 0.4, huntN: [2, 4] },
   // A Lodestorm: the chance an expedition sets out under one; on the
   // surface a strike every `every` s (the first after `first`), within
   // `near` tiles of the diver, marked `warn` s ahead, hurting within
@@ -244,7 +231,6 @@ const T = {
     radar: { mag: 2, cost: { ferrite: 14, ether: 3 }, reach: 18 },
     beacon: { mag: 2, cost: { lumenite: 6, cog: 3 }, land: 6, noise: 140, refill: 40, refillRate: 0.12 },
     map: { mag: 3, cost: { lumenite: 8, fiber: 4 }, sight: 6 },
-    satchel: { mag: 3, cost: { lumenite: 8, chitin: 4 } },
     lens: { mag: 2, cost: { lumenite: 6, thread: 6 } },
   },
   // The outpost's buildings (structures.js): each built once, at the
@@ -255,15 +241,21 @@ const T = {
   //   bay: the Drone Bay, where Wick is fitted with upgrades (wickUp).
   //   refinery: at the fabricator, `n` of an ore and `threads` refine into
   //     one of the next ore up (only to an ore already brought home).
-  //   relay: an emergency recall takes `recall` of its time and costs
-  //     `loss` of its share; banking and travelling at a spire, `bank`.
-  //   quarters: `contracts` more on the board, each one settled pays
-  //     `pay` threads besides, and `settlers` more live at the outpost.
+  //     Building it is level 1; `levels` are the upgrades past it, at the
+  //     SUPPLIES screen (the magnitude each needs and its cost). Each level
+  //     makes both supplies stronger (T.supplies).
+  //   relay: an emergency recall takes `recall` of its time; banking and
+  //     travelling at a spire, `bank`.
+  //   quarters: each time you come home the settlers bring `pay` threads,
+  //     and `settlers` more live at the outpost.
   structures: {
     bay: { mag: 2, cost: { ferrite: 4, thread: 15 } },
-    refinery: { mag: 2, cost: { lumenite: 4, thread: 35 }, n: 4, threads: 2 },
-    relay: { mag: 3, cost: { resonite: 5, thread: 70, chitin: 3 }, recall: 0.5, loss: 0.5, bank: 0.6 },
-    quarters: { mag: 4, cost: { aetherglass: 4, thread: 100, lodeshard: 1 }, contracts: 1, pay: 6, settlers: 2 },
+    refinery: {
+      mag: 2, cost: { lumenite: 4, thread: 35 }, n: 4, threads: 2,
+      levels: [{ mag: 3, cost: { resonite: 6, thread: 50 } }, { mag: 5, cost: { sigilite: 6, thread: 90 } }],
+    },
+    relay: { mag: 3, cost: { resonite: 5, thread: 70, chitin: 3 }, recall: 0.5, bank: 0.6 },
+    quarters: { mag: 4, cost: { aetherglass: 4, thread: 100, lodeshard: 1 }, pay: 6, settlers: 2 },
     // the plots (tiles; floor.js outpostPlots): the footprint kept clear
     // [half width, behind, in front of the feet], how far from the middle
     // they'd best be, and how far from the tracks out (the lodelines)
@@ -826,15 +818,13 @@ const T = {
     enrich: { shards: 1, threads: 4 },
     imprint: { glass: 2, threads: 6 },
     salvage: { common: 1, magic: 2, rare: 4, legendary: 7, set: 7, perTier: 1 },
-    weight: 1,
   },
 
   // The Lodestar grows from deeds, not ore (deeds.js): each deed gives
   // light, motes of it, carried home and fed to the star at its altar, a
   // point each. Magnitude n needs levels[n - 1] points in all. Each level
-  // past the first is an attunement point, a Deep's lodelines a little
-  // likelier, a pocket slot now and then (T.cargo.pocket) and a gentler
-  // recall. ringMag: the magnitude a spire needs, by ring: the star's light
+  // past the first is an attunement point and a Deep's lodelines a little
+  // likelier. ringMag: the magnitude a spire needs, by ring: the star's light
   // must reach that far before a spire can hold there. (Kindling every
   // territory of a ring, with its Keeper's lair reached, always reaches the
   // next ring's: never stuck.) scale: what this scale is, in the save
@@ -857,35 +847,31 @@ const T = {
   // stands, safe from any fall. deepEnd: deeplight for first reaching a
   // Deep's last site (its deep vein, or its Keeper's lair), by ring, and
   // deepSite more for each site past the first; forge: for each ancient
-  // forge found; echo: for each echo. Deeplight rides in the cargo (it
-  // weighs nothing), so a fall or a recall can cost it. (A Keeper's shard,
+  // forge found; echo: for each echo. Deeplight rides in the cargo, so a
+  // fall leaves it in the pack. (A Keeper's shard,
   // set at the altar, is T.story.shardStar.)
-  // cache: a fall leaves the cargo where it fell, the Kindler's pack; walking
+  // cache: a fall leaves the whole cargo where it fell, the Kindler's pack; walking
   // within `reach` px of it picks it up. beacon: its light (tiles, strength).
   deeds: {
     heart: [0, 12, 16, 24, 32], deepEnd: [0, 8, 12, 16, 20], deepSite: 4, forge: 4, echo: 8,
     cache: { reach: 14, beacon: [1.6, 0.6] },
   },
-  // Supplies (supplies.js): consumables made from ore, at home (SUPPLIES at
-  // the fabricator) or the simple ones in the field (MAKE, in the cargo).
-  // Each comes in three grades, from each region's ore. most: how many of
-  // each kind can be carried (all grades together); they're on the belt,
-  // safe whatever happens, and spent when used.
-  //   injector: heals heal[grade] of your health.
-  //   ward: a ward soaking soak[grade] damage for `time` s.
-  //   cell: gives back light[grade] of your light (dark land and Deeps).
-  //   flare: lights r[grade] tiles round where it's set for life[grade] s;
-  //     standing in it, your light doesn't drain.
-  //   charge: set at your feet, it arms after `arm` s and blasts the first
-  //     foe within `trigger` px, hurting all within `r` px for dmg × the
-  //     enemies' growth to the grade's level (lvl[grade]).
+  // Supplies (supplies.js): two kinds, made from ore at home (SUPPLIES at
+  // the fabricator) or from the ore carried (MAKE, in the cargo). most: how
+  // many of each can be carried; they're on the belt, safe whatever
+  // happens, and spent when used. cost: what one takes of an ore, by the
+  // ore's tier (Ferrite 6 ... Starmetal 1); it's paid in the plainest ore
+  // there's enough of. Each Refinery level makes both stronger (no Refinery,
+  // then levels 1 to 3: T.structures.refinery):
+  //   injector: heals heal[level] of your health.
+  //   cell: gives back light[level] of your light (dark land and Deeps).
+  // refund: an old save's Flares, Ward Cells and Blast Charges come back as
+  // this much of each grade's plainer ore (Ferrite, Resonite, Sigilite).
   supplies: {
-    most: 4,
-    injector: { heal: [0.35, 0.55, 0.8] },
-    ward: { soak: [30, 60, 100], time: 20 },
-    cell: { light: [0.25, 0.4, 0.6] },
-    flare: { r: [4, 5, 6], life: [40, 50, 60] },
-    charge: { arm: 0.8, trigger: 18, r: 34, dmg: 45, lvl: [3, 7, 11] },
+    most: 4, cost: [6, 4, 3, 2, 2, 1],
+    injector: { heal: [0.35, 0.5, 0.65, 0.8] },
+    cell: { light: [0.3, 0.4, 0.5, 0.6] },
+    refund: 5,
   },
   // The story (story.js): each region's Keeper waits in its lair, at the end
   // of its ring's furthest Deep, holding a shard of a star that went dark;
@@ -926,7 +912,6 @@ const T = {
   },
   attune: {
     vitality: { name: 'Vitality', text: '+15 max health', max: 5, maxHp: 15 },
-    capacity: { name: 'Capacity', text: '+6 cargo', max: 5, cargo: 6 },
     proximity: { name: 'Proximity', text: '+8% close spell damage', max: 5, closeDmg: 8 },
     clarity: { name: 'Clarity', text: '+8% spell damage', max: 5, spellDmg: 8 },
     stride: { name: 'Stride', text: '+5% move speed', max: 5, moveSpeed: 5 },

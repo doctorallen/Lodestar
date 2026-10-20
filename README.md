@@ -18,25 +18,25 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Set out / step through / bank / light / plant | The button that appears at a portal, a spire, a waystone or a heart | E / Enter |
 | Travel | TRAVEL, over BANK at a spire | |
 | Cargo (and MAKE: supplies from the ore carried) | CARGO in the top bar | I |
-| Use a supply / the next kind | The slot in the right deck's top-left corner / ▸ beside it | Q / R |
-| Pause (and the MUSIC, SOUNDS and LAMP settings) | II | Esc / P |
+| Use a Mending Injector / a Lightcell | MEND / LIGHT, the two small buttons at the right deck's top | Q / R |
+| Pause (the MUSIC, SOUNDS and LAMP settings, and START OVER) | II | Esc / P |
 
 The loop:
 1. Walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to a spire.
 2. Cross from territory to territory by the openings at their edges. Mine ore and fight what finds you.
-3. Watch the gold meter, your light: it drains in dark land and fills in kindled land. When it's gone, something hunts you.
+3. Watch the gold meter, your light: it lasts about three minutes in dark land and fills in kindled land. When it's gone, something hunts you.
 4. Light a territory's waystones or seal the tear at its heart, then plant a spire there, and it's kindled for good, and its heartlight is yours for the star. A spire holds only where the star's light reaches: ring 2 from magnitude 3, ring 3 from 5, the Edge from 7.
-5. At a spire, BANK your cargo, or TRAVEL to another spire or home. An emergency recall works anywhere and loses part of the cargo.
-6. If you fall, you wake at the last spire you touched. What you wear, your supplies and your pocket are safe; the rest of the cargo waits where you fell, in your pack, to go back for once. Fall again first and it's lost.
+5. Carry as much as you like. At a spire, BANK your cargo, or TRAVEL to another spire or home. An emergency recall works anywhere and loses nothing, but you stand still for a few seconds.
+6. If you fall, you wake at the last spire you touched. What you wear and your supplies are safe; all the cargo waits where you fell, in your pack, to go back for once. Fall again first and it's lost.
 7. Some territories have a portal down into a Deep: a short dungeon of richer ore. Its end, the first time, gives deeplight for the star, as do ancient forges and echoes.
 
 At home, walk the outpost's stations:
-- the forge: recipes, each saying exactly what it makes and costs, and the BUILDINGS and WICK tabs, where the outpost's buildings are built (each comes down to its plot) and Wick is fitted with upgrades; it studies anything new you bring home and reveals what it can make from it; strike the anvil well and it adds to the piece; its Codex shows the resonances and the powers it remembers; SUPPLIES beside it makes injectors, Lightcells, flares, Ward Cells and charges from old ore, and refines ore up a grade once the Refinery stands;
+- the forge: recipes, each saying exactly what it makes and costs, and the BUILDINGS and WICK tabs, where the outpost's buildings are built (each comes down to its plot) and Wick is fitted with upgrades; it studies anything new you bring home and reveals what it can make from it; strike the anvil well and it adds to the piece; its Codex shows the resonances and the powers it remembers; SUPPLIES beside it makes Mending Injectors and Lightcells from your plainest ore, upgrades the Refinery (each level makes both stronger) and refines ore up a grade once it stands;
 - the locker: your gear (crafted bases), the modules you've caught socketed into them, and each caster's circuit, built from stones; socketing is free; and Wick's upgrades, each turned off or on, free;
 - the rune bench: work a module: a tier up, one trait rerolled, two fused, a trait added, a power imprinted; paid in threads (salvaged modules) and ore;
 - the star's altar: hold FEED THE STAR and the light your deeds earned (heartlight, deeplight) rises into it, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements;
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
-- the portal: what's next, the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
+- the portal: what's next (one goal, also shown over the view at home), the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
 
 ## Files
 
@@ -80,9 +80,8 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/portals.js` | The portals: a Deep's, its ways on and the outpost's, drawn in their destination's colour; stepping through, and the same moment crossing an edge or travelling |
 | `js/frontier.js` | Playing the world: sorties, entering territories, your light, spires (banking and travel), waystones and kindling, the Deeps, a fall waking at a spire; the spire and waystones drawn |
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
-| `js/contracts.js` | The three posted contracts, their tallies and rewards |
 | `js/deeds.js` | The star grows from deeds: heartlight and deeplight, what each deed gives, the star's reach over the rings, the pack a fall leaves and recovering it, what's next from home, and rescaling an older save's star |
-| `js/tools.js` | The carried tools: compass, ore sense, radar, map, satchel, beacon |
+| `js/tools.js` | The carried tools: compass, ore sense, radar, map, beacon, lens |
 | `js/hazards.js` | Each clime's hazard at play (pools, ice, lava, vents, spores), and painting a clime's ground |
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |
 | `js/undergrowth.js` | How flora grows into a place (cosmetic): habitat, drifts, stands of tall grass, beds and ground cover painted into the floor, moss and roots on the walls, wind and stir |
@@ -99,7 +98,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/gearui.js` | The gear screens: the forge (recipes by tab, close to making, research's reveal), the locker, the rune bench, and the cards for bases and modules |
 | `js/structures.js` | The outpost's buildings (the Drone Bay, the Refinery, the Forward Relay, the Settlers' Quarters): built once at the forge, coming down to their plots, drawn there, and what each does |
 | `js/wick.js` | Wick's upgrades (the Scanner, the Lamp, the Hex Shield, the Spark): fitted at the forge, turned off and on at the locker, and at work out in the land |
-| `js/supplies.js` | Supplies from old ore: the recipes as data (`CONSUMABLE_RECIPES`), making them at home and in the field, the deck's quick-use slot, their effects (flares, charges) and the SUPPLIES screen |
+| `js/supplies.js` | The two supplies (Mending Injector, Lightcell): their cost in ore, making them at home and in the field, their two deck buttons, using them, the SUPPLIES screen, and an older save's supplies converted |
 | `js/worldmap.js` | The world map (SET OUT at the portal, TRAVEL at a spire) in pixel art, a territory's card, and the heart goal over the view |
 | `js/main.js` | Boot, then the loading (`bootEnter` after its tap), the fixed-step loop, the upright and sideways layouts |
 | `test/` | Static checks, floor and world generation with golden hashes, the gear tables (bases, modules, the bench, the migration of `fixtures/`, saves made before modules), a headless smoke run, and the autopilot (`botlib.js`) playing careers |

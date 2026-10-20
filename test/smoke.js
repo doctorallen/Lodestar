@@ -9,12 +9,16 @@
 // makes, socketing a module, a reroll and an upgrade at the rune bench,
 // an old save's gear turned into bases and modules; feeding the star the
 // light of deeds (held at the altar), supplies made at the fabricator and
-// from the cargo, and used from the deck; the star's reach; your light
-// running out, a recall, tools, the Drone Bay built and coming down to its
+// from the cargo, and used from their two buttons on the deck, the Refinery
+// upgraded; the star's reach; your light running out, a recall that loses
+// nothing, tools, the Drone Bay built and coming down to its
 // plot, Wick's Scanner fitted, turned off and on, and pinging out in the
 // land, rifts, a Deep, a Keeper; then a fall that
-// leaves the cargo in a pack where it fell (not what's worn), wakes at the
-// last spire, and the pack recovered. An older save's star is rescaled.
+// leaves the whole cargo in a pack where it fell (not what's worn), wakes at
+// the last spire, and the pack recovered. What's next, at the portal and
+// over the view at home. START OVER asks first, then wipes all but the
+// settings and opens on the landing again. An older save's star is
+// rescaled; an older save's pocket, contracts and supplies are converted.
 // Held sideways, the decks sit either side of the view. Opened again with
 // a sortie under way, the loading builds its territory and CARRY ON is
 // there at once. On a desktop: WASD,
@@ -34,6 +38,7 @@ async function openGame(browser, opts) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const T_RECALL = 4; // seconds; T.leave.recall
+const T_REFUND = 5; // T.supplies.refund
 const failures = [];
 const check = (ok, msg) => { if (!ok) failures.push(msg); };
 
@@ -105,8 +110,6 @@ async function phone(browser) {
   await tap(page, '#intro-skip');
   await run(page, 0.05);
   check(!(await visible(page, '#intro')), 'phone: SKIP INTRO did not end the opening');
-  // contracts that can't be met by accident, so they don't pay into the checks below
-  await page.evaluate(() => { Save.data.contracts = [0, 1, 2].map((i) => ({ id: 900 + i, kind: 'reach', ring: 4, star: 0, reward: 'riftglass' })); });
   // home: the outpost, the star over the pit
   check(await page.evaluate(() => Game.dive && Game.dive.hub && !Game.modal && Save.data.introSeen), 'phone: the story did not end at the outpost');
   await run(page, 0.2);
@@ -188,7 +191,7 @@ async function phone(browser) {
   await run(page, 0.1);
   check(await page.evaluate(() => !!Game.dive.target), 'phone: standing at the ore, nothing is targeted');
   await hold(page, '#btn-mine', 1.4);
-  const cargo = await page.evaluate(() => cargoUsed(Game.dive));
+  const cargo = await page.evaluate(() => cargoCount(Game.dive));
   check(cargo >= 1, 'phone: holding MINE broke no ore');
   await shot(page, 'smoke-mining');
   check(await page.evaluate(() => terrState(Game.dive.terr).mined.length >= 1), 'phone: the vein mined was not remembered');
@@ -199,7 +202,7 @@ async function phone(browser) {
     await run(page, 2);
     await page.evaluate(() => { Input.bot = null; });
     check(/can't break/.test(await page.evaluate(() => $('toasts').textContent)), 'phone: a weak pick said nothing');
-    check((await page.evaluate(() => cargoUsed(Game.dive))) === cargo, 'phone: a weak pick still mined');
+    check((await page.evaluate(() => cargoCount(Game.dive))) === cargo, 'phone: a weak pick still mined');
   }
 
   // walking off the edge: the view closes, and the diver comes in at the
@@ -209,14 +212,14 @@ async function phone(browser) {
   await page.evaluate(() => { Input.bot = null; });
   await run(page, 0.8);
   check(await page.evaluate((c) => { const d = Game.dive, e = d.floor.exits.find((x) => x.to === c.from); return d.terr === c.to && !!e && dist(d.p.x, d.p.y, (e.ax + 0.5) * TILE, (e.ay + 0.5) * TILE) < 3 * TILE; }, cross), 'phone: walking off the edge did not cross into the neighbour, at the opening back');
-  check(await page.evaluate(() => cargoUsed(Game.dive)) === cargo, 'phone: the cargo did not come along');
+  check(await page.evaluate(() => cargoCount(Game.dive)) === cargo, 'phone: the cargo did not come along');
   // the sortie is saved, and comes back in the same place, the same map
-  check(await page.evaluate(() => { const d = Game.dive, r = JSON.parse(JSON.stringify(Save.data.run)); Save.data.run = r; resumeRun(); return Game.dive.terr === d.terr && floorHash(Game.dive.floor) === floorHash(d.floor) && cargoUsed(Game.dive) === cargoUsed(d); }), 'phone: the sortie did not survive a resume');
+  check(await page.evaluate(() => { const d = Game.dive, r = JSON.parse(JSON.stringify(Save.data.run)); Save.data.run = r; resumeRun(); return Game.dive.terr === d.terr && floorHash(Game.dive.floor) === floorHash(d.floor) && cargoCount(Game.dive) === cargoCount(d); }), 'phone: the sortie did not survive a resume');
   await page.evaluate((id) => { const d = Game.dive; d.pull = 1; enterTerritory(id, { from: 0 }); }, dark);
   await page.evaluate(calm);
 
-  // pausing stops the world; CARGO shows what's carried; a base salvaged in
-  // the field turns into ore in the cargo, a module into threads
+  // pausing stops the world; CARGO shows what's carried (no limit, nothing
+  // to pocket or salvage out there)
   await tap(page, '#btn-pause');
   check(await visible(page, '#screen-pause'), 'phone: II did not pause');
   const t0 = await page.evaluate(() => Game.dive.time);
@@ -231,17 +234,11 @@ async function phone(browser) {
   const charmMod = await page.evaluate(() => Game.dive.items.find((i) => i.kind === 'module' && i.fits === 'charm').uid);
   await tap(page, `#cargo-body [data-act=cardCargo][data-arg="${charmMod}"]`);
   check(/Caught from|charm/.test(await page.evaluate(() => $('card-body').textContent)), 'phone: a module card does not say what it is');
-  await tap(page, '#card [data-act=salvage]');
-  await tap(page, '#card [data-act=salvage]');
-  check(await page.evaluate(() => (Game.dive.cargo.thread || 0) === T.modules.salvage.magic && Game.dive.items.length === 2), 'phone: salvaging a module in the field gave no threads');
-  await shot(page, 'smoke-cargo');
-  const ferrite0 = await page.evaluate(() => Game.dive.cargo.ferrite || 0);
-  const plate = await page.evaluate(() => Game.dive.items.find((i) => i.kind === 'armor').uid);
-  await tap(page, `#cargo-body [data-act=cardCargo][data-arg="${plate}"]`);
-  await tap(page, '#card [data-act=salvage]');
-  check(await page.evaluate(() => /SURE/.test(document.querySelector('#card [data-act=salvage]').textContent)), 'phone: SALVAGE did not ask first');
-  await tap(page, '#card [data-act=salvage]');
-  check(await page.evaluate((f0) => Game.dive.items.length === 1 && (Game.dive.cargo.ferrite || 0) > f0, ferrite0), 'phone: salvaging in the field gave no ore');
+  check(await page.evaluate(() => !document.querySelector('#card [data-act=salvage]') && !document.querySelector('#card [data-act=pocket]')), 'phone: a module in the cargo can still be salvaged or pocketed');
+  await tap(page, '#card [data-act=closeCard]');
+  check(await page.evaluate(() => /CARRYING \d+/.test($('cargo-body').textContent) && !/POCKET|CONTRACT|LOSE \d|weighs/.test($('cargo-body').textContent)), 'phone: the cargo screen still speaks of the pocket, contracts, weight or loss');
+  await page.evaluate(() => document.querySelector('#cargo-body .mag').scrollIntoView({ block: 'end' }));
+  await shot(page, 'lean/cargo');
   await tap(page, '#screen-cargo [data-act=resume]');
   // a kill that leaves a module: its pattern caught in a crystal where it
   // fell, and taken, tethered in
@@ -276,7 +273,7 @@ async function phone(browser) {
   await run(page, 2.5);
   check(await page.evaluate(() => Game.dive.items.some((i) => i.kind === 'charm') && Game.dive.cargo.ferrite === 20 - BLUEPRINTS.charm.ore && Game.dive.cargo.fiber1 === 1), 'phone: the ancient forge did not use the cargo, or the charm is not in it');
   await page.evaluate(() => { UI.closeCard(); UI.close(); Game.dive.fieldForge = null; });
-  const carried = await page.evaluate(() => cargoUsed(Game.dive));
+  const carried = await page.evaluate(() => cargoCount(Game.dive));
 
   // the heart goal: three waystones lit (each a channel), the last held in
   // its light; then the spire planted at the heart, and the land kindled
@@ -306,7 +303,7 @@ async function phone(browser) {
   await run(page, 0.3);
   await shot(page, 'smoke-kindled');
   // a spire banks the haul (a channel moving breaks) and feeds the star
-  const carriedNow = await page.evaluate(() => cargoUsed(Game.dive));
+  const carriedNow = await page.evaluate(() => cargoCount(Game.dive));
   await page.evaluate(standOn, 'pad');
   await run(page, 0.1);
   check(await page.evaluate(() => $('btn-act').textContent === 'BANK' && !$('btn-act2').hidden), 'phone: no BANK and TRAVEL at the spire');
@@ -321,9 +318,9 @@ async function phone(browser) {
   await run(page, 0.1);
   await tap(page, '#btn-act');
   await run(page, 1.8);
-  const banked = await page.evaluate(() => [Object.entries(Save.data.stash).filter(([k]) => !isLight(k)).reduce((a, [, b]) => a + b, 0) + Save.data.items.reduce((a, it) => a + itemWeight(it), 0), JSON.parse(localStorage.getItem('lodestar.save.v4')), Save.data.star, cargoUsed(Game.dive), Game.dive.hub]);
+  const banked = await page.evaluate(() => [Object.entries(Save.data.stash).filter(([k]) => !isLight(k)).reduce((a, [, b]) => a + b, 0) + Save.data.items.length, JSON.parse(localStorage.getItem('lodestar.save.v4')), Save.data.star, cargoCount(Game.dive), Game.dive.hub]);
   check(banked[0] === carriedNow && banked[3] === 0 && !banked[4], `phone: banked ${banked[0]} of ${carriedNow}, ${banked[3]} left, still out: ${!banked[4]}`);
-  check(banked[1].items.length === 3, 'phone: the found gear was not banked and saved');
+  check(banked[1].items.length === 5, `phone: the found gear was not banked and saved (${banked[1].items.length})`);
   check(banked[2] === 0 && far >= 1, `phone: banking fed the star ${banked[2]} before coming home`);
   // TRAVEL: the map, a spire or home; home banks and reports
   await tap(page, '#btn-act2');
@@ -469,11 +466,32 @@ async function phone(browser) {
   check(await page.evaluate(() => $('btn-act2').textContent === 'SUPPLIES'), 'phone: no SUPPLIES at the fabricator');
   await tap(page, '#btn-act2');
   check(await visible(page, '#screen-supplies'), 'phone: SUPPLIES did not open');
-  await tap(page, '#supplies-body [data-act=makeSupply][data-arg=injector1]');
-  await tap(page, '#supplies-body [data-act=makeSupply][data-arg=cell1]');
+  await tap(page, '#supplies-body [data-act=makeSupply][data-arg=injector]');
+  await tap(page, '#supplies-body [data-act=makeSupply][data-arg=cell]');
   await shot(page, 'smoke-supplies');
-  check(await page.evaluate(() => Save.data.supplies.injector1 === 1 && Save.data.supplies.cell1 === 1 && Save.data.stash.ferrite === 34 && Save.data.stash.lumenite === 15), `phone: making supplies did not cost their ore (${await page.evaluate(() => JSON.stringify([Save.data.supplies, Save.data.stash.ferrite, Save.data.stash.lumenite]))})`);
+  // (paid in the plainest ore there's enough of)
+  check(await page.evaluate(() => Save.data.supplies.injector === 1 && Save.data.supplies.cell === 1 && Save.data.stash.ferrite === 40 - 2 * T.supplies.cost[0] && Save.data.stash.lumenite === 20), `phone: making supplies did not cost their ore (${await page.evaluate(() => JSON.stringify([Save.data.supplies, Save.data.stash.ferrite, Save.data.stash.lumenite]))})`);
+  // with no Ferrite left, Lumenite pays, fewer of it
+  await page.evaluate(() => { Save.data.stash.ferrite = 2; UI.redraw(); });
+  await tap(page, '#supplies-body [data-act=makeSupply][data-arg=injector]');
+  check(await page.evaluate(() => Save.data.supplies.injector === 2 && Save.data.stash.ferrite === 2 && Save.data.stash.lumenite === 20 - T.supplies.cost[1]), 'phone: a supply was not paid in the next ore up');
+  // the Refinery: built, it makes both stronger; upgraded at SUPPLIES, more
+  const ref = await page.evaluate(() => {
+    const s = Save.data, p0 = [supplyPct('injector'), supplyPct('cell')];
+    s.built = (s.built || []).concat('refinery'); s.landing = null;
+    const p1 = [supplyPct('injector'), supplyPct('cell')];
+    s.stash.resonite = 6; s.stash.thread = 50; s.star = Math.max(s.star, T.star.levels[2]);
+    UI.redraw();
+    return { p0, p1, row: /REFINERY · LEVEL 1\/3/.test($('supplies-body').textContent) };
+  });
+  check(ref.p0.join() === '35,30' && ref.p1.join() === '50,40' && ref.row, `phone: the Refinery does not strengthen supplies, or SUPPLIES does not show its level (${JSON.stringify(ref)})`);
+  await shot(page, 'lean/supplies-refinery');
+  await tap(page, '#supplies-body [data-act=upgradeRefinery]');
+  check(await page.evaluate(() => refineryLevel() === 2 && supplyPct('injector') === 65 && supplyPct('cell') === 50 && !Save.data.stash.resonite && !Save.data.stash.thread && /LEVEL 2\/3/.test($('supplies-body').textContent)), 'phone: upgrading the Refinery did not cost its ore and threads, or did not strengthen supplies');
+  await shot(page, 'lean/supplies-upgraded');
   await tap(page, '#screen-supplies [data-act=back]');
+  // (and taken down again, for the checks of the forge's BUILDINGS below)
+  await page.evaluate(() => { Save.data.built = Save.data.built.filter((id) => id !== 'refinery'); Save.data.refineryLv = 1; });
 
   // your light runs out in dark land, and the Hollow comes; kindled land
   // fills it again
@@ -482,16 +500,16 @@ async function phone(browser) {
   check(pulled[0] === 0 && pulled[1] && pulled[2], `phone: your light running out did not bring the Hollow (${pulled})`);
   await run(page, 0.3);
   await shot(page, 'smoke-hollow');
-  // an emergency recall brings most of it home
+  // an emergency recall brings all of it home
   // (with light again, so the dark sends nothing to break the channel)
-  await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) e.dead = true; d.pull = 1; d.cargo = { ferrite: 20 }; d.items = []; Save.data.stash.ferrite = 0; window._recallDepth = d.depth; });
+  await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) e.dead = true; d.pull = 1; d.cargo = { ferrite: 20 }; d.items = [makeBase('charm', 1)]; Save.data.stash.ferrite = 0; window._items0 = Save.data.items.length; });
   await tap(page, '#btn-pause');
+  check(await page.evaluate(() => $('pause-recall').textContent === 'EMERGENCY RECALL' && $('pause-restart') && !$('pause-restart').hidden), 'phone: the pause screen does not have a plain EMERGENCY RECALL and START OVER');
+  await shot(page, 'lean/pause-field');
   await tap(page, '#pause-recall');
   await run(page, T_RECALL + 0.3);
   check(await visible(page, '#screen-report'), 'phone: the recall did not come home');
-  // the dark's share is rounded up or down by chance
-  const recalled = await page.evaluate(() => { const c = recallCost({ depth: window._recallDepth }); return [Save.data.stash.ferrite, 20 - Math.ceil(20 * c), 20 - Math.floor(20 * c)]; });
-  check(recalled[0] >= recalled[1] && recalled[0] <= recalled[2], `phone: the recall banked ${recalled[0]} Ferrite, not ${recalled[1]}–${recalled[2]}`);
+  check(await page.evaluate(() => Save.data.stash.ferrite === 20 && Save.data.items.length === window._items0 + 1 && /RECALLED/.test($('report-title').textContent)), `phone: the recall did not bank everything (${await page.evaluate(() => Save.data.stash.ferrite)} Ferrite)`);
   await tap(page, '#screen-report [data-act=closeReport]');
 
   // tools: made once from the stash, one carried; the compass points to the
@@ -510,7 +528,7 @@ async function phone(browser) {
     for (let i = 0; i < 30; i++) Game.step(1 / 60);
     if (!d.compass) return { why: JSON.stringify({ modal: Game.modal, hit: Game.hitstop, warp: !!d.warp, tool: d.tool, terr: d.terr, dark, game: Game.dive === d, exits: d.floor.exits.length, t: d.toolT }) };
     const e = d.floor.exits.find((x) => x.x === d.compass.x && x.y === d.compass.y), out = !!e && (isKindled(e.to) || worldMap().terrs[e.to].nb.some(isKindled));
-    UI.close(); abandonDive(); UI.close();
+    UI.close(); goHome('walk'); UI.close();
     s.tool = 'beacon'; startSortie({ terr: lit, spire: true }); d = Game.dive;
     const refused = !plantBeacon();
     enterTerritory(dark, { from: 0 }); sturdy();
@@ -518,7 +536,7 @@ async function phone(browser) {
     for (let i = 0; i < 60 * (T.tools.beacon.land + 0.5); i++) { Game.step(1 / 60); for (const x of d.enemies) x.dead = true; }
     d.p.x = (d.beacon.x + 0.5) * TILE; d.p.y = (d.beacon.y + 0.5) * TILE; Game.step(1 / 60);
     const lands = actionHere() === 'extract' && $('btn-act').textContent === 'BANK';
-    UI.close(); abandonDive(); UI.close();
+    UI.close(); goHome('walk'); UI.close();
     s.star = was; s.tool = 'compass';
     return { made, points, out, planted, again, lands };
   });
@@ -579,7 +597,7 @@ async function phone(browser) {
     for (let i = 0; i < 20; i++) Game.step(1 / 60);
     Game.render();
     const sc = d.wk.scan, out = { ping: !!sc, veins: sc ? sc.veins.length : 0 };
-    UI.close(); abandonDive(); UI.close();
+    UI.close(); goHome('walk'); UI.close();
     Save.data.star = window._starWas;
     return out;
   });
@@ -601,7 +619,7 @@ async function phone(browser) {
     while (d.deep.site < d.deep.of && d.ways.length) { enterDeepSite(d.deep.site + 1); }
     let up = true;
     if (d.zone !== 'lair') { sturdy(); const v = d.floor.ways[0]; d.p.x = (v.x + 0.5) * TILE; d.p.y = (v.y + 0.9) * TILE; Game.step(1 / 60); up = /BACK UP/.test($('btn-act').textContent); Input.actReq = true; for (let i = 0; i < 60; i++) Game.step(1 / 60); up = up && !d.deep && d.terr === id; }
-    UI.close(); abandonDive(); UI.close();
+    UI.close(); goHome('walk'); UI.close();
     return { down, inDeep, up, sites: t.deep };
   });
   check(deep === 'none' || (deep.down && deep.inDeep && deep.up), `phone: the Deep did not lead down and back up (${JSON.stringify(deep)})`);
@@ -620,7 +638,7 @@ async function phone(browser) {
         UI.close(); startSortie({ terr: t.id, spire: false, from: t.nb[0] }); enterDeepSite(1);
         d = Game.dive; r = d.rift;
         if (r) break;
-        UI.close(); abandonDive(); UI.close();
+        UI.close(); goHome('walk'); UI.close();
       }
       if (!r) { out[kind] = 'none'; continue; }
       for (const e of d.enemies) e.dead = true;
@@ -628,7 +646,7 @@ async function phone(browser) {
       Input.actReq = true;
       for (let i = 0; i < 60 * (T.rifts.seal + 1.5); i++) Game.step(1 / 60);
       out[kind] = kind === 'gate' ? Math.abs(Math.floor(d.p.y / TILE) - r.pair.y) <= 1 && Math.abs(Math.floor(d.p.x / TILE) - r.pair.x) <= 1 : !r.open && (d.cargo.riftglass || 0) > 0;
-      UI.close(); abandonDive(); UI.close();
+      UI.close(); goHome('walk'); UI.close();
     }
     [T.rifts.chance, T.rifts.kinds] = was;
     out.tier = forgeItem('gauntlet', 'ferrite', 'riftglass', 1).tier;
@@ -643,24 +661,37 @@ async function phone(browser) {
     UI.close(); startSortie({ terr: ring1(null), from: 0 });
     const d = Game.dive, e = makeEnemy('warden', d.p.x, d.p.y, 3); e.boss = true;
     const got = moduleDrops(d, e);
-    UI.close(); abandonDive(); UI.close();
+    UI.close(); goHome('walk'); UI.close();
     return got.length === T.modules.drop.boss && got.every((m) => ['rare', 'legendary', 'set'].includes(m.rarity) && m.src.foe === 'warden');
   });
   check(warden, 'phone: a warden did not leave its modules');
 
-  // contracts: three posted; one met is paid on coming home and replaced
-  const contracts = await page.evaluate(() => {
-    fillContracts();
-    const posted = Save.data.contracts.length;
-    Save.data.contracts[0] = { id: 999, kind: 'haul', ore: 'ferrite', n: 3, star: 25, reward: 'riftglass' };
-    const glass = Save.data.stash.riftglass || 0, star = Save.data.star;
-    UI.close(); startSortie({ terr: ring1(null), from: 0 }); Game.dive.cargo.ferrite = 3; goHome('walk');
-    const paid = (Save.data.stash.riftglass || 0) === glass + 1 && Save.data.star === star, replaced = Save.data.contracts.length === 3 && !Save.data.contracts.some((c) => c.id === 999);
+  // what's next: one goal, at the portal and over the view at home; and
+  // the Settlers' Quarters bring threads each time home
+  const next = await page.evaluate(() => {
+    UI.close(); Game.step(1 / 60);
+    const hud = !$('hud-goal').hidden && /NEXT/.test($('hud-goal').textContent) && $('hud-goal').textContent.length < 140;
+    UI.useStation('setout');
+    const portal = /NEXT/.test($('setout-body').textContent) && $('setout-body').querySelectorAll('.next-steps p').length === 1 && !/CONTRACT/.test($('setout-body').textContent);
+    const goal = nextGoal();
+    UI.close();
+    const s = Save.data; s.built = (s.built || []).concat('quarters'); s.landing = null;
+    const th = s.stash.thread || 0;
+    startSortie({ terr: ring1(null), from: 0 }); goHome('walk');
+    const paid = (s.stash.thread || 0) === th + T.structures.quarters.pay && /SETTLERS/.test($('report-body').textContent);
     UI.acts.closeReport();
-    return { posted, paid, replaced, row: /CONTRACT DONE/.test($('report-body').textContent) || true };
+    s.built = s.built.filter((id) => id !== 'quarters');
+    return { hud, portal, goal, paid };
   });
-  check(contracts.posted === 3, 'phone: three contracts were not posted');
-  check(contracts.paid && contracts.replaced, 'phone: a contract met was not paid and replaced');
+  check(next.hud && next.portal && next.goal, `phone: no single next goal at the portal or over the view at home (${JSON.stringify(next)})`);
+  check(next.paid, 'phone: the Settlers\' Quarters brought no threads home');
+  await page.evaluate(() => { UI.close(); Game.step(1 / 60); Game.render(); });
+  await shot(page, 'lean/home-next');
+  await page.evaluate(() => UI.useStation('setout'));
+  await sleep(450);
+  await page.evaluate(() => { document.querySelector('#setout-body .next-steps').scrollIntoView({ block: 'center' }); });
+  await shot(page, 'lean/portal-next');
+  await page.evaluate(() => UI.close());
 
   // a Keeper holds a heart-shard; once taken it's safe, and set at the altar
   // (the Rim's Keeper, at the bottom of the Deep under ring 1's furthest)
@@ -684,17 +715,11 @@ async function phone(browser) {
   check(/1\/3/.test(await page.evaluate(() => $('wreck-body').textContent)), 'phone: the wreck does not show one shard of three');
   await tap(page, '#screen-wreck [data-act=back]');
 
-  // dying loses the cargo, keeps what's worn and what's pocketed, and wakes
-  // the diver at the last spire touched
+  // dying leaves the whole cargo, keeps what's worn, and wakes the diver at
+  // the last spire touched
   const kept = await page.evaluate(() => [Save.data.equip.main.uid, Save.data.stash.ferrite]);
   await page.evaluate(() => { UI.close(); startSortie({ terr: window._kid, spire: true }); enterTerritory(ring1(null), { from: 0 }); sturdy(); Game.dive.stats.maxHp = 100; Game.dive.p.hp = 100; });
-  await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 9; d.items.push(makeRelic(1)); d.items.push(makeBase('charm', 1)); });
-  await tap(page, '#btn-cargo');
-  const charm = await page.evaluate(() => Game.dive.items.find((i) => i.kind === 'charm').uid);
-  await tap(page, `#cargo-body [data-act=cardCargo][data-arg="${charm}"]`);
-  await tap(page, '#card [data-act=pocket]');
-  check(await page.evaluate(() => Game.dive.pocket.length === 1), 'phone: POCKET did not pocket the charm');
-  await tap(page, '#screen-cargo [data-act=resume]');
+  await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 9; d.items.push(makeRelic(1)); d.items.push(makeBase('charm', 1)); window._charms0 = Save.data.items.filter((i) => i.kind === 'charm').length; });
   await page.evaluate(() => { const d = Game.dive; d.p.invuln = 0; hurtPlayer(9999, null); });
   await run(page, 1);
   await shot(page, 'smoke-dying');
@@ -703,10 +728,9 @@ async function phone(browser) {
   check(/YOU FELL/.test(await page.evaluate(() => $('report-title').textContent)), 'phone: the report does not say you fell');
   check(await page.evaluate(([w, fe]) => Save.data.equip.main.uid === w && Save.data.stash.ferrite === fe && !Save.data.items.some((i) => i.kind === 'relic'), kept), 'phone: dying kept the cargo or lost the gear');
   // the cargo waits where it fell, in the pack, saved
-  check(await page.evaluate(() => { const c = Save.data.cache, raw = JSON.parse(localStorage.getItem('lodestar.save.v4')).cache; return !!c && c.cargo.ferrite === 9 && c.items.some((i) => i.kind === 'relic') && !!raw && raw.terr === c.terr; }), 'phone: the fall did not leave the cargo in a pack where it fell, saved');
+  check(await page.evaluate(() => { const c = Save.data.cache, raw = JSON.parse(localStorage.getItem('lodestar.save.v4')).cache; return !!c && c.cargo.ferrite === 9 && c.items.some((i) => i.kind === 'relic') && c.items.some((i) => i.kind === 'charm') && !!raw && raw.terr === c.terr; }), 'phone: the fall did not leave the whole cargo in a pack where it fell, saved');
   check(/YOUR PACK/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not say where the pack is');
-  check(await page.evaluate(() => Save.data.items.some((i) => i.kind === 'charm')), 'phone: the pocketed charm did not survive the fall');
-  check(/POCKET KEPT/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the pocket');
+  check(await page.evaluate(() => Save.data.items.filter((i) => i.kind === 'charm').length === window._charms0), 'phone: a piece of the cargo came home from a fall');
   check(/YOU WAKE/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not say where you wake');
   await tap(page, '#screen-report [data-act=closeReport]');
   check(await page.evaluate(() => { const d = Game.dive; return !d.hub && d.terr === Save.data.lastSpire && d.kindled && Math.abs(Math.floor(d.p.x / TILE) - d.floor.pad.x) <= 1; }), 'phone: the fall did not wake the diver at the last spire');
@@ -724,7 +748,7 @@ async function phone(browser) {
   });
   await shot(page, 'smoke-pack');
   const got = await page.evaluate(() => { const d = Game.dive, at = cacheSpot(d, Save.data.cache); d.p.x = at.x; d.p.y = at.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); return [d.cargo.ferrite, d.items.some((i) => i.kind === 'relic'), Save.data.cache, JSON.parse(localStorage.getItem('lodestar.save.v4')).cache]; });
-  check(pack && got[0] === 9 && got[1] && got[2] === null && got[3] === null, `phone: walking to the pack did not take it back (${JSON.stringify(got)})`);
+  check(pack && got[0] === 9 && got[1] && got[2] === null && got[3] === null, `phone: walking to the pack did not take it all back (${JSON.stringify(got)})`);
   // a fall before reaching it, and the older pack is lost: only the newest waits
   const twice = await page.evaluate(() => {
     const d = Game.dive; d.cargo = { ferrite: 3 }; d.p.invuln = 0; d.p.hp = 1; d.stats.maxHp = 100; hurtPlayer(1e9, null);
@@ -732,42 +756,29 @@ async function phone(browser) {
     const first = JSON.stringify(Save.data.cache.cargo); UI.acts.closeReport();
     const e = Game.dive; e.cargo = { lumenite: 2 }; e.p.invuln = 0; e.stats.maxHp = 100; e.p.hp = 1; hurtPlayer(1e9, null);
     for (let i = 0; i < 150; i++) Game.step(1 / 60);
-    const out = [first, JSON.stringify(Save.data.cache.cargo), /LOST TO THE DARK/.test($('report-body').textContent)];
+    const out = [first, JSON.stringify(Save.data.cache.cargo), /older pack/.test($('report-body').textContent)];
     UI.acts.closeReport();
     return out;
   });
   check(twice[0] === '{"ferrite":3}' && twice[1] === '{"lumenite":2}' && twice[2], `phone: a second fall did not lose the older pack (${twice})`);
 
-  // supplies out in the world: the deck's slot uses one; MAKE in the cargo
-  // makes the simple ones from the ore carried
-  await page.evaluate(() => { if (!Game.dive || Game.dive.hub) { UI.close(); startSortie({ terr: ring1(null), from: 0 }); } sturdy(); const d = Game.dive; d.stats.maxHp = 100; d.p.hp = 30; Save.data.supplySel = 'injector'; });
+  // supplies out in the world: each has its button on the deck, with how
+  // many; MAKE in the cargo makes them from the ore carried
+  await page.evaluate(() => { if (!Game.dive || Game.dive.hub) { UI.close(); startSortie({ terr: ring1(null), from: 0 }); } if (Game.dive.kindled) enterTerritory(ring1(null), { from: 0 }); sturdy(); const d = Game.dive; d.stats.maxHp = 100; d.p.hp = 30; d.pull = 0.3; Save.data.supplies = { injector: 1, cell: 2 }; });
   await run(page, 0.1);
-  check(await visible(page, '#btn-supply') && /MEND/.test(await page.evaluate(() => $('btn-supply').textContent)), 'phone: no supply slot on the deck');
-  await shot(page, 'smoke-supply-deck');
-  await tap(page, '#btn-supply');
-  check(await page.evaluate(() => Game.dive.p.hp > 60 && !Save.data.supplies.injector1), `phone: the injector did not heal (${await page.evaluate(() => Game.dive.p.hp)})`);
+  check(await visible(page, '#btn-mend') && await visible(page, '#btn-cell') && await page.evaluate(() => /MEND/.test($('btn-mend').textContent) && /1/.test($('btn-mend').querySelector('.supply-n').textContent) && /2/.test($('btn-cell').querySelector('.supply-n').textContent)), 'phone: the two supply buttons are not on the deck with their counts');
+  await shot(page, 'lean/hud-upright');
+  await tap(page, '#btn-mend');
+  check(await page.evaluate(() => Game.dive.p.hp > 60 && !Save.data.supplies.injector && $('btn-mend').classList.contains('empty')), `phone: the injector did not heal (${await page.evaluate(() => Game.dive.p.hp)})`);
+  await tap(page, '#btn-cell');
+  check(await page.evaluate(() => Game.dive.pull > 0.55 && Save.data.supplies.cell === 1), `phone: the Lightcell did not give light back (${await page.evaluate(() => Game.dive.pull)})`);
   await page.evaluate(() => { Game.dive.cargo.ferrite = 10; });
   await tap(page, '#btn-cargo');
   check(/MAKE/.test(await page.evaluate(() => $('cargo-body').textContent)), 'phone: the cargo has no MAKE');
-  await tap(page, '#cargo-body [data-act=makeSupply][data-arg="injector1:field"]');
-  check(await page.evaluate(() => Save.data.supplies.injector1 === 1 && Game.dive.cargo.ferrite === 4), 'phone: MAKE in the field did not make an injector from the cargo');
+  await tap(page, '#cargo-body [data-act=makeSupply][data-arg="injector:field"]');
+  check(await page.evaluate(() => Save.data.supplies.injector === 1 && Game.dive.cargo.ferrite === 10 - T.supplies.cost[0]), 'phone: MAKE in the field did not make an injector from the cargo');
   await shot(page, 'smoke-make');
   await tap(page, '#screen-cargo [data-act=resume]');
-  // a flare holds your light; a charge blasts the first foe near it
-  const set = await page.evaluate(() => {
-    // (in dark land, where the light drains)
-    if (Game.dive.kindled) { enterTerritory(ring1(null), { from: 0 }); sturdy(); }
-    const d = Game.dive, b = Save.data.supplies; b.flare1 = 1; b.charge1 = 1; d.pull = 0.5;
-    const flare = useSupply('flare'), charge = useSupply('charge'), p0 = d.pull;
-    Game.render();
-    for (let i = 0; i < 60; i++) Game.step(1 / 60);
-    const held = d.pull === p0;
-    const e = makeEnemy('crawler', d.p.x + 8, d.p.y, 1, null); d.enemies.push(e); d.p.x += 60;
-    for (let i = 0; i < 20; i++) Game.step(1 / 60);
-    Game.render();
-    return [flare, charge, held, e.hp < e.maxHp || e.dead, !(d.charges || []).length];
-  });
-  check(set.every(Boolean), `phone: a flare did not hold the light, or a charge did not blast (${set})`);
 
   // the star's reach: a spire won't hold in ring 2 before magnitude 3
   const reach = await page.evaluate(() => {
@@ -810,13 +821,16 @@ async function phone(browser) {
 
 async function sideways(browser) {
   const { page, errors } = await openGame(browser, { width: 844, height: 390 });
-  await page.evaluate(() => UI.acts.setOutWalk(String(worldMap().terrs.find((t) => t.starter).id)));
+  await page.evaluate(() => { Save.data.supplies = { injector: 3, cell: 1 }; UI.acts.setOutWalk(String(worldMap().terrs.find((t) => t.starter).id)); });
   await run(page, 0.2);
   const r = await page.evaluate(() => ['deck-left', 'stage', 'deck-right'].map((id) => document.getElementById(id).getBoundingClientRect()).map((b) => [b.left, b.right, b.width]));
   check(r[0][1] <= r[1][0] + 1 && r[1][1] <= r[2][0] + 1, `sideways: the decks are not either side of the view: ${JSON.stringify(r)}`);
   check(r[0][2] >= 150 && r[2][2] >= 150, `sideways: a deck is under 150px: ${r[0][2]}, ${r[2][2]}`);
-  const fits = await page.evaluate(() => ['btn-main', 'btn-mine'].every((id) => { const b = document.getElementById(id).getBoundingClientRect(); return b.bottom <= innerHeight && b.top >= 0 && b.left >= 0 && b.right <= innerWidth; }));
+  const fits = await page.evaluate(() => ['btn-main', 'btn-mine', 'btn-mend', 'btn-cell'].every((id) => { const b = document.getElementById(id).getBoundingClientRect(); return b.height > 0 && b.bottom <= innerHeight && b.top >= 0 && b.left >= 0 && b.right <= innerWidth; }));
   check(fits, 'sideways: a button is off the screen');
+  const apart = await page.evaluate(() => { const a = $('btn-mend').getBoundingClientRect(), b = $('btn-cell').getBoundingClientRect(), dk = $('deck-right').getBoundingClientRect(); return a.right <= b.left && b.right <= dk.right && a.left >= dk.left; });
+  check(apart, 'sideways: the supply buttons overlap or leave the deck');
+  await shot(page, 'lean/hud-sideways');
   check(await page.evaluate(() => Math.min(View.w, View.h) >= 176), 'sideways: the view is under 176 game px');
   await shot(page, 'smoke-sideways');
   check(!errors.length, 'sideways: ' + errors.join(' | '));
@@ -824,15 +838,15 @@ async function sideways(browser) {
 }
 
 // On phones short and tall, upright: the deck's round buttons (the hands,
-// DASH, MINE, the supply slot and its ▸) all inside the deck, none on another.
+// DASH, MINE and the two supplies) all inside the deck, none on another.
 async function deckSizes(browser) {
   for (const [width, height] of [[320, 568], [360, 640], [375, 667], [390, 844], [430, 932]]) {
     const { page, errors } = await openGame(browser, { width, height });
-    await page.evaluate(() => { Save.data.supplies = { injector1: 1, cell1: 1 }; UI.acts.setOutWalk(String(worldMap().terrs.find((t) => t.starter).id)); });
+    await page.evaluate(() => { Save.data.supplies = { injector: 1, cell: 1 }; UI.acts.setOutWalk(String(worldMap().terrs.find((t) => t.starter).id)); });
     await run(page, 0.2);
     const bad = await page.evaluate(() => {
       const deck = $('deck-right').getBoundingClientRect(), out = [];
-      const r = ['btn-main', 'btn-off', 'btn-dash', 'btn-mine', 'btn-supply', 'btn-supply-next'].filter((id) => !$(id).hidden).map((id) => [id, $(id).getBoundingClientRect()]);
+      const r = ['btn-main', 'btn-off', 'btn-dash', 'btn-mine', 'btn-mend', 'btn-cell'].filter((id) => !$(id).hidden).map((id) => [id, $(id).getBoundingClientRect()]);
       for (const [id, b] of r) if (b.top < deck.top - 1 || b.left < deck.left - 1 || b.right > deck.right + 1 || b.bottom > deck.bottom + 1) out.push(id + ' leaves the deck');
       for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) {
         const a = r[i][1], b = r[j][1], m = Math.hypot(a.left + a.width / 2 - b.left - b.width / 2, a.top + a.height / 2 - b.top - b.height / 2);
@@ -930,7 +944,7 @@ async function desktop(browser) {
   await page.keyboard.down('Space');
   await run(page, 1.6);
   await page.keyboard.up('Space');
-  check(await page.evaluate(() => cargoUsed(Game.dive) >= 1), 'desktop: Space did not mine');
+  check(await page.evaluate(() => cargoCount(Game.dive) >= 1), 'desktop: Space did not mine');
   await page.keyboard.press('Escape');
   check(await visible(page, '#screen-pause'), 'desktop: Esc did not pause');
   await shot(page, 'smoke-desktop');
@@ -1056,7 +1070,7 @@ async function oldSave(browser) {
     const r = await page.evaluate(() => {
       const s = Save.data, mods = SLOTS.flatMap((k) => baseModules(s.equip[k])).concat(s.items.filter((x) => x.kind === 'module'));
       const out = { v: s.v, bases: SLOTS.every((k) => !s.equip[k] || Array.isArray(s.equip[k].sockets)), mods: mods.length, lode: mods.some((m) => m.power === 'lodeheart'), armor: computeStats(s.equip, s.attune).armor, run: !!s.run };
-      if (s.run) { UI.close(); resumeRun(); out.resumed = !!Game.dive && Game.dive.items.every((it) => it.kind === 'module' || it.kind === 'relic' || Array.isArray(it.sockets)); UI.close(); abandonDive(); UI.close(); }
+      if (s.run) { UI.close(); resumeRun(); out.resumed = !!Game.dive && Game.dive.items.every((it) => it.kind === 'module' || it.kind === 'relic' || Array.isArray(it.sockets)); UI.close(); goHome('walk'); UI.close(); }
       out.powers = mods.filter((x) => x.power).map((x) => x.power);
       UI.close(); UI.useStation('locker'); const m = mods.find((x) => x.power) || mods[0]; UI.openCard(m, 'stash', m.uid); UI.closeCard();
       UI.close(); UI.useStation('runes'); UI.acts.benchMod(mods[0].uid);
@@ -1077,9 +1091,82 @@ async function oldSave(browser) {
   }
 }
 
+// START OVER, from the pause screen: a screen saying what's lost, with BACK
+// in sight; a second tap on its button wipes every save but the settings,
+// and the game opens again on the landing, fresh.
+async function startOver(browser) {
+  const { page, errors } = await openGame(browser, PHONE);
+  await tap(page, '#intro-skip');
+  await run(page, 0.05);
+  await page.evaluate(() => {
+    const s = Save.data; s.star = 120; s.stash.ferrite = 50; s.settings.music = 0; s.settings.lamp = 'glow'; s.cache = { terr: 1, site: 0, x: 0, y: 0, cargo: { ferrite: 2 }, items: [], blueprints: [], where: 'x' };
+    Save.save(); localStorage.setItem('lodestar.save.v3', '{}'); localStorage.setItem('lodestar.save.v4.unread', '{}');
+    UI.close(); startSortie({ terr: worldMap().terrs.find((t) => t.starter).id, from: 0 });
+  });
+  await run(page, 0.2);
+  await tap(page, '#btn-pause');
+  await tap(page, '#pause-restart');
+  check(await visible(page, '#screen-restart') && /lost/i.test(await page.evaluate(() => $('screen-restart').textContent)), 'start over: no screen saying what is lost');
+  await shot(page, 'lean/restart-ask');
+  await tap(page, '#screen-restart [data-act=restartBack]');
+  check(await visible(page, '#screen-pause') && await page.evaluate(() => Save.data.star === 120), 'start over: BACK did not go back to the pause screen, untouched');
+  await tap(page, '#pause-restart');
+  await tap(page, '#restart-go');
+  check(await page.evaluate(() => /TAP AGAIN/.test($('restart-go').textContent) && Save.data.star === 120), 'start over: the first tap did not ask again');
+  await shot(page, 'lean/restart-confirm');
+  await sleep(450);
+  const [x, y] = await center(page, '#restart-go');
+  await Promise.all([page.waitForNavigation({ timeout: 60000 }), page.touchscreen.tap(x, y)]);
+  await page.waitForFunction(() => typeof Loader !== 'undefined' && (Loader.state === 'ready' || Game.ready), { timeout: 120000, polling: 100 });
+  if (!(await page.evaluate(() => Game.ready))) { await sleep(100); await page.touchscreen.tap(195, 420); }
+  await page.waitForFunction(() => Game.ready, { timeout: 30000 });
+  const r = await page.evaluate(() => {
+    const keys = []; for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+    const s = Save.data;
+    return { keys, star: s.star, ferrite: s.stash.ferrite || 0, run: !!s.run, cache: !!s.cache, world: !!s.world && s.world.seed === 5, music: s.settings.music, lamp: s.settings.lamp, intro: Intro.on, resume: !$('screen-resume').hidden };
+  });
+  check(r.keys.join() === 'lodestar.save.v4' && r.star === 0 && !r.ferrite && !r.run && !r.cache && !r.world && !r.resume, `start over: something survived (${JSON.stringify(r)})`);
+  check(r.music === 0 && r.lamp === 'glow', `start over: the settings were not kept (${JSON.stringify(r)})`);
+  check(r.intro, 'start over: the game did not open on the landing');
+  await shot(page, 'lean/restart-done');
+  check(!errors.length, 'start over: ' + errors.join(' | '));
+  await page.close();
+}
+
+// A save from before the lean rules: the pocket's contents in the stash,
+// contracts gone, graded supplies merged (the gone kinds refunded as
+// ore), a Capacity attunement's points back, a Deep Satchel refunded.
+async function leanSave(browser) {
+  const fs = require('fs'), path = require('path');
+  const save = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'save-main-run.json'), 'utf8'));
+  Object.assign(save, { supplies: { injector1: 2, injector3: 1, cell2: 1, flare1: 2, ward2: 1, charge3: 1 }, supplySel: 'flare', attune: { vitality: 1, capacity: 2 }, tools: ['compass', 'satchel'], tool: 'satchel', star: 120, starScale: 2 });
+  save.run.pocket.push({ stuff: 'lumenite', n: 7 });
+  const st0 = Object.assign({}, save.stash), pocketItem = save.run.pocket.find((e) => e.item).item.uid;
+  const { page, errors } = await openFresh(browser, Object.assign({ save }, PHONE));
+  const r = await page.evaluate((uid) => {
+    const s = Save.data;
+    const out = { supplies: s.supplies, sel: 'supplySel' in s, contracts: 'contracts' in s || 'swapped' in s, attune: s.attune, pts: attunePointsLeft(s), tools: s.tools, tool: s.tool, pocket: s.run && 'pocket' in s.run, item: s.items.some((i) => i.uid === uid), stash: Object.assign({}, s.stash) };
+    UI.close(); resumeRun(); out.resumed = !!Game.dive && !Game.dive.hub && Game.dive.pocket === undefined; UI.close(); goHome('walk'); UI.close();
+    UI.useStation('setout'); out.portal = /NEXT/.test($('setout-body').textContent); UI.close();
+    return out;
+  }, pocketItem);
+  check(JSON.stringify(r.supplies) === '{"injector":3,"cell":1}' && !r.sel && !r.contracts, `lean save: supplies or contracts not converted (${JSON.stringify(r)})`);
+  check(!r.attune.capacity && r.attune.vitality === 1 && r.pts === 4 - 1 - 1, `lean save: the Capacity points did not come back (${JSON.stringify(r.attune)}, ${r.pts})`);
+  check(r.tools.join() === 'compass' && r.tool === 'compass', `lean save: the Deep Satchel is still carried (${r.tools})`);
+  check(!r.pocket && r.item && r.stash.lumenite === (st0.lumenite || 0) + 7 + 8, `lean save: the pocket did not go to the stash (${JSON.stringify(r.stash)})`);
+  check(r.stash.ferrite === (st0.ferrite || 0) + 2 * T_REFUND && r.stash.resonite === (st0.resonite || 0) + T_REFUND && r.stash.sigilite === (st0.sigilite || 0) + T_REFUND, `lean save: Flares, Ward Cells and Charges were not refunded as ore (${JSON.stringify(r.stash)})`);
+  check(r.resumed && r.portal, `lean save: the sortie did not resume, or the portal has no next goal (${JSON.stringify(r)})`);
+  check(!errors.length, 'lean save: ' + errors.join(' | '));
+  check(!(await page.evaluate(() => Errors.length)), 'lean save: ' + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
+  await page.close();
+}
+
 (async () => {
+  require('fs').mkdirSync(require('path').join(__dirname, 'out', 'lean'), { recursive: true });
   const browser = await launch();
   try {
+    await startOver(browser);
+    await leanSave(browser);
     await oldSave(browser);
     await spellcraft(browser);
     await opening(browser);

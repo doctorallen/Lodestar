@@ -4,16 +4,18 @@
 //
 // A sortie starts at the outpost (walking out into a ring-1 territory) or
 // at a spire, and goes on across neighbouring territories until the diver
-// comes home (walking in, or TRAVEL from a spire), is recalled, or falls.
+// comes home (walking in, TRAVEL from a spire, or an emergency recall, which
+// loses nothing but takes a while standing still), or falls.
 // Walking into an opening at a territory's edge crosses into the neighbour
 // it faces, arriving at the matching opening.
 //
 // Your light (d.pull) drains in dark land and refills in kindled land. When
 // it's gone the Hollow comes, in every dark territory entered until it's
 // back. A spire (TILE_PAD at a kindled territory's heart) banks the cargo
-// (BANK) and opens the world map (TRAVEL). A fall leaves the cargo where it
-// fell, the Kindler's pack, to go back for once (deeds.js), and wakes the
-// diver at the last spire touched; the pocket comes home.
+// (BANK) and opens the world map (TRAVEL). There's no limit to what's
+// carried, and a fall leaves all of it where it fell, the Kindler's pack,
+// to go back for once (deeds.js), and wakes the diver at the last spire
+// touched.
 //
 // The star grows from deeds (deeds.js): kindling a territory gives
 // heartlight, a Deep's end, an ancient forge and an echo deeplight. A spire
@@ -204,15 +206,10 @@ function warpArrive(d, w) {
 }
 
 // --- banking, travel, home -----------------------------------------------------
-// The cargo and the pocket into the stash (the deeplight carried with it,
-// for the altar).
+// The cargo into the stash (the deeplight carried with it, for the altar).
 function bankHaul(d) {
   const s = Save.data.stash, b = d.banked, got = {};
   const add = (k, n) => { s[k] = (s[k] || 0) + n; b.stuff[k] = (b.stuff[k] || 0) + n; got[k] = (got[k] || 0) + n; };
-  const run = Save.data.run, kept = bankPocket(d);
-  Save.data.run = run;
-  for (const k in kept.stuff) b.stuff[k] = (b.stuff[k] || 0) + kept.stuff[k];
-  b.items.push(...kept.items); b.learned.push(...kept.blueprints);
   for (const k in d.cargo) if (d.cargo[k] > 0) add(k, d.cargo[k]);
   Save.data.items.push(...d.items); b.items.push(...d.items);
   b.learned.push(...bankBlueprints(d));
@@ -245,16 +242,17 @@ function travelDone(d, to) {
   d.warp = { t: 0, at: null, zone: 'surface', go: () => (to === 0 ? goHome('spire') : enterTerritory(to, { spire: true })) };
 }
 
-// Home: everything carried is banked, contracts settle, and the report.
-// from: the territory walked home from, if walked.
+// Home: everything carried is banked, the settlers' threads (the Settlers'
+// Quarters), and the report. how: 'walk', 'spire' or 'recall'. from: the
+// territory walked home from, if walked.
 function goHome(how, from) {
   const d = Game.dive;
   bankHaul(d);
   Save.data.run = null;
   Save.data.lastSpire = 0;
-  const b = d.banked, contracts = settleContracts(d, b.stuff);
+  const b = d.banked, settlers = quartersPay();
   Save.save();
-  enterHub({ banked: b.stuff, items: b.items, light: (d.tally && d.tally.light) || {}, learned: b.learned, contracts, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), how, kindled: (d.tally && d.tally.kindled) || 0 }, { from });
+  enterHub({ banked: b.stuff, items: b.items, light: (d.tally && d.tally.light) || {}, learned: b.learned, settlers, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), how, recalled: how === 'recall', kindled: (d.tally && d.tally.kindled) || 0 }, { from });
 }
 
 // Where a sortie got to, for the report.

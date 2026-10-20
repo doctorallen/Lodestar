@@ -275,18 +275,16 @@ function updatePickups(dt) {
     if (dist(dr.x, dr.y, p.x, p.y) > reach) { dr.warned = false; dr.left = false; continue; }
     if (dr.left) continue;
     if (dr.mote) { healPlayer(dr.mote); dr.gone = true; snd('heal'); continue; }
-    const room = d.stats.cargo - cargoUsed(d);
-    // a pile of ore: take what fits
+    // a pile of ore: all of it (there's no limit to what's carried)
     if (dr.stuff) {
-      const k = Math.min(room, dr.n);
-      if (k > 0) {
-        d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k; dr.n -= k;
-        snd('pickup');
-        // a small +n in the stuff's colour, not a toast: pickups are many
-        const pk = parsePart(dr.stuff);
-        d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : pk ? ART.parts[pk.kind] : '#ffffff' });
-        if (parsePart(dr.stuff)) UI.tip('parts', 'Creature parts are what you forge with: each recipe names the kinds it takes'); }
-      if (dr.n > 0) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } } else dr.gone = true;
+      const k = dr.n;
+      d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k;
+      snd('pickup');
+      // a small +n in the stuff's colour, not a toast: pickups are many
+      const pk = parsePart(dr.stuff);
+      d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : pk ? ART.parts[pk.kind] : '#ffffff' });
+      if (pk) UI.tip('parts', 'Creature parts are what you forge with: each recipe names the kinds it takes');
+      dr.gone = true;
       continue;
     }
     // a heart-shard binds to the diver: safe whatever happens now
@@ -294,17 +292,11 @@ function updatePickups(dt) {
     if (dr.resStone) { resonanceStoneFound(d.rng); dr.gone = true; snd('resStone'); buzz(12); continue; }
     if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); snd('echo'); deedEcho(d); } dr.gone = true; continue; }
     if (dr.blueprint) {
-      if (room < 1) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } continue; }
       d.blueprints.push({ id: dr.blueprint });
       snd('blueprint');
       UI.toast(`Blueprint: ${BLUEPRINTS[dr.blueprint].name}. Bring it home to learn it`, 'legendary');
-      UI.tip('blueprint', 'Blueprints are learned when you get them home. Pocket one to be sure of it');
+      UI.tip('blueprint', 'A blueprint is learned once it is banked, at a spire or at home');
       dr.gone = true;
-      continue;
-    }
-    const w = dr.item ? itemWeight(dr.item) : 1;
-    if (room < w) {
-      if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); }
       continue;
     }
     if (dr.item && dr.item.kind === 'module') {
@@ -324,14 +316,11 @@ function updatePickups(dt) {
   d.drops = d.drops.filter((dr) => !dr.gone);
 }
 
-// What a piece weighs in the cargo: a module little, a base or a relic more.
-function itemWeight(it) { return it.kind === 'module' ? T.modules.weight : T.cargo.itemWeight; }
-function cargoUsed(d) {
+// How many things are carried: ore, parts and exotics by the piece, gear
+// and blueprints one each (light isn't counted: deeds.js). There's no limit:
+// it's what a fall would leave in the pack.
+function cargoCount(d) {
   let n = 0;
-  // (light weighs nothing: deeds.js)
   for (const k in d.cargo) if (!isLight(k)) n += d.cargo[k];
-  for (const e of d.pocket || []) n += e.item ? itemWeight(e.item) : e.blueprint ? 1 : isLight(e.stuff) ? 0 : e.n;
-  for (const it of d.items) n += itemWeight(it);
-  return n + (d.blueprints || []).length;
+  return n + d.items.length + (d.blueprints || []).length;
 }
-function pocketSlots() { return T.cargo.pocket[Math.min(T.cargo.pocket.length, magnitudeOf(Save.data.star)) - 1] + (Game.dive && Game.dive.tool === 'satchel' ? 1 : 0); }

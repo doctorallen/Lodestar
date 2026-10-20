@@ -2,7 +2,7 @@
 // ---------------------------------------------------------------------------
 // Tools. The diver carries one, chosen at the portal before setting out, and
 // each changes what can be seen or done out there: where the light is,
-// where the ore is, what's coming, the lay of the land, a pocket more, a
+// where the ore is, what's coming, the lay of the land, a
 // spire's light called down where there's none, modules likelier. The
 // Compass is carried from the start; the rest are made once, at the forge,
 // as the star grows (their recipes are in blueprints.js; T.tools: the
@@ -14,11 +14,10 @@ const TOOLS = {
   oresense: { name: 'Ore Sense', icon: 'lens', text: 'Veins nearby glint through the dark, and an arrow points to the nearest beyond the view.' },
   radar: { name: 'Threat Radar', icon: 'radar', text: 'Marks at the edge of the view for what is out there: red for the dangerous, violet for the Hollow.' },
   map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each place as you walk it, with its portals, spire and waystones once seen.' },
-  satchel: { name: 'Deep Satchel', icon: 'satchel', text: 'One more pocket slot, so more comes home whatever happens.' },
   lens: { name: 'Capture Lens', icon: 'lure', text: "The suit's capture field reaches further: creatures leave modules half again as often." },
   beacon: { name: 'Lode Beacon', icon: 'beacon', text: "Once a sortie: call a spire's light down where you stand, to bank and travel from, and to stand in while your light comes back. It takes a few seconds to land, and its light draws everything near." },
 };
-const TOOL_IDS = ['compass', 'oresense', 'radar', 'beacon', 'map', 'satchel', 'lens'];
+const TOOL_IDS = ['compass', 'oresense', 'radar', 'beacon', 'map', 'lens'];
 
 const _toolIcons = {};
 function toolIconUrl(id) {

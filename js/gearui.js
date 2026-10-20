@@ -261,7 +261,7 @@ function drawCodex() {
     <h3>MODULES</h3><p class="note">What the dark's creatures are made of comes apart when they die. The suit's capture field catches the strongest thread of the pattern and sets it in a lattice crystal: a module. How much was caught is its rarity. Socket them into what you forge; the rune bench grows, reweaves and fuses them, and unravels them into threads.</p>
     <h3>POWERS REMEMBERED · ${powers.length}</h3>${powers.length ? powers.map((k) => `<div class="row static"><span class="row-text"><span class="row-name r-legendary">${esc(LEGENDARIES[k].name)}</span><span class="row-sub">${esc(LEGENDARIES[k].text)} · for ${LEGENDARIES[k].kinds.map((x) => KIND_PHRASE[x]).join(' or ')}</span></span></div>`).join('') + '<p class="note">Imprint one into a module at the rune bench, for a heart or Riftglass.</p>' : '<p class="note">Salvage a legendary module at home and the forge remembers its power.</p>'}
     <h3>RESONANCES <span class="dim">· ${whole} OF ${RESONANCES.length} WHOLE</span></h3>
-    <p class="note">A resonance is an exact circuit that wakes into one spell. It must fill its caster exactly: a ${RESONANCES[0].seq.length}-part one needs a ${RESONANCES[0].seq.length}-slot caster. Resonance stones show their parts: elites drop them now and then, they lie by ancient forges, and contracts pay them.</p>
+    <p class="note">A resonance is an exact circuit that wakes into one spell. It must fill its caster exactly: a ${RESONANCES[0].seq.length}-part one needs a ${RESONANCES[0].seq.length}-slot caster. Resonance stones show their parts: elites drop them now and then, and they lie by ancient forges.</p>
     <div class="codex">${cards}</div>`;
 }
 
@@ -320,7 +320,7 @@ function drawGear() {
     <h3>MATERIALS</h3><p class="note">${esc(stuffLines(s.stash)) || 'None.'}</p>`;
 }
 function statLine(st) {
-  const bits = [`${st.maxHp} health`, `${st.armor} armor`, `${st.cargo} cargo`];
+  const bits = [`${st.maxHp} health`, `${st.armor} armor`];
   if (st.closeDmg) bits.push(`+${Math.round(st.closeDmg)}% close`);
   if (st.spellDmg) bits.push(`+${Math.round(st.spellDmg)}% spells`);
   if (st.crit) bits.push(`${Math.round(st.crit)}% crit`);
@@ -396,8 +396,6 @@ function drawBaseCard(c) {
   else if (c.where === 'cargo') {
     if (slotOf === 'hand') acts.push(...handBtns('equip'));
     else if (slotOf) acts.push(`<button class="btn primary" data-act="equip" data-arg="${slotOf}">EQUIP</button>`);
-    if (Game.dive.pocket.length < pocketSlots()) acts.push('<button class="btn wide" data-act="pocket">POCKET (SAFE IF YOU FALL)</button>');
-    if (it.kind !== 'relic') acts.push(salvageBtn);
     acts.push('<button class="btn danger" data-act="drop" data-confirm="SURE? DROP IT">DROP</button>');
   }
   const cmp = (c.where === 'stash' || c.where === 'cargo') ? compareTag(it, s.equip) : '';
@@ -491,8 +489,6 @@ function drawModuleCard(c) {
     if (!m.fav) acts.push(salvageBtn);
   } else if (c.where === 'socket' && home) acts.push('<button class="btn" data-act="modOut">TAKE OUT</button>');
   else if (c.where === 'cargo') {
-    if (Game.dive.pocket.length < pocketSlots()) acts.push('<button class="btn wide" data-act="pocket">POCKET (SAFE IF YOU FALL)</button>');
-    acts.push(salvageBtn);
     acts.push('<button class="btn danger" data-act="drop" data-confirm="SURE? DROP IT">DROP</button>');
   }
   const benchNote = bench ? `<p class="rune-head"><img class="cost-icon" src="${threadIconUrl()}" alt=""><span>Bench work is paid in <b>threads</b> and ore. <span class="${(src.thread || 0) < rr.threads ? 'short' : ''}">You have ${src.thread || 0} threads.</span> A reroll keeps the other traits.</span></p>${resin ? `<div class="chips"><button class="chip ${c.resin ? 'on' : ''}" data-act="modResin"><img class="chip-icon" src="${stuffIconUrl('bloodresin')}" alt="">With Bloodresin<small>have ${src.bloodresin} · the reroll comes out leech</small></button></div>` : ''}`
@@ -712,13 +708,6 @@ Object.assign(UI.acts, {
     const s = field ? Game.dive.cargo : Save.data.stash, list = field ? Game.dive.items : Save.data.items;
     const got = salvageInto(it, list, s, field);
     removeFrom(list, it);
-    if (field) {
-      const d = Game.dive, over = cargoUsed(d) - d.stats.cargo;
-      for (const k of Object.keys(got)) {
-        const left = Math.min(over, s[k] || 0);
-        if (left > 0) { s[k] -= left; if (!s[k]) delete s[k]; d.drops.push({ x: d.p.x, y: d.p.y, t: 0, stuff: k, n: left, left: true }); break; }
-      }
-    }
     UI.toast('Salvaged: ' + stuffLines(got));
     UI.closeCard();
     afterChange();

@@ -8,16 +8,15 @@
 //               Kindler the moment the spire stands: safe from any fall.
 //   deeplight   the deep places: first reaching a Deep's last site (its deep
 //               vein, or its Keeper's lair), each ancient forge found, each
-//               echo. It rides in the cargo (it weighs nothing), so a fall
-//               leaves it in the pack and a recall can cost some of it.
+//               echo. It rides in the cargo, so a fall leaves it in the
+//               pack.
 //   shards      a Keeper's heart-shard, set at the altar as before (story.js).
 // How much each gives is T.deeds; the magnitudes are T.star.levels.
 //
 // The star is the world's gate: a spire holds only where its light reaches,
 // so planting one in ring r needs magnitude T.star.ringMag[r].
 //
-// A fall leaves the cargo (all but the pocket) where the Kindler fell: their
-// pack, with a faint beacon over it, in that territory or that site of its
+// A fall leaves the whole cargo where the Kindler fell: their pack, with a faint beacon over it, in that territory or that site of its
 // Deep, marked on the world map. Walking to it picks it up, once. Fall again
 // before then and the old pack is lost: there's only ever one, the newest.
 // It's kept in the save (Save.data.cache).
@@ -30,7 +29,7 @@
 const LIGHT_IDS = ['deeplight', 'heartlight'];
 const LIGHT_KINDS = {
   heartlight: { name: 'Heartlight', ramp: ['#8a4a12', '#e09a36', '#ffd987', '#fff8e0'], text: "A kindled heart's light, bound to you: safe from any fall. Feed it to the star at the altar." },
-  deeplight: { name: 'Deeplight', ramp: ['#2c1c66', '#5a6ae0', '#86ecff', '#effdff'], text: 'Light from the deep places. It rides in the cargo and weighs nothing, but a fall leaves it in your pack. Feed it to the star at the altar.' },
+  deeplight: { name: 'Deeplight', ramp: ['#2c1c66', '#5a6ae0', '#86ecff', '#effdff'], text: 'Light from the deep places. It rides in the cargo: a fall leaves it in your pack. Feed it to the star at the altar.' },
 };
 function isLight(id) { return !!LIGHT_KINDS[id]; }
 // (a drop of it on the ground, in its own colour: render.js drawDrop)
@@ -161,22 +160,15 @@ function placeCacheHere(d) {
   const c = cacheHere(d);
   if (c) cacheSpot(d, c);
 }
-// Picking the pack up: what fits goes into the cargo (light weighs
-// nothing); anything left over stays in it.
+// Picking the pack up: all of it goes back into the cargo.
 function recoverCache(d, c) {
-  let room = d.stats.cargo - cargoUsed(d), n = 0;
-  const left = { cargo: {}, items: [], blueprints: [] };
-  for (const k of Object.keys(c.cargo)) {
-    const w = isLight(k) ? c.cargo[k] : Math.min(room, c.cargo[k]);
-    if (w > 0) { d.cargo[k] = (d.cargo[k] || 0) + w; n += w; if (!isLight(k)) room -= w; }
-    if (c.cargo[k] - w > 0) left.cargo[k] = c.cargo[k] - w;
-  }
-  for (const id of c.blueprints || []) { if (room >= 1) { d.blueprints.push({ id }); room--; n++; } else left.blueprints.push(id); }
-  for (const it of c.items || []) { if (room >= T.cargo.itemWeight) { d.items.push(it); room -= T.cargo.itemWeight; n++; } else left.items.push(it); }
-  const rest = cacheCount(left);
-  if (rest) Object.assign(c, left); else Save.data.cache = null;
+  const n = cacheCount(c);
+  for (const k of Object.keys(c.cargo)) d.cargo[k] = (d.cargo[k] || 0) + c.cargo[k];
+  for (const id of c.blueprints || []) d.blueprints.push({ id });
+  d.items.push(...(c.items || []));
+  Save.data.cache = null;
   d.cacheAt = null;
-  UI.toast(rest ? `Your pack: ${n} taken, ${rest} left. Cargo full` : `Your pack, recovered: ${n} thing${n === 1 ? '' : 's'}`, 'legendary');
+  UI.toast(`Your pack, recovered: ${n} thing${n === 1 ? '' : 's'}`, 'legendary');
   if (n) { snd('bank'); buzz(30); Story.say('firstRecover'); }
   // (the recovered cargo rides in the run's save, so closing the page now
   // can't lose it, nor bring the pack back)
@@ -270,12 +262,12 @@ function drawLightFx(d, a, ox, oy, lights) {
   }
   if ((d.lightFx || []).length) lights.push({ x: Math.round(p.x * AP) + ox, y: Math.round((p.y - 14) * AP) + oy, r: TILE * 2, i: 0.6, c: rgb01(LIGHT_KINDS[d.lightFx[0].id].ramp[2]) });
 }
-// What deeds and supplies stand among the actors.
+// What deeds stand among the actors.
 function deedProps(d) {
   const out = [], c = !d.hub && cacheHere(d);
   if (c) { const at = cacheSpot(d, c); out.push({ hubDraw: drawCachePack, at, hidden: true, y: at.y }); }
   if (d.lightFx && d.lightFx.length) out.push({ hubDraw: drawLightFx, hidden: true, y: 1e9 });
-  return out.concat(typeof supplyProps === 'function' ? supplyProps(d) : []);
+  return out;
 }
 // Over the lit scene: where the pack lies, named, or a pip at the edge of
 // the view towards it.
@@ -302,31 +294,39 @@ function drawMapCache(px, at, on) {
 }
 
 // ---------------------------------------------------------------------------
-// What's next, from home: the light waiting, the pack, and the deeds open
-// (what each would give the star). A few lines, plainest first.
+// What's next: one goal at a time, the plainest first (a shard to set, the
+// light waiting, the pack, land to kindle, the star to grow, a Deep, a
+// Keeper). Said at the portal and over the view at home.
 // ---------------------------------------------------------------------------
-function nextSteps() {
-  const s = Save.data, out = [], mag = magnitudeOf(s.star), wait = lightWaiting();
-  if (Story.shardsHeld() > Story.shardsSet()) out.push('Set the shard in the star, at the altar.');
-  if (wait) out.push(`Feed the star at the altar: ${wait} light waiting${lightToMag(mag + 1) ? `, ${lightToMag(mag + 1)} to magnitude ${mag + 1}` : ''}.`);
-  const c = s.cache;
-  if (c) out.push(`Your pack waits in ${c.where}. Fall again before you reach it, and it's lost.`);
-  if (!s.world) return out;
+function nextGoal() {
+  const s = Save.data, mag = magnitudeOf(s.star), wait = lightWaiting();
+  if (Story.shardsHeld() > Story.shardsSet()) return 'Set the shard in the star, at the altar.';
+  if (wait && lightToMag(mag + 1) && wait >= lightToMag(mag + 1)) return `Feed the star at the altar: ${wait} light waiting.`;
+  if (s.cache) return `Get your pack back, in ${s.cache.where}.`;
+  if (wait) return `Feed the star at the altar: ${wait} light waiting.`;
+  if (!s.world) return 'Walk out into the land and kindle it.';
   const L = worldMap(), lit = (id) => isKindled(id);
   const front = L.terrs.filter((t) => !t.home && !lit(t.id) && t.nb.some(lit)).sort((a, b) => terrLevel(a) - terrLevel(b));
-  const open = front.filter((t) => starHoldsSpire(t.id)), shut = front.filter((t) => !starHoldsSpire(t.id));
-  if (open.length) out.push(`Kindle ${open[0].name} (ring ${open[0].ring}, level ${terrLevel(open[0])}): +${heartLightFor(open[0])} heartlight${open.length > 1 ? `. ${open.length - 1} more land${open.length > 2 ? 's' : ''} beside the light can be kindled` : ''}.`);
-  if (shut.length) { const r = Math.min(...shut.map((t) => t.ring)), m = T.star.ringMag[r]; out.push(`Ring ${r}'s spires need the star at magnitude ${m}: ${lightToMag(m)} more light.`); }
+  const open = front.find((t) => starHoldsSpire(t.id)), shut = front.filter((t) => !starHoldsSpire(t.id));
   const deep = L.terrs.filter((t) => t.deep && !deepReached(t.id) && (terrPeek(t.id) || {}).visits).sort((a, b) => terrLevel(a) - terrLevel(b))[0];
-  if (deep) out.push(`The Deep under ${deep.name}: +${deepLightFor(deep)} deeplight at its end.`);
   const keep = L.terrs.find((t) => t.gate && regionReached(t.biome) && !(s.shards || []).includes(t.biome));
-  if (keep) out.push(`A Keeper waits at the bottom of the Deep under ${keep.name}: its shard is +${T.story.shardStar} light.`);
-  return out;
+  if (open) return `Kindle ${open.name} (ring ${open.ring}): +${heartLightFor(open)} heartlight.`;
+  if (deep) return `Reach the end of the Deep under ${deep.name}: +${deepLightFor(deep)} deeplight.`;
+  if (keep) return `Take the Keeper's shard, deep under ${keep.name}.`;
+  if (shut.length) { const r = Math.min(...shut.map((t) => t.ring)), m = T.star.ringMag[r]; return `Ring ${r} needs the star at magnitude ${m}: ${lightToMag(m)} more light, from Deeps and old forges.`; }
+  return 'Kindle the land, all the way to the Edge.';
 }
-function nextStepsHtml() {
-  const lines = nextSteps();
-  return lines.length ? `<h3>WHAT'S NEXT</h3><div class="next-steps">${lines.map((l) => `<p>${esc(l)}</p>`).join('')}</div>` : '';
+function nextGoalHtml() {
+  return `<h3>NEXT</h3><div class="next-steps"><p>${esc(nextGoal())}</p></div>`;
 }
+
+// A sortie's tally, as it goes: kills by kind, tears sealed (frontier.js
+// keeps the rest: kindled, Deeps).
+function tallyKill(d, e) {
+  const t = d.tally || (d.tally = {}), k = t.kills || (t.kills = {});
+  k[e.type] = (k[e.type] || 0) + 1;
+}
+function tallySeal(d) { const t = d.tally || (d.tally = {}); t.sealed = (t.sealed || 0) + 1; }
 
 // ---------------------------------------------------------------------------
 // An older save's star: its points were ore's (T.star.levels were then
