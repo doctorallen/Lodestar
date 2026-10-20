@@ -3,11 +3,13 @@
 // The anvil, and the reveal. Forging is three hammer strikes: a marker
 // sweeps a bar, faster each strike but slowing as it drags through the
 // glowing zone, and a tap strikes. In the zone is good, dead in its
-// marked middle perfect. The strikes add up to a quality
-// (0–3) that shifts the rarity odds (T.anvil.odds), so a perfect forge can
-// even come out legendary; it sets a caster's slots, and raises a stone's
-// tier. Then the piece rises from the anvil in its rarity's light (Reveal),
-// and its card opens. The ingot glows hotter with every strike.
+// marked middle perfect. The strikes add up to a quality (0–3: rough,
+// fair, fine, masterwork) that only ever adds to what the recipe makes:
+// stronger base numbers, and a masterwork a module socket more and a
+// linked pair of slots on a caster (T.gear); a fine forge raises a
+// stone's tier. Then the piece rises from the anvil in its quality's
+// light (Reveal), and its card opens. The ingot glows hotter with every
+// strike.
 // ---------------------------------------------------------------------------
 
 // The anvil's scene, laid out in px (it's drawn at AP art px to each).
@@ -24,7 +26,7 @@ const ANVIL_ROWS = [
 ];
 
 const Anvil = {
-  job: null, // { bp, ore, part, exotic, field, rng, k, ph, strikes, zone, ... }
+  job: null, // { bp, ore, size, exotic, field, rng, k, ph, strikes, zone, ... }
   sprite: null,
 
   start(job) {
@@ -36,7 +38,7 @@ const Anvil = {
     UI.show('screen-anvil');
     setTextIfChanged('anvil-call', 'Tap as the marker crosses the glow');
     const bp = BLUEPRINTS[job.bp];
-    setTextIfChanged('anvil-what', `${bp.name}${bp.kind === 'stone' ? ' stone' : ''} in ${T.ores[ORE_INDEX[job.ore]].name}${job.part ? ', bound with ' + partName(job.part).toLowerCase() : ''}${job.exotic ? ', with ' + exoticName(job.exotic).toLowerCase() : ''}${job.imprint ? ', imprinted with ' + LEGENDARIES[job.imprint].name : ''}`);
+    setTextIfChanged('anvil-what', `${bp.name}${bp.kind === 'stone' ? ' stone' : ''} in ${T.ores[ORE_INDEX[job.ore]].name}${job.size && bp.kind === 'caster' ? `, ${job.size} slots` : ''}${job.exotic ? ', with ' + exoticName(job.exotic).toLowerCase() : ''}`);
     this.draw();
   },
 
@@ -87,12 +89,7 @@ const Anvil = {
   // the quality to forge at, without the strikes.
   finish(q = this.quality()) {
     const j = this.job;
-    const item = forgeItem(j.rng, j.bp, j.ore, j.part, j.exotic, q);
-    // a power from the Codex, struck into the piece
-    if (j.imprint) {
-      if (q >= 2 || j.rng.chance(T.imprint.chance)) { item.power = j.imprint; item.name = LEGENDARIES[j.imprint].name; item.imprinted = true; }
-      else j.imprintLost = true;
-    }
+    const item = forgeItem(j.bp, j.ore, j.exotic, q, j.size);
     this.job = null;
     // a caster forged with an elemental exotic: its Element's stone with it
     const extra = item.withStone;
@@ -102,7 +99,6 @@ const Anvil = {
     if (extra) list.push(extra);
     if (!j.field) Save.save();
     Reveal.show(item, j.field ? 'cargo' : 'stash', 'screen-forge', q);
-    if (j.imprintLost) UI.toast("The imprint didn't take");
     if (extra) UI.toast(`And a ${extra.name}`, 'magic');
     return item;
   },
@@ -157,22 +153,31 @@ const Anvil = {
   },
 };
 
-// The moment a piece arrives: it rises in a beam of its rarity's colour,
-// then (on a tap, or by itself) its card opens over `back`.
+// What the anvil added, in words, by quality.
+const ANVIL_ADDS = ['As the recipe says', '+5% on its numbers', '+10% on its numbers', '+15%, a socket more'];
+// A forged piece's light, by the anvil's quality: plain, pale, gold, the
+// orange of a legendary.
+const QUALITY_COLS = ['#b8b0a0', '#c8d2dc', '#ffd34d', '#ff8a3d'];
+const QUALITY_RARITY = ['common', 'magic', 'rare', 'legendary'];
+
+// The moment a piece arrives: it rises in a beam of its quality's colour
+// (a module's, its rarity's), then (on a tap, or by itself) its card opens
+// over `back`.
 const Reveal = {
   item: null, where: null, back: null, shownAt: 0,
   show(item, where, back, q) {
     this.item = item; this.where = where; this.back = back;
-    const col = ART.rarity[item.rarity] || '#ffffff';
+    const forged = q !== undefined, col = forged ? QUALITY_COLS[q] : ART.rarity[item.rarity] || '#ffffff', rar = forged ? QUALITY_RARITY[q] : item.rarity;
+    const masterLink = forged && q >= 3 && item.links ? ', 2 slots linked' : '';
     $('reveal-body').innerHTML = `
       <div class="reveal-beam" style="--col:${col}"></div>
       <img class="reveal-icon" src="${itemIconUrl(item)}" alt="">
-      <div class="reveal-name r-${item.rarity}">${esc(item.name)}</div>
-      <div class="reveal-sub">${esc(itemKindLine(item))}${q !== undefined ? ` · ${['A rough forge', 'A fair forge', 'A fine forge', 'A masterwork'][q]}` : ''}</div>`;
+      <div class="reveal-name r-${forged ? rar : item.rarity}">${esc(item.name)}</div>
+      <div class="reveal-sub">${esc(itemKindLine(item))}${forged ? ` · ${['A rough forge', 'A fair forge', 'A fine forge', 'A masterwork'][q]}: ${item.kind === 'stone' ? (q >= 2 ? 'a tier up' : 'as the recipe says') : ANVIL_ADDS[q] + masterLink}` : ''}</div>`;
     UI.show('screen-reveal');
     this.shownAt = Game.realT;
-    snd('reveal', { rarity: item.kind === 'relic' ? 'relic' : item.rarity });
-    buzz(item.rarity === 'legendary' || item.rarity === 'set' ? 60 : 25);
+    snd('reveal', { rarity: item.kind === 'relic' ? 'relic' : rar });
+    buzz(rar === 'legendary' || rar === 'set' ? 60 : 25);
   },
   done() {
     const it = this.item;

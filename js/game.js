@@ -151,7 +151,7 @@ function placeFieldForge(d) {
   if (hazardNear(f, d.fieldForge.x, d.fieldForge.y, 1)) { const dry = r.cells.filter((c) => !hazardNear(f, c % f.w, Math.floor(c / f.w), 1)); if (dry.length) { const j = dry[(i >>> 0) % dry.length]; d.fieldForge = { x: j % f.w, y: Math.floor(j / f.w) }; } }
   // whoever worked it left a schematic behind, now and then
   const leave = (thing) => d.drops.push(Object.assign({ x: (d.fieldForge.x + 1.5) * TILE, y: (d.fieldForge.y + 0.5) * TILE, t: 0 }, thing));
-  if (rng.chance(T.fieldForge.blueprint)) dropBlueprint(d, leave);
+  if (rng.chance(T.fieldForge.module) && forgeFindOnce(d)) leave({ item: makeModule(rng, moduleFits(rng), dropTier(d), { rarity: rollRarity(rng, floorLevel(d), 'magic'), src: { forge: true } }) });
   if (rng.chance(T.story.echoForge)) leave({ echo: true });
   // and a resonance stone, now and then, by the old forges
   if (rng.chance(T.circuits.resonance.forge) && !codexAllWhole()) leave({ resStone: true });

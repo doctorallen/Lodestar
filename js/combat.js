@@ -6,7 +6,8 @@
 // empty main hand casts a free Arc with its fist. The dash is a burst of
 // speed that nothing can touch. Hits stop the world for a moment and knock
 // enemies back (the view never shakes); heavy ones stagger them. Kills drop
-// creature parts, exotics, sealed relics and healing motes onto the floor.
+// creature parts, exotics, modules (their pattern caught, modules.js),
+// sealed relics and healing motes onto the floor.
 // ---------------------------------------------------------------------------
 
 // The nearest living enemy within range that the diver can see.
@@ -188,19 +189,21 @@ function killEnemy(e) {
     d.drops.push(Object.assign({ x, y, t: 0 }, thing));
   };
   // what it was made of: its own part, graded by the biome; elites and the
-  // warden leave more, and now and then a blueprint, an exotic or a relic
+  // warden leave more, and now and then an exotic or a relic. Its pattern,
+  // caught: a module now and then, from an elite likely, from a warden or
+  // a Keeper several; it collapses where it fell into a crystal
   const grade = d.biome + 1, part = T.enemies[e.type].part || Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
   const parts = (n) => { if (part) for (let k = 0; k < n; k++) drop({ stuff: partId(part, grade), n: 1 }); };
   // a boss's hoard: ordinary parts of any creature (its own heart is apart)
   const hoard = (n) => { for (let k = 0; k < n; k++) drop({ stuff: partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), grade), n: 1 }); };
   const tier = dropTier(d);
+  for (const m of moduleDrops(d, e)) { drop({ item: m }); const dr = d.drops[d.drops.length - 1]; moduleCaptureFx(d, dr.x, dr.y, ART.rarity[m.rarity]); }
   if (e.type === 'keeper') {
     // its lodeline lights, and the dark starts to come back: a short pull
     if (d.zone === 'lair') { d.padDark = false; d.pull = 1; d.pullTime = T.enemies.keeper.afterPull; UI.toast("The star's light reaches down. Go, before the dark comes back", 'legendary'); }
     // its heart-shard, and what it had gathered
     drop({ shard: d.biome });
     drop({ echo: true });
-    dropBlueprint(d, drop, true);
     hoard(L.bossParts);
     for (let k = 0; k < 2; k++) drop({ exotic: randomExotic(rng) });
     if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
@@ -209,7 +212,6 @@ function killEnemy(e) {
   if (e.boss) {
     hoard(L.bossParts);
     drop({ stuff: partId('heart', grade), n: 1 });
-    dropBlueprint(d, drop, true);
     if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
     drop({ exotic: randomExotic(rng) });
     return;
@@ -217,7 +219,6 @@ function killEnemy(e) {
   if (e.elite) {
     parts(rng.i(L.eliteParts[0], L.eliteParts[1]));
     if (rng.chance(L.eliteExotic)) drop({ exotic: randomExotic(rng) });
-    if (rng.chance(L.eliteBlueprint)) dropBlueprint(d, drop);
     if (rng.chance(L.eliteRelic)) drop({ item: makeRelic(tier) });
     if (rng.chance(T.story.echoElite)) drop({ echo: true });
     if (rng.chance(T.circuits.resonance.elite) && !codexAllWhole()) drop({ resStone: true });
@@ -229,19 +230,8 @@ function killEnemy(e) {
   if (rng.chance(L.mote)) drop({ mote: L.moteHeal });
 }
 
-// A blueprint not yet known (nor already carried), likelier one of this
-// biome's own; when every one is known, an exotic instead.
 // Any exotic but the rifts' own.
 function randomExotic(rng) { return rng.pick(T.exotics.filter((x) => !x.riftOnly)).id; }
-
-function dropBlueprint(d, drop, sure) {
-  const known = new Set(Save.data.blueprints.concat(d.blueprints.map((b) => b.id), d.drops.filter((x) => x.blueprint).map((x) => x.blueprint), (d.pocket || []).filter((x) => x.blueprint).map((x) => x.blueprint)));
-  const local = BLUEPRINT_BIOME[T.biomes[d.biome].id].filter((id) => !known.has(id));
-  const any = BP_IDS.filter((id) => !known.has(id));
-  const pool = local.length && (sure || d.rng.chance(0.7)) ? local : any;
-  if (pool.length) drop({ blueprint: d.rng.pick(pool) });
-  else drop({ exotic: randomExotic(d.rng) });
-}
 
 // The tier of loot on this floor: the biome's lower ore, or its deeper one
 // more often further down.
@@ -303,12 +293,21 @@ function updatePickups(dt) {
       dr.gone = true;
       continue;
     }
-    const w = dr.item ? T.cargo.itemWeight : 1;
+    const w = dr.item ? itemWeight(dr.item) : 1;
     if (room < w) {
       if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); }
       continue;
     }
-    if (dr.item) { UI.tip('gear', 'Tap CARGO to look at what you found'); d.items.push(dr.item); UI.toast(dr.item.kind === 'relic' ? 'A sealed relic' : dr.item.name, dr.item.rarity); snd('loot', { rarity: dr.item.kind === 'relic' ? 'relic' : dr.item.rarity }); }
+    if (dr.item && dr.item.kind === 'module') {
+      // the capture field's tether pulls it home
+      d.items.push(dr.item);
+      Save.data.modsFound = (Save.data.modsFound || 0) + 1;
+      moduleTetherFx(d, dr.x, dr.y, ART.rarity[dr.item.rarity]);
+      UI.toast(`Module: ${dr.item.name}`, dr.item.rarity);
+      snd('loot', { rarity: dr.item.rarity });
+      Story.say('module');
+      UI.tip('module', 'Socket modules into your gear at home: free, as often as you like');
+    } else if (dr.item) { UI.tip('gear', 'Tap CARGO to look at what you found'); d.items.push(dr.item); UI.toast(dr.item.kind === 'relic' ? 'A sealed relic' : dr.item.name, dr.item.rarity); snd('loot', { rarity: dr.item.kind === 'relic' ? 'relic' : dr.item.rarity }); }
     else { d.cargo[dr.exotic] = (d.cargo[dr.exotic] || 0) + 1; UI.toast(T.exotics.find((x) => x.id === dr.exotic).name, 'exotic'); snd('loot', { rarity: 'exotic' }); }
     dr.gone = true;
     buzz(12);
@@ -316,10 +315,13 @@ function updatePickups(dt) {
   d.drops = d.drops.filter((dr) => !dr.gone);
 }
 
+// What a piece weighs in the cargo: a module little, a base or a relic more.
+function itemWeight(it) { return it.kind === 'module' ? T.modules.weight : T.cargo.itemWeight; }
 function cargoUsed(d) {
   let n = 0;
   for (const k in d.cargo) n += d.cargo[k];
-  for (const e of d.pocket || []) n += e.item ? T.cargo.itemWeight : e.blueprint ? 1 : e.n;
-  return n + d.items.length * T.cargo.itemWeight + (d.blueprints || []).length;
+  for (const e of d.pocket || []) n += e.item ? itemWeight(e.item) : e.blueprint ? 1 : e.n;
+  for (const it of d.items) n += itemWeight(it);
+  return n + (d.blueprints || []).length;
 }
 function pocketSlots() { return T.cargo.pocket[Math.min(T.cargo.pocket.length, magnitudeOf(Save.data.star)) - 1] + (Game.dive && Game.dive.tool === 'satchel' ? 1 : 0); }

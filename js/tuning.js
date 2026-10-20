@@ -237,6 +237,7 @@ const T = {
     beacon: { mag: 2, cost: { lumenite: 6, cog: 3 }, land: 6, noise: 140, refill: 40, refillRate: 0.12 },
     map: { mag: 3, cost: { lumenite: 8, fiber: 4 }, sight: 6 },
     satchel: { mag: 3, cost: { lumenite: 8, chitin: 4 } },
+    lens: { mag: 2, cost: { lumenite: 6, thread: 6 } },
   },
 
   // The chance a vein is the biome's deeper ore, by site.
@@ -672,11 +673,12 @@ const T = {
 
   // Drops. Enemies leave their own parts (part: the chance; partTwo: the
   // chance of a second), elites and the warden more, and now and then an
-  // exotic, a blueprint or a sealed relic. Finished gear comes from the
-  // forge. motes heal. rarity: [base, per depth] weights (for relics).
+  // exotic or a sealed relic (it opens into a rare or better module); and
+  // modules (T.modules.drop). Bases come from the forge. motes heal.
+  // rarity: [base, per enemy level] weights (for modules).
   loot: {
     part: 0.45, partTwo: 0.15, eliteParts: [2, 3], bossParts: 4,
-    exotic: 0.03, eliteExotic: 0.5, eliteBlueprint: 0.22,
+    exotic: 0.03, eliteExotic: 0.5,
     relic: 0.008, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
     rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [1, 0.35], set: [0.8, 0.25] },
   },
@@ -695,9 +697,62 @@ const T = {
   // Caps on what affixes can add up to.
   caps: { crit: 50, castSpeed: 100, moveSpeed: 50, leech: 15, shock: 60, chill: 60, oreLuck: 100, mineSpeed: 200 },
 
-  // The rune bench, in ore of the item's tier. add also raises the rarity.
-  runes: { reroll: 4, upgrade: 6, upgradeBy: 0.2, add: 10 },
+  // Salvaging a crafted base gives back `back` of its ore (its modules come
+  // out whole), and an exotic now and then.
   salvage: { back: 0.4, exotic: 0.15, exoticRare: 0.5 },
+
+  // Crafted bases (blueprints.js, items.js). Exact: the recipe and its
+  // ore's tier set the stats, the circuit slots and the module sockets, and
+  // the anvil only adds. stat: how much more of its base numbers, by the
+  // anvil's quality (rough, fair, fine, masterwork); a masterwork has
+  // masterSocket more module sockets, and a masterwork caster a linked pair
+  // of slots. sockets: module sockets by tier (1–6); a pick's, pickSockets
+  // (the rusty pick has none). size: the circuit slots a caster can be made
+  // with, smallest first; each slot past the first costs sizeOre ore and
+  // sizeParts parts more.
+  gear: {
+    stat: [0, 0.05, 0.1, 0.15], masterSocket: 1,
+    sockets: [1, 1, 2, 2, 2, 3], pickSockets: [1, 1, 1, 1, 2, 2],
+    size: { wand: [3, 4], gauntlet: [3, 4], staff: [4, 5, 6] }, sizeOre: 3, sizeParts: 1,
+  },
+  // Modules (modules.js): a dying creature's strongest thread, caught by
+  // the suit's capture field and set in a lattice crystal. Rolled loot,
+  // socketed into crafted bases.
+  //   drop: the chance a kill leaves one (foe, elite), or how many (boss:
+  //     a warden; keeper); deep: a Deep's chances, times; early: while
+  //     fewer than `found` have ever been caught, the chances times `mult`;
+  //     lens: carrying the Capture Lens, times.
+  //   rarity: weights as T.loot.rarity's ([base, per enemy level]); an
+  //     elite's is at least magic, a warden's or a Keeper's rare, and a
+  //     Keeper's legendary weight is keeperLegend times.
+  //   affixes: traits by rarity (a legendary's power and a set's bonus are
+  //     traits too, besides these); value: a trait's strength against the
+  //     old item affix's (there are more sockets than there were pieces).
+  //   fits: the odds a module is for a caster, armor, a charm or a pick
+  //     (a creature leans it to where its family can go).
+  //   upgrade: a tier up (to 2–6): ore of the new tier, and threads by the
+  //     new tier. reroll: one trait, the rest locked: threads (+perTier a
+  //     tier above 1) and ore of its tier. fuse: two into one, keeping a
+  //     trait of each, boost stronger: threads (+perTier), ore of the
+  //     higher tier. enrich: a Lodestone shard and threads add a trait
+  //     (common to magic, magic to rare). imprint: a remembered power, for
+  //     a heart or `glass` riftglass, and threads.
+  //   salvage: threads, by rarity, +perTier a tier above 1. weight: in the
+  //     cargo.
+  modules: {
+    drop: { foe: 0.085, elite: 0.7, boss: 2, keeper: 3, deep: 1.4, early: { found: 6, mult: 2.2 }, lens: 1.5 },
+    keeperLegend: 3,
+    affixes: { common: 1, magic: 2, rare: 3, legendary: 2, set: 1 },
+    value: 0.7,
+    fits: { caster: 4, armor: 2.5, charm: 2, pick: 1.5 },
+    upgrade: { ore: 6, threads: [0, 3, 5, 8, 12, 16] },
+    reroll: { threads: 2, perTier: 1, ore: 2 },
+    fuse: { threads: 6, perTier: 2, ore: 4, boost: 0.15 },
+    enrich: { shards: 1, threads: 3 },
+    imprint: { glass: 2, threads: 4 },
+    salvage: { common: 1, magic: 2, rare: 4, legendary: 7, set: 7, perTier: 1 },
+    weight: 1,
+  },
 
   // The Lodestar. Each ore fed is worth tier² points; magnitude n needs
   // levels[n - 1] points in all. Each level past the first is an
@@ -737,18 +792,16 @@ const T = {
     landerEvery: 3, callLanders: 5, turnEcho: 5,
     settlers: { perLander: 1, most: 6, speed: 9, rest: [2, 6], talkR: 1.4, talkGap: 40 },
   },
-  // An ancient forge stands on a floor this deep or deeper, by chance.
-  // Imprinting a known legendary power at the forge costs a heart (any
-  // grade) or `glass` riftglass; a fine forge or better always takes it,
-  // a rougher one with `chance`.
-  imprint: { glass: 2, chance: 0.5 },
-  fieldForge: { blueprint: 0.6 }, // the chance a schematic lies by one (how often one stands is the zone's)
+  // By an ancient forge, the chance a module lies, left by whoever worked
+  // it (how often one stands is the zone's).
+  fieldForge: { module: 0.6 },
   // The anvil: three strikes, each a marker sweeping a bar at `speeds`
   // (sweeps a second), slowed to `drag` of that while it's over the zone.
   // A strike inside the zone (`zone` of the bar wide, narrowing by `shrink`
   // a strike) is good; inside its middle `perfect` of it, perfect. Quality
-  // (perfect 1, good 0.5, summed, rounded down) picks the rarity odds:
-  // [common, magic, rare, legendary] for quality 0–3.
+  // (perfect 1, good 0.5, summed, rounded down) is rough, fair, fine or
+  // masterwork, and only ever adds to the recipe (T.gear: stat, sockets, a
+  // linked pair); a fine forge or better makes a stone a tier higher.
   // Made kinder after the designer found it hard (it was speeds 0.9, 1.25,
   // 1.6, zone 0.26, shrink 0.04, no drag). The good window is now about
   // 500, 350 and 250 ms, strike by strike (was 290, 175, 110), so most
@@ -756,7 +809,6 @@ const T = {
   // 55, 35, with perfect 0.3), so three in a row is still rare.
   anvil: {
     speeds: [0.75, 0.95, 1.15], drag: 0.75, zone: 0.28, shrink: 0.03, perfect: 0.25,
-    odds: [[55, 35, 10, 0], [40, 42, 16, 2], [25, 44, 26, 5], [10, 38, 40, 12]],
   },
   attune: {
     vitality: { name: 'Vitality', text: '+15 max health', max: 5, maxHp: 15 },

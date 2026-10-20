@@ -1,15 +1,21 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Gear: the affix table, rarities, legendary powers, the set, casters and
-// the stones their circuits are built from, and sealed relics; making a
-// piece from a blueprint, forging one from ore, a creature part and maybe an
-// exotic, the rune bench, salvage; and the stats an outfit adds up to.
-// Every roll takes an Rng. What can be made is in blueprints.js; how a
-// circuit casts, in circuits.js.
+// Gear: the affix table, rarities, legendary powers and the set (which
+// modules carry, modules.js); crafted bases (casters, plate, charms,
+// picks) and the stones circuits are built from; sealed relics; forging a
+// base from its recipe; salvaging one; and the stats an outfit adds up to,
+// the modules in its sockets with it. What can be made is in blueprints.js;
+// how a circuit casts, in circuits.js.
+//
+// A base is exact. Its recipe and its ore's tier set its stats, its
+// circuit slots (a caster's, by the size chosen) and its module sockets;
+// the anvil's quality only adds (T.gear). It never rolls an affix: what
+// gives it an identity is what's socketed into it.
 // ---------------------------------------------------------------------------
 
-// Affixes. lo–hi at tier 1, grown by T.items.affixGrowth a tier. dp: decimal
-// places. pct: shown with a %.
+// Affixes, the traits a module carries. lo–hi at tier 1, grown by
+// T.items.affixGrowth a tier (a module's are T.modules.value of that). dp:
+// decimal places. flat: doesn't grow with the tier.
 const AFFIXES = {
   closeDmg: { family: 'close', text: '+{v}% close spell damage', lo: 8, hi: 15 },
   castSpeed: { family: 'close', text: '+{v}% cast speed', lo: 5, hi: 10 },
@@ -31,22 +37,27 @@ const AFFIXES = {
 };
 const AFFIX_IDS = Object.keys(AFFIXES);
 
-// Which affix families each kind of gear can roll.
+// Which affix families a module for each kind of base can roll.
 const KIND_FAMILIES = {
   caster: ['spell', 'close', 'shock', 'leech', 'chill', 'utility'],
   armor: ['defense', 'utility'],
   charm: ['close', 'spell', 'defense', 'utility', 'mining', 'shock', 'leech', 'chill'],
   pick: ['mining', 'utility'],
 };
-const KIND_NAMES = { caster: 'Caster', armor: 'Plate', charm: 'Charm', pick: 'Pick', stone: 'Stone', relic: 'Sealed relic' };
+const KIND_NAMES = { caster: 'Caster', armor: 'Plate', charm: 'Charm', pick: 'Pick', stone: 'Stone', relic: 'Sealed relic', module: 'Module' };
+// what a base of a kind is called in a sentence ("a module for armor")
+const KIND_WORDS = { caster: 'caster', armor: 'armor', charm: 'charm', pick: 'pick' };
+const KIND_PHRASE = { caster: 'a caster', armor: 'armor', charm: 'a charm', pick: 'a pick' };
 const KIND_SLOT = { caster: 'hand', armor: 'armor', charm: 'charm', pick: 'pick' };
 const SLOTS = ['main', 'off', 'pick', 'armor', 'charm'];
 const SLOT_NAMES = { main: 'Main hand', off: 'Off hand', pick: 'Pick', armor: 'Armor', charm: 'Charm' };
+const QUALITY_NAMES = ['Rough', 'Fair', 'Fine', 'Masterwork'];
 
 const RARITIES = ['common', 'magic', 'rare', 'legendary', 'set'];
 const RARITY_NAMES = { common: 'Common', magic: 'Magic', rare: 'Rare', legendary: 'Legendary', set: 'Set' };
 
-// Legendary powers: each changes how you play, and fits certain kinds.
+// Legendary powers: each changes how you play, and fits certain kinds. A
+// module carries one; a caster's own power acts on its own circuit.
 const LEGENDARIES = {
   seismic: { name: 'Faultline', kinds: ['pick'], text: 'Breaking a vein sends out a shockwave' },
   echo: { name: 'Twice-Told', kinds: ['caster'], text: 'Every Form in its circuit fires twice' },
@@ -55,24 +66,15 @@ const LEGENDARIES = {
   stormcaller: { name: 'Stormcaller', kinds: ['caster'], text: 'Bolts chain to two more enemies' },
 };
 
+// The set: three modules, for a pick, armor and a charm, socketed anywhere
+// worn.
 const SETS = {
   regalia: {
     name: "Prospector's Regalia",
-    pieces: { pick: "Prospector's Pick", armor: "Prospector's Coat", charm: "Prospector's Token" },
+    pieces: { pick: "Prospector's Edge", armor: "Prospector's Seam", charm: "Prospector's Token" },
     bonus2: { text: '+20% mining speed, +6 cargo', mineSpeed: 20, cargo: 6 },
     bonus3: { text: 'Breaking a vein heals 3; +20% chance of double ore', oreLuck: 20 },
   },
-};
-
-const MAGIC_PREFIX = { close: 'Keen', spell: 'Humming', defense: 'Sturdy', utility: 'Light', mining: "Delver's", shock: 'Voltaic', leech: 'Thirsting', chill: 'Rimed' };
-const RARE_FIRST = ['Grim', 'Hollow', 'Ember', 'Ashen', 'Star', 'Dusk', 'Iron', 'Pale', 'Rune', 'Vein', 'Night', 'Storm'];
-// The second word of a rare piece's name, by its style.
-const RARE_SECOND = {
-  wand: ['Eye', 'Whisper', 'Lantern', 'Choir', 'Spark'], staff: ['Rod', 'Spire', 'Beacon', 'Stave', 'Choir'],
-  gauntlet: ['Grip', 'Fist', 'Clasp', 'Hand', 'Knuckle'], plate: ['Shell', 'Mantle', 'Ward', 'Hide', 'Bulwark'],
-  weave: ['Veil', 'Shroud', 'Wrap', 'Drift', 'Mantle'], shell: ['Carapace', 'Bastion', 'Husk', 'Shell', 'Bulwark'],
-  charm: ['Token', 'Sigil', 'Knot', 'Mark', 'Seal'], lantern: ['Lamp', 'Wick', 'Glim', 'Beacon', 'Gleam'],
-  pick: ['Delve', 'Breaker', 'Tooth', 'Auger', 'Crag'], drill: ['Auger', 'Bore', 'Spindle', 'Gimlet', 'Screw'],
 };
 
 // The ore of a tier (tier 0, the rusty pick, counts as Ferrite).
@@ -88,75 +90,74 @@ function newItemUid() {
 // ---------------------------------------------------------------------------
 // Rolling
 // ---------------------------------------------------------------------------
-function affixValue(id, tier, roll) {
+// An affix's value at a tier, `roll` (0–1) of the way through its range,
+// times `k`.
+function affixValue(id, tier, roll, k = 1) {
   const a = AFFIXES[id];
   const grow = a.flat ? 1 : 1 + T.items.affixGrowth * (Math.max(1, tier) - 1);
-  const v = (a.lo + (a.hi - a.lo) * roll) * grow;
-  const k = Math.pow(10, a.dp || 0);
-  return Math.max(a.dp ? 0.1 : 1, Math.round(v * k) / k);
+  const v = (a.lo + (a.hi - a.lo) * roll) * grow * k;
+  const p = Math.pow(10, a.dp || 0);
+  return Math.max(a.dp ? 0.1 : 1, Math.round(v * p) / p);
 }
 
-// A random affix this item hasn't got, from one of `families`.
-function rollAffix(rng, item, families) {
-  const have = new Set(item.affixes.map((a) => a.id));
-  const pool = AFFIX_IDS.filter((id) => families.includes(AFFIXES[id].family) && !have.has(id));
-  if (!pool.length) return null;
-  const id = rng.pick(pool);
-  return { id, v: affixValue(id, item.tier, rng.f()), up: 0 };
-}
-
-function rollRarity(rng, level, min = 'common') {
+// A rarity by enemy level, at least `min`; `boost` multiplies the
+// legendary and set weights.
+function rollRarity(rng, level, min = 'common', boost = 1) {
   const floor = RARITIES.indexOf(min);
   const list = RARITIES.filter((r, i) => i >= floor).map((r) => {
     const [base, per] = T.loot.rarity[r];
-    return [Math.max(0.1, base + per * level), r];
+    return [Math.max(0.1, base + per * level) * (r === 'legendary' || r === 'set' ? boost : 1), r];
   });
   return rng.weighted(list);
 }
 
-function baseStats(kind, tier, bp = BLUEPRINTS[KIND_BLUEPRINT[kind]]) {
-  const I = T.items, s = tierScale(tier), m = (bp && bp.mult) || 1;
-  if (kind === 'caster') return { power: Math.round(I.caster.power * s * m * 10) / 10 };
-  if (kind === 'armor') return { armor: Math.round(I.armor.armor * (1 + I.armor.armorGrowth * (Math.max(1, tier) - 1)) * m), hp: Math.round(I.armor.hp * Math.pow(I.armor.hpGrowth, Math.max(1, tier) - 1) * Math.sqrt(m)) };
-  if (kind === 'pick') { const power = tier + 1; return { power, speed: Math.round((1 + I.pick.speedGrowth * (power - 1)) * m * 100) / 100 }; }
+// ---------------------------------------------------------------------------
+// Bases
+// ---------------------------------------------------------------------------
+// A base's numbers: by its kind, tier and recipe, and q (the anvil's
+// quality, 0–3), which only adds.
+function baseStats(kind, tier, bp = BLUEPRINTS[KIND_BLUEPRINT[kind]], q = 0) {
+  const I = T.items, s = tierScale(tier), m = (bp && bp.mult) || 1, up = 1 + T.gear.stat[clamp(q, 0, 3)];
+  if (kind === 'caster') return { power: Math.round(I.caster.power * s * m * up * 10) / 10 };
+  if (kind === 'armor') return { armor: Math.round(I.armor.armor * (1 + I.armor.armorGrowth * (Math.max(1, tier) - 1)) * m * up), hp: Math.round(I.armor.hp * Math.pow(I.armor.hpGrowth, Math.max(1, tier) - 1) * Math.sqrt(m) * up) };
+  if (kind === 'pick') { const power = tier + 1; return { power, speed: Math.round((1 + I.pick.speedGrowth * (power - 1)) * m * up * 100) / 100 }; }
   return {};
 }
 
-// How many slots a caster of a blueprint has, forged at the anvil's quality
-// (0–3), in an ore of a tier (Starmetal has more).
-function casterSlotCount(bpId, q = 1, tier = 1) {
-  const B = T.circuits.bases[(BLUEPRINTS[bpId] || {}).style] || T.circuits.bases.wand, way = T.circuits.ores[oreOfTier(tier).id] || {};
-  return B.slots[clamp(q, 0, 3)] + (way.slots || 0);
+// How many module sockets a base has: by its tier, and one more from a
+// masterwork. The rusty pick has none.
+function socketCount(kind, tier, q = 0) {
+  if (kind === 'pick' && tier < 1) return 0;
+  const S = kind === 'pick' ? T.gear.pickSockets : T.gear.sockets;
+  return S[clamp(tier, 1, S.length) - 1] + (q >= 3 ? T.gear.masterSocket : 0);
 }
 
-// opts: { bp (the blueprint; else the plain one for the kind), rarity,
-// family (an exotic's guaranteed family), binding ({ kind, grade }: a part
-// whose family is guaranteed `grade` affixes, each stronger by the grade),
-// power, set, q (a caster's anvil quality, for its slots) }
-function makeItem(rng, kind, tier, opts = {}) {
-  const rarity = opts.rarity || 'common', bpId = opts.bp || KIND_BLUEPRINT[kind], bp = BLUEPRINTS[bpId];
-  const item = { uid: newItemUid(), kind, bp: bpId, tier, rarity, base: baseStats(kind, tier, bp), affixes: [] };
-  if (rarity === 'legendary') item.power = opts.power || rng.pick(Object.keys(LEGENDARIES).filter((k) => LEGENDARIES[k].kinds.includes(kind)));
-  if (rarity === 'set') item.set = opts.set || 'regalia';
-  const families = KIND_FAMILIES[kind];
-  const n = opts.affixes !== undefined ? opts.affixes : T.items.affixes[rarity];
-  if (opts.family) { const a = rollAffix(rng, item, [opts.family]); if (a) item.affixes.push(a); }
-  const bind = opts.binding;
-  if (bind) {
-    item.binding = bind;
-    const fam = PARTS[bind.kind].family, boost = 1 + T.items.gradeBoost * (bind.grade - 1);
-    for (let k = 0; k < bind.grade && item.affixes.length < n; k++) {
-      const a = rollAffix(rng, item, fam ? [fam] : families);
-      if (!a) break;
-      const A = AFFIXES[a.id], dp = Math.pow(10, A.dp || 0);
-      a.v = Math.round(a.v * boost * dp) / dp;
-      item.affixes.push(a);
-    }
+// How many circuit slots a caster of a recipe has, made at a size, in an
+// ore of a tier (Starmetal adds one).
+function casterSlotCount(bpId, size, tier = 1) {
+  const way = T.circuits.ores[oreOfTier(tier).id] || {};
+  return (size || casterSizes(bpId)[0]) + (way.slots || 0);
+}
+
+// A base, exactly as its recipe says: in an ore of `tier`, forged at
+// quality q (0–3), a caster at `size` slots. A masterwork caster links its
+// second and third slots: a Glyph in either counts twice.
+function makeBase(bpId, tier, q = 0, size) {
+  const bp = BLUEPRINTS[bpId], kind = bp.kind;
+  const item = { uid: newItemUid(), kind, bp: bpId, tier, q: clamp(q, 0, 3), rarity: 'common', base: baseStats(kind, tier, bp, q), affixes: [], sockets: new Array(socketCount(kind, tier, q)).fill(null) };
+  if (kind === 'caster') {
+    item.slots = new Array(casterSlotCount(bpId, size, tier)).fill(null);
+    if (q >= 3 && item.slots.length >= 3) item.links = [1];
   }
-  while (item.affixes.length < n) { const a = rollAffix(rng, item, families); if (!a) break; item.affixes.push(a); }
-  if (kind === 'caster') item.slots = new Array(casterSlotCount(bpId, opts.q === undefined ? rng.i(0, 3) : opts.q, tier)).fill(null);
-  item.name = itemName(rng, item);
+  item.name = baseName(item);
   return item;
+}
+
+// "Lumenite Wand"; the rusty pick.
+function baseName(item) {
+  if (item.kind === 'pick' && item.tier === 0) return 'Rusty Pick';
+  const bp = bpOf(item);
+  return `${oreOfTier(item.tier).name} ${bp ? bp.name : KIND_NAMES[item.kind]}`;
 }
 
 // A stone for a circuit: a Form, an Element or a Glyph, of a tier.
@@ -168,35 +169,38 @@ function makeRelic(tier) {
   return { uid: newItemUid(), kind: 'relic', tier: Math.max(1, tier), rarity: 'relic', affixes: [], name: 'Sealed relic' };
 }
 
-function itemName(rng, item) {
-  if (item.kind === 'pick' && item.tier === 0) return 'Rusty Pick';
-  if (item.set) return SETS[item.set].pieces[item.kind];
-  if (item.power) return LEGENDARIES[item.power].name;
-  const bp = bpOf(item), style = (bp && bp.style) || item.kind;
-  const base = `${oreOfTier(item.tier).name} ${bp ? bp.name : KIND_NAMES[item.kind]}`;
-  if (item.rarity === 'rare') return `${rng.pick(RARE_FIRST)} ${rng.pick(RARE_SECOND[style] || RARE_SECOND.wand)}`;
-  if (item.rarity === 'magic' && item.affixes[0]) return `${MAGIC_PREFIX[AFFIXES[item.affixes[0].id].family]} ${base}`;
-  return base;
-}
-
-// A sealed relic opens at the Lodestar into something rare or better, of
-// any blueprint at all but a stone's (one not yet known is learned from it).
-function unsealRelic(rng, relic) {
-  const rarity = rng.weighted([[60, 'rare'], [25, 'legendary'], [15, 'set']]);
-  if (rarity === 'set') return makeItem(rng, rng.pick(Object.keys(SETS.regalia.pieces)), relic.tier, { rarity });
-  const bpId = rng.pick(BP_IDS.filter((id) => BLUEPRINTS[id].kind !== 'stone'));
-  return makeItem(rng, BLUEPRINTS[bpId].kind, relic.tier, { rarity, bp: bpId });
-}
-
 // A Scrap Gauntlet with an Arc in it and a Cracked Wand with a Bolt: the
-// first fight has close and far, and both have room to grow.
-function startingGear(rng) {
-  const gauntlet = makeItem(rng, 'caster', 1, { bp: 'gauntlet', affixes: 0, q: 0 });
+// first fight has close and far, and both have room to grow. Each has a
+// module socket; the rusty pick has none.
+function startingGear() {
+  const gauntlet = makeBase('gauntlet', 1, 0);
   gauntlet.base.power = 5; gauntlet.name = 'Scrap Gauntlet'; gauntlet.slots[0] = makeStone('arc', 1);
-  const wand = makeItem(rng, 'caster', 1, { bp: 'wand', affixes: 0, q: 0 });
+  const wand = makeBase('wand', 1, 0);
   wand.base.power = 5; wand.name = 'Cracked Wand'; wand.slots[0] = makeStone('bolt', 1);
-  const pick = makeItem(rng, 'pick', 0, { affixes: 0 });
+  const pick = makeBase('pick', 0, 0);
   return { main: gauntlet, off: wand, pick, armor: null, charm: null };
+}
+
+// Makes what a recipe makes, in an ore, at the anvil's quality q (0–3),
+// a caster at `size` slots, maybe with an exotic: riftglass forges it a
+// tier above its ore; an elemental exotic worked into a caster brings its
+// Element's stone out with it (item.withStone). A stone comes out a tier
+// higher from a fine forge. The caller has checked and paid the cost.
+function forgeItem(bpId, oreId, exoticId, q = 0, size) {
+  const bp = BLUEPRINTS[bpId], ex = exoticId && T.exotics.find((e) => e.id === exoticId);
+  const tier = Math.min(T.ores.length, T.ores[ORE_INDEX[oreId]].tier + (ex && ex.tierUp ? 1 : 0));
+  if (bp.kind === 'stone') return makeStone(bp.stone, tier + (q >= 2 ? 1 : 0));
+  const item = makeBase(bpId, tier, q, size);
+  if (bp.kind === 'caster' && ex && ex.element) item.withStone = makeStone(ex.element, tier);
+  return item;
+}
+// What an optional exotic does for a recipe, in words (null: nothing).
+function exoticForgeWord(bpId, ex) {
+  const bp = BLUEPRINTS[bpId];
+  if (!ex || bp.kind === 'stone' || bp.kind === 'tool') return null;
+  if (ex.tierUp) return 'a tier above its ore';
+  if (ex.element && bp.kind === 'caster') return `with a ${CIRCUIT_ELEMENTS[ex.element].name} stone`;
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -206,26 +210,27 @@ function fmtAffix(a) { return AFFIXES[a.id].text.replace('{v}', a.v); }
 
 function itemBaseLine(item) {
   const b = item.base || {};
+  if (item.kind === 'module') return moduleLine(item);
   if (item.kind === 'caster') { const el = (T.circuits.ores[oreOfTier(item.tier).id] || {}).el; return `${b.power} spell power · ${(item.slots || []).length} slots${item.links && item.links.length ? ' (2 linked)' : ''}${el ? ` · attuned to ${CIRCUIT_ELEMENTS[el].name}` : ''}`; }
   if (item.kind === 'armor') return `${b.armor} armor, +${b.hp} max health`;
   if (item.kind === 'pick') { const top = T.ores.filter((o) => o.tier <= b.power).pop(); return `Breaks up to ${top ? top.name : 'nothing'}, ${b.speed}× speed`; }
   if (item.kind === 'stone') return stoneLine(item.stone);
-  if (item.kind === 'relic') return `Tier ${item.tier}. The Lodestar's light will open it.`;
+  if (item.kind === 'relic') return `Tier ${item.tier}. The Lodestar's light will open it: a rare module, or better.`;
   return '';
 }
 
 function itemKindLine(item) {
   if (item.kind === 'relic') return 'Sealed relic';
   if (item.kind === 'stone') return `${STONE_KIND_NAMES[stoneKind(item.stone)]} stone · tier ${item.tier}`;
-  const bp = bpOf(item);
-  return `${RARITY_NAMES[item.rarity]} ${(bp ? bp.name : KIND_NAMES[item.kind]).toLowerCase()} · tier ${item.tier}`;
+  if (item.kind === 'module') return `${item.woven ? 'Woven' : RARITY_NAMES[item.rarity]} module for ${KIND_PHRASE[item.fits]} · tier ${item.tier}`;
+  const bp = bpOf(item), n = (item.sockets || []).length;
+  return `${item.q ? QUALITY_NAMES[item.q] + ' ' : ''}${(bp ? bp.name : KIND_NAMES[item.kind]).toLowerCase()} · tier ${item.tier} · ${n ? `${n} socket${n > 1 ? 's' : ''}` : 'no sockets'}`;
 }
 
-// What else a piece says about itself: its style and binding.
+// What else a piece says about itself: its recipe's way.
 function itemNotes(item) {
   const out = [], bp = bpOf(item);
-  if (bp && bp.text && bp.kind !== 'stone') out.push(bp.text);
-  if (item.binding) out.push(`Bound with ${partName(partId(item.binding.kind, item.binding.grade)).toLowerCase()}.`);
+  if (bp && bp.text) out.push(bp.text);
   return out;
 }
 
@@ -238,23 +243,34 @@ function freshStats() {
     spellDmg: 0, chargeRegen: 0, maxCharge: T.player.charge, moveSpeed: 0,
     cargo: T.cargo.capacity, magnet: T.player.magnet, mineSpeed: 0, oreLuck: 0,
     shock: 0, leech: 0, chill: 0, powers: {}, sets: {}, regalia3: false,
-    // from blueprints' implicits
+    // from recipes' implicits
     dashCd: 0, lamp: 0, pullSlow: 0, noisy: 0,
   };
 }
 
-// What an outfit and the attunements add up to.
+// The modules socketed in a base.
+const baseModules = (it) => ((it && it.sockets) || []).filter(Boolean);
+// Whether a caster carries a power (in a module in its sockets).
+const casterHasPower = (it, power) => baseModules(it).some((m) => m.power === power);
+
+// What an outfit (its bases and the modules in them) and the attunements
+// add up to.
 function computeStats(equip, attune) {
   const s = freshStats();
+  const take = (m) => {
+    for (const a of m.affixes || []) s[a.id] += a.v;
+    if (m.power) s.powers[m.power] = (s.powers[m.power] || 0) + 1;
+    if (m.set) s.sets[m.set] = (s.sets[m.set] || 0) + 1;
+  };
   for (const slot of SLOTS) {
     const it = equip[slot];
     if (!it) continue;
     if (it.kind === 'armor') { s.armor += it.base.armor; s.maxHp += it.base.hp; }
-    for (const a of it.affixes) s[a.id] += a.v;
+    // (a piece from before modules may still carry its own)
+    take(it);
+    for (const m of baseModules(it)) take(m);
     const imp = (bpOf(it) || {}).implicit;
     if (imp) for (const k in imp) s[k] += imp[k];
-    if (it.power) s.powers[it.power] = (s.powers[it.power] || 0) + 1;
-    if (it.set) s.sets[it.set] = (s.sets[it.set] || 0) + 1;
   }
   const reg = s.sets.regalia || 0, R = SETS.regalia;
   if (reg >= 2) { s.mineSpeed += R.bonus2.mineSpeed; s.cargo += R.bonus2.cargo; }
@@ -268,20 +284,22 @@ function computeStats(equip, attune) {
   return s;
 }
 
-// A rough worth, for UPGRADE / DOWNGRADE at a glance against what's worn.
+// A rough worth, for UPGRADE / DOWNGRADE at a glance. A base's is its own
+// (its stats, its slots and sockets), as its modules move with it.
 const AFFIX_WORTH = { closeDmg: 0.4, castSpeed: 0.5, crit: 0.6, spellDmg: 0.4, chargeRegen: 0.2, maxCharge: 0.6, maxHp: 0.3, armor: 0.8, regen: 6, moveSpeed: 0.6, cargo: 0.8, magnet: 0.2, mineSpeed: 0.2, oreLuck: 0.3, shock: 0.5, leech: 1.5, chill: 0.3 };
 function itemWorth(it) {
   if (!it) return 0;
+  if (it.kind === 'module') return moduleWorth(it);
   const b = it.base || {};
   let w = (b.power || 0) * (it.kind === 'pick' ? 8 : 2) + (b.armor || 0) + (b.hp || 0) * 0.3 + (b.speed || 0) * 4;
-  for (const a of it.affixes) w += a.v * (AFFIX_WORTH[a.id] || 0.3);
-  if (it.power) w += 8;
   if (it.slots) w += it.slots.length * 3;
+  w += (it.sockets || []).length * 6;
   return w;
 }
 
-// What an item adds, stat by stat, for comparing two pieces.
-const STAT_WORDS = { power: ['spell power', ''], slots: ['slots', ''], armor: ['armor', ''], hp: ['max health', ''], speed: ['mining speed', '×'] };
+// What an item adds, stat by stat, for comparing two pieces (a base's own
+// numbers; a module's traits).
+const STAT_WORDS = { power: ['spell power', ''], slots: ['circuit slots', ''], sockets: ['module sockets', ''], armor: ['armor', ''], hp: ['max health', ''], speed: ['mining speed', '×'] };
 function itemStatMap(it) {
   const m = {};
   if (!it) return m;
@@ -289,10 +307,11 @@ function itemStatMap(it) {
   for (const k of ['armor', 'hp']) if (b[k]) m[k] = b[k];
   if (it.kind === 'caster') { m.power = b.power; m.slots = it.slots.length; }
   if (it.kind === 'pick') m.speed = b.speed;
-  for (const a of it.affixes) m['a:' + a.id] = (m['a:' + a.id] || 0) + a.v;
+  if (it.kind !== 'module' && it.kind !== 'stone' && it.kind !== 'relic') m.sockets = (it.sockets || []).length;
+  for (const a of it.affixes || []) m['a:' + a.id] = (m['a:' + a.id] || 0) + a.v;
   return m;
 }
-// Lines like "+3 armor" / "−5% close spell damage": what wearing `it`
+// Lines like "+3 armor" / "−5% close spell damage": what having `it`
 // instead of `cur` would change.
 function compareLines(it, cur) {
   const a = itemStatMap(it), b = itemStatMap(cur), out = [];
@@ -306,16 +325,19 @@ function compareLines(it, cur) {
   }
   if (it.power && (!cur || cur.power !== it.power)) out.push({ text: LEGENDARIES[it.power].text, up: true });
   if (cur && cur.power && cur.power !== it.power) out.push({ text: 'Loses: ' + LEGENDARIES[cur.power].text, up: false });
+  if (it.set && (!cur || cur.set !== it.set)) out.push({ text: `A piece of ${SETS[it.set].name}`, up: true });
+  if (cur && cur.set && cur.set !== it.set) out.push({ text: `Loses a piece of ${SETS[cur.set].name}`, up: false });
   return out;
 }
-// Where an affix rolled in its range at its tier, 0–1 (above 1 once raised).
-function affixRoll(a, tier) {
-  const lo = affixValue(a.id, tier, 0), hi = affixValue(a.id, tier, 1);
+// Where an affix rolled in its range at its tier, 0–1 (above 1 once
+// raised); a module's against a module's range.
+function affixRoll(a, tier, k = 1) {
+  const lo = affixValue(a.id, tier, 0, k), hi = affixValue(a.id, tier, 1, k);
   return hi > lo ? (a.v - lo) / (hi - lo) : 1;
 }
 
-// The slot an item would replace. A caster compares with the hand holding
-// the same base, else an empty hand, else the weaker one.
+// The slot a base would replace. A caster compares with the hand holding
+// the same recipe, else an empty hand, else the weaker one.
 function compareSlot(equip, it) {
   const s = KIND_SLOT[it.kind];
   if (!s) return null;
@@ -326,80 +348,14 @@ function compareSlot(equip, it) {
   return itemWorth(equip.off) < itemWorth(equip.main) ? 'off' : 'main';
 }
 
-// ---------------------------------------------------------------------------
-// The forge, the rune bench, the salvager
-// ---------------------------------------------------------------------------
-
-// Which parts can bind a blueprint (none, for an Element stone).
-function bindsWith(bpId, partStack) {
-  const bp = BLUEPRINTS[bpId], p = parsePart(partStack);
-  return !!p && bp.parts > 0 && (!bp.partKinds || bp.partKinds.includes(p.kind));
-}
-// The rarity a forge comes out at, by the anvil's quality (0–3).
-const craftRarity = (rng, q = 1) => rng.weighted(T.anvil.odds[clamp(q, 0, 3)].map((w, i) => [w, ['common', 'magic', 'rare', 'legendary'][i]]));
-const RARITY_STEP = { common: 'magic', magic: 'rare', rare: 'legendary', legendary: 'legendary' };
-
-// Makes a piece from a blueprint: its head in an ore, bound with a part (a
-// stack id, as chitin2), maybe with an exotic, forged at quality q. A heart
-// binding forged fine or better comes out legendary; a caster's slots are
-// set by q. A stone comes out a tier higher from a fine forge. A caster
-// forged with an elemental exotic brings that Element's stone with it
-// (item.withStone). The caller has checked and spent the materials.
-function forgeItem(rng, bpId, oreId, partStack, exoticId, q = 1) {
-  const bp = BLUEPRINTS[bpId], part = parsePart(partStack), ex = exoticId && T.exotics.find((e) => e.id === exoticId);
-  // riftglass forges a piece a tier above its ore
-  const tier = Math.min(T.ores.length, T.ores[ORE_INDEX[oreId]].tier + (ex && ex.tierUp ? 1 : 0));
-  if (bp.kind === 'stone') return makeStone(bp.stone, tier + (q >= 2 ? 1 : 0));
-  let rarity = craftRarity(rng, q);
-  if (ex && ex.rarity) rarity = RARITY_STEP[rarity];
-  if (part && part.kind === 'heart' && q >= 2) rarity = 'legendary';
-  const item = makeItem(rng, bp.kind, tier, { bp: bpId, rarity, family: ex && ex.family, binding: part, q });
-  if (bp.kind === 'caster' && ex && ex.element) item.withStone = makeStone(ex.element, tier);
-  // a masterwork may link a pair of slots: a Glyph in either counts twice
-  if (bp.kind === 'caster' && q >= 3 && rng.chance(T.circuits.links.chance)) item.links = [rng.i(0, item.slots.length - 2)];
-  return item;
-}
-
-function runeOre(item) { return oreOfTier(item.tier).id; }
-
-function rerollAffix(rng, item, i) {
-  const old = item.affixes[i];
-  const fam = KIND_FAMILIES[item.kind] || [];
-  const rest = { affixes: item.affixes.filter((_, j) => j !== i), tier: item.tier };
-  const fresh = rollAffix(rng, rest, fam.includes(AFFIXES[old.id].family) ? fam : fam.concat([AFFIXES[old.id].family]));
-  if (fresh) item.affixes[i] = fresh;
-  return item;
-}
-
-function upgradeAffix(item, i) {
-  const a = item.affixes[i], A = AFFIXES[a.id], k = Math.pow(10, A.dp || 0);
-  if (a.up >= 2) return false;
-  const v = Math.round(a.v * (1 + T.runes.upgradeBy) * k) / k;
-  a.v = A.dp ? v : Math.max(a.v + 1, v);
-  a.up++;
-  return true;
-}
-
-function canAddAffix(item) { return item.kind !== 'stone' && (item.rarity === 'common' || item.rarity === 'magic'); }
-function addAffix(rng, item) {
-  if (!canAddAffix(item)) return false;
-  item.rarity = RARITY_STEP[item.rarity];
-  const a = rollAffix(rng, item, KIND_FAMILIES[item.kind]);
-  if (a) item.affixes.push(a);
-  if (item.rarity === 'rare') item.name = itemName(rng, item);
-  return true;
-}
-
-// What breaking an item down gives back: { ore: id, n, part: stack id |
-// null, exotic: id | null }. Some of its ore, the part that bound it, and
-// sometimes an exotic.
+// What breaking a base or a stone down gives back: { ore: id, n, exotic:
+// id | null }: some of its ore, and now and then an exotic. (Its modules
+// and stones come out whole.)
 function salvageYield(rng, item) {
-  const bp = item.kind === 'relic' ? null : item.kind === 'stone' ? bpOfStone(item.stone) : bpOf(item);
+  const bp = item.kind === 'stone' ? bpOfStone(item.stone) : bpOf(item);
   const n = Math.max(1, Math.floor((bp ? bp.ore : 0) * T.salvage.back));
-  const good = item.rarity === 'rare' || item.rarity === 'legendary' || item.rarity === 'set';
-  const exotic = item.kind !== 'stone' && rng.chance(good ? T.salvage.exoticRare : T.salvage.exotic) ? rng.pick(T.exotics).id : null;
-  const part = item.binding ? partId(item.binding.kind, item.binding.grade) : null;
-  return { ore: oreOfTier(item.tier).id, n, part, exotic };
+  const exotic = item.kind !== 'stone' && rng.chance((item.q || 0) >= 2 ? T.salvage.exoticRare : T.salvage.exotic) ? rng.pick(T.exotics.filter((x) => !x.riftOnly)).id : null;
+  return { ore: oreOfTier(item.tier).id, n, exotic };
 }
 
 // ---------------------------------------------------------------------------
