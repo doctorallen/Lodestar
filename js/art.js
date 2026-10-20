@@ -67,17 +67,19 @@ const ART = {
   exotics: { voltaic: '#ffe45c', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890', riftglass: '#c060ff', thread: '#d8ccff', emberglass: '#ff8a3a', blightcap: '#9ad04a' },
   // creature parts, until they have their own art: a colour a kind
   parts: { chitin: '#8a6a7a', ether: '#9fd8ff', cog: '#b89a58', fiber: '#8ab86a', spore: '#c87ab0', heart: '#ff6a4a' },
-  // a Form's colour (when it has no Element), and each Glyph's; a Glyph's
-  // stone and tile are etched in glyphTeal
+  // a Form's colour (when it has no Element), and each Mod's; a Mod core
+  // and its tile are lit in glyphTeal
   forms: { arc: '#fff0c0', glaive: '#e8e0ff', bolt: '#62f0ff', lance: '#d8e8ff', orb: '#c9a2ff', nova: '#ffb347', well: '#8a5ad0', ward: '#8fb4ff' },
-  glyphs: { split: '#ffd34d', amplify: '#ff8a3d', quicken: '#7fe8ff', chain: '#62f0ff', echo: '#c9a2ff', pierce: '#e8e0ff', linger: '#9ad04a', trigger: '#ffd890' },
+  glyphs: { split: '#ffd34d', amplify: '#ff8a3d', quicken: '#7fe8ff', chain: '#62f0ff', echo: '#c9a2ff', pierce: '#e8e0ff', linger: '#9ad04a' },
   glyphTeal: '#5ff2d0',
-  // a stone's own colours, for its icon and tile (never an ore's, never a
-  // rarity's): body, a ramp dark to light; rune, what glows in it. A Form's
-  // is plain stone with a gold rune, a Glyph's teal, an Element's its own
+  // a core's own colours, for its icon and tile (never an ore's, never a
+  // rarity's): body, a ramp dark to light; rune, its mark's light. A Form's
+  // is a blue lens lit amber, a Mod's a dark chip lit teal, an Element's its
+  // own; housing: the Charter's blue round them (rims, caps, pins)
   stones: {
-    form: { body: ['#24212a', '#433e4c', '#6c6676', '#9c95a6'], rune: '#ffd34d' }, formRim: '#e8dcc0',
-    glyph: { body: ['#0c3530', '#18635a', '#2c9a88', '#68d6c0'], rune: '#d8fff4' },
+    form: { body: ['#0a0b16', '#141932', '#1c2f80', '#2f5cd8'], rune: '#ffb030' }, formRim: '#ffb030',
+    glyph: { body: ['#0e1418', '#1c2830', '#2e3e48', '#4a6070'], rune: '#5ff2d0' },
+    housing: ['#141932', '#1c2f80', '#2f5cd8', '#86b0ff'],
     force: { body: ['#3a3450', '#6a6290', '#a69ccc', '#dcd2f4'], rune: '#7a5cff' },
     shock: { body: ['#3a2c06', '#7a6210', '#c8a828', '#ffe45c'], rune: '#fffbe0' },
     frost: { body: ['#16304a', '#2e5c84', '#5c9ccc', '#a8dcff'], rune: '#f4fcff' },
@@ -814,26 +816,6 @@ function buildEnemySprites(biomeId) {
 // Item icons, drawn in the item's ore: steel and plate take its colours.
 // ---------------------------------------------------------------------------
 const ICON_ROWS = {
-  caster: [
-    '......M..M..M.......',
-    '.....GM.GM.GM.......',
-    '.....GM.GM.GM.......',
-    '.....GM.GM.GM..MM...',
-    '.....GM.GM.GM.GMM...',
-    '....MGMMGMMGMMGM....',
-    '....GGGGGGGGGGGGM...',
-    '....GGGGRRRRGGGGM...',
-    '....GGGRRAARRGGM....',
-    '....GGGRAAAARGGM....',
-    '....GGGRAAAARGGM....',
-    '....GGGRRAARRGGM....',
-    '....GGGGRRRRGGGM....',
-    '.....GGGGGGGGGM.....',
-    '.....MMMMMMMMMM.....',
-    '.....BBBBRBBBBB.....',
-    '.....BBBBBBBBBB.....',
-    '.....MMMMMMMMMM.....',
-  ],
   pick: [
     '........AA..........',
     '.....TTTMMTTT.......',
@@ -907,7 +889,7 @@ function art2Sprite(rows, pal, opts) {
 function itemIconUrl(item) {
   if (item.kind === 'stone') return stoneIconUrl(item.stone);
   if (item.kind === 'module') return moduleIconUrl(item);
-  const style = item.kind === 'relic' ? item.kind : ((typeof bpOf === 'function' && bpOf(item)) || {}).style;
+  const style = item.kind === 'relic' ? item.kind : item.kind === 'caster' ? 'rig' : ((typeof bpOf === 'function' && bpOf(item)) || {}).style;
   const own = ICON_ROWS2[style] && !ICON_ROWS[style];
   const rows = own ? ICON_ROWS2[style] : ICON_ROWS[item.kind];
   const key = item.kind + '/' + style + '/' + item.tier + '/' + item.rarity;

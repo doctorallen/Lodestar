@@ -86,7 +86,6 @@ const WICK = {
   module: "The suit caught its pattern. That's a module: what it was, set in a lattice. Socket it at home.",
   research: "The forge studies anything new we carry in. It's worked out what it can make from it.",
   moduleUp: 'Denser ore, a bigger lattice. It holds more of what it caught now.',
-  fuse: 'Two patterns in one lattice. It holds. I would not have bet on it.',
   unravel: "Unravelled. The threads keep, though. They'll grow or mend another lattice.",
   rift: 'A tear in the world. Things leak through. Seal it, and something solid is left behind.',
   rift_graft: "That ground isn't from here. Neither is the ore in it.",
@@ -139,7 +138,7 @@ const WICK = {
   wick_spark: "Sorry. Reflex. They gave me teeth, small ones.",
   // natures (natures.js)
   weakHit: "It hates that. I'll mark what each kind fears over its head: a point up for what hurts it, down for what it shrugs off.",
-  resistHit: "That barely touched it. Some things shrug an element off. Try the other hand.",
+  resistHit: "That barely touched it. Some things shrug an element off. Try the other spell.",
   warded: "That one's warded. Only something blunt will crack its shell.",
   wardBroken: 'The ward is down. Everything works on it now.',
   shifting: 'Its colour keeps changing, and so does what it fears. Watch the mark.',
@@ -158,8 +157,8 @@ const WICK = {
   react_plague: 'Plague. Poison on the poisoned spreads to everything near.',
   react_stun: 'Stunned. Two heavy blows in a row, and it reels.',
   // resonances (resonance.js)
-  resonance: "The stones are singing together. That's a resonance: the whole circuit woke into one spell.",
-  resStone: 'A resonance stone. It remembers part of a circuit that sings. I put it in the Codex at the forge.',
+  resonance: "The cores are in step. That's a resonance: the whole spell woke into something new.",
+  resStone: "A resonance trace. Part of a spell that wakes. It's in the Codex at the forge.",
   // each clime's own creature, the first time it shows itself (foes.js)
   foe_skink: "Something's swimming under the sand. Where it rings under you, step off.",
   foe_tusker: "That one charges, and on ice it can't stop. Step aside and let the rock have it.",

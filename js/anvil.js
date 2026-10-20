@@ -6,8 +6,8 @@
 // marked middle perfect. The strikes add up to a quality (0–3: rough,
 // fair, fine, masterwork) that only ever adds to what the recipe makes:
 // stronger base numbers, and a masterwork a module socket more and a
-// linked pair of slots on a caster (T.gear); a fine forge raises a
-// stone's tier. Then the piece rises from the anvil in its quality's
+// second Mod slot on a rig frame (T.gear); a fine forge raises a core's
+// tier. Then the piece rises from the anvil in its quality's
 // light (Reveal), and its card opens. The ingot glows hotter with every
 // strike.
 // ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ const ANVIL_ROWS = [
 ];
 
 const Anvil = {
-  job: null, // { bp, ore, size, exotic, field, rng, k, ph, strikes, zone, ... }
+  job: null, // { bp, ore, exotic, field, rng, k, ph, strikes, zone, ... }
   sprite: null,
 
   start(job) {
@@ -38,7 +38,7 @@ const Anvil = {
     UI.show('screen-anvil');
     setTextIfChanged('anvil-call', 'Tap as the marker crosses the glow');
     const bp = BLUEPRINTS[job.bp];
-    setTextIfChanged('anvil-what', `${bp.name}${bp.kind === 'stone' ? ' stone' : ''} in ${T.ores[ORE_INDEX[job.ore]].name}${job.size && bp.kind === 'caster' ? `, ${job.size} slots` : ''}${job.exotic ? ', with ' + exoticName(job.exotic).toLowerCase() : ''}`);
+    setTextIfChanged('anvil-what', `${bp.name}${bp.kind === 'stone' ? ' core' : ''} in ${T.ores[ORE_INDEX[job.ore]].name}${job.exotic ? ', with ' + exoticName(job.exotic).toLowerCase() : ''}`);
     this.draw();
   },
 
@@ -89,9 +89,9 @@ const Anvil = {
   // the quality to forge at, without the strikes.
   finish(q = this.quality()) {
     const j = this.job;
-    const item = forgeItem(j.bp, j.ore, j.exotic, q, j.size);
+    const item = forgeItem(j.bp, j.ore, j.exotic, q);
     this.job = null;
-    // a caster forged with an elemental exotic: its Element's stone with it
+    // a frame forged with an elemental exotic: its Element's core with it
     const extra = item.withStone;
     delete item.withStone;
     const list = j.field ? Game.dive.items : Save.data.items;
@@ -154,7 +154,7 @@ const Anvil = {
 };
 
 // What the anvil added, in words, by quality.
-const ANVIL_ADDS = ['As the recipe says', '+5% on its numbers', '+10% on its numbers', '+15%, a socket more'];
+const ANVIL_ADDS = ['as the recipe says', '+5%', '+10%', '+15%, a socket more'];
 // A forged piece's light, by the anvil's quality: plain, pale, gold, the
 // orange of a legendary.
 const QUALITY_COLS = ['#b8b0a0', '#c8d2dc', '#ffd34d', '#ff8a3d'];
@@ -168,12 +168,12 @@ const Reveal = {
   show(item, where, back, q) {
     this.item = item; this.where = where; this.back = back;
     const forged = q !== undefined, col = forged ? QUALITY_COLS[q] : ART.rarity[item.rarity] || '#ffffff', rar = forged ? QUALITY_RARITY[q] : item.rarity;
-    const masterLink = forged && q >= 3 && item.links ? ', 2 slots linked' : '';
+    const masterMod = forged && q >= 3 && item.spells ? ', 2 Mod slots' : '';
     $('reveal-body').innerHTML = `
       <div class="reveal-beam" style="--col:${col}"></div>
       <img class="reveal-icon" src="${itemIconUrl(item)}" alt="">
       <div class="reveal-name r-${forged ? rar : item.rarity}">${esc(item.name)}</div>
-      <div class="reveal-sub">${esc(itemKindLine(item))}${forged ? ` · ${['A rough forge', 'A fair forge', 'A fine forge', 'A masterwork'][q]}: ${item.kind === 'stone' ? (q >= 2 ? 'a tier up' : 'as the recipe says') : ANVIL_ADDS[q] + masterLink}` : ''}</div>`;
+      <div class="reveal-sub">${esc(itemKindLine(item))}${forged ? ` · ${['Rough', 'Fair', 'Fine', 'Masterwork'][q]}: ${item.kind === 'stone' ? (q >= 2 ? 'a tier up' : 'as the recipe says') : ANVIL_ADDS[q] + masterMod}` : ''}</div>`;
     UI.show('screen-reveal');
     this.shownAt = Game.realT;
     snd('reveal', { rarity: item.kind === 'relic' ? 'relic' : rar });
@@ -185,9 +185,7 @@ const Reveal = {
     this.item = null;
     if (this.back) UI.show(this.back); else UI.close();
     UI.openCard(it, this.where, it.uid);
-    // a woven module that took a socket's place says so
-    if (this.host) { UI.card.host = this.host; this.host = null; drawCard(); }
-    // (woven at the rune bench: its card stays the bench's)
+    // (from the tuning bench: its card stays the bench's)
     if (this.back === 'screen-bench' && it.kind === 'module') { UI.card.bench = true; drawCard(); }
   },
 };

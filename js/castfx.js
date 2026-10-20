@@ -6,8 +6,8 @@
 // facets and lattices, the Charter's gold and blue as accents, switching
 // off in scan-lines rather than fading. A spell still fires on the frame
 // of the tap; everything here wraps round that instant: the diver's arm
-// thrusts the caster at the aim (the pose frames are in diver.js, drawn in
-// render.js), a muzzle opens at the fist (a diamond, rails, a ring across
+// thrusts the wrist projector at the aim (the pose frames are in diver.js,
+// drawn in render.js), a muzzle opens at the fist (a diamond, rails, a ring across
 // the aim), a circuit sigil flashes under the feet, and a shot or a placed
 // spell locks gold brackets on its foe with a guide line out to it. Shots
 // fly as slugs with contrails (a lance a beam that burns a scar into the
@@ -17,7 +17,7 @@
 // pressure wave over the ground from a hexagon of light; a Well pinches
 // space round a dark core; a Ward is a bubble of hexagonal lattice. An Arc
 // and a Glaive's blades are faceted crescents of hard light. A held charge
-// gathers motes into the caster over a growing sigil. Moves leave
+// gathers motes into the wrist projector over a growing sigil. Moves leave
 // afterimages, and an Echo's recast shows a ghost of the pose. The shapes
 // and kept pictures are in hardlight.js.
 //
@@ -41,7 +41,7 @@ const CFX = {
   scars: [], // the lines a lance's beam burns into the ground, cooling
   origin: null, // where the last cast's fist was, for the bolts it fired
   last: null, // the last cast's aim and hand, for an Echo
-  focusAt: { main: null, off: null }, // each focus, from the feet, world px, as drawn
+  focusAt: { main: null, off: null }, // each wrist's projector, from the feet, world px, as drawn
   day: false, // under the sky in daylight, this frame (cfxLight)
   dayLights: [], // the cast's lights this frame, in daylight
 };
@@ -71,8 +71,9 @@ const CFX_BOLT_LOOK = { spark: 'wobble', lance: 'lance', orb: 'orb', shard: 'lan
 const cfxBoltCol = (b) => b.col || (b.element ? cfxEl(b.element).col : CFX_ELEMENTS.force.col);
 const cfxBoltEl = (b) => b.element || null;
 
-// The colour a caster casts in: its first group's (castFx's circuitCol).
-function castFxCol(item) { return isCaster(item) ? circuitCol(item) : ART.forms.arc; }
+// The colour a spell casts in (slot 'main', spell A; 'off', B): its
+// Element's, else its Form's.
+function castFxCol(item, slot = 'main') { return isCaster(item) ? spellCol(rigSpell(item, slot === 'off' ? 1 : 0)) : ART.forms.arc; }
 
 // A fade in a few hard steps, from the share of a life left.
 const cfxBand = (k) => (k > 0.75 ? 1 : k > 0.5 ? 0.75 : k > 0.25 ? 0.5 : k > 0 ? 0.25 : 0);
@@ -243,11 +244,12 @@ function castFxSprite(a, slot, frame = 0) {
   return Sprites.diverCast ? Sprites.diverCast[facingIndex(Math.cos(a), Math.sin(a))][slot === 'off' ? 1 : 0][frame] : null;
 }
 
-// Where the focus is held out in the pose, from the feet, in world px.
-function castFxHandRel(a, slot, style) {
+// Where the wrist projector's light leaves in the pose, from the feet, in
+// world px.
+function castFxHandRel(a, slot) {
   const spr = castFxSprite(a, slot);
   if (!spr) return { x: Math.cos(a) * 6, y: -10 + Math.sin(a) * 4 };
-  const reach = (T.castFx.reach[style] || 0) + 1;
+  const reach = T.castFx.reach + 1;
   return { x: (spr.castHand.x - spr.ax + Math.cos(a) * reach) / AP, y: (spr.castHand.y - spr.ay + Math.sin(a) * reach) / AP };
 }
 
@@ -255,7 +257,7 @@ function castFxHandRel(a, slot, style) {
 // back a little as it eases off.
 function castFxLean(c) {
   if (c.charging) return { x: 0, y: 0 };
-  const L = T.castFx.lean[c.style] || T.castFx.lean.wand, k = 1 - c.t / c.max, th = T.castFx.thrust;
+  const L = T.castFx.lean, k = 1 - c.t / c.max, th = T.castFx.thrust;
   const s = k < th ? L[0] : k < th + (1 - th) * 0.5 ? -L[1] : 0;
   return { x: Math.round(Math.cos(c.a) * s), y: Math.round(Math.sin(c.a) * s * 0.75) };
 }
@@ -264,16 +266,17 @@ function castFxLean(c) {
 // What a cast sets off
 // ---------------------------------------------------------------------------
 
-// A focus casts (castFocus): the pose, and the burst round it. kinds: the
-// spells it fires.
-function castFxStart(d, item, slot, style, charged, kinds) {
+// A spell is cast from a wrist (slot 'main' the right, 'off' the left):
+// the pose, and the burst round the projector. kinds: the Forms it fires;
+// col: its colour.
+function castFxStart(d, item, slot, charged, kinds, col) {
   if (CFX.dive !== d) cfxReset(d);
   const p = d.p, C = T.castFx, a = castFxAim(d);
-  p.cast = { t: C.pose, max: C.pose, charged, slot, style, a, col: castFxCol(item) };
-  const hand = castFxHandRel(a, slot, style), col = p.cast.col, big = charged || kinds.some((k) => (C.shapes[C.shapeOf[k]] || {}).big);
+  p.cast = { t: C.pose, max: C.pose, charged, slot, a, col };
+  const hand = castFxHandRel(a, slot), big = charged || kinds.some((k) => (C.shapes[C.shapeOf[k]] || {}).big);
   CFX.origin = { x: hand.x, y: hand.y, t: Game.realT };
-  CFX.last = { a, slot, style, col };
-  cfxCastBurst(p, a, hand, col, big, charged, style);
+  CFX.last = { a, slot, col };
+  cfxCastBurst(p, a, hand, col, big, charged);
   if (charged) cfxSweep(p.x, p.y, 4, 26, col, C.shapes.burst.time, false, C.shapes.burst.dust);
   // a shot or a placed spell locks on to what it's aimed at, and a guide
   // line traces the way for an instant
@@ -294,9 +297,9 @@ function cfxLock(e, col, hand) {
 
 // The flash at the fist, the motes it kicks out, the circle under the feet,
 // the motes rising round the body.
-function cfxCastBurst(p, a, hand, col, big, charged, style, ghost) {
-  const C = T.castFx, ca = Math.cos(a), sa = Math.sin(a), n = charged ? 2 : 1;
-  CFX.rings.push({ kind: 'flash', x: hand.x, y: hand.y, a, col, t: C.flash[0] * n, max: C.flash[0] * n, f: true, big: charged || style === 'gauntlet' });
+function cfxCastBurst(p, a, hand, col, big, charged, ghost) {
+  const C = T.castFx, n = charged ? 2 : 1;
+  CFX.rings.push({ kind: 'flash', x: hand.x, y: hand.y, a, col, t: C.flash[0] * n, max: C.flash[0] * n, f: true, big: charged });
   cfxFlare(hand.x, hand.y, C.flash[1] * TILE * (charged ? 1.5 : 1), C.flash[2] * (ghost ? 0.5 : 1), col, C.flash[0] * 1.5, true);
   for (let k = 0; k < C.streaks * n; k++) {
     const b = a + FX_R.f(-0.6, 0.6), s = FX_R.f(C.streakSpeed[0], C.streakSpeed[1]);
@@ -309,19 +312,17 @@ function cfxCastBurst(p, a, hand, col, big, charged, style, ghost) {
     const q = cfxPart(CFX_MOTE, 0, 0, 0, 0, C.moteTime * FX_R.f(0.7, 1.2), k % 2 ? col : mix(col, '#ffffff', 0.5), col, true);
     if (q) { q.a = (k / (C.motes * n)) * Math.PI * 2 + FX_R.f(0.4); q.r = FX_R.f(5, 9); q.h = FX_R.f(0, 4); }
   }
-  // a gauntlet's punch: a knuckle-ring knocked off the fist
-  if (style === 'gauntlet') CFX.rings.push({ kind: 'burst', x: hand.x + ca * 2, y: hand.y + sa * 2, r0: 1, r1: 6, col, t: 0.12, max: 0.12, f: true });
 }
 
 // An Echo casts again: a ghost of the pose and its circle, its fist the
 // bolts' origin.
 function castFxEcho(d) {
   if (CFX.dive !== d || !CFX.last || !Game.dive) return;
-  const p = d.p, L = CFX.last, col = ART.glyphs.echo, hand = castFxHandRel(L.a, L.slot, L.style), spr = castFxSprite(L.a, L.slot);
+  const p = d.p, L = CFX.last, col = ART.glyphs.echo, hand = castFxHandRel(L.a, L.slot), spr = castFxSprite(L.a, L.slot);
   CFX.origin = { x: hand.x, y: hand.y, t: Game.realT };
   // (over the diver, or the diver would hide it)
   if (spr) CFX.ghosts.push({ spr, x: p.x, y: p.y, col, t: T.castFx.echo, max: T.castFx.echo, alpha: 0.45, over: true });
-  cfxCastBurst(p, L.a, hand, mix(L.col, col, 0.5), false, false, L.style, true);
+  cfxCastBurst(p, L.a, hand, mix(L.col, col, 0.5), false, false, true);
 }
 
 // A ring swept over the ground from r0 to r1 (world px), at x, y or round
@@ -763,13 +764,13 @@ function updateCastFx(dt) {
   CFX.trails = CFX.trails.filter((tr) => tr.alive || (tr.pts.length > 1 && now - tr.pts[tr.pts.length - 1][2] < Lg));
   for (const sc of CFX.scars) if (sc.b) { if (sc.b.t > 0 && d.bolts.includes(sc.b)) { sc.x1 = sc.b.x; sc.y1 = sc.b.y + 8; sc.t = sc.max; } else sc.b = null; }
   updateResonanceFx(dt);
-  // a caster being charged draws motes in
+  // a spell being charged draws motes into its wrist
   for (const slot of ['main', 'off']) {
-    const h = p.hands[slot], it = Save.data.equip[slot];
+    const h = p.hands[slot], it = Save.data.equip.main;
     if (!h.holding || !isCaster(it)) continue;
     const lv = chargeLevel(h);
     if (lv <= 0 || FX_R.f() > C.charge.motes * lv * dt) continue;
-    const at = CFX.focusAt[slot] || { x: 0, y: -12 }, a = FX_R.f(Math.PI * 2), r = FX_R.f(14, 22), col = castFxCol(it);
+    const at = CFX.focusAt[slot] || { x: 0, y: -12 }, a = FX_R.f(Math.PI * 2), r = FX_R.f(14, 22), col = castFxCol(it, slot);
     const q = cfxPart(CFX_CONV, p.x + at.x + Math.cos(a) * r, p.y + at.y + Math.sin(a) * r * 0.7, 0, 0, FX_R.f(0.3, 0.45), FX_R.f() < 0.3 ? '#ffffff' : col, col);
     if (q) q.slot = slot;
   }
@@ -1073,14 +1074,14 @@ function drawCastGround(d, ox, oy, tick, lights) {
       cfxBlitHard(hlWavePic(hlQuant(lerp(r.r0, r.r1, 1 - (1 - u) * (1 - u)) * AP), r.col, 0.6), x, y, Math.min(1, k * 1.6));
     }
   }
-  // a caster being charged: a circle growing under the feet, flashing when full
+  // a spell being charged: a circle growing under the feet, flashing when full
   for (const slot of ['main', 'off']) {
-    const h = p.hands[slot], it = Save.data.equip[slot];
+    const h = p.hands[slot], it = Save.data.equip.main;
     if (!h.holding || !isCaster(it)) continue;
     const lv = chargeLevel(h);
     if (lv <= 0) continue;
     const C = T.castFx.charge, rx = cfxQuant(lerp(C.glyph[0], C.glyph[1], lv) * AP), full = lv >= 1;
-    cfxBlit(cfxGlyphPic(rx, full && tick % 2 ? '#ffffff' : castFxCol(it), Math.floor(Game.realT * (6 + lv * 10)) % 6), fx, fy, full ? 1 : lv > 0.5 ? 0.75 : 0.5);
+    cfxBlit(cfxGlyphPic(rx, full && tick % 2 ? '#ffffff' : castFxCol(it, slot), Math.floor(Game.realT * (6 + lv * 10)) % 6), fx, fy, full ? 1 : lv > 0.5 ? 0.75 : 0.5);
   }
 }
 // Afterimages on the ground (an Echo's ghost goes over the diver:

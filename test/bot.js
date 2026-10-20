@@ -29,7 +29,7 @@ const SEED = arg('--seed', 101);
       const n = (k) => runs.filter((r) => r.ended === k).length, last = runs[runs.length - 1];
       const P = last.packs || {}, mins = Math.round(runs.reduce((a, r) => a + r.time, 0) / 60);
       console.log(`career ${c + 1}: ${n('home')} home, ${n('recalled')} recalled, ${n('died')} fell, ${n('timeout')} timed out; ${last.kindledAll} kindled, ${runs.filter((r) => r.deep).length} Deeps; magnitude ${last.mag} (${last.star} light), pick ${last.pick}, ${last.hands}, ${last.maxHp} hp; packs left ${P.left || 0}, recovered ${P.recovered || 0}, lost ${P.lost || 0}; supplies used ${JSON.stringify(P.used || {})}; ${mins} min out`);
-      console.log(`  gear tiers ${last.gearTier.join('/')} (main/off/armor/charm/pick); modules caught ${last.found}, socketed ${last.socketed}/${last.sockets} [${last.modRarities}] tiers ${last.modTiers.join(',')}; ${last.ups} upgrades, ${last.rerolls} rerolls, ${last.threads} threads left`);
+      console.log(`  gear tiers ${last.gearTier.join('/')} (rig/armor/charm/pick); modules caught ${last.found}, socketed ${last.socketed}/${last.sockets} [${last.modRarities}] tiers ${last.modTiers.join(',')}; ${last.ups} upgrades, ${last.threads} threads left`);
       console.log(`  modules rolled: ${Object.entries(last.rolled || {}).map(([k, v]) => `${k} ${Object.entries(v).map(([r, n]) => r[0] + n).join(' ')}`).join('; ')}`);
       console.log(`  magnitude by sortie: ${runs.map((r) => r.mag).join(' ')}`);
       console.log(`  built and fitted (after sortie): ${Object.entries(last.built || {}).map(([id, n]) => `${id.replace(/^(bld|wick)_/, '')}@${n}`).join(' ') || 'nothing'}`);
