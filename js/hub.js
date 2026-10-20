@@ -16,8 +16,23 @@
 // ---------------------------------------------------------------------------
 
 // Each station, painted (hubart.js), its feet at ax, ay.
+// A station not yet awake (onboard.js) stands dark: its paint dimmed, its
+// lights out.
 function stationSprite(id) {
-  return { forge: hartForge, runes: hartRunes, locker: hartLocker, altar: hartAltar }[id]();
+  const spr = { forge: hartForge, runes: hartRunes, locker: hartLocker, altar: hartAltar }[id]();
+  return stationAwake(id) ? spr : dormantSprite(spr);
+}
+const _dormant = new Map();
+function dormantSprite(spr) {
+  if (_dormant.has(spr)) return _dormant.get(spr);
+  const [c, x] = makeCanvas(spr.c.width, spr.c.height), [ec] = makeCanvas(spr.c.width, spr.c.height);
+  x.drawImage(spr.c, 0, 0);
+  const im = x.getImageData(0, 0, c.width, c.height), a = im.data;
+  for (let i = 0; i < a.length; i += 4) { const g = (a[i] * 0.3 + a[i + 1] * 0.5 + a[i + 2] * 0.2) * 0.35; a[i] = a[i] * 0.3 + g; a[i + 1] = a[i + 1] * 0.3 + g; a[i + 2] = a[i + 2] * 0.34 + g * 1.1; }
+  x.putImageData(im, 0, 0);
+  const out = Object.assign({}, spr, { c, ec, dormant: true });
+  _dormant.set(spr, out);
+  return out;
 }
 
 const STAR_AT = { x: OUTPOST_CRADLE.x, y: OUTPOST_CRADLE.y - 3.1 }; // tiles: over the cradle
@@ -38,7 +53,7 @@ function drawHubUnder(d, ox, oy, tick, lights) {
   const fg = HUB_STATIONS.find((s) => s.id === 'forge'), fp = stationAt(fg, ox, oy), sp = hartForgeSpill(Math.floor(Game.realT * 7) % 2), fs = hartForge();
   drawArtSprite(sp, fp.x - fs.ax + HART_MOUTH.x - sp.ax, fp.y + 1);
   for (const s of HUB_STATIONS) {
-    if (s.id === 'dummy' || s.id === 'wreck' || s.id === 'setout') continue;
+    if (s.id === 'dummy' || s.id === 'wreck' || s.id === 'setout' || !stationAwake(s.id)) continue;
     const at = stationAt(s, ox, oy), spr = stationSprite(s.id);
     const glow = { forge: [ART.pal.glass[0], 2.2, 1.0], runes: ['#ffb030', 1.2, 0.5], locker: [DIVER_PAL.circuit[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
     const gx = s.id === 'forge' ? at.x - spr.ax + HART_MOUTH.x : at.x, gy = s.id === 'forge' ? at.y - spr.ay + HART_MOUTH.y : at.y - (spr.ay >> 1);
@@ -111,6 +126,8 @@ function drawHubStation(d, a, ox, oy, lights) {
       const ph = (Game.realT * 0.6 + i / 4) % 1, cx = x + HART_STACK.x + Math.round(Math.sin(i * 2.7 + ph * 4) * 2 + ph * 3), cy = y + HART_STACK.y - Math.round(ph * 18);
       dot(cx, cy, i % 2 ? '#5a5a62' : ph < 0.4 ? '#ffb347' : '#902a0a', i % 2 === 0, (1 - ph) * (i % 2 ? 0.5 : 1));
     }
+  } else if (spr.dormant) {
+    // (asleep: nothing lit, nothing turning)
   } else if (s.id === 'altar') {
     // the shard over the bowl, bobbing, its light
     const sh = hartShard(), by = y + spr.bowl.y - 4 + Math.round(Math.sin(Game.realT * 1.6) * 1.5);
@@ -192,7 +209,7 @@ function hubStarMag(d = Game.dive) { return magnitudeOf(Save.data.star - ((d && 
 // The act button pressed at the altar (with no shard to set).
 function startStarFeed(d) {
   if (!starFeedNextLight()) {
-    UI.toast('No light to give. Kindle land and find the deep places, then bring the light home');
+    UI.toast('No light to give yet: kindle land, find the deep places');
     return;
   }
   Story.say('firstFeed');
@@ -301,11 +318,11 @@ function drawCradle(d, a, ox, oy, lights) {
 // talking to the colony ship in orbit. Its tip blinks cold until the colony's
 // called, then burns warm. (Its station keeps the id 'wreck'.)
 function drawUplink(d, a, ox, oy, lights) {
-  const s = HUB_STATIONS.find((x) => x.id === 'wreck'), spr = hartUplink();
+  const s = HUB_STATIONS.find((x) => x.id === 'wreck'), awake = stationAwake('wreck'), spr = awake ? hartUplink() : dormantSprite(hartUplink());
   const fx = Math.round((s.x + 0.5) * ATILE) + ox, fy = Math.round((s.y + 0.5) * ATILE) + oy, x = fx - spr.ax, y = fy - spr.ay;
   drawArtSprite(spr, x, y);
   // the tip: a slow cold blink, then a great warm light once called
-  const bx = x + spr.tip.x, by = y + spr.tip.y, lit = Story.landersCalled(), wk = introWake('wreck');
+  const bx = x + spr.tip.x, by = y + spr.tip.y, lit = Story.landersCalled(), wk = awake ? introWake('wreck') : 0;
   if (lit) { lights.push({ x: bx, y: by, r: TILE * 6, i: 1.4, c: rgb01(ART.pal.star[3]) }); dot(bx, by, ART.pal.star[3], true); dot(bx, by + 1, ART.pal.star[2], true); }
   else {
     const b = Math.max(0, Math.sin(Game.realT * 2));
@@ -313,8 +330,10 @@ function drawUplink(d, a, ox, oy, lights) {
     dot(bx, by, b > 0.5 && wk > 0.5 ? '#9cb4e0' : '#2a3448', b > 0.5 && wk > 0.5);
   }
   // the dish's feed and the console's screen, faintly
-  lights.push({ x: x + spr.feed.x, y: y + spr.feed.y, r: TILE * 0.8, i: 0.35, c: rgb01(ART.pal.rune[0]) });
-  lights.push({ x: x + spr.screen.x, y: y + spr.screen.y, r: TILE * 0.7, i: 0.3, c: rgb01(ART.pal.rune[0]) });
+  if (awake) {
+    lights.push({ x: x + spr.feed.x, y: y + spr.feed.y, r: TILE * 0.8, i: 0.35, c: rgb01(ART.pal.rune[0]) });
+    lights.push({ x: x + spr.screen.x, y: y + spr.screen.y, r: TILE * 0.7, i: 0.3, c: rgb01(ART.pal.rune[0]) });
+  }
   drawStarstone(spr, x, y, 'uplink', lights);
   paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
 }
@@ -492,7 +511,10 @@ function drawStationLabels(d, ox, oy) {
     // (only those in view: the site is wider than the view)
     if (vx < 0 || vx > View.w) continue;
     const a = clamp(1.1 - (m - 2) / 4, 0.45, 1);
-    drawLabel(STATION_LABELS[s.id], Math.round(x * AP) + ox, Math.round((y + STATION_LABEL_Y[s.id]) * AP) + oy, m < 2 ? '#fff2c8' : '#c8bca0', a);
+    // (one not yet awake, dim, and OFFLINE)
+    const awake = stationAwake(s.id), lx = Math.round(x * AP) + ox, ly = Math.round((y + STATION_LABEL_Y[s.id]) * AP) + oy;
+    drawLabel(STATION_LABELS[s.id], lx, ly, !awake ? '#6a6660' : m < 2 ? '#fff2c8' : '#c8bca0', awake ? a : 0.7);
+    if (!awake) drawLabel('OFFLINE', lx, ly + 7, '#8a5a4a', 0.75);
   }
   drawStructureLabels(d, ox, oy);
 }

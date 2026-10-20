@@ -20,6 +20,7 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Cargo (and MAKE: supplies from the ore carried) | CARGO in the top bar | I |
 | Use a Mending Injector / a Lightcell | MEND / LIGHT, the two small buttons at the right deck's top | Q / R |
 | Pause (the MUSIC, SOUNDS and LAMP settings, and START OVER) | II | Esc / P |
+| How it works (the HUD; a screen's own ? in its header) | ? in the top bar | |
 
 The loop:
 1. Walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to a spire.
@@ -29,6 +30,8 @@ The loop:
 5. Carry as much as you like. At a spire, BANK your cargo, or TRAVEL to another spire or home. An emergency recall works anywhere and loses nothing, but you stand still for a few seconds.
 6. If you fall, you wake at the last spire you touched. What you wear and your supplies are safe; all the cargo waits where you fell, in your pack, to go back for once. Fall again first and it's lost.
 7. Some territories have a portal down into a Deep: a short dungeon of richer ore. Its end, the first time, gives deeplight for the star, as do ancient forges and echoes.
+
+A new game starts with the essentials: after the opening, Wick offers to walk you through your first landing, and the rest of the outpost wakes as its moment comes (a station not yet awake stands dark, OFFLINE). Each screen's ? replays its tutorial and a short reference; the ? in the top bar walks the HUD.
 
 At home, walk the outpost's stations:
 - the forge: recipes, each saying exactly what it makes and costs, and the BUILDINGS and WICK tabs, where the outpost's buildings are built (each comes down to its plot) and Wick is fitted with upgrades; it studies anything new you bring home and reveals what it can make from it; strike the anvil well and it adds to the piece; its Codex shows the resonances found so far; SUPPLIES beside it makes Mending Injectors and Lightcells from your plainest ore, upgrades the Refinery (each level makes both stronger) and refines ore up a grade once it stands;
@@ -100,6 +103,8 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/wick.js` | Wick's upgrades (the Scanner, the Lamp, the Hex Shield, the Spark): fitted at the forge, turned off and on at the locker, and at work out in the land |
 | `js/supplies.js` | The two supplies (Mending Injector, Lightcell): their cost in ore, making them at home and in the field, their two deck buttons, using them, the SUPPLIES screen, and an older save's supplies converted |
 | `js/worldmap.js` | The world map (SET OUT at the portal, TRAVEL at a spire) in pixel art, a territory's card, and the heart goal over the view |
+| `js/onboard.js` | Bringing a new Kindler in: what's awake yet (each unlock worked out from progress, everything for an old save), Wick's offer after the opening, the guided first landing (its line over the view, the button it pulses, the marker on the world), the dark stations |
+| `js/tutor.js` | The tutorials, as data a screen each: the dim with its holes, Wick's line, the step done when it's done; SKIP, the ? in each header and the top bar, and each screen's short reference |
 | `js/main.js` | Boot, then the loading (`bootEnter` after its tap), the fixed-step loop, the upright and sideways layouts |
 | `test/` | Static checks, floor and world generation with golden hashes, the gear tables (bases, modules, the bench, the migration of `fixtures/`, saves made before modules), a headless smoke run, and the autopilot (`botlib.js`) playing careers |
 

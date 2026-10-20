@@ -207,6 +207,9 @@ const Save = {
       // come down to its plot; refineryLv: the Refinery's level once it
       // stands) and Wick's upgrades (wick.js; id: on)
       built: [], landing: null, refineryLv: 1, wickUps: {},
+      // what's awake yet, the walkthrough's step and the tutorials seen
+      // (onboard.js, tutor.js)
+      onboard: { mode: null, guide: null, open: {}, seen: {} },
     };
   },
   load() {
@@ -222,6 +225,9 @@ const Save = {
       cleanSave(s);
       // an older star, fed ore: rescaled to light, keeping its magnitude
       if (raw && JSON.parse(raw).starScale !== T.star.scale) { s.starScale = 0; rescaleStar(s); }
+      // what's awake: everything, for a save from before onboarding;
+      // otherwise whatever its progress has earned (onboard.js)
+      if (typeof Onboard !== 'undefined') Onboard.load(s, raw ? JSON.parse(raw) : null);
     } catch (e) {
       // keep what couldn't be read aside, so a fresh game never writes over it
       try { if (raw && !localStorage.getItem(SAVE_KEY + '.unread')) localStorage.setItem(SAVE_KEY + '.unread', raw); } catch (e2) { /* nowhere to keep it */ }

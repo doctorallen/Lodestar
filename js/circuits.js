@@ -238,6 +238,9 @@ function castHand(slot, item, h, charged) {
   if (charged) cost *= C.chargedCost;
   if (p.charge < cost) { p.lowCharge = 0.4; snd('noCharge'); return false; }
   p.charge -= cost;
+  // (counted, for the first landing's walkthrough: onboard.js)
+  const cn = d.casts || (d.casts = {});
+  cn[slot] = (cn[slot] || 0) + 1;
   // an Arc's combo: a press soon after the last carries it on
   const arc = !!g && g.form === 'arc';
   h.step = arc && !charged && h.comboT > 0 ? (h.step + 1) % C.forms.arc.combo.length : 0;

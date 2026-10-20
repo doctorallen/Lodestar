@@ -72,7 +72,8 @@ function enterHub(report, at = {}) {
 function hubWelcome(report) {
   UI.close();
   if (report) UI.openReport(report);
-  else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk out any opening into the land next to the outpost, or take the portal');
+  // (after the opening, once: Wick's offer to walk you through it)
+  else if (!Save.data.run && !Story.intro() && !Onboard.offer()) UI.tip('hub', 'Walk out any opening, or take the portal');
 }
 // The daylight over the outpost: the star's own ground, brighter as it
 // grows (T.outpost.sun).
@@ -260,7 +261,8 @@ function actionHere() {
   const d = Game.dive;
   if (!d || d.dying || d.warp) return null;
   const near = (tx, ty, r) => dist(d.p.x, d.p.y, (tx + 0.5) * TILE, (ty + 0.5) * TILE) < r;
-  if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && near(s.x, s.y, s.id === 'wreck' ? 30 : 20)); return s ? s.id : null; }
+  // (a station not yet awake has no button: onboard.js)
+  if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && stationAwake(s.id) && near(s.x, s.y, s.id === 'wreck' ? 30 : 20)); return s ? s.id : null; }
   const t = floorTile(d.floor, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
   if (t === TILE_PAD && !d.padDark && !d.channel) return 'extract';
   if (d.sortie && !d.channel && stoneHere(d) >= 0) return 'stone';
@@ -460,6 +462,8 @@ function breakOre(tgt, o) {
   f.ore[tgt.i] = 0;
   let n = d.rng.i(T.mine.yield[0], T.mine.yield[1]);
   if (d.rng.f(100) < st.oreLuck) n *= 2;
+  // (the first landing's walkthrough is eased: onboard.js)
+  n += onboardOreBonus(d, o);
   d.cargo[o.id] = (d.cargo[o.id] || 0) + n;
   d.p.mine = null;
   repaintAround(f, tgt.tx, tgt.ty);

@@ -22,6 +22,7 @@
     </div>
     <span id="hud-depth" class="hud-depth"></span>
     <button id="btn-cargo" class="icon-btn cargo" aria-label="Cargo"></button>
+    <button id="btn-help" class="icon-btn help" aria-label="How it works">?</button>
     <button id="btn-pause" class="icon-btn" aria-label="Pause">II</button>
   </header>
 
@@ -31,6 +32,7 @@
     <canvas id="bloom"></canvas>
     <canvas id="view-over"></canvas>
     <div id="hud-goal" class="hud-goal" hidden></div>
+    <div id="guide" class="guide" hidden><img class="tut-wick" alt=""><span class="guide-line"></span><button class="guide-stop" aria-label="Stop the walkthrough">✕</button></div>
   </main>
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="speech" class="speech" hidden aria-live="polite"></div>
@@ -56,6 +58,13 @@
     <p id="story-text" class="story-text"></p>
     <div class="menu"><button class="btn primary" data-act="storyNext">CONTINUE</button></div>
     <p id="story-step" class="note center"></p>
+  </section>
+
+  <!-- after the opening, the first time: Wick offers to walk you through (onboard.js) -->
+  <section id="screen-onboard" class="screen story" hidden>
+    <img id="onboard-wick" class="tut-wick big" alt="">
+    <p class="story-text">Your first landing. Want me to walk you through it?</p>
+    <div class="menu"><button class="btn primary" data-act="guideYes">WALK ME THROUGH IT</button><button class="btn" data-act="guideNo">I KNOW THE DRILL</button></div>
   </section>
 
   <section id="screen-resume" class="screen story" hidden>
@@ -130,7 +139,7 @@
       <button id="pause-sfx" class="btn" data-act="soundSet" data-arg="sfx">SOUNDS: ON</button>
       <button id="pause-lamp" class="btn" data-act="lampSet">LAMP: BEAM</button>
     </div>
-    <p id="pause-note" class="note">A recall takes you home with everything: stand still a few seconds.</p>
+    <p id="pause-note" class="note center">A recall loses nothing. You stand still a few seconds.</p>
     <div class="menu"><button id="pause-restart" class="btn danger quiet" data-act="restartAsk">START OVER</button></div>
     <div class="build" id="build"></div>
   </section>
@@ -244,6 +253,8 @@
 <script src="js/wick.js"></script>
 <script src="js/anvil.js"></script>
 <script src="js/intro.js"></script>
+<script src="js/onboard.js"></script>
+<script src="js/tutor.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

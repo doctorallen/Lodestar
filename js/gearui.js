@@ -64,8 +64,11 @@ function removeModule(uid) {
 // Where the forge draws its materials from: the stash at home, the cargo at
 // an ancient forge.
 function forgeSource() { return UI.forge.field && Game.dive ? Game.dive.cargo : Save.data.stash; }
-// The tabs that have a recipe (BUILDINGS and WICK wait for a later pass).
-const forgeCats = () => RECIPE_CATS.filter(([, c]) => BP_IDS.some((id) => BLUEPRINTS[id].cat === c));
+// The tabs: each that has a recipe and is awake yet (onboard.js: FRAMES and
+// PICKS from the first day, the rest as their moment comes).
+const FORGE_TAB_KEY = { stone: 'spells', armor: 'gear', charm: 'gear', tool: 'tools', structure: 'buildings', wick: 'wick', codex: 'spells' };
+const forgeTabOpen = (c) => !FORGE_TAB_KEY[c] || onboardHas(FORGE_TAB_KEY[c]);
+const forgeCats = () => RECIPE_CATS.filter(([, c]) => BP_IDS.some((id) => BLUEPRINTS[id].cat === c) && forgeTabOpen(c));
 // A stand-in for what a recipe makes (no uid): its icon and its numbers.
 function recipePreview(bpId, tier, q = 0, shard = false) {
   const bp = BLUEPRINTS[bpId];
@@ -119,7 +122,7 @@ function forgeCloseTo(src) {
   const stoneTop = (stone) => Math.max(0, ...s.items.concat(inRig).filter((x) => x.kind === 'stone' && x.stone === stone).map((x) => x.tier));
   for (const id of s.blueprints) {
     const bp = BLUEPRINTS[id];
-    if (!bp || recipeLock(id)) continue;
+    if (!bp || recipeLock(id) || !forgeTabOpen(bp.cat)) continue;
     const tries = recipeOnce(bp) ? [null] : T.ores.filter((o) => (bp.kind === 'stone' ? o.tier > stoneTop(bp.stone) : o.tier > worn(bp.kind)) && o.tier <= Math.max(1, ...forgeOres(src).map((x) => x.tier)));
     for (const o of tries) {
       const cost = recipeCost(id, o && o.id), short = recipeShort(cost, src);
@@ -138,9 +141,9 @@ function forgeCloseTo(src) {
 }
 
 function drawForge() {
-  const src = forgeSource(), F = UI.forge, s = Save.data, known = s.blueprints.filter((id) => BLUEPRINTS[id] && !(F.field && recipeOnce(BLUEPRINTS[id])));
+  const src = forgeSource(), F = UI.forge, s = Save.data, known = s.blueprints.filter((id) => BLUEPRINTS[id] && forgeTabOpen(BLUEPRINTS[id].cat) && !(F.field && recipeOnce(BLUEPRINTS[id])));
   $('forge-title').textContent = F.field ? 'AN ANCIENT FORGE' : 'THE FORGE';
-  if (F.codex && !F.field) { drawCodex(); return; }
+  if (F.codex && !F.field && forgeTabOpen('codex')) { drawCodex(); return; }
   if (!F.bp || !known.includes(F.bp)) F.bp = known.find((id) => BLUEPRINTS[id].kind === 'caster') || known[0];
   const bp = BLUEPRINTS[F.bp], cat = bp.cat, tool = recipeOnce(bp);
   if (!tool && (!F.ore || !forgeOres(src).some((o) => o.id === F.ore))) F.ore = forgeBestOre(F.bp, src);
@@ -153,15 +156,13 @@ function drawForge() {
 
   // what's close, then the tabs and the recipes in this one
   const close = F.field ? [] : forgeCloseTo(src);
-  const closeRows = close.map((c) => `<button class="row close-row" data-act="forgeGo" data-arg="${c.id}${c.ore ? ':' + c.ore : ''}"><img class="icon" src="${recipeIconUrl(c.id, c.ore ? T.ores[ORE_INDEX[c.ore]].tier : 1)}" alt=""><span class="row-text"><span class="row-name">${esc(c.ore && BLUEPRINTS[c.id].kind !== 'stone' ? `${stuffName(c.ore)} ${recipeName(c.id)}` : recipeName(c.id))}${c.ore && BLUEPRINTS[c.id].kind === 'stone' ? ` · tier ${T.ores[ORE_INDEX[c.ore]].tier}` : ''}</span><span class="row-sub short">Needs ${esc(shortWords(c.short))} more</span></span></button>`).join('');
+  const closeRows = close.map((c) => `<button class="row close-row" data-act="forgeGo" data-arg="${c.id}${c.ore ? ':' + c.ore : ''}"><img class="icon" src="${recipeIconUrl(c.id, c.ore ? T.ores[ORE_INDEX[c.ore]].tier : 1)}" alt=""><span class="row-text"><span class="row-name">${esc(c.ore && BLUEPRINTS[c.id].kind !== 'stone' ? `${stuffName(c.ore)} ${recipeName(c.id)}` : recipeName(c.id))}${c.ore && BLUEPRINTS[c.id].kind === 'stone' ? ` · tier ${T.ores[ORE_INDEX[c.ore]].tier}` : ''}</span><span class="row-sub short">${esc(shortWords(c.short))} short</span></span></button>`).join('');
   const cats = forgeCats().filter(([, c]) => !(F.field && (c === 'tool' || c === 'structure' || c === 'wick')));
-  const tabs = `<div class="chips forge-tabs">${cats.map(([label, c]) => `<button class="chip ${!F.codex && cat === c ? 'on' : ''}" data-act="forgeTab" data-arg="${c}">${label}</button>`).join('')}${F.field ? '' : `<button class="chip" data-act="forgeTab" data-arg="codex">CODEX</button>`}</div>`;
+  const tabs = `<div class="chips forge-tabs">${cats.map(([label, c]) => `<button class="chip ${!F.codex && cat === c ? 'on' : ''}" data-act="forgeTab" data-arg="${c}">${label}</button>`).join('')}${F.field || !forgeTabOpen('codex') ? '' : `<button class="chip" data-act="forgeTab" data-arg="codex">CODEX</button>`}</div>`;
   const inTab = known.filter((id) => BLUEPRINTS[id].cat === cat);
-  const all = BP_IDS.filter((id) => BLUEPRINTS[id].cat === cat).length;
   const canMake = (id) => !recipeLock(id) && (recipeOnce(BLUEPRINTS[id]) ? !recipeShort(recipeCost(id), src).length : forgeOres(src).some((o) => !recipeShort(recipeCost(id, o.id), src).length));
   const tiles = inTab.map((id) => `<button class="bp ${id === F.bp ? 'on' : ''}${recipeLock(id) ? ' locked' : ''}" data-act="forgeBp" data-arg="${id}"><img class="icon" src="${recipeIconUrl(id, ore ? ore.tier : 1)}" alt=""><span>${esc(BLUEPRINTS[id].tool ? TOOLS[BLUEPRINTS[id].tool].name.split(' ').pop() : BLUEPRINTS[id].structure ? STRUCTURES[BLUEPRINTS[id].structure].short : BLUEPRINTS[id].kind === 'caster' && ore ? `${ore.name} Rig` : BLUEPRINTS[id].name)}</span>${BLUEPRINTS[id].structure && structureBuilt(BLUEPRINTS[id].structure) || BLUEPRINTS[id].wick && wickFitted(BLUEPRINTS[id].wick) ? '<i class="made" aria-label="Made">✓</i>' : ''}${canMake(id) ? '<i class="can" aria-label="Can be made"></i>' : ''}</button>`).join('');
-  const head = cat === 'structure' ? `BUILDINGS <span class="dim">· ${STRUCTURE_IDS.filter((x) => structureBuilt(x)).length} OF ${STRUCTURE_IDS.length} BUILT</span>` : cat === 'wick' ? `WICK <span class="dim">· ${WICK_UP_IDS.filter((x) => wickFitted(x)).length} OF ${WICK_UP_IDS.length} FITTED</span>` : `RECIPES <span class="dim">· ${inTab.length} OF ${all} KNOWN</span>`;
-  const list = `<h3>${head}</h3>${tabs}<div class="bp-grid">${tiles}</div>${inTab.length < all ? `<p class="note">More come from research: bring home something new.</p>` : ''}`;
+  const list = `${tabs}<div class="bp-grid">${tiles}</div>`;
 
   // the recipe: what to make it in, and exactly what comes out
   const chip = (act, id, label, on, ok = true) => `<button class="chip ${on ? 'on' : ''}" data-act="${act}" data-arg="${id}" ${ok ? '' : 'disabled'}>${label}</button>`;
@@ -169,37 +170,31 @@ function drawForge() {
   let h = '';
   if (!tool) {
     const ores = forgeOres(src);
-    const oreChips = ores.map((o) => chip('forgeOre', o.id, `${stuffIcon(o.id)}${esc(o.name)}<small>tier ${o.tier} · have ${src[o.id]}</small>`, o.id === F.ore)).join('')
-      || `<span class="note">${F.field ? 'No ore in your cargo.' : 'No ore banked.'}</span>`;
-    h += `<h3>MADE IN <span class="dim">· THE ORE SETS THE TIER</span></h3><div class="chips">${oreChips}</div>`;
-    if (exotics.length) h += `<h3>EXOTIC <span class="dim">· IF YOU LIKE</span></h3><div class="chips">${exotics.map((x) => chip('forgeExotic', x.id, `${stuffIcon(x.id)}${esc(x.name)}<small>have ${src[x.id]} · ${esc(exoticForgeWord(F.bp, x, ore.tier))}</small>`, x.id === F.exotic)).join('')}</div>`;
+    const oreChips = ores.map((o) => chip('forgeOre', o.id, `${stuffIcon(o.id)}${esc(o.name)}<small>T${o.tier} · ${src[o.id]}</small>`, o.id === F.ore)).join('')
+      || `<span class="note">No ore${F.field ? ' carried' : ''}.</span>`;
+    h += `<h3>ORE</h3><div class="chips ore-chips">${oreChips}</div>`;
+    if (exotics.length) h += `<h3>EXOTIC</h3><div class="chips">${exotics.map((x) => chip('forgeExotic', x.id, `${stuffIcon(x.id)}${esc(x.name)}<small>${src[x.id]} · ${esc(exoticForgeWord(F.bp, x, ore.tier))}</small>`, x.id === F.exotic)).join('')}</div>`;
   }
   // exactly what comes out
   const ex = F.exotic && T.exotics.find((x) => x.id === F.exotic), lines = [];
   let title = recipeName(F.bp);
   if (bp.kind === 'structure') {
     lines.push(esc(STRUCTURES[bp.structure].text()));
-    lines.push(`Built once, ${esc(structurePlotWhere(bp.structure))}.`);
   } else if (bp.kind === 'wick') {
     lines.push(esc(WICK_UPS[bp.wick].text()));
-    lines.push('Fitted once. Turn it off or on at the locker.');
   } else if (tool) {
-    const t = TOOLS[bp.tool];
-    lines.push(esc(t.text));
-    lines.push('Made once. Choose one tool at the portal.');
+    lines.push(esc(TOOLS[bp.tool].text));
   } else if (bp.kind === 'stone') {
     title = `${bp.name} core`;
-    lines.push(`<b>Tier ${ore.tier} ${esc(STONE_KIND_NAMES[bp.stoneKind])} core.</b> ${esc(stoneLine(bp.stone))}`);
+    lines.push(`<b>T${ore.tier}</b> · ${esc(stoneLine(bp.stone))}`);
   } else {
     const tier = Math.min(T.ores.length, ore.tier + (ex && ex.tierUp ? 1 : 0)), it = recipePreview(F.bp, tier, 0, !!(ex && ex.modSlot));
     title = `${oreOfTier(tier).name} ${bp.name}`;
     const b = it.base, nums = bp.kind === 'caster' ? [`${b.power} power`, `${rigMods(it)} Mod slot${rigMods(it) === 1 ? '' : 's'}`] : bp.kind === 'armor' ? [`${b.armor} armor`, `+${b.hp} health`] : bp.kind === 'pick' ? [itemBaseLine(it)] : [];
     nums.push(`${it.sockets.length} socket${it.sockets.length === 1 ? '' : 's'}`);
-    lines.push(`<b>Tier ${tier}:</b> ${nums.map(esc).join(' · ')}.`);
-    if (bp.kind === 'caster' && rigOreLine(it)) lines.push(esc(rigOreLine(it)) + '.');
-    if (bp.kind === 'caster' && rigMods(it) < 2) lines.push(`<span class="dim">2 Mod slots: ${esc(oreOfTier(T.circuits.rig.mod2Tier).name)} or better, a masterwork, or a Lodestone shard.</span>`);
+    lines.push(`<b>T${tier}</b> · ${nums.map(esc).join(' · ')}`);
+    if (bp.kind === 'caster' && rigOreLine(it)) lines.push(esc(rigOreLine(it)));
     if (bp.text) lines.push(esc(bp.text));
-    lines.push(`<span class="dim">The anvil only adds: up to +15%${bp.kind === 'caster' ? ', a socket and a Mod slot' : ' and a socket'}.</span>`);
   }
   // (made already: what it cost is past, and the button says so)
   const made = (bp.structure && structureBuilt(bp.structure)) || (bp.wick && wickFitted(bp.wick)) || (bp.tool && toolOwned(bp.tool));
@@ -207,23 +202,22 @@ function drawForge() {
   // what it costs, every resource by name
   const tags = [];
   if (cost.ore) tags.push(costTag(cost.ore.id, cost.ore.n, src[cost.ore.id] || 0));
-  for (const p of cost.parts) { const have = partsHave(src, p.kind); tags.push(costTag(p.kind === 'any' ? partId('chitin', 1) : partId(p.kind, 1), p.n, have, p.kind === 'any' ? 'creature parts, any kind' : `${PARTS[p.kind].name} (any grade)`)); }
+  for (const p of cost.parts) { const have = partsHave(src, p.kind); tags.push(costTag(p.kind === 'any' ? partId('chitin', 1) : partId(p.kind, 1), p.n, have, p.kind === 'any' ? `creature part${p.n === 1 ? '' : 's'}, any kind` : `${PARTS[p.kind].name} (any grade)`)); }
   for (const x of cost.stuff) tags.push(costTag(x.id, x.n, src[x.id] || 0));
   if (cost.exotic) tags.push(costTag(cost.exotic, 1, src[cost.exotic] || 0));
   if (ex) tags.push(costTag(ex.id, 1, src[ex.id] || 0));
-  const missing = short.length && !made ? `<p class="note short">Missing ${esc(shortWords(short))}.</p>` : '';
-  const goWord = lock ? lock.toUpperCase() : short.length ? 'NOT ENOUGH YET' : bp.kind === 'structure' ? 'DROP IT ON ITS PLOT' : bp.kind === 'wick' ? 'FIT IT TO WICK' : tool ? 'MAKE IT' : 'TO THE ANVIL';
+  const goWord = lock ? lock.toUpperCase() : short.length ? 'NOT ENOUGH' : '';
   const goLabel = bp.kind === 'structure' ? 'BUILD' : bp.kind === 'wick' ? 'FIT' : tool ? 'MAKE' : 'FORGE';
   $('forge-body').innerHTML = `
     ${closeRows ? `<h3>CLOSE TO MAKING</h3>${closeRows}` : ''}
     ${list}
     <div class="recipe-panel">
-      <div class="card-head"><img class="icon big" src="${recipeIconUrl(F.bp, ore ? ore.tier : 1)}" alt=""><div class="grow"><div class="card-name">${esc(title)}</div><div class="row-sub">${esc(bp.kind === 'structure' ? 'A building for the outpost' : bp.kind === 'wick' ? "An upgrade for Wick" : tool ? 'A tool' : bp.kind === 'stone' ? `${STONE_KIND_NAMES[bp.stoneKind]} core` : KIND_NAMES[bp.kind])}</div></div></div>
+      <div class="card-head"><img class="icon big" src="${recipeIconUrl(F.bp, ore ? ore.tier : 1)}" alt=""><div class="grow"><div class="card-name">${esc(title)}</div><div class="row-sub">${esc(bp.kind === 'structure' ? 'Building' : bp.kind === 'wick' ? 'Wick upgrade' : tool ? 'Tool' : bp.kind === 'stone' ? `${STONE_KIND_NAMES[bp.stoneKind]} core` : KIND_NAMES[bp.kind])}</div></div></div>
       ${h}
       <div class="preview">${lines.map((l) => `<p>${l}</p>`).join('')}</div>
-      ${made ? '' : `<h3>COSTS</h3><div class="cost-list">${tags.join('')}</div>${missing}`}
-      ${F.field ? '<p class="note">What you forge here goes in your cargo.</p>' : ''}
-      <div class="menu forge-go"><button class="btn primary" data-act="craft" ${ready ? '' : 'disabled'}>${goLabel}<small>${esc(goWord)}</small></button></div>
+      ${made ? '' : `<h3>COSTS</h3><div class="cost-list">${tags.join('')}</div>`}
+      ${F.field ? '<p class="note">It goes in your cargo.</p>' : ''}
+      <div class="menu forge-go"><button class="btn primary" data-act="craft" ${ready ? '' : 'disabled'}>${goLabel}${goWord ? `<small>${esc(goWord)}</small>` : ''}</button></div>
     </div>`;
   const on = document.querySelector('#forge-body .bp.on');
   if (on && on.scrollIntoView && UI.forge.scroll) { UI.forge.scroll = false; on.scrollIntoView({ block: 'nearest' }); }
@@ -236,16 +230,16 @@ function drawForge() {
 // them; building one shows it whole) and, whole, what it does.
 function drawCodex() {
   const tabs = `<div class="chips forge-tabs">${forgeCats().map(([label, c]) => `<button class="chip" data-act="forgeTab" data-arg="${c}">${label}</button>`).join('')}<button class="chip on" data-act="forgeTab" data-arg="codex">CODEX</button></div>`;
+  // (what resonances are, and how they wake, is behind the ?)
   const whole = RESONANCES.filter(codexWhole).length;
   const cards = RESONANCES.map((r) => {
     const shown = codexShown(r), all = codexWhole(r);
     const parts = r.parts.map((id, i) => (shown.includes(i) ? stoneTile({ stone: id, tier: 1 }, { mini: true }) : '<span class="tile mini t-unknown" aria-label="Not yet known"><b>?</b></span>')).join('');
     return `<div class="rcard${all ? ' whole' : ''}"><div class="rc-head"><b>${esc(r.name.toUpperCase())}</b><span>${r.parts.length} CORES</span></div><div class="mini-circuit">${parts}</div>
-      <p class="note">${all ? esc(capFirst(r.text)) + '.' : `${shown.length} of ${r.parts.length} known.`}</p></div>`;
+      <p class="note">${all ? esc(capFirst(r.text)) + '.' : `${shown.length}/${r.parts.length} known`}</p></div>`;
   }).join('');
   $('forge-body').innerHTML = `${tabs}
-    <h3>RESONANCES <span class="dim">· ${whole} OF ${RESONANCES.length} WHOLE</span></h3>
-    <p class="note">A spell holding all of one's cores wakes it. Four-core ones need 2 Mod slots.</p>
+    <h3>RESONANCES <span class="dim">· ${whole}/${RESONANCES.length}</span></h3>
     <div class="codex">${cards}</div>`;
 }
 
@@ -264,11 +258,11 @@ function openForge(field) {
 }
 function drawResearch() {
   const finds = UI.research || [], step = Math.min(0.35, 2 / Math.max(1, finds.length));
-  $('research-body').innerHTML = `<p class="note center">The forge studies what you brought home.</p>` + finds.map((f, i) => `
+  $('research-body').innerHTML = finds.map((f, i) => `
     <div class="find" style="--d:${i * step}s"><div class="find-what"><img class="icon" src="${researchIconUrl(f.r)}" alt=""><span>${esc(researchWhat(f.r))}</span></div>
     <div class="find-arrow">→</div>
     <div class="find-opens">${f.opened.map((id, j) => `<span class="find-recipe" style="--d:${i * step + 0.25 + j * 0.15}s"><img class="icon" src="${recipeIconUrl(id)}" alt=""><b>${esc(recipeName(id))}</b></span>`).join('')}</div></div>`).join('')
-    + `<p class="note center">${finds.reduce((n, f) => n + f.opened.length, 0)} new recipe${finds.reduce((n, f) => n + f.opened.length, 0) === 1 ? '' : 's'} at the forge.</p><div class="menu"><button class="btn primary" data-act="researchDone">SEE THE RECIPES</button></div>`;
+    + `<div class="menu"><button class="btn primary" data-act="researchDone">${finds.reduce((n, f) => n + f.opened.length, 0)} NEW · TO THE FORGE</button></div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -279,7 +273,7 @@ function drawGear() {
   const slots = SLOTS.map((k) => {
     const it = s.equip[k];
     return it ? itemRow(it, 'cardEquip', k, `<span class="slot">${SLOT_NAMES[k]}</span>`)
-      : `<div class="row empty"><span class="row-text"><span class="row-name">Empty</span><span class="row-sub">${SLOT_NAMES[k]} · forge one</span></span></div>`;
+      : `<div class="row empty"><span class="row-text"><span class="row-name">${SLOT_NAMES[k]}</span><span class="row-sub">Empty</span></span></div>`;
   }).join('');
   const mods = s.items.filter((it) => it.kind === 'module');
   const modList = MOD_FITS.map((f) => {
@@ -294,14 +288,18 @@ function drawGear() {
   $('gear-body').innerHTML = `
     <div class="stats">${statLine(st)}</div>
     <h3>WORN</h3>${slots}
-    <p class="note">Tap the rig for its spells. Changing cores and modules is free.</p>
-    ${wickLockerHtml()}
-    <h3>MODULES · ${mods.length}</h3>${modList || '<p class="note">None spare.</p>'}
+    ${onboardHas('wick') ? wickLockerHtml() : ''}
+    ${onboardHas('modules') || mods.length ? `<h3>MODULES · ${mods.length}</h3>${modList || '<p class="note">None spare.</p>'}` : ''}
     ${relics.length ? `<h3>SEALED RELICS · ${relics.length}</h3>${relics.map((it) => itemRow(it, 'cardStash', it.uid)).join('')}` : ''}
     <h3>FRAMES AND BASES · ${s.items.filter((it) => kinds.includes(it.kind)).length}</h3>${bases || '<p class="note">None spare.</p>'}
-    <h3>CORES · ${stones.reduce((n, x) => n + x.n, 0)}</h3>${stones.length ? `<div class="drawer-row">${stones.map((x) => stoneTile(x, { act: 'cardStone', arg: x.stone + ':' + x.tier, count: x.n })).join('')}</div>` : '<p class="note">None spare. Forge them: CORES.</p>'}
-    ${down.length ? `<div class="menu"><button class="btn danger" data-act="salvageAll">${UI.salvageAllArmed ? `TAP AGAIN: SALVAGE ${down.length}` : `SALVAGE ALL ▼ (${down.length})`}</button></div><p class="note">Every ▼ not kept (★): bases to ore, modules to threads.</p>` : ''}
-    <h3>MATERIALS</h3><p class="note">${esc(stuffLines(s.stash)) || 'None.'}</p>`;
+    ${onboardHas('spells') || stones.length ? `<h3>CORES · ${stones.reduce((n, x) => n + x.n, 0)}</h3>${stones.length ? `<div class="drawer-row">${stones.map((x) => stoneTile(x, { act: 'cardStone', arg: x.stone + ':' + x.tier, count: x.n })).join('')}</div>` : '<p class="note">None spare.</p>'}` : ''}
+    ${down.length ? `<div class="menu"><button class="btn danger" data-act="salvageAll">${UI.salvageAllArmed ? `TAP AGAIN: SALVAGE ${down.length}` : `SALVAGE ALL ▼ (${down.length})`}</button></div>` : ''}
+    <h3>MATERIALS</h3>${stuffChips(s.stash) || '<p class="note">None.</p>'}`;
+}
+// Materials as icons and counts, each named.
+function stuffChips(stash) {
+  const ids = stuffIds().filter((id) => stash[id]);
+  return ids.length ? `<div class="mats">${ids.map((id) => `<span class="mat"><img class="cost-icon" src="${stuffIconUrl(id)}" alt="">${stash[id]} ${esc(stuffName(id))}</span>`).join('')}</div>` : '';
 }
 function statLine(st) {
   const bits = [`${st.maxHp} health`, `${st.armor} armor`];
@@ -335,7 +333,6 @@ function drawBench() {
   const stash = s.items.filter((x) => x.kind === 'module').sort((a, b) => MOD_FITS.indexOf(a.fits) - MOD_FITS.indexOf(b.fits) || moduleWorth(b) - moduleWorth(a));
   $('bench-body').innerHTML = `
     <p class="have-line"><img class="cost-icon" src="${threadIconUrl()}" alt=""><b>${s.stash.thread || 0} Threads</b> · ${esc(stuffLines(Object.fromEntries(T.ores.filter((o) => s.stash[o.id]).map((o) => [o.id, s.stash[o.id]]))) || 'no ore')}</p>
-    <p class="note">Tap a module to upgrade or salvage it.</p>
     <h3>SOCKETED · ${rows.length}</h3>${rows.join('') || '<p class="note">Nothing socketed.</p>'}
     <h3>IN THE STASH · ${stash.length}</h3>${stash.map((m) => moduleRow(m, 'benchMod', m.uid, moduleTag(m, s.equip))).join('') || '<p class="note">None.</p>'}`;
 }
@@ -387,11 +384,12 @@ function drawBaseCard(c) {
   }
   const canFav = it.kind !== 'relic' && it.kind !== 'stone' && home;
   const favBtn = canFav ? `<button class="mini fav ${it.fav ? 'on' : ''}" data-act="fav" title="Keep: never salvaged">${it.fav ? '★ KEPT' : '☆ KEEP'}</button>` : '';
-  const sockets = it.sockets ? socketPanel(it, home, c) : '';
+  // (sockets wake with the first module caught: onboard.js)
+  const sockets = it.sockets && onboardHas('modules') ? socketPanel(it, home, c) : '';
   $('card-body').innerHTML = cardBar(cardWhere(c), favBtn) + `<div class="card-scroll">
     <div class="card-head">${iconImg(it, 'icon big')}<div class="grow"><div class="card-name ${it.q ? 'q-' + it.q : ''}">${esc(it.name)} ${cmp}</div><div class="row-sub">${esc(itemKindLine(it))}</div></div></div>
     <p class="base">${esc(itemBaseLine(it))}</p>
-    ${isCaster(it) ? `<h3>SPELLS</h3>${spellPanel(it, home && c.focus === 'spells', c)}${!home && (c.where === 'cargo' || c.where === 'worn') ? '<p class="note">Change its cores at home.</p>' : ''}` : ''}
+    ${isCaster(it) ? `<h3>SPELLS</h3>${spellPanel(it, home && c.focus === 'spells' && onboardHas('spells'), c)}` : ''}
     ${sockets}
     ${itemNotes(it).map((n) => `<p class="note">${esc(n)}</p>`).join('')}
     ${extra}
@@ -402,15 +400,14 @@ function drawBaseCard(c) {
 // drawer of modules that fit, each against what's in the chosen socket.
 function socketPanel(it, home, c) {
   const n = it.sockets.length;
-  if (!n) return `<h3>MODULES · NO SOCKETS</h3><p class="note">${it.kind === 'pick' && it.tier === 0 ? 'Too crude for a module.' : 'No sockets.'}</p>`;
+  if (!n) return '<h3>MODULES · NO SOCKETS</h3>';
   if (typeof c.sock !== 'number' || c.sock >= n) c.sock = Math.max(0, it.sockets.indexOf(null));
   const edit = home && c.focus === 'modules';
   const tiles = it.sockets.map((m, i) => modTile(m, home ? { act: 'sockPick', arg: i, sel: edit && c.sock === i } : m ? { act: 'cardSock', arg: i } : {})).join('');
   let h = `<h3>MODULES · ${baseModules(it).length}/${n} SOCKETS</h3><div class="sockets-row">${tiles}</div>`;
   const traits = baseModules(it).flatMap((m) => moduleTraits(m).map((t) => `<p class="${t.key === 'power' ? 'power' : t.key === 'set' ? 'set' : ''}">${esc(t.text)}</p>`));
   if (traits.length) h += `<div class="readout mods">${traits.join('')}</div>`;
-  if (!home) return h + (c.where === 'cargo' || c.where === 'worn' ? '<p class="note">Change its modules at home.</p>' : '');
-  if (!edit) return h + '<p class="note">Tap a socket to change it.</p>';
+  if (!home || !edit) return h;
   const sel = it.sockets[c.sock], have = Save.data.items.filter((x) => x.kind === 'module' && x.fits === it.kind).sort((a, b) => moduleWorth(b) - moduleWorth(a));
   const rows = have.map((m) => {
     const lines = compareLines(m, sel), a = moduleWorth(m), b = moduleWorth(sel);
@@ -418,7 +415,7 @@ function socketPanel(it, home, c) {
     return `<button class="row mod-row" data-act="sockPut" data-arg="${m.uid}"><img class="icon" src="${moduleIconUrl(m)}" alt=""><span class="row-text"><span class="row-name r-${m.rarity}">${esc(m.name)} <small class="dim">T${m.tier}</small></span><span class="row-traits">${lines.map((l) => `<i class="${l.up ? 'up' : 'down'}">${l.up ? '▲' : '▼'} ${esc(l.text)}</i>`).join(' ') || 'No change'}</span></span>${tag}</button>`;
   }).join('');
   h += `<div class="drawer"><div class="drawer-head"><span>SOCKET ${c.sock + 1} · ${sel ? esc(sel.name.toUpperCase()) : 'EMPTY'}</span>${sel ? `<span><button class="mini" data-act="cardSock" data-arg="${c.sock}">LOOK</button><button class="mini" data-act="sockOut">TAKE OUT</button></span>` : ''}</div>
-    ${rows || `<p class="note">No spare modules for ${KIND_PHRASE[it.kind]}.</p>`}</div>`;
+    ${rows || '<p class="note">None spare.</p>'}</div>`;
   return h;
 }
 
@@ -499,7 +496,7 @@ Object.assign(UI.acts, {
     if (bp.kind === 'structure') {
       if (!buildStructure(bp.structure)) return;
       snd('reveal', { rarity: 'legendary' });
-      UI.toast(`Built: the ${STRUCTURE_NAMES[bp.structure]}. It's coming down to its plot, ${structurePlotWhere(bp.structure)}`, 'legendary');
+      UI.toast(`Built: the ${STRUCTURE_NAMES[bp.structure]}. It's coming down`, 'legendary');
       UI.redraw();
       return;
     }
@@ -513,7 +510,7 @@ Object.assign(UI.acts, {
     if (bp.kind === 'tool') {
       if (!makeTool(bp.tool)) return;
       snd('reveal', { rarity: 'legendary' });
-      UI.toast(`Made: ${TOOLS[bp.tool].name}. It's what you'll carry next`, 'legendary');
+      UI.toast(`Made: ${TOOLS[bp.tool].name}`, 'legendary');
       UI.redraw();
       return;
     }

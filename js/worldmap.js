@@ -176,18 +176,18 @@ function drawMapCard() {
   const pill = `<span class="pill ${seen ? word : 'edge'}">${seen ? word.toUpperCase() : 'UNKNOWN'}</span>`;
   const row = (a, b) => `<div class="trow"><span>${a}</span><span>${b}</span></div>`;
   let h = `<div class="nm">${esc(t.name.toUpperCase())}</div><div class="sub">${t.home ? 'Ring 0 · home' : `Ring ${t.ring} · ${esc(seen ? climeName(t.clime) : 'beyond the light')}`}${pill}</div>`;
-  if (t.home) h += `<div class="goal">Home. The Lodestar hangs over its cradle, and every station is here. Walk out any of its openings into the land next to it.</div>`;
-  else if (!seen) h += `<div class="goal">Beyond the light. Nothing is known until it's walked.</div>` + row('ENEMIES', `level ${terrLevel(t)}+`);
+  if (t.home) h += `<div class="goal">Home. Every station is here.</div>`;
+  else if (!seen) h += `<div class="goal">Unknown until walked.</div>` + row('ENEMIES', `level ${terrLevel(t)}+`);
   else {
     const ores = T.biomes[t.biome].ores.map((id) => T.ores[ORE_INDEX[id]].name).join(', ');
     h += row('ENEMIES', `level ${terrLevel(t)}`) + row('ORE', ores + (t.edge ? ' (rich)' : ''));
     const g = MAP_GOAL_TEXT[t.goal];
-    if (s.starter) h += `<div class="goal"><b>Kindled.</b> The outpost's own spire lights it. Walk out into it from the outpost.</div>`;
-    else if (word === 'kindled') h += `<div class="goal"><b>Kindled.</b> ${g ? esc(g[0]) + ', done.' : ''} Its spire banks your cargo, and travels to any other.</div>`;
+    if (s.starter) h += `<div class="goal"><b>Kindled</b> by the outpost's own spire.</div>`;
+    else if (word === 'kindled') h += `<div class="goal"><b>Kindled.</b> Its spire banks and travels.</div>`;
     else if (!s.visits) h += row('HEART GOAL', 'unknown');
     else {
-      const prog = s.done ? 'Done: plant the spire at its heart (6 s).' : t.goal === 'waystones' ? `${(s.lit || []).length} of 3 waystones lit.` : '';
-      h += `<div class="goal"><b>To kindle: ${esc(g[0])}.</b><br>${esc(g[1])}${prog ? `<br><span class="r-legendary">${prog}</span>` : ''}</div>` + row('THEN', `plant the spire (${T.world.plant} s)`);
+      const prog = s.done ? 'Done: plant the spire.' : t.goal === 'waystones' ? `${(s.lit || []).length}/3 lit` : '';
+      h += `<div class="goal"><b>To kindle: ${esc(g[0])}</b>${prog ? ` · <span class="r-legendary">${prog}</span>` : ''}</div>` + row('THEN', `plant the spire (${T.world.plant} s)`);
     }
     if (s.visits && t.deep) h += row('A DEEP', `a portal down, ${t.deep} site${t.deep > 1 ? 's' : ''}${deepZone(t, t.deep) === 'lair' ? ", the Keeper's Lair at the bottom" : ''}`);
     // what its deeds would give the star (deeds.js)
@@ -196,7 +196,7 @@ function drawMapCard() {
   }
   // the pack a fall left here
   const pack = Save.data.cache;
-  if (pack && pack.terr === t.id) h += `<div class="goal"><b class="r-legendary">Your pack lies here</b>${pack.site ? `, in its Deep (site ${pack.site})` : ''}. Walk to it to take it back. Fall again before you do, and it's lost.</div>`;
+  if (pack && pack.terr === t.id) h += `<div class="goal"><b class="r-legendary">YOUR PACK</b> is here${pack.site ? `, in its Deep (site ${pack.site})` : ''}.</div>`;
   const btns = [];
   if (mode === 'travel') {
     if (d && d.terr === t.id) btns.push('<p class="note">You are here.</p>');
@@ -208,7 +208,7 @@ function drawMapCard() {
     // ring 1, but now and then a cell squeezes between two others)
     if (t.nb.includes(0)) btns.push(`<button class="btn ${hasSpire(t.id) ? '' : 'primary'}" data-act="setOutWalk" data-arg="${t.id}">WALK OUT INTO IT</button>`);
   }
-  if (!btns.length && !t.home) btns.push(`<p class="note">${mode === 'travel' ? 'No spire stands here yet.' : 'Reach it on foot, or from a spire near it.'}</p>`);
+  if (!btns.length && !t.home) btns.push(`<p class="note">${mode === 'travel' ? 'No spire here yet.' : 'Reach it on foot.'}</p>`);
   $('map-card').innerHTML = `<div class="tcard">${h}${btns.length ? `<div class="menu">${btns.join('')}</div>` : ''}</div>`;
 }
 
@@ -221,10 +221,11 @@ function drawSetOut() {
   drawWorldMap();
   drawMapCard();
   animateWorldMap();
-  if (travel) { $('setout-body').innerHTML = `<p class="note">Tap a spire to travel there, or the star to go home. Travelling banks what you carry first.</p>`; return; }
+  if (travel) { $('setout-body').innerHTML = `<p class="note">Tap a spire, or the star for home. Your cargo banks first.</p>`; return; }
+  // (the tools wake at magnitude 2: onboard.js)
   const owned = TOOL_IDS.filter(toolOwned);
   const carry = `<h3>CARRYING</h3><div class="chips">${owned.map((id) => `<button class="chip ${s.tool === id ? 'on' : ''}" data-act="carryTool" data-arg="${id}"><img class="chip-icon" src="${toolIconUrl(id)}" alt="">${esc(TOOLS[id].name)}</button>`).join('')}</div>`;
-  $('setout-body').innerHTML = nextGoalHtml() + carry + `<p class="note">Tap a land for its card. Your light lasts about ${Math.round(T.world.light / 60)} minutes in dark land and fills again in kindled land.</p>` + drawToolRows();
+  $('setout-body').innerHTML = nextGoalHtml() + (onboardHas('tools') ? carry + drawToolRows() : '');
 }
 
 // At home, what's next over the view (#hud-goal), a line. True if shown.

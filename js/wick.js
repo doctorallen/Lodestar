@@ -210,13 +210,13 @@ function addWickLamp(d, L, Bm) {
 // At the locker: Wick's upgrades, each turned off or on, free
 // ---------------------------------------------------------------------------
 function wickLockerHtml() {
-  if (!structureStands('bay')) return `<h3>WICK</h3><p class="note">${structureBuilt('bay') ? 'The Drone Bay is coming down to its plot. Go and see it land, and Wick can be fitted with upgrades.' : "Build the Drone Bay (the forge's BUILDINGS tab), and Wick can be fitted with upgrades at its WICK tab."}</p>`;
+  if (!structureStands('bay')) return `<h3>WICK</h3><p class="note">${structureBuilt('bay') ? 'The Drone Bay is coming down.' : 'Needs the Drone Bay.'}</p>`;
   const rows = WICK_UP_IDS.map((id) => {
     const own = wickFitted(id), on = wickOn(id);
-    const sub = own ? WICK_UPS[id].text() : `Not fitted. Fit it at the forge's WICK tab${wickOpen(id) ? '' : `, once the star reaches magnitude ${T.wickUp[id].mag}`}.`;
+    const sub = own ? WICK_UPS[id].text() : `Not fitted${wickOpen(id) ? '' : ` · magnitude ${T.wickUp[id].mag}`}`;
     return `<div class="row static wick-row${own ? '' : ' dim-row'}"><img class="icon" src="${wickIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(WICK_UP_NAMES[id])}</span><span class="row-sub">${esc(sub)}</span></span>${own ? `<button class="mini toggle${on ? ' on' : ''}" data-act="wickToggle" data-arg="${id}" aria-pressed="${on}">${on ? 'ON' : 'OFF'}</button>` : ''}</div>`;
   }).join('');
-  return `<h3>WICK <span class="dim">· ${WICK_UP_IDS.filter((x) => wickFitted(x)).length} OF ${WICK_UP_IDS.length} FITTED</span></h3>${rows}<p class="note">Turning one off or on is free.</p>`;
+  return `<h3>WICK <span class="dim">· ${WICK_UP_IDS.filter((x) => wickFitted(x)).length}/${WICK_UP_IDS.length} FITTED</span></h3>${rows}`;
 }
 
 Object.assign(UI.acts, {

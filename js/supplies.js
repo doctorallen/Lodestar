@@ -115,7 +115,8 @@ function supplyIconUrl(kind) {
 // dim when there are none
 // ---------------------------------------------------------------------------
 function drawSupplyDeck(d) {
-  const out = !!(d && !d.hub && !d.dying);
+  // (from the first ore brought home: onboard.js)
+  const out = !!(d && !d.hub && !d.dying) && onboardHas('supplies');
   for (const kind of SUPPLY_ORDER) {
     const K = SUPPLY_KINDS[kind], btn = $(K.btn);
     if (!btn) continue;
@@ -153,11 +154,11 @@ function supplyRows(field) {
   }).join('');
 }
 function drawSupplies() {
-  $('supplies-body').innerHTML = `<p class="note">Paid in your plainest ore. Higher ores cost fewer.</p>${supplyRows(false)}${refineHtml()}`;
+  $('supplies-body').innerHTML = `${supplyRows(false)}${refineHtml()}`;
 }
 // The cargo screen's MAKE section (ui.js drawCargo).
 function supplyMakeHtml() {
-  return `<h3>MAKE · FROM YOUR ORE</h3>${supplyRows(true) || `<p class="note">Each takes ${T.supplies.cost[0]} ${stuffName(T.ores[0].id)}, or fewer of a higher ore.</p>`}`;
+  return `<h3>MAKE</h3>${supplyRows(true) || `<p class="note">Needs ${T.supplies.cost[0]} ${stuffName(T.ores[0].id)}.</p>`}`;
 }
 
 // An older save's supplies: graded injectors and Lightcells ('injector2')

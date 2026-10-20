@@ -32,7 +32,9 @@ const { launch, openGame: openFresh, shot, finish, PHONE, DESKTOP } = require('.
 // borders the outpost, with waystones, tears and a Deep among it.
 const SMOKE_WORLD = 5;
 async function openGame(browser, opts) {
-  const g = await openFresh(browser, opts);
+  // (everything awake, no tutorial or walkthrough waiting: the
+  // onboarding's own checks open the game without this)
+  const g = await openFresh(browser, Object.assign({ onboard: 'all' }, opts));
   await g.page.evaluate((seed) => { Save.data.world = freshWorld(seed); }, SMOKE_WORLD);
   return g;
 }
@@ -456,7 +458,7 @@ async function phone(browser) {
   check(await page.evaluate(() => !Save.data.stash.heartlight && !Save.data.stash.deeplight && Save.data.star === 26 && magnitudeOf(Save.data.star) === 2), 'phone: a long hold did not give all the light, or the star did not grow');
   // ATTUNE opens the star's screen: the light, what grows it, its reach
   await tap(page, '#btn-act2');
-  check(await visible(page, '#screen-star') && /WHAT GROWS IT/.test(await page.evaluate(() => $('star-body').textContent)), 'phone: ATTUNE did not open the star, or it does not say what grows it');
+  check(await visible(page, '#screen-star') && await page.evaluate(() => /REACH/.test($('star-body').textContent) && /ATTUNEMENTS/.test($('star-body').textContent) && !/WHAT GROWS IT/.test($('star-body').textContent)), 'phone: ATTUNE did not open the star, or it does not show its reach and attunements (what grows it is behind its ?)');
   await shot(page, 'smoke-star');
   await tap(page, '#screen-star [data-act=back]');
 
@@ -559,7 +561,7 @@ async function phone(browser) {
   });
   await run(page, 0.5);
   await tap(page, '#forge-body [data-act=forgeTab][data-arg=structure]');
-  const tab = await page.evaluate(() => (!document.querySelector('#forge-body [data-act=forgeBp][data-arg=wick_scan]') && /BUILDINGS · 0 OF 4 BUILT/.test($('forge-body').textContent)) || JSON.stringify([Game.modal, UI.forge.bp, Save.data.built, Save.data.blueprints.filter((x) => /^(bld|wick)_/.test(x)), $('forge-body').textContent.slice(0, 200)]));
+  const tab = await page.evaluate(() => (!document.querySelector('#forge-body [data-act=forgeBp][data-arg=wick_scan]') && !!document.querySelector('#forge-body [data-act=forgeTab][data-arg=structure].on') && document.querySelectorAll('#forge-body .bp i.made').length === 0) || JSON.stringify([Game.modal, UI.forge.bp, Save.data.built, Save.data.blueprints.filter((x) => /^(bld|wick)_/.test(x)), $('forge-body').textContent.slice(0, 200)]));
   check(tab === true, 'phone: the forge has no BUILDINGS tab ' + tab);
   await tap(page, '#forge-body [data-act=forgeBp][data-arg=bld_bay]');
   await tap(page, '#forge-body [data-act=craft]');
@@ -1164,10 +1166,186 @@ async function leanSave(browser) {
   await page.close();
 }
 
+// A new game: after the opening, Wick's offer. I KNOW THE DRILL: only the
+// essentials are awake (FRAMES and PICKS at the forge, the bench, altar and
+// uplink dark, no SUPPLIES, no MEND or LIGHT), the forge's tutorial runs
+// the first time it opens (the dim, Wick's line, SKIP) and its ? plays it
+// again, then the reference; a module caught wakes the bench, a deed's
+// light the altar. An old save (a fixture) has everything awake, no offer,
+// no tutorial.
+async function onboarding(browser) {
+  const { page, errors } = await openFresh(browser, PHONE);
+  await page.evaluate((seed) => { Save.data.world = freshWorld(seed); }, SMOKE_WORLD);
+  await tap(page, '#intro-skip');
+  await run(page, 0.05);
+  check(await visible(page, '#screen-onboard') && /WALK ME THROUGH IT/.test(await page.evaluate(() => $('screen-onboard').textContent)), 'onboarding: no offer to walk through it after the opening');
+  await shot(page, 'onboard/offer');
+  await tap(page, '#screen-onboard [data-act=guideNo]');
+  check(await page.evaluate(() => !Game.modal && Save.data.onboard.mode === 'free' && !Save.data.onboard.guide), 'onboarding: I KNOW THE DRILL did not close the offer');
+  const gate = await page.evaluate(() => {
+    const at = (id) => { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === id); d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; Game.step(1 / 60); return actionHere(); };
+    return { bench: at('runes'), altar: at('altar'), uplink: at('wreck'), forge: at('forge'), sup: (Game.step(1 / 60), $('btn-act2').hidden), locker: at('locker'), portal: at('setout') };
+  });
+  check(!gate.bench && !gate.altar && !gate.uplink && gate.forge === 'forge' && gate.sup && gate.locker === 'locker' && gate.portal === 'setout', `onboarding: a new game's stations are not just the forge, locker and portal (${JSON.stringify(gate)})`);
+  await shot(page, 'onboard/dormant');
+  // the forge: only FRAMES and PICKS, and its tutorial the first time
+  await page.evaluate(() => { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === 'forge'); d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; Save.data.studied = RESEARCH.map((r) => r.id); });
+  await run(page, 0.05);
+  await tap(page, '#btn-act');
+  await run(page, 0.05);
+  const tabs = await page.evaluate(() => [...document.querySelectorAll('#forge-body .forge-tabs .chip')].map((b) => b.textContent).join());
+  check(tabs === 'FRAMES,PICKS', `onboarding: a new game's forge shows ${tabs}`);
+  await sleep(700);
+  await run(page, 0.05);
+  const tut = await page.evaluate(() => ({ run: Tutor.run && Tutor.run.id, shown: !$('tutor').hidden, line: $('tutor').querySelector('.tut-line').textContent, hit: (() => { const el = document.querySelector('#forge-body [data-act=forgeTab][data-arg=pick]'), r = el.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return h === el || el.contains(h); })(), blocked: (() => { const h = document.elementFromPoint(200, 790); return !!h && h.classList.contains('tut-dim'); })() }));
+  check(tut.run === 'forge' && tut.shown && tut.line.length < 70 && tut.hit && tut.blocked, `onboarding: the forge's tutorial did not dim all but its target (${JSON.stringify(tut)})`);
+  await shot(page, 'onboard/forge-tutorial');
+  await tap(page, '#forge-body [data-act=forgeTab][data-arg=pick]');
+  await run(page, 0.05);
+  check(await page.evaluate(() => Tutor.run && Tutor.run.i === 1 && UI.forge.bp === 'pick'), 'onboarding: tapping what the tutorial lit did not move it on');
+  await tap(page, '#tutor .tut-skip');
+  check(await page.evaluate(() => !Tutor.run && $('tutor').hidden && Save.data.onboard.seen.forge), 'onboarding: SKIP did not end the tutorial');
+  // its ? plays it again, then the reference
+  await tap(page, '#screen-forge .head-help');
+  await run(page, 0.05);
+  check(await page.evaluate(() => Tutor.run && Tutor.run.id === 'forge' && Tutor.run.replay && !$('tutor').hidden), 'onboarding: ? did not replay the forge\'s tutorial');
+  await tap(page, '#tutor .tut-skip');
+  check(await page.evaluate(() => Tutor.run && Tutor.run.ref && $('tutor').querySelectorAll('.tut-ref p').length >= 3), 'onboarding: the replay has no reference after it');
+  await shot(page, 'onboard/forge-reference');
+  await tap(page, '#tutor .tut-ok');
+  check(await page.evaluate(() => !Tutor.run && UI.screen === 'screen-forge'), 'onboarding: the reference did not close back to the forge');
+  await tap(page, '#screen-forge [data-act=back]');
+  // out in the land: no MEND or LIGHT yet
+  await page.evaluate(() => { const t = worldMap().terrs.find((x) => x.starter); startSortie({ terr: t.id, from: 0 }); for (let i = 0; i < 10; i++) Game.step(1 / 60); });
+  check(await page.evaluate(() => $('btn-mend').hidden && $('btn-cell').hidden && !$('btn-help').hidden), 'onboarding: MEND and LIGHT show before the first ore came home, or no ? in the top bar');
+  // the HUD's ? pauses and plays its tour
+  await tap(page, '#btn-help');
+  check(await page.evaluate(() => Tutor.run && Tutor.run.id === 'hud' && Game.modal === 'tutor'), 'onboarding: the top bar\'s ? did not pause for the HUD\'s tour');
+  await shot(page, 'onboard/hud-tutorial');
+  await tap(page, '#tutor .tut-skip');
+  await tap(page, '#tutor .tut-ok');
+  check(await page.evaluate(() => !Tutor.run && !Game.modal), 'onboarding: the HUD\'s tour did not end and let the world go on');
+  // a module caught wakes the bench; a deed's light, the altar
+  const woke = await page.evaluate(() => {
+    Save.data.modsFound = 1; Save.data.stash.heartlight = 12;
+    for (let i = 0; i < 40; i++) Game.step(1 / 60);
+    return { modules: onboardHas('modules'), altar: onboardHas('altar'), said: !!(Save.data.said || {}).wake_modules };
+  });
+  check(woke.modules && woke.altar && woke.said, `onboarding: a module and light did not wake the bench and altar (${JSON.stringify(woke)})`);
+  check(!errors.length, 'onboarding: ' + errors.join(' | '));
+  check(!(await page.evaluate(() => Errors.length)), 'onboarding: ' + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
+  await page.close();
+  // an old save: nothing locked, no offer, no tutorial
+  const save = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, 'fixtures', 'save-v6-home.json'), 'utf8'));
+  save.introSeen = true;
+  const old = await openFresh(browser, Object.assign({}, PHONE, { save }));
+  const o = await old.page.evaluate(() => {
+    UI.close();
+    const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === 'runes');
+    d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; Game.step(1 / 60);
+    const bench = actionHere();
+    openForge(false); UI.acts.researchDone && UI.screen === 'screen-research' && UI.acts.researchDone();
+    return { mode: Save.data.onboard.mode, all: ONBOARD_KEYS.every((k) => onboardHas(k)), bench, tabs: forgeCats().length, pending: !!Tutor.pending || !!Tutor.run, offer: !$('screen-onboard').hidden };
+  });
+  await sleep(700);
+  const o2 = await old.page.evaluate(() => !!Tutor.run);
+  check(o.mode === 'old' && o.all && o.bench === 'runes' && o.tabs >= 7 && !o.pending && !o2 && !o.offer, `onboarding: an old save found something locked, or a tutorial or the offer (${JSON.stringify(o)})`);
+  check(!old.errors.length, 'onboarding, old save: ' + old.errors.join(' | '));
+  await old.page.close();
+}
+
+// The walkthrough, end to end: WALK ME THROUGH IT, out of the lit opening,
+// a vein mined, ARC, BOLT, DASH, the foe finished (it leaves a part),
+// twelve Ferrite, home, the forge's tutorial tapped through to the anvil,
+// the Ferrite pick worn, and NEXT.
+async function guidedLanding(browser) {
+  const { page, errors } = await openFresh(browser, PHONE);
+  await page.evaluate((seed) => { Save.data.world = freshWorld(seed); }, SMOKE_WORLD);
+  await tap(page, '#intro-skip');
+  await run(page, 0.05);
+  await tap(page, '#screen-onboard [data-act=guideYes]');
+  await run(page, 0.1);
+  const step = () => page.evaluate(() => Save.data.onboard.guide);
+  check(await step() === 'out' && await visible(page, '#guide') && await page.evaluate(() => !!Guide.mark(Game.dive)), 'guided: no line and marker for the way out');
+  await shot(page, 'onboard/guided-out');
+  // to the marked opening (the gentle land's)
+  await page.evaluate(() => { const d = Game.dive, m = Guide.mark(d); d.p.x = m.x; d.p.y = m.y; });
+  await run(page, 2.5);
+  check(await page.evaluate(() => Game.dive.sortie && worldMap().terrs[Game.dive.terr].starter) && await step() === 'ore', `guided: walking out did not reach the gentle land and the ore step (${await step()})`);
+  const standAtMark = () => page.evaluate(() => { const d = Game.dive, m = Guide.mark(d); if (!m) return false; const f = d.floor, tx = Math.floor(m.x / TILE), ty = Math.floor(m.y / TILE); for (const [a, b] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) if (!TILE_SOLID[floorTile(f, tx + a, ty + b)]) { d.p.x = (tx + a + 0.5) * TILE; d.p.y = (ty + b + 0.5) * TILE; d.p.fx = -a; d.p.fy = -b; return true; } return false; });
+  await standAtMark();
+  await page.evaluate(() => { Input.bot = { mine: true }; });
+  await run(page, 1.5);
+  await page.evaluate(() => { Input.bot = null; });
+  check(await step() === 'arc' && await page.evaluate(() => Game.dive.enemies.some((e) => e.guide && !e.dead) && $('btn-main').classList.contains('guide-pulse')), `guided: mining did not move on to the fight, with a foe and ARC lit (${await step()})`);
+  await shot(page, 'onboard/guided-fight');
+  await hold(page, '#btn-main', 0.15);
+  await run(page, 0.3);
+  check(await step() === 'bolt', `guided: ARC did not move on to BOLT (${await step()})`);
+  await hold(page, '#btn-off', 0.15);
+  await run(page, 0.3);
+  check(await step() === 'dash', `guided: BOLT did not move on to DASH (${await step()})`);
+  await tap(page, '#btn-dash');
+  await run(page, 0.3);
+  check(['finish', 'haul'].includes(await step()), `guided: DASH did not move on (${await step()})`);
+  for (let k = 0; k < 12 && (await step()) === 'finish'; k++) {
+    await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) if (e.guide && !e.dead) { e.hp = 1; d.p.x = e.x - 14; d.p.y = e.y; d.p.fx = 1; d.p.fy = 0; } Input.bot = { main: true }; });
+    await run(page, 0.15);
+    await page.evaluate(() => { const d = Game.dive; Input.bot = null; for (const dr of d.drops) { dr.x = d.p.x; dr.y = d.p.y; } });
+    await run(page, 0.6);
+  }
+  check(await step() === 'haul' && await page.evaluate(() => partsHave(Game.dive.cargo, 'any') >= 1), `guided: the foe did not fall and leave a part (${await step()})`);
+  for (let k = 0; k < 14 && (await step()) === 'haul'; k++) {
+    await standAtMark();
+    await page.evaluate(() => { Input.bot = { mine: true }; for (const e of Game.dive.enemies) if (!e.guide) e.dead = true; });
+    await run(page, 1.2);
+  }
+  await page.evaluate(() => { Input.bot = null; });
+  check(await step() === 'home' && await page.evaluate(() => Game.dive.cargo.ferrite >= BLUEPRINTS.pick.ore), `guided: twelve Ferrite did not move on to home (${await step()})`);
+  await page.evaluate(() => { const d = Game.dive, m = Guide.mark(d); d.p.x = m.x; d.p.y = m.y; });
+  await run(page, 3);
+  check(await visible(page, '#screen-report'), `guided: walking back did not come home (${await step()})`);
+  await tap(page, '#screen-report [data-act=closeReport]');
+  await run(page, 0.1);
+  check(await step() === 'forge', `guided: home did not move on to the forge (${await step()})`);
+  check(await page.evaluate(() => { const m = Guide.mark(Game.dive), s = HUB_STATIONS.find((x) => x.id === 'forge'); return !!m && Math.abs(m.x - (s.x + 0.5) * TILE) < 1; }), 'guided: the marker is not on the forge');
+  await page.evaluate(() => { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === 'forge'); d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; });
+  await run(page, 0.05);
+  await tap(page, '#btn-act');
+  if (await page.evaluate(() => UI.screen === 'screen-research')) await tap(page, '#research-body [data-act=researchDone]');
+  await sleep(600);
+  await run(page, 0.05);
+  // the forge's tutorial, done as it says: PICKS, NEXT, the ore, NEXT, FORGE
+  for (let k = 0; k < 8 && (await page.evaluate(() => !!Tutor.run)); k++) {
+    const st = await page.evaluate(() => ({ at: TUTORS[Tutor.run.id].steps[Tutor.run.i].at, ok: !$('tutor').querySelector('.tut-ok').hidden }));
+    if (k === 2) await shot(page, 'onboard/guided-forge');
+    await tap(page, st.ok ? '#tutor .tut-ok' : st.at);
+    await run(page, 0.05);
+  }
+  check(await visible(page, '#screen-anvil'), 'guided: the forge\'s tutorial did not end at the anvil');
+  for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.evaluate(() => Anvil.strike()); }
+  await run(page, 3.5);
+  await tap(page, '#card [data-act=equip]');
+  await run(page, 0.1);
+  check(await page.evaluate(() => Save.data.equip.pick.tier === 1), 'guided: the Ferrite pick was not made and worn');
+  await page.evaluate(() => UI.close());
+  await run(page, 0.1);
+  check(await step() === 'free', `guided: the pick did not move on to the last word (${await step()})`);
+  await run(page, 8);
+  check(await page.evaluate(() => !Save.data.onboard.guide && $('guide').hidden && !$('hud-goal').hidden && /NEXT/.test($('hud-goal').textContent)), 'guided: the walkthrough did not hand over to NEXT');
+  await shot(page, 'onboard/guided-next');
+  check(!errors.length, 'guided: ' + errors.join(' | '));
+  check(!(await page.evaluate(() => Errors.length)), 'guided: ' + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
+  await page.close();
+}
+
 (async () => {
   require('fs').mkdirSync(require('path').join(__dirname, 'out', 'lean'), { recursive: true });
+  require('fs').mkdirSync(require('path').join(__dirname, 'out', 'onboard'), { recursive: true });
   const browser = await launch();
   try {
+    await onboarding(browser);
+    await guidedLanding(browser);
     await startOver(browser);
     await leanSave(browser);
     await oldSave(browser);

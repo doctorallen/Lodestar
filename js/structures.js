@@ -263,10 +263,11 @@ function refineOre(from) {
 // its level and the next upgrade, then refining.
 function refineHtml() {
   const s = Save.data, R = T.structures.refinery, top = 1 + R.levels.length;
-  if (!structureBuilt('refinery')) return `<h3>REFINERY</h3><p class="note">Not built. Build it at the forge (BUILDINGS) to make supplies stronger.</p>`;
-  if (!structureStands('refinery')) return '<h3>REFINERY</h3><p class="note">Coming down to its plot. Go and see it land.</p>';
+  if (!onboardHas('buildings')) return '';
+  if (!structureBuilt('refinery')) return `<h3 class="refine-head">REFINERY</h3><p class="note">Not built yet: BUILDINGS, at the forge.</p>`;
+  if (!structureStands('refinery')) return '<h3 class="refine-head">REFINERY</h3><p class="note">Coming down to its plot.</p>';
   const lv = refineryLevel(), n = refineryNext(), why = refineryBlock();
-  let h = `<h3>REFINERY · LEVEL ${lv}/${top}</h3>`;
+  let h = `<h3 class="refine-head">REFINERY · LEVEL ${lv}/${top}</h3>`;
   if (n) {
     const cost = Object.keys(n.cost).map((k) => costTag(k, n.cost[k], s.stash[k] || 0)).join(' ');
     h += `<div class="row static refine-row"><span class="row-text"><span class="row-name">Level ${lv + 1}: ${esc(supplyPowerText(lv + 1))}</span><span class="cost-list">${cost}</span></span><button class="mini" data-act="upgradeRefinery" ${why ? 'disabled' : ''}>${why.startsWith('needs') ? esc(why.toUpperCase()) : 'UPGRADE'}</button></div>`;
@@ -275,7 +276,7 @@ function refineHtml() {
     const ok = (s.stash[r.from] || 0) >= R.n && (s.stash.thread || 0) >= R.threads;
     return `<div class="row static refine-row"><img class="icon" src="${stuffIconUrl(r.to)}" alt=""><span class="row-text"><span class="row-name">1 ${esc(stuffName(r.to))}</span><span class="cost-list">${costTag(r.from, R.n, s.stash[r.from] || 0)} ${costTag('thread', R.threads, s.stash.thread || 0)}</span></span><button class="mini" data-act="refine" data-arg="${r.from}" ${ok ? '' : 'disabled'}>REFINE</button></div>`;
   }).join('');
-  return h + `<h3>REFINE · ORE UP A GRADE</h3>${rows || '<p class="note">Bring home a second ore first.</p>'}`;
+  return h + `<h3>REFINE · ORE UP A GRADE</h3>${rows || '<p class="note">Needs a second ore.</p>'}`;
 }
 
 // The Forward Relay: an emergency recall's time, banking's time.

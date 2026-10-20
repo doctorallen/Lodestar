@@ -135,9 +135,9 @@ function enterTerritory(id, how = {}) {
   UI.toast(`${t.name} · ring ${t.ring} · ${terrStateWord(id)}`);
   // the story's first times (story.js; a key it doesn't know says nothing)
   Story.say([null, null, 'ring2', 'ring3', 'theEdge'][t.ring]);
-  if (!d.kindled) UI.tip('darkLand', 'Dark land: your light runs down here. Kindled land fills it again');
+  if (!d.kindled) UI.tip('darkLand', 'Dark land: your light runs down here');
   if (!d.kindled && !starHoldsSpire(id)) UI.toast(`The star's light can't hold a spire here yet: magnitude ${spireMagFor(id)}`);
-  else if (f.pad) { UI.tip('spire', 'A spire: BANK your cargo here, or TRAVEL to another'); Story.say('firstSpire'); }
+  else if (f.pad) { UI.tip('spire', 'A spire: BANK here, or TRAVEL'); Story.say('firstSpire'); }
   noticeRift(d);
   saveRun(d);
 }
@@ -364,7 +364,7 @@ function enterDeepSite(k) {
   UI.toast(`The Deep · ${placeName(zone, clime)} · site ${k} of ${n}${d.floor.pad || zone === 'lair' ? '' : ': no light reaches down here'}`);
   Story.say('firstDeep');
   Story.say(T.biomes[t.biome].id);
-  if (d.floor.pad && !d.padDark) UI.tip('lodeline', "A shaft of the star's light reaches down here. Stand in it to rise to the surface");
+  if (d.floor.pad && !d.padDark) UI.tip('lodeline', "The star's light reaches down here. Stand in it to rise");
   noticeRift(d);
   saveRun(d);
 }

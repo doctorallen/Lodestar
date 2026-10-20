@@ -28,8 +28,8 @@
 // The light, in the order the star takes it (heartlight last, the crescendo).
 const LIGHT_IDS = ['deeplight', 'heartlight'];
 const LIGHT_KINDS = {
-  heartlight: { name: 'Heartlight', ramp: ['#8a4a12', '#e09a36', '#ffd987', '#fff8e0'], text: "A kindled heart's light, bound to you: safe from any fall. Feed it to the star at the altar." },
-  deeplight: { name: 'Deeplight', ramp: ['#2c1c66', '#5a6ae0', '#86ecff', '#effdff'], text: 'Light from the deep places. It rides in the cargo: a fall leaves it in your pack. Feed it to the star at the altar.' },
+  heartlight: { name: 'Heartlight', ramp: ['#8a4a12', '#e09a36', '#ffd987', '#fff8e0'], text: 'Safe from any fall. Feed it to the star.' },
+  deeplight: { name: 'Deeplight', ramp: ['#2c1c66', '#5a6ae0', '#86ecff', '#effdff'], text: 'Rides in the cargo. Feed it to the star.' },
 };
 function isLight(id) { return !!LIGHT_KINDS[id]; }
 // (a drop of it on the ground, in its own colour: render.js drawDrop)
@@ -300,20 +300,23 @@ function drawMapCache(px, at, on) {
 // ---------------------------------------------------------------------------
 function nextGoal() {
   const s = Save.data, mag = magnitudeOf(s.star), wait = lightWaiting();
-  if (Story.shardsHeld() > Story.shardsSet()) return 'Set the shard in the star, at the altar.';
-  if (wait && lightToMag(mag + 1) && wait >= lightToMag(mag + 1)) return `Feed the star at the altar: ${wait} light waiting.`;
+  if (Story.shardsHeld() > Story.shardsSet()) return 'Set the shard at the altar.';
+  if (wait && lightToMag(mag + 1) && wait >= lightToMag(mag + 1)) return `Feed the star: ${wait} light waiting.`;
   if (s.cache) return `Get your pack back, in ${s.cache.where}.`;
-  if (wait) return `Feed the star at the altar: ${wait} light waiting.`;
+  if (wait) return `Feed the star: ${wait} light waiting.`;
+  // (a first pick, before anything: it opens the next ore)
+  const pick = s.equip.pick;
+  if ((!pick || pick.tier < 1) && !s.items.some((x) => x.kind === 'pick' && x.tier >= 1)) return (s.stash.ferrite || 0) >= BLUEPRINTS.pick.ore ? 'Forge a Ferrite pick: it breaks Lumenite.' : `Bring home ${BLUEPRINTS.pick.ore} Ferrite for a better pick.`;
   if (!s.world) return 'Walk out into the land and kindle it.';
   const L = worldMap(), lit = (id) => isKindled(id);
   const front = L.terrs.filter((t) => !t.home && !lit(t.id) && t.nb.some(lit)).sort((a, b) => terrLevel(a) - terrLevel(b));
   const open = front.find((t) => starHoldsSpire(t.id)), shut = front.filter((t) => !starHoldsSpire(t.id));
   const deep = L.terrs.filter((t) => t.deep && !deepReached(t.id) && (terrPeek(t.id) || {}).visits).sort((a, b) => terrLevel(a) - terrLevel(b))[0];
   const keep = L.terrs.find((t) => t.gate && regionReached(t.biome) && !(s.shards || []).includes(t.biome));
-  if (open) return `Kindle ${open.name} (ring ${open.ring}): +${heartLightFor(open)} heartlight.`;
-  if (deep) return `Reach the end of the Deep under ${deep.name}: +${deepLightFor(deep)} deeplight.`;
-  if (keep) return `Take the Keeper's shard, deep under ${keep.name}.`;
-  if (shut.length) { const r = Math.min(...shut.map((t) => t.ring)), m = T.star.ringMag[r]; return `Ring ${r} needs the star at magnitude ${m}: ${lightToMag(m)} more light, from Deeps and old forges.`; }
+  if (open) return `Kindle ${open.name}: +${heartLightFor(open)} heartlight.`;
+  if (deep) return `Reach the Deep's end under ${deep.name}: +${deepLightFor(deep)} deeplight.`;
+  if (keep) return `Take the Keeper's shard, under ${keep.name}.`;
+  if (shut.length) { const r = Math.min(...shut.map((t) => t.ring)), m = T.star.ringMag[r]; return `Ring ${r} needs magnitude ${m}: ${lightToMag(m)} more light.`; }
   return 'Kindle the land, all the way to the Edge.';
 }
 function nextGoalHtml() {
