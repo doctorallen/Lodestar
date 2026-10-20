@@ -407,7 +407,8 @@ function installBot() {
     // rune bench's work is paid in them)
     for (const it of s.items.filter((i) => i.kind !== 'stone' && i.kind !== 'relic' && !i.fav)) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
     UI.closeCard();
-    // the outpost's buildings and Wick's upgrades, from what's to spare
+    // the outpost's buildings and Wick's upgrades from what the gear left
+    // (the ore for the next pick kept back), before supplies take the old ore
     log.push(...buildings());
     // supplies from old ore, then the light its deeds earned to the star
     log.push(...makeSupplies());
@@ -465,9 +466,9 @@ function installBot() {
   }
 
   // The outpost's buildings and Wick's upgrades as a player might: in turn,
-  // each once the star allows it and the stash can spare it (the ore its
-  // next pick takes kept back, and some besides), through the forge's
-  // BUILD and FIT. Each is noted with the sortie it came after.
+  // each once the star allows it and the stash can pay (the ore its next
+  // pick takes kept back), after the gear, through the forge's BUILD and
+  // FIT. Each is noted with the sortie it came after.
   function buildings() {
     const s = Save.data, log = [], pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
     const order = ['bld_bay', 'wick_scan', 'bld_refinery', 'wick_shield', 'bld_relay', 'wick_lamp', 'wick_spark', 'bld_quarters'];
@@ -476,7 +477,7 @@ function installBot() {
       if (recipeLock(id)) continue;
       const cost = recipeCost(id);
       // (ore to spare: what's left after it covers the next pick and a little)
-      const spare = cost.stuff.every((x) => !ORE_INDEX.hasOwnProperty(x.id) || (s.stash[x.id] || 0) - x.n >= 8 + (pickOre && x.id === pickOre.id ? BLUEPRINTS.pick.ore : 0));
+      const spare = cost.stuff.every((x) => !ORE_INDEX.hasOwnProperty(x.id) || (s.stash[x.id] || 0) - x.n >= (pickOre && x.id === pickOre.id ? BLUEPRINTS.pick.ore : 0));
       if (!spare || recipeShort(cost, s.stash).length) continue;
       Object.assign(UI.forge, { field: false, bp: id, codex: false });
       UI.acts.craft();

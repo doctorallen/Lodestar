@@ -170,10 +170,13 @@ function drawWickHud(d, ox, oy) {
   const reached = (1 - k) / 0.35 * T.wickUp.scan.reach;
   for (const v of S.veins) {
     if (v.far > reached) continue;
-    const ramp = ART.ores[v.ore], x = v.x * ATILE + ox, y = v.y * ATILE + oy, a = Math.min(1, k * 1.6), h = (v.x * 7 + v.y * 13) % 5;
+    // (round the rock's top, where it stands, as the pick's target is)
+    const ramp = ART.ores[v.ore], x = v.x * ATILE + ox, y = v.y * ATILE + oy - pntLiftAt((v.x + 0.5) * ATILE, (v.y + 0.5) * ATILE), a = Math.min(1, k * 1.6), h = (v.x * 7 + v.y * 13) % 5;
     c.globalAlpha = a;
     c.fillStyle = ramp[3];
-    for (const [i, j] of [[0, 0], [1, 0], [0, 1]]) { c.fillRect(x + 2 + i, y + 2 + j, 1, 1); c.fillRect(x + ATILE - 3 - i, y + 2 + j, 1, 1); c.fillRect(x + 2 + i, y + ATILE - 3 - j, 1, 1); c.fillRect(x + ATILE - 3 - i, y + ATILE - 3 - j, 1, 1); }
+    for (const [i, j] of [[0, 0], [1, 0], [2, 0], [0, 1], [0, 2]]) { c.fillRect(x + 1 + i, y + 1 + j, 1, 1); c.fillRect(x + ATILE - 2 - i, y + 1 + j, 1, 1); c.fillRect(x + 1 + i, y + ATILE - 2 - j, 1, 1); c.fillRect(x + ATILE - 2 - i, y + ATILE - 2 - j, 1, 1); }
+    c.fillStyle = WICK_COL.scan;
+    for (const [i, j] of [[0, 0], [ATILE - 1, 0], [0, ATILE - 1], [ATILE - 1, ATILE - 1]]) c.fillRect(x + (i ? i - 1 : 1), y + (j ? j - 1 : 1), 1, 1);
     if (((Game.realT * 3 + h) | 0) % 2) { c.fillStyle = '#ffffff'; c.fillRect(x + ap(4 + h), y + ap(5), 1, 1); }
     c.globalAlpha = 1;
   }

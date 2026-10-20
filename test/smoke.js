@@ -531,7 +531,7 @@ async function phone(browser) {
   // out in the land it pings, and the veins near are marked
   await page.evaluate(() => {
     const s = Save.data; window._starWas = s.star; s.star = T.star.levels[2] + 1;
-    Object.assign(s.stash, { ferrite: 60, thread: 60, spore1: 4 });
+    Object.assign(s.stash, { ferrite: 60, lumenite: 20, thread: 60, spore1: 4 });
     UI.close(); enterHub(); UI.close(); researchStudy(); openForge(false);
   });
   await run(page, 0.5);

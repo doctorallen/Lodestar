@@ -260,10 +260,10 @@ const T = {
   //   quarters: `contracts` more on the board, each one settled pays
   //     `pay` threads besides, and `settlers` more live at the outpost.
   structures: {
-    bay: { mag: 2, cost: { ferrite: 16, thread: 20 } },
-    refinery: { mag: 2, cost: { lumenite: 14, thread: 30, cog: 2 }, n: 4, threads: 2 },
-    relay: { mag: 3, cost: { resonite: 16, thread: 50, ether: 3 }, recall: 0.5, loss: 0.5, bank: 0.6 },
-    quarters: { mag: 4, cost: { aetherglass: 14, thread: 70, lodeshard: 1 }, contracts: 1, pay: 6, settlers: 2 },
+    bay: { mag: 2, cost: { ferrite: 8, thread: 15 } },
+    refinery: { mag: 2, cost: { lumenite: 8, thread: 30 }, n: 4, threads: 2 },
+    relay: { mag: 3, cost: { resonite: 10, thread: 60, chitin: 3 }, recall: 0.5, loss: 0.5, bank: 0.6 },
+    quarters: { mag: 4, cost: { aetherglass: 8, thread: 90, lodeshard: 1 }, contracts: 1, pay: 6, settlers: 2 },
     // the plots (tiles; floor.js outpostPlots): the footprint kept clear
     // [half width, behind, in front of the feet], how far from the middle
     // they'd best be, and how far from the tracks out (the lodelines)
@@ -284,10 +284,10 @@ const T = {
   //   spark: every `every` s, a small shock at the nearest awake foe
   //     within `reach` px: `frac` of its health (a boss's, `boss`).
   wickUp: {
-    scan: { mag: 2, cost: { ferrite: 10, thread: 20, spore: 3 }, every: 7, reach: 8, show: 3.5 },
-    lamp: { mag: 2, cost: { lumenite: 8, thread: 25, fiber: 3 }, reach: 0.62, i: 0.6, edge: 32 },
-    shield: { mag: 3, cost: { resonite: 12, thread: 40, chitin: 3 }, below: 0.35, rest: 20 },
-    spark: { mag: 4, cost: { aetherglass: 12, thread: 55, cog: 3 }, every: 2.6, reach: 64, frac: 0.07, boss: 0.012 },
+    scan: { mag: 2, cost: { lumenite: 5, thread: 15, spore: 3 }, every: 7, reach: 8, show: 3.5 },
+    lamp: { mag: 3, cost: { resonite: 6, thread: 25, fiber: 3 }, reach: 0.62, i: 0.6, edge: 32 },
+    shield: { mag: 3, cost: { resonite: 8, thread: 50, chitin: 3 }, below: 0.35, rest: 20 },
+    spark: { mag: 4, cost: { aetherglass: 8, thread: 65, cog: 3 }, every: 2.6, reach: 64, frac: 0.07, boss: 0.012 },
   },
 
   // The chance a vein is the biome's deeper ore, by site.
