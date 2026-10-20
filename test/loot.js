@@ -173,6 +173,7 @@ for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json',
     const id = (c) => (c && c.stone) || null;
     if (id(sp.form) !== id(first(sl, 'form')) || id(sp.el) !== id(first(sl, 'element')) || id(sp.mods[0]) !== id(first(sl, 'glyph'))) fail(`${f}: spell ${w} is ${G.spellName(sp)}, from ${(sl || []).map((c) => c && c.stone)}`);
   }
+  if (pieces.some((it) => it.kind === 'pick' && /Pick/.test(it.name || ''))) fail(`${f}: a cutter is still named a pick (${pieces.filter((it) => it.kind === 'pick').map((it) => it.name)})`);
   if (/Scrap Gauntlet/.test(mid.equip.main.name) && r.name !== 'Scrap Rig') fail(`${f}: the Scrap Gauntlet became ${r.name}`);
   if (mid.equip.off && !s.items.some((x) => x.kind === 'caster' && x.uid === mid.equip.off.uid)) fail(`${f}: the off hand's frame is not in the stash`);
   if (!pieces.some((it) => it.fav)) fail(`${f}: a kept piece lost its mark`);

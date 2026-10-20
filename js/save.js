@@ -44,6 +44,10 @@ function cleanSpells(it) {
   });
 }
 
+// A pick's name from before the cutter, as the cutter's ("Rusty Pick",
+// "Ferrite Pick").
+function cutterName(name) { return name.replace(/\bRusty Pick\b/, 'Worn Cutter').replace(/\bPick\b/g, 'Cutter'); }
+
 // Drops what this version of the game doesn't know (recipes, affixes,
 // cores, powers), so a save can't crash a screen.
 function cleanSaveItem(it) {
@@ -54,9 +58,11 @@ function cleanSaveItem(it) {
     it.affixes = (Array.isArray(it.affixes) ? it.affixes : []).filter((a) => a && AFFIXES[a.id]);
     if (it.power && !LEGENDARIES[it.power]) delete it.power;
     if (it.set && !SETS[it.set]) delete it.set;
+    if (it.src && typeof it.src.was === 'string') it.src.was = cutterName(it.src.was);
     return it;
   }
   if (!KIND_SLOT[it.kind] && it.kind !== 'relic') return null;
+  if (it.kind === 'pick' && typeof it.name === 'string') it.name = cutterName(it.name);
   if (it.bp && !BLUEPRINTS[it.bp]) delete it.bp;
   if (Array.isArray(it.affixes)) it.affixes = it.affixes.filter((a) => a && AFFIXES[a.id]);
   if (it.kind !== 'relic') it.sockets = (Array.isArray(it.sockets) ? it.sockets : []).map((m) => (m && m.kind === 'module' && m.fits === it.kind ? cleanSaveItem(m) : null));
@@ -150,6 +156,7 @@ function cleanSave(s) {
   s.items = s.items || [];
   for (const k of Object.keys(s.equip)) if (!SLOTS.includes(k)) { if (s.equip[k]) s.items.push(s.equip[k]); delete s.equip[k]; }
   s.items = s.items.map(cleanSaveItem).filter(Boolean);
+  if (s.run && Array.isArray(s.run.items)) for (const x of s.run.items) if (x && x.kind === 'pick' && typeof x.name === 'string') x.name = cutterName(x.name);
   for (const k of Object.keys(s.equip)) s.equip[k] = cleanSaveItem(s.equip[k]);
   if (!s.stash || typeof s.stash !== 'object') s.stash = {};
   // (a Deep Satchel, gone, comes back as what it cost)
