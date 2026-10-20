@@ -14,11 +14,11 @@ const esc = escapeHtml;
 
 // "12 Ferrite, 2 Voltaic crystal"
 function stuffLines(stash) {
-  return stuffIds().filter((id) => stash[id]).map((id) => `${stash[id]} ${stuffName(id)}`).join(', ');
+  return stuffIds().filter((id) => stash[id]).map((id) => `${stash[id]} ${id === 'thread' && stash[id] === 1 ? 'Thread' : stuffName(id)}`).join(', ');
 }
 const exoticName = (id) => T.exotics.find((x) => x.id === id).name;
 const stuffIds = () => T.ores.map((o) => o.id).concat(PART_STACK_IDS, T.exotics.map((x) => x.id), ['thread'], LIGHT_IDS);
-const stuffName = (id) => (id === 'thread' ? 'Thread' : ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : parsePart(id) ? partName(id) : isLight(id) ? LIGHT_KINDS[id].name : exoticName(id));
+const stuffName = (id) => (id === 'thread' ? 'Threads' : ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : parsePart(id) ? partName(id) : isLight(id) ? LIGHT_KINDS[id].name : exoticName(id));
 
 // A cost that can't be missed: the material's icon, how many and what,
 // and how many there are, in red when it's short.
@@ -171,6 +171,7 @@ const UI = {
     const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawUplink_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-bench': drawBench, 'screen-research': drawResearch, 'screen-star': drawStar, 'screen-cargo': drawCargo, 'screen-supplies': drawSupplies }[UI.screen];
     if (r) r();
     if (UI.card) drawCard();
+    UI.placeToasts();
   },
 
   // report: how the last dive ended
@@ -214,17 +215,32 @@ const UI = {
     $('card').hidden = false;
     UI.openedAt = Game.realT;
     drawCard();
+    UI.placeToasts();
   },
-  closeCard() { UI.card = null; $('card').hidden = true; },
+  closeCard() { UI.card = null; $('card').hidden = true; UI.placeToasts(); },
 
   // Someone speaking: Wick, or the star. Lines wait their turn.
   // A line spoken, queued behind any still being said. Lines wait while a
   // screen is open, so none is lost under a menu.
-  speak(who, text, style = 'wick') {
+  // A line belongs to the place it was said in (placeKey): one that hasn't
+  // begun by the time that place is left, or that has waited behind
+  // others for long, is dropped, as it's no longer about anything here (a
+  // first-time line of Wick's, `id`, is kept for the next time).
+  speak(who, text, style = 'wick', id = null) {
     UI.lines = UI.lines || [];
-    UI.lines.push({ who, text, style, t: 2.6 + text.length * 0.045 });
+    UI.lines.push({ who, text, style, t: 2.6 + text.length * 0.045, at: UI.placeKey(), id, waited: 0 });
   },
   updateSpeech(dt) {
+    if (UI.lines && UI.lines.length) {
+      const at = UI.placeKey();
+      UI.lines = UI.lines.filter((l) => {
+        if (!l.shown && !Game.modal) l.waited += dt || 0;
+        // (one already being said is let finish)
+        if (l.shown || (l.at === at && l.waited < T.ui.lineWait)) return true;
+        if (!l.shown && l.id && Save.data.said) delete Save.data.said[l.id];
+        return false;
+      });
+    }
     const l = UI.lines && UI.lines[0], box = $('speech');
     if (!l || Game.modal) { if (!box.hidden) box.hidden = true; return; }
     if (box.hidden || box.dataset.line !== l.text) {
@@ -234,6 +250,7 @@ const UI = {
       box.dataset.line = l.text;
       snd('speak', { style: l.style });
     }
+    l.shown = true;
     if ((l.t -= dt) <= 0) UI.lines.shift();
   },
 
@@ -281,8 +298,16 @@ const UI = {
     el.style.animationDuration = secs + 's';
     box.appendChild(el);
     while (box.children.length > most) box.firstChild.remove();
+    UI.placeToasts();
     if (kind === 'tip') UI.hintsSeen.add(msg);
     setTimeout(() => { el.remove(); UI.pumpToasts(); }, secs * 1000);
+  },
+  // Over a card, the toasts sit under its bar, clear of KEEP and its way
+  // out (else where the stylesheet puts them).
+  placeToasts() {
+    const box = $('toasts'), bar = UI.card && !$('card').hidden && document.querySelector('#card-body .card-bar');
+    const top = bar ? Math.round(bar.getBoundingClientRect().bottom + 4) + 'px' : '';
+    if (box.style.top !== top) box.style.top = top;
   },
   // Every step: what a place left behind goes, and a waiting hint shows if
   // there's room for it.

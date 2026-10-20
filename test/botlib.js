@@ -12,12 +12,14 @@
 //   then it banks at a spire and travels home, or walks home. Returns how
 //   it ended.
 //   Bot.home() spends the haul like a player might: the forge studies
-//   what's new, it equips any better base, forges a better pick, casters,
-//   plate and a charm when it can (striking the anvil fairly), forges the
-//   stones its circuits want and sockets them (an Arc in the gauntlet, a
-//   Bolt or Lance in the other hand, with an element and glyphs as it
-//   finds them), socketing the best modules, upgrading one now and then
-//   and rerolling a weak trait, salvages the rest (modules into threads),
+//   what's new, it equips any better base, forges a better pick, then
+//   keeps every slot up (casters, plate and a charm, the one furthest
+//   behind first, in the best ore it can pay for, striking the anvil
+//   fairly), forges the stones its circuits want and sockets them (an Arc
+//   in the gauntlet, a Bolt or Lance in the other hand, with an element
+//   and glyphs as it finds them), socketing the best modules, upgrading
+//   those behind its gear from ore to spare and now and then rerolling a
+//   weak trait, salvages the rest (modules into threads),
 //   unseals relics, sets any shard and feeds the light its deeds earned to
 //   the star (held at the altar), makes supplies from old ore at the
 //   fabricator, builds the outpost's buildings and fits Wick's upgrades
@@ -118,6 +120,10 @@ function installBot() {
     window.recoverCache = function (d, c) { const n = rec(d, c); if (!Save.data.cache) Bot.packs.recovered++; return n; };
     window.leaveCache = function (d) { const r = leave(d); if (r.cache) Bot.packs.left++; if (r.old) Bot.packs.lost++; return r; };
     window.useSupply = function (k) { const ok = use(k); if (ok) Bot.packs.used[k] = (Bot.packs.used[k] || 0) + 1; return ok; };
+    // the modules rolled, by where they came from and their rarity
+    const drops = window.moduleDrops, unseal = window.unsealRelic, tally = (from, m) => { const t = Bot.rolled[from] || (Bot.rolled[from] = {}); t[m.rarity] = (t[m.rarity] || 0) + 1; };
+    window.moduleDrops = function (d, e) { const out = drops(d, e); for (const m of out) tally(e.type === 'keeper' ? 'keeper' : e.boss ? 'warden' : e.elite ? 'elite' : 'foe', m); return out; };
+    window.unsealRelic = function (rng, r) { const m = unseal(rng, r); tally('relic', m); return m; };
   }
 
   // The world's next step out: the dark territory next to lit land (the
@@ -145,14 +151,19 @@ function installBot() {
     const front = edge.filter((t) => starHoldsSpire(t.id));
     // now and then (and whenever no land it can kindle is left), a Deep
     // under lit land, the ones not yet reached first: their light, and ore
-    const deeps = L.terrs.filter((t) => !t.home && t.deep && lit(t.id) && (hasSpire(t.id) || t.ring === 1) && deepZone(t, t.deep) !== 'lair');
+    // (not one it has fallen in twice with the gear it has now)
+    const deeps = L.terrs.filter((t) => !t.home && t.deep && lit(t.id) && (hasSpire(t.id) || t.ring === 1) && deepZone(t, t.deep) !== 'lair' && !botBeaten(t.id));
     const fresh = deeps.filter((t) => !deepReached(t.id));
+    // (and not into a region whose ore its pick can't break yet: a player
+    // gets the pick first)
+    const power = Save.data.equip.pick ? Save.data.equip.pick.base.power : 1;
+    const mineable = (t) => T.ores[ORE_INDEX[T.biomes[t.biome].ores[0]]].tier <= power;
+    const ready = front.filter((t) => terrLevel(t) <= best && mineable(t));
     if (deeps.length && (Math.random() < deepOdds * (fresh.length ? 2 : 1) || !front.length)) {
       const t = (fresh.length ? fresh : deeps).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
       return hasSpire(t.id) ? { target: t.id, spire: t.id, deep: true } : { target: t.id, walk: t.id, deep: true };
     }
-    const ready = front.filter((t) => terrLevel(t) <= best);
-    const target = ready[ready.length - 1] || front[0] || edge[0] || L.terrs.filter((t) => !t.home).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
+    const target = ready[ready.length - 1] || front.find(mineable) || front[0] || edge[0] || L.terrs.filter((t) => !t.home).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
     if (target.nb.includes(0)) return { target: target.id, walk: target.id };
     const spire = target.nb.find((n) => hasSpire(n));
     if (spire !== undefined) return { target: target.id, spire };
@@ -160,6 +171,11 @@ function installBot() {
     const via = target.nb.find((n) => lit(n) && terrOf(n).nb.includes(0));
     return { target: target.id, walk: via !== undefined ? via : target.nb.find((n) => terrOf(n).ring === 1) || 1 };
   }
+  // Falls by where, with the gear worn at the time: a player stops going
+  // back to a Deep that has beaten them twice, until their gear is better.
+  const gearSum = () => SLOTS.reduce((a, k) => a + (Save.data.equip[k] ? Save.data.equip[k].tier : 0), 0);
+  function botBeaten(id) { const f = (Save.data.botFalls || {})[id]; return !!f && f.n >= 2 && f.gear >= gearSum(); }
+  function botFell(id) { const F = Save.data.botFalls || (Save.data.botFalls = {}), g = gearSum(), f = F[id]; F[id] = { n: f && f.gear >= g ? f.n + 1 : 1, gear: g }; }
   // the opening of this territory that leads (over the fewest territories,
   // through lit land where it can) towards `to`
   function exitTowards(d, to) {
@@ -212,7 +228,7 @@ function installBot() {
       let act = false, mine = true;
       if (d.channel) { mine = false; /* hold still */ }
       // stranded: hurt with no light, or in a Deep with no lit way up
-      else if (!d.kindled && ((hurt && d.pull <= 0) || (d.deep && (d.pull <= 0 || d.zone === 'lair' || (back && hurt)) && !(f.pad && !d.padDark && steps[at(f.pad.x, f.pad.y)] >= 0 && steps[at(f.pad.x, f.pad.y)] < 15))) && (!foe || d.pull <= 0 || hurt)) UI.acts.recall();
+      else if (!d.kindled && ((hurt && d.pull <= 0) || (d.deep && (d.pull <= 0.08 || d.zone === 'lair' || (back && hurt)) && !(f.pad && !d.padDark && steps[at(f.pad.x, f.pad.y)] >= 0 && steps[at(f.pad.x, f.pad.y)] < 15))) && (!foe || d.pull <= 0.08 || hurt)) UI.acts.recall();
       else if (d.deep) {
         // a Deep, as the old expeditions: on through its portal, or up its
         // lodeline when it's time
@@ -328,9 +344,15 @@ function installBot() {
     // two good sorties at its edge and it's ready for a level more; a fall
     // and it starts counting again
     const lv = terrLevel(terrOf(target)), sv = Save.data;
-    if (ended === 'died') { sv.botWins = 0; if (P.cache) sv.botChase = (sv.botChase || 0) + 1; }
-    else if (ended === 'home') {
-      sv.botChase = 0;
+    // (two falls running and it steps back a level, to gear up before trying
+    // again)
+    if (ended === 'died') {
+      sv.botWins = 0;
+      if (P.cache) sv.botChase = (sv.botChase || 0) + 1;
+      if (d.deep || P.deep) botFell(d.terr);
+      if ((sv.botLosses = (sv.botLosses || 0) + 1) >= 2) { sv.botBest = Math.max(1, (sv.botBest || 1) - 1); sv.botLosses = 0; }
+    } else if (ended === 'home') {
+      sv.botChase = 0; sv.botLosses = 0;
       if (lv >= (sv.botBest || 1) && (sv.botWins = (sv.botWins || 0) + 1) >= 2) { sv.botBest = (sv.botBest || 1) + 1; sv.botWins = 0; }
     }
     const r = result();
@@ -369,39 +391,17 @@ function installBot() {
       return true;
     };
     UI.forge.field = false;
-    // a pick that breaks the next ore up (refining the ore below into its
-    // ore if it's a little short and the Refinery stands)
+    // a pick that breaks the next ore up, first: it's what reaches better
+    // ore (refining the ore below into its ore if it's a little short and
+    // the Refinery stands)
     const pick = s.equip.pick, pickOre = T.ores.find((o) => o.tier === (pick ? pick.base.power : 1));
     if (pickOre && structureStands('refinery')) {
       const below = T.ores[ORE_INDEX[pickOre.id] - 1], R = T.structures.refinery, want = BLUEPRINTS.pick.ore - (s.stash[pickOre.id] || 0);
       if (below && want > 0 && want <= 6 && (s.stash[below.id] || 0) >= want * R.n + 20) { let n = 0; while (n < want && refineOre(below.id)) n++; if (n) log.push(`refined ${n} ${pickOre.name}`); }
     }
-    const pickBp = s.blueprints.includes('drill') ? 'drill' : 'pick';
-    if (pickOre && forge(pickBp, pickOre.id)) log.push('forged ' + pickOre.name + ' ' + pickBp);
-    // what to hold back for the next pick
-    const spare = (o, n) => (s.stash[o.id] || 0) - (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0) >= n;
-    // casters (a gauntlet in the main hand, a staff or a wand in the off),
-    // plate and a charm, in the best ore it has plenty of; a caster as big
-    // as it can afford
-    const offBp = s.blueprints.includes('staff') ? 'staff' : 'wand';
-    for (const [bpId, slot] of [['gauntlet', 'main'], [offBp, 'off'], ['plate', 'armor'], ['charm', 'charm']]) {
-      const bp = BLUEPRINTS[bpId], cur = s.equip[slot];
-      const ore = T.ores.slice().reverse().find((o) => spare(o, bp.ore + 6));
-      // (the scrap gauntlet and cracked wand count as below Ferrite)
-      const curTier = cur ? (/^(Scrap|Cracked) /.test(cur.name) ? 0 : cur.tier) : -1;
-      if (!ore || (curTier >= ore.tier && !(bp.kind === 'caster' && cur.bp !== bpId))) continue;
-      const sizes = bp.kind === 'caster' ? casterSizes(bpId).slice().reverse() : [null];
-      const size = sizes.find((n) => spare(ore, recipeCost(bpId, ore.id, n).ore.n + 6) && !recipeShort(recipeCost(bpId, ore.id, n), s.stash).length);
-      if (size !== undefined && forge(bpId, ore.id, size)) log.push('forged ' + bpId + ' in ' + ore.name + (size ? ' ×' + size : ''));
-    }
-    UI.closeCard();
-    best();
-    // the casters: the best of each kind into its hand, its circuit and
-    // modules moved over
-    for (const [slot, bpId] of [['main', 'gauntlet'], ['off', offBp]]) {
-      const cur = s.equip[slot], better = s.items.filter((it) => it.kind === 'caster' && it.bp === bpId && itemWorth(it) > (cur && cur.bp === bpId ? itemWorth(cur) * 1.05 : 0)).sort((a, b) => itemWorth(b) - itemWorth(a))[0];
-      if (better) { UI.openCard(better, 'stash', better.uid); acts.equip(slot); log.push('equip ' + better.name); }
-    }
+    const pickBp = s.blueprints.includes('drill') && !recipeShort(recipeCost('drill', pickOre && pickOre.id), s.stash).length ? 'drill' : 'pick';
+    if (pickOre && forge(pickBp, pickOre.id)) { log.push('forged ' + pickOre.name + ' ' + pickBp); wear(s.items[s.items.length - 1], 'pick'); }
+    log.push(...forgeGear(forge, pickOre));
     UI.closeCard();
     log.push(...circuits(forge));
     log.push(...modules());
@@ -419,6 +419,58 @@ function installBot() {
     for (const id of ['vitality', 'proximity', 'capacity', 'vitality', 'clarity', 'stride', 'capacity']) if (attunePointsLeft(s) > 0) acts.attune(id);
     Save.save();
     UI.close();
+    return log;
+  }
+
+  // Puts a base on (its circuit and modules move across, as the locker
+  // does it).
+  function wear(it, slot) {
+    if (!it || !Save.data.items.includes(it)) return;
+    UI.openCard(it, 'stash', it.uid);
+    UI.acts.equip(slot);
+    UI.closeCard();
+  }
+  // How far behind a worn base is: its tier (the scrap gauntlet and the
+  // cracked wand count as below Ferrite; nothing worn, below that).
+  function wornTier(slot) {
+    const cur = Save.data.equip[slot];
+    return !cur ? -1 : /^(Scrap|Cracked) /.test(cur.name) ? 0 : cur.tier;
+  }
+  // Gear as a player keeps it up: every slot (the casters, plate and a
+  // charm) forged again in better ore whenever there's enough, the slot
+  // furthest behind first, in the best ore it can pay for (a caster as big
+  // as it can afford), keeping back what the next pick takes. A gauntlet in
+  // the main hand; a staff in the off hand once known, else a wand.
+  function forgeGear(forge, pickOre) {
+    const s = Save.data, log = [];
+    const reserve = (o) => (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0);
+    const afford = (bpId, o, size) => { const c = recipeCost(bpId, o.id, size); return s.blueprints.includes(bpId) && (s.stash[o.id] || 0) - reserve(o) >= c.ore.n && !recipeShort(c, s.stash).length; };
+    const wants = { main: ['gauntlet'], off: ['staff', 'wand'], armor: ['plate'], charm: ['charm'] };
+    const tried = new Set();
+    for (let k = 0; k < 8; k++) {
+      // the slot furthest behind that something better can be made for
+      const order = Object.keys(wants).filter((slot) => !tried.has(slot)).sort((a, b) => wornTier(a) - wornTier(b));
+      let made = false;
+      for (const slot of order) {
+        const cur = wornTier(slot);
+        for (const o of T.ores.slice().reverse()) {
+          if (o.tier <= cur) break;
+          for (const bpId of wants[slot]) {
+            const bp = BLUEPRINTS[bpId], sizes = bp.kind === 'caster' ? casterSizes(bpId).slice().reverse() : [null];
+            const size = sizes.find((n) => afford(bpId, o, n));
+            if (size === undefined || !forge(bpId, o.id, size)) continue;
+            wear(s.items[s.items.length - 1], slot);
+            log.push(`forged ${bpId} in ${o.name}${size ? ' ×' + size : ''} for ${slot}`);
+            made = true;
+            break;
+          }
+          if (made) break;
+        }
+        if (made) break;
+        tried.add(slot);
+      }
+      if (!made) break;
+    }
     return log;
   }
 
@@ -445,15 +497,17 @@ function installBot() {
     }
     if (n) log.push(`socketed ${n}`);
     const socketed = SLOTS.flatMap((k) => (s.equip[k] && s.equip[k].sockets ? s.equip[k].sockets.filter(Boolean).map((m) => [m, s.equip[k]]) : []));
-    // a tier up, keeping ore back for the next pick
+    // tiers up for what's socketed, the furthest behind the best worn base
+    // first, from ore to spare (the forge has had its pick, and the next
+    // pick's ore is kept back)
     const pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
-    for (const [m, b] of socketed.sort((x, y) => moduleWorth(y[0]) - moduleWorth(x[0]))) {
-      const cost = upgradeCost(m);
-      // (only from ore to spare: the forge comes first)
-      if (!cost || m.tier >= b.tier || benchShort(cost, s.stash).length || (s.stash[cost.ore.id] || 0) - cost.ore.n < 20 + (pickOre && cost.ore.id === pickOre.id ? BLUEPRINTS.pick.ore : 0)) continue;
-      benchPay(cost, s.stash); moduleUpgrade(m); s.botUps = (s.botUps || 0) + 1;
-      log.push(`upgraded ${m.name} to ${m.tier}`);
-      break;
+    const top = Math.max(1, ...SLOTS.map((k) => (s.equip[k] ? s.equip[k].tier : 0)));
+    for (let ups = 0; ups < 4; ups++) {
+      const next = socketed.map(([m]) => m).filter((m) => m.tier < top).sort((a, b) => a.tier - b.tier || moduleWorth(b) - moduleWorth(a))
+        .find((m) => { const cost = upgradeCost(m); return cost && !benchShort(cost, s.stash).length && (s.stash[cost.ore.id] || 0) - cost.ore.n >= 6 + (pickOre && cost.ore.id === pickOre.id ? BLUEPRINTS.pick.ore : 0); });
+      if (!next) break;
+      benchPay(upgradeCost(next), s.stash); moduleUpgrade(next); s.botUps = (s.botUps || 0) + 1;
+      log.push(`upgraded ${next.name} to ${next.tier}`);
     }
     // a reroll of the weakest trait now and then
     const [w] = socketed.map(([m]) => m).filter((m) => m.affixes.length > 1).sort((a, b) => moduleWorth(b) - moduleWorth(a));
@@ -611,6 +665,7 @@ function installBot() {
       r.kindledAll = kindledCount();
       r.star = s.star;
       r.packs = JSON.parse(JSON.stringify(Bot.packs));
+      r.rolled = JSON.parse(JSON.stringify(Bot.rolled));
       r.built = Object.assign({}, Bot.built);
       r.supplies = Object.assign({}, s.supplies || {});
       out.push(r);
@@ -618,7 +673,7 @@ function installBot() {
     return out;
   }
 
-  window.Bot = { sortie, plan, home, career, circuits, feedStar, makeSupplies, buildings, packs: { recovered: 0, left: 0, lost: 0, used: {} }, built: {}, n: 0 };
+  window.Bot = { sortie, plan, home, career, circuits, feedStar, makeSupplies, buildings, packs: { recovered: 0, left: 0, lost: 0, used: {} }, rolled: {}, built: {}, n: 0 };
 }
 
 module.exports = { installBot };

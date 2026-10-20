@@ -334,7 +334,7 @@ const Story = {
     const said = Save.data.said || (Save.data.said = {});
     if (said[id] || !WICK[id]) return;
     said[id] = true;
-    UI.speak('WICK', WICK[id]);
+    UI.speak('WICK', WICK[id], 'wick', id);
   },
   // The star, when it grows: a line for every magnitude it passed (a big
   // feed can pass two), and the attunement to spend. (mag: the magnitude

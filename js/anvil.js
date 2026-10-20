@@ -187,5 +187,7 @@ const Reveal = {
     UI.openCard(it, this.where, it.uid);
     // a woven module that took a socket's place says so
     if (this.host) { UI.card.host = this.host; this.host = null; drawCard(); }
+    // (woven at the rune bench: its card stays the bench's)
+    if (this.back === 'screen-bench' && it.kind === 'module') { UI.card.bench = true; drawCard(); }
   },
 };
