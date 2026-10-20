@@ -290,7 +290,7 @@ function updatePickups(dt) {
     // a heart-shard binds to the diver: safe whatever happens now
     if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard, still warm', 'legendary'); dr.gone = true; snd('shard'); continue; }
     if (dr.resStone) { resonanceStoneFound(d.rng); dr.gone = true; snd('resStone'); buzz(12); continue; }
-    if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); snd('echo'); } dr.gone = true; continue; }
+    if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); snd('echo'); deedEcho(d); } dr.gone = true; continue; }
     if (dr.blueprint) {
       if (room < 1) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } continue; }
       d.blueprints.push({ id: dr.blueprint });
@@ -326,8 +326,9 @@ function updatePickups(dt) {
 function itemWeight(it) { return it.kind === 'module' ? T.modules.weight : T.cargo.itemWeight; }
 function cargoUsed(d) {
   let n = 0;
-  for (const k in d.cargo) n += d.cargo[k];
-  for (const e of d.pocket || []) n += e.item ? itemWeight(e.item) : e.blueprint ? 1 : e.n;
+  // (light weighs nothing: deeds.js)
+  for (const k in d.cargo) if (!isLight(k)) n += d.cargo[k];
+  for (const e of d.pocket || []) n += e.item ? itemWeight(e.item) : e.blueprint ? 1 : isLight(e.stuff) ? 0 : e.n;
   for (const it of d.items) n += itemWeight(it);
   return n + (d.blueprints || []).length;
 }

@@ -41,6 +41,8 @@
   <div id="deck-right" class="deck">
     <button id="btn-act" class="deck-btn act" hidden></button>
     <button id="btn-act2" class="deck-btn act act2" hidden>TRAVEL</button>
+    <button id="btn-supply" class="deck-btn supply" hidden aria-label="Use a supply"></button>
+    <button id="btn-supply-next" class="deck-btn supply-next" hidden aria-label="The next supply">▸</button>
     <button id="btn-off" class="deck-btn off" hidden></button>
     <button id="btn-dash" class="deck-btn dash">DASH</button>
     <button id="btn-mine" class="deck-btn mine">MINE</button>
@@ -105,6 +107,11 @@
     <div id="star-body" class="list"></div>
   </section>
 
+  <section id="screen-supplies" class="screen panel" hidden>
+    <header class="screen-head"><div class="head-in"><h2>SUPPLIES</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
+    <div id="supplies-body" class="list"></div>
+  </section>
+
   <section id="screen-cargo" class="screen panel" hidden>
     <header class="screen-head"><div class="head-in"><h2>CARGO</h2><button class="head-close" data-act="resume" aria-label="Back to the sortie">✕</button></div></header>
     <div id="cargo-body" class="list"></div>
@@ -124,7 +131,7 @@
       <button id="pause-sfx" class="btn" data-act="soundSet" data-arg="sfx">SOUNDS: ON</button>
       <button id="pause-lamp" class="btn" data-act="lampSet">LAMP: BEAM</button>
     </div>
-    <p id="pause-note" class="note">Recalling takes you home: a few seconds standing still, and the dark keeps part of the cargo. Giving up loses all of it. What you wear, your pocket and what you've banked are safe either way.</p>
+    <p id="pause-note" class="note">Recalling takes you home: a few seconds standing still, and the dark keeps part of the cargo. Giving up loses all of it (a fall leaves it in your pack). What you wear, your pocket, your supplies and what you've banked are safe either way.</p>
     <div class="build" id="build"></div>
   </section>
 
@@ -202,6 +209,7 @@
 <script src="js/portals.js"></script>
 <script src="js/frontier.js"></script>
 <script src="js/contracts.js"></script>
+<script src="js/deeds.js"></script>
 <script src="js/life.js"></script>
 <script src="js/storm.js"></script>
 <script src="js/hazards.js"></script>
@@ -223,6 +231,7 @@
 <script src="js/ui.js"></script>
 <script src="js/gearui.js"></script>
 <script src="js/worldmap.js"></script>
+<script src="js/supplies.js"></script>
 <script src="js/anvil.js"></script>
 <script src="js/intro.js"></script>
 <script src="js/main.js"></script>

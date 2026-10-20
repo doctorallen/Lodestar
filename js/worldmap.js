@@ -141,6 +141,8 @@ function drawWorldMap() {
       if (mark) mark.forEach((row, j) => [...row].forEach((ch, i) => { if (ch !== '.') px(cx - 2 + i, cy - 2 + j, MAP_MARK_COLS[ch]); }));
     }
   }
+  // the pack a fall left (deeds.js)
+  drawMapCache(px, at, on);
   // where the diver is, blinking
   const d = Game.dive;
   if (d && d.sortie && d.terr && on) { const [cx, cy] = at(L.terrs[d.terr]); for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) px(cx + 3 + i, cy + 1 + j, '#ffffff'); }
@@ -182,7 +184,13 @@ function drawMapCard() {
       h += `<div class="goal"><b>To kindle: ${esc(g[0])}.</b><br>${esc(g[1])}${prog ? `<br><span class="r-legendary">${prog}</span>` : ''}</div>` + row('THEN', `plant the spire (${T.world.plant} s)`);
     }
     if (s.visits && t.deep) h += row('A DEEP', `a portal down, ${t.deep} site${t.deep > 1 ? 's' : ''}${deepZone(t, t.deep) === 'lair' ? ", the Keeper's Lair at the bottom" : ''}`);
+    // what its deeds would give the star (deeds.js)
+    if (word !== 'kindled' && !s.starter) h += row('KINDLING IT', `+${heartLightFor(t)} heartlight${starHoldsSpire(t.id) ? '' : ` · its spire needs magnitude ${spireMagFor(t.id)}`}`);
+    if (s.visits && t.deep) h += row('ITS DEEP\'S END', deepReached(t.id) ? 'reached' : `+${deepLightFor(t)} deeplight, the first time`);
   }
+  // the pack a fall left here
+  const pack = Save.data.cache;
+  if (pack && pack.terr === t.id) h += `<div class="goal"><b class="r-legendary">Your pack lies here</b>${pack.site ? `, in its Deep (site ${pack.site})` : ''}. Walk to it to take it back. Fall again before you do, and it's lost.</div>`;
   const btns = [];
   if (mode === 'travel') {
     if (d && d.terr === t.id) btns.push('<p class="note">You are here.</p>');
@@ -210,7 +218,7 @@ function drawSetOut() {
   if (travel) { $('setout-body').innerHTML = `<p class="note">Tap a spire to travel there, or the star to go home. Travelling banks what you carry first.</p>`; return; }
   const owned = TOOL_IDS.filter(toolOwned);
   const carry = `<h3>CARRYING</h3><div class="chips">${owned.map((id) => `<button class="chip ${s.tool === id ? 'on' : ''}" data-act="carryTool" data-arg="${id}"><img class="chip-icon" src="${toolIconUrl(id)}" alt="">${esc(TOOLS[id].name)}</button>`).join('')}</div>`;
-  $('setout-body').innerHTML = carry + `<p class="note">Tap a territory for its card. Walk out into any land next to the outpost, or set out to any spire. Your light drains in dark land and fills again in kindled land.</p>`
+  $('setout-body').innerHTML = nextStepsHtml() + carry + `<p class="note">Tap a territory for its card. Walk out into any land next to the outpost, or set out to any spire. Your light drains in dark land and fills again in kindled land.</p>`
     + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME${s.swapped ? '' : ' · ONE SWAP A TRIP'}</h3>${contractRows(null)}` + drawToolRows();
 }
 

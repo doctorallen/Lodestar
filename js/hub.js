@@ -151,32 +151,29 @@ function feedStarFx(d, n, grew) {
 }
 
 // ---------------------------------------------------------------------------
-// Feeding the star: hold FEED THE STAR at the altar, and ore after ore
-// rises from the Kindler, bows up over the altar's bowl and drops into the
-// star, faster the longer it's held; let go and it stops. The plainest ore
-// goes first (Ferrite, then Lumenite, and so on), so a short hold never
-// gives the rare ore you forge with, and the flow rests a beat before each
-// new kind, a moment to let go. Ore marked kept at the star (Save.data
-// .keepOre) is never given. Each ore leaves the stash and its points
-// (tier²) join the star's at once, so the save is never between the two;
-// the star is drawn as it was until each ore lands in it (hubStarMag), and
-// a magnitude is reached, with its weight, when the ore that makes it lands.
+// Feeding the star: hold FEED THE STAR at the altar, and mote after mote of
+// the light the Kindler's deeds earned (deeds.js) rises from their hands,
+// bows up over the altar's bowl and drops into the star, faster the longer
+// it's held; let go and it stops. Deeplight goes first and heartlight last,
+// and the flow rests a beat before each new kind. Each mote leaves the stash
+// and its point joins the star's at once, so the save is never between the
+// two; the star is drawn as it was until each mote lands in it (hubStarMag),
+// and a magnitude is reached, with its weight, when the mote that makes it
+// lands.
 // ---------------------------------------------------------------------------
 
-// The next ore the star would take: the plainest not kept, or null.
-function starFeedNextOre() {
-  const s = Save.data, keep = s.keepOre || {};
-  const o = T.ores.find((x) => (s.stash[x.id] || 0) > 0 && !keep[x.id]);
-  return o ? o.id : null;
+// The next light the star would take, or null.
+function starFeedNextLight() {
+  const s = Save.data;
+  return LIGHT_IDS.find((id) => (s.stash[id] || 0) > 0) || null;
 }
-// The star's magnitude as drawn: what it was before the ores still rising.
+// The star's magnitude as drawn: what it was before the light still rising.
 function hubStarMag(d = Game.dive) { return magnitudeOf(Save.data.star - ((d && d.feedFlying) || 0)); }
 
 // The act button pressed at the altar (with no shard to set).
 function startStarFeed(d) {
-  if (!starFeedNextOre()) {
-    const any = T.ores.some((o) => Save.data.stash[o.id]);
-    UI.toast(any ? 'All your ore is kept for the forge. ATTUNE chooses what the star may take' : 'No ore banked. The star takes what you bring home');
+  if (!starFeedNextLight()) {
+    UI.toast('No light to give. Kindle land and find the deep places, then bring the light home');
     return;
   }
   Story.say('firstFeed');
@@ -188,14 +185,13 @@ function endStarFeed(d) {
   d.feed = null;
   Save.save();
   if (typeof snd === 'function') snd('starFeedEnd', {});
-  UI.tip('feedKeep', 'Ore you mark KEPT at the star (ATTUNE) stays for the forge');
 }
 
-// Each step at home: the hold's flow, and the ores in the air.
+// Each step at home: the hold's flow, and the light in the air.
 function updateStarFeed(d, dt) {
   const F = T.star.feed, s = Save.data;
   d.feedHum = Math.max(0, (d.feedHum || 0) - F.humFade * dt);
-  // the ores in the air: each lands in the star in turn
+  // the motes in the air: each lands in the star in turn
   if (d.feedMotes && d.feedMotes.length) {
     for (const m of d.feedMotes) {
       if ((m.t += dt / F.fly) < 1) continue;
@@ -204,7 +200,7 @@ function updateStarFeed(d, dt) {
       d.feedHum = Math.min(1, d.feedHum + F.hum * m.tier);
       if (typeof snd === 'function') snd('starFeed', { n: m.n, tier: m.tier, rate: m.rate });
       Story.starTaste(m.ore);
-      spawnSparks(STAR_AT.x * TILE, STAR_AT.y * TILE + 4, [(ART.ores[m.ore] || ART.pal.star)[3]], 1);
+      spawnSparks(STAR_AT.x * TILE, STAR_AT.y * TILE + 4, [LIGHT_KINDS[m.ore].ramp[3], LIGHT_KINDS[m.ore].ramp[2]], 1);
       const after = hubStarMag(d);
       if (after > before) {
         d.feedT = 1;
@@ -223,46 +219,48 @@ function updateStarFeed(d, dt) {
   const k = Math.min(1, f.t / F.ramp), rate = F.rate0 + (F.rateMax - F.rate0) * k * k;
   f.acc += rate * dt;
   while (f.acc >= 1) {
-    const id = starFeedNextOre();
+    const id = starFeedNextLight();
     if (!id) { endStarFeed(d); return; }
-    // a new kind of ore: a beat's rest first
+    // a new kind of light: a beat's rest first
     if (f.ore && id !== f.ore) { f.ore = id; f.beat = F.beat; f.t = Math.min(f.t, F.ramp * F.beatRamp); f.acc = 0; return; }
     f.ore = id; f.acc -= 1;
     spendOre(id, 1);
-    const pts = orePoints(id), p = d.p;
+    const pts = 1, p = d.p;
     s.star += pts;
     d.feedFlying = (d.feedFlying || 0) + pts;
     d.feedN = (d.feedN || 0) + 1;
-    (d.feedMotes = d.feedMotes || []).push({ ore: id, tier: T.ores[ORE_INDEX[id]].tier, pts, n: d.feedN, rate, t: 0, x: p.x + FX_R.f(-3, 3), y: p.y - 14, seed: FX_R.f(1000) });
+    (d.feedMotes = d.feedMotes || []).push({ ore: id, tier: id === 'heartlight' ? 5 : 3, pts, n: d.feedN, rate, t: 0, x: p.x + FX_R.f(-3, 3), y: p.y - 14, seed: FX_R.f(1000) });
   }
 }
 
-// Where a rising ore is at t (0..1), in world px: from the Kindler's hands,
-// bowing up over the altar's bowl, quicker as it nears the star.
+// Where a rising mote is at t (0..1), in world px: from the Kindler's
+// hands, bowing up over the altar's bowl, quicker as it nears the star.
 function starFeedPath(m, t) {
   const alt = HUB_STATIONS.find((s) => s.id === 'altar'), u = t * (0.35 + 0.65 * t);
   const cx = (alt.x + 0.5) * TILE, cy = (alt.y + 0.5) * TILE - T.star.feed.arc, sx = STAR_AT.x * TILE, sy = STAR_AT.y * TILE;
   const a = (1 - u) * (1 - u), b = 2 * u * (1 - u), c = u * u;
   return { x: a * m.x + b * cx + c * sx, y: a * m.y + b * cy + c * sy };
 }
-// The ores in the air, as small glowing strokes in their own colours: a
-// bright head a stroke wide (wider for the heavier ores), and a tail of
-// deeper tones fading behind it.
+// The light in the air, each kind its own mote: heartlight a warm gold
+// spark with a cross of light, a tail of embers behind; deeplight a cold
+// blue-white spark wound round by a fainter twin, its tail violet.
 function drawStarFeed(d, ox, oy, lights) {
   const ms = d.feedMotes;
   if (!ms || !ms.length) return;
   const F = T.star.feed, every = Math.max(1, Math.ceil(ms.length / F.lights));
   ms.forEach((m, i) => {
-    const R = ART.ores[m.ore] || ART.pal.star, w = m.tier >= 5 ? 3 : 2;
-    for (let j = 5; j >= 0; j--) {
-      const t = m.t - j * 0.028;
+    const R = LIGHT_KINDS[m.ore].ramp, heart = m.ore === 'heartlight';
+    for (let j = 9; j >= 0; j--) {
+      const t = m.t - j * 0.025;
       if (t < 0) continue;
       const q = starFeedPath(m, t), wob = Math.sin(m.seed + t * 9) * 3 * (1 - t), x = Math.round((q.x + wob) * AP) + ox, y = Math.round(q.y * AP) + oy;
       if (j === 0) {
-        for (let k = 0; k < w; k++) dot(x + k - (w >> 1), y, k === (w >> 1) ? R[3] : R[2], true);
-        if (m.tier >= 3) dot(x, y - 1, R[2], true, 0.8);
-        if (i % every === 0) lights.push({ x, y, r: TILE * (0.5 + m.tier * 0.08), i: 0.5, c: rgb01(R[2]) });
-      } else dot(x, y, R[j < 3 ? 2 : 1], true, 1 - j * 0.15);
+        // the head: a bright core in a diamond of its colour
+        for (const [a, b, c, k] of [[0, 0, 3, 1], [1, 0, 3, 1], [0, 1, 3, 1], [1, 1, 3, 1], [-1, 0, 2, 0.9], [2, 0, 2, 0.9], [-1, 1, 2, 0.9], [2, 1, 2, 0.9], [0, -1, 2, 0.9], [1, -1, 2, 0.9], [0, 2, 2, 0.9], [1, 2, 2, 0.9]]) dot(x + a, y + b, R[c], true, k);
+        if (heart) { for (const [a, b] of [[-3, 0], [4, 0], [-3, 1], [4, 1], [0, -3], [1, -3], [0, 4], [1, 4]]) dot(x + a, y + b, R[1], true, 0.6); }
+        else { const sx = Math.round(Math.cos(m.seed + t * 18) * 4), sy = Math.round(Math.sin(m.seed + t * 18) * 3); dot(x + sx, y + sy, R[3], true, 0.9); dot(x + sx + 1, y + sy, R[2], true, 0.7); dot(x - sx, y - sy, R[1], true, 0.6); }
+        if (i % every === 0) lights.push({ x, y, r: TILE * (heart ? 1.1 : 0.9), i: 0.7, c: rgb01(R[2]) });
+      } else { dot(x, y, R[j < 4 ? 2 : 1], true, 1 - j * 0.09); if (j < 4) dot(x + 1, y, R[1], true, 0.6 - j * 0.12); }
     }
   });
 }

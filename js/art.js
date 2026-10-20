@@ -947,6 +947,8 @@ function stuffIconUrl(id) {
   const key = 'stuff/' + id;
   let url = _iconCache.get(key);
   if (url) return url;
+  // (the light of deeds has its own: deeds.js)
+  if (typeof isLight === 'function' && isLight(id)) return lightIconUrl(id);
   const part = parsePart(id);
   if (part) {
     url = art2Sprite(PART_ROWS[part.kind], PART_PAL[part.kind][part.grade - 1]).c.toDataURL();

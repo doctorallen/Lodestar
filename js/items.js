@@ -361,7 +361,6 @@ function salvageYield(rng, item) {
 // ---------------------------------------------------------------------------
 // The Lodestar
 // ---------------------------------------------------------------------------
-function orePoints(id) { const o = T.ores[ORE_INDEX[id]]; return o ? o.tier * o.tier : 0; }
 function magnitudeOf(points) { let m = 0; for (const need of T.star.levels) if (points >= need) m++; return m; }
 function attunePointsLeft(save) {
   let spent = 0;
