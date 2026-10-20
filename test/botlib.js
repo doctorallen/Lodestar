@@ -154,12 +154,16 @@ function installBot() {
     // (not one it has fallen in twice with the gear it has now)
     const deeps = L.terrs.filter((t) => !t.home && t.deep && lit(t.id) && (hasSpire(t.id) || t.ring === 1) && deepZone(t, t.deep) !== 'lair' && !botBeaten(t.id));
     const fresh = deeps.filter((t) => !deepReached(t.id));
-    const ready = front.filter((t) => terrLevel(t) <= best);
+    // (and not into a region whose ore its pick can't break yet: a player
+    // gets the pick first)
+    const power = Save.data.equip.pick ? Save.data.equip.pick.base.power : 1;
+    const mineable = (t) => T.ores[ORE_INDEX[T.biomes[t.biome].ores[0]]].tier <= power;
+    const ready = front.filter((t) => terrLevel(t) <= best && mineable(t));
     if (deeps.length && (Math.random() < deepOdds * (fresh.length ? 2 : 1) || !front.length)) {
       const t = (fresh.length ? fresh : deeps).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
       return hasSpire(t.id) ? { target: t.id, spire: t.id, deep: true } : { target: t.id, walk: t.id, deep: true };
     }
-    const target = ready[ready.length - 1] || front[0] || edge[0] || L.terrs.filter((t) => !t.home).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
+    const target = ready[ready.length - 1] || front.find(mineable) || front[0] || edge[0] || L.terrs.filter((t) => !t.home).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
     if (target.nb.includes(0)) return { target: target.id, walk: target.id };
     const spire = target.nb.find((n) => hasSpire(n));
     if (spire !== undefined) return { target: target.id, spire };
