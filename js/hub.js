@@ -71,6 +71,23 @@ function drawHubLodelines(d, ox, oy, lights) {
     if (lit) lights.push({ x: Math.round(x0 + ux * N * 0.5), y: Math.round(y0 + uy * N * 0.5), r: TILE * 2, i: 0.25, c: rgb01(G[4]) });
   }
 }
+// What can't be walked through at home: each module's base, the gate, the
+// uplink's mast and the star's cradle, as ellipses on the ground in world
+// px ({ x, y, rx, ry }), each ending just behind its feet, so the Kindler
+// stands in front of a station to use it (game.js bodyHits).
+function outpostSolids() {
+  // per station: [its middle's offset from the feet, half its width, half its depth]
+  const base = { forge: [-5, 18, 7], runes: [0, 12, 5], locker: [0, 8, 5], altar: [0, 6, 4], wreck: [0, 9, 5], setout: [0, 19, 5] }, out = [];
+  for (const s of HUB_STATIONS) {
+    const b = base[s.id];
+    if (!b) continue;
+    const fy = (s.y + 0.5) * TILE + (s.id === 'wreck' || s.id === 'setout' ? 0 : 4);
+    out.push({ id: s.id, x: (s.x + 0.5) * TILE + b[0], y: fy - 2 - b[2], rx: b[1], ry: b[2] });
+  }
+  out.push({ id: 'cradle', x: OUTPOST_CRADLE.x * TILE, y: OUTPOST_CRADLE.y * TILE - 2 - 9, rx: 26, ry: 9 });
+  return out;
+}
+
 // Where a station's feet are on the view (its tile's middle, a little
 // south).
 function stationAt(s, ox, oy) { return { x: Math.round((s.x + 0.5) * ATILE) + ox, y: Math.round((s.y + 0.5) * ATILE) + oy + ap(6) }; }
