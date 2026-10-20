@@ -2,7 +2,8 @@
 // ---------------------------------------------------------------------------
 // The save, kept in localStorage: what's banked at the Lodestar (ore,
 // parts and exotics in stash, gear in items), what's worn, the blueprints
-// known, the star's points, the attunements, and the world. A sortie under
+// known, the star's points, the attunements, the world, the pack a fall
+// left (cache), the supplies carried, and the deeds found. A sortie under
 // way is saved too (game.js, saveRun).
 //
 // The world replaced the dive chain, and a save from before it (SAVE_OLD:
@@ -40,7 +41,6 @@ function cleanSave(s) {
   s.codex = (s.codex || []).filter((k) => LEGENDARIES[k]);
   // what Wick knows of each kind's nature, and the resonances' Codex
   if (!s.natures || typeof s.natures !== 'object') s.natures = {};
-  if (!s.keepOre || typeof s.keepOre !== 'object') s.keepOre = {};
   if (!s.resCodex || typeof s.resCodex !== 'object') s.resCodex = { kindling: [0, 1, 2] };
   for (const id of Object.keys(s.resCodex)) { const r = RESONANCES.find((x) => x.id === id); if (!r || !Array.isArray(s.resCodex[id])) delete s.resCodex[id]; else s.resCodex[id] = s.resCodex[id].filter((i) => Number.isInteger(i) && i >= 0 && i < r.seq.length); }
 }
@@ -55,8 +55,9 @@ const Save = {
       attune: {}, tips: {}, settings: { haptics: true }, world: null, lastSpire: 0,
       blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start),
       tools: ['compass'], tool: 'compass', codex: [], natures: {}, resCodex: { kindling: [0, 1, 2] },
-      // the ores the star is never given (marked at the altar)
-      keepOre: {},
+      // the star's points are light (deeds.js; an older save's are rescaled),
+      // what's been found, the pack a fall left, and the supplies carried
+      starScale: T.star.scale, found: {}, cache: null, supplies: {}, supplySel: null,
     };
   },
   load() {
@@ -69,6 +70,8 @@ const Save = {
       const s = this.data;
       s.equip = s.equip || {};
       cleanSave(s);
+      // an older star, fed ore: rescaled to light, keeping its magnitude
+      if (raw && JSON.parse(raw).starScale !== T.star.scale) { s.starScale = 0; rescaleStar(s); }
     } catch (e) {
       // keep what couldn't be read aside, so a fresh game never writes over it
       try { if (raw && !localStorage.getItem(SAVE_KEY + '.unread')) localStorage.setItem(SAVE_KEY + '.unread', raw); } catch (e2) { /* nowhere to keep it */ }

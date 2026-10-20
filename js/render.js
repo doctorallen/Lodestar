@@ -804,7 +804,7 @@ function renderFrame() {
 
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) { drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8, Math.round(dr.y * AP) + oy - 16, 16, 18, Math.round(dr.y * AP) + oy, ox, oy); }
-  const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d), fieldForgeProps(d))).concat(portalProps(d));
+  const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d), fieldForgeProps(d))).concat(portalProps(d), deedProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
@@ -952,7 +952,7 @@ function renderFrame() {
   }
   // the tools' marks and the outpost's labels too
   View.ctx = o;
-  try { drawToolHud(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else drawStormMark(d, ox, oy); if (!Intro.hub) drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
+  try { drawToolHud(d, ox, oy); drawDeedsHud(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else drawStormMark(d, ox, oy); if (!Intro.hub) drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
   // stepping through a portal, or just through one: over everything
   drawPortalIris(d, ox, oy);
 }
@@ -1322,7 +1322,7 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
   } else if (fx.kind === 'iceBurst' || fx.kind === 'steam' || fx.kind === 'flare' || fx.kind === 'overload' || fx.kind === 'wardBreak') {
     drawReactFx(fx, cx, cy, k, tick, lights);
   } else if (fx.kind === 'mote') {
-    // ore fed to the star, rising from the altar into it
+    // a shard set in the star, its light rising from the altar into it
     const t = 1 - k, sx = STAR_AT.x * ATILE + ox, sy = STAR_AT.y * ATILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * AP * (1 - t);
     dot(Math.round(lerp(cx, sx, t * t) + wob), Math.round(lerp(cy, sy, t)), ART.pal.star[t > 0.8 ? 3 : 2], true);
   } else if (fx.kind === 'nova') {

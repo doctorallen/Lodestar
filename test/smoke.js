@@ -6,10 +6,11 @@
 // the cargo screen, lighting the waystones and planting a spire, banking
 // at it and travelling home with the haul in the stash; the forge,
 // equipping what it makes, a reroll at the rune bench, feeding the star
-// (held at the altar, and ore kept from it);
-// your light running out, a recall, tools, rifts, a Deep, a Keeper; then a
-// fall that loses the cargo but not what's worn, and wakes at the last
-// spire.
+// the light of deeds (held at the altar), supplies made at the fabricator
+// and from the cargo, and used from the deck; the star's reach; your light
+// running out, a recall, tools, rifts, a Deep, a Keeper; then a fall that
+// leaves the cargo in a pack where it fell (not what's worn), wakes at the
+// last spire, and the pack recovered. An older save's star is rescaled.
 // Held sideways, the decks sit either side of the view. Opened again with
 // a sortie under way, the loading builds its territory and CARRY ON is
 // there at once. On a desktop: WASD,
@@ -29,7 +30,6 @@ async function openGame(browser, opts) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const T_RECALL = 4; // seconds; T.leave.recall
-const T_EXTRACT_STAR = 8; // T.star.extractStar
 const failures = [];
 const check = (ok, msg) => { if (!ok) failures.push(msg); };
 
@@ -272,6 +272,8 @@ async function phone(browser) {
   await page.evaluate(() => { for (let i = 0; i < 60 * (T.world.plant + 0.3); i++) { Game.step(1 / 60); for (const e of Game.dive.enemies) e.dead = true; } });
   const kindled = await page.evaluate(() => { const d = Game.dive; window._kid = d.terr; const raw = JSON.parse(localStorage.getItem('lodestar.save.v4')); return [d.kindled, terrState(d.terr).state, !!d.floor.pad, d.pull, raw.world.territories[d.terr].state, Save.data.lastSpire === d.terr]; });
   check(kindled.join() === 'true,kindled,true,1,kindled,true', `phone: planting the spire did not kindle the land, saved at once (${kindled})`);
+  // its heart's light, bound to the Kindler and saved at once
+  check(await page.evaluate(() => Save.data.stash.heartlight === T.deeds.heart[1] && JSON.parse(localStorage.getItem('lodestar.save.v4')).stash.heartlight === T.deeds.heart[1]), 'phone: kindling did not give its heartlight, saved at once');
   await run(page, 0.3);
   await shot(page, 'smoke-kindled');
   // a spire banks the haul (a channel moving breaks) and feeds the star
@@ -290,7 +292,7 @@ async function phone(browser) {
   await run(page, 0.1);
   await tap(page, '#btn-act');
   await run(page, 1.8);
-  const banked = await page.evaluate(() => [Object.values(Save.data.stash).reduce((a, b) => a + b, 0) + Save.data.items.length * T.cargo.itemWeight, JSON.parse(localStorage.getItem('lodestar.save.v4')), Save.data.star, cargoUsed(Game.dive), Game.dive.hub]);
+  const banked = await page.evaluate(() => [Object.entries(Save.data.stash).filter(([k]) => !isLight(k)).reduce((a, [, b]) => a + b, 0) + Save.data.items.length * T.cargo.itemWeight, JSON.parse(localStorage.getItem('lodestar.save.v4')), Save.data.star, cargoUsed(Game.dive), Game.dive.hub]);
   check(banked[0] === carriedNow && banked[3] === 0 && !banked[4], `phone: banked ${banked[0]} of ${carriedNow}, ${banked[3]} left, still out: ${!banked[4]}`);
   check(banked[1].items.length === 2, 'phone: the found gear was not banked and saved');
   check(banked[2] === 0 && far >= 1, `phone: banking fed the star ${banked[2]} before coming home`);
@@ -303,8 +305,10 @@ async function phone(browser) {
   await run(page, 2.5);
   check(await visible(page, '#screen-report') && /HOME/.test(await page.evaluate(() => $('report-title').textContent)), 'phone: travelling home did not report');
   check(/BANKED/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the haul');
+  // the star grows only when it's fed the light, at the altar
   const fedHome = await page.evaluate(() => Save.data.star);
-  check(fedHome === T_EXTRACT_STAR * far * far, `phone: coming home fed the star ${fedHome}, not 8 × ${far}²`);
+  check(fedHome === 0, `phone: coming home fed the star ${fedHome} by itself`);
+  check(/heartlight/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the heartlight earned');
   await shot(page, 'smoke-report');
   await tap(page, '#screen-report [data-act=closeReport]');
   check(await page.evaluate(() => Game.dive.hub && !Game.modal), 'phone: CONTINUE did not come back to the outpost');
@@ -372,32 +376,42 @@ async function phone(browser) {
   await tap(page, '#card [data-act=closeCard]');
   await tap(page, '#screen-gear [data-act=back]');
 
-  // feeding the star at the altar: held, ore after ore rises into it, the
-  // plainest first; let go and it stops; ore marked kept stays
-  await page.evaluate(() => { for (const o of T.ores) delete Save.data.stash[o.id]; Save.data.stash.ferrite = 30; Save.data.stash.lumenite = 10; Save.data.keepOre = {}; });
+  // feeding the star at the altar: held, mote after mote of light rises
+  // into it, deeplight first; let go and it stops; a long hold gives it all
+  await page.evaluate(() => { Save.data.stash.heartlight = 20; Save.data.stash.deeplight = 6; Save.data.star = 0; Save.data.magSeen = 1; });
   await page.evaluate(atStation, 'altar');
   await run(page, 0.05);
-  check(await page.evaluate(() => $('btn-act').textContent === 'FEED THE STAR' && !$('btn-act2').hidden && /^ATTUNE/.test($('btn-act2').textContent)), 'phone: no FEED THE STAR and ATTUNE at the altar');
-  const pts = await page.evaluate(() => Save.data.star);
-  await hold(page, '#btn-act', 0.6);
+  check(await page.evaluate(() => /^FEED THE STAR/.test($('btn-act').textContent) && !$('btn-act2').hidden && /^ATTUNE/.test($('btn-act2').textContent)), 'phone: no FEED THE STAR and ATTUNE at the altar');
+  await hold(page, '#btn-act', 0.8);
   await run(page, 0.05);
-  const fed = await page.evaluate((p) => { const s = Save.data, k = 30 - (s.stash.ferrite || 0); return [k, s.star - p, s.stash.lumenite, !!Game.dive.feed, (Game.dive.feedMotes || []).length]; }, pts);
-  check(fed[0] > 0 && fed[0] < 30 && fed[1] === fed[0] && fed[2] === 10, `phone: a short hold fed ${fed[0]} Ferrite for ${fed[1]} points (and Lumenite left ${fed[2]})`);
+  const fed = await page.evaluate(() => { const s = Save.data; return [6 - (s.stash.deeplight || 0), s.star, s.stash.heartlight, !!Game.dive.feed, (Game.dive.feedMotes || []).length]; });
+  check(fed[0] > 0 && fed[1] === fed[0] && fed[2] === 20, `phone: a short hold gave ${fed[0]} deeplight for ${fed[1]} points (and heartlight left ${fed[2]})`);
   check(!fed[3], 'phone: feeding the star did not stop on letting go');
-  // (the last ores are still rising: they take T.star.feed.fly to land)
   await run(page, (await page.evaluate(() => T.star.feed.fly)) + 0.3);
+  check(await page.evaluate(() => !(Game.dive.feedMotes || []).length && JSON.parse(localStorage.getItem('lodestar.save.v4')).stash.deeplight === Save.data.stash.deeplight), 'phone: the light fed never reached the star, or the save missed it');
+  await hold(page, '#btn-act', 0.5);
   await shot(page, 'smoke-feed');
-  check(await page.evaluate(() => !(Game.dive.feedMotes || []).length && JSON.parse(localStorage.getItem('lodestar.save.v4')).stash.ferrite === Save.data.stash.ferrite), 'phone: the ore fed never reached the star, or the save missed it');
-  // ATTUNE opens the star's screen: keep the Ferrite, then hold to the end
+  await hold(page, '#btn-act', 3);
+  await run(page, 1.2);
+  check(await page.evaluate(() => !Save.data.stash.heartlight && !Save.data.stash.deeplight && Save.data.star === 26 && magnitudeOf(Save.data.star) === 2), 'phone: a long hold did not give all the light, or the star did not grow');
+  // ATTUNE opens the star's screen: the light, what grows it, its reach
   await tap(page, '#btn-act2');
-  check(await visible(page, '#screen-star'), 'phone: ATTUNE did not open the star');
-  await tap(page, '#star-body [data-act=keepOre][data-arg=ferrite]');
+  check(await visible(page, '#screen-star') && /WHAT GROWS IT/.test(await page.evaluate(() => $('star-body').textContent)), 'phone: ATTUNE did not open the star, or it does not say what grows it');
+  await shot(page, 'smoke-star');
   await tap(page, '#screen-star [data-act=back]');
-  const fe1 = await page.evaluate(() => Save.data.stash.ferrite), pts1 = await page.evaluate(() => Save.data.star);
-  await hold(page, '#btn-act', 2.5);
-  await run(page, 1);
-  check(await page.evaluate(([f, p]) => Save.data.stash.ferrite === f && !Save.data.stash.lumenite && Save.data.star === p + 40, [fe1, pts1]), 'phone: a long hold did not give all the Lumenite and keep the Ferrite');
-  await page.evaluate(() => { Save.data.keepOre = {}; });
+
+  // supplies: made from ore at the fabricator (SUPPLIES, beside FORGE)
+  await page.evaluate(() => { Save.data.stash.ferrite = 40; Save.data.stash.lumenite = 20; Save.data.supplies = {}; });
+  await page.evaluate(atStation, 'forge');
+  await run(page, 0.05);
+  check(await page.evaluate(() => $('btn-act2').textContent === 'SUPPLIES'), 'phone: no SUPPLIES at the fabricator');
+  await tap(page, '#btn-act2');
+  check(await visible(page, '#screen-supplies'), 'phone: SUPPLIES did not open');
+  await tap(page, '#supplies-body [data-act=makeSupply][data-arg=injector1]');
+  await tap(page, '#supplies-body [data-act=makeSupply][data-arg=cell1]');
+  await shot(page, 'smoke-supplies');
+  check(await page.evaluate(() => Save.data.supplies.injector1 === 1 && Save.data.supplies.cell1 === 1 && Save.data.stash.ferrite === 34 && Save.data.stash.lumenite === 15), `phone: making supplies did not cost their ore (${await page.evaluate(() => JSON.stringify([Save.data.supplies, Save.data.stash.ferrite, Save.data.stash.lumenite]))})`);
+  await tap(page, '#screen-supplies [data-act=back]');
 
   // your light runs out in dark land, and the Hollow comes; kindled land
   // fills it again
@@ -521,7 +535,7 @@ async function phone(browser) {
     Save.data.contracts[0] = { id: 999, kind: 'haul', ore: 'ferrite', n: 3, star: 25, reward: 'riftglass' };
     const glass = Save.data.stash.riftglass || 0, star = Save.data.star;
     UI.close(); startSortie({ terr: ring1(null), from: 0 }); Game.dive.cargo.ferrite = 3; goHome('walk');
-    const paid = (Save.data.stash.riftglass || 0) === glass + 1 && Save.data.star >= star + 25, replaced = Save.data.contracts.length === 3 && !Save.data.contracts.some((c) => c.id === 999);
+    const paid = (Save.data.stash.riftglass || 0) === glass + 1 && Save.data.star === star, replaced = Save.data.contracts.length === 3 && !Save.data.contracts.some((c) => c.id === 999);
     UI.acts.closeReport();
     return { posted, paid, replaced, row: /CONTRACT DONE/.test($('report-body').textContent) || true };
   });
@@ -568,12 +582,85 @@ async function phone(browser) {
   check(await visible(page, '#screen-report'), 'phone: dying did not report');
   check(/YOU FELL/.test(await page.evaluate(() => $('report-title').textContent)), 'phone: the report does not say you fell');
   check(await page.evaluate(([w, fe]) => Save.data.equip.main.uid === w && Save.data.stash.ferrite === fe && !Save.data.items.some((i) => i.kind === 'relic'), kept), 'phone: dying kept the cargo or lost the gear');
+  // the cargo waits where it fell, in the pack, saved
+  check(await page.evaluate(() => { const c = Save.data.cache, raw = JSON.parse(localStorage.getItem('lodestar.save.v4')).cache; return !!c && c.cargo.ferrite === 9 && c.items.some((i) => i.kind === 'relic') && !!raw && raw.terr === c.terr; }), 'phone: the fall did not leave the cargo in a pack where it fell, saved');
+  check(/YOUR PACK/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not say where the pack is');
   check(await page.evaluate(() => Save.data.items.some((i) => i.kind === 'charm')), 'phone: the pocketed charm did not survive the fall');
   check(/POCKET KEPT/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not mention the pocket');
   check(/YOU WAKE/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not say where you wake');
   await tap(page, '#screen-report [data-act=closeReport]');
   check(await page.evaluate(() => { const d = Game.dive; return !d.hub && d.terr === Save.data.lastSpire && d.kindled && Math.abs(Math.floor(d.p.x / TILE) - d.floor.pad.x) <= 1; }), 'phone: the fall did not wake the diver at the last spire');
   await shot(page, 'smoke-wake');
+  // back to the pack: it stands where the Kindler fell, and walking to it
+  // takes it back, once
+  const pack = await page.evaluate(() => {
+    const c = Save.data.cache;
+    UI.close(); enterTerritory(c.terr, { from: terrOf(c.terr).nb[0] }); sturdy();
+    const d = Game.dive, at = cacheSpot(d, c);
+    d.p.x = at.x; d.p.y = at.y + 40; for (let i = 0; i < 5; i++) Game.step(1 / 60);
+    const before = !!Save.data.cache && !d.cargo.ferrite;
+    Game.render();
+    return before;
+  });
+  await shot(page, 'smoke-pack');
+  const got = await page.evaluate(() => { const d = Game.dive, at = cacheSpot(d, Save.data.cache); d.p.x = at.x; d.p.y = at.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); return [d.cargo.ferrite, d.items.some((i) => i.kind === 'relic'), Save.data.cache, JSON.parse(localStorage.getItem('lodestar.save.v4')).cache]; });
+  check(pack && got[0] === 9 && got[1] && got[2] === null && got[3] === null, `phone: walking to the pack did not take it back (${JSON.stringify(got)})`);
+  // a fall before reaching it, and the older pack is lost: only the newest waits
+  const twice = await page.evaluate(() => {
+    const d = Game.dive; d.cargo = { ferrite: 3 }; d.p.invuln = 0; d.p.hp = 1; d.stats.maxHp = 100; hurtPlayer(1e9, null);
+    for (let i = 0; i < 150; i++) Game.step(1 / 60);
+    const first = JSON.stringify(Save.data.cache.cargo); UI.acts.closeReport();
+    const e = Game.dive; e.cargo = { lumenite: 2 }; e.p.invuln = 0; e.stats.maxHp = 100; e.p.hp = 1; hurtPlayer(1e9, null);
+    for (let i = 0; i < 150; i++) Game.step(1 / 60);
+    const out = [first, JSON.stringify(Save.data.cache.cargo), /LOST TO THE DARK/.test($('report-body').textContent)];
+    UI.acts.closeReport();
+    return out;
+  });
+  check(twice[0] === '{"ferrite":3}' && twice[1] === '{"lumenite":2}' && twice[2], `phone: a second fall did not lose the older pack (${twice})`);
+
+  // supplies out in the world: the deck's slot uses one; MAKE in the cargo
+  // makes the simple ones from the ore carried
+  await page.evaluate(() => { if (!Game.dive || Game.dive.hub) { UI.close(); startSortie({ terr: ring1(null), from: 0 }); } sturdy(); const d = Game.dive; d.stats.maxHp = 100; d.p.hp = 30; Save.data.supplySel = 'injector'; });
+  await run(page, 0.1);
+  check(await visible(page, '#btn-supply') && /MEND/.test(await page.evaluate(() => $('btn-supply').textContent)), 'phone: no supply slot on the deck');
+  await shot(page, 'smoke-supply-deck');
+  await tap(page, '#btn-supply');
+  check(await page.evaluate(() => Game.dive.p.hp > 60 && !Save.data.supplies.injector1), `phone: the injector did not heal (${await page.evaluate(() => Game.dive.p.hp)})`);
+  await page.evaluate(() => { Game.dive.cargo.ferrite = 10; });
+  await tap(page, '#btn-cargo');
+  check(/MAKE/.test(await page.evaluate(() => $('cargo-body').textContent)), 'phone: the cargo has no MAKE');
+  await tap(page, '#cargo-body [data-act=makeSupply][data-arg="injector1:field"]');
+  check(await page.evaluate(() => Save.data.supplies.injector1 === 1 && Game.dive.cargo.ferrite === 4), 'phone: MAKE in the field did not make an injector from the cargo');
+  await shot(page, 'smoke-make');
+  await tap(page, '#screen-cargo [data-act=resume]');
+  // a flare holds your light; a charge blasts the first foe near it
+  const set = await page.evaluate(() => {
+    // (in dark land, where the light drains)
+    if (Game.dive.kindled) { enterTerritory(ring1(null), { from: 0 }); sturdy(); }
+    const d = Game.dive, b = Save.data.supplies; b.flare1 = 1; b.charge1 = 1; d.pull = 0.5;
+    const flare = useSupply('flare'), charge = useSupply('charge'), p0 = d.pull;
+    Game.render();
+    for (let i = 0; i < 60; i++) Game.step(1 / 60);
+    const held = d.pull === p0;
+    const e = makeEnemy('crawler', d.p.x + 8, d.p.y, 1, null); d.enemies.push(e); d.p.x += 60;
+    for (let i = 0; i < 20; i++) Game.step(1 / 60);
+    Game.render();
+    return [flare, charge, held, e.hp < e.maxHp || e.dead, !(d.charges || []).length];
+  });
+  check(set.every(Boolean), `phone: a flare did not hold the light, or a charge did not blast (${set})`);
+
+  // the star's reach: a spire won't hold in ring 2 before magnitude 3
+  const reach = await page.evaluate(() => {
+    const t = worldMap().terrs.find((x) => x.ring === 2);
+    Save.data.star = 30; UI.close(); enterTerritory(t.id, { from: t.nb[0] }); sturdy();
+    const d = Game.dive, h = d.floor.heart; terrState(t.id).done = true; if (d.rift && d.rift.heart) d.rift.open = false;
+    d.p.x = (h.x + 0.5) * TILE; d.p.y = (h.y + 0.8) * TILE; Game.step(1 / 60); UI.frame(0);
+    const label = $('btn-act').textContent; Input.actReq = true; Game.step(1 / 60);
+    const out = [label, !d.channel, /magnitude 3/.test($('hud-goal').textContent)];
+    terrState(t.id).done = false; d.channel = null;
+    return out;
+  });
+  check(reach[0] === 'SPIRE · MAGNITUDE 3' && reach[1] && reach[2], `phone: a spire held in ring 2 before the star reached it (${reach})`);
 
   // every hole a mined vein leaves can be walked into, from the side or the corner
   const holes = await page.evaluate(() => {
@@ -613,6 +700,42 @@ async function sideways(browser) {
   check(await page.evaluate(() => Math.min(View.w, View.h) >= 176), 'sideways: the view is under 176 game px');
   await shot(page, 'smoke-sideways');
   check(!errors.length, 'sideways: ' + errors.join(' | '));
+  await page.close();
+}
+
+// Opening the game again with a sortie under way in the land where the
+// pack lies: the loading builds that territory with the pack placed in it,
+// and on CARRY ON walking to it takes it back.
+async function reopenPack(browser) {
+  const { page, errors } = await openGame(browser);
+  const terr = await page.evaluate(() => {
+    const t = worldMap().terrs.find((x) => x.ring === 1 && !x.starter && x.nb.includes(0));
+    UI.close(); startSortie({ terr: t.id, from: 0 });
+    const d = Game.dive; for (const e of d.enemies) e.dead = true;
+    for (let i = 0; i < 30; i++) Game.step(1 / 60);
+    Save.data.cache = { terr: t.id, site: 0, x: d.p.x + 20, y: d.p.y + 60, cargo: { ferrite: 7, deeplight: 4 }, items: [], blueprints: [], where: t.name };
+    saveRun(d); Save.save();
+    return t.id;
+  });
+  await page.reload();
+  await page.waitForFunction(() => typeof Loader !== 'undefined' && Loader.state === 'ready', { timeout: 120000, polling: 100 });
+  check(await page.evaluate((id) => { const d = Game.dive; return !!d && d.terr === id && !!d.cacheAt && d.cacheAt.floor === d.floor; }, terr), 'reopen: the pack was not placed in the territory built while loading');
+  await page.touchscreen.tap(195, 420);
+  await page.waitForFunction(() => Game.ready, { timeout: 10000 });
+  await tap(page, '#screen-resume [data-act=resumeRun]');
+  const got = await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) e.dead = true; d.p.x = d.cacheAt.x; d.p.y = d.cacheAt.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); Game.render(); return [d.cargo.ferrite, d.cargo.deeplight, Save.data.cache]; });
+  check(got[0] === 7 && got[1] === 4 && got[2] === null, `reopen: the pack was not taken back after carrying on (${JSON.stringify(got)})`);
+  check(!errors.length, 'reopen pack: ' + errors.join(' | '));
+  await page.close();
+}
+
+// An older save, its star fed ore: it loads with its magnitude kept (the
+// points rescaled to light), its ore still ore, and nothing kept from the star.
+async function migration(browser) {
+  const { page, errors } = await openFresh(browser, Object.assign({}, PHONE, { save: { v: 5, star: 4500, magSeen: 5, keepOre: { ferrite: true }, introSeen: true, stash: { ferrite: 12, resonite: 3 } } }));
+  const m = await page.evaluate(() => [magnitudeOf(Save.data.star), Save.data.star > T.star.levels[4] && Save.data.star < T.star.levels[5], Save.data.starScale === T.star.scale, Save.data.keepOre, Save.data.stash.ferrite, Save.data.stash.resonite]);
+  check(m[0] === 5 && m[1] && m[2] && m[3] == null && m[4] === 12 && m[5] === 3, `migration: an older save's star or ore did not carry over (${JSON.stringify(m)})`);
+  check(!errors.length, 'migration: ' + errors.join(' | '));
   await page.close();
 }
 
@@ -787,6 +910,8 @@ async function spellcraft(browser) {
     await sideways(browser);
     await reopen(browser);
     await desktop(browser);
+    await reopenPack(browser);
+    await migration(browser);
   } catch (e) {
     failures.push(String(e.stack || e));
   } finally {

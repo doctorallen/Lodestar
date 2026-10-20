@@ -16,7 +16,7 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 ## The story
 
 **The Kindler.** You're a Kindler of the Lodestar Charter. The Charter sends seed-stars to dead worlds, and a Kindler rides down with each one to plant it and carry its light outward, spire by spire, until a colony can land.
-- **The landing:** a planned terraform, by the book. The seed is planted on a surveyed site in the middle of the world, and the Charter's base modules come down with it. A new seed always starts small, its light reaching only a little way; growing it, by feeding it the land's ore and planting spires to carry its light, is the Kindler's job. It's your first terraform, so you grow in skill as you go (the attunements are that skill). Wick has done this before.
+- **The landing:** a planned terraform, by the book. The seed is planted on a surveyed site in the middle of the world, and the Charter's base modules come down with it. A new seed always starts small, its light reaching only a little way; growing it, by feeding it the light of what the Kindler does (land kindled, deep places found, the Keepers' shards) and planting spires to carry its light, is the Kindler's job. It's your first terraform, so you grow in skill as you go (the attunements are that skill). Wick has done this before.
 - **The *Meridian*** is the colony ship waiting in orbit with its settlers asleep. For every 3 territories kindled it can send a lander, and the outpost becomes a settlement.
 - **Why take ground:** it's the job. Every spire carries the star's light further, and the dark is thicker where the light has never been.
 
@@ -31,14 +31,14 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
   - the Rim's, a fungal crawler-queen that calls its brood;
   - the Choir's, a towering tube-worm;
   - the Underforge's, a slag colossus that leaves magma where it charges.
-- **Bringing them back:** a taken shard is bound to you and safe from any fall. Set it in the star at the altar, which feeds the star 400.
+- **Bringing them back:** a taken shard is bound to you and safe from any fall. Set it in the star at the altar, which feeds the star 40 light, a big jump (a ring-1 kindling is 12).
 - **Calling the colony down:** at the Meridian uplink, once all three shards are set and there's ground for 5 landers (15 territories kindled). Until the world map exists, the shards alone will do, and calling plays the "kindle" ending, as lighting the old beacon did.
 
 How it's told:
 - **An opening** on a new game: about 56 seconds of painted scenes that play on their own, a short caption each (`js/intro.js`, the words in `STORY_INTRO`): the Charter's craft crossing the dark with the seed-star, the Meridian behind; the survey's beam sweeping the dark world and marking a site; the outpost's own modules and the planting cradle with the seed in its arms coming down by the book, the cradle locking; the Meridian in orbit and, close, its settlers asleep in their pods; and the outpost itself, where the star rises out of its cradle and lights, the modules wake one by one, the camera comes down to the Kindler stepping out of their pod with Wick ("I'm Wick, your drone"), and play starts right there. A tap hurries a scene (the first only brings the sound in); SKIP INTRO ends it; the uplink plays it again. A faint hint of unease: once, something on the dark face answers the survey's light, and late in the last shot, two cold points in the dark land past an opening.
-- **Wick**, your drone, dry and kind, says a line the first time things happen: the first dive, parts, a blueprint, the anvil, the light thinning, a new biome, a Keeper, a shard, the first spire, the first territory kindled, the first dark tide, the first Deep, each ring, the Edge, the first settlers, the first feeding of the star.
-- **The star speaks** as it grows, a seed-star waking where it was planted, as each shard is set, and when it first tastes the land's ore, and Starmetal.
-- **Feeding seeds the turn.** It's the procedure, and the echoes show earlier Kindlers fed their stars the same way: the ore was the world's own, and the last of them stopped feeding hers. By the Edge, the player has been doing the kindling all along.
+- **Wick**, your drone, dry and kind, says a line the first time things happen: the first dive, parts, a blueprint, the anvil, the light thinning, a new biome, a Keeper, a shard, the first spire, the first territory kindled, the first dark tide, the first Deep, each ring, the Edge, the first settlers, the first feeding of the star, the first heartlight and deeplight, a spire the star can't reach yet, the first pack left by a fall ("Your pack's still out there. We can go back for it.") and found again.
+- **The star speaks** as it grows, a seed-star waking where it was planted, as each shard is set, and when it first tastes heartlight and deeplight.
+- **Feeding seeds the turn.** It's the procedure: the star is fed the light of deeds. But the deeds take something from the world: kindling burns away the dark, the world's own night, and the star tastes it ("This light was night, a moment ago"). The echoes show earlier Kindlers fed their stars the same way ("the light I carry up to her: I used to think the night had no use for it"), and the last of them stopped feeding hers. By the Edge, the player has been doing the kindling all along.
 - **Eight echoes:** logs of the Kindlers before, found by ancient forges, from elites now and then, and from every Keeper, and read at the uplink in the order found. The early ones are hopeful, the middle ones uneasy, and the later ones carry the turn.
 - **Settlers** at the outpost, one for each lander down, stroll the plaza among the modules and their pods and say a line when you pass. After the turn, they've heard.
 - **The log:** one line for each territory kindled, by its clime.
@@ -50,12 +50,17 @@ How it's told:
 The Lodestar is the seed-star the Charter sent down with you, planted in the middle of the world. It hangs over its planting cradle, held up by its own magnetic field, and came down with the Charter's base modules, which stand round it on the cleared site: the outpost. A seed-star is planted small and fed the land's ore until it's strong enough to light a world: that's the procedure every Kindler follows, and this is your first.
 
 - **Its light.** The star's light reaches the land next to the outpost, and every spire planted further out carries it on. Out in the dark, your own light drains; in kindled land and at home it fills again.
-- **Feeding the star.** Each ore fed is worth its tier² in points, and the points raise the star's **magnitude**. Each magnitude gives an attunement point, a Deep's lodelines a little likelier, a gentler emergency recall, and now and then another pocket slot.
-- **The feeding is a ritual, not a shop.** At the altar, hold FEED THE STAR: ore after ore rises from the Kindler's hands, bows up over the altar's bowl and drops into the star, in its own colour, faster the longer you hold (from 3 a second to 160 within about 2 s, so a full stash goes in a few seconds). Let go and it stops. The star brightens as each lands and swells with a ring of light at each magnitude reached. The button says what's going and how much is left (GIVING FERRITE · 87).
-  - **The plainest first:** Ferrite, then Lumenite, and so on up. A short hold never gives the rare ore you forge with, and the flow rests a beat before each new kind, a moment to let go.
-  - **Keeping ore back:** ATTUNE, beside it at the altar, opens the star's screen (attunements, and the ore banked). Mark an ore ☆ KEEP, the same mark that keeps gear from salvage, and the star is never given it.
-  - Each ore leaves the stash and its points join the star's at once (the save is never between the two); the star, its lodelines and lanterns are drawn as they were until each ore lands.
-  - **Words:** Wick gives the why the first time (it's the procedure), and the star remarks on the first ore it ever takes, and the first Starmetal.
+- **The star grows from deeds, not ore.** What the Kindler does gives light, in motes carried home and fed to the star at its altar, a point each; the points raise the star's **magnitude**. Ore is for the forge and for supplies, never for the star.
+  - **Heartlight:** kindling a territory, 12 in ring 1, 16 in ring 2, 24 in ring 3, 32 at the Edge. It's bound to the Kindler the moment the spire stands, safe from any fall.
+  - **Deeplight:** first reaching a Deep's end (its deep vein, or its Keeper's lair), 8 in ring 1 to 20 at the Edge and 4 more for each site past the first; each ancient forge found, 4; each echo, 8. It rides in the cargo and weighs nothing, so a fall leaves it in the pack and a recall can cost some: the push-your-luck stays.
+  - **Shards:** a Keeper's heart-shard, set at the altar, 40 at once.
+  - **Magnitudes** at 0, 12, 40, 100, 200, 340, 520 and 740 light: the first kindling reaches magnitude 2, about half of ring 1 magnitude 3. Each gives an attunement point, a Deep's lodelines a little likelier, a gentler emergency recall, and now and then another pocket slot; the tools open at 2 and 3.
+- **The star is the world's gate.** A spire holds only where the star's light reaches: ring 1 from the start, ring 2 from magnitude 3, ring 3 from 5, the Edge from 7. You can walk anywhere, mine, fight and go down into Deeps, but not kindle past its reach. Kindling every territory of a ring and reaching its Keeper's lair always gives enough for the next ring's, so you're never stuck; with Deeps, echoes and the shard, about two thirds of a ring does it.
+- **The feeding is a ritual, not a shop.** At the altar, hold FEED THE STAR: mote after mote of light rises from the Kindler's hands, bows up over the altar's bowl and drops into the star, faster the longer you hold (from 2.5 a second to 22 within about 2 s). Deeplight goes first, a cold blue-white spark wound round by a fainter twin; heartlight last, a warm gold spark with a cross of light, the crescendo. The flow rests a beat between them. Let go and it stops. The star brightens as each lands and swells with a ring of light at each magnitude reached. The button says what's going and how much is left (GIVING HEARTLIGHT · 24).
+  - **The star's screen** (ATTUNE, beside it at the altar): the magnitude and a bar with the light waiting, each kind of light, what grows it, its reach, and the attunements.
+  - Each mote leaves the stash and its point joins the star's at once (the save is never between the two); the star, its lodelines and lanterns are drawn as they were until each mote lands.
+  - **Words:** Wick gives the why the first time (it's the procedure), and the star remarks on the first heartlight and the first deeplight it takes.
+- **What's next** is always said at home: the portal's screen opens with a short list (the light waiting and how far to the next magnitude, a shard to set, your pack and where it lies, the gentlest land to kindle and its heartlight, how much more light the next ring's spires need, a Deep not yet reached and its deeplight, a Keeper waiting). Each territory's card on the map says what kindling it would give, and its Deep's end.
 - **(proposed) Lore hook.** The deepest ore, Starmetal, is what's left of seed-stars that went dark: it tastes like the earlier, dimmed stars. Something out there has been collecting it.
 
 ## The loop
@@ -63,11 +68,11 @@ The Lodestar is the seed-star the Charter sent down with you, planted in the mid
 1. **At the Lodestar:**
    - forge casters, gear, picks and the stones circuits are built from;
    - rework affixes and salvage what you don't need;
-   - build circuits at the locker, unseal relics, feed the star and spend attunements.
+   - build circuits at the locker, unseal relics, make supplies from old ore, feed the star the light your deeds earned, and spend attunements.
 2. **Set out:** walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to any spire, and the tool to carry (walking out carries the last one chosen).
 3. **Push into the dark:** cross from territory to territory. In dark land your light drains, the enemies are out, and the ore is worth taking.
 4. **Mine, fight, kindle:** work on a territory's heart goal, or just take what you can carry. Some territories have a Deep below, a short dungeon richer in ore.
-5. **Bank or fall:** bank at any spire (or walk home). If you fall, what you wear and what's in your pocket are safe, but the cargo is lost, and you wake at the last spire you touched.
+5. **Bank or fall:** bank at any spire (or walk home). If you fall, what you wear, your supplies and what's in your pocket are safe; the cargo stays where you fell, in your pack, to go back for once, and you wake at the last spire you touched.
 
 ## The world
 
@@ -87,7 +92,8 @@ The world is rolled once for each save from its seed (world.js) and kept in the 
 - **What persists:** a territory's state (dark, contested, kindled), its goal's progress, its tear sealed, and veins mined. Mined veins grow back after a few sorties in dark land; in kindled land they don't. Enemies come back each time you enter dark land. Kindled land is quiet: critters and now and then a straggler.
 - **Your light** (the old star's pull) drains in dark land over about 75 s and fills in kindled land and at home. Below half your lamp dims and the dark stirs more creatures every so often (one every 26 s in the Rim, two every 18 s in the Choir, two every 14 s beyond); at nothing the Hollow comes, in every dark territory you enter until it's back. Dark land is under a dim dusk; kindled land under daylight.
 - **Spires.** Each kindled territory has one at its heart: a standing lodestone obelisk with a gold beam, and the outpost has its own. At a spire, **BANK** (1.5 s standing still, like the old EXTRACT) puts the cargo and the pocket in the stash, and the sortie goes on. **TRAVEL** opens the world map: tap any spire to go there, or the star to go home; travelling banks first. The first ring-1 territory, the gentlest, starts kindled by the outpost's own spire, so the first sortie is gentle.
-- **A fall** loses the cargo and wakes you at the last spire you touched (the outpost if none); the pocket is safe. Going home (walking in, or travelling from a spire) banks everything, settles contracts, and feeds the star 8 × d², d the depth of the furthest dark land walked that sortie (as the old ride home did, once a sortie however often it banked). The **emergency recall** works anywhere: 4 s standing still, home, and the dark keeps a share of the cargo (15% plus 6% for each depth, less 2% a magnitude past the first).
+- **A fall** wakes you at the last spire you touched (the outpost if none). The pocket comes home; the rest of the cargo (ore, exotics, deeplight, gear, blueprints) stays where you fell: **your pack**, a Charter-blue pack on its side with its strap light still on and a faint beacon rising over it, in that territory or that site of its Deep. It's marked on the world map (a small amber pack), named on its territory's card, and in the place it stands labelled YOUR PACK, or a pip at the view's edge points to it. Walk to it and it's yours again, once (what doesn't fit stays in it). Fall again before you reach it and the older pack is lost: there's only ever one, the newest. The report says where it lies and what's in it, and what was lost. It's kept in the save, and if the site is built differently when you come back (a Keeper's lair after its shard is taken), it stands on the nearest open ground. Giving up still loses the cargo.
+- **Going home** (walking in, or travelling from a spire) banks everything and settles contracts. The star isn't fed by the ride home any more: its growth is in the deeds. The **emergency recall** works anywhere: 4 s standing still, home, and the dark keeps a share of the cargo (15% plus 6% for each depth, less 2% a magnitude past the first). It stays because the pack doesn't make it pointless: a recall brings most of the haul home now, a fall leaves all of it out there in the dark, where you came close to dying, for a walk back.
 - **Kindling.** A territory's heart goal, for now one of two:
   - **Light the waystones:** three old pylons, each a 2.5 s channel whose light wakes everything near; the last must then be held, standing in its light for 20 s while the dark sends more.
   - **Seal the tear:** a rift sits on the territory's heart (a graft or an ore wake); seal it, early and safe or late and rich.
@@ -97,7 +103,7 @@ The world is rolled once for each save from its seed (world.js) and kept in the 
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room at depth 3 or more. It charges and fires rings of orbs. It drops three rare-or-better pieces and often a relic.
 - **Cargo is limited** (40 units, more from attunements and affixes). Ore and exotics weigh 1, gear and relics 3. You can drop gear to make room.
-- **The pocket.** A few cargo slots whose contents survive a fall: 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
+- **The pocket.** A few cargo slots whose contents come home even after a fall (the rest waits in the pack): 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
 - **(proposed, stage 2)** More heart goals (purge the nest, cap the vents, carry the seed, break the Keeper), scouting, tithes and boons, richer kindled looks and settlers, optional dark tides on border territories. **(stage 3)** Keepers as ring gates, pick and spell gates, the Edge's own content.
 
 ## Climes
@@ -139,9 +145,9 @@ Three small goals are always posted at the portal, so every sortie, even a short
 - kindle a territory;
 - go down into a Deep.
 
-Each pays the star (25 × magnitude) and leaves an exotic, three parts, a riftglass or a resonance stone (while the Codex has pages to fill), and a new one takes its place. Progress shows in the cargo screen mid-sortie.
+Each leaves an exotic, three parts, a riftglass, a supply of the newest region's grade, or a resonance stone (while the Codex has pages to fill), and a new one takes its place. Contracts don't pay the star: it grows only from deeds. Progress shows in the cargo screen mid-sortie.
 
-The board keeps moving: never two of a kind; 70% of hauls are set in the furthest region reached; one that has stood for 3 sorties is replaced; one may be swapped for free each time home; and meeting all three in one sortie pays the star twice.
+The board keeps moving: never two of a kind; 70% of hauls are set in the furthest region reached; one that has stood for 3 sorties is replaced; one may be swapped for free each time home; and meeting all three in one sortie pays a Mending Injector and a Lightcell besides.
 
 ## Tools
 
@@ -440,10 +446,10 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
 | Station | What it does |
 |---|---|
 | The portal (SET OUT) | In a Charter gate. The world map: a territory next to the outpost to walk out into, or a spire to set out to, and the tool to carry |
-| The forge (FORGE) | The Charter's fabricator. Make casters, plate, charms, picks, and Form, Element and Glyph stones from banked ore, parts and exotics. Every forge is played on the anvil |
+| The forge (FORGE, SUPPLIES) | The Charter's fabricator. Make casters, plate, charms, picks, and Form, Element and Glyph stones from banked ore, parts and exotics. Every forge is played on the anvil. SUPPLIES, beside FORGE, makes supplies from ore |
 | The rune bench (RUNES) | Rework affixes on any piece: reroll, raise, add |
 | The locker (GEAR) | What's worn, the stash and its stones, stats; equip, build circuits (free), salvage, unseal relics |
-| The star's altar (THE STAR) | Hold FEED THE STAR and ore after ore rises into the star, the plainest first, faster the longer you hold, until you let go; ATTUNE spends attunements and marks ore kept for the forge. A shard carried home is set here instead (SET THE SHARD) |
+| The star's altar (THE STAR) | Hold FEED THE STAR and the light your deeds earned rises into the star, mote by mote, faster the longer you hold, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements. A shard carried home is set here instead (SET THE SHARD) |
 | The practice target | A construct that takes every hit and never falls, for trying combos |
 | The uplink (THE UPLINK) | A relay mast to the *Meridian* in orbit: the landers it can send, the shards set, the echoes, and calling the colony down |
 
@@ -465,7 +471,25 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
 ### Fewer trips home
 - **Salvage in the field:** break found gear down into ore in the cargo, so it isn't all weight. Ore that doesn't fit is left on the floor.
 - **Ancient forges:** from depth 3, a floor sometimes has one in a side cavern. It forges from what you carry, on the same anvil, and the piece goes in your cargo.
-- **The way home feeds the star:** coming home feeds it 8 × d² points, d the depth of the furthest dark land walked that sortie, so pushing out grows the star directly.
+- **Supplies in the field:** MAKE, in the cargo screen, makes Mending Injectors, Lightcells and Flares from the ore you carry.
+- **The pack waits:** a fall leaves the haul where it fell, to go back for once.
+
+## Supplies
+
+Once the star isn't fed ore, old ore needs a use: it makes supplies, consumables carried on the belt (4 of each kind, safe whatever happens, spent when used). Each comes in three grades, one from each region's ore: the Rim's makes the plain ones (I), the Choir's better (II), the Underforge's the best (III).
+
+| Supply | What it does (I / II / III) | Takes (of the grade's two ores) | In the field |
+|---|---|---|---|
+| Mending Injector | heals 35 / 55 / 80% of your health at once | 6 of the plainer (Ferrite, Resonite, Sigilite) | yes |
+| Lightcell | gives back 25 / 40 / 60% of your light, in dark land or a Deep | 5 of the rarer (Lumenite, Aetherglass, Starmetal) | yes |
+| Flare | set at your feet, lights 4 / 5 / 6 tiles round for 40 / 50 / 60 s; standing in it, your light doesn't drain | 3 plainer, 2 rarer | yes |
+| Ward Cell | a ward soaking 30 / 60 / 100 damage for 20 s | 4 plainer, 2 rarer | home only |
+| Blast Charge | set at your feet, it arms in 0.8 s and blasts the first foe within 18 px, hurting all within 34 px (61 / 110 / 199 damage, about twice the health of a crawler of the grade's region) | 5 plainer, 1 rarer | home only |
+
+- **Made at home** at the fabricator: SUPPLIES, beside FORGE, a screen of its own with each kind, what's carried and a MAKE for each grade with its cost. The recipes are plain data (`CONSUMABLE_RECIPES` in `js/supplies.js`, category Consumables), so the forge can list them too.
+- **Made in the field:** MAKE in the cargo screen, the simple ones (injectors, Lightcells, Flares), from the ore carried.
+- **Used from the deck:** one quick-use slot in the right deck's top-left corner shows the chosen kind's icon, name and grade and how many are carried; a tap uses its best grade. The small ▸ beside it moves the slot to the next kind carried. Q uses, R moves on, on a keyboard.
+- **Contracts** sometimes pay one, and the whole board two.
 
 ## Controls
 
@@ -474,7 +498,8 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
   - the off hand;
   - DASH;
   - MINE, held to dig;
-  - the contextual SET OUT, STEP THROUGH or EXTRACT above them.
+  - the contextual SET OUT, STEP THROUGH or EXTRACT above them;
+  - the supply slot, in the deck's top-left corner, and ▸ beside it for the next kind.
 - **Sideways:** the view stands in the middle with the controls either side, as in NEO.
 - Close Forms aim at the nearest enemy in reach, and the rest at the nearest in sight. Mining targets the ore you're facing.
 - CARGO in the top bar shows what you carry, ore and exotics included. Tap anything to equip it or drop it mid-sortie. Dropped ore lies on the floor as a glowing heap you can pick back up.
@@ -483,7 +508,8 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
   - J for the main hand and K for the off hand,
   - Shift or U to dash,
   - Space or L to mine,
-  - E or Enter to act, I for cargo, Esc to pause.
+  - E or Enter to act, I for cargo, Esc to pause,
+  - Q to use a supply, R for the next kind.
 
 ## Presentation
 
@@ -520,7 +546,7 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
 ## Sound
 
 Everything is made in code with Web Audio (`js/audio.js`, `js/music.js`, `T.sound`); nothing is downloaded. Plain, warm, a little lonely, hopeful with unease: ambient, never busy or shrill.
-- **The star's music grows with it.** A hum in D at magnitude 1, then a fifth, a soft chord, a slow figure of bells (before magnitude 4 only its two-note call), a high shimmer, a ninth, the figure in thirds, a deep bell. Feeding swells it, a ping for each ore; a magnitude reached blooms, and the next layer comes in. That's how the star speaks.
+- **The star's music grows with it.** A hum in D at magnitude 1, then a fifth, a soft chord, a slow figure of bells (before magnitude 4 only its two-note call), a high shimmer, a ninth, the figure in thirds, a deep bell. Feeding swells it, a ping for each mote of light; a magnitude reached blooms, and the next layer comes in. That's how the star speaks.
 - **Out in the dark it thins** as your light drains, top layers first, and each place's own sound takes over: wind (dry, cold or soft), embers, lava, water and drips, a cave's room, creaking roots, a vault's clock, rain and far thunder in a storm. With the light out, a slow throb. In kindled land the star's chord comes back, with birds by day; kindling a territory brings the whole chord.
 - **After the turn** a darker note creeps in: a flat sixth against the chord, phrases that fall to minor, and in the dark the place's sound breathes.
 - **Effects** for what matters, soft and short, louder near the Kindler and panned: mining, hurts, the light fading, loot by rarity, the anvil, the reveal, banking, travel, kindling, landers.

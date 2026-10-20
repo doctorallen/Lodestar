@@ -207,13 +207,14 @@ const T = {
   // side. reach: how near its threshold (px) the diver must stand. light:
   // [radius in tiles, strength], times sunLight under the sky.
   portal: { enter: 0.45, arrive: 0.7, reach: 11, light: [2.6, 1.0], sunLight: 0.55 },
-  // Contracts: how many are posted, how often each kind comes up, and the
-  // star points each pays per magnitude.
+  // Contracts: how many are posted and how often each kind comes up. Each
+  // pays a thing (the star grows only from deeds); the whole board met in
+  // one sortie pays `board` supplies more.
   // newest: the share of hauls set in the furthest region reached;
   // stale: how many sorties one stands before it's replaced.
   // A hunt names a clime's own creature (one whose clime leans to a region
   // reached, or to none) with the chance huntSignature, huntN [least, most].
-  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, kindle: 2, deep: 1 }, star: 25, newest: 0.7, stale: 3, huntSignature: 0.4, huntN: [2, 4] },
+  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, kindle: 2, deep: 1 }, board: 2, newest: 0.7, stale: 3, huntSignature: 0.4, huntN: [2, 4] },
   // A Lodestorm: the chance an expedition sets out under one; on the
   // surface a strike every `every` s (the first after `first`), within
   // `near` tiles of the diver, marked `warn` s ahead, hurting within
@@ -729,28 +730,67 @@ const T = {
   runes: { reroll: 4, upgrade: 6, upgradeBy: 0.2, add: 10 },
   salvage: { back: 0.4, exotic: 0.15, exoticRare: 0.5 },
 
-  // The Lodestar. Each ore fed is worth tier² points; magnitude n needs
-  // levels[n - 1] points in all. Each level past the first is an
-  // attunement point, a Deep's lodelines a little likelier, a pocket slot
-  // now and then (T.cargo.pocket) and a gentler recall.
-  // extractStar: what coming home feeds the star, once a sortie, times the
-  // square of the deepest dark land walked (its depth, 1 to 4).
-  // feed: holding FEED THE STAR at the altar (hub.js). Ore leaves the
-  // stash one at a time, the plainest first, rate0 a second at the start,
-  // climbing to rateMax over ramp s of holding (eased in, so a tap gives
-  // one). Moving on to the next kind of ore, the flow rests for beat s and
-  // falls back to beatRamp of the way up, so there's a moment to let go.
-  // fly: s for an ore to rise from the Kindler to the star; arc: world px
-  // its path bows up over the altar's bowl. hum: how much each landing
-  // brightens the star, by tier (it fades at humFade a second). lights:
-  // at most this many rising ores carry a light of their own.
+  // The Lodestar grows from deeds, not ore (deeds.js): each deed gives
+  // light, motes of it, carried home and fed to the star at its altar, a
+  // point each. Magnitude n needs levels[n - 1] points in all. Each level
+  // past the first is an attunement point, a Deep's lodelines a little
+  // likelier, a pocket slot now and then (T.cargo.pocket) and a gentler
+  // recall. ringMag: the magnitude a spire needs, by ring: the star's light
+  // must reach that far before a spire can hold there. (Kindling every
+  // territory of a ring, with its Keeper's lair reached, always reaches the
+  // next ring's: never stuck.) scale: what this scale is, in the save
+  // (deeds.js rescales an older star, keeping its magnitude).
+  // feed: holding FEED THE STAR at the altar (hub.js). The light leaves the
+  // stash a mote at a time, deeplight first and heartlight last, rate0 a
+  // second at the start, climbing to rateMax over ramp s of holding (eased
+  // in, so a tap gives one). Moving on to the next kind, the flow rests for
+  // beat s and falls back to beatRamp of the way up. fly: s for a mote to
+  // rise from the Kindler to the star; arc: world px its path bows up over
+  // the altar's bowl. hum: how much each landing brightens the star (it
+  // fades at humFade a second). lights: at most this many rising motes
+  // carry a light of their own.
   star: {
-    levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], extractStar: 8,
-    feed: { rate0: 3, rateMax: 160, ramp: 1.8, beat: 0.2, beatRamp: 0.5, fly: 0.75, arc: 46, hum: 0.05, humFade: 2.5, lights: 14 },
+    levels: [0, 12, 40, 100, 200, 340, 520, 740], ringMag: [0, 1, 3, 5, 7], scale: 2,
+    feed: { rate0: 2.5, rateMax: 22, ramp: 2.2, beat: 0.35, beatRamp: 0.5, fly: 0.9, arc: 46, hum: 0.06, humFade: 2.5, lights: 14 },
+  },
+  // Deeds (deeds.js): the light each gives the star. heart: heartlight for
+  // kindling a territory, by ring; bound to the Kindler the moment the spire
+  // stands, safe from any fall. deepEnd: deeplight for first reaching a
+  // Deep's last site (its deep vein, or its Keeper's lair), by ring, and
+  // deepSite more for each site past the first; forge: for each ancient
+  // forge found; echo: for each echo. Deeplight rides in the cargo (it
+  // weighs nothing), so a fall or a recall can cost it. (A Keeper's shard,
+  // set at the altar, is T.story.shardStar.)
+  // cache: a fall leaves the cargo where it fell, the Kindler's pack; walking
+  // within `reach` px of it picks it up. beacon: its light (tiles, strength).
+  deeds: {
+    heart: [0, 12, 16, 24, 32], deepEnd: [0, 8, 12, 16, 20], deepSite: 4, forge: 4, echo: 8,
+    cache: { reach: 14, beacon: [1.6, 0.6] },
+  },
+  // Supplies (supplies.js): consumables made from ore, at home (SUPPLIES at
+  // the fabricator) or the simple ones in the field (MAKE, in the cargo).
+  // Each comes in three grades, from each region's ore. most: how many of
+  // each kind can be carried (all grades together); they're on the belt,
+  // safe whatever happens, and spent when used.
+  //   injector: heals heal[grade] of your health.
+  //   ward: a ward soaking soak[grade] damage for `time` s.
+  //   cell: gives back light[grade] of your light (dark land and Deeps).
+  //   flare: lights r[grade] tiles round where it's set for life[grade] s;
+  //     standing in it, your light doesn't drain.
+  //   charge: set at your feet, it arms after `arm` s and blasts the first
+  //     foe within `trigger` px, hurting all within `r` px for dmg × the
+  //     enemies' growth to the grade's level (lvl[grade]).
+  supplies: {
+    most: 4,
+    injector: { heal: [0.35, 0.55, 0.8] },
+    ward: { soak: [30, 60, 100], time: 20 },
+    cell: { light: [0.25, 0.4, 0.6] },
+    flare: { r: [4, 5, 6], life: [40, 50, 60] },
+    charge: { arm: 0.8, trigger: 18, r: 34, dmg: 45, lvl: [3, 7, 11] },
   },
   // The story (story.js): each region's Keeper waits in its lair, at the end
   // of its ring's furthest Deep, holding a shard of a star that went dark;
-  // each shard set in the Lodestar adds shardStar points. An echo (a log of
+  // each shard set in the Lodestar adds shardStar points of light. An echo (a log of
   // the Kindlers before) turns up by an ancient forge, from an elite now and
   // then, and from every Keeper.
   //   landerEvery: the Meridian can send a lander for every this many
@@ -763,7 +803,7 @@ const T = {
   //     comes before one speaks, and how long (s) before that one speaks
   //     again.
   story: {
-    shardStar: 400, echoForge: 0.5, echoElite: 0.05,
+    shardStar: 40, echoForge: 0.5, echoElite: 0.05,
     landerEvery: 3, callLanders: 5, turnEcho: 5,
     settlers: { perLander: 1, most: 6, speed: 9, rest: [2, 6], talkR: 1.4, talkGap: 40 },
   },
