@@ -327,8 +327,10 @@ function installBot() {
     // and it starts counting again
     const lv = terrLevel(terrOf(target)), sv = Save.data;
     if (ended === 'died') { sv.botWins = 0; if (P.cache) sv.botChase = (sv.botChase || 0) + 1; }
-    else if (ended === 'home') sv.botChase = 0;
-    else if (ended === 'home' && lv >= (sv.botBest || 1) && (sv.botWins = (sv.botWins || 0) + 1) >= 2) { sv.botBest = (sv.botBest || 1) + 1; sv.botWins = 0; }
+    else if (ended === 'home') {
+      sv.botChase = 0;
+      if (lv >= (sv.botBest || 1) && (sv.botWins = (sv.botWins || 0) + 1) >= 2) { sv.botBest = (sv.botBest || 1) + 1; sv.botWins = 0; }
+    }
     const r = result();
     if (!ended) { if (Game.dive === d) abandonDive(); ended = 'timeout'; }
     // a fall wakes at a spire: home from there to spend the haul

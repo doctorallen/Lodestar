@@ -61,7 +61,7 @@ html, body {
 .bar.hp.hurt .fill { background: #ff8a70; }
 .bar.ch.low { border-color: var(--danger); }
 .bar-text { position: absolute; right: 3px; top: -2px; font-size: 10px; line-height: 12px; color: #fff; text-shadow: 0 1px 0 #000; }
-.hud-depth { color: var(--dim); white-space: nowrap; }
+.hud-depth { color: var(--dim); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn { min-height: 44px; min-width: 44px;
   min-width: 40px; min-height: 32px;
   background: none; color: var(--ink); border: 1px solid var(--line);
@@ -69,7 +69,8 @@ html, body {
 }
 .icon-btn.cargo { color: var(--gold); font-weight: normal; white-space: nowrap; }
 body:not(.diving) #topbar > * { visibility: hidden; }
-body.home #topbar .bars, body.home #btn-cargo { visibility: hidden; }
+body.home #topbar .bars, body.home #btn-cargo { display: none; }
+body.home .hud-depth { flex: 1; text-align: center; }
 body.home #btn-mine { display: none; }
 
 #stage { grid-area: stage; position: relative; overflow: hidden; background: #000; }
@@ -123,12 +124,20 @@ body.home #btn-mine { display: none; }
 .deck-btn.act.held { background: #fff0c0; box-shadow: 0 0 14px rgba(255, 210, 120, 0.8); }
 .deck-btn.act.act2 { bottom: calc(100% + 60px); background: #2a2210; color: var(--gold); border-color: var(--gold); }
 #app.wide .deck-btn.act.act2 { bottom: calc(218px + env(safe-area-inset-bottom)); }
-/* the smallest phones: the cluster tightens so nothing overlaps */
-@media (max-width: 360px) {
+/* the smallest phones, and shorter ones (whose deck is shorter): the
+   cluster tightens, and the supply slot shrinks, so nothing overlaps */
+@media (max-width: 360px), (max-height: 800px) {
+  #app:not(.wide) .deck-btn.supply { left: 6px; top: 6px; width: 46px; height: 46px; font-size: 8px; letter-spacing: 0; }
+  #app:not(.wide) .deck-btn.supply .btn-icon { width: 20px; height: 20px; }
+  #app:not(.wide) .deck-btn.supply-next { left: 56px; top: 14px; width: 28px; height: 28px; }
   #app:not(.wide) .deck-btn.main { width: 80px; height: 80px; right: 10px; bottom: calc(14px + env(safe-area-inset-bottom)); }
   #app:not(.wide) .deck-btn.off { width: 52px; height: 52px; right: 96px; bottom: calc(18px + env(safe-area-inset-bottom)); }
   #app:not(.wide) .deck-btn.dash { width: 46px; height: 46px; right: 86px; bottom: calc(80px + env(safe-area-inset-bottom)); }
   #app:not(.wide) .deck-btn.mine { width: 46px; height: 46px; right: 22px; bottom: calc(100px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 340px) {
+  #app:not(.wide) .deck-btn.supply { left: 3px; top: 3px; width: 42px; height: 42px; }
+  #app:not(.wide) .deck-btn.supply-next { left: 49px; top: 10px; }
 }
 .deck-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
 .btn-icon { width: 40px; height: 40px; image-rendering: pixelated; pointer-events: none; }
@@ -361,6 +370,8 @@ body.home #btn-mine { display: none; }
 .speech.star { border-color: #5a4a20; font-style: italic; color: #ffe9b0; }
 .speech.star b { color: var(--gold); font-style: normal; }
 .speech.settler b { color: #e0c89a; }
+/* with a second button over the first (TRAVEL, ATTUNE, SUPPLIES), speak above both */
+body.act2 .speech { bottom: calc(var(--deck-h) + 114px + env(safe-area-inset-bottom)); }
 /* sideways there's no bottom deck: speak over the foot of the view */
 #app.wide .speech { bottom: calc(12px + env(safe-area-inset-bottom)); left: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); right: calc((100vw - min(100vw - 300px, 150vh)) / 2 + 8px); }
 /* over a screen, toasts sit just under a panel's header, clear of its title and its way out */

@@ -47,9 +47,11 @@ function frame(now) {
 }
 
 // A frame: the game, and the opening over it while it plays (its first
-// scenes cover the screen, and the game isn't drawn under them).
+// scenes cover the screen, and the game isn't drawn under them). Nor is it
+// under a screen, which covers it too (a report left open would otherwise
+// go on drawing the world, and a portal's iris, unseen, every frame).
 function renderAll() {
-  if (!introCovers()) renderFrame();
+  if (!introCovers() && !(UI.screen && Game.modal === UI.screen)) renderFrame();
   introDraw();
 }
 

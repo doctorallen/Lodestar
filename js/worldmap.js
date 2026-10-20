@@ -84,7 +84,8 @@ function mapBase(L) {
 function sizeWorldMap() {
   const cv = $('world-map'), L = worldMap(), M = L.M, dpr = window.devicePixelRatio || 1;
   if (cv.width !== M) { cv.width = M; cv.height = M; }
-  const avail = Math.min(420, $('map-wrap').clientWidth || 360);
+  // (held sideways, small enough that the card shows below it)
+  const avail = Math.min(420, $('map-wrap').clientWidth || 360, Math.max(200, window.innerHeight * 0.6));
   const k = Math.max(1, Math.floor((avail * dpr) / M)), css = (k * M) / dpr + 'px';
   if (cv.style.width !== css) { cv.style.width = css; cv.style.height = css; }
   if (!WorldMapView.bound) {
@@ -93,7 +94,12 @@ function sizeWorldMap() {
       if (Game.realT - UI.openedAt < T.ui.tapGuard) return;
       const r = cv.getBoundingClientRect(), x = Math.floor(((e.clientX - r.left) * M) / r.width), y = Math.floor(((e.clientY - r.top) * M) / r.height);
       const id = x >= 0 && y >= 0 && x < M && y < M ? worldMap().idMap[y * M + x] : -1;
-      if (id >= 0) { UI.mapSel = id; drawMapCard(); drawWorldMap(); }
+      if (id >= 0) {
+        UI.mapSel = id; drawMapCard(); drawWorldMap();
+        // a card out of sight below the map is brought up into view
+        const card = $('map-card'), cr = card.getBoundingClientRect();
+        if (cr.top > window.innerHeight - 60 && card.scrollIntoView) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
     });
   }
 }
