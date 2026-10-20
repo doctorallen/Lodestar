@@ -28,7 +28,7 @@ const FOE_PATTERN = {
   skink: 'utility', tusker: 'close', wraith: 'spell', lurker: 'leech', dropper: 'close', eel: 'shock',
   crab: 'defense', weaver: 'chill', sentinel: 'spell', idol: 'defense', hound: 'shock',
 };
-const FOE_WORDS = { crawler: 'Crawler', wisp: 'Wisp', construct: 'Construct', snapjaw: 'Snapjaw', spitter: 'Spitter', warden: 'Warden', keeper: 'Keeper', hollow: 'Hollow' };
+const FOE_WORDS = { crawler: 'Crawler', wisp: 'Wisp', construct: 'Stalker', snapjaw: 'Snapjaw', spitter: 'Spitter', warden: 'Warden', keeper: 'Keeper', hollow: 'Hollow' };
 const foeWord = (type) => FOE_WORDS[type] || (typeof FOE_NAMES !== 'undefined' && FOE_NAMES[type] ? FOE_NAMES[type][0] : 'creature');
 
 // Names. A common module is named for the creature it was caught from; a

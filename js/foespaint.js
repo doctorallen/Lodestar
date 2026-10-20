@@ -280,7 +280,7 @@ function fpEnemySprites(biomeId) {
     const c = fpConstruct(23, 23, 1, pal, pose, biomeId.length), w = fpConstruct(44, 44, 1.92, Object.assign({}, pal, { plate: ['#0c0a0e', '#1e1a22', '#34303c', '#565064'] }), pose, biomeId.length);
     if (pose === 'idle') { out.construct = c; out.warden = w; } else { out.construct[pose] = c; out.warden[pose] = w; }
   }
-  out.dummy = fpConstruct(23, 23, 1, Object.assign({}, pal, { plate: ['#1c1810', '#3a3020', '#5e4c30', '#8a7048'], rune: [ART.pal.star[2]] }), 'idle', 3);
+  out.dummy = fpTargetDummy(23, 23, 1, Object.assign({}, pal, { plate: ['#1c1810', '#3a3020', '#5e4c30', '#8a7048'], rune: [ART.pal.star[2]] }), 'idle', 3);
   out.crawler = fpCrawler(pal, 'idle', biomeId.length);
   out.crawler.walk = fpCrawler(pal, 'walk', biomeId.length);
   out.crawler.windup = fpCrawler(pal, 'windup', biomeId.length);
@@ -288,10 +288,106 @@ function fpEnemySprites(biomeId) {
   return out;
 }
 
-// A region's Shard Keeper (render.js enemySprite).
+// A region's Shard Keeper (render.js enemySprite): the Rim's from its grid
+// (art2.js), the Choir's and the Underforge's painted from shapes.
 function fpKeeperSprite(id) {
+  if (FP_KEEPER[id]) return fpReadable(FP_KEEPER[id]());
   return fpReadable(fpPaintGrid(KEEPER_ROWS[id], Object.assign({}, ART2_PAL, KEEPER_PAL[id]), Object.assign({}, SPRITE_CHARS, ART2_LETTERS), [...SPRITE_GLOWS, ...ART2_GLOWS], { foot: 2 }));
 }
+
+// The heart-shard a Keeper holds: a faceted crystal of warm gold-white
+// standing from (x, y), h px tall, with a halo of loose glints.
+function fpKeeperShard(s, x, y, h, w) {
+  const R = fpGlowRamp('#ffd890'), Z = [R[0], R[1], '#fff0c8', '#fffaf0'];
+  s.tag('shard').shard(x, y, h, w, 0.4, Z);
+  for (const [dx, dy] of [[-w, -h * 0.4], [w * 0.9, -h * 0.7], [-w * 0.6, -h * 1.05], [w * 1.2, -h * 0.2]]) s.px(x + dx, y + dy, R[2], true);
+}
+
+const FP_KEEPER = {
+  // The Choir's Keeper: a gaunt strider of blue-black chitin, slung high on
+  // four stilt legs (the far pair darker), its long neck curving up to a
+  // narrow skull crowned with violet crystal; its ribcage open in front,
+  // the heart-shard caged inside; crystal grown along its back. 60 × 72.
+  choir() {
+    const W = 60, H = 72, s = new FpSpr(W, H, hashInts(0xc401, 7)), cx = 30;
+    const SH = fpRamp(['#0a0a18', '#16162c', '#262848', '#3c4068']), CR = fpGlowRamp('#b08cff'), body = (t, sd) => (sd < 0 ? SH[5] : sd > 0 ? SH[1] : SH[3]), far = (t, sd) => (sd < 0 ? SH[3] : SH[1]);
+    // the far legs, then the near: hip, a knee out and down, a spiked foot
+    for (const side of [-1, 1]) {
+      s.tag('leg').limb([[cx + side * 4, 38], [cx + side * 11, 52], [cx + side * 8, 69]], 2.4, 1, far);
+      s.tag('leg').limb([[cx + side * 8, 69], [cx + side * 8.5, 71]], 0.9, 0.3, far);
+    }
+    for (const side of [-1, 1]) {
+      s.tag('leg').limb([[cx + side * 7, 36], [cx + side * 16, 47], [cx + side * 20, 58], [cx + side * 19, 69]], 4, 1.4, body);
+      s.tag('leg').limb([[cx + side * 19, 69], [cx + side * 19.5, 71]], 1.2, 0.3, (t, sd) => SH[2]);
+      // the knee: a spur of crystal
+      s.tag('crystal').shard(cx + side * 16.5, 46, 4, 2, side * 1.5, CR);
+    }
+    // the thorax: a long dome, open in front where the shard is caged
+    s.tag('body').ell(cx, 35, 12.5, 9, SH, { lo: 1, hi: 7, bias: 0.08 });
+    s.tag('belly').ell(cx, 42, 8, 3.8, SH, { lo: 0, hi: 4 });
+    // the cage: a dark hollow, the shard in it, ribs curving over it
+    s.tag('cage').ell(cx, 37.5, 5.4, 5, [SH[0], SH[0], SH[1]], { lo: 0, hi: 2 });
+    fpKeeperShard(s, cx, 42, 9, 4);
+    s.tag('rib');
+    for (const rx of [-4.2, -1.6, 1.6, 4.2]) s.limb([[cx + rx * 0.9, 31.5], [cx + rx * 1.3, 37.5], [cx + rx * 0.8, 42.5]], 1, 0.8, (t, sd) => (sd < 0 ? SH[6] : SH[3]));
+    // crystal grown along its back
+    for (const [x, h, lean] of [[-10, 5, -2], [-7, 7, -1.4], [6.5, 6, 1.5], [9.5, 4, 2.4]]) s.tag('crystal').shard(cx + x, 29 + Math.abs(x) * 0.2, h, 2.6, lean, CR);
+    // the neck, curving up and back over the body, and the skull
+    s.tag('neck').limb([[cx, 29], [cx - 3, 22], [cx - 1, 17], [cx + 1, 14]], 4.6, 3, body);
+    s.tag('head').ell(cx + 1, 11, 4.6, 5.4, SH, { lo: 1, hi: 7, bias: 0.12 });
+    s.tag('jaw').ell(cx + 1, 16.4, 2.4, 2, SH, { lo: 0, hi: 3 });
+    // its crown: crystal spines fanned up from the skull
+    for (const [x, h, lean] of [[-3.4, 4, -2.4], [-1.2, 5.5, -0.8], [1.2, 6, 0.6], [3.4, 4.5, 2.2]]) s.tag('crystal').shard(cx + 1 + x, 6.8, h, 1.8, lean, CR);
+    // eyes: two pale slits, and a third over them
+    s.tag('eye');
+    for (const [x, y] of [[-2.4, 11], [-1.4, 11.6], [-0.6, 12], [2.6, 12], [3.4, 11.6], [4.4, 11]]) s.px(cx + x, y, CR[3], true);
+    s.px(cx + 1, 9, CR[2], true); s.px(cx + 1, 8.4, CR[1], true);
+    for (let x = cx - 0.5; x <= cx + 2.5; x++) s.px(x, 16.6, (Math.round(x) % 2) ? '#cfc4dc' : SH[0]);
+    s.rim(['body', 'head', 'neck', 'leg'], fpHot(SH), SH[6], { p: 0.5, hot: 0.3 });
+    return fpDone(s, 2);
+  },
+  // The Underforge's Keeper: a hulking brute of cooling slag that walks on
+  // its knuckles, its head slung low between great shoulders, two horns
+  // swept forward; magma glowing through the cracks in its plates and in
+  // its jaw, the heart-shard set in a molten hollow in its chest. 62 × 62.
+  underforge() {
+    const W = 62, H = 62, s = new FpSpr(W, H, hashInts(0x5a6, 9)), cx = 31;
+    const SL = fpRamp(['#140c0a', '#2e1c18', '#4a2e28', '#6a443a']), MG = fpGlowRamp('#ff7a2a'), body = (t, sd) => (sd < 0 ? SL[5] : sd > 0 ? SL[1] : SL[3]);
+    // the hind legs, short and thick, behind
+    for (const side of [-1, 1]) {
+      s.tag('leg').limb([[cx + side * 9, 38], [cx + side * 13, 50], [cx + side * 12, 59]], 6, 4, (t, sd) => (sd < 0 ? SL[3] : SL[1]));
+      s.tag('foot').ell(cx + side * 12.5, 59, 4, 2, SL, { lo: 0, hi: 3 });
+    }
+    // the back: a great hump of plate, a ridge of slag spikes along it
+    s.tag('back').ell(cx, 26, 19, 13, SL, { lo: 1, hi: 7, bias: 0.06 });
+    for (const [x, h] of [[-12, 4], [-7, 6], [-2, 7], [3, 7], [8, 6], [13, 4]]) s.tag('spike').limb([[cx + x, 17 - h * 0.1 + Math.abs(x) * 0.25], [cx + x * 1.1, 17 - h + Math.abs(x) * 0.25]], 3, 0.4, (t, sd) => (t > 0.7 ? SL[6] : sd < 0 ? SL[5] : SL[2]));
+    // the arms: huge forearms, braced on the knuckles either side
+    for (const side of [-1, 1]) {
+      s.tag('arm').limb([[cx + side * 15, 24], [cx + side * 22, 38], [cx + side * 21, 52]], 8, 6.5, body);
+      s.tag('fist').ell(cx + side * 21, 55, 5.4, 4.2, SL, { lo: 1, hi: 6, bias: 0.1 });
+      for (const k of [-1, 0, 1]) s.tag('claw').limb([[cx + side * 21 + k * 2.6, 58], [cx + side * 21 + k * 3.2, 60.5]], 1.4, 0.4, (t) => (t > 0.5 ? '#d8c8b0' : SL[6]));
+      s.tag('shoulder').ell(cx + side * 15, 22, 8, 7, SL, { lo: 2, hi: 7, bias: 0.12 });
+    }
+    // the chest, and the molten hollow with the shard in it
+    s.tag('chest').ell(cx, 36, 11, 9, SL, { lo: 1, hi: 5 });
+    s.tag('core').ell(cx, 38, 4.4, 4.6, [MG[0], MG[1], MG[2]], { lo: 0, hi: 2, glow: true });
+    fpKeeperShard(s, cx, 41, 8, 4);
+    // the head: low and forward between the shoulders, horns swept forward
+    for (const side of [-1, 1]) s.tag('horn').limb([[cx + side * 4.5, 24], [cx + side * 9, 20], [cx + side * 10, 25], [cx + side * 8, 28.5]], 2.6, 0.3, (t, sd) => (t > 0.75 ? '#e0d4bc' : sd < 0 ? SL[6] : SL[3]));
+    s.tag('head').ell(cx, 27, 6, 5, SL, { lo: 1, hi: 7, bias: 0.1 });
+    // the jaw, a seam of magma, and the eyes, molten slits
+    s.tag('maw');
+    for (let x = cx - 3.5; x <= cx + 3.5; x++) { s.px(x, 30, MG[1], true); if (Math.abs(x - cx) < 2.5) s.px(x, 31, MG[0], true); }
+    s.tag('eye');
+    for (const side of [-1, 1]) { s.px(cx + side * 2.6, 26, MG[3], true); s.px(cx + side * 3.6, 25.5, MG[2], true); }
+    // cracks of magma across the plates
+    s.tag('crack');
+    const cracks = [[[cx - 14, 22], [cx - 10, 27], [cx - 12, 31]], [[cx + 9, 18], [cx + 12, 24], [cx + 16, 26]], [[cx - 21, 34], [cx - 23, 40], [cx - 20, 45]], [[cx + 22, 36], [cx + 21, 42], [cx + 23, 47]], [[cx - 5, 33], [cx - 8, 37]], [[cx + 6, 33], [cx + 9, 36]]];
+    for (const c of cracks) for (let i = 1; i < c.length; i++) { const [a, b] = [c[i - 1], c[i]], n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])); for (let j = 0; j <= n; j++) { const x = a[0] + ((b[0] - a[0]) * j) / n, y = a[1] + ((b[1] - a[1]) * j) / n; if (s.tagAt(Math.round(x), Math.round(y))) s.px(x, y, j % 3 ? MG[1] : MG[2], true); } }
+    s.rim(['back', 'shoulder', 'head', 'arm', 'spike'], fpHot(SL), SL[6], { p: 0.5, hot: 0.3 });
+    return fpDone(s, 2);
+  },
+};
 
 // A fighting plant, in the shape of a harmless one (render.js enemySprite).
 // Painted as the flora is (pflora.js: by hand if its piece is, else from its
@@ -521,14 +617,120 @@ function fpWisp(W, H, k, C, frame = 0, seed = 1) {
   return fpDone(s);
 }
 
-// ---- the construct, the warden and the target ------------------------------
-// A golem of plates on brass rods: a boxed head with a dark visor and two
-// red eyes, broad pauldrons, a chest plate with its rune lit, arms of rod
-// with plated fists, plated legs on brass feet. Plates are dark, lit along
-// their tops and left edges, cut by seams. k: its size (1: 23 × 23; the
-// warden is 44 × 44, riveted). pose: 'idle', 'walk' (a stride, the arms
-// swinging), 'windup' (low, fists back, eyes and rune hot).
+// ---- the construct and the warden -----------------------------------------
+// A stalker of the dark: a lean biped in glossy chitin, seen from the front.
+// A smooth, eyeless-looking skull with two slanted slits of its region's
+// glow and a row of pale teeth; a spine swept up off each shoulder; a ribbed
+// chest narrowing to a wasp waist, its core a slit of glow between the ribs;
+// long arms ending in blade claws edged in glow, hanging to its knees; legs
+// that bend back at the knee (digitigrade) onto splayed talons; a tail
+// curling behind. k: its size (1: 23 × 23; the warden is 44 × 44, near
+// black, with a crest of spines, four eyes and glowing seams down its
+// blades). pose: 'idle', 'walk' (a stride, the arms swinging), 'windup'
+// (crouched, the blades raised over its head, eyes and core hot).
 function fpConstruct(W, H, k, pal, pose = 'idle', seed = 1) {
+  const big = k > 1.5, s = new FpSpr(W, H, hashInts(seed, pose.length, W, 0xa11e));
+  const SH = fpRamp(big ? pal.plate : pal.shell), G = fpGlowRamp(pal.rune[0]), cx = (W - 1) / 2;
+  const hot = pose === 'windup', step = pose === 'walk', low = hot ? 1 : 0;
+  // (a place in its units: x from the middle, y from the top)
+  const P = (x, y) => [cx + x * k, (y + low) * k + 1], F = (x, y) => [cx + x * k, y * k + 1];
+  const body = (t, sd) => (sd < 0 ? SH[5] : sd > 0 ? SH[1] : SH[3]);
+  const far = (t, sd) => (sd < 0 ? SH[3] : SH[1]);
+  // the tail, behind everything: from the hips, out and curling up
+  s.tag('tail').limb([P(0.6, 13.4), P(3, 15.2), P(6.2, 15.8), P(8, 14.2), P(8.2, 12.8)], 1.4 * k, 0.3, (t, sd) => (t > 0.85 ? SH[4] : far(t, sd)));
+  // the legs: thigh out to a high knee, the shin back in to the ankle,
+  // talons splayed; one lifted mid-stride, both bent deeper crouched
+  for (const side of [-1, 1]) {
+    const lift = step && side < 0 ? 1.2 : 0, kx = side * (3.2 + low * 0.6), ky = 15.8 - lift * 0.6;
+    const hip = P(side * 1.5, 13.2), knee = [cx + kx * k, (ky + low * 0.5) * k + 1], ankle = F(side * 2.2, 19.1 - lift), foot = 20.7 - lift;
+    s.tag('leg').limb([hip, knee], 1.9 * k, 1.2 * k, body);
+    s.tag('leg').limb([knee, ankle], 1.0 * k, 0.6 * k, body);
+    s.tag('foot');
+    for (const [tx, w] of [[side * 3.6, 0.7], [side * 1.2, 0.6], [side * 2.4, 0.7]]) s.limb([ankle, F(tx, foot)], w * k, 0.3, (t, sd) => (t > 0.7 ? SH[1] : sd < 0 ? SH[4] : SH[2]));
+  }
+  // the pelvis and the waist
+  s.tag('hips').ell(...P(0, 13.1), 2.1 * k, 1.1 * k, SH, { lo: 1, hi: 5 });
+  s.tag('waist').ell(...P(0, 11.5), 1.3 * k, 1.9 * k, SH, { lo: 1, hi: 5 });
+  // the shoulder spines, swept up and out behind the chest
+  for (const side of [-1, 1]) s.tag('spine').limb([P(side * 2.8, 8.4), P(side * 4.4, 6), P(side * 5, 4.6)], 1.4 * k, 0.3, (t, sd) => (t > 0.75 ? SH[6] : body(t, sd)));
+  if (big) for (const side of [-1, 1]) s.tag('spine').limb([P(side * 1.6, 8), P(side * 2.8, 4.8), P(side * 3.2, 3.4)], 1.1 * k, 0.3, (t, sd) => (t > 0.75 ? SH[6] : body(t, sd)));
+  // the chest: broad, tapering to the waist
+  s.tag('chest').ell(...P(0, 9), 3.7 * k, 2.3 * k, SH, { lo: 1, hi: 6, bias: 0.05 });
+  s.tag('chest').poly([P(-3.2, 9.6), P(3.2, 9.6), P(1.1, 12), P(-1.1, 12)], (x, y) => SH[x < cx - k ? 4 : x > cx + k ? 2 : 3]);
+  // ribs: dark seams across, each lit along its top, broken at the middle
+  for (const ry of big ? [8.6, 9.9, 11.1] : [9, 10.8]) {
+    const [, y] = P(0, ry), half = Math.max(1, (3.4 - (ry - 8) * 0.9) * k);
+    for (let x = Math.round(cx - half); x <= Math.round(cx + half); x++) {
+      if (Math.abs(x - cx) < 1 || s.tagAt(x, Math.round(y)) !== 'chest') continue;
+      s.px(x, y, SH[0]);
+      if (s.tagAt(x, Math.round(y) - 1) === 'chest') s.px(x, y - 1, x < cx ? SH[5] : SH[4]);
+    }
+  }
+  // the core: a slit of glow between the ribs, hot as it winds up
+  s.tag('core');
+  const [, c0] = P(0, 8.2), [, c1] = P(0, 11.6);
+  for (let y = Math.round(c0); y <= Math.round(c1); y++) {
+    const t = (y - c0) / Math.max(1, c1 - c0), mid = Math.abs(t - 0.4) < 0.3;
+    s.px(cx, y, mid ? G[hot ? 3 : 2] : G[1], true);
+    if (big) s.px(cx + (cx % 1 ? 0.5 : 1), y, mid ? G[2] : G[0], true);
+  }
+  // the arms: long and thin, the blades hanging along its legs; swinging
+  // as it walks; winding up, folded high like a mantis, the blades hooked
+  // down in front of it
+  for (const side of [-1, 1]) {
+    const sw = step ? side * 1.1 : 0;
+    const sh = P(side * 3.5, 8.2);
+    const el = hot ? P(side * 6.2, 5.6) : P(side * 5.4, 11.4 - sw);
+    const wr = hot ? P(side * 7, 3.6) : P(side * 5.2, 14.4 - sw);
+    const mid = hot ? P(side * 6.6, 6.8) : P(side * 6, 16.8 - sw), tip = hot ? P(side * 5.2, 9.6) : P(side * 5.1, 19.6 - sw);
+    s.tag('arm').limb([sh, el], 1.3 * k, 0.9 * k, body);
+    s.tag('arm').limb([el, wr], 0.9 * k, 0.8 * k, body);
+    s.tag('blade').limb([wr, mid, tip], 1.2 * k, 0.15, (t, sd) => (sd > 0 ? SH[1] : sd < 0 ? SH[6] : SH[3]));
+    // its outer edge glows, brightest towards the point
+    const edge = [];
+    for (let i = 2; i <= 10; i++) { const t = i / 10, a = t < 0.5 ? wr : mid, b = t < 0.5 ? mid : tip, u = t < 0.5 ? t * 2 : t * 2 - 1; edge.push([a[0] + (b[0] - a[0]) * u + side * 0.45 * k, a[1] + (b[1] - a[1]) * u, t]); }
+    for (const [x, y, t] of edge) if (s.tagAt(Math.round(x), Math.round(y)) === 'blade') s.px(x, y, t > 0.6 ? G[hot ? 3 : 2] : G[1], true);
+    // the shoulder: a glossy knob
+    s.tag('shoulder').ell(sh[0], sh[1], 1.2 * k, 1.0 * k, SH, { lo: 2, hi: 7, bias: 0.1 });
+  }
+  // the neck and the head: a great smooth cranium tapering to a narrow jaw
+  s.tag('neck').limb([P(0, 7.6), P(0, 6.2)], 1.2 * k, 1.0 * k, body);
+  s.tag('head').ell(...P(0, 5.2), 1.3 * k, 1.6 * k, SH, { lo: 1, hi: 4 });
+  s.tag('head').ell(...P(0, 2.9), 2.5 * k, 2.3 * k, SH, { lo: 1, hi: 7, bias: 0.14 });
+  // the eyes: long slanted almonds of glow, wide set, the inner end low
+  s.tag('eye');
+  const eyePix = (ex, ey, len, tall) => {
+    for (const side of [-1, 1]) {
+      const n = Math.max(2, Math.round(len * k * 1.6));
+      for (let i = 0; i < n; i++) {
+        const u = i / (n - 1), x = cx + side * (ex + len * u) * k, y = (ey + low - 0.7 * u) * k + 1, c = u > 0.3 && u < 0.8 ? G[hot ? 3 : 2] : G[hot ? 2 : 1];
+        s.px(x, y, c, true);
+        if (tall && u > 0.15 && u < 0.85) s.px(x, y + 1, G[1], true);
+      }
+    }
+  };
+  eyePix(0.6, 3.7, big ? 1.7 : 1.3, false);
+  // the jaw: a seam of pale teeth, gaping as it winds up
+  s.tag('teeth');
+  const [, ty] = P(0, 5.9);
+  for (let x = Math.round(cx - 0.8 * k); x <= Math.round(cx + 0.8 * k); x++) {
+    if (!hot) { s.px(x, ty, SH[0]); continue; }
+    s.px(x, ty, (x + Math.round(ty)) % 2 === 0 ? '#c8bca4' : SH[0]);
+    s.px(x, ty + 1, G[0], true);
+    if (big) s.px(x, ty + 2, (x + Math.round(ty)) % 2 ? '#d8ccb4' : SH[0]);
+  }
+  // gloss: a long sheen across the cranium
+  s.tag('gloss');
+  for (let i = 0; i < Math.round(2.2 * k); i++) s.px(cx - 1.3 * k + i * 0.45, (1.2 + low) * k + 1 + i * 0.35, i % 3 === 2 ? SH[6] : SH[7]);
+  s.rim(['head', 'shoulder', 'spine'], fpHot(SH), SH[6], { p: 0.55, hot: 0.3 });
+  return fpDone(s);
+}
+
+// The training target at the outpost: the old golem of plates on brass rods
+// (a boxed head with a dark visor and two red eyes, broad pauldrons, a chest
+// plate with its rune lit, arms of rod with plated fists, plated legs on
+// brass feet).
+function fpTargetDummy(W, H, k, pal, pose = 'idle', seed = 1) {
   const s = new FpSpr(W, H, hashInts(seed, pose.length, W, 0xc0a)), PL = fpRamp(pal.plate), MT = fpRamp(pal.metal || ART.pal.metal);
   const RN = fpGlowRamp(pal.rune[0]), EYE = ART.pal.eyeglow[0], cx = Math.floor(W / 2), big = k > 1.5;
   // (q: a length at its size; X, Y: a place from the middle and the top)

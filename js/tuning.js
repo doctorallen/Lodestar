@@ -706,13 +706,13 @@ const T = {
     resist: {
       crawler: { ember: 'W' }, // a chitin shell, dry inside
       wisp: { force: 'R', shock: 'R', blight: 'I' }, // no body, all ether
-      construct: { shock: 'W', blight: 'I' }, // an armoured machine
+      construct: { blight: 'W' }, // the stalker: living, thin-shelled
       snapjaw: { frost: 'R', ember: 'W', blight: 'R' }, // living plants
       spitter: { frost: 'R', ember: 'W', blight: 'R' },
       hollow: { force: 'R', shock: 'R', frost: 'R', ember: 'R', blight: 'R' }, // the living dark
       // each clime's own creature (foes.js)
-      skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', frost: 'R' }, wraith: { frost: 'W', ember: 'R' }, lurker: { ember: 'W', blight: 'R' },
-      dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', ember: 'R' }, crab: { frost: 'W', ember: 'R', force: 'R' }, weaver: { ember: 'W', blight: 'R' },
+      skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', blight: 'W', frost: 'R' }, wraith: { frost: 'W', ember: 'R' }, lurker: { ember: 'W', blight: 'R' },
+      dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', blight: 'W', ember: 'R' }, crab: { frost: 'W', ember: 'R', force: 'R' }, weaver: { ember: 'W', blight: 'R' },
       sentinel: { shock: 'W', blight: 'R' }, idol: { force: 'W', frost: 'R' }, hound: { shock: 'W', force: 'R' },
     },
     // the warden and the Keepers: one weakness and one resistance, by region

@@ -168,7 +168,7 @@ Ground near an open tear washes violet with flickers of the rift's colours. **SE
 Every biome has the same three, in its own colours:
 - **The crawler** closes in and circles. Then it crouches with its eyes flaring, shows a red line, lunges and bites. Afterwards it recovers, which leaves it open to a counter.
 - **The wisp** keeps its distance, strafing, and fires slow orbs: one at first, three from depth 3.
-- **The construct** (from depth 2) shows the line it will charge along, then charges. If it hits a wall, it's dazed, and it takes extra damage while dazed.
+- **The stalker** (from depth 2; `construct` in the code) is a lean alien biped in glossy chitin: a long smooth skull with slanted slits of its region's glow, a ribbed chest with a slit of glowing core, blade claws, legs that bend back at the knee, and a tail. It shows the line it will charge along, raising its blades like a mantis, then charges. If it hits a wall, it's dazed, and it takes extra damage while dazed.
 
 **Flora that fights**, rooted and hidden among the harmless kind. It wears a harmless piece's shape with its glow gone red, so you can learn to read it:
 - **The snapjaw** waits for you to come close. It shows its reach in a red ring, then snaps.
@@ -176,7 +176,7 @@ Every biome has the same three, in its own colours:
 
 All of them glow brighter while winding up, so you can see the attack coming. Enemies wake when they see you or when one near them is hit, then find their way to you through the tunnels. One woken by another, or by a noise (a channel's light, a drill), looks about for half a second to a second and a half before it comes, so a pack arrives in ones and twos.
 
-**They take turns.** In the Rim only one enemy winds up at a time (two from depth 3); each region out adds most of one more, and every three depths one more. Of the kinds that close in to fight (crawlers, droppers, crabs, constructs), only the nearest two press the attack in the Rim (three in the Choir, four beyond); the rest hold off about four tiles out, circling, until one falls.
+**They take turns.** In the Rim only one enemy winds up at a time (two from depth 3); each region out adds most of one more, and every three depths one more. Of the kinds that close in to fight (crawlers, droppers, crabs, stalkers), only the nearest two press the attack in the Rim (three in the Choir, four beyond); the rest hold off about four tiles out, circling, until one falls.
 
 **The Rim is for learning.** A territory's rooms hold fewer enemies near the outpost (about 1 + 0.4 × depth + 0.8 × region, give or take one), and enemies there have half their health at level 1, rising evenly to all of it at level 8 (the Choir's furthest): a crawler at level 1 falls to three hits of the starting Arc or Bolt.
 
@@ -197,7 +197,7 @@ All of them glow brighter while winding up, so you can see the attack coming. En
 |---|---|---|---|---|---|---|
 | Crawler | | | | W | | a chitin shell, dry inside |
 | Wisp | R | R | | | I | no body, all ether |
-| Construct | | W | | | I | an armoured machine |
+| Stalker | | | | | W | living, thin-shelled |
 | Snapjaw, spitter | | | R | W | R | living plants |
 | The Hollow | R | R | R | R | R | the living dark; in a lit lodeline's light it loses them all |
 | The warden, the Keepers | one W and one R by region: the Rim Ember W, Blight R; the Choir Force W, Frost R; the Underforge Frost W, Ember R | | | | | |
@@ -210,23 +210,23 @@ All of them glow brighter while winding up, so you can see the attack coming. En
 
 ### Each clime's own creature
 
-Every clime has a creature found nowhere else: about 30% of what a room holds in its clime, and elsewhere only where a rift's graft of that clime brings one or two (not the eel or the dropper, which need their water or a roof). The crawler, wisp, construct and the fighting flora are the rest, everywhere. Each has its own attack, tied to its clime and its hazard, and like every enemy it shows its attack first (a red line, ring or mark, and it glows brighter as it winds up), a dash crosses every one, and it takes its turn with the others. Each leaves the creature part that suits it, can be an elite, and grows with the level like the rest. Wick says a word on each the first time it shows itself.
+Every clime has a creature found nowhere else: about 30% of what a room holds in its clime, and elsewhere only where a rift's graft of that clime brings one or two (not the eel or the dropper, which need their water or a roof). The crawler, wisp, stalker and the fighting flora are the rest, everywhere. Each has its own attack, tied to its clime and its hazard, and like every enemy it shows its attack first (a red line, ring or mark, and it glows brighter as it winds up), a dash crosses every one, and it takes its turn with the others. Each leaves the creature part that suits it, can be an elite, and grows with the level like the rest. Wick says a word on each the first time it shows itself.
 
 | Clime | Creature | Attack | Tell | Nature (weak / resists) | Part |
 |---|---|---|---|---|---|
 | Badlands | Dune Skink | Swims under the sand (a mound with eyes), bursts up under you and bites; then it's up a moment, scuttling, before it digs back under | A ring of sand under you, its reach in red | Frost / Ember | chitin |
-| Frost Steppe | Tusker | A heavy charge; it slides on, can't turn, and on ice slides on until the rock stops it, dazed for longer | Its whole run in red, a ring where it will slam | Ember / Frost | chitin |
+| Frost Steppe | Tusker | A heavy charge; it slides on, can't turn, and on ice slides on until the rock stops it, dazed for longer | Its whole run in red, a ring where it will slam | Ember and Blight / Frost | chitin |
 | Cinder Waste | Ash Wraith | Rises from a smouldering fissure, drifts in and bursts into embers, leaving burning ground; then it's a spent cinder | It swells and glows, its reach in a red ring | Frost / Ember | ether |
 | Bloomfen | Bog Lurker | Sunk to its stalked eyes in its mire; its tongue lashes along a line and drags you a tile in | Its mouth opens, the line marked in red | Ember / Blight | spore |
 | Caverns | Ceiling Dropper | Clings to the roof; drops on you, then fights like a squat crawler | Its shadow grows on the floor, following you a moment, then holding, ringed in red | Force / Shock | chitin |
-| Flooded Grotto | Pool Eel | Swims in the pools (a fin and ripples), rears and lunges; on dry ground without a bite it's stranded | It rears, its line in red | Shock / Ember | fibre |
+| Flooded Grotto | Pool Eel | Swims in the pools (a fin and ripples), rears and lunges; on dry ground without a bite it's stranded | It rears, its line in red | Shock and Blight / Ember | fibre |
 | Magma Tubes | Slag Crab | Sidesteps and pinches; its shell turns most of a blow until it's chilled or cracked by a heavy hit (its seams light); lava doesn't burn it | Claws up, a short red line | Frost / Ember and Force | cog |
 | Rootdeep | Rootweaver | Keeps off and spits; strings root snares between the walls across your way, which hold your feet (a dash crosses) | A red line from its mouth; the snare's line in red | Ember / Blight | fibre |
 | Archive | Sentinel Eye | Floats and sweeps a beam through an arc; rock stops it, so a pillar is cover | The arc it will sweep, and the line it starts from | Shock / Blight | ether |
 | Overgrown Temple | Moss Idol | A temple guardian beast, half lion-dog and half gargoyle, moss over its back. Moves only out of the light (the heart of the lamp's reach, or a shaft of daylight), prowling low with its cracks faintly alight, and pounces from the dark; lit, it's a crouched statue | Haunches gathered, cracks and eyes ablaze, its line in red | Force / Frost | spore |
 | Clockwork Vault | Gear Hound | Winds its key, then runs in straight lines, glancing off the walls twice; then it's spent | The key turning, the whole run shown with a ring at each wall | Shock / Force | cog |
 
-While a skink is under the sand, an eel under the water or a dropper on the roof, nothing can strike it or aim at it. A stranded eel, a spent wraith or hound and a dropper that has just landed take half again as much, as a dazed construct does.
+While a skink is under the sand, an eel under the water or a dropper on the roof, nothing can strike it or aim at it. A stranded eel, a spent wraith or hound and a dropper that has just landed take half again as much, as a dazed stalker does.
 
 ## Mining and ore
 
@@ -276,7 +276,7 @@ Recipes are revealed by research, instantly, at the forge. When you bring home s
 | A warden's heart | Ward core |
 | An elemental exotic | its Element's core |
 | The first module | the Capture Lens |
-| A module from a snapjaw, a wisp, a construct | Weave, Orb core, Glaive core |
+| A module from a snapjaw, a wisp, a stalker | Weave, Orb core, Glaive core |
 
 Known from the start: the rig frame, plate, charm and cutter, the Arc and Bolt, Force and Amplify, and the tools. Blueprints are gone as drops; an old save's blueprints are known recipes.
 
@@ -286,7 +286,7 @@ Known from the start: the rig frame, plate, charm and cutter, the Arc and Bolt, 
 - **Modules** are the Diablo layer. The dark's creatures are made of the world's own living energy; when one dies, its pattern unravels, and the Charter suit's capture field catches the strongest thread of it and sets it in a blank lattice crystal. Rarity is how much of the pattern was caught.
   - **Few but meaningful:** a kill leaves one 7% of the time, an elite 65% (magic or better), a warden two and a Keeper three (rare or better, a tier up, a Keeper's legendaries three times likelier). A Deep's chances are 1.4 times, the Capture Lens 1.5 times, and the first eight modules ever come 2.6 times as often. About three or four a sortie.
   - **In the field:** the creature's energy draws in and collapses into a small faceted crystal in its rarity's colour, which glints now and then (rare and better stand in a beam). Walked over, the capture field's tether pulls a few motes to the Kindler.
-  - **Rolled:** for the rig, armor, a charm or a cutter (a creature's family leans it: a crawler's to defense, a wisp's to spell, a construct's to close, a snapjaw's to utility, a spitter's to mining, each clime creature its own). Traits by rarity: common 1, magic 2, rare 3, legendary 2 and a power, set 1 and the set bonus; each at 60% of an old item affix (there are more sockets than there were pieces). Their tier is where they were caught, so deeper modules roll higher.
+  - **Rolled:** for the rig, armor, a charm or a cutter (a creature's family leans it: a crawler's to defense, a wisp's to spell, a stalker's to close, a snapjaw's to utility, a spitter's to mining, each clime creature its own). Traits by rarity: common 1, magic 2, rare 3, legendary 2 and a power, set 1 and the set bonus; each at 60% of an old item affix (there are more sockets than there were pieces). Their tier is where they were caught, so deeper modules roll higher.
   - **The card** says where it was caught ("Caught from an elite Wisp, Bloomfen"), its traits with how well each rolled, and UPGRADE or DOWNGRADE against what's in the socket it would take.
 - **Socketing is free** at home, at the locker: tap a base, tap a socket, tap a module from the drawer, each line saying what it would change. A better base takes the old one's modules (and a frame its cores) when equipped.
 - **Working a module is UPGRADE and SALVAGE, nothing else.** Both are buttons on its card at home, at the locker or the **tuning bench** (the outpost station that lists every module, socketed first):
