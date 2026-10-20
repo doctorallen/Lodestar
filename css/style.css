@@ -529,3 +529,28 @@ body.intro #deck-left { border-right-color: transparent; }
 /* sideways, Wick speaks at the top of the view, clear of the Kindler */
 #app.wide .intro-cap.said { top: calc(52px + env(safe-area-inset-top)); bottom: auto; background: rgba(8, 10, 16, 0.85); border: 1px solid #2a3a48; padding: 8px 12px; }
 body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s; }
+
+/* Deeds and supplies (deeds.js, supplies.js) */
+/* the light waiting, over what the star has: the bar's paler part */
+.rep-bar { position: relative; }
+.rep-bar .fill { position: absolute; left: 0; top: 0; }
+.rep-bar .fill.wait { background: #6a5420; }
+.star-bar { margin: 6px 0 2px; }
+.next-steps p { margin: 4px 0; font-size: 12px; color: var(--ink); padding-left: 10px; text-indent: -10px; }
+.next-steps p::before { content: '◇ '; color: var(--gold); }
+.note .ok { color: var(--gold); }
+.note.gold { color: var(--gold); }
+/* the quick-use slot: the right deck's top-left corner, and the small
+   button beside it that moves it on */
+.deck-btn.supply { left: 12px; top: 12px; right: auto; bottom: auto; width: 60px; height: 60px; border-color: #7ff0a0; color: #c8ffd8; background: rgba(120, 240, 160, 0.07); font-size: 9px; }
+.deck-btn.supply .btn-icon { width: 26px; height: 26px; image-rendering: pixelated; }
+.deck-btn.supply .supply-n { position: absolute; right: -4px; top: -4px; background: #0e1410; border: 1px solid #7ff0a0; border-radius: 9px; padding: 0 4px; font-size: 10px; color: #c8ffd8; pointer-events: none; }
+.deck-btn.supply-next { left: 78px; top: 26px; right: auto; bottom: auto; width: 32px; height: 32px; border-color: #5a7a62; color: #c8ffd8; background: rgba(120, 240, 160, 0.04); font-size: 14px; }
+#app.wide .deck-btn.supply { left: 8px; top: 10px; width: 54px; height: 54px; }
+#app.wide .deck-btn.supply-next { left: 68px; top: 21px; }
+.supply-kind { border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-bottom: 4px; }
+.supply-grade { display: flex; align-items: center; gap: 8px; padding: 4px 0 4px 8px; }
+.supply-g { width: 24px; flex: none; color: var(--gold); font-weight: bold; text-align: center; }
+.supply-cost { flex: 1; font-size: 12px; }
+.supply-cost small { display: block; color: var(--dim); font-size: 11px; margin-top: 2px; }
+.supply-grade .mini { flex: none; }

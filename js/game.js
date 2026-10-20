@@ -178,7 +178,7 @@ function updateDive(dtReal, dt) {
   // stepping through a portal: everything holds still until it's done
   if (updateWarp(d, dtReal) || Game.dive !== d) return;
   if (!d.hub) updateTools(dtReal);
-  if (d.sortie) updateFrontier(d, dtReal);
+  if (d.sortie) { updateFrontier(d, dtReal); updateDeeds(d, dtReal); }
   else if (d.hub) updateOutpostExits(d);
   if (d.warp) return;
   p.invuln = Math.max(0, p.invuln - dtReal);
@@ -214,7 +214,7 @@ function updateDive(dtReal, dt) {
   updateBolts(dt);
   updateAuras(dt);
   updateCombatFx(dt);
-  if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); }
+  if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); updateSupplies(d, dt); }
   else { updateSettlers(d, dt); updateStarFeed(d, dtReal); }
   updatePickups(dtReal);
   if (Input.consumeAct()) {
@@ -224,7 +224,11 @@ function updateDive(dtReal, dt) {
     else if (a === 'way') stepThrough(d, wayHere(d));
     else if (a === 'extract') startChannel('extract');
     else if (a === 'stone') startChannel('stone');
-    else if (a === 'plant') startChannel('plant');
+    else if (a === 'plant') {
+      // a spire holds only where the star's light reaches (deeds.js)
+      if (starHoldsSpire(d.terr)) startChannel('plant');
+      else { UI.toast(`The star must reach magnitude ${spireMagFor(d.terr)} before a spire can hold here`); Story.say('starReach'); }
+    }
     else if (a === 'rift') useRift(d);
     else if (a === 'forge') UI.useStation('fieldForge');
   }
@@ -266,6 +270,8 @@ function updatePull(dt) {
   const d = Game.dive, P = T.pull;
   if (d.kindled && !d.deep) { d.pull = 1; return; }
   if (d.pull <= 0) return;
+  // a flare's light holds yours (supplies.js)
+  if (inFlare(d)) return;
   // in a lair the Keeper holds the dark off while it lives, but its rage grows
   if (d.zone === 'lair' && d.keeper && !d.keeper.dead) {
     if (!d.keeper.enraged && (d.lairT = (d.lairT || 0) + dt) >= T.enemies.keeper.enrageAt) { d.keeper.enraged = true; UI.toast('The Keeper rages', 'legendary'); }
@@ -499,14 +505,18 @@ function extractDive() {
   else bankAtSpire(d);
 }
 
-// Dying, or giving up: the cargo is lost, what's worn and what's in the
-// pocket are kept. A fall wakes the diver at the last spire touched (the
-// outpost if none); giving up goes home.
+// Dying, or giving up. What's worn and what's in the pocket are kept. A
+// fall leaves the cargo where it fell, the Kindler's pack, to go back for
+// once (an older pack is lost: deeds.js), and wakes the diver at the last
+// spire touched (the outpost if none); giving up loses the cargo and goes
+// home.
 function loseDive(died) {
   const d = Game.dive, kept = bankPocket(d), b = d.banked || { stuff: {}, items: [] };
   ageContracts();
   const at = died ? Save.data.lastSpire || 0 : 0;
-  const report = { lost: d.cargo, items: d.items, died, kept, lostBlueprints: d.blueprints.length, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), earlier: b, wake: at ? terrOf(at).name : '' };
+  const left = died ? leaveCache(d) : null;
+  const report = { lost: d.cargo, items: d.items, died, kept, lostBlueprints: d.blueprints.length, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), earlier: b, wake: at ? terrOf(at).name : '', cache: left && left.cache, oldCache: left && left.old, light: (d.tally && d.tally.light) || {} };
+  if (left && left.cache) Story.say('firstCache');
   Save.save();
   if (at && hasSpire(at)) { startSortie({ terr: at, spire: true }); UI.openReport(report); }
   else enterHub(report);
@@ -526,13 +536,11 @@ function recallDive() {
     if (d.cargo[k] <= 0) delete d.cargo[k];
   }
   d.items = d.items.filter(() => { if (d.rng.chance(cost)) { lostItems++; return false; } return true; });
-  // the ride home feeds the star nothing
-  d.far = 0;
   bankHaul(d);
   Save.data.run = null;
   const b = d.banked, contracts = settleContracts(d, b.stuff);
   Save.save();
-  enterHub({ banked: b.stuff, items: b.items, learned: b.learned, fed: b.fed, shard: d.gotShard, echoes: d.echoes, contracts, where: sortieWhere(d), recalled: { lost, lostItems, cost } });
+  enterHub({ banked: b.stuff, items: b.items, learned: b.learned, light: (d.tally && d.tally.light) || {}, shard: d.gotShard, echoes: d.echoes, contracts, where: sortieWhere(d), recalled: { lost, lostItems, cost } });
 }
 
 function abandonDive() { loseDive(false); }

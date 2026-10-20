@@ -17,8 +17,8 @@ function stuffLines(stash) {
   return stuffIds().filter((id) => stash[id]).map((id) => `${stash[id]} ${stuffName(id)}`).join(', ');
 }
 const exoticName = (id) => T.exotics.find((x) => x.id === id).name;
-const stuffIds = () => T.ores.map((o) => o.id).concat(PART_STACK_IDS, T.exotics.map((x) => x.id));
-const stuffName = (id) => (ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : parsePart(id) ? partName(id) : exoticName(id));
+const stuffIds = () => T.ores.map((o) => o.id).concat(PART_STACK_IDS, T.exotics.map((x) => x.id), LIGHT_IDS);
+const stuffName = (id) => (ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : parsePart(id) ? partName(id) : isLight(id) ? LIGHT_KINDS[id].name : exoticName(id));
 
 // A cost that can't be missed: the material's icon, how many and what,
 // and how many there are, in red when it's short.
@@ -116,6 +116,7 @@ const UI = {
       if (!Game.dive || Game.modal) return;
       if (!Game.dive.hub) UI.openMap('travel');
       else if (actionHere() === 'altar') UI.show('screen-star');
+      else if (actionHere() === 'forge') UI.show('screen-supplies');
     });
     $('build').textContent = BUILD_INFO;
     // the anvil takes a tap anywhere; the reveal, a tap once it has risen
@@ -163,7 +164,7 @@ const UI = {
   },
 
   redraw() {
-    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawUplink_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo }[UI.screen];
+    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawUplink_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-star': drawStar, 'screen-cargo': drawCargo, 'screen-supplies': drawSupplies }[UI.screen];
     if (r) r();
     if (UI.card) drawCard();
   },
@@ -322,6 +323,7 @@ const UI = {
     $('hud-ch').classList.toggle('low', p.lowCharge > 0);
     if (!d.hub) setTextIfChanged('hud-depth', d.deep ? `THE DEEP ${d.deep.site}/${d.deep.of}` : d.terr ? terrOf(d.terr).name.toUpperCase() : '');
     setTextIfChanged('btn-cargo', `CARGO ${cargoUsed(d)}/${st.cargo}`);
+    drawSupplyDeck(d);
     const eq = Save.data.equip;
     for (const slot of ['main', 'off']) {
       // each hand's button shows its circuit's first Form
@@ -341,13 +343,14 @@ const UI = {
     const rh = a === 'rift' && riftHere(d);
     let way = '';
     if (a === 'way') way = !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'STEP THROUGH: ' + wayPlaceName(d, wayHere(d)).toUpperCase();
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: 'PLANT THE SPIRE', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `FEED THE STAR · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
-    // at a spire (or a beacon's light), TRAVEL too; at the altar, ATTUNE
-    const travel = a === 'extract' && d.sortie && !d.deep, attune = a === 'altar', b2 = $('btn-act2');
-    if (b2.hidden !== !(travel || attune)) b2.hidden = !(travel || attune);
-    if (travel || attune) { const pts = attune ? attunePointsLeft(Save.data) : 0; setTextIfChanged('btn-act2', travel ? 'TRAVEL' : pts > 0 ? `ATTUNE · ${pts}` : 'ATTUNE'); }
+    // at a spire (or a beacon's light), TRAVEL too; at the altar, ATTUNE; at
+    // the fabricator, SUPPLIES (supplies.js)
+    const travel = a === 'extract' && d.sortie && !d.deep, attune = a === 'altar', sup = a === 'forge' && d.hub, b2 = $('btn-act2');
+    if (b2.hidden !== !(travel || attune || sup)) b2.hidden = !(travel || attune || sup);
+    if (travel || attune || sup) { const pts = attune ? attunePointsLeft(Save.data) : 0; setTextIfChanged('btn-act2', travel ? 'TRAVEL' : sup ? 'SUPPLIES' : pts > 0 ? `ATTUNE · ${pts}` : 'ATTUNE'); }
   },
 };
 
@@ -417,7 +420,13 @@ function drawReport() {
   } else if (r.banked) { title = 'HOME'; row('BANKED', 'good', got || 'Nothing this time'); }
   else {
     title = r.died ? 'YOU FELL' : 'YOU GAVE UP';
-    if (got) row('LOST', 'bad', got);
+    if (r.died) {
+      // the haul waits where it fell (deeds.js)
+      const c = r.cache;
+      if (c) row('YOUR PACK', 'gold', `Left where you fell, in ${c.where}: ${[stuffLines(c.cargo), gear(c.items), c.blueprints.length ? `${c.blueprints.length} blueprint${c.blueprints.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}. Go back for it: it waits there once. Fall again before you reach it, and it's lost.`);
+      const o = r.oldCache;
+      if (o) row('LOST TO THE DARK', 'bad', `Your older pack, in ${o.where}: ${[stuffLines(o.cargo), gear(o.items)].filter(Boolean).join(', ') || 'what was in it'}`);
+    } else if (got) row('LOST', 'bad', got);
     const before = r.earlier && [stuffLines(r.earlier.stuff || {}), gear(r.earlier.items)].filter(Boolean).join(', ');
     if (before) row('BANKED BEFORE', 'good', before);
     if (r.wake) row('YOU WAKE', 'gold', `At the spire of ${r.wake}`);
@@ -429,16 +438,16 @@ function drawReport() {
   if (r.lostBlueprints) row('BLUEPRINTS LOST', 'bad', `${r.lostBlueprints}, with the cargo`);
   if (r.shard) row('SHARD', 'gold', 'Carried home. Set it in the star at the altar.');
   for (const c of r.contracts || []) row('CONTRACT DONE', 'good', `${contractText(c)}: ${contractRewardText(c)}`);
-  if (r.contracts && r.contracts.bonus) row('THE WHOLE BOARD', 'gold', `+${r.contracts.bonus} more to the star`);
+  if (r.contracts && r.contracts.bonus) row('THE WHOLE BOARD', 'gold', `Supplies besides: ${r.contracts.bonus.join(', ')}`);
   if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the uplink`);
-  // the star: what this ride fed it, and how far to the next magnitude
-  const s = Save.data, mag = magnitudeOf(s.star), lo = T.star.levels[mag - 1], hi = T.star.levels[mag];
+  // the star: the light this sortie earned, what's waiting at the altar,
+  // and how far to the next magnitude
+  const s = Save.data, mag = magnitudeOf(s.star), lo = T.star.levels[mag - 1], hi = T.star.levels[mag], L = r.light || {}, wait = lightWaiting();
+  const earned = [L.heartlight ? `${L.heartlight} heartlight` : '', (r.banked || {}).deeplight ? `${r.banked.deeplight} deeplight` : ''].filter(Boolean).join(', ');
   let star = '';
-  const paid = (r.contracts || []).reduce((n, c) => n + c.star, 0) + ((r.contracts && r.contracts.bonus) || 0), gain = (r.fed || 0) + paid;
-  if (gain) {
-    const grew = s.magSeen !== undefined && mag > s.magSeen;
-    const k = hi ? Math.min(1, (s.star - lo) / (hi - lo)) : 1;
-    star = `<div class="rep-star"><div class="rep-row"><span class="rep-label gold">THE STAR</span><span class="rep-text">+${gain}${grew ? ` · grew to magnitude ${mag}` : hi ? ` · ${Math.max(0, hi - s.star)} to magnitude ${mag + 1}` : ''}</span></div><div class="bar rep-bar"><div class="fill" style="width:${Math.round(k * 100)}%"></div></div></div>`;
+  if (earned || wait) {
+    const k = hi ? Math.min(1, (s.star - lo) / (hi - lo)) : 1, k2 = hi ? Math.min(1, (s.star + wait - lo) / (hi - lo)) : 1;
+    star = `<div class="rep-star"><div class="rep-row"><span class="rep-label gold">THE STAR</span><span class="rep-text">${earned ? `+${esc(earned)}. ` : ''}${wait} light waiting: feed it to the star at the altar${hi ? ` (${Math.max(0, hi - s.star)} to magnitude ${mag + 1})` : ''}.</span></div><div class="bar rep-bar"><div class="fill wait" style="width:${Math.round(k2 * 100)}%"></div><div class="fill" style="width:${Math.round(k * 100)}%"></div></div></div>`;
   }
   $('report-title').textContent = title;
   $('report-body').innerHTML = `<p class="rep-where">${esc(where)}</p>${rows.join('')}${star}`;
@@ -625,22 +634,34 @@ function statLine(st) {
   return bits.join(' · ');
 }
 
+// The star's screen, at its altar: its magnitude, the light waiting, what
+// grows it and what it opens, and the attunements.
 function drawStar() {
-  const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag], pts = attunePointsLeft(s), keep = s.keepOre || {};
-  // the ore banked, in the order the star takes it, each to give or keep
-  const ores = T.ores.filter((o) => s.stash[o.id]).map((o) => `<div class="row static"><img class="icon" src="${stuffIconUrl(o.id)}" alt=""><span class="row-text"><span class="row-name">${keep[o.id] ? '★ ' : ''}${esc(o.name)} × ${s.stash[o.id]}</span><span class="row-sub">${keep[o.id] ? 'Kept for the forge' : `Given · ${orePoints(o.id)} point${orePoints(o.id) > 1 ? 's' : ''} each`}</span></span>
-      <button class="mini fav ${keep[o.id] ? 'on' : ''}" data-act="keepOre" data-arg="${o.id}">${keep[o.id] ? '★ KEPT' : '☆ KEEP'}</button></div>`).join('');
+  const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag], pts = attunePointsLeft(s), wait = lightWaiting();
+  const light = LIGHT_IDS.slice().reverse().map((id) => `<div class="row static"><img class="icon" src="${lightIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(LIGHT_KINDS[id].name)} × ${s.stash[id] || 0}</span><span class="row-sub">${esc(LIGHT_KINDS[id].text)}</span></span></div>`).join('');
+  const shards = Story.shardsHeld() - Story.shardsSet();
   const att = Object.entries(T.attune).map(([id, A]) => {
     const r = s.attune[id] || 0;
     return `<div class="row static"><span class="row-text"><span class="row-name">${A.name} ${r}/${A.max}</span><span class="row-sub">${A.text} a rank</span></span><button class="mini" data-act="attune" data-arg="${id}" ${pts > 0 && r < A.max ? '' : 'disabled'}>+</button></div>`;
   }).join('');
+  const D = T.deeds, ring = (r) => `ring ${r}`;
+  const grows = [
+    `Kindling a territory: ${D.heart.slice(1, 4).map((n, i) => `${n} heartlight in ${ring(i + 1)}`).join(', ')}, ${D.heart[4]} at the Edge.`,
+    `Reaching a Deep's end the first time: ${D.deepEnd[1]} deeplight in ring 1 to ${D.deepEnd[4]} at the Edge, ${D.deepSite} more for each site past the first.`,
+    `An ancient forge found: ${D.forge} deeplight. An echo: ${D.echo}.`,
+    `A Keeper's shard, set here: ${T.story.shardStar}.`,
+  ];
+  const reach = T.star.ringMag.slice(2).map((m, i) => `<span class="${mag >= m ? 'ok' : ''}">${i + 2 === 4 ? 'The Edge' : 'Ring ' + (i + 2)}: magnitude ${m}${mag >= m ? ' ✓' : ''}</span>`).join(' · ');
   $('star-body').innerHTML = `
     <div class="mag">MAGNITUDE ${mag}${next !== undefined ? ` · ${s.star}/${next}` : ''}</div>
-    <p class="note">Each magnitude gives an attunement point, makes the star's light likelier to reach down into a Deep, a recall gentler, and now and then a pocket slot more.</p>
-    <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3>${att}
-    <h3>WHAT THE STAR MAY TAKE</h3>
-    <p class="note">Hold FEED THE STAR at the altar and it takes your ore, the plainest first, faster the longer you hold. Let go to stop. Ore you keep stays for the forge.</p>
-    ${ores || '<p class="note">No ore banked.</p>'}`;
+    ${wait ? `<div class="bar rep-bar star-bar"><div class="fill wait" style="width:${Math.round(Math.min(1, next ? (s.star + wait - T.star.levels[mag - 1]) / (next - T.star.levels[mag - 1]) : 1) * 100)}%"></div><div class="fill" style="width:${Math.round(Math.min(1, next ? (s.star - T.star.levels[mag - 1]) / (next - T.star.levels[mag - 1]) : 1) * 100)}%"></div></div>` : ''}
+    <h3>LIGHT WAITING · ${wait}${shards > 0 ? ` · ${shards} SHARD${shards > 1 ? 'S' : ''}` : ''}</h3>
+    <p class="note">${wait ? 'Hold FEED THE STAR at the altar and the light rises into it, mote by mote, faster the longer you hold. Let go to stop.' : 'None yet. The star grows from what you do out there, not from ore: bring its light home.'}</p>
+    ${light}
+    <h3>WHAT GROWS IT</h3><div class="next-steps">${grows.map((l) => `<p>${esc(l)}</p>`).join('')}</div>
+    <h3>ITS REACH</h3><p class="note">A spire holds only where the star's light reaches. ${reach}.</p>
+    <p class="note">Each magnitude also gives an attunement point, makes the star's light likelier to reach down into a Deep, a recall gentler, and now and then a pocket slot more.</p>
+    <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3>${att}`;
 }
 
 function drawCargo() {
@@ -648,18 +669,22 @@ function drawCargo() {
   if (!d) return;
   const items = d.items.map((it) => itemRow(it, 'cardCargo', it.uid, compareTag(it, Save.data.equip))).join('');
   const worn = SLOTS.filter((k) => Save.data.equip[k]).map((k) => itemRow(Save.data.equip[k], 'cardWorn', k, `<span class="slot">${SLOT_NAMES[k]}</span>`)).join('');
-  const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${ORE_INDEX[id] !== undefined ? 'Ore' : parsePart(id) ? 'Creature part' : 'Exotic material'} · weighs ${d.cargo[id]}</span></span></button>`).join('');
+  const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${ORE_INDEX[id] !== undefined ? 'Ore' : parsePart(id) ? 'Creature part' : isLight(id) ? 'Light for the star' : 'Exotic material'} · weighs ${isLight(id) ? 'nothing' : d.cargo[id]}</span></span></button>`).join('');
+  const heart = (d.tally && d.tally.light && d.tally.light.heartlight) || 0, pack = Save.data.cache;
   const slots = pocketSlots(), pocket = d.pocket.map((e, i) => `<div class="row static">${e.item ? iconImg(e.item) : e.blueprint ? `<img class="icon" src="${itemIconUrl(bpSample(e.blueprint))}" alt="">` : `<img class="icon" src="${stuffIconUrl(e.stuff)}" alt="">`}<span class="row-text"><span class="row-name ${e.item ? 'r-' + e.item.rarity : e.blueprint ? 'r-legendary' : ''}">${esc(e.item ? e.item.name : e.blueprint ? 'Blueprint: ' + BLUEPRINTS[e.blueprint].name : `${stuffName(e.stuff)} × ${e.n}`)}</span><span class="row-sub">In the pocket</span></span><button class="mini" data-act="unpocket" data-arg="${i}">TAKE OUT</button></div>`).join('');
   $('cargo-body').innerHTML = `
     <div class="mag">CARGO ${cargoUsed(d)}/${d.stats.cargo}</div>
     <h3>POCKET · ${d.pocket.length}/${slots}</h3>
     ${pocket || '<p class="note">Empty. Whatever you pocket comes home even if you fall: tap something below to pocket it.</p>'}
+    ${heart ? `<p class="note">${heart} heartlight earned this sortie: bound to you, safe whatever happens.</p>` : ''}
     <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">No ore yet.</p>'}
+    ${supplyMakeHtml()}
     ${d.blueprints.length ? `<h3>BLUEPRINTS · LEARNED WHEN BANKED</h3>${d.blueprints.map((b, i) => `<div class="row static"><img class="icon" src="${itemIconUrl(bpSample(b.id))}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint · weighs 1</span></span>${d.pocket.length < pocketSlots() ? `<button class="mini" data-act="pocketBp" data-arg="${i}">POCKET</button>` : ''}</div>`).join('')}` : ''}
     <h3>FOUND</h3>${items || '<p class="note">Nothing forged or found yet.</p>'}
     <h3>CONTRACTS</h3>${contractRows(d)}
     <h3>WORN</h3>${worn}
-    <p class="note">What you wear and what's in your pocket are safe. The rest of the cargo is lost if you fall, until it's banked at a spire.</p>
+    <p class="note">What you wear, your pocket and your supplies are safe. If you fall, the rest of the cargo stays where you fell, in your pack: go back for it once. Fall again first and it's lost. Bank at a spire to be sure of it.</p>
+    ${pack ? `<p class="note gold">Your pack waits in ${esc(pack.where)}.</p>` : ''}
     <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL · LOSE ${Math.round(recallCost(d) * 100)}%</button></div>`;
 }
 
@@ -742,9 +767,10 @@ function drawStuffCard(id) {
   const n = (Game.dive && Game.dive.cargo[id]) || 0, x = T.exotics.find((e) => e.id === id), pk = parsePart(id);
   const what = x ? (x.element ? `Forged into a ${CIRCUIT_ELEMENTS[x.element].name} stone, it gives a spell ${CIRCUIT_ELEMENTS[x.element].name.toLowerCase()} damage: ${CIRCUIT_ELEMENTS[x.element].status}. Worked into a caster, the stone comes with it.` : x.family ? `Worked into a piece at the forge, it's sure to roll a ${x.family} affix.` : x.tierUp ? 'Left where a rift was sealed. Worked into a piece at the forge, it comes out a tier above its ore.' : 'Worked into a piece at the forge, it comes out a rarity higher.')
     : pk ? (PARTS[pk.kind].family ? `A creature part. It binds a forged piece with ${pk.grade} ${PARTS[pk.kind].family} affix${pk.grade > 1 ? 'es' : ''}.` : 'A heart. It binds anything, and a fine forge with it comes out legendary.')
-    : `Tier ${T.ores[ORE_INDEX[id]].tier} ore, worth ${orePoints(id)} to the star.`;
+    : isLight(id) ? LIGHT_KINDS[id].text
+    : `Tier ${T.ores[ORE_INDEX[id]].tier} ore. Forge with it, or make supplies from it.`;
   $('card-body').innerHTML = cardBar('IN YOUR CARGO') + `<div class="card-scroll">
-    <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${x ? 'Exotic material' : pk ? 'Creature part' : 'Ore'}</div></div></div>
+    <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${x ? 'Exotic material' : pk ? 'Creature part' : isLight(id) ? 'Light for the star' : 'Ore'}</div></div></div>
     <p class="base">${esc(what)}</p>
     <div class="menu">
       ${n && Game.dive.pocket.length < pocketSlots() ? `<button class="btn" data-act="pocket" data-arg="${T.cargo.pocketStack}">POCKET ${Math.min(n, T.cargo.pocketStack)} (SAFE IF YOU FALL)</button>` : ''}
@@ -980,8 +1006,6 @@ UI.acts = {
     UI.toast('Salvaged for ' + stuffLines(got));
     afterChange();
   },
-  // an ore kept for the forge, or given to the star again
-  keepOre: (id) => { const k = Save.data.keepOre || (Save.data.keepOre = {}); if (k[id]) delete k[id]; else k[id] = true; Save.save(); UI.redraw(); },
   // the pause screen's sound settings: on, soft, off, round again
   soundSet: (kind) => {
     const s = Save.data.settings || (Save.data.settings = {}), v = Snd.level(kind);

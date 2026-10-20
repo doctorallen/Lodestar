@@ -33,6 +33,9 @@
 //   firstSettlers  the first settlers at the outpost (said here, on coming
 //                  home, once storyKindledCount() brings a lander)
 //   firstFeed      the first time the star is fed at its altar (hub.js)
+//   firstHeartlight, firstDeeplight, starReach, firstCache, firstRecover,
+//   firstSupply    the light of deeds, the star's reach, the pack a fall
+//                  leaves, and supplies (deeds.js, supplies.js)
 // And:
 //   storyKindledCount()           territories kindled (0 with no world yet)
 //   storyLanders()                landers the Meridian can send
@@ -65,7 +68,7 @@ const STORY_INTRO = [
   // stepping out, Wick lifting off the pack
   [
     { who: 'WICK', text: "I'm Wick, your drone. Your first planting? They all start this small." },
-    { who: 'WICK', text: 'Feed it the land\'s ore. Carry its light out, spire by spire, until the Meridian can land.' },
+    { who: 'WICK', text: 'Kindle the land, and bring the light home to it. Spire by spire, until the Meridian can land.' },
   ],
 ];
 
@@ -94,7 +97,17 @@ const WICK = {
   allShards: "All three. Our star's never shone like this. They'll see it from orbit.",
   echo: "An echo: a Kindler's log, from before us. I'll keep it at the uplink.",
   // the first time the star is fed, at its altar (hub.js)
-  firstFeed: "By the book, then. A seed-star is planted small and fed the land's ore until it can light a world. Your first. You're doing fine.",
+  firstFeed: "By the book, then. A seed-star is planted small and fed light until it can light a world: every heart kindled, every deep place found. Your first. You're doing fine.",
+  // the light of deeds (deeds.js), the first of each kind
+  firstHeartlight: "Feel that? The heart's light. It's bound to you now, whatever happens. Take it home to the star.",
+  firstDeeplight: "Deeplight. It's been down here a long time. It rides with the cargo, so mind it.",
+  // the star's reach: a spire planted where its light can't hold yet
+  starReach: "Our star can't reach this far yet. Bring it more light, and the spire will hold.",
+  // a fall leaves the pack where it fell (deeds.js), and it's found again
+  firstCache: "Your pack's still out there. We can go back for it.",
+  firstRecover: "Still where you left it. The dark isn't a thief, it seems.",
+  // supplies (supplies.js)
+  firstSupply: 'Old ore still has its uses. The fabricator makes supplies from it.',
   // the world's (see the list at the top)
   firstSpire: "Our first spire. Your first, anyway. Kindlers don't conquer. We just carry the light a little further than it was.",
   firstKindled: "Kindled. The ground's warming already. Funny how quiet it went.",
@@ -150,11 +163,11 @@ const STAR_SPEAKS = {
   6: '…the dark does not hate me. I think it only wants me quieter…',
   7: '…I could fill this whole world. Tell me where to stop…',
 };
-// The first ore it ever takes, and the first Starmetal: said once each,
-// as the ore lands (Story.starTaste).
+// The first light of each kind it takes: said once each, as the mote lands
+// (Story.starTaste).
 const STAR_TASTES = {
-  first: '…oh. The ground here. It tastes older than I am…',
-  starmetal: '…this one tastes like me. Like a light that went out, long ago…',
+  heartlight: '…oh. This light was night, a moment ago. It tastes older than I am…',
+  deeplight: '…this one comes from very far down. It tastes like me. Like a light that went out, long ago…',
 };
 // As each shard is set: another star's light, folded into its own.
 const SHARD_SPEAKS = [
@@ -169,10 +182,10 @@ const SHARD_SPEAKS = [
 const ECHOES = [
   { title: 'Halcyon, day 1', text: 'Planted clean. The Halcyon took first time and the rim lit up like a harbour. Dead world, as promised. Quiet as a held breath.' },
   { title: 'Halcyon, day 12', text: 'Third spire up. Each time, the land wakes a little: moss first, then lizards. The Charter says life rides down with the seed. I never knew it worked so fast.' },
-  { title: 'Halcyon, day 31', text: 'Fed the Halcyon a full cart tonight, by the book. The dark pushes back hardest where we push hardest. It comes in like a tide, and goes out like one. Weather does not do that.' },
+  { title: 'Halcyon, day 31', text: 'Fed the Halcyon the light of three hearts tonight, by the book. The dark pushes back hardest where we push hardest. It comes in like a tide, and goes out like one. Weather does not do that.' },
   { title: 'Saltmarsh survey log', text: 'Ours is the fourth seed sent here. We found the other three. Not their capsules. Their light, gone dim under the ground, and something curled round each one.' },
   { title: 'Unsigned', text: 'Went out past my light. Things moved in the dark that never came for me. Feeding. Singing. Raising their young. I was the strange thing there.' },
-  { title: 'Halcyon, day 60', text: 'We called it dead because nothing here needed a sun. That was the whole mistake. Every spire I plant, something goes quiet. And the ore I carry up to her: I used to think the ground had no use for it.' },
+  { title: 'Halcyon, day 60', text: 'We called it dead because nothing here needed a sun. That was the whole mistake. Every spire I plant, something goes quiet. And the light I carry up to her: I used to think the night had no use for it.' },
   { title: 'Keeper notes', text: 'Cut into the thing in the lair. Under the shell was a Charter plate, worn smooth. Seed-star Wren, it said. Kindler unknown.' },
   { title: 'Last log of the Halcyon', text: "I've stopped feeding her. She burns low now. Not out. Just smaller. If you're the next one: you could light it all. Ask whose night it is first." },
 ];
@@ -245,7 +258,7 @@ const SETTLER_LINES = {
     'My daughter left bread out past the lanterns. By morning it was gone, and a stone was left in its place.',
     'Those old logs you found. Does the Charter know?',
     "I don't mind the dark so much now. It's someone else's, that's all.",
-    "My boy asked what the ore was for, before the star ate it. I didn't have an answer.",
+    "My boy asked where the night goes, when the star drinks it. I didn't have an answer.",
   ],
   place: [
     "I hear {place}'s lit now. I'd like to see it, one day.",
@@ -312,15 +325,13 @@ const Story = {
     Save.save();
   },
 
-  // An ore landing in the star: the first ever, and the first Starmetal,
-  // it remarks on, once each.
-  starTaste(ore) {
+  // A mote landing in the star: the first of each kind of light it
+  // remarks on, once each.
+  starTaste(id) {
     const said = Save.data.said || (Save.data.said = {});
-    for (const k of ['first', ore === 'starmetal' ? 'starmetal' : null]) {
-      if (!k || said['star_' + k]) continue;
-      said['star_' + k] = true;
-      UI.speak('THE STAR', STAR_TASTES[k], 'star');
-    }
+    if (!STAR_TASTES[id] || said['star_' + id]) return;
+    said['star_' + id] = true;
+    UI.speak('THE STAR', STAR_TASTES[id], 'star');
   },
 
   // The opening, the first time the game is played (intro.js). However it

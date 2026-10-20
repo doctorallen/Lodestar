@@ -5,17 +5,18 @@
 // when the diver comes home (walking in, from a spire, or by a recall; not
 // after a fall): bring home some ore, bring down some creature, reach a ring
 // of the world, seal a rift, kindle a territory, go down into a Deep. Each
-// pays the star and leaves something useful, and a new one takes its place.
+// leaves something useful (the star grows only from deeds: deeds.js), and a
+// new one takes its place.
 // The board keeps moving: never two of a kind, hauls mostly from the
 // furthest region reached, one left standing for `stale` sorties is
 // replaced, and one may be swapped for free each time home. All three in
-// one sortie pays the star twice.
+// one sortie pays supplies besides.
 // ---------------------------------------------------------------------------
 
 const CONTRACT_HUNTS = ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'];
 
 function newContract(rng, without = []) {
-  const s = Save.data, mag = magnitudeOf(s.star), open = T.biomes.map((b, i) => i).filter((i) => regionReached(i));
+  const s = Save.data, open = T.biomes.map((b, i) => i).filter((i) => regionReached(i));
   const C = T.contracts, kinds = Object.keys(C.kinds).filter((k) => !without.includes(k));
   const kind = rng.weighted(kinds.map((k) => [C.kinds[k], k]));
   const c = { id: (s.contractN = (s.contractN || 0) + 1), kind, age: 0 };
@@ -33,9 +34,9 @@ function newContract(rng, without = []) {
   }
   else if (kind === 'reach') c.ring = Math.min(T.world.rings.length - 1, newest + 1 + (rng.chance(0.4) ? 1 : 0));
   else c.n = 1;
-  // what it pays: the star, and a thing
-  c.star = C.star * mag;
-  c.reward = rng.weighted([[codexAllWhole() ? 0 : T.circuits.resonance.contract, 'resonance'], [3, 'exotic'], [2, 'parts'], [1, 'riftglass']]);
+  // what it pays: a thing (a supply in the newest region's grade among them)
+  c.reward = rng.weighted([[codexAllWhole() ? 0 : T.circuits.resonance.contract, 'resonance'], [3, 'exotic'], [2, 'parts'], [1, 'riftglass'], [2, 'supply']]);
+  if (c.reward === 'supply') c.supply = rng.pick(SUPPLY_ORDER) + Math.min(3, (newest || 0) + 1);
   if (c.reward === 'exotic') c.exotic = randomExotic(rng);
   if (c.reward === 'parts') { c.part = partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), (rng.pick(open) || 0) + 1); c.parts = 3; }
   return c;
@@ -81,8 +82,8 @@ function contractText(c) {
   return 'Go down into a Deep, and come home';
 }
 function contractRewardText(c) {
-  const thing = c.reward === 'exotic' ? stuffName(c.exotic) : c.reward === 'parts' ? `${c.parts} ${partName(c.part).toLowerCase()}` : c.reward === 'resonance' ? 'a resonance stone (the Codex)' : 'riftglass';
-  return `+${c.star} to the star, and ${thing}`;
+  const thing = c.reward === 'exotic' ? stuffName(c.exotic) : c.reward === 'parts' ? `${c.parts} ${partName(c.part).toLowerCase()}` : c.reward === 'resonance' ? 'a resonance stone (the Codex)' : c.reward === 'supply' && supplyRecipe(c.supply) ? `a ${supplyRecipe(c.supply).name}` : 'riftglass';
+  return `Pays ${thing}`;
 }
 
 // How far along a contract is in the dive under way.
@@ -119,13 +120,16 @@ function settleContracts(d, banked) {
     else ok = contractProgress(c, d) >= contractGoal(c);
     if (!ok) continue;
     done.push(c);
-    s.star += c.star;
     if (c.reward === 'resonance') { revealResonancePart(Save.rng()); continue; }
+    if (c.reward === 'supply' && supplyRecipe(c.supply)) { const b = supplyBelt(); b[c.supply] = (b[c.supply] || 0) + 1; continue; }
     const key = c.reward === 'exotic' ? c.exotic : c.reward === 'parts' ? c.part : 'riftglass';
     s.stash[key] = (s.stash[key] || 0) + (c.reward === 'parts' ? c.parts : 1);
   }
-  // the whole board at once: the star again
-  if (done.length >= T.contracts.posted) { const bonus = done.reduce((n, c) => n + c.star, 0); s.star += bonus; done.bonus = bonus; }
+  // the whole board at once: supplies besides, in the newest region's grade
+  if (done.length >= T.contracts.posted) {
+    const g = Math.min(3, T.biomes.map((b, i) => i).filter((i) => regionReached(i)).length), b = supplyBelt();
+    done.bonus = ['injector' + g, 'cell' + g].slice(0, T.contracts.board).map((id) => { b[id] = (b[id] || 0) + 1; return supplyRecipe(id).name; });
+  }
   s.contracts = s.contracts.filter((c) => !done.includes(c));
   ageContracts();
   return done;
