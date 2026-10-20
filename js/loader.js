@@ -1,0 +1,387 @@
+'use strict';
+// ---------------------------------------------------------------------------
+// Loading: the Charter's systems booting up. Before the game shows anything
+// it builds what it would otherwise build in the middle of play (the fight's
+// sounds, the Kindler's frames, the place you'll land in, painted, the
+// creatures and plants of the land next to it), a slice at a time, with an
+// honest bar, then waits for a tap: the tap the sound needs anyway.
+//
+// A task is one line of the boot log. Add one with
+//   loaderAdd('PRIMING THE THING', weight, fn)
+// from any file loaded after this one (at its top level). weight: about
+// how long it takes beside the others (the Kindler's frames are 40, about
+// 1.6 s on a desktop). fn(job) is
+// called once, in order, after the built-in tasks, and may:
+//   - do its work at once and return (keep it under ~12 ms);
+//   - return a step function, called again and again in slices of about
+//     12 ms until it returns true (it may call job.at(k, n) as it goes);
+//   - or be async: `await job.yield()` often, which waits for the next
+//     frame only once the slice is spent.
+// job.at(k, n) shows "k/n" on its line and moves the bar; job.say(text)
+// changes its line. A task that throws is skipped (its line says so), and
+// whatever it didn't build is built lazily in play, as before. With
+// ?noload in the address, or if anything here fails, the game starts as it
+// always did.
+// ---------------------------------------------------------------------------
+
+const LOADER_SLICE = 12; // ms of work a frame
+
+const Loader = {
+  extra: [], jobs: [], state: null, ms: 0, t0: 0, sliceAt: 0,
+  // what the loading left ready for the start: { hub }, or { run, held }
+  // (the sortie under way, and what it would have said on arriving)
+  landed: null,
+
+  // Runs every task, then waits for the tap, then calls done().
+  run(done) {
+    const el = typeof document !== 'undefined' && document.getElementById('loader');
+    if (!el || /[?&]noload\b/.test(location.search)) { if (el) el.hidden = true; done(); return; }
+    try {
+      this.el = el; this.done = done;
+      this.state = 'loading'; this.t0 = performance.now();
+      el.hidden = false;
+      // (nothing opens under it: the pause a hidden page asks for, say)
+      Game.modal = 'loader';
+      this.jobs = loaderCoreJobs().concat(this.extra, loaderLateJobs()).filter(Boolean).map((j) => Object.assign({ k: 0, n: 0, f: 0, line: j.label, state: 'wait', ms: 0 }, j));
+      loaderUIStart();
+    } catch (e) {
+      noteError(e);
+      this.state = null; el.hidden = true; Game.modal = null;
+      done();
+      return;
+    }
+    this.work().catch((e) => { noteError(e); this.ready(); });
+  },
+
+  // The side lane (the sound bank: mostly waiting on another thread) starts
+  // at once; the main lane runs its tasks one after another.
+  async work() {
+    const side = this.jobs.filter((j) => j.side).map((j) => this.runJob(j));
+    for (const j of this.jobs) if (!j.side) await this.runJob(j);
+    this.mainDone = true;
+    await Promise.all(side);
+    this.ready();
+  },
+
+  async runJob(j) {
+    const t0 = performance.now();
+    j.state = 'run';
+    const job = loaderJobFor(j);
+    try {
+      await this.yield(true);
+      const r = j.fn(job);
+      if (typeof r === 'function') {
+        for (;;) {
+          if (r(job) === true) break;
+          await this.yield();
+        }
+      } else if (r && typeof r.then === 'function') await r;
+      j.state = 'ok';
+    } catch (e) {
+      j.state = 'skip';
+      noteError(e);
+    }
+    j.f = 1;
+    j.ms = performance.now() - t0;
+  },
+
+  // Waits for the next frame once this slice's time is spent (or at once,
+  // if now): the bar is drawn, and a frame shown, between slices.
+  yield(now) {
+    if (!now && performance.now() - this.sliceAt < LOADER_SLICE) return Promise.resolve();
+    return new Promise((res) => {
+      const go = () => { this.sliceAt = performance.now(); res(); };
+      // (after the frame is drawn; a hidden page has no frames)
+      if (document.hidden) setTimeout(go, 0);
+      else requestAnimationFrame(() => loaderAfterPaint(go));
+    });
+  },
+
+  // How far, 0..1: each task's share by its weight.
+  progress() {
+    let w = 0, d = 0;
+    for (const j of this.jobs) { w += j.weight; d += j.weight * (j.state === 'ok' || j.state === 'skip' ? 1 : j.f); }
+    return w ? d / w : 1;
+  },
+
+  ready() {
+    if (this.state !== 'loading') return;
+    this.ms = Math.round(performance.now() - this.t0);
+    this.state = 'ready';
+    loaderUIReady();
+  },
+
+  // The tap: the sound's own listener has already made the live context
+  // (audio.js sndUnlock); the thumb that tapped presses nothing in play.
+  begin() {
+    if (this.state !== 'ready') return;
+    this.state = 'done';
+    window.removeEventListener('keydown', loaderKey);
+    Input.block();
+    this.el.classList.add('gone');
+    setTimeout(() => { this.el.hidden = true; loaderUIStop(); }, 320);
+    Game.modal = null;
+    this.done();
+  },
+};
+
+// Adds a task to the loading (see the top of this file).
+function loaderAdd(label, weight, fn, opts) {
+  Loader.extra.push(Object.assign({ label, weight: weight || 1, fn }, opts || {}));
+}
+
+// A task's handle: how far it's got, and its line.
+function loaderJobFor(j) {
+  return {
+    // (f: how far, if it isn't k of n)
+    at(k, n, f) { j.k = k; j.n = n; j.f = f !== undefined ? f : n ? Math.min(1, k / n) : 0; },
+    say(text) { j.line = text; },
+    yield: (now) => Loader.yield(now),
+  };
+}
+// Runs fn once the frame now being drawn is on screen (a message posted
+// from the frame's callback arrives after it's painted).
+const _ldChan = typeof MessageChannel !== 'undefined' ? new MessageChannel() : null, _ldQ = [];
+if (_ldChan) _ldChan.port1.onmessage = () => { const q = _ldQ.splice(0); for (const f of q) f(); };
+function loaderAfterPaint(fn) {
+  if (!_ldChan) { setTimeout(fn, 0); return; }
+  _ldQ.push(fn);
+  _ldChan.port2.postMessage(0);
+}
+// Runs fn on each of a list, a slice at a time: a step function for a task.
+function loaderEach(job, list, fn) {
+  let i = 0;
+  return () => {
+    const t0 = performance.now();
+    while (i < list.length && performance.now() - t0 < LOADER_SLICE) fn(list[i++], i - 1);
+    job.at(i, list.length);
+    return i >= list.length;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The built-in tasks
+// ---------------------------------------------------------------------------
+function loaderCoreJobs() {
+  return [
+    // the fight's sounds and the footsteps (sndbank.js): rendered on the
+    // audio thread, so they run beside everything else
+    typeof OfflineAudioContext !== 'undefined' && {
+      label: 'SYNTHESISING AUDIO', weight: 20, side: true,
+      // (every sound's first variant; the rest for as long as the main
+      // lane is busy, then in idle time once play has begun)
+      fn: (job) => SndBank.start(BANK_RATE, 0, {
+        pace: (k, n) => { job.at(k, n, Math.min(1, k / SndBank.first)); return job.yield(); },
+        enough: () => Loader.mainDone,
+      }),
+    },
+    // where you'll wake: the outpost, or the sortie that was under way
+    { label: 'SURVEYING TERRAIN', weight: 2, fn: (job) => loaderLand(job) },
+    // every frame of the Kindler, each facing, pose and cast (diver.js)
+    {
+      label: 'CALIBRATING SUIT · KINDLER RIG', weight: 40,
+      fn: (job) => loaderEach(job, kindlerEveryFrame(), ([fi, key]) => {
+        const s = kdGet(fi, key);
+        if (typeof pshSil === 'function') pshSil(s);
+      }),
+    },
+    // the ground and the rock where you land, every chunk, nearest first
+    { label: 'PAINTING THE GROUND', weight: 50, fn: (job) => loaderPaint(job) },
+    // the view swept over it: the outpost's modules, the plants, their
+    // shadows, the lights, all drawn once out of sight
+    { label: 'LIGHTING THE SITE', weight: 6, fn: (job) => loaderSweep(job) },
+    // the creatures and plants of the land next door (ring 1's climes)
+    { label: 'READING LIFE SIGNS', weight: 3, fn: (job) => loaderClimes(job) },
+  ];
+}
+// Hooks for what other parts of the game build ahead, if they're there;
+// and last, the first view itself.
+function loaderLateJobs() {
+  return [
+    typeof castfxWarm === 'function' && { label: 'PRIMING CIRCUITS', weight: 4, fn: (job) => castfxWarm(job) },
+    typeof Intro !== 'undefined' && Intro && typeof Intro.warm === 'function' && !(Save.data && Save.data.introSeen) && { label: 'RECOVERING THE DESCENT LOG', weight: 6, fn: (job) => Intro.warm(job) },
+    { label: 'WAKING WICK', weight: 1, fn: () => loaderFirstView() },
+  ];
+}
+
+// Builds the place the game will open on, without a word yet: the outpost
+// (enterHub, quiet), or the sortie under way (resumeRun, its toasts and
+// Wick's lines held until it's carried on: loaderReplay).
+function loaderLand(job) {
+  const s = Save.data;
+  if (s.run && !Save.unread) {
+    const held = [], keep = { toast: UI.toast, speak: UI.speak };
+    UI.toast = (...a) => held.push(['toast', a]);
+    UI.speak = (...a) => held.push(['speak', a]);
+    try {
+      resumeRun();
+      Loader.landed = { run: true, held };
+      const t = Game.dive && !Game.dive.deep && terrOf(Game.dive.terr);
+      job.say('SURVEYING TERRAIN · ' + (t ? t.name.toUpperCase() : 'THE DEEP'));
+      return;
+    } catch (e) {
+      noteError(e);
+      Game.dive = null;
+    } finally {
+      Object.assign(UI, keep);
+    }
+  }
+  enterHub(null, { quiet: true });
+  Loader.landed = { hub: true };
+}
+// Carrying on the sortie that was built while loading: what it would have
+// said on arriving, said now.
+function loaderCarryOn() {
+  const L = Loader.landed;
+  if (!L || !L.run || !Game.dive || Game.dive.hub) return false;
+  Loader.landed = null;
+  for (const [k, a] of L.held) UI[k](...a);
+  return true;
+}
+
+// Paints every chunk of the floor (the outpost's all; a territory's within
+// a few views of where you stand), the nearest first.
+function loaderPaint(job) {
+  const d = Game.dive;
+  if (!d) return;
+  const f = d.floor;
+  const t = !d.hub && !d.deep && terrOf(d.terr);
+  job.say(d.hub ? 'PAINTING THE OUTPOST' : t ? 'PAINTING ' + t.name.toUpperCase() : 'PAINTING THE DEEP');
+  paintFloor(f);
+  const S = View.pnt, cx = d.p.x * AP, cy = d.p.y * AP, reach = d.hub ? Infinity : 3.2 * Math.max(View.w, View.h);
+  const todo = [];
+  for (let j = 0; j < S.ny; j++) for (let i = 0; i < S.nx; i++) {
+    const m = Math.hypot((i + 0.5) * PNT_CH - cx, (j + 0.5) * PNT_CH - cy);
+    if (m < reach) todo.push([m, i, j]);
+  }
+  todo.sort((a, b) => a[0] - b[0]);
+  return loaderEach(job, todo, ([, i, j]) => { if (!S.done[j * S.nx + i]) pntPaintChunk(f, i, j); });
+}
+
+// Draws the view (hidden under the loading screen) from points across the
+// floor, so everything it would draw for the first time in play is built
+// now; then puts the Kindler back where he stands.
+function loaderSweep(job) {
+  const d = Game.dive;
+  if (!d || !View.w) return;
+  job.say(d.hub ? 'LIGHTING THE OUTPOST' : 'LIGHTING THE LAND');
+  const p = d.p, home = { x: p.x, y: p.y }, f = d.floor, sw = (View.w * 0.8) / AP, sh = (View.h * 0.8) / AP;
+  const reach = d.hub ? Infinity : 2.2 * Math.max(View.w, View.h) / AP, pts = [];
+  for (let y = sh / 2; y < f.h * TILE; y += sh) for (let x = sw / 2; x < f.w * TILE; x += sw) if (Math.hypot(x - home.x, y - home.y) < reach) pts.push({ x, y });
+  pts.sort((a, b) => Math.hypot(a.x - home.x, a.y - home.y) - Math.hypot(b.x - home.x, b.y - home.y));
+  let i = 0;
+  return () => {
+    if (i < pts.length) { p.x = pts[i].x; p.y = pts[i].y; renderFrame(); i++; }
+    job.at(i, pts.length);
+    if (i < pts.length) return false;
+    p.x = home.x; p.y = home.y; d.kAnim = null;
+    return true;
+  };
+}
+
+// The creatures and the plants of each clime in the first ring round the
+// outpost (and the sortie's own, if one is under way): every frame of
+// each, as fpWarm would build them on entering.
+function loaderClimes(job) {
+  const L = worldMap(), seen = new Set(), list = [];
+  const d = Game.dive, here = d && !d.hub && d.terr !== undefined ? [terrOf(d.terr)] : [];
+  for (const t of here.concat(L.terrs.filter((t) => t.ring === 1))) {
+    if (!t || t.home || seen.has(t.clime + '/' + t.biome)) continue;
+    seen.add(t.clime + '/' + t.biome);
+    list.push(t);
+  }
+  // each clime's work, as many small pieces
+  const work = [];
+  for (const t of list) {
+    const fd = { hub: false, biome: t.biome, depth: t.depth, floor: { clime: t.clime } };
+    for (const type of ['crawler', 'snapjaw', 'spitter']) work.push(() => enemySprite(fd, type));
+    const sig = foeOfClime(t.clime);
+    if (sig && FOE_ROWS[sig]) for (const fr of Object.keys(FOE_ROWS[sig])) {
+      work.push(() => foeSprite(sig, fr));
+      if (sig === 'tusker' || sig === 'hound' || sig === 'idol') work.push(() => foeSprite(sig, fr, 'flip'));
+      if (sig === 'crab') work.push(() => foeSprite(sig, fr, 'cracked'), () => foeSprite(sig, fr, 'frozen'));
+    }
+    const set = CLIME_FLORA[t.clime] ? t.clime : T.biomes[t.biome].id, kit = floraKit(set);
+    for (const piece of kit.pieces || []) for (let fr = 0; fr < piece.frames.length; fr++) work.push(() => { const s = floraSprite(set, piece, fr); if (typeof pshSil === 'function') pshSil(s); });
+  }
+  job.say('READING LIFE SIGNS · ' + list.length + (list.length === 1 ? ' CLIME' : ' CLIMES'));
+  return loaderEach(job, work, (fn) => fn());
+}
+
+// The first view, drawn once where you stand: whatever's left to build for it.
+function loaderFirstView() {
+  if (!Game.dive || !View.w) return;
+  renderFrame();
+  Game.dive.kAnim = null;
+}
+
+// ---------------------------------------------------------------------------
+// The screen: the seed-star brightening, the boot log, the conduit filling
+// ---------------------------------------------------------------------------
+const LoaderUI = { raf: 0, shown: -1, lines: null, segs: [], pct: -1, star: null };
+
+function loaderUIStart() {
+  const U = LoaderUI, el = Loader.el;
+  U.log = el.querySelector('.ld-log'); U.fill = el.querySelector('.ld-fill'); U.pctEl = el.querySelector('.ld-pct');
+  U.now = el.querySelector('.ld-now'); U.halo = el.querySelector('.ld-halo'); U.mark = el.querySelector('.ld-mark');
+  const segs = el.querySelector('.ld-segs');
+  segs.textContent = '';
+  U.segs = [];
+  for (let i = 0; i < 24; i++) { const s = document.createElement('i'); segs.appendChild(s); U.segs.push(s); }
+  U.rows = new Map();
+  const tick = () => { loaderUIDraw(); U.raf = requestAnimationFrame(tick); };
+  U.raf = requestAnimationFrame(tick);
+  loaderUIDraw();
+}
+function loaderUIStop() { cancelAnimationFrame(LoaderUI.raf); }
+
+// Once a frame: only what changed is touched.
+function loaderUIDraw() {
+  const U = LoaderUI, k = Loader.progress(), pct = Math.floor(k * 100);
+  if (pct !== U.pct) {
+    U.pct = pct;
+    U.pctEl.textContent = String(pct).padStart(3, ' ') + '%';
+    U.fill.style.transform = `scaleX(${k.toFixed(4)})`;
+    const lit = Math.floor(k * U.segs.length + 1e-6);
+    U.segs.forEach((s, i) => s.classList.toggle('on', i < lit));
+    // the star wakes as the systems do
+    U.halo.style.opacity = (0.15 + 0.85 * k).toFixed(3);
+    U.mark.style.setProperty('--wake', k.toFixed(3));
+  }
+  // the log: a line for each task begun, its count or OK
+  for (const j of Loader.jobs) {
+    if (j.state === 'wait') continue;
+    let row = U.rows.get(j);
+    if (!row) {
+      row = document.createElement('div');
+      row.className = 'ld-line';
+      row.innerHTML = '<span class="ld-tx"></span><span class="ld-dots"></span><span class="ld-st"></span>';
+      U.log.appendChild(row);
+      U.rows.set(j, row);
+      while (U.log.children.length > 7) U.log.firstChild.remove();
+    }
+    const st = j.state === 'ok' ? 'OK' : j.state === 'skip' ? 'SKIPPED' : j.n ? `${j.k}/${j.n}` : '';
+    const key = j.line + '|' + st;
+    if (row.dataset.k !== key) {
+      row.dataset.k = key;
+      row.firstChild.textContent = j.line;
+      row.lastChild.textContent = st;
+      row.className = 'ld-line' + (j.state === 'run' ? ' run' : j.state === 'skip' ? ' skip' : ' ok');
+    }
+  }
+  const run = Loader.jobs.find((j) => j.state === 'run' && !j.side) || Loader.jobs.find((j) => j.state === 'run');
+  const now = Loader.state === 'ready' ? 'ALL SYSTEMS READY' : run ? run.line : 'POWERING UP';
+  if (U.now.textContent !== now) U.now.textContent = now;
+}
+
+function loaderUIReady() {
+  const el = Loader.el;
+  loaderUIDraw();
+  el.classList.add('ready');
+  const go = el.querySelector('.ld-go');
+  go.hidden = false;
+  // (on the click, once the tap is over, so it lands on nothing beneath)
+  el.addEventListener('click', () => Loader.begin());
+  window.addEventListener('keydown', loaderKey);
+}
+function loaderKey(e) { if (!e.repeat) Loader.begin(); }

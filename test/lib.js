@@ -38,9 +38,17 @@ async function openGame(browser, { width = 390, height = 844, mobile = true, sav
   page.on('pageerror', (e) => errors.push(e.message + ' ' + (e.stack || '').split('\n')[1]));
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
   const url = 'file://' + path.join(ROOT, 'index.html') + query;
-  await page.goto(url);
+  // (first without the loading, which would go on writing the old save
+  // after it's cleared)
+  await page.goto(url + (query ? '&' : '?') + 'noload');
   await page.evaluate((s) => { try { localStorage.clear(); if (s) localStorage.setItem('lodestar.save.v4', JSON.stringify(s)); } catch (e) {} }, save);
-  await page.reload();
+  await page.goto(url);
+  // the loading screen (loader.js): once it's ready, the tap that begins
+  await page.waitForFunction(() => typeof Loader !== 'undefined' && (Loader.state === 'ready' || Game.ready), { timeout: 120000, polling: 100 });
+  if (!(await page.evaluate(() => Game.ready))) {
+    await new Promise((r) => setTimeout(r, 100));
+    if (mobile) await page.touchscreen.tap(width / 2, height / 2); else await page.mouse.click(width / 2, height / 2);
+  }
   await page.waitForFunction(() => typeof Game !== 'undefined' && Game.ready, { timeout: 30000 });
   return { page, errors };
 }

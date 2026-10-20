@@ -5,10 +5,10 @@
 // frequency-modulated or detuned voices with inharmonic partials, a texture
 // (crackle, grains, hiss, bubbles), a sub thump with harmonics a phone can
 // play, and a short tail through a convolution reverb, all driven through a
-// soft saturation. That's too much to build for every hit, so after the
-// first tap each is rendered a few times over (BANK_N variants, each a
-// little different) into buffers with an OfflineAudioContext, one at a time
-// between frames; a play is then just a buffer, a level, a pan and a
+// soft saturation. That's too much to build for every hit, so while the
+// game loads (loader.js; else after the first tap) each is rendered a few
+// times over (BANK_N variants, each a little different) into buffers with
+// an OfflineAudioContext, one at a time between frames; a play is then just a buffer, a level, a pan and a
 // slightly different speed. Until a sound's buffers are ready it's silent.
 //
 // The elements each have their own character: Force a concussive pressure
@@ -23,6 +23,8 @@
 const BANK_RATE = 48000;
 // ms between renders, so the game's frames come first.
 const BANK_GAP = 40;
+// The idle time (ms) a frame must have spare to render a buffer in play.
+const BANK_IDLE_MS = 12;
 
 // A soft saturation: tanh, so loud parts round off and gain harmonics.
 function bkCurve(k) {
@@ -403,7 +405,7 @@ const BANK_MANY = new Set(['hit.force', 'hit.shock', 'hit.frost', 'hit.ember', '
 const BANK_ORDER = ['hit.force', 'hit.shock', 'hit.frost', 'hit.ember', 'hit.blight', 'form.arc', 'cast.force', 'cast.shock', 'cast.frost', 'cast.ember', 'cast.blight', 'form.bolt', 'form.spark', 'dash', 'kill', 'hurt', ...Object.keys(BANK_STEPS).map((m) => 'step.' + m), 'hit.heavy', 'hit.crit', 'form.arcHeavy', 'form.nova', 'form.lance', 'form.orb', 'form.well', 'form.ward', 'form.glaive', 'form.charged', 'react', 'noCharge', 'heal', 'kill.big', 'res', 'sting.elite', 'sting.boss', 'sting.hollow'];
 
 const SndBank = {
-  bufs: {}, started: false, done: false, bytes: 0, rate: BANK_RATE, irs: null, noise: null, ms: 0,
+  bufs: {}, started: false, done: false, bytes: 0, rate: BANK_RATE, irs: null, noises: null, ms: 0,
   has(k) { const b = this.bufs[k]; return !!(b && b.length); },
   // a variant, not the one just played
   pick(k) {
@@ -413,31 +415,72 @@ const SndBank = {
     b.last = i;
     return b[i];
   },
-  // Renders everything, a buffer at a time, yielding between them (a
-  // moment after the first tap, so the tap itself isn't slowed).
-  async start(rate, wait = 0) {
+  // Renders everything, a buffer at a time, yielding between them: every
+  // sound's first variant (the commonest first), then each one's second,
+  // and so on, so each can play as soon as possible. While the game loads
+  // (loader.js) that's before any tap: an offline context needs none, and
+  // its buffers play in the live one the tap makes (resampled, if its rate
+  // differs). Otherwise it starts a moment after the first tap, so the tap
+  // itself isn't slowed, with BANK_GAP between buffers.
+  // o.pace(k, n): awaited between buffers instead of the gap (the loading's
+  // slices). o.enough(): asked once every sound has a variant; true leaves
+  // the rest for idle time (idle()).
+  async start(rate, wait = 0, o = {}) {
     if (this.started) return;
     this.started = true;
     if (wait) await new Promise((r) => setTimeout(r, wait));
     this.rate = Math.min(BANK_RATE, rate || BANK_RATE);
-    const t0 = performance.now();
+    const t0 = performance.now(), per = [];
     this.irs = {};
     for (const k of BANK_ORDER) {
       const B = BANK[k], n = B.n || (B.dur > 1.5 ? 1 : BANK_MANY.has(k) ? BANK_N : 2);
       this.bufs[k] = this.bufs[k] || [];
-      for (let v = 0; v < n; v++) {
-        const b = await this.renderOne(B, v);
-        if (b) { this.bufs[k].push(b); this.bytes += b.length * b.numberOfChannels * 4; }
-        await new Promise((r) => setTimeout(r, BANK_GAP));
-      }
+      per.push([k, B, n]);
+    }
+    const q = (this.queue = []);
+    for (let v = 0; v < BANK_N + 1; v++) for (const [k, B, n] of per) if (v < n) q.push([k, B, v]);
+    this.total = q.length; this.first = per.length; this.made = 0;
+    while (q.length) {
+      if (this.made >= this.first && o.enough && o.enough()) break;
+      await this.renderNext();
+      if (o.pace) await o.pace(this.made, this.total);
+      else if (q.length) await new Promise((r) => setTimeout(r, BANK_GAP));
     }
     this.ms = performance.now() - t0;
-    this.done = true;
+    this.done = !q.length;
+  },
+  async renderNext() {
+    const [k, B, v] = this.queue.shift(), b = await this.renderOne(B, v);
+    if (b) { this.bufs[k].push(b); this.bytes += b.length * b.numberOfChannels * 4; }
+    this.made++;
+  },
+  // What the loading left, a buffer at a time, only when it can't be felt:
+  // while a screen is open (the world stands still), or when the browser
+  // says it's idle with time to spare. On a phone too busy for either, the
+  // sounds play their first variants (at a slightly different speed each
+  // time) until it isn't.
+  idle() {
+    if (this.idling || this.done || !this.queue || !this.queue.length) return;
+    this.idling = true;
+    const ric = typeof requestIdleCallback === 'function';
+    const go = async () => {
+      await this.renderNext();
+      if (!this.queue.length) { this.done = true; this.idling = false; return; }
+      wait();
+    };
+    const wait = () => {
+      const free = () => typeof Game !== 'undefined' && (!!Game.modal || !Game.dive);
+      if (ric) requestIdleCallback((dl) => (free() || dl.timeRemaining() >= BANK_IDLE_MS ? go() : wait()), { timeout: 1000 });
+      else setTimeout(() => (free() ? go() : wait()), 250);
+    };
+    wait();
   },
   async renderOne(B, v) {
     const rate = Math.min(this.rate, B.rate || this.rate), ch = B.ch || 1, c = new OfflineAudioContext(ch, Math.ceil(B.dur * rate), rate);
-    if (!this.noise || this.noise.sampleRate !== rate) { const n = rate * 2, nb = c.createBuffer(1, n, rate), d = nb.getChannelData(0); for (let i = 0; i < n; i++) d[i] = sndRand() * 2 - 1; this.noise = nb; }
-    const R = { ctx: c, waves: sndWaves(c), noise: this.noise };
+    // (a noise buffer kept for each rate)
+    const nz = this.noises || (this.noises = {});
+    if (!nz[rate]) { const n = rate * 2, nb = c.createBuffer(1, n, rate), d = nb.getChannelData(0); for (let i = 0; i < n; i++) d[i] = sndRand() * 2 - 1; nz[rate] = nb; }
+    const R = { ctx: c, waves: sndWaves(c), noise: nz[rate] };
     // the chain: the voices, the saturation, a high pass under the sub's
     // own, a low pass over what a phone makes harsh; the reverb beside it
     const out = c.createGain(), lp = c.createBiquadFilter(), hp = c.createBiquadFilter(), sh = c.createWaveShaper(), dry = c.createGain();

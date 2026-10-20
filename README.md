@@ -47,9 +47,10 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/version.js` | The build stamp, written by `.githooks/pre-commit` |
 | `js/tuning.js` | Every gameplay number, the ores, exotics and biomes |
 | `js/save.js` | The save in localStorage |
+| `js/loader.js` | The loading screen, the Charter's systems booting up: a list of tasks (`loaderAdd`) run in slices with an honest bar, building ahead what play would otherwise build mid-fight (the sound bank, every Kindler frame, the place you'll land in, painted and drawn once, ring 1's creatures and plants), then TAP TO BEGIN |
 | `js/audio.js` | Sound, made in code with Web Audio: the engine (started by the first tap, suspended when hidden, the settings), the effects, and `snd(name, opts)`, the hook the game calls |
 | `js/music.js` | The music that grows with the star and thins in the dark, each place's own sound, the turn's unease; footsteps, heartbeat, stings and landers it listens for |
-| `js/sndbank.js` | The fight's sounds and the footsteps, layered and rendered ahead into a few variants each after the first tap (an OfflineAudioContext), so a play is only a buffer |
+| `js/sndbank.js` | The fight's sounds and the footsteps, layered and rendered ahead into a few variants each with an OfflineAudioContext (which needs no tap): every sound's first while the game loads, the rest while the loading allows, else in idle time; a play is only a buffer |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline; the outpost's site, its openings and its plan |
 | `js/world.js` | The world: its rings of territories laid out from the save's seed, their neighbours, climes, names and goals; each territory's map (`generateTerritory`) with its openings, heart and waystones |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
@@ -91,7 +92,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
 | `js/ui.js` | The Lodestar, forge, gear, star, cargo and pause screens, the report, the item card (with a caster's circuit and the drawer of stones), the top bar |
 | `js/worldmap.js` | The world map (SET OUT at the portal, TRAVEL at a spire) in pixel art, a territory's card, and the heart goal over the view |
-| `js/main.js` | Boot, the fixed-step loop, the upright and sideways layouts |
+| `js/main.js` | Boot, then the loading (`bootEnter` after its tap), the fixed-step loop, the upright and sideways layouts |
 | `test/` | Static checks, floor and world generation with golden hashes, the loot tables, a headless smoke run, and the autopilot (`botlib.js`) playing careers |
 
 ## Tests

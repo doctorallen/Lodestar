@@ -28,7 +28,7 @@ git config core.hooksPath .githooks
 
 ## Testing changes
 
-Drive the game headlessly with `puppeteer-core` through `test/lib.js` (`launch`, `openGame`). Wait 450 ms after a screen opens before tapping. `Input.bot = { x, y, main, off, mine, act }` drives the controls, and `UI.acts` runs any screen button. `test/botlib.js`'s `installBot` adds `Bot.sortie`, `Bot.home` and `Bot.career`, which play whole sorties and careers; use them to check balance after changing numbers. One-off scripts and screenshots go in `test/out/` (gitignored). Look at the screenshots for visual changes.
+Drive the game headlessly with `puppeteer-core` through `test/lib.js` (`launch`, `openGame`); `openGame` waits for the loading screen (`js/loader.js`) and taps to begin, and `?noload` in the address skips the loading. Wait 450 ms after a screen opens before tapping. `Input.bot = { x, y, main, off, mine, act }` drives the controls, and `UI.acts` runs any screen button. `test/botlib.js`'s `installBot` adds `Bot.sortie`, `Bot.home` and `Bot.career`, which play whole sorties and careers; use them to check balance after changing numbers. One-off scripts and screenshots go in `test/out/` (gitignored). Look at the screenshots for visual changes.
 
 ## Conventions
 

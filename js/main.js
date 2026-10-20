@@ -90,12 +90,24 @@ function boot() {
   });
   Game.step = step;
   Game.render = renderFrame;
-  Game.ready = true;
-  enterHub();
   window.addEventListener('pagehide', () => { if (Game.dive && !Game.dive.hub) saveRun(Game.dive); });
+  // the loading screen builds what play needs, then waits for a tap (loader.js)
+  Loader.run(bootEnter);
+}
+
+// After the loading and its tap: where the game opens. The place was built
+// while loading (Loader.landed): the outpost, or the sortie under way,
+// behind the screen that asks whether to carry it on.
+function bootEnter() {
+  requestAnimationFrame((t) => { _last = t; frame(t); });
+  const L = Loader.landed;
+  if (!L) enterHub();
+  else if (L.hub) hubWelcome();
   if (Save.data.run && !Save.unread) UI.show('screen-resume');
   if (Save.unread) UI.toast("The old save couldn't be read. It's been kept aside, and this is a new start");
-  requestAnimationFrame((t) => { _last = t; frame(t); });
+  Game.ready = true;
+  // what of the sound the loading left, in idle time (sndbank.js)
+  if (SndBank.started) SndBank.idle();
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

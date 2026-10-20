@@ -50,7 +50,8 @@ function newWorld(fields) {
 
 // Home: the outpost, the cleared site round the star in the middle of the
 // world. report: how the sortie ended. at.from: the territory walked home
-// from, to come in at the opening from it.
+// from, to come in at the opening from it. at.quiet: built while the game
+// loads, with nothing said yet (hubWelcome says it).
 function enterHub(report, at = {}) {
   if (report) Save.data.swapped = false;
   const f = outpostFloor(worldState().seed);
@@ -64,6 +65,10 @@ function enterHub(report, at = {}) {
   d.enemies = [dummy];
   placeSettlers(d);
   Game.scene = 'hub';
+  if (!at.quiet) hubWelcome(report);
+}
+// Arriving home: the sortie's report, or the opening the first time, or a hint.
+function hubWelcome(report) {
   UI.close();
   if (report) UI.openReport(report);
   else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk out any opening into the land next to the outpost, or take the portal');
