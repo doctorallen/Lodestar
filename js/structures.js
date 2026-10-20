@@ -87,6 +87,19 @@ function structureProps(d) {
   return out;
 }
 
+// What can't be walked through (hub.js outpostSolids): each building
+// standing, its base as an ellipse on the ground ending just behind its
+// feet ([half its width, half its depth], world px).
+const STRUCTURE_BASE = { bay: [19, 6], refinery: [20, 7], relay: [14, 5], quarters: [21, 6] };
+function structureSolids(S) {
+  const out = [];
+  STRUCTURE_IDS.forEach((id, k) => {
+    const p = S.plots && S.plots[k], b = STRUCTURE_BASE[id];
+    if (p && structureStands(id)) out.push({ id, x: p.x * TILE, y: p.y * TILE - b[1], rx: b[0], ry: b[1] });
+  });
+  return out;
+}
+
 // Each step at home: the one coming down starts once its plot is in view,
 // and lands.
 function updateStructures(d, dt) {
@@ -106,6 +119,10 @@ function updateStructures(d, dt) {
   const id = d.landing.id;
   d.landing = null; s.landing = null;
   Save.save();
+  // it stands now: solid, and anyone on its plot steps off it to the front
+  d.floor.solids = outpostSolids(d.floor);
+  const o = d.floor.solids.find((x) => x.id === id), P = d.p;
+  if (o && ((P.x - o.x) / (o.rx + T.player.radius)) ** 2 + ((P.y - o.y) / (o.ry + T.player.radius)) ** 2 < 1) P.y = o.y + o.ry + T.player.radius + 2;
   spawnSparks((p.x + 0.5) * TILE - 8, p.y * TILE, ['#c8b89a', '#8a7a64', '#5a4e40'], 14);
   spawnSparks((p.x + 0.5) * TILE + 8, p.y * TILE, ['#c8b89a', '#8a7a64', '#5a4e40'], 14);
   snd('introTouchdown', {});

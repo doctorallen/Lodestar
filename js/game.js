@@ -55,7 +55,7 @@ function newWorld(fields) {
 function enterHub(report, at = {}) {
   if (report) Save.data.swapped = false;
   const f = outpostFloor(worldState().seed);
-  f.solids = outpostSolids();
+  f.solids = outpostSolids(f);
   const d = (Game.dive = newWorld({ hub: true, floor: f, zone: 'surface', sun: outpostSun() }));
   const ex = at.from !== undefined && f.exits.find((e) => e.to === at.from);
   if (ex) { d.p.x = (ex.ax + 0.5) * TILE; d.p.y = (ex.ay + 0.5) * TILE; d.p.fx = ex.nx; d.p.fy = ex.ny; d.arrive = { t: 0, zone: 'surface' }; }

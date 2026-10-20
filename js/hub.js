@@ -75,7 +75,7 @@ function drawHubLodelines(d, ox, oy, lights) {
 // uplink's mast and the star's cradle, as ellipses on the ground in world
 // px ({ x, y, rx, ry }), each ending just behind its feet, so the Kindler
 // stands in front of a station to use it (game.js bodyHits).
-function outpostSolids() {
+function outpostSolids(f) {
   // per station: [its middle's offset from the feet, half its width, half its depth]
   const base = { forge: [-5, 18, 7], runes: [0, 12, 5], locker: [0, 8, 5], altar: [0, 6, 4], wreck: [0, 9, 5], setout: [0, 19, 5] }, out = [];
   for (const s of HUB_STATIONS) {
@@ -85,6 +85,8 @@ function outpostSolids() {
     out.push({ id: s.id, x: (s.x + 0.5) * TILE + b[0], y: fy - 2 - b[2], rx: b[1], ry: b[2] });
   }
   out.push({ id: 'cradle', x: OUTPOST_CRADLE.x * TILE, y: OUTPOST_CRADLE.y * TILE - 2 - 9, rx: 26, ry: 9 });
+  // the buildings standing on their plots (structures.js)
+  if (f && f.site) for (const b of structureSolids(f.site)) out.push(b);
   return out;
 }
 
