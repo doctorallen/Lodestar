@@ -124,12 +124,20 @@ body.home #btn-mine { display: none; }
 .deck-btn.act.held { background: #fff0c0; box-shadow: 0 0 14px rgba(255, 210, 120, 0.8); }
 .deck-btn.act.act2 { bottom: calc(100% + 60px); background: #2a2210; color: var(--gold); border-color: var(--gold); }
 #app.wide .deck-btn.act.act2 { bottom: calc(218px + env(safe-area-inset-bottom)); }
-/* the smallest phones: the cluster tightens so nothing overlaps */
-@media (max-width: 360px) {
+/* the smallest phones, and shorter ones (whose deck is shorter): the
+   cluster tightens, and the supply slot shrinks, so nothing overlaps */
+@media (max-width: 360px), (max-height: 800px) {
+  #app:not(.wide) .deck-btn.supply { left: 6px; top: 6px; width: 46px; height: 46px; font-size: 8px; letter-spacing: 0; }
+  #app:not(.wide) .deck-btn.supply .btn-icon { width: 20px; height: 20px; }
+  #app:not(.wide) .deck-btn.supply-next { left: 56px; top: 14px; width: 28px; height: 28px; }
   #app:not(.wide) .deck-btn.main { width: 80px; height: 80px; right: 10px; bottom: calc(14px + env(safe-area-inset-bottom)); }
   #app:not(.wide) .deck-btn.off { width: 52px; height: 52px; right: 96px; bottom: calc(18px + env(safe-area-inset-bottom)); }
   #app:not(.wide) .deck-btn.dash { width: 46px; height: 46px; right: 86px; bottom: calc(80px + env(safe-area-inset-bottom)); }
   #app:not(.wide) .deck-btn.mine { width: 46px; height: 46px; right: 22px; bottom: calc(100px + env(safe-area-inset-bottom)); }
+}
+@media (max-width: 340px) {
+  #app:not(.wide) .deck-btn.supply { left: 3px; top: 3px; width: 42px; height: 42px; }
+  #app:not(.wide) .deck-btn.supply-next { left: 49px; top: 10px; }
 }
 .deck-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
 .btn-icon { width: 40px; height: 40px; image-rendering: pixelated; pointer-events: none; }
