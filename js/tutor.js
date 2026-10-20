@@ -23,7 +23,7 @@ const TUTORS = {
   forge: {
     screen: 'screen-forge', title: 'THE FORGE',
     steps: [
-      { at: '#forge-body [data-act=forgeTab][data-arg=pick]', say: 'Picks first. A better pick breaks the next ore up.', when: () => !UI.forge.field && BLUEPRINTS[UI.forge.bp].cat !== 'pick' },
+      { at: '#forge-body [data-act=forgeTab][data-arg=pick]', say: 'Cutters first. A better cutter breaks the next ore up.', when: () => !UI.forge.field && BLUEPRINTS[UI.forge.bp].cat !== 'pick' },
       { at: '#forge-body .bp.on', say: 'A recipe says just what it makes, and from what.', next: true },
       { at: '#forge-body .ore-chips .chip', say: 'The ore you choose sets its tier. Tap one.' },
       { at: '#forge-body .cost-list', say: 'What it costs, and what you have. Red is short.', next: true },

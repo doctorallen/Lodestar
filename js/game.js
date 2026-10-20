@@ -439,8 +439,8 @@ function updateMining(dt) {
   const o = T.ores[f.ore[tgt.i] - 1];
   // a refusal is said once per swing at a tile, not every step
   const refuse = (why, msg) => { if (!p.mine || p.mine.i !== tgt.i || p.mine.refused !== why) { p.mine = { i: tgt.i, prog: 0, hitT: 0, refused: why }; UI.toast(msg); snd('mineRefuse'); } };
-  if (!pick) return refuse('nopick', 'You need a pick');
-  if (o.tier > pick.base.power) return refuse('weak', `Your pick can't break ${o.name}`);
+  if (!pick) return refuse('nopick', 'You need a cutter');
+  if (o.tier > pick.base.power) return refuse('weak', `Your cutter can't break ${o.name}`);
   if (!p.mine || p.mine.i !== tgt.i || p.mine.refused) p.mine = { i: tgt.i, prog: 0, hitT: 0 };
   p.mine.prog += (dt * T.mine.speed * pick.base.speed * (1 + d.stats.mineSpeed / 100)) / o.hardness;
   p.mine.hitT -= dt;

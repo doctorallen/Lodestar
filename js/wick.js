@@ -170,7 +170,7 @@ function drawWickHud(d, ox, oy) {
   const reached = (1 - k) / 0.35 * T.wickUp.scan.reach;
   for (const v of S.veins) {
     if (v.far > reached) continue;
-    // (round the rock's top, where it stands, as the pick's target is)
+    // (round the rock's top, where it stands, as the cutter's target is)
     const ramp = ART.ores[v.ore], x = v.x * ATILE + ox, y = v.y * ATILE + oy - pntLiftAt((v.x + 0.5) * ATILE, (v.y + 0.5) * ATILE), a = Math.min(1, k * 1.6), h = (v.x * 7 + v.y * 13) % 5;
     c.globalAlpha = a;
     c.fillStyle = ramp[3];

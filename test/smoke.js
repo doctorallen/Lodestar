@@ -188,7 +188,7 @@ async function phone(browser) {
   await shot(page, 'smoke-fight');
   await page.evaluate(calm);
 
-  // mining a vein the pick can break, with MINE held
+  // mining a vein the cutter can break, with MINE held
   const tier = await page.evaluate(standByOre, 'ok');
   check(tier === 1, `phone: no tier-1 ore beside open ground (found ${tier})`);
   await run(page, 0.1);
@@ -199,13 +199,13 @@ async function phone(browser) {
   await shot(page, 'smoke-mining');
   check(await page.evaluate(() => terrState(Game.dive.terr).mined.length >= 1), 'phone: the vein mined was not remembered');
 
-  // a vein the pick is too weak for says so and yields nothing
+  // a vein the cutter is too weak for says so and yields nothing
   if ((await page.evaluate(standByOre, 'weak')) > 1) {
     await page.evaluate(() => { Input.bot = { mine: true }; });
     await run(page, 2);
     await page.evaluate(() => { Input.bot = null; });
-    check(/can't break/.test(await page.evaluate(() => $('toasts').textContent)), 'phone: a weak pick said nothing');
-    check((await page.evaluate(() => cargoCount(Game.dive))) === cargo, 'phone: a weak pick still mined');
+    check(/can't break/.test(await page.evaluate(() => $('toasts').textContent)), 'phone: a weak cutter said nothing');
+    check((await page.evaluate(() => cargoCount(Game.dive))) === cargo, 'phone: a weak cutter still mined');
   }
 
   // walking off the edge: the view closes, and the diver comes in at the
@@ -1167,7 +1167,7 @@ async function leanSave(browser) {
 }
 
 // A new game: after the opening, Wick's offer. I KNOW THE DRILL: only the
-// essentials are awake (FRAMES and PICKS at the forge, the bench, altar and
+// essentials are awake (FRAMES and CUTTERS at the forge, the bench, altar and
 // uplink dark, no SUPPLIES, no MEND or LIGHT), the forge's tutorial runs
 // the first time it opens (the dim, Wick's line, SKIP) and its ? plays it
 // again, then the reference; a module caught wakes the bench, a deed's
@@ -1188,13 +1188,13 @@ async function onboarding(browser) {
   });
   check(!gate.bench && !gate.altar && !gate.uplink && gate.forge === 'forge' && gate.sup && gate.locker === 'locker' && gate.portal === 'setout', `onboarding: a new game's stations are not just the forge, locker and portal (${JSON.stringify(gate)})`);
   await shot(page, 'onboard/dormant');
-  // the forge: only FRAMES and PICKS, and its tutorial the first time
+  // the forge: only FRAMES and CUTTERS, and its tutorial the first time
   await page.evaluate(() => { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === 'forge'); d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; Save.data.studied = RESEARCH.map((r) => r.id); });
   await run(page, 0.05);
   await tap(page, '#btn-act');
   await run(page, 0.05);
   const tabs = await page.evaluate(() => [...document.querySelectorAll('#forge-body .forge-tabs .chip')].map((b) => b.textContent).join());
-  check(tabs === 'FRAMES,PICKS', `onboarding: a new game's forge shows ${tabs}`);
+  check(tabs === 'FRAMES,CUTTERS', `onboarding: a new game's forge shows ${tabs}`);
   await sleep(700);
   await run(page, 0.05);
   const tut = await page.evaluate(() => ({ run: Tutor.run && Tutor.run.id, shown: !$('tutor').hidden, line: $('tutor').querySelector('.tut-line').textContent, hit: (() => { const el = document.querySelector('#forge-body [data-act=forgeTab][data-arg=pick]'), r = el.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return h === el || el.contains(h); })(), blocked: (() => { const h = document.elementFromPoint(200, 790); return !!h && h.classList.contains('tut-dim'); })() }));
@@ -1315,7 +1315,7 @@ async function guidedLanding(browser) {
   if (await page.evaluate(() => UI.screen === 'screen-research')) await tap(page, '#research-body [data-act=researchDone]');
   await sleep(600);
   await run(page, 0.05);
-  // the forge's tutorial, done as it says: PICKS, NEXT, the ore, NEXT, FORGE
+  // the forge's tutorial, done as it says: CUTTERS, NEXT, the ore, NEXT, FORGE
   for (let k = 0; k < 8 && (await page.evaluate(() => !!Tutor.run)); k++) {
     const st = await page.evaluate(() => ({ at: TUTORS[Tutor.run.id].steps[Tutor.run.i].at, ok: !$('tutor').querySelector('.tut-ok').hidden }));
     if (k === 2) await shot(page, 'onboard/guided-forge');

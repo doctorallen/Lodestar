@@ -7,7 +7,7 @@
 //                  [...SPRITE_GLOWS, ...ART2_GLOWS])
 // (buildArtSprite merges pal over ART.pal itself.) ART2_LETTERS adds letters
 // only; it redefines none of SPRITE_CHARS'.
-//   ICON_ROWS2: item icons. W/w steel, G plate and T/t tool take the ore's
+//   ICON_ROWS2: item icons (the cutter's and the drill's too). W/w steel, G plate and T/t tool take the ore's
 //     colours the way ICON_ROWS do (itemIconUrl overrides steel, plate and
 //     tool with the ore's ramp); g is the Charter's blue, a and v its amber
 //     light (the rig frame's).
@@ -96,6 +96,24 @@ const ICON_ROWS2 = {
     "..MMMMMM..",
     "...MMMM...",
     "....MM....",
+  ],
+  // the cutter: a plasma cutter seen from the side, its housing in the
+  // ore (a Charter-blue cell banded in steel, an amber status light), its
+  // nozzle stepping down to a lit tip, and a dark grip under it
+  pick: [
+    "......................",
+    "...GGGGGGGGGGGG.......",
+    "..GWWWWWWWWWWWWG......",
+    "..GWgvagggggWWWGTT....",
+    ".dGWggggggggWWWGTTtT..",
+    ".dGWggggggggWWWGTTtTTI",
+    ".dGWWWWWWWWWWWWGTTtT..",
+    "..GGGGGGGGGGGGGGTT....",
+    "....dbbd..............",
+    "....dbbd..............",
+    "...dbbd...............",
+    "...dbbd...............",
+    "..ddddd...............",
   ],
   drill: [
     "...GGMGGGMG........",

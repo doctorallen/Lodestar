@@ -8,7 +8,7 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 
 ## Pillars
 
-1. **Always another upgrade.** A new ore leads to a new pick, which opens new depths, which leads to new gear.
+1. **Always another upgrade.** A new ore leads to a new cutter, which opens new depths, which leads to new gear.
 2. **Crafted bases, found power.** What you forge is exactly what its recipe says; what you find (modules) is rolled, and gives it its identity. The anvil only adds.
 3. **Push your luck.** The further out you go, the better the loot and the higher the risk of losing it.
 4. **Built for a thumb.** It plays well upright with one or two thumbs, in short or long sessions.
@@ -66,7 +66,7 @@ The Lodestar is the seed-star the Charter sent down with you, planted in the mid
 ## The loop
 
 1. **At the Lodestar:**
-   - forge bases (rig frames, plate, charms, picks), tools and the cores spells are built from; the forge studies what's new and reveals recipes;
+   - forge bases (rig frames, plate, charms, cutters), tools and the cores spells are built from; the forge studies what's new and reveals recipes;
    - socket modules and build the rig's two spells at the locker; upgrade modules (at the locker or the tuning bench), and salvage what you don't need;
    - unseal relics, make supplies from old ore, feed the star the light your deeds earned, and spend attunements.
 2. **Set out:** walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to any spire, and the tool to carry (walking out carries the last one chosen).
@@ -145,7 +145,7 @@ The diver carries one tool, chosen at the portal before setting out. Each change
 | Tool | From magnitude | What it does |
 |---|---|---|
 | Lodestone Compass | 1 | An arrow round the diver to the spire here, or in dark land to the opening towards the nearest kindled land; in a Deep, to its lit lodeline or the portal on. |
-| Ore Sense | 2 | Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the pick can break. |
+| Ore Sense | 2 | Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the cutter can break. |
 | Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
 | Surveyor's Map | 3 | A map of each place, drawn as you walk it, in the view's corner, with its openings, portals, spire, waystones and ancient forge once seen. |
 | Capture Lens | 2 | Modules half again as likely. Revealed by research once the first module comes home; made from Lumenite and threads. |
@@ -230,7 +230,7 @@ While a skink is under the sand, an eel under the water or a dropper on the roof
 
 ## Mining and ore
 
-- **The pick gates ore.** A pick made from an ore breaks the next one up: a Ferrite pick breaks Lumenite. The Rusty Pick you start with breaks only Ferrite. Seeing ore you can't break is the hook for the next craft.
+- **The cutter gates ore.** A cutter made from an ore breaks the next one up: a Ferrite cutter breaks Lumenite. The Worn Cutter you start with breaks only Ferrite. Seeing ore you can't break is the hook for the next craft.
 - **Biomes and ore.** Three biomes with two ores each. The better ore is more common deeper down.
 
 | Biome | Feel | Ore (tier) |
@@ -251,10 +251,10 @@ Gear is two halves: a **base you craft**, exactly what its recipe says, and **mo
 
 - **A recipe is known and exact.** The forge shows, for the ore you choose, the base's tier (the ore's), its stats, a rig frame's Mod slots and its **module sockets**, and the cost of every resource by name, with how many you have. There are no random affixes on a crafted base.
 - **The anvil only adds.** Three strikes set the temper: rough as the recipe says, fair +5% on its numbers, fine +10%, a masterwork +15%, a module socket more and, on a rig frame, a second Mod slot. A fine forge or better makes a core a tier higher.
-- **Sockets** by tier: 1 at tiers 1–2, 2 at 3–5, 3 at Starmetal; a pick 1 (2 at 5–6), the rusty pick none.
-- **What it takes:** the recipe's ore (any ore: it sets the tier; a rig frame 14, plate 21, a weave 16, a shell 26, a charm or lantern 13, a pick 15, a drill 23) and parts. The plain recipes known from the start (the rig frame, plate, charm, pick) take any creature's parts; the rest name their creature: weave 3 fibre, shell 3 chitin, lantern 2 spores, drill 2 cogs.
+- **Sockets** by tier: 1 at tiers 1–2, 2 at 3–5, 3 at Starmetal; a cutter 1 (2 at 5–6), the worn cutter none.
+- **What it takes:** the recipe's ore (any ore: it sets the tier; a rig frame 14, plate 21, a weave 16, a shell 26, a charm or lantern 13, a cutter 15, a drill 23) and parts. The plain recipes known from the start (the rig frame, plate, charm, cutter) take any creature's parts; the rest name their creature: weave 3 fibre, shell 3 chitin, lantern 2 spores, drill 2 cogs.
 - **Optional exotics:** riftglass forges a base a tier above its ore; an elemental exotic worked into a rig frame brings its Element's core out with it; a Lodestone shard worked into a frame gives its spells a second Mod slot.
-- **The forge's tabs:** FRAMES, PICKS (the pick and the drill), CORES, ARMOR, CHARMS, TOOLS (the carried tools), BUILDINGS (the outpost's buildings), WICK (Wick's upgrades) and the CODEX (the resonances); a new game shows only FRAMES and PICKS, and the rest appear as they wake (Onboarding, below). A dot marks what can be made now, a tick what's built or fitted. At the top, **CLOSE TO MAKING** names up to two recipes better than what's worn that are short by a little, and what they're missing.
+- **The forge's tabs:** FRAMES, CUTTERS (the cutter and the drill), CORES, ARMOR, CHARMS, TOOLS (the carried tools), BUILDINGS (the outpost's buildings), WICK (Wick's upgrades) and the CODEX (the resonances); a new game shows only FRAMES and CUTTERS, and the rest appear as they wake (Onboarding, below). A dot marks what can be made now, a tick what's built or fitted. At the top, **CLOSE TO MAKING** names up to two recipes better than what's worn that are short by a little, and what they're missing.
 - **Cores** for spells (Combat and builds) are recipes too: a Form's 6 ore and 2 ether (a Ward's, a warden's heart); an Element's 4 ore and its exotic (Force needs none); a Mod's 5 ore and 3 of its creature's parts (chitin Pierce and Split, ether Echo, cogs Quicken, fibre Linger, spores Chain, any Amplify).
 - **Tools** are made once at the forge, from the stash, when the star has grown enough (Tools).
 
@@ -278,7 +278,7 @@ Recipes are revealed by research, instantly, at the forge. When you bring home s
 | The first module | the Capture Lens |
 | A module from a snapjaw, a wisp, a construct | Weave, Orb core, Glaive core |
 
-Known from the start: the rig frame, plate, charm and pick, the Arc and Bolt, Force and Amplify, and the tools. Blueprints are gone as drops; an old save's blueprints are known recipes.
+Known from the start: the rig frame, plate, charm and cutter, the Arc and Bolt, Force and Amplify, and the tools. Blueprints are gone as drops; an old save's blueprints are known recipes.
 
 ## Loot
 
@@ -286,7 +286,7 @@ Known from the start: the rig frame, plate, charm and pick, the Arc and Bolt, Fo
 - **Modules** are the Diablo layer. The dark's creatures are made of the world's own living energy; when one dies, its pattern unravels, and the Charter suit's capture field catches the strongest thread of it and sets it in a blank lattice crystal. Rarity is how much of the pattern was caught.
   - **Few but meaningful:** a kill leaves one 7% of the time, an elite 65% (magic or better), a warden two and a Keeper three (rare or better, a tier up, a Keeper's legendaries three times likelier). A Deep's chances are 1.4 times, the Capture Lens 1.5 times, and the first eight modules ever come 2.6 times as often. About three or four a sortie.
   - **In the field:** the creature's energy draws in and collapses into a small faceted crystal in its rarity's colour, which glints now and then (rare and better stand in a beam). Walked over, the capture field's tether pulls a few motes to the Kindler.
-  - **Rolled:** for the rig, armor, a charm or a pick (a creature's family leans it: a crawler's to defense, a wisp's to spell, a construct's to close, a snapjaw's to utility, a spitter's to mining, each clime creature its own). Traits by rarity: common 1, magic 2, rare 3, legendary 2 and a power, set 1 and the set bonus; each at 60% of an old item affix (there are more sockets than there were pieces). Their tier is where they were caught, so deeper modules roll higher.
+  - **Rolled:** for the rig, armor, a charm or a cutter (a creature's family leans it: a crawler's to defense, a wisp's to spell, a construct's to close, a snapjaw's to utility, a spitter's to mining, each clime creature its own). Traits by rarity: common 1, magic 2, rare 3, legendary 2 and a power, set 1 and the set bonus; each at 60% of an old item affix (there are more sockets than there were pieces). Their tier is where they were caught, so deeper modules roll higher.
   - **The card** says where it was caught ("Caught from an elite Wisp, Bloomfen"), its traits with how well each rolled, and UPGRADE or DOWNGRADE against what's in the socket it would take.
 - **Socketing is free** at home, at the locker: tap a base, tap a socket, tap a module from the drawer, each line saying what it would change. A better base takes the old one's modules (and a frame its cores) when equipped.
 - **Working a module is UPGRADE and SALVAGE, nothing else.** Both are buttons on its card at home, at the locker or the **tuning bench** (the outpost station that lists every module, socketed first):
@@ -298,18 +298,18 @@ Known from the start: the rig frame, plate, charm and pick, the Arc and Bolt, Fo
 
 | Name | Kind | Power |
 |---|---|---|
-| Faultline | pick | Breaking a vein sends out a shockwave |
+| Faultline | cutter | Breaking a vein sends out a shockwave |
 | Twice-Told | rig | Every spell fires twice |
 | Redwake | rig | Critical hits heal |
 | Lodeheart | armour or charm | Kills heal and pull in nearby loot |
 | Stormcaller | rig | Bolts chain to two more enemies |
 
-- **Sets.** Prospector's Regalia: three set modules (Edge for a pick, Seam for armor, Token for a charm). 2 socketed give +20% mining speed and +6 cargo; 3 heal you when you break a vein and give +20% chance of double ore.
+- **Sets.** Prospector's Regalia: three set modules (Edge for a cutter, Seam for armor, Token for a charm). 2 socketed give +20% mining speed and +6 cargo; 3 heal you when you break a vein and give +20% chance of double ore.
 
 ## Combat and builds
 
 - **Everything is a spell, cast from the rig.** The rig is the Charter suit's wrist projector: a bracer on each forearm, an amber lens on its back. Its **frame** (forged at FRAMES, its ore setting its tier and power) drives **two spells**: A from the right wrist, B from the left, each its own button, which shows its Form. Nothing is held: the Kindler thrusts a fist at the aim and the light leaves the wrist. Close range is a spell too: the Arc and the Glaive.
-- **Slots:** the rig, pick, armor and charm.
+- **Slots:** the rig, cutter, armor and charm.
   - **A press casts the spell**, for charge. A press during a cooldown is held over until the cooldown ends, so taps never get lost.
   - **Holding charges it:** 1.8× the damage for 1.5× the charge; charged bolts and lances are bigger and pass through more. A held Arc bursts into a Nova of its element instead.
   - With no rig worn, spell A is a free Arc.
@@ -462,8 +462,8 @@ Once the star isn't fed ore, old ore needs a use: it makes supplies, carried on 
 ## Onboarding: a little at a time
 
 A new Kindler isn't shown everything at once (`js/onboard.js`, `js/tutor.js`; DECISIONS.md, 2026-10-20).
-- **Systems wake when their moment comes.** A new game has walking, mining, both spells (the Scrap Rig comes with ARC and BOLT), the dash, the portal and the openings, the forge's FRAMES and PICKS tabs and the locker's worn gear. The rest wakes, and stays awake: changing the rig's cores (the locker's drawer, CORES, CODEX) with the first core beyond the starting ones, researched or forged; module sockets, the locker's modules and the tuning bench with the first module caught; the star's altar and ATTUNE with the first light of a deed; SUPPLIES, MEND and LIGHT and the cargo's MAKE with the first ore brought home (after the walkthrough's pick, if it's running); ARMOR and CHARMS after the first thing forged; TOOLS, BUILDINGS and the uplink at magnitude 2 (the uplink also with an echo or a shard); WICK with the Drone Bay. A station not yet awake stands dark and unlit at the outpost, its name dim with OFFLINE under it, and has no button. Each unlock is worked out from progress, so no save ever finds anything locked that it has used; a save from before onboarding opens with everything awake and every tutorial seen. Wick says a line as each wakes.
-- **The first landing.** After the opening, Wick offers to walk you through it: WALK ME THROUGH IT or I KNOW THE DRILL. Walked through, one line of Wick's sits at the top of the view, the button that matters pulses, and a gold ring and chevron mark the spot on the world (an arrow at the view's edge when it's off it): out of the lit opening into the gentle land, a vein mined, a foe Wick calls up (ARC, then BOLT, then DASH, then finish it), a pick's 15 Ferrite and a part, home (walk back, or RECALL), and a Ferrite pick at the forge, whose tutorial takes over; then NEXT. It's eased: Ferrite gives two a vein while it runs, and the foes it calls always leave a part. ✕ on its line stops it. Either choice still wakes the systems a little at a time.
+- **Systems wake when their moment comes.** A new game has walking, mining, both spells (the Scrap Rig comes with ARC and BOLT), the dash, the portal and the openings, the forge's FRAMES and CUTTERS tabs and the locker's worn gear. The rest wakes, and stays awake: changing the rig's cores (the locker's drawer, CORES, CODEX) with the first core beyond the starting ones, researched or forged; module sockets, the locker's modules and the tuning bench with the first module caught; the star's altar and ATTUNE with the first light of a deed; SUPPLIES, MEND and LIGHT and the cargo's MAKE with the first ore brought home (after the walkthrough's cutter, if it's running); ARMOR and CHARMS after the first thing forged; TOOLS, BUILDINGS and the uplink at magnitude 2 (the uplink also with an echo or a shard); WICK with the Drone Bay. A station not yet awake stands dark and unlit at the outpost, its name dim with OFFLINE under it, and has no button. Each unlock is worked out from progress, so no save ever finds anything locked that it has used; a save from before onboarding opens with everything awake and every tutorial seen. Wick says a line as each wakes.
+- **The first landing.** After the opening, Wick offers to walk you through it: WALK ME THROUGH IT or I KNOW THE DRILL. Walked through, one line of Wick's sits at the top of the view, the button that matters pulses, and a gold ring and chevron mark the spot on the world (an arrow at the view's edge when it's off it): out of the lit opening into the gentle land, a vein mined, a foe Wick calls up (ARC, then BOLT, then DASH, then finish it), a cutter's 15 Ferrite and a part, home (walk back, or RECALL), and a Ferrite cutter at the forge, whose tutorial takes over; then NEXT. It's eased: Ferrite gives two a vein while it runs, and the foes it calls always leave a part. ✕ on its line stops it. Either choice still wakes the systems a little at a time.
 - **Tutorials: Wick points, you do.** The forge, the locker, the tuning bench, the star's screen, SUPPLIES, the portal's map and the uplink each run a tutorial of three to five steps the first time they open: the screen dims but for the one thing that matters and the way out (✕, which ends it), Wick says one short line by his portrait, and the step is done when you do it (tap what's lit, or NEXT for something only shown). A small SKIP is always there; a tap anywhere else does nothing. Each screen's header has a ? that plays its tutorial again, then a short reference: the explanations that used to sit on the screens. The ? in the top bar pauses the world and walks the HUD.
 - **Plain screens.** Labels of a word or two, numbers with icons, at most one short line on a card; no notes paragraphs. Costs always name their resource; a screen's way out is always in sight.
 - **At home, NEXT is marked:** when the next goal is the altar (light waiting, a shard), the altar has a faint violet ring.
@@ -474,7 +474,7 @@ A new Kindler isn't shown everything at once (`js/onboard.js`, `js/tutor.js`; DE
   - spell A, big, in the corner;
   - spell B;
   - DASH;
-  - MINE, held to dig;
+  - MINE, held to cut: the Kindler holds the cutter out at the rock, a blue-white beam bites it and throws molten sparks;
   - the contextual SET OUT, STEP THROUGH or EXTRACT above them;
   - MEND and LIGHT, the two supplies, side by side at the deck's top-left.
 - **Sideways:** the view stands in the middle with the controls either side, as in NEO.
@@ -535,7 +535,7 @@ Everything is made in code with Web Audio (`js/audio.js`, `js/music.js`, `T.soun
 
 The aim is broad and rough rather than narrow and polished. Everything below is built:
 - the base with every station;
-- 3 biomes with 2 ores each and 6 pick tiers;
+- 3 biomes with 2 ores each and 6 cutter tiers;
 - 3 enemies per biome, elites, and the optional warden;
 - the whole loot pipeline;
 - the world: rings of territories, light, spires, kindling, Deeps;

@@ -334,13 +334,14 @@ const SND_CUES = {
     return [[k, BANK[k].g * sndRange(0.75, 1)]];
   }, where: (a) => ({ g: 1, pan: a.foot ? 0.12 : -0.12, rate: a.foot ? 1.01 : 0.99 }) },
   dash: { g: 0.25, gap: 0.15, bank: () => [['dash', 1]] },
-  // mining: tier, the ore's
-  mine: { g: 0.28, gap: 0.08, fn(S, o, t, a) {
-    const f = 820 + (a.tier || 1) * 110 + sndRange(-40, 40);
-    sndNoise(S, o, t, { f: 2600, q: 1.5, a: 0.001, d: 0.018, g: 0.8 });
-    sndTone(S, o, t, { f, a: 0.001, d: 0.06, g: 0.45 });
-    sndTone(S, o, t, { f: f * 2.76, a: 0.001, d: 0.025, g: 0.12 });
-    sndTone(S, o, t, { f: 210, f2: 150, glide: 0.03, w: 'warm', lp: 800, a: 0.001, d: 0.03, g: 0.5 });
+  // cutting: tier, the ore's. A burst of the beam's hum, a sizzle where it
+  // bites, and a crackle; higher for the deeper ores
+  mine: { g: 0.26, gap: 0.08, fn(S, o, t, a) {
+    const f = 150 + (a.tier || 1) * 18 + sndRange(-8, 8);
+    sndTone(S, o, t, { f, w: 'sawtooth', lp: 1400, a: 0.004, d: 0.11, g: 0.3, vib: [38, 6] });
+    sndTone(S, o, t, { f: f * 2.02, w: 'square', lp: 2200, a: 0.004, d: 0.07, g: 0.08 });
+    sndNoise(S, o, t, { f: 4200 + (a.tier || 1) * 200, q: 1.2, a: 0.003, d: 0.08, g: 0.55 });
+    sndNoise(S, o, t + sndRange(0.01, 0.04), { f: 1500, q: 3, a: 0.001, d: 0.015, g: 0.5 });
   } },
   // the ore breaks: rock crumbling, and a chime higher for the deeper ores
   oreBreak: { g: 0.28, gap: 0.08, pri: true, fn(S, o, t, a) {
@@ -349,7 +350,7 @@ const SND_CUES = {
     sndTone(S, o, t, { f: 180, f2: 110, glide: 0.08, w: 'warm', lp: 700, a: 0.002, d: 0.07, g: 0.6 });
     for (let i = 0; i < (tier > 3 ? 3 : 2); i++) sndBell(S, o, t + 0.05 + i * 0.07, sndHz(base + steps[i]), 0.34 - i * 0.05, 0.25 + tier * 0.04, 0.3);
   } },
-  // the pick can't break it, or there's no room
+  // the cutter can't break it, or there's no room
   mineRefuse: { g: 0.18, gap: 0.5, fn(S, o, t) {
     sndTone(S, o, t, { f: 220, f2: 150, glide: 0.06, w: 'warm', lp: 800, a: 0.002, d: 0.05, g: 1 });
     sndNoise(S, o, t, { f: 600, q: 0.8, a: 0.001, d: 0.03, g: 0.8 });

@@ -304,9 +304,9 @@ function nextGoal() {
   if (wait && lightToMag(mag + 1) && wait >= lightToMag(mag + 1)) return `Feed the star: ${wait} light waiting.`;
   if (s.cache) return `Get your pack back, in ${s.cache.where}.`;
   if (wait) return `Feed the star: ${wait} light waiting.`;
-  // (a first pick, before anything: it opens the next ore)
+  // (a first cutter, before anything: it opens the next ore)
   const pick = s.equip.pick;
-  if ((!pick || pick.tier < 1) && !s.items.some((x) => x.kind === 'pick' && x.tier >= 1)) return (s.stash.ferrite || 0) >= BLUEPRINTS.pick.ore ? 'Forge a Ferrite pick: it breaks Lumenite.' : `Bring home ${BLUEPRINTS.pick.ore} Ferrite for a better pick.`;
+  if ((!pick || pick.tier < 1) && !s.items.some((x) => x.kind === 'pick' && x.tier >= 1)) return (s.stash.ferrite || 0) >= BLUEPRINTS.pick.ore ? 'Forge a Ferrite cutter: it breaks Lumenite.' : `Bring home ${BLUEPRINTS.pick.ore} Ferrite for a better cutter.`;
   if (!s.world) return 'Walk out into the land and kindle it.';
   const L = worldMap(), lit = (id) => isKindled(id);
   const front = L.terrs.filter((t) => !t.home && !lit(t.id) && t.nb.some(lit)).sort((a, b) => terrLevel(a) - terrLevel(b));

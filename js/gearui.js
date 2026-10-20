@@ -65,7 +65,7 @@ function removeModule(uid) {
 // an ancient forge.
 function forgeSource() { return UI.forge.field && Game.dive ? Game.dive.cargo : Save.data.stash; }
 // The tabs: each that has a recipe and is awake yet (onboard.js: FRAMES and
-// PICKS from the first day, the rest as their moment comes).
+// CUTTERS from the first day, the rest as their moment comes).
 const FORGE_TAB_KEY = { stone: 'spells', armor: 'gear', charm: 'gear', tool: 'tools', structure: 'buildings', wick: 'wick', codex: 'spells' };
 const forgeTabOpen = (c) => !FORGE_TAB_KEY[c] || onboardHas(FORGE_TAB_KEY[c]);
 const forgeCats = () => RECIPE_CATS.filter(([, c]) => BP_IDS.some((id) => BLUEPRINTS[id].cat === c) && forgeTabOpen(c));

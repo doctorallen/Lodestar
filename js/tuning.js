@@ -20,7 +20,12 @@ const T = {
   // point `ahead` px in front of the diver is the target. A hardness-1
   // ore breaks after 1 / speed seconds of holding MINE, times the pick's
   // speed.
-  mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 1], drillNoise: 90 }, // a drill wakes what's within drillNoise px
+  // a drill wakes what's within drillNoise px. cutter: how it's drawn
+  // (render.js drawCutter): its body px long, the beam stopping short of
+  // the tile's middle (a share of a tile), sparks a frame thrown up to
+  // spray px, the beam's sheath and the molten bite
+  mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 1], drillNoise: 90,
+    cutter: { body: 4, short: 0.08, sparks: 9, spray: 8, sheath: '#7fd8ff', molten: '#ff9a3a' } },
 
   // Your light (d.pull): full in kindled land and at home, it drains in the
   // dark over T.world.light seconds. Below dimAt the lamp dims (to lampMin)

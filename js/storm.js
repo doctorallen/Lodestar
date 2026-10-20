@@ -49,7 +49,7 @@ function updateStorm(d, dt) {
     for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, s.x, s.y) < S.radius + e.r) hurtEnemy(e, S.dmg * 2, { spell: true, element: 'shock', noProc: true });
     // a vein struck is charged into the better ore
     if (s.vein && floorTile(f, s.vein.x, s.vein.y) === TILE_ORE) {
-      // into the best of the biome's ores the pick can break, if that's better
+      // into the best of the biome's ores the cutter can break, if that's better
       const i = s.vein.y * f.w + s.vein.x, pick = Save.data.equip.pick ? Save.data.equip.pick.base.power : 1;
       const best = T.biomes[d.biome].ores.map((id) => T.ores[ORE_INDEX[id]]).filter((o) => o.tier <= pick).pop();
       if (best && best.tier > T.ores[f.ore[i] - 1].tier) {

@@ -1043,7 +1043,10 @@ function drawProspector(d, ox, oy, tick, lights) {
   const p = d.p;
   // casting: the pose, turned to the aim and leaning into it (castfx.js);
   // the legs keep walking. Charging a spell, the pose is held, wound back.
+  const cutting = p.mine && !p.mine.refused && d.target;
   let cast = p.cast && p.cast.t > 0 && p.cast.a !== undefined && !(p.mine && !p.mine.refused) ? p.cast : null;
+  // cutting: the arm held out at the rock, the cutter in the hand
+  if (cutting) cast = { a: Math.atan2(cutterAim(d).y / AP - (p.y - 8), cutterAim(d).x / AP - p.x), slot: 'main', t: 1, max: 1, hold: 'f' };
   if (!cast && !(p.mine && !p.mine.refused))
     for (const slot of ['main', 'off']) {
       const h = p.hands[slot], it = Save.data.equip.main;
@@ -1073,20 +1076,54 @@ function drawProspector(d, ox, oy, tick, lights) {
     if (!isCaster(it)) ringDots(fx, fy - ap(10), (15 - lv * 5) * AP, col, lv >= 1 ? (tick % 2 ? 1 : 0.5) : 0.25 + lv * 0.5, true);
     cfxLight(lights, fx, fy - ap(10), TILE * (0.8 + lv), 0.3 + lv * 0.6, rgb01(col));
   }
-  if (p.mine && !p.mine.refused && d.target) {
-    const phase = tick % 4, striking = phase >= 2, hand = handOf(p, spr, sx, sy, 'main');
-    const hx = hand.x, hy = hand.y - (striking ? 0 : ap(1));
-    const tx = (d.target.tx + 0.5) * ATILE + ox - hx, ty = (d.target.ty + 0.5) * ATILE + oy - hy;
-    const m = Math.hypot(tx, ty) || 1, L = 8 * AP;
-    const head = striking ? { x: hx + (tx / m) * L, y: hy + (ty / m) * L } : { x: hx + (p.fx < 0 ? -1 : 1) * ap(4), y: hy - ap(7) };
-    const wood = ART.pal.wood, tool = ART.pal.tool, w = ap(2);
-    pixelLine(hx, hy, head.x, head.y, wood[2]);
-    pixelLine(head.x - w, head.y - 1, head.x + w, head.y - 1, tool[3]);
-    pixelLine(head.x - w, head.y, head.x + w, head.y, tool[1]);
-    pixelLine(head.x - w + 1, head.y + 1, head.x + w - 1, head.y + 1, tool[0]);
-    if (phase === 2) lights.push({ x: head.x, y: head.y, r: 1.1 * TILE, i: 0.8, c: [1, 0.8, 0.6] });
-  }
+  if (cutting) drawCutter(d, handOf(p, spr, sx, sy, 'main', face), ox, oy, tick, lights);
   drawDrone(d, fx, fy, lights);
+}
+
+// The cutter at work: a stubby gunmetal emitter in the fist, and from its
+// nozzle a beam to the rock's face, a white-hot core in a flickering sheath
+// of blue, throwing molten sparks back off where it bites.
+function drawCutter(d, hand, ox, oy, tick, lights) {
+  const at = cutterAim(d), tx = at.x + ox, ty = at.y + oy;
+  const m = Math.hypot(tx - hand.x, ty - hand.y) || 1, ux = (tx - hand.x) / m, uy = (ty - hand.y) / m;
+  const C = T.mine.cutter, body = ART.pal.tool, n = { x: hand.x + ux * ap(C.body), y: hand.y + uy * ap(C.body) };
+  // the body, and its nozzle's lit ring
+  pixelLine(hand.x - ux, hand.y - uy, n.x, n.y, body[0]);
+  pixelLine(hand.x - ux - uy, hand.y - uy + ux, n.x - uy, n.y + ux, body[2]);
+  dot(Math.round(n.x), Math.round(n.y), C.sheath, true);
+  // the face it bites: short of the tile's middle, never behind the nozzle
+  const reach = Math.max(ap(2), m - ATILE * C.short), bx = hand.x + ux * reach, by = hand.y + uy * reach;
+  const fl = 0.55 + 0.45 * Math.random();
+  // (a haze two px out, flickering; the sheath; the core)
+  for (const w of [-2, 2]) cutterLine(n.x - uy * w, n.y + ux * w, bx - uy * w, by + ux * w, C.sheath, 0.3 * fl);
+  for (const w of [-1, 1]) cutterLine(n.x - uy * w, n.y + ux * w, bx - uy * w, by + ux * w, C.sheath, 0.75 + 0.25 * fl);
+  cutterLine(n.x, n.y, bx, by, '#ffffff', 1);
+  // the bite: a white-hot spot ringed in molten orange, and sparks thrown
+  // back off the face
+  const hx = Math.round(bx), hy = Math.round(by);
+  for (let ddy = -2; ddy <= 2; ddy++) for (let ddx = -2; ddx <= 2; ddx++) {
+    const r = Math.abs(ddx) + Math.abs(ddy);
+    if (r <= 3) dot(hx + ddx, hy + ddy, r <= 1 ? '#ffffff' : C.molten, true, r <= 1 ? 1 : r === 2 ? fl : 0.5 * fl);
+  }
+  for (let k = 0; k < C.sparks; k++) {
+    const a = Math.atan2(-uy, -ux) + (Math.random() - 0.5) * 2.4, r = ap(1) + Math.random() * ap(C.spray);
+    dot(Math.round(bx + Math.cos(a) * r), Math.round(by + Math.sin(a) * r + Math.random() * ap(2)), Math.random() < 0.4 ? '#ffe48a' : C.molten, true, 0.5 + Math.random() * 0.5);
+  }
+  lights.push({ x: hx, y: hy, r: 1.8 * TILE, i: 0.9 * fl, c: rgb01(C.sheath) });
+  lights.push({ x: hx, y: hy, r: 0.7 * TILE, i: 0.5, c: rgb01(C.molten) });
+}
+
+// Where the cutter bites (art px, on the floor): the target's middle, up on
+// the rock's top as its marker is.
+function cutterAim(d) {
+  const x = (d.target.tx + 0.5) * ATILE, y = (d.target.ty + 0.5) * ATILE;
+  return { x, y: y - pntLiftAt(x, y) };
+}
+
+// A line of the cutter's light at alpha a.
+function cutterLine(x0, y0, x1, y1, col, a) {
+  const n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))));
+  for (let k = 0; k <= n; k++) dot(Math.round(x0 + ((x1 - x0) * k) / n), Math.round(y0 + ((y1 - y0) * k) / n), col, true, a);
 }
 
 // The diver's drone: a little orb that drifts after it, over its back

@@ -44,15 +44,15 @@ const KIND_FAMILIES = {
   charm: ['close', 'spell', 'defense', 'utility', 'mining', 'shock', 'leech', 'chill'],
   pick: ['mining', 'utility'],
 };
-const KIND_NAMES = { caster: 'Rig frame', armor: 'Plate', charm: 'Charm', pick: 'Pick', stone: 'Core', relic: 'Sealed relic', module: 'Module' };
+const KIND_NAMES = { caster: 'Rig frame', armor: 'Plate', charm: 'Charm', pick: 'Cutter', stone: 'Core', relic: 'Sealed relic', module: 'Module' };
 // what a base of a kind is called in a sentence ("a module for armor")
-const KIND_WORDS = { caster: 'rig', armor: 'armor', charm: 'charm', pick: 'pick' };
-const KIND_PHRASE = { caster: 'the rig', armor: 'armor', charm: 'a charm', pick: 'a pick' };
+const KIND_WORDS = { caster: 'rig', armor: 'armor', charm: 'charm', pick: 'cutter' };
+const KIND_PHRASE = { caster: 'the rig', armor: 'armor', charm: 'a charm', pick: 'a cutter' };
 // The slots worn: the rig (still 'main' in the save), the pick, armor and a
 // charm. (An older save's off hand is a frame in the stash now: save.js.)
 const KIND_SLOT = { caster: 'main', armor: 'armor', charm: 'charm', pick: 'pick' };
 const SLOTS = ['main', 'pick', 'armor', 'charm'];
-const SLOT_NAMES = { main: 'Rig', pick: 'Pick', armor: 'Armor', charm: 'Charm' };
+const SLOT_NAMES = { main: 'Rig', pick: 'Cutter', armor: 'Armor', charm: 'Charm' };
 const QUALITY_NAMES = ['Rough', 'Fair', 'Fine', 'Masterwork'];
 
 const RARITIES = ['common', 'magic', 'rare', 'legendary', 'set'];
@@ -150,7 +150,7 @@ const rigMods = (it) => (it && it.spells && it.spells[0] ? it.spells[0].mods.len
 
 // "Lumenite Rig"; the rusty pick.
 function baseName(item) {
-  if (item.kind === 'pick' && item.tier === 0) return 'Rusty Pick';
+  if (item.kind === 'pick' && item.tier === 0) return 'Worn Cutter';
   const bp = bpOf(item);
   return `${oreOfTier(item.tier).name} ${bp ? bp.name : KIND_NAMES[item.kind]}`;
 }

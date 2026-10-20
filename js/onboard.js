@@ -3,7 +3,7 @@
 // Bringing a new Kindler in a little at a time.
 //
 // Unlocks. A new game starts with the essentials: walking, mining, the two
-// spells, the portal and the openings, the forge (FRAMES and PICKS) and the
+// spells, the portal and the openings, the forge (FRAMES and CUTTERS) and the
 // locker (what's worn). Each other system wakes when its moment comes, and
 // stays awake (Save.data.onboard.open). Every unlock is worked out from
 // progress (ONBOARD_WHEN), so an old save, or one that skipped ahead, never
@@ -16,7 +16,7 @@
 //              bench: the first module caught
 //   altar      the star's altar and ATTUNE: the first light of a deed
 //   supplies   SUPPLIES, MEND and LIGHT, MAKE: the first ore brought home
-//              (after the first walkthrough's pick, if it's running)
+//              (after the first walkthrough's cutter, if it's running)
 //   gear       ARMOR and CHARMS: the first thing forged
 //   tools      TOOLS and the tools at the portal: magnitude 2
 //   buildings  BUILDINGS: magnitude 2
@@ -139,9 +139,9 @@ const GUIDE_STEPS = [
   { id: 'bolt', say: () => 'Now BOLT, from the other wrist.', btn: 'btn-off', mark: (d) => guideFoeMark(d), start: (d) => guideFoe(d), done: (d) => guideCasts(d, 'off') > 0 },
   { id: 'dash', say: () => 'DASH to slip clear of it.', btn: 'btn-dash', mark: (d) => guideFoeMark(d), start: (d) => guideFoe(d), done: (d) => d.p.dashT > 0 },
   { id: 'finish', say: () => 'Finish it. It\'ll leave a part.', btn: 'btn-main', mark: (d) => guideFoeMark(d), done: (d) => !guideFoes(d).length && guideParts(d) > 0, start: (d) => guideFoe(d, true) },
-  { id: 'haul', say: (d) => (guideParts(d) ? `${BLUEPRINTS.pick.ore} Ferrite makes a better pick. ${Math.min(BLUEPRINTS.pick.ore, guideFerrite(d))}/${BLUEPRINTS.pick.ore}` : 'A creature part too. Fight one.'), btn: 'btn-mine', mark: (d) => (guideParts(d) ? guideOreMark(d, 'ferrite') : guideFoeMark(d)), start: (d) => guideFoe(d, true), done: (d) => guideFerrite(d) >= BLUEPRINTS.pick.ore && guideParts(d) > 0 },
+  { id: 'haul', say: (d) => (guideParts(d) ? `${BLUEPRINTS.pick.ore} Ferrite makes a better cutter. ${Math.min(BLUEPRINTS.pick.ore, guideFerrite(d))}/${BLUEPRINTS.pick.ore}` : 'A creature part too. Fight one.'), btn: 'btn-mine', mark: (d) => (guideParts(d) ? guideOreMark(d, 'ferrite') : guideFoeMark(d)), start: (d) => guideFoe(d, true), done: (d) => guideFerrite(d) >= BLUEPRINTS.pick.ore && guideParts(d) > 0 },
   { id: 'home', say: () => 'That will do. Back the way we came, or II, then RECALL.', mark: (d) => guideExitMark(d, 0), done: (d) => !!d.hub },
-  { id: 'forge', home: true, say: () => (guidePickStashed() ? 'Wear it: EQUIP it at the locker.' : 'To the forge. A Ferrite pick breaks Lumenite.'), mark: () => guideStationMark(guidePickStashed() ? 'locker' : 'forge'), done: () => guidePickMade() },
+  { id: 'forge', home: true, say: () => (guidePickStashed() ? 'Wear it: EQUIP it at the locker.' : 'To the forge. A Ferrite cutter breaks Lumenite.'), mark: () => guideStationMark(guidePickStashed() ? 'locker' : 'forge'), done: () => guidePickMade() },
   { id: 'free', home: true, say: () => "That's the loop. NEXT, up there, says where to go.", done: (d, g) => g.t > 7 },
 ];
 

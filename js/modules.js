@@ -38,7 +38,7 @@ const MOD_PREFIX = { close: 'Keen', spell: 'Humming', defense: 'Sturdy', utility
 const MOD_FIRST = ['Grim', 'Hollow', 'Ember', 'Ashen', 'Star', 'Dusk', 'Iron', 'Pale', 'Flux', 'Vein', 'Night', 'Storm', 'Thorn', 'Deep'];
 const MOD_SECOND = {
   caster: ['Eye', 'Whisper', 'Spark', 'Choir', 'Coil', 'Lens'], armor: ['Ward', 'Mantle', 'Hide', 'Bulwark', 'Husk', 'Scale'],
-  charm: ['Sigil', 'Knot', 'Mark', 'Seal', 'Token', 'Glim'], pick: ['Tooth', 'Auger', 'Crag', 'Delve', 'Bite', 'Vein'],
+  charm: ['Sigil', 'Knot', 'Mark', 'Seal', 'Token', 'Glim'], pick: ['Flare', 'Auger', 'Kerf', 'Delve', 'Beam', 'Vein'],
 };
 const MOD_FITS = ['caster', 'armor', 'charm', 'pick'];
 

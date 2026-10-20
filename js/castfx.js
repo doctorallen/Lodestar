@@ -256,7 +256,7 @@ function castFxHandRel(a, slot) {
 // How far the body leans into the cast, art px: in while the arm is out,
 // back a little as it eases off.
 function castFxLean(c) {
-  if (c.charging) return { x: 0, y: 0 };
+  if (c.charging || c.hold) return { x: 0, y: 0 };
   const L = T.castFx.lean, k = 1 - c.t / c.max, th = T.castFx.thrust;
   const s = k < th ? L[0] : k < th + (1 - th) * 0.5 ? -L[1] : 0;
   return { x: Math.round(Math.cos(c.a) * s), y: Math.round(Math.sin(c.a) * s * 0.75) };

@@ -674,8 +674,8 @@ function kindlerPick(d, cast) {
   }
   if (cast) {
     // (a tap shows the wind-back for a moment as it snaps forward: the
-    // spell has already left the hand)
-    const k = 1 - cast.t / cast.max, ph = cast.charging || k < K.cast[0] ? 'w' : k < K.cast[1] ? 's' : k < K.cast[2] ? 'f' : 'r';
+    // spell has already left the hand; cutting, held: render.js)
+    const k = 1 - cast.t / cast.max, ph = cast.hold ? cast.hold : cast.charging || k < K.cast[0] ? 'w' : k < K.cast[1] ? 's' : k < K.cast[2] ? 'f' : 'r';
     key = kdCastKey(face, cast.slot, ph, legs[0] === 'g' ? 'w' + legs[1] : legs);
   }
   const spr = A.spr = kdGet(fi, key);
