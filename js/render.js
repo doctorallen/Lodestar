@@ -1160,7 +1160,9 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   else if ((e.state === 'chase' || e.state === 'circle') && Math.floor(e.bob * 8) % 2) lift = 1;
   else if (e.state === 'lunge') lift = 2;
   const shake = e.state === 'windup' ? (tick % 2 ? 1 : -1) : 0;
-  const fx = Math.round(e.x * AP) + ox, fy = Math.round(e.y * AP) + oy;
+  // struck: jolted an art px or two the way the hit pushes it while it holds
+  const jx = e.hitT > 0 ? Math.sign(Math.round(e.kvx / 20)) * (e.hitT > T.impact.targetStop ? 2 : 1) : 0, jy = e.hitT > 0 ? Math.sign(Math.round(e.kvy / 20)) : 0;
+  const fx = Math.round(e.x * AP) + ox + jx, fy = Math.round(e.y * AP) + oy + jy;
   if (fx < -60 || fy < -15 || fx > View.w + 60 || fy > View.h + 75) return;
   if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r), lift > 2 ? lift : 0);
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
