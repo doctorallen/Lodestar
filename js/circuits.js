@@ -547,7 +547,7 @@ function updateBolts(dt) {
     }
     for (const e of d.enemies) {
       if (e.dead || e.hid || b.hitIds.includes(e) || dist(b.x, b.y, e.x, e.y - 5) > e.r + (b.big ? 7 : 4)) continue;
-      const sp0 = Math.hypot(b.vx, b.vy) || 1, kb = b.big ? 120 : 50;
+      const sp0 = Math.hypot(b.vx, b.vy) || 1, kb = T.impact.shotKnock[b.big ? 1 : 0];
       // Shatterglass: the echo's lance shatters the chilled
       const shatter = b.shatter && carries(e, 'frost');
       circuitHit(b.s, e, b.dmg * (shatter ? T.circuits.resonance.shatterglass.mult : 1), { knock: { x: (b.vx / sp0) * kb, y: (b.vy / sp0) * kb }, heavy: b.big, noChain: b.kind === 'bolt' || b.kind === 'shard' });
