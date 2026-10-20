@@ -30,9 +30,17 @@ function rollEliteAffix(rng) { return rng.weighted(ELITE_AFFIXES.map((id) => [T.
 
 function floorLevel(d) { return d.biome * T.levelPerBiome + d.depth + (d.zone === 'lair' ? 1 : 0); }
 
+// The first levels' share of an enemy's health (T.enemies.hpEarly): the
+// Rim is for learning.
+function enemyEarlyHp(type, level) {
+  const E = T.enemies;
+  if (type === 'hollow' || type === 'dummy') return 1;
+  return Math.min(1, E.hpEarly + ((1 - E.hpEarly) * Math.max(0, level - 1)) / (E.hpFullAt - 1));
+}
+
 function makeEnemy(type, x, y, level, elite) {
   const E = T.enemies, def = E[type];
-  const hpMul = Math.pow(E.hpGrowth, level - 1) * (elite ? E.eliteHp * (elite === 'tough' ? E.tough : 1) : 1);
+  const hpMul = Math.pow(E.hpGrowth, level - 1) * enemyEarlyHp(type, level) * (elite ? E.eliteHp * (elite === 'tough' ? E.tough : 1) : 1);
   const hp = Math.round(def.hp * hpMul);
   const e = {
     type, x, y, hp, maxHp: hp, r: def.radius, level, elite, boss: type === 'warden' || type === 'keeper',
@@ -80,7 +88,7 @@ function spawnEnemies(d) {
       d.enemies.push(b);
       continue;
     }
-    const n = clamp(Math.round(E.perRoom + E.perDepth * d.depth) + rng.i(-1, 1), 0, E.maxPerRoom);
+    const n = clamp(Math.round(E.perRoom + E.perDepth * d.depth + E.perBiome * d.biome) + rng.i(-1, 1), 0, E.maxPerRoom);
     for (let k = 0; k < n; k++) {
       // (a signature that needs what the room hasn't got, its water, is
       // one of the common kind instead)
@@ -145,12 +153,31 @@ function norm(x, y) { const m = Math.hypot(x, y) || 1; return { x: x / m, y: y /
 // Each step
 // ---------------------------------------------------------------------------
 const ATTACKING = new Set(['windup', 'lunge', 'charge', 'slide', 'sweep']);
+// the kinds that close in to fight, and so take turns pressing the attack
+const PRESSING_KINDS = new Set(['crawler', 'dropper', 'crab', 'construct']);
+
+// Which of those may come in now: the nearest few awake (those already in
+// first, so they don't trade places), the rest held off (e.press = false).
+function choosePressers(d) {
+  const E = T.enemies, p = d.p, most = E.press + Math.floor(E.pressPerBiome * d.biome), L = [];
+  for (const e of d.enemies) {
+    if (e.dead || !PRESSING_KINDS.has(e.type)) continue;
+    if (!e.aggro || e.hid || e.wakeT > 0) { e.press = true; continue; }
+    L.push(e);
+  }
+  if (L.length <= most) { for (const e of L) e.press = true; return; }
+  const key = (e) => dist(e.x, e.y, p.x, p.y) - (e.press ? 24 : 0) - (ATTACKING.has(e.state) ? 1000 : 0);
+  L.sort((a, b) => key(a) - key(b));
+  L.forEach((e, i) => { e.press = i < most; });
+}
 
 function updateEnemies(dt) {
   const d = Game.dive, f = d.floor, p = d.p, E = T.enemies;
   updateFlow(d);
   if ((d.pruneT = (d.pruneT || 1) - dt) <= 0) { d.pruneT = 1; d.enemies = d.enemies.filter((e) => !e.dead); }
   let attackers = d.enemies.filter((e) => !e.dead && ATTACKING.has(e.state)).length;
+  const most = E.attackers + Math.floor(E.attackersPerDepth * d.depth + E.attackersPerBiome * d.biome);
+  choosePressers(d);
   updateFoeWorld(d, dt);
   const knockFade = Math.exp(-T.impact.knockDecay * dt);
   for (const e of d.enemies) {
@@ -177,7 +204,13 @@ function updateEnemies(dt) {
     if (T.enemies[e.type].rooted || T.enemies[e.type].anchored || e.hid) e.kvx = e.kvy = 0;
     if (Math.abs(e.kvx) + Math.abs(e.kvy) > 1) { moveBody(f, e, e.kvx * dt, e.kvy * dt, e.r); e.kvx *= knockFade; e.kvy *= knockFade; }
     const pd = dist(e.x, e.y, p.x, p.y);
-    if (!e.aggro && !d.dying && pd < E.aggro && clearLine(f, e.x, e.y, p.x, p.y - 6)) wake(d, e);
+    const sees = pd < E.aggro && clearLine(f, e.x, e.y, p.x, p.y - 6);
+    if (!e.aggro && !d.dying && sees) wake(d, e);
+    // woken by another: it looks about a moment before it comes (sooner if
+    // it sees the diver close)
+    if (e.wakeT > 0) { e.wakeT -= sees && pd < E.aggro * 0.6 ? dt * 3 : dt; if (e.wakeT > 0) continue; }
+    // struck: it holds still a moment as the hit lands
+    if (e.hitT > 0) { e.hitT -= dt; continue; }
     // dragged by a Lodestone Pull, or stunned
     if (e.stunT > 0) {
       e.stunT -= dt;
@@ -194,7 +227,7 @@ function updateEnemies(dt) {
     }
     if (e.state === 'stagger' || e.state === 'dazed') { if ((e.t -= dt) <= 0) { e.state = 'chase'; e.cd = Math.max(e.cd, 0.3); } continue; }
     const slow = (e.slowT > 0 ? 1 - T.onHit.chillSlow : 1) * hazardSlow(f, e);
-    const sp = e.speed * slow * dt, free = attackers < E.attackers + Math.floor(E.attackersPerDepth * d.depth) || ATTACKING.has(e.state);
+    const sp = e.speed * slow * dt, free = attackers < most || ATTACKING.has(e.state);
     const was = ATTACKING.has(e.state);
     if (e.type === 'crawler') updateCrawler(d, e, pd, sp, dt, free);
     else if (e.type === 'wisp') updateWisp(d, e, pd, sp, dt, free);
@@ -222,13 +255,17 @@ function updateEnemies(dt) {
   updateGlobs(dt);
 }
 
-// Waking one wakes the others nearby.
-function wake(d, e) {
+// Waking one wakes the others nearby, each after a moment of its own
+// (T.enemies.wakeStagger), so a pack comes in ones and twos. `heard`: woken
+// by a noise, not by seeing the diver, so it waits too.
+function wake(d, e, heard) {
   if (e.aggro) return;
   e.aggro = true;
   if (e.elite === 'warded' || e.elite === 'shifting') Story.say(e.elite);
   e.cd = Math.max(e.cd, 0.3);
-  for (const o of d.enemies) if (!o.aggro && !o.dead && dist(o.x, o.y, e.x, e.y) < 3 * TILE) { o.aggro = true; o.cd = Math.max(o.cd, 0.5); }
+  const W = T.enemies.wakeStagger, late = () => d.rng.f(W[0], W[1]);
+  if (heard) e.wakeT = late();
+  for (const o of d.enemies) if (!o.aggro && !o.dead && dist(o.x, o.y, e.x, e.y) < 3 * TILE) { o.aggro = true; o.cd = Math.max(o.cd, 0.5); o.wakeT = late(); }
 }
 
 // Round the diver at radius r, drifting in or out to hold it.
@@ -267,11 +304,12 @@ function updateCrawler(d, e, pd, sp, dt, free, def = T.enemies.crawler) {
     if (e.t <= 0) { e.state = 'circle'; e.t = 0.3 + (e.bob % 0.6); }
     return;
   }
-  const sees = clearLine(f, e.x, e.y, p.x, p.y);
-  if (pd > def.circle + 14 || !sees) { e.state = 'chase'; const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); return; }
+  // (held off while others press the attack: it circles further out)
+  const sees = clearLine(f, e.x, e.y, p.x, p.y), held = e.press === false, ring = held ? T.enemies.holdBack : def.circle;
+  if (pd > ring + 14 || !sees) { e.state = 'chase'; const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); return; }
   if (e.state !== 'circle') { e.state = 'circle'; e.t = 0.4 + (e.bob % 0.8); }
-  orbitMove(d, e, def.circle, sp * (def.side || 0.8));
-  if (e.t <= 0 && free && e.cd <= 0) { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; }
+  orbitMove(d, e, ring, sp * (def.side || 0.8));
+  if (e.t <= 0 && free && !held && e.cd <= 0) { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; }
 }
 
 function updateWisp(d, e, pd, sp, dt, free) {
@@ -327,6 +365,13 @@ function updateCharger(d, e, pd, sp, dt, free) {
     return;
   }
   e.state = 'chase';
+  // (held off while others press the attack: it circles, out of reach)
+  if (e.press === false && !e.boss) {
+    const R = T.enemies.holdBack + 10;
+    if (pd > R + 14 || !clearLine(f, e.x, e.y, p.x, p.y)) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
+    else orbitMove(d, e, R, sp);
+    return;
+  }
   if (pd < def.range && e.cd <= 0 && free && clearLine(f, e.x, e.y, p.x, p.y)) {
     e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y;
     return;

@@ -737,7 +737,7 @@ function hartPod(v = 0) {
     }
     lamps.push([wx + 6, lip + 8]);
     hartSeedStar(s, v ? 31 : 46, lip + 8, false);
-    return hartDone(s, 27, FY, { lamps, stone: [[2, FY, -1], [53, FY, 1], [x1, lip, 1]] });
+    return hartDone(s, 27, FY, { lamps, door: { x: dx, y: lip + 4, w: 8, h: foot - lip - 4 }, stone: [[2, FY, -1], [53, FY, 1], [x1, lip, 1]] });
   });
 }
 

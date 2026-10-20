@@ -457,7 +457,8 @@ function pshKindlerSpr(d) {
 // it's drawn).
 function pshMovers(d) {
   const out = [], p = d.p;
-  out.push({ spr: pshKindlerSpr(d), x: Math.round(p.x * AP), y: Math.round(p.y * AP), me: true });
+  // (none while he's still in his pod, in the opening: intro.js)
+  if (!(d.hub && Intro.hub && Intro.hub.hidden)) out.push({ spr: pshKindlerSpr(d), x: Math.round(p.x * AP), y: Math.round(p.y * AP), me: true });
   if (d.hub) {
     for (const s of d.settlers || []) out.push({ spr: settlerSprite(s.look, s.walkT > 0 ? 1 + (Math.floor(s.walkT * 7) % 4) : 0, s.west), x: Math.round(s.x * AP), y: Math.round(s.y * AP) });
     const n = settlementSize();

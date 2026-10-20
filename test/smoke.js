@@ -93,10 +93,12 @@ function atStation(id) { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id 
 async function phone(browser) {
   const { page, errors } = await openGame(browser, PHONE);
   await page.evaluate(`window.sturdy = ${sturdy}; window.ring1 = ${ring1};`);
-  // a fresh game opens on the story, a panel a tap
-  check(await visible(page, '#screen-story'), 'phone: a fresh game did not open on the story');
+  // a fresh game opens on the opening, and SKIP INTRO ends it
+  check(await visible(page, '#intro') && await page.evaluate(() => Intro.on && Game.modal === 'intro'), 'phone: a fresh game did not open on the opening');
   await shot(page, 'smoke-intro');
-  for (let k = 0; k < 5; k++) await tap(page, '#screen-story [data-act=storyNext]');
+  await tap(page, '#intro-skip');
+  await run(page, 0.05);
+  check(!(await visible(page, '#intro')), 'phone: SKIP INTRO did not end the opening');
   // contracts that can't be met by accident, so they don't pay into the checks below
   await page.evaluate(() => { Save.data.contracts = [0, 1, 2].map((i) => ({ id: 900 + i, kind: 'reach', ring: 4, star: 0, reward: 'riftglass' })); });
   // home: the outpost, the star over the pit
@@ -644,6 +646,59 @@ async function desktop(browser) {
   await page.close();
 }
 
+// The opening, played out: the first tap brings the sound in, a tap then
+// shows the caption in full, the next moves on; it plays through to the
+// outpost and hands over there, the Kindler stepped out of his pod and the
+// controls back; it's seen for good, and the
+// uplink plays it again, which Esc ends.
+async function opening(browser) {
+  const { page, errors } = await openGame(browser, PHONE);
+  check(await page.evaluate(() => Intro.on && Intro.scene === 0), 'opening: a fresh game did not open on it');
+  await run(page, 1.2);
+  // the first tap only brings the sound in
+  check(await visible(page, '#intro-sound'), 'opening: no TAP FOR SOUND before the first tap');
+  await tap(page, '#intro');
+  check(await page.evaluate(() => Intro.scene === 0 && !Intro.capKey.startsWith('0/0/' + STORY_INTRO[0][0].text.length) && $('intro-sound').hidden), 'opening: the first tap did more than bring the sound in');
+  await tap(page, '#intro');
+  check(await page.evaluate(() => Intro.scene === 0 && $('intro-cap').querySelector('.ghost').textContent === '' && $('intro-cap').textContent === STORY_INTRO[0][0].text), 'opening: a tap did not show the caption in full');
+  await tap(page, '#intro');
+  check(await page.evaluate(() => Intro.scene === 1), 'opening: a second tap did not move on to the next scene');
+  // the rest plays out on its own, into the outpost
+  const [middle, last] = await page.evaluate(() => [T.intro.scenes.slice(1, 4).reduce((a, b) => a + b, 0), T.intro.scenes[4]]);
+  await run(page, middle + 0.3);
+  check(await page.evaluate(() => Intro.scene === 4 && !Game.modal && Intro.hub && Game.dive.hub), 'opening: the last scene is not the live outpost');
+  await run(page, 6);
+  await shot(page, 'smoke-opening-hub');
+  await run(page, last - 6 + 0.6);
+  const end = await page.evaluate(() => { const d = Game.dive, to = introHubShot(d).to; return { on: Intro.on, modal: Game.modal, seen: Save.data.introSeen, at: Math.hypot(d.p.x - to.x, d.p.y - to.y), cam: View.camY, hidden: $('intro').hidden }; });
+  check(!end.on && !end.modal && end.seen && end.hidden, `opening: it did not hand over: ${JSON.stringify(end)}`);
+  check(end.at < 3, `opening: the Kindler is ${end.at.toFixed(1)} px from where he steps out to`);
+  // and it's his: the stick walks him (towards the middle of the plaza)
+  const [x0, y0, ux, uy] = await page.evaluate(() => { const p = Game.dive.p, dx = OUTPOST_MIDDLE.x * TILE - p.x, dy = OUTPOST_MIDDLE.y * TILE - p.y, m = Math.hypot(dx, dy) || 1; return [p.x, p.y, dx / m, dy / m]; });
+  const [hx, hy] = await center(page, '#deck-left');
+  await page.touchscreen.touchStart(hx, hy);
+  for (let i = 1; i <= 5; i++) await page.touchscreen.touchMove(hx + i * 8 * ux, hy + i * 8 * uy);
+  await run(page, 0.4);
+  await page.touchscreen.touchEnd();
+  check(await page.evaluate(([x0, y0]) => Math.hypot(Game.dive.p.x - x0, Game.dive.p.y - y0) > 4, [x0, y0]), 'opening: the stick did not walk after the hand-over');
+  // seen for good: home again, no opening
+  await page.evaluate(() => enterHub());
+  check(await page.evaluate(() => !Intro.on), 'opening: it played again on coming home');
+  // the uplink plays it again; Esc ends it
+  await page.evaluate(atStation, 'wreck');
+  await page.evaluate(() => UI.useStation('wreck'));
+  // (past the screen's tap guard in the game's own time, however slow its frames)
+  await page.waitForFunction(() => Game.realT - UI.openedAt > T.ui.tapGuard + 0.05, { timeout: 10000 });
+  await tap(page, '#wreck-body [data-act=replayIntro]');
+  check(await page.evaluate(() => Intro.on && Game.modal === 'intro'), 'opening: the uplink did not play it again');
+  await sleep(450);
+  await page.keyboard.press('Escape');
+  await run(page, 0.05);
+  check(await page.evaluate(() => !Intro.on && !Game.modal), 'opening: Esc did not end it');
+  check(!errors.length, 'opening: ' + errors.join(' | '));
+  await page.close();
+}
+
 // Natures, reactions and resonances, in a fresh game: what each kind
 // fears and shrugs off (a clime and an affix shift it), Wick learning it, a
 // reaction firing, and a resonance found at the locker.
@@ -703,6 +758,7 @@ async function spellcraft(browser) {
   const browser = await launch();
   try {
     await spellcraft(browser);
+    await opening(browser);
     await phone(browser);
     await sideways(browser);
     await desktop(browser);

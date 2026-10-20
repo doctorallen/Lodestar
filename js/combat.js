@@ -117,7 +117,7 @@ function healPlayer(n) {
 // damage), or element (one); att: the elements its caster's ore is attuned
 // to (their statuses last longer) }
 function hurtEnemy(e, dmg, opts = {}) {
-  const d = Game.dive, st = d.stats, O = T.onHit;
+  const d = Game.dive, st = d.stats, O = T.onHit, I = T.impact;
   // (a foe under the sand, the water or on the roof can't be struck)
   if (e.dead || e.hid) return;
   const els = opts.els || (opts.element ? [opts.element] : null);
@@ -155,7 +155,14 @@ function hurtEnemy(e, dmg, opts = {}) {
   d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit, verdict, foe: e, quiet });
   if (opts.knock) { const kd = T.enemies[e.type].knock, k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : kd !== undefined ? kd : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
   if (opts.heavy && !e.boss && e.type !== 'hollow' && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
+  else if (e.state === 'windup' && !e.boss && e.type !== 'hollow' && dmg >= e.maxHp * I.flinch && Game.t - (e.flinchAt || -9) > I.flinchGap) {
+    // a solid hit breaks off its wind-up
+    e.state = 'stagger'; e.t = I.flinchTime; e.flinchAt = Game.t;
+  }
+  // it holds still a moment as the hit lands (the knock still takes it)
+  if (!e.boss && e.type !== 'hollow') e.hitT = Math.max(e.hitT || 0, opts.heavy ? I.heavyTargetStop : I.targetStop);
   if (e.type === 'dummy') { if (e.hp <= 0) e.hp = e.maxHp; e.kvx = e.kvy = 0; return; }
+  e.wakeT = 0;
   wake(d, e);
   if (st.leech) healPlayer((dmg * st.leech) / 100);
   if (!opts.noProc) {
