@@ -18,7 +18,7 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Set out / step through / bank / light / plant | The button that appears at a portal, a spire, a waystone or a heart | E / Enter |
 | Travel | TRAVEL, over BANK at a spire | |
 | Cargo | CARGO in the top bar | I |
-| Pause (and the MUSIC and SOUNDS settings) | II | Esc / P |
+| Pause (and the MUSIC, SOUNDS and LAMP settings) | II | Esc / P |
 
 The loop:
 1. Walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to a spire.

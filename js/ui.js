@@ -986,6 +986,14 @@ UI.acts = {
     Snd.applyLevels(false);
     drawSoundButtons();
   },
+  // the pause screen's lamp: a beam the way you're turned, or the round
+  // glow (render.js lampBeamOf; an example to compare)
+  lampSet: () => {
+    const s = Save.data.settings || (Save.data.settings = {});
+    s.lamp = lampIsBeam() ? 'glow' : 'beam';
+    Save.saveField('settings');
+    drawSoundButtons();
+  },
   attune: (id) => {
     const s = Save.data;
     if (attunePointsLeft(s) <= 0 || (s.attune[id] || 0) >= T.attune[id].max) return;
@@ -1000,6 +1008,7 @@ function drawSoundButtons() {
   const word = (k) => { const v = Snd.level(k); return v >= 1 ? 'ON' : v > 0 ? 'SOFT' : 'OFF'; };
   setTextIfChanged('pause-music', `MUSIC: ${word('music')}`);
   setTextIfChanged('pause-sfx', `SOUNDS: ${word('sfx')}`);
+  setTextIfChanged('pause-lamp', `LAMP: ${lampIsBeam() ? 'BEAM' : 'GLOW'}`);
 }
 
 // A caster's stones moved into another, slot for slot; what doesn't fit goes
