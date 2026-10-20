@@ -179,6 +179,7 @@ function drawChargeProp(d, a, ox, oy, lights) {
   drawShadow(x, y, 4);
   for (let i = -4; i <= 4; i++) for (let j = -3; j <= 0; j++) { if (Math.abs(i) === 4 && j < -1) continue; dot(x + i, y + j, j === -3 ? '#5a5a6a' : Math.abs(i) === 4 || j === 0 ? '#16161e' : j === -2 ? '#4a4a58' : '#30303c'); }
   for (const i of [-3, -1, 1, 3]) dot(x + i, y - 1, '#c8862a');
+  const on = armed ? Math.floor(Game.realT * 6) % 2 === 0 : Math.floor(Game.realT * 2) % 2 === 0;
   if (on) { dot(x, y - 4, armed ? '#ff4a2a' : '#ffb030', true); dot(x, y - 5, armed ? '#ff8a6a' : '#ffd27a', true, 0.7); lights.push({ x, y: y - 4, r: TILE * 0.6, i: 0.6, c: rgb01(armed ? '#ff4a2a' : '#ffb030') }); }
 }
 

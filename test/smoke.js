@@ -631,6 +631,19 @@ async function phone(browser) {
   check(await page.evaluate(() => Save.data.supplies.injector1 === 1 && Game.dive.cargo.ferrite === 4), 'phone: MAKE in the field did not make an injector from the cargo');
   await shot(page, 'smoke-make');
   await tap(page, '#screen-cargo [data-act=resume]');
+  // a flare holds your light; a charge blasts the first foe near it
+  const set = await page.evaluate(() => {
+    const d = Game.dive, b = Save.data.supplies; b.flare1 = 1; b.charge1 = 1; d.pull = 0.5;
+    const flare = useSupply('flare'), charge = useSupply('charge'), p0 = d.pull;
+    Game.render();
+    for (let i = 0; i < 60; i++) Game.step(1 / 60);
+    const held = d.pull === p0;
+    const e = makeEnemy('crawler', d.p.x + 8, d.p.y, 1, null); d.enemies.push(e); d.p.x += 60;
+    for (let i = 0; i < 20; i++) Game.step(1 / 60);
+    Game.render();
+    return [flare, charge, held, e.hp < e.maxHp || e.dead, !(d.charges || []).length];
+  });
+  check(set.every(Boolean), `phone: a flare did not hold the light, or a charge did not blast (${set})`);
 
   // the star's reach: a spire won't hold in ring 2 before magnitude 3
   const reach = await page.evaluate(() => {

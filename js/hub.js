@@ -248,16 +248,17 @@ function drawStarFeed(d, ox, oy, lights) {
   const F = T.star.feed, every = Math.max(1, Math.ceil(ms.length / F.lights));
   ms.forEach((m, i) => {
     const R = LIGHT_KINDS[m.ore].ramp, heart = m.ore === 'heartlight';
-    for (let j = 6; j >= 0; j--) {
-      const t = m.t - j * 0.03;
+    for (let j = 9; j >= 0; j--) {
+      const t = m.t - j * 0.025;
       if (t < 0) continue;
       const q = starFeedPath(m, t), wob = Math.sin(m.seed + t * 9) * 3 * (1 - t), x = Math.round((q.x + wob) * AP) + ox, y = Math.round(q.y * AP) + oy;
       if (j === 0) {
-        dot(x, y, R[3], true);
-        if (heart) { for (const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) dot(x + a, y + b, R[2], true, 0.9); dot(x - 2, y, R[1], true, 0.5); dot(x + 2, y, R[1], true, 0.5); }
-        else { const s = Math.round(Math.cos(m.seed + t * 20) * 2), c = Math.round(Math.sin(m.seed + t * 20) * 2); dot(x + s, y + c, R[2], true, 0.9); dot(x - s, y - c, R[1], true, 0.6); }
-        if (i % every === 0) lights.push({ x, y, r: TILE * (heart ? 0.9 : 0.7), i: 0.55, c: rgb01(R[2]) });
-      } else dot(x, y, R[j < 3 ? 2 : 1], true, 1 - j * 0.14);
+        // the head: a bright core in a diamond of its colour
+        for (const [a, b, c, k] of [[0, 0, 3, 1], [1, 0, 3, 1], [0, 1, 3, 1], [1, 1, 3, 1], [-1, 0, 2, 0.9], [2, 0, 2, 0.9], [-1, 1, 2, 0.9], [2, 1, 2, 0.9], [0, -1, 2, 0.9], [1, -1, 2, 0.9], [0, 2, 2, 0.9], [1, 2, 2, 0.9]]) dot(x + a, y + b, R[c], true, k);
+        if (heart) { for (const [a, b] of [[-3, 0], [4, 0], [-3, 1], [4, 1], [0, -3], [1, -3], [0, 4], [1, 4]]) dot(x + a, y + b, R[1], true, 0.6); }
+        else { const sx = Math.round(Math.cos(m.seed + t * 18) * 4), sy = Math.round(Math.sin(m.seed + t * 18) * 3); dot(x + sx, y + sy, R[3], true, 0.9); dot(x + sx + 1, y + sy, R[2], true, 0.7); dot(x - sx, y - sy, R[1], true, 0.6); }
+        if (i % every === 0) lights.push({ x, y, r: TILE * (heart ? 1.1 : 0.9), i: 0.7, c: rgb01(R[2]) });
+      } else { dot(x, y, R[j < 4 ? 2 : 1], true, 1 - j * 0.09); if (j < 4) dot(x + 1, y, R[1], true, 0.6 - j * 0.12); }
     }
   });
 }
