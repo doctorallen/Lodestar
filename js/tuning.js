@@ -1133,9 +1133,11 @@ const T = {
   // level after the turn. uneaseFrom: the echoes read before the turn
   // starts to be heard; uneasyPhrase: the chance a phrase is uneasy after
   // it. lowHp: the share of health under which the heart beats; stingR: px
-  // a big foe is first seen at; channel: a channel's tone.
+  // a big foe is first seen at; channel: a channel's tone. stepAhead: px
+  // ahead of the Kindler's middle a footfall's ground is read (the foot that
+  // lands is ahead of the body).
   sound: {
-    master: 0.9, music: 0.1, sfx: 0.8, soft: 0.4, space: 0.6, voices: 14, gap: 0.03,
+    stepAhead: 6, master: 0.9, music: 0.1, sfx: 0.8, soft: 0.4, space: 0.6, voices: 14, gap: 0.03,
     near: [50, 230], panW: 140, panMax: 0.7,
     presence: { kindled: 0.78, dark: [0.12, 0.66], deep: [0.04, 0.58] },
     figureAt: 0.62, phraseRest: [7, 12], callRest: [14, 22], awayRest: 1.5, beat: 0.8,

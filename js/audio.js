@@ -560,7 +560,7 @@ function sndUnlock() {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC || typeof T === 'undefined' || typeof Music === 'undefined') { Snd.failed = !AC; return; }
       let ctx;
-      try { ctx = new AC({ latencyHint: 'balanced' }); } catch (e) { ctx = new AC(); }
+      try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = new AC(); }
       Snd.build(ctx, true);
       Music.build(Snd);
       // the fight's sounds, rendered between frames (sndbank.js)

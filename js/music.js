@@ -353,7 +353,8 @@ const Music = {
     const A = d.kAnim;
     if (A && A.walk > 0 && !(d.p.dashT > 0) && !(d.dying > 0)) {
       const half = Math.floor(A.ph * 2);
-      if (this.stepHalf >= 0 && half !== this.stepHalf) snd('step', { ground: sndGroundAt(d, d.p.x, d.p.y), foot: half });
+      // (the ground under the foot coming down, ahead of the body's middle)
+      if (this.stepHalf >= 0 && half !== this.stepHalf) { const k = T.sound.stepAhead; snd('step', { ground: sndGroundAt(d, d.p.x + Math.cos(A.ang) * k, d.p.y + Math.sin(A.ang) * k), foot: half }); }
       this.stepHalf = half;
     } else this.stepHalf = -1;
     if (d.hub) {
