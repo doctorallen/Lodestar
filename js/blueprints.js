@@ -44,7 +44,7 @@ const BLUEPRINTS = {
   charm: { name: 'Charm', kind: 'charm', cat: 'charm', style: 'charm', ore: 10, need: { any: 2 }, start: true, text: 'Takes modules of any family.' },
   lantern: { name: 'Lantern', kind: 'charm', cat: 'charm', style: 'lantern', ore: 10, need: { spore: 2 }, implicit: { lamp: 30, pullSlow: 20 }, text: 'A brighter lamp, and your light fades 20% slower.' },
   // picks, with the tools
-  pick: { name: 'Pick', kind: 'pick', cat: 'tool', style: 'pick', ore: 16, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
+  pick: { name: 'Pick', kind: 'pick', cat: 'tool', style: 'pick', ore: 12, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
   drill: { name: 'Drill', kind: 'pick', cat: 'tool', style: 'drill', ore: 18, need: { cog: 2 }, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },
 };
 // The carried tools (tools.js), made once: their cost is T.tools[id].cost,
