@@ -142,8 +142,9 @@ const UI = {
   show(id) {
     // a hint showing goes away with the world; one only just shown comes
     // back after (if it's still where it was given), and the rest count as read
+    // (news from the world goes too: it would lie over the panel's first line)
     for (const t of [...$('toasts').children]) {
-      if (!t.classList.contains('r-tip')) continue;
+      if (!t.classList.contains('r-tip')) { t.remove(); continue; }
       if (Date.now() - t.dataset.born < 800) { UI.hintsSeen.delete(t.textContent); UI.hintQ.unshift({ msg: t.textContent, at: t.dataset.at }); }
       t.remove();
     }
