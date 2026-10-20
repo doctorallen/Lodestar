@@ -180,7 +180,8 @@ function updateDive(dtReal, dt) {
     if (d.dying <= 0) loseDive(true);
     return;
   }
-  if (d.arrive && d.arrive.t < T.portal.arrive) d.arrive.t += dtReal;
+  // (the iris opens once the place is painted: render.js paintFloorSteps)
+  if (d.arrive && d.arrive.t < T.portal.arrive && View.floorFor === d.floor && !View.stage) d.arrive.t += dtReal;
   // stepping through a portal: everything holds still until it's done
   if (updateWarp(d, dtReal) || Game.dive !== d) return;
   if (!d.hub) updateTools(dtReal);
@@ -527,10 +528,11 @@ function loseDive(died) {
   const at = died ? Save.data.lastSpire || 0 : 0;
   const left = died ? leaveCache(d) : null;
   const report = { lost: d.cargo, items: d.items, died, kept, lostBlueprints: d.blueprints.length, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), earlier: b, wake: at ? terrOf(at).name : '', cache: left && left.cache, oldCache: left && left.old, light: (d.tally && d.tally.light) || {} };
-  if (left && left.cache) Story.say('firstCache');
   Save.save();
   if (at && hasSpire(at)) { startSortie({ terr: at, spire: true }); UI.openReport(report); }
   else enterHub(report);
+  // (said where the Kindler wakes, as a line belongs to the place it's said in)
+  if (left && left.cache) Story.say('firstCache');
 }
 
 // An emergency recall: home, but the dark keeps a share of the cargo (the

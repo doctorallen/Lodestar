@@ -222,11 +222,25 @@ const UI = {
   // Someone speaking: Wick, or the star. Lines wait their turn.
   // A line spoken, queued behind any still being said. Lines wait while a
   // screen is open, so none is lost under a menu.
-  speak(who, text, style = 'wick') {
+  // A line belongs to the place it was said in (placeKey): one that hasn't
+  // begun by the time that place is left, or that has waited behind
+  // others for long, is dropped, as it's no longer about anything here (a
+  // first-time line of Wick's, `id`, is kept for the next time).
+  speak(who, text, style = 'wick', id = null) {
     UI.lines = UI.lines || [];
-    UI.lines.push({ who, text, style, t: 2.6 + text.length * 0.045 });
+    UI.lines.push({ who, text, style, t: 2.6 + text.length * 0.045, at: UI.placeKey(), id, waited: 0 });
   },
   updateSpeech(dt) {
+    if (UI.lines && UI.lines.length) {
+      const at = UI.placeKey();
+      UI.lines = UI.lines.filter((l) => {
+        if (!l.shown && !Game.modal) l.waited += dt || 0;
+        // (one already being said is let finish)
+        if (l.shown || (l.at === at && l.waited < T.ui.lineWait)) return true;
+        if (!l.shown && l.id && Save.data.said) delete Save.data.said[l.id];
+        return false;
+      });
+    }
     const l = UI.lines && UI.lines[0], box = $('speech');
     if (!l || Game.modal) { if (!box.hidden) box.hidden = true; return; }
     if (box.hidden || box.dataset.line !== l.text) {
@@ -236,6 +250,7 @@ const UI = {
       box.dataset.line = l.text;
       snd('speak', { style: l.style });
     }
+    l.shown = true;
     if ((l.t -= dt) <= 0) UI.lines.shift();
   },
 
