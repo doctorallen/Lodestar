@@ -354,8 +354,8 @@ function circuitLeap(s, from, dmg) {
 }
 
 // Arc: a sweep of light in front, everything in its reach and angle struck.
-// From the diver it aims at the nearest foe within autoAim and lunges a
-// little; the third of the combo is heavy and staggers.
+// From the diver it aims at the nearest foe within autoAim (the diver turns
+// to it but stays put); the third of the combo is heavy and staggers.
 function castArc(s, off, mult, inst, centre) {
   const d = Game.dive, p = d.p, F = s.F, cx = s.cx, A = F.combo[cx.step % F.combo.length], heavy = cx.step % F.combo.length === F.combo.length - 1;
   const from = cx.from, range = F.range * s.area;
@@ -364,9 +364,6 @@ function castArc(s, off, mult, inst, centre) {
   let x0 = from ? from.x : p.x, y0 = from ? from.y : p.y;
   if (!from && centre) {
     p.fx = Math.cos(aim.a); p.fy = Math.sin(aim.a);
-    // (the reach is measured from where it began, so the lunge can't carry
-    // the diver past something standing on top of it)
-    moveBody(d.floor, p, dir.x * A[4], dir.y * A[4], T.player.radius);
     p.strikeT = Math.max(p.strikeT || 0, A[1] * F.slow);
   }
   let first = null, fd = 1e9, n = 0;

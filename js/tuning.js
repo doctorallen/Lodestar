@@ -359,7 +359,7 @@ const T = {
   //     from a frame of mod2Tier or better, a masterwork, or one forged with
   //     a Lodestone shard.
   //   forms: cost, mult and cd (seconds the spell waits) for each, and:
-  //     arc: combo [damage ×, cooldown, arc cos, knockback px/s, lunge px]
+  //     arc: combo [damage ×, cooldown, arc cos, knockback px/s]
   //       (the last is heavy and staggers); range px; heldMult, the damage
   //       of the Nova it bursts into when held (instead of chargedMult);
   //       slow: the share of its wait the diver walks slower and can't turn.
@@ -391,7 +391,7 @@ const T = {
     rig: { cd: 0.9, area: 1, aim: 140, mods: 1, mod2Tier: 3 },
     forms: {
       arc: { cost: 3, mult: 0.9, close: true, refund: 2, refundMost: 3, range: 22, heldMult: 2.2, field: 14, slow: 0.6,
-        combo: [[1, 0.24, 0.3, 90, 4], [1, 0.24, 0.3, 90, 4], [1.7, 0.45, -0.1, 170, 9]] },
+        combo: [[1, 0.24, 0.3, 90], [1, 0.24, 0.3, 90], [1.7, 0.45, -0.1, 170]] },
       glaive: { cost: 6, mult: 0.5, close: true, refund: 1, refundMost: 4, cd: 0.4, blades: 2, radius: 20, reach: 7, time: 3, spin: 7, again: 0.35, most: 3, knock: 60, field: 20 },
       bolt: { cost: 4, mult: 1.0, cd: 0.3, speed: 170, life: 1.2, field: 12 },
       lance: { cost: 6, mult: 1.1, cd: 0.35, speed: 210, life: 0.9, pierce: 4, field: 12 },
