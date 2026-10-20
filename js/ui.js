@@ -349,7 +349,7 @@ const UI = {
     // at a spire (or a beacon's light), TRAVEL too; at the altar, ATTUNE; at
     // the fabricator, SUPPLIES (supplies.js)
     const travel = a === 'extract' && d.sortie && !d.deep, attune = a === 'altar', sup = a === 'forge' && d.hub, b2 = $('btn-act2');
-    if (b2.hidden !== !(travel || attune || sup)) b2.hidden = !(travel || attune || sup);
+    if (b2.hidden !== !(travel || attune || sup)) { b2.hidden = !(travel || attune || sup); document.body.classList.toggle('act2', !b2.hidden); }
     if (travel || attune || sup) { const pts = attune ? attunePointsLeft(Save.data) : 0; setTextIfChanged('btn-act2', travel ? 'TRAVEL' : sup ? 'SUPPLIES' : pts > 0 ? `ATTUNE · ${pts}` : 'ATTUNE'); }
   },
 };
