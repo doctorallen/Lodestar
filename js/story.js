@@ -36,6 +36,10 @@
 //   firstHeartlight, firstDeeplight, starReach, firstCache, firstRecover,
 //   firstSupply    the light of deeds, the star's reach, the pack a fall
 //                  leaves, and supplies (deeds.js, supplies.js)
+//   bld_<id>       each of the outpost's buildings, as it comes down
+//                  (structures.js)
+//   wick_<id>      each of Wick's upgrades, the first time it does its
+//                  thing (wick.js)
 // And:
 //   storyKindledCount()           territories kindled (0 with no world yet)
 //   storyLanders()                landers the Meridian can send
@@ -123,6 +127,16 @@ const WICK = {
   ring3: "The third ring. The dark's thick enough to lean on out here. Stay close.",
   theEdge: "The Edge. Whatever this world has at its heart, it's out there. I don't think it's sleeping.",
   firstSettlers: "The first lander's down, right on its pad. Settlers. Try to look like you've done this before.",
+  // the outpost's buildings, as each comes down to its plot (structures.js)
+  bld_bay: "A bay of my own. Charging cradle, spare fins, a window. I'll try not to get used to it.",
+  bld_refinery: "The refinery's down. Four of the old ore for one of the new, and it wants threads for the trouble. Fair.",
+  bld_relay: "The relay's up. The spires can hear the outpost now: a recall's quicker, and gentler on the cargo.",
+  bld_quarters: "Quarters. The Meridian sent two volunteers down already. Volunteers is their word.",
+  // Wick's upgrades, the first time each does its thing (wick.js)
+  wick_scan: "Ping. That's me. Ore, your pack, anything with a pattern in it: I'll mark what I find.",
+  wick_lamp: "I'll keep a light on behind us. You watch ahead.",
+  wick_shield: "Got that one. Give me a while before the next.",
+  wick_spark: "Sorry. Reflex. They gave me teeth, small ones.",
   // natures (natures.js)
   weakHit: "It hates that. I'll mark what each kind fears over its head: a point up for what hurts it, down for what it shrugs off.",
   resistHit: "That barely touched it. Some things shrug an element off. Try the other hand.",
@@ -266,6 +280,13 @@ const SETTLER_LINES = {
     "I don't mind the dark so much now. It's someone else's, that's all.",
     "My boy asked where the night goes, when the star drinks it. I didn't have an answer.",
   ],
+  // once the Settlers' Quarters stand (structures.js)
+  quarters: [
+    "The quarters' walls are thin. I can hear Pip snore through two of them.",
+    'We put a board up in the quarters. Your name is on it, under "please".',
+    "Wick came by the quarters to say goodnight. Is that a thing it does?",
+    "It's a bunk and a window. After ninety years in a pod, it's a palace.",
+  ],
   place: [
     "I hear {place}'s lit now. I'd like to see it, one day.",
     'They say {place} was all dark, before you. Hard to picture.',
@@ -313,7 +334,7 @@ const Story = {
     const said = Save.data.said || (Save.data.said = {});
     if (said[id] || !WICK[id]) return;
     said[id] = true;
-    UI.speak('WICK', WICK[id]);
+    UI.speak('WICK', WICK[id], 'wick', id);
   },
   // The star, when it grows: a line for every magnitude it passed (a big
   // feed can pass two), and the attunement to spend. (mag: the magnitude
@@ -429,8 +450,8 @@ const SETTLER_SPOTS = [[17, 21], [23.5, 21], [20, 24.5], [17.5, 27], [23, 26], [
 
 // How many settlers stand at the outpost now.
 function settlerCount() {
-  const S = T.story.settlers;
-  return Story.landersCalled() ? S.most : Math.min(S.most, storyLanders() * S.perLander);
+  const S = T.story.settlers, more = structureStands('quarters') ? T.structures.quarters.settlers : 0;
+  return (Story.landersCalled() ? S.most : Math.min(S.most, storyLanders() * S.perLander)) + more;
 }
 
 // Coming home: the settlers take their places (and the first ones say so).
@@ -441,7 +462,8 @@ function placeSettlers(d) {
     const [tx, ty] = SETTLER_SPOTS[(i * 3) % SETTLER_SPOTS.length];
     d.settlers.push({ settler: true, look: i % SETTLER_LOOKS.length, name: SETTLER_NAMES[i % SETTLER_NAMES.length], x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE, tx: null, ty: null, restT: 1 + Math.random() * 3, walkT: 0, west: i % 2 === 1, talkT: 0 });
   }
-  if (n > 0) Story.say('firstSettlers');
+  // (the landers' settlers: not the Quarters' volunteers)
+  if (n - (structureStands('quarters') ? T.structures.quarters.settlers : 0) > 0) Story.say('firstSettlers');
 }
 
 // A line a settler might say now: the late ones once the turn has come,
@@ -450,6 +472,7 @@ function settlerLine() {
   const L = SETTLER_LINES, late = (Save.data.echoes || []).length >= T.story.turnEcho;
   const places = storyKindled().map((x) => x.name).filter(Boolean), pick = (a) => a[Math.floor(Math.random() * a.length)];
   if (places.length && Math.random() < 0.3) return pick(L.place).replace('{place}', pick(places));
+  if (structureStands('quarters') && Math.random() < 0.3) return pick(L.quarters);
   return pick(late ? L.late.concat(L.early.slice(0, 2)) : L.early);
 }
 

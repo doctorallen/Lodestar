@@ -947,3 +947,235 @@ function hartProp(kind) {
     return hartDone(s, ax, ay);
   });
 }
+
+// ---------------------------------------------------------------------------
+// The outpost's buildings (structures.js), each a Charter module set down
+// on its plot once it's built at the forge, in the same make as the
+// stations: gunmetal, the Charter's blue panels, amber trim lights and the
+// pale gold seed-star. Each names its starstone spots (stone) and the
+// points its lights and moving parts are drawn at. Feet on row FY.
+// ---------------------------------------------------------------------------
+// A plinth: a clean gunmetal step from x0 to x1, top at y0, its foot at
+// FY, an amber line along its top.
+function hartPlinth(s, x0, x1, y0, FY, seed) {
+  const Hu = HART.hull, Am = HART.amber;
+  hartStrokes(s, x0, y0, x1, FY, (x, y) => (y === y0 ? 0.9 : 0.34 - (x - x0) * 0.004 - (y - y0) * 0.02), Hu, seed, { jit: 0.1 });
+  for (let x = x0; x <= x1; x++) { s.px(x, y0 + 1, x % 4 ? Am[1] : Am[0]); s.px(x, FY, Hu[0]); }
+  for (let y = y0; y < FY; y++) { s.px(x0, y, Hu[5]); s.px(x1, y, Hu[1]); }
+}
+// A panel of a ramp on a face (x0..x1, y0..y1), lit from the left, its
+// seams dark and its top lit.
+function hartPanel(s, x0, x1, y0, y1, ramp, seed) {
+  const n = ramp.length - 1;
+  hartStrokes(s, x0, y0, x1, y1, (x, y) => 0.6 - (x - x0) / Math.max(1, x1 - x0) * 0.3 - (y - y0) * 0.006, ramp, seed, { jit: 0.12 });
+  for (let x = x0; x <= x1; x++) { s.px(x, y0, ramp[n]); s.px(x, y1, ramp[1]); }
+  for (let y = y0; y <= y1; y++) { s.px(x0, y, ramp[n - 1]); s.px(x1, y, ramp[0]); }
+}
+// The amber trim light under a lip, in short lit lengths.
+function hartTrim(s, x0, x1, y) {
+  for (let x = x0; x <= x1; x++) s.px(x, y, x % 7 < 5 ? HART.amber[x < (x0 + x1) / 2 ? 3 : 2] : HART.hull[1], x % 7 < 5);
+}
+
+// The Drone Bay: Wick's hangar. A low module, its roller door half up over
+// a dark bay where a charging cradle glows Wick's violet; a landing ring
+// lit amber on its roof, a docking arm over it, and a mast with a blinking
+// light (beacon). Points: cradle (the glow), beacon.
+function hartBay() {
+  return hartKeep('bay', () => {
+    const W = 64, H = 56, FY = 53, s = new PntSpr(W, H, 2101), Hu = HART.hull, CB = HART.charter, St = HART.steel, Am = HART.amber;
+    const xl = 6, xr = 57, top = 16, lip = 24, foot = FY - 6, V = ['#2a1a44', '#4a2e78', '#7a54b4', '#c9a2ff', '#efe0ff'];
+    // the mast at the back right, its lamp drawn over
+    for (let y = 2; y <= top + 2; y++) { s.px(52, y, Hu[y < 6 ? 6 : 5]); s.px(53, y, Hu[2]); }
+    for (const y of [6, 10]) { s.px(50, y, Hu[4]); s.px(51, y, Hu[5]); s.px(54, y, Hu[2]); s.px(55, y, Hu[1]); }
+    s.box(51, 1, 54, 2, Hu, { lo: 1, hi: 4 });
+    // the body: its roof and its face
+    hartBlock(s, xl, xr, top, lip, foot, Hu, 2102, 3);
+    // the landing ring on the roof: a disc of deck plates, its rim lit
+    // amber in short lengths, the seed-star in it
+    s.ell(31, 20, 12, 3.2, St, { lo: 1, hi: 3, bias: 0.1, jit: 0.1 });
+    for (let a = 0; a < 48; a++) { const t = a / 48 * Math.PI * 2, x = 31 + Math.cos(t) * 11.5, y = 20 + Math.sin(t) * 3; if (a % 4 !== 3) s.px(x, y, Math.sin(t) > 0 ? Am[2] : Am[1], a % 4 === 0); }
+    hartSeedStar(s, 31, 20, false);
+    // the docking arm, folded back over the roof at the left
+    hartLine(s, [9, top + 1], [13, 7], Hu[5]); hartLine(s, [10, top + 1], [14, 7], Hu[2]);
+    hartLine(s, [13, 7], [22, 9], Hu[5]); hartLine(s, [13, 8], [22, 10], Hu[2]);
+    s.box(21, 8, 25, 11, Hu, { lo: 1, hi: 5 });
+    s.px(23, 12, V[3], true);
+    // the face: the Charter's blue either side of the bay
+    hartPanel(s, xl + 1, 17, lip + 2, foot - 1, CB, 2103);
+    hartPanel(s, 46, xr - 1, lip + 2, foot - 1, CB, 2104);
+    hartSeedStar(s, 12, lip + 9, true);
+    for (let x = 9; x <= 15; x++) { s.px(x, lip + 15, HART.mark[0]); s.px(x, lip + 17, HART.mark[0]); }
+    // the status lights by the bay
+    for (let y = lip + 5; y <= lip + 12; y++) for (let x = 49; x <= 54; x++) s.px(x, y, y === lip + 5 || x === 49 ? Hu[1] : '#07080b');
+    for (const [x, y, c] of [[50, lip + 7, '#6cff9a'], [52, lip + 7, V[3]], [50, lip + 9, '#62f0ff'], [53, lip + 10, Am[2]]]) s.px(x, y, c, true);
+    // the bay: a dark mouth, the door's slats rolled half up over it
+    for (let y = lip + 2; y <= foot; y++) for (let x = 19; x <= 44; x++) s.px(x, y, y < lip + 11 ? Hu[(y - lip) % 3 === 0 ? 1 : x < 30 ? 4 : 3] : '#06050a');
+    for (let x = 19; x <= 44; x++) { s.px(x, lip + 1, Hu[6]); s.px(x, lip + 11, Hu[0]); }
+    for (let y = lip + 1; y <= foot; y++) { s.px(18, y, Hu[5]); s.px(45, y, Hu[1]); }
+    // inside, the charging cradle: a ring on the floor glowing violet, a
+    // spare drone shell resting on it, cables up the back wall
+    for (let y = lip + 12; y <= foot - 1; y++) for (let x = 20; x <= 43; x++) s.px(x, y, (x + y) % 9 === 0 ? '#0e0c16' : '#08070d');
+    for (let a = 0; a < 32; a++) { const t = a / 32 * Math.PI * 2, x = 31.5 + Math.cos(t) * 7, y = foot - 2.5 + Math.sin(t) * 1.6; s.px(x, y, Math.sin(t) > 0 ? V[3] : V[2], true); }
+    s.ell(31.5, foot - 6, 4.2, 3.6, ['#07080c', '#0f121a', '#1a1f2a', '#2a3242', '#46526a'], { lo: 0, hi: 4, jit: 0.1 });
+    for (let x = 28; x <= 35; x++) s.px(x, foot - 6, '#04060a');
+    s.px(30, foot - 6, '#3a5a64'); s.px(31, foot - 6, '#3a5a64');
+    for (const cx of [23, 40]) for (let y = lip + 12; y <= foot - 3; y++) s.px(cx + ((y >> 2) & 1), y, '#141826');
+    // the trim light under the lip; hazard chevrons along the plinth
+    hartTrim(s, xl + 1, xr - 1, lip + 1 - 1);
+    hartPlinth(s, xl - 3, xr + 3, foot, FY, 2105);
+    for (let y = foot + 2; y <= FY - 1; y++) for (let x = 19; x <= 44; x++) s.px(x, y, ((x + y) >> 1) % 2 ? Am[1] : '#1c1408');
+    return hartDone(s, 32, FY, { cradle: { x: 31.5, y: foot - 3 }, beacon: { x: 52, y: 0 }, stone: [[xl - 3, FY, -1], [xr + 4, FY, 1], [xr - 1, lip, 1], [xl + 1, lip, -1]] });
+  });
+}
+
+// The Refinery: two tall tanks of steel banded in gunmetal, piped into a
+// smelter whose hopper takes the old ore at its top; a sight-glass in its
+// face shows the melt glowing, a chimney at its back; refined bars
+// stacked by its foot. Points: glass, stack (the chimney's mouth).
+function hartRefinery() {
+  return hartKeep('refinery', () => {
+    const W = 66, H = 64, FY = 61, s = new PntSpr(W, H, 2201), Hu = HART.hull, CB = HART.charter, St = HART.steel, Am = HART.amber, F = HART.fire;
+    const foot = FY - 5;
+    // a tank: a cylinder lit on its left, a domed cap, dark bands round it
+    const tank = (x0, x1, y0, seed) => {
+      const cx = (x0 + x1) / 2, rx = (x1 - x0) / 2;
+      hartStrokes(s, x0, y0, x1, foot, (x) => { const u = (x - cx) / rx; return 0.78 - (u + 1) * 0.32 - Math.max(0, -u - 0.75) * 0.6; }, St, seed, { jit: 0.1 });
+      s.ell(cx, y0, rx + 0.4, 2.6, St, { lo: 2, hi: 5, bias: 0.15, jit: 0.1 });
+      for (const y of [y0 + 7, Math.round((y0 + foot) / 2) + 2, foot - 5]) for (let x = x0; x <= x1; x++) { s.px(x, y, Hu[x < cx ? 3 : 1]); s.px(x, y + 1, Hu[0]); }
+      for (let y = y0 + 2; y <= foot; y++) s.px(x1, y, St[0]);
+    };
+    // the chimney at the back right, louvred, capped
+    hartStrokes(s, 52, 6, 57, 30, (x) => 0.72 - (x - 52) * 0.1, Hu, 2202, { jit: 0.1 });
+    for (let y = 7; y <= 30; y++) { s.px(52, y, Hu[6]); s.px(57, y, Hu[1]); }
+    for (let y = 10; y <= 22; y += 3) for (let x = 53; x <= 56; x++) s.px(x, y, Hu[1]);
+    s.box(51, 3, 58, 5, Hu, { lo: 2, hi: 6 });
+    for (let x = 53; x <= 56; x++) s.px(x, 4, '#050506');
+    s.px(55, 4, F[1], true);
+    // the tanks, the bigger behind
+    tank(4, 17, 12, 2203);
+    tank(17, 27, 20, 2204);
+    // the smelter: its top, the hopper on it, and its face
+    hartBlock(s, 28, 61, 28, 35, foot - 1, Hu, 2205, 3);
+    s.poly([[35, 15], [53, 15], [49, 29], [39, 29]], (x, y) => Hu[clamp(Math.round(4.6 - (x - 35) * 0.13 - (y - 15) * 0.05 + (artHash(x >> 1, y, 2206) - 0.5) * 0.6), 1, 6)]);
+    for (let x = 35; x <= 53; x++) s.px(x, 15, Hu[6]);
+    s.ell(44, 15, 8.5, 2, ['#07080b', '#0e1015', '#15181e'], { lo: 0, hi: 2, jit: 0.1 });
+    // old ore heaped in its mouth: the Rim's and the Choir's
+    for (const [x, y, id] of [[40, 14, 'ferrite'], [43, 13, 'lumenite'], [46, 14, 'ferrite'], [44, 15, 'resonite'], [48, 15, 'lumenite'], [41, 16, 'resonite']]) { const r = ART.ores[id]; s.px(x, y, r[1]); s.px(x + 1, y, r[2]); s.px(x, y - 1, r[3], true); }
+    // the face: the Charter's blue at the right, the sight-glass, gauges
+    hartPanel(s, 52, 60, 37, foot - 2, CB, 2207);
+    hartSeedStar(s, 56, 43, true);
+    for (let y = 38; y <= 46; y++) for (let x = 33; x <= 49; x++) {
+      const edge = y === 38 || y === 46 || x === 33 || x === 49;
+      s.px(x, y, edge ? (y === 38 || x === 33 ? Hu[1] : Hu[5]) : y < 41 ? F[3] : y < 44 ? F[2] : F[1], !edge);
+    }
+    for (let x = 35; x <= 47; x += 3) s.px(x, 40, F[4], true);
+    s.px(36, 39, '#fff6dc', true);
+    for (const gx of [35, 41]) { s.ell(gx + 1.5, 51, 2, 2, St, { lo: 1, hi: 5 }); s.px(gx + 2, 50, '#d85c18'); }
+    hartTrim(s, 29, 60, 36);
+    // the pipes from the tanks into the smelter
+    const PP = ['#0b0c10', '#1c212a', '#3c4452'];
+    hartHose(s, [14, 27], [24, 18], [30, 33], 2, PP);
+    hartHose(s, [25, 34], [28, 30], [31, 40], 2, PP);
+    // the plinth, and refined bars stacked at its right foot
+    hartPlinth(s, 2, 63, foot, FY, 2208);
+    for (const [x, y] of [[57, foot - 2], [61, foot - 2], [59, foot - 4]]) for (let i = 0; i < 4; i++) { s.px(x + i, y, i < 2 ? HART.star[5] : HART.star[4]); s.px(x + i, y + 1, HART.star[2]); }
+    return hartDone(s, 33, FY, { glass: { x: 41, y: 42 }, stack: { x: 55, y: 2 }, stone: [[2, FY, -1], [63, FY, 1], [17, 12, -1], [61, 34, 1]] });
+  });
+}
+
+// The Forward Relay: a tapering pylon of gunmetal on a block of the
+// Charter's blue, a gold conduit up its face; vanes splayed at its head,
+// and in a cage at its top a crystal of the star's metal that carries its
+// light out to the spires. A collar of amber lamps round its middle.
+// Points: crystal (its heart), lamps.
+function hartRelay() {
+  return hartKeep('relay', () => {
+    const W = 50, H = 80, FY = 77, s = new PntSpr(W, H, 2301), Hu = HART.hull, CB = HART.charter, Am = HART.amber, G = HART.star, lamps = [];
+    const cx = 24, foot = FY - 4, base = 58;
+    // the base block, the Charter's blue, and the plinth
+    hartBlock(s, 4, 44, base, base + 5, foot, CB, 2302, 2);
+    for (let x = 5; x <= 43; x++) s.px(x, base + 9, CB[1]);
+    hartSeedStar(s, 10, base + 11, false);
+    for (const x of [33, 36, 39]) { s.px(x, base + 11, x === 33 ? Am[2] : '#62f0ff', true); }
+    hartTrim(s, 5, 43, base + 6);
+    hartPlinth(s, 1, 47, foot, FY, 2303);
+    // the pylon: wider at its foot, lit on its left
+    s.poly([[cx - 7, base + 2], [cx - 3, 16], [cx + 3, 16], [cx + 7, base + 2]], (x, y) => {
+      const half = 3 + (y - 16) / (base + 2 - 16) * 4, u = (x + 0.5 - cx) / half;
+      return Hu[clamp(Math.round(5.2 - (u + 1) * 2 + (artHash(x, y >> 1, 2304) - 0.5) * 0.7), 1, 6)];
+    });
+    // the conduit up its face, glowing the star's gold, brighter up top
+    for (let y = 18; y <= base; y++) s.px(cx - 1, y, y < 30 ? G[5] : y < 44 ? G[4] : G[3], true);
+    // the collar, its lamps
+    s.ell(cx, 38, 8.5, 2.2, Hu, { lo: 1, hi: 5, bias: 0.1, jit: 0.1 });
+    for (const dx of [-6, -2, 2, 6]) { s.px(cx + dx, 39, Am[2], true); lamps.push([cx + dx, 39]); }
+    // the vanes at its head, splayed out and up
+    for (const sd of [-1, 1]) {
+      s.poly([[cx + sd * 3, 22], [cx + sd * 13, 12], [cx + sd * 14, 15], [cx + sd * 3, 27]], (x, y) => Hu[sd < 0 ? (y < 18 ? 5 : 4) : (y < 18 ? 3 : 2)]);
+      hartLine(s, [cx + sd * 3, 22], [cx + sd * 13, 12], sd < 0 ? Hu[6] : Hu[4]);
+      s.px(cx + sd * 13, 13, Am[2], true); lamps.push([cx + sd * 13, 13]);
+    }
+    // the cage at the top, and the crystal in it
+    hartCrystal(s, cx, 2, 0, 15, 4.4, 0.45);
+    for (const dx of [-5, 5]) for (let y = 3; y <= 16; y++) s.px(cx + dx, y, dx < 0 ? Hu[5] : Hu[2]);
+    for (let x = cx - 5; x <= cx + 5; x++) { s.px(x, 2, Hu[5]); s.px(x, 16, Hu[3]); }
+    return hartDone(s, cx, FY, { crystal: { x: cx, y: 9 }, lamps, stone: [[1, FY, -1], [47, FY, 1], [4, base + 4, -1], [44, base + 4, 1]] });
+  });
+}
+
+// The Settlers' Quarters: a long habitat module with a second stacked on
+// its roof, a stair up the side to the upper door, warm windows (lamps), an
+// awning over the lower door, a pennant on the roof, and a planter of the
+// settlers' beans (they came up purple). Points: lamps.
+function hartQuarters() {
+  return hartKeep('quarters', () => {
+    const W = 72, H = 62, FY = 59, s = new PntSpr(W, H, 2401), Hu = HART.hull, CB = HART.charter, St = HART.steel, Am = HART.amber, lamps = [];
+    const win = (x0, y0, w, h) => {
+      for (let y = y0; y <= y0 + h; y++) for (let x = x0; x <= x0 + w; x++) {
+        const edge = y === y0 || x === x0 || x === x0 + w || y === y0 + h;
+        s.px(x, y, edge ? Hu[1] : y > y0 + h - 2 ? '#d8862c' : (x + y) % 5 === 0 ? '#ffe0a0' : '#ffc060', !edge);
+      }
+      lamps.push([x0 + (w >> 1), y0 + (h >> 1)]);
+    };
+    // a habitat box: a pale top rounded at its ends, a blue face
+    const hab = (x0, x1, top, lip, foot, seed) => {
+      hartStrokes(s, x0, top, x1, lip - 1, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < 3 - (y - top) * 0.6 ? null : 0.78 - (x - x0) / (x1 - x0) * 0.2 - (lip - y) * 0.015; }, St, seed, { jit: 0.1 });
+      for (let x = x0 + 4; x <= x1 - 4; x += 12) for (let y = top + 1; y < lip; y++) s.px(x, y, St[2]);
+      hartStrokes(s, x0, lip, x1, foot, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < 2 - Math.min(2, (y - lip) * 0.5) ? null : 0.55 - (x - x0) / (x1 - x0) * 0.32 - (y - lip) * 0.005; }, CB, seed + 1, { jit: 0.12 });
+      for (let x = x0 + 1; x <= x1 - 1; x++) { s.px(x, lip, St[4]); s.px(x, foot, CB[0]); s.px(x, lip + 3, CB[1]); }
+      for (let y = lip + 1; y < foot; y++) { s.px(x0 + 1, y, CB[5]); s.px(x1 - 1, y, CB[1]); }
+    };
+    // the upper module, set back on the lower's roof; its pennant
+    for (let y = 1; y <= 18; y++) { s.px(56, y, Hu[y < 6 ? 6 : 5]); s.px(57, y, Hu[2]); }
+    s.px(56, 0, Am[2], true);
+    hartStrokes(s, 58, 2, 66, 9, (x, y) => (y > 7 && Math.abs(x - 62) < (y - 7) * 1.5 ? null : 0.62 - (x - 58) * 0.04), CB, 2402);
+    s.px(61, 5, HART.mark[2]); s.px(62, 5, HART.mark[3]);
+    hab(16, 58, 10, 18, 33, 2403);
+    win(22, 22, 10, 6); win(36, 22, 10, 6);
+    for (let y = 22; y < 33; y++) for (let x = 50; x <= 55; x++) s.px(x, y, x === 50 || y === 22 ? Hu[5] : x === 55 ? Hu[1] : Hu[2 + ((y >> 2) & 1)]);
+    s.px(54, 28, Am[2], true);
+    // the lower module, longer, in front
+    hab(3, 63, 31, 38, FY - 3, 2405);
+    win(26, 42, 9, 6); win(40, 42, 9, 6);
+    // its door, and the awning over it
+    for (let y = 42; y < FY - 3; y++) for (let x = 11; x <= 19; x++) s.px(x, y, x === 11 || y === 42 ? Hu[5] : x === 19 ? Hu[1] : Hu[2 + ((y >> 2) & 1)]);
+    s.px(18, 49, Am[2], true);
+    const C = HART.canvas;
+    hartStrokes(s, 8, 38, 22, 41, (x, y) => 0.72 - (y - 38) * 0.12 - (x - 8) * 0.01, C, 2406);
+    for (let x = 8; x <= 22; x++) s.px(x, 41, x % 3 ? C[1] : C[0]);
+    hartSeedStar(s, 56, 46, false);
+    // the stair up the right end to the upper door, its rail
+    for (let k = 0; k <= 9; k++) { const x = 66 - k * 1.2, y = FY - 2 - k * 2.6; for (let i = 0; i < 4; i++) s.px(x + i - 2, y, i < 2 ? Hu[5] : Hu[3]); s.px(x - 2, y + 1, Hu[1]); }
+    hartLine(s, [68, FY - 8], [57, 24], Hu[4]); hartLine(s, [68, FY - 2], [68, FY - 8], Hu[3]);
+    // the skids under it
+    for (let x = 4; x <= 62; x++) s.px(x, FY - 2, x < 30 ? Hu[3] : Hu[2]);
+    for (let x = 4; x <= 66; x++) s.px(x, FY - 1, Hu[0]);
+    // the planter of beans, by the door
+    hartStrokes(s, 1, FY - 5, 9, FY - 1, (x, y) => (y === FY - 5 ? 0.85 : 0.4 - (x - 1) * 0.02), HART.wood, 2407);
+    const BE = ['#2a1438', '#4a2266', '#7a3ca0', '#b070d8'];
+    for (const [x, h] of [[2, 4], [4, 6], [6, 5], [8, 3]]) for (let j = 1; j <= h; j++) { s.px(x + ((j & 1) ? 0 : 1), FY - 5 - j, j === h ? BE[3] : BE[1 + (j % 2)]); if (j === h - 1) s.px(x - 1, FY - 5 - j, '#3e6a2c'); }
+    return hartDone(s, 34, FY, { lamps, stone: [[1, FY, -1], [69, FY, 1], [63, 37, 1], [16, 17, -1]] });
+  });
+}
+// Each building's sprite by its id.
+function structureSprite(id) { return { bay: hartBay, refinery: hartRefinery, relay: hartRelay, quarters: hartQuarters }[id](); }

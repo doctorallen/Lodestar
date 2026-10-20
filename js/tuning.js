@@ -247,6 +247,48 @@ const T = {
     satchel: { mag: 3, cost: { lumenite: 8, chitin: 4 } },
     lens: { mag: 2, cost: { lumenite: 6, thread: 6 } },
   },
+  // The outpost's buildings (structures.js): each built once, at the
+  // forge's BUILDINGS tab, and set down at its plot. mag: the magnitude the
+  // star must have reached; cost: what it takes from the stash (ore,
+  // threads, a part's kind, an exotic). Mid-game goals, and where the
+  // threads go once the modules are worked.
+  //   bay: the Drone Bay, where Wick is fitted with upgrades (wickUp).
+  //   refinery: at the fabricator, `n` of an ore and `threads` refine into
+  //     one of the next ore up (only to an ore already brought home).
+  //   relay: an emergency recall takes `recall` of its time and costs
+  //     `loss` of its share; banking and travelling at a spire, `bank`.
+  //   quarters: `contracts` more on the board, each one settled pays
+  //     `pay` threads besides, and `settlers` more live at the outpost.
+  structures: {
+    bay: { mag: 2, cost: { ferrite: 4, thread: 15 } },
+    refinery: { mag: 2, cost: { lumenite: 4, thread: 35 }, n: 4, threads: 2 },
+    relay: { mag: 3, cost: { resonite: 5, thread: 70, chitin: 3 }, recall: 0.5, loss: 0.5, bank: 0.6 },
+    quarters: { mag: 4, cost: { aetherglass: 4, thread: 100, lodeshard: 1 }, contracts: 1, pay: 6, settlers: 2 },
+    // the plots (tiles; floor.js outpostPlots): the footprint kept clear
+    // [half width, behind, in front of the feet], how far from the middle
+    // they'd best be, and how far from the tracks out (the lodelines)
+    plot: { box: [1.6, 1.4, 0.5], r: 10, path: 2.1 },
+    // a building coming down to its plot: how long (s), from how high (px)
+    land: { time: 1.8, high: 150 },
+  },
+  // Wick's upgrades (wick.js), fitted at the forge's WICK tab once the Drone
+  // Bay stands; each can be turned off and on at the locker, free.
+  //   scan: every `every` s out in the land, a ping: veins within `reach`
+  //     tiles glint for `show` s, and marks point to the pack and to
+  //     modules on the ground.
+  //   lamp: a second, dimmer beam behind you: × the lamp's reach and
+  //     strength, its half-angle (degrees).
+  //   shield: a hit that would leave you under `below` of your health is
+  //     stopped by a hex shield; it's ready again once nothing has hurt you
+  //     for `rest` s (once a fight).
+  //   spark: every `every` s, a small shock at the nearest awake foe
+  //     within `reach` px: `frac` of its health (a boss's, `boss`).
+  wickUp: {
+    scan: { mag: 2, cost: { lumenite: 3, thread: 15, spore: 3 }, every: 7, reach: 8, show: 3.5 },
+    lamp: { mag: 3, cost: { resonite: 3, thread: 30, fiber: 3 }, reach: 0.62, i: 0.6, edge: 32 },
+    shield: { mag: 3, cost: { resonite: 4, thread: 60, chitin: 3 }, below: 0.35, rest: 20 },
+    spark: { mag: 4, cost: { aetherglass: 4, thread: 75, cog: 3 }, every: 2.6, reach: 64, frac: 0.07, boss: 0.012 },
+  },
 
   // The chance a vein is the biome's deeper ore, by site.
   oreDeep: { base: 0.12, perFloor: 0.12, max: 0.6 },
@@ -711,7 +753,9 @@ const T = {
     part: 0.45, partTwo: 0.15, eliteParts: [2, 3], bossParts: 4,
     exotic: 0.03, eliteExotic: 0.5,
     relic: 0.008, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
-    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.4, 0.12], set: [0.35, 0.1] },
+    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.15, 0.05], set: [0.15, 0.04] },
+    // a sealed relic opens into a rare module, or now and then better
+    relicOpens: { rare: 80, legendary: 12, set: 8 },
   },
 
   // Gear. Base numbers at tier 1, times tierGrowth a tier (affixes grow by
@@ -772,7 +816,7 @@ const T = {
   //     cargo.
   modules: {
     drop: { foe: 0.07, elite: 0.65, boss: 2, keeper: 3, deep: 1.4, early: { found: 8, mult: 2.6 }, lens: 1.5 },
-    keeperLegend: 3,
+    keeperLegend: 5,
     affixes: { common: 1, magic: 2, rare: 3, legendary: 2, set: 1 },
     value: 0.6,
     fits: { caster: 4, armor: 2.5, charm: 2, pick: 1.5 },
@@ -971,7 +1015,9 @@ const T = {
   //   occlude: draw the rock back over sprites behind it.
   //   lazy: a floor is painted in chunks as the view nears them: near,
   //     the margin (tiles) round the view painted before a frame; far, the
-  //     margin painted as time allows, budget ms a frame.
+  //     margin painted as time allows, budget ms a frame, out from lead
+  //     world px ahead of where the diver is heading; arrive, the budget
+  //     a frame for the view still behind the iris while it opens.
   paint: {
     // shade (pshadow.js): the shadows baked into the ground's tones, as how
     // far each lowers its light value (0-1, as ground.sunDark): sun, by day
@@ -982,7 +1028,7 @@ const T = {
     // most] its depth, at [x, y] from the foot, fall (how softly it fades
     // out); cover: under a tuft or a stand's blade, coverPad, coverRy.
     shade: { mul: 0.75, sun: 0.32, stand: 0.6, light: 0.3, home: 0.6, edge: [1.5, 0.05], contact: [0.16, 0.24, 0.3], contactPad: [1, 2, 3], contactRy: [2.5, 4.5], contactAt: [0.5, 0.5], contactFall: 0.7, cover: 0.14, coverPad: 0.5, coverRy: 1.6 },
-    lazy: { near: 2, far: 7, budget: 3 },
+    lazy: { near: 2, far: 7, budget: 3, arrive: 12, lead: 96 },
     ramp: { dark: [0.62, 0.3], light: [0.14, 0.28], rock: { dark: [0.6, 0.3], light: [0.3, 0.6] } },
     rampEven: { ground: { deep: 0.45, high: 0.24, gamma: 1 }, rock: { deep: 0.55, high: 0.45, gamma: 1.15 }, darkAt: [0.95, 0.42], liftGround: [0.7, 1.2], liftRock: [1.3, 2.2], under: [0.38, 8] },
     stroke: { whole: 0.12, one: 0.48 },
@@ -1296,8 +1342,9 @@ const T = {
 
 
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
-  // at once (ui.js; hints wait their turn).
-  ui: { tapGuard: 0.4, toasts: 2 },
+  // at once (ui.js; hints wait their turn). lineWait: seconds a spoken line
+  // waits behind others (out of any screen) before it's dropped as stale.
+  ui: { tapGuard: 0.4, toasts: 2, lineWait: 14 },
 
   // Sound (audio.js, music.js; cosmetic). master, music, sfx: levels; soft:
   // a setting's soft level; space: the echo's level. voices: the most

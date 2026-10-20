@@ -423,7 +423,8 @@ function outpostFloor(worldSeed) {
     // (distance from the line from the opening to the middle)
     const vx = c - e.x, vy = c - e.y, t = clamp(((x - e.x) * vx + (y - e.y) * vy) / (vx * vx + vy * vy), 0, 1);
     return Math.hypot(x - e.x - vx * t, y - e.y - vy * t) > r + 2.6;
-  }) && !outpostNearHome(site.home, x, y, r + 1) && site.pads.every((p) => Math.hypot(x - p.x, (y - p.y) / sq) > padR + r + 1 && Math.hypot(x - p.pod.x, y - p.pod.y) > r + 2.6);
+  }) && !outpostNearHome(site.home, x, y, r + 1) && site.pads.every((p) => Math.hypot(x - p.x, (y - p.y) / sq) > padR + r + 1 && Math.hypot(x - p.pod.x, y - p.pod.y) > r + 2.6)
+    && site.plots.every((p) => Math.hypot(x - p.x, y - p.y + 0.6) > r + 3);
   for (let n = rng.i(S.outcrops[0], S.outcrops[1]), tries = 0; n > 0 && tries < 200; tries++) {
     const x = rng.f(4, w - 5), y = rng.f(4, h - 5), r = rng.f(1.1, 2.3), e = edgeOf(x, y);
     if (e < S.rim[1] + 1.5 || e > S.meld.from - 4 || !clearOf(x, y, r)) continue;
@@ -482,7 +483,8 @@ function outpostSegDist(gx, gy, ax, ay, bx, by) {
 // pads round the plaza where they're furthest from the ways out (in the
 // order the landers come down: the nearest the front first), and the way
 // from the cradle out to each opening (paths: a faint trodden track, and
-// the line the star's lodelines run along).
+// the line the star's lodelines run along), and the plots the buildings
+// stand on (plots).
 const OUTPOST_MIDDLE = { x: 20, y: 21.6 };
 function outpostSite(exits) {
   const C = OUTPOST_MIDDLE, P = T.outpost.pads, ang = exits.map((e) => Math.atan2(e.y - C.y, e.x - C.x)), cr = OUTPOST_CRADLE;
@@ -512,5 +514,49 @@ function outpostSite(exits) {
     const room = (o) => Math.min(away(o.x, o.y), outpostNearHome(home, o.x, o.y, 1.5) ? -9 : 9, ...pads.filter((q) => q !== p).map((q) => Math.hypot(o.x - q.x, (o.y - q.y) / 0.72) - 3.6));
     p.pod = opts.sort((u, v) => room(v) - room(u))[0] || { x: p.x, y: p.y - 3 };
   }
-  return { ring, pads, paths, home: { x: home.x, y: home.y } };
+  const site = { ring, pads, paths, home: { x: home.x, y: home.y } };
+  site.plots = outpostPlots(site);
+  return site;
+}
+// The plots the outpost's buildings stand on (structures.js), one for each
+// in turn (STRUCTURE_IDS), the same on every visit: in the plan from the
+// start, built or not. Each is where its footprint (T.structures.plot.box,
+// round its feet) has the most room from the stations, the cradle, the
+// pads and their pods, the Kindler's pod and what's stacked by the
+// modules, clear of the tracks out (and the lodelines on them) and of the
+// rock, as near as can be to `r` tiles from the middle, and spread apart.
+// Tiles, the feet's middle.
+function outpostPlots(site) {
+  const P = T.structures.plot, B = P.box, C = OUTPOST_MIDDLE, E = T.outpost.size;
+  const box = (x, y, l, r, b, f) => [x - l, y - b, x + r, y + f];
+  // (the ground each station stands on, and the ground in front of the gate)
+  const ST = { altar: [0.7, 0.7, 1.2, 0.5], setout: [1.5, 1.5, 1.2, 1.6], locker: [0.7, 0.7, 1.2, 0.5], forge: [1.8, 1.2, 1.4, 0.6], runes: [1.0, 1.0, 1.2, 0.5], wreck: [1.0, 1.2, 1.4, 0.5], dummy: [0.6, 0.6, 0.8, 0.5] };
+  const obs = HUB_STATIONS.map((s) => { const k = ST[s.id] || [1, 1, 1, 0.5]; return box(s.x + 0.5, s.y + 0.8, k[0], k[1], k[2], k[3]); });
+  // the cradle and its masts, and the sky over it where the star hangs
+  obs.push([14.5, 13.2, 26, 21.3], [17, 9.5, 24, 13.2]);
+  obs.push(box(site.home.x, site.home.y, 1.6, 1.6, 1.4, 2.8));
+  for (const p of site.pads) obs.push(box(p.x, p.y, 2.4, 2.4, 2.4, 1.8), box(p.pod.x, p.pod.y, 1.4, 1.4, 1.3, 0.5));
+  if (typeof HUB_DRESSING !== 'undefined') for (const d of HUB_DRESSING) obs.push(box(d.x, d.y, 0.5, 0.5, 0.6, 0.3));
+  const gap = (a, b) => Math.max(a[0] - b[2], b[0] - a[2], a[1] - b[3], b[1] - a[3]);
+  const edge = (x, y) => Math.min(x, y, E - 1 - x, E - 1 - y), out = [];
+  for (let k = 0; k < STRUCTURE_IDS.length; k++) {
+    let best = null, bs = -1e9;
+    for (let y = 9; y <= E - 7; y += 0.5)
+      for (let x = 7; x <= E - 7; x += 0.5) {
+        if (edge(x - B[0], y - B[1] - 1.2) < 4.2 || edge(x + B[0], y + B[2]) < 4.2) continue;
+        const me = box(x, y, B[0], B[0], B[1], B[2]);
+        let room = 9;
+        for (const o of obs) room = Math.min(room, gap(me, o));
+        for (const p of site.paths) room = Math.min(room, outpostSegDist(x, y - 0.4, p.ax, p.ay, p.bx, p.by)[0] - P.path);
+        if (room < 0.4) continue;
+        const r = Math.hypot(x - C.x, (y - C.y) / 0.92), spread = out.length ? Math.min(...out.map((o) => Math.hypot(o.x - x, o.y - y))) : 9;
+        const sc = -Math.abs(r - P.r) + Math.min(room, 1.5) * 0.8 + Math.min(spread, 10) * 0.25;
+        if (sc > bs) { bs = sc; best = { x, y }; }
+      }
+    // (somewhere, always: by the pod if the plan is full)
+    if (!best) best = { x: site.home.x + (k % 2 ? 4 : -4), y: site.home.y + 3 + k };
+    out.push(best);
+    obs.push(box(best.x, best.y, B[0], B[0], B[1], B[2]));
+  }
+  return out;
 }

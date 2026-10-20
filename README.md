@@ -31,8 +31,8 @@ The loop:
 7. Some territories have a portal down into a Deep: a short dungeon of richer ore. Its end, the first time, gives deeplight for the star, as do ancient forges and echoes.
 
 At home, walk the outpost's stations:
-- the forge: recipes, each saying exactly what it makes and costs; it studies anything new you bring home and reveals what it can make from it; strike the anvil well and it adds to the piece; its Codex shows the resonances and the powers it remembers; SUPPLIES beside it makes injectors, Lightcells, flares, Ward Cells and charges from old ore;
-- the locker: your gear (crafted bases), the modules you've caught socketed into them, and each caster's circuit, built from stones; socketing is free;
+- the forge: recipes, each saying exactly what it makes and costs, and the BUILDINGS and WICK tabs, where the outpost's buildings are built (each comes down to its plot) and Wick is fitted with upgrades; it studies anything new you bring home and reveals what it can make from it; strike the anvil well and it adds to the piece; its Codex shows the resonances and the powers it remembers; SUPPLIES beside it makes injectors, Lightcells, flares, Ward Cells and charges from old ore, and refines ore up a grade once the Refinery stands;
+- the locker: your gear (crafted bases), the modules you've caught socketed into them, and each caster's circuit, built from stones; socketing is free; and Wick's upgrades, each turned off or on, free;
 - the rune bench: work a module: a tier up, one trait rerolled, two fused, a trait added, a power imprinted; paid in threads (salvaged modules) and ore;
 - the star's altar: hold FEED THE STAR and the light your deeds earned (heartlight, deeplight) rises into it, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements;
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
@@ -52,7 +52,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/audio.js` | Sound, made in code with Web Audio: the engine (started by the first tap, suspended when hidden, the settings), the effects (the opening's cues among them), and `snd(name, opts)`, the hook the game calls |
 | `js/music.js` | The music that grows with the star and thins in the dark, each place's own sound, the turn's unease; footsteps, heartbeat, stings and landers it listens for |
 | `js/sndbank.js` | The fight's sounds and the footsteps, layered and rendered ahead into a few variants each with an OfflineAudioContext (which needs no tap): every sound's first while the game loads, the rest while the loading allows, else in idle time; a play is only a buffer |
-| `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline; the outpost's site, its openings and its plan |
+| `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline; the outpost's site, its openings and its plan (its pads and the buildings' plots) |
 | `js/world.js` | The world: its rings of territories laid out from the save's seed, their neighbours, climes, names and goals; each territory's map (`generateTerritory`) with its openings, heart and waystones |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
 | `js/paint.js` | The painted style (docs/PAINTED.md): stroke ramps and strokes, the ground's tones, the rock rising as a heightfield from a steep three-quarter camera, occlusion, lazy painting in chunks, and the painted sprite builder |
@@ -60,8 +60,8 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/climes.js` | Climes: each one's palette, flora, critters and weather; rolling and naming them |
 | `js/story.js` | The story: the opening's captions, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
 | `js/hub.js` | The outpost: stations, the star over its cradle and its lodelines across the ground, light masts, starstone, the uplink, the settlement's landers and pods, feeding the star the light of deeds (held at its altar) |
-| `js/hubart.js` | The outpost, painted: the Charter's modules, the star and its cradle, starstone, light masts, landers, pods and people; the ancient forges in the land |
-| `js/hubground.js` | The outpost's ground: packed earth, the starstone spreading from the cradle as the star grows, its edges melding into each neighbour's land (ground, plants, rock), the landing pads, faint trodden tracks; `outpostGroundAt` (what's underfoot) |
+| `js/hubart.js` | The outpost, painted: the Charter's modules and the buildings, the star and its cradle, starstone, light masts, landers, pods and people; the ancient forges in the land |
+| `js/hubground.js` | The outpost's ground: packed earth, the starstone spreading from the cradle as the star grows, its edges melding into each neighbour's land (ground, plants, rock), the landing pads and the buildings' plots, faint trodden tracks; `outpostGroundAt` (what's underfoot) |
 | `js/anvil.js` | The forging minigame (its quality only adds), and the reveal of what arrives |
 | `js/intro.js` | The opening: five painted scenes that play on their own (the crossing, the survey, the landing, the Meridian, the outpost), their captions, SKIP and tap to hurry, and the last shot drawn by the game itself as the modules wake, the camera comes down and the Kindler steps out of their pod and is handed over |
 | `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp; Wick |
@@ -97,6 +97,8 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
 | `js/ui.js` | The Lodestar, star, cargo and pause screens, the report, the screens' plumbing, a caster's circuit on its card (and the drawer of stones), the top bar |
 | `js/gearui.js` | The gear screens: the forge (recipes by tab, close to making, research's reveal), the locker, the rune bench, and the cards for bases and modules |
+| `js/structures.js` | The outpost's buildings (the Drone Bay, the Refinery, the Forward Relay, the Settlers' Quarters): built once at the forge, coming down to their plots, drawn there, and what each does |
+| `js/wick.js` | Wick's upgrades (the Scanner, the Lamp, the Hex Shield, the Spark): fitted at the forge, turned off and on at the locker, and at work out in the land |
 | `js/supplies.js` | Supplies from old ore: the recipes as data (`CONSUMABLE_RECIPES`), making them at home and in the field, the deck's quick-use slot, their effects (flares, charges) and the SUPPLIES screen |
 | `js/worldmap.js` | The world map (SET OUT at the portal, TRAVEL at a spire) in pixel art, a territory's card, and the heart goal over the view |
 | `js/main.js` | Boot, then the loading (`bootEnter` after its tap), the fixed-step loop, the upright and sideways layouts |

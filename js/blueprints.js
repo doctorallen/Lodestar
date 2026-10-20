@@ -22,9 +22,9 @@
 // you hunting its creature (any grade, the lowest first).
 // ---------------------------------------------------------------------------
 
-// cat: the forge's tab. A later pass may add recipes of cat 'structure'
-// (the outpost's buildings) and 'wick' (Wick's upgrades): the forge shows a
-// tab for any cat that has a recipe (RECIPE_CATS).
+// cat: the forge's tab ('structure': the outpost's buildings; 'wick':
+// Wick's upgrades): the forge shows a tab for any cat that has a recipe
+// (RECIPE_CATS).
 // kind: which slot it goes in (a stone or a tool is neither). ore: how much
 // of the chosen ore makes it (a tool names its own, in T.tools). need: the
 // parts it takes, by kind ('any': any creature's). mult: the base stat
@@ -44,12 +44,24 @@ const BLUEPRINTS = {
   charm: { name: 'Charm', kind: 'charm', cat: 'charm', style: 'charm', ore: 10, need: { any: 2 }, start: true, text: 'Takes modules of any family.' },
   lantern: { name: 'Lantern', kind: 'charm', cat: 'charm', style: 'lantern', ore: 10, need: { spore: 2 }, implicit: { lamp: 30, pullSlow: 20 }, text: 'A brighter lamp, and your light fades 20% slower.' },
   // picks, with the tools
-  pick: { name: 'Pick', kind: 'pick', cat: 'tool', style: 'pick', ore: 16, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
+  pick: { name: 'Pick', kind: 'pick', cat: 'tool', style: 'pick', ore: 12, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
   drill: { name: 'Drill', kind: 'pick', cat: 'tool', style: 'drill', ore: 18, need: { cog: 2 }, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },
 };
 // The carried tools (tools.js), made once: their cost is T.tools[id].cost,
 // and the star must have reached T.tools[id].mag.
 for (const id of ['oresense', 'radar', 'beacon', 'map', 'satchel', 'lens']) BLUEPRINTS['tool_' + id] = { name: id, kind: 'tool', cat: 'tool', tool: id, start: id !== 'lens' };
+// The outpost's buildings (structures.js) and Wick's upgrades (wick.js),
+// each made once at home: known from the first day, their cost is
+// T.structures[id].cost or T.wickUp[id].cost, and the star must have
+// reached their mag (Wick's need the Drone Bay besides).
+const STRUCTURE_IDS = ['bay', 'refinery', 'relay', 'quarters'];
+const STRUCTURE_NAMES = { bay: 'Drone Bay', refinery: 'Refinery', relay: 'Forward Relay', quarters: "Settlers' Quarters" };
+const WICK_UP_IDS = ['scan', 'lamp', 'shield', 'spark'];
+const WICK_UP_NAMES = { scan: 'Scanner', lamp: 'Lamp', shield: 'Hex Shield', spark: 'Spark' };
+for (const id of STRUCTURE_IDS) BLUEPRINTS['bld_' + id] = { name: STRUCTURE_NAMES[id], kind: 'structure', cat: 'structure', structure: id, start: true };
+for (const id of WICK_UP_IDS) BLUEPRINTS['wick_' + id] = { name: WICK_UP_NAMES[id], kind: 'wick', cat: 'wick', wick: id, start: true };
+// Recipes made once, for a fixed cost (no ore to choose, no anvil).
+const recipeOnce = (bp) => !!bp && (bp.kind === 'tool' || bp.kind === 'structure' || bp.kind === 'wick');
 // Stones (circuits.js): a Form's needs ether; an Element's, its exotic
 // (Force, only ore); a Glyph's, its creature's parts.
 const STONE_FORMS = ['arc', 'glaive', 'bolt', 'lance', 'orb', 'nova', 'well', 'ward'];
@@ -68,14 +80,14 @@ for (const id in BLUEPRINTS) {
   else bp.need = {};
 }
 const BP_IDS = Object.keys(BLUEPRINTS);
-// The forge's tabs, in order; those after 'stone' wait for a later pass.
+// The forge's tabs, in order.
 const RECIPE_CATS = [['CASTERS', 'caster'], ['ARMOR', 'armor'], ['CHARMS', 'charm'], ['TOOLS', 'tool'], ['STONES', 'stone'], ['BUILDINGS', 'structure'], ['WICK', 'wick']];
 // what a piece made before blueprints is
 const KIND_BLUEPRINT = { caster: 'wand', armor: 'plate', charm: 'charm', pick: 'pick' };
 const bpOf = (item) => (item && item.kind !== 'module' && item.kind !== 'relic' && item.kind !== 'stone' ? BLUEPRINTS[item.bp || KIND_BLUEPRINT[item.kind]] || null : null);
 // the recipe a stone is forged from
 const bpOfStone = (stone) => BLUEPRINTS[BP_IDS.find((id) => BLUEPRINTS[id].stone === stone)] || null;
-const recipeName = (id) => { const bp = BLUEPRINTS[id]; return bp.tool ? TOOLS[bp.tool].name : bp.kind === 'stone' ? bp.name + ' stone' : bp.name; };
+const recipeName = (id) => { const bp = BLUEPRINTS[id]; return bp.tool ? TOOLS[bp.tool].name : bp.kind === 'stone' ? bp.name + ' stone' : bp.kind === 'wick' ? "Wick's " + bp.name : bp.name; };
 
 // Research: what the forge studies, and the recipes it reveals. of: an
 // ore, a part's kind, an exotic, or a module caught from a kind of
@@ -157,8 +169,8 @@ function partWords(kind, n) {
 // costs besides parts) }.
 function recipeCost(bpId, oreId, size) {
   const bp = BLUEPRINTS[bpId], out = { ore: null, parts: [], exotic: null, stuff: [] };
-  if (bp.kind === 'tool') {
-    const c = T.tools[bp.tool].cost;
+  if (recipeOnce(bp)) {
+    const c = bp.kind === 'tool' ? T.tools[bp.tool].cost : bp.kind === 'structure' ? T.structures[bp.structure].cost : T.wickUp[bp.wick].cost;
     for (const k in c) if (PARTS[k]) out.parts.push({ kind: k, n: c[k] }); else out.stuff.push({ id: k, n: c[k] });
     return out;
   }

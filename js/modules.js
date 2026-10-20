@@ -171,7 +171,7 @@ function forgeFindOnce(d) {
 
 // A sealed relic opens at the Lodestar into a rare module or better.
 function unsealRelic(rng, relic) {
-  const rarity = rng.weighted([[60, 'rare'], [25, 'legendary'], [15, 'set']]);
+  const W = T.loot.relicOpens, rarity = rng.weighted([[W.rare, 'rare'], [W.legendary, 'legendary'], [W.set, 'set']]);
   return makeModule(rng, moduleFits(rng, null, rarity === 'set'), relic.tier, { rarity, src: { relic: true } });
 }
 
@@ -505,9 +505,10 @@ function moduleDropSprite(col) {
   for (let y = 0; y < 12; y++) {
     const half = y < 3 ? y + 1 : y > 9 ? 12 - y : 3;
     for (let i = -half; i <= half; i++) {
-      // the lit faces and the bright edge glow a little; the rest is lit
+      // the faces glow (the captured pattern's own light, so the crystal
+      // is seen in the dark); only the shaded edge doesn't
       const c = i < -1 ? r[3] : i < 1 ? (i === -1 ? r[3] : r[2]) : i < 2 ? r[1] : r[0];
-      S.px(4 + i, y, c, i === -1 || (y < 3 && i < 1));
+      S.px(4 + i, y, c, c !== r[0]);
     }
   }
   S.px(3, 3, W, true); S.px(3, 4, r[3], true);
@@ -516,12 +517,22 @@ function moduleDropSprite(col) {
   return s;
 }
 // Drawn for a drop that's a module (render.js drawDrop): it settles out of
-// its capture, then glints now and then.
+// its capture, rings the ground in its colour a few times so it's seen
+// after the fight, then glints now and then.
+// (settled once its capture has collapsed: the capture runs on the world's
+// time, which a kill's hit-stop slows)
+const modSettled = (dr) => !dr.cap || dr.cap.t <= dr.cap.max * 0.22;
 function drawModuleDrop(dr, fx, fy, col) {
-  const k = Math.min(1, dr.t / 0.35);
-  if (k < 1) return;
+  if (!modSettled(dr)) return;
+  if (dr.settleT === undefined) dr.settleT = dr.t;
   const s = moduleDropSprite(col);
   drawShadow(fx, fy + ap(3), 2.5);
+  const since = dr.t - dr.settleT;
+  if (since < 2.4) {
+    // a ring on the ground, out from its foot, every 0.8 s
+    const ph = (since % 0.8) / 0.8, r = ap(4 + ph * 10);
+    ringDots(fx, fy + ap(3), r, col, (1 - ph) * (1 - since / 2.4) * 0.9, true);
+  }
   drawArtSprite(s, fx - 4, fy - 8);
   const ph = (Game.realT + (dr.x % 7) * 0.31) % 1.8;
   if (ph < 0.16) {
@@ -535,18 +546,34 @@ function drawModuleDrop(dr, fx, fy, col) {
 // Where a creature fell, its energy draws in and collapses into the
 // crystal; taken, the capture field's tether pulls a few motes to the
 // Kindler.
-function moduleCaptureFx(d, x, y, col) { d.fx.push({ kind: 'capture', x, y, col, t: 0.4, max: 0.4, s: (x * 7 + y * 13) | 0 }); }
+function moduleCaptureFx(d, x, y, col) { const fx = { kind: 'capture', x, y, col, t: 0.7, max: 0.7, s: (x * 7 + y * 13) | 0 }; d.fx.push(fx); return fx; }
 function moduleTetherFx(d, x, y, col) { d.fx.push({ kind: 'tether', x, y, col, t: 0.32, max: 0.32 }); }
 // (render.js drawCombatFx) k runs 1 to 0 over the effect.
 function drawModuleFx(fx, cx, cy, k, lights, ox, oy) {
   if (fx.kind === 'capture') {
-    const p = 1 - k, n = 9;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + fx.s * 0.37 + p * 1.6, r = (1 - p) * (14 + (i % 3) * 3) * AP;
-      dot(Math.round(cx + Math.cos(a) * r), Math.round(cy - ap(5) + Math.sin(a) * r * 0.7), i % 3 ? fx.col : '#ffffff', true, 0.35 + 0.65 * p);
+    // the pattern's energy spirals in (bold motes, each with a short tail,
+    // so it reads over a death's burst), then collapses with a white flash
+    // and a ring thrown out in the rarity's colour as the crystal forms
+    const t = 1 - k, draw = Math.min(1, t / 0.78), n = 12, oy = cy - ap(5);
+    if (draw < 1) {
+      const e = draw * draw;
+      for (let i = 0; i < n; i++) {
+        for (let tail = 0; tail < 3; tail++) {
+          const q = Math.max(0, e - tail * 0.05), a = (i / n) * Math.PI * 2 + fx.s * 0.37 + q * 3.2, r = (1 - q) * (20 + (i % 3) * 5) * AP;
+          const x = Math.round(cx + Math.cos(a) * r), y = Math.round(oy + Math.sin(a) * r * 0.7), c = tail ? fx.col : i % 3 ? fx.col : '#ffffff', al = (0.5 + 0.5 * draw) * (1 - tail * 0.3);
+          // (a dark foot under each, so it reads on a lit floor)
+          if (!tail) { dot(x, y + 2, '#000000', false, al * 0.45); dot(x + 1, y + 2, '#000000', false, al * 0.45); }
+          dot(x, y, c, true, al);
+          if (!tail) { dot(x + 1, y, c, true, al); dot(x, y + 1, c, true, al); dot(x + 1, y + 1, c, true, al); }
+        }
+      }
+    } else {
+      const f = (t - 0.78) / 0.22, r = ap(3 + f * 12);
+      for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) if (Math.abs(i) + Math.abs(j) <= 2) dot(cx + i, oy + j, '#ffffff', true, 1 - f);
+      ringDots(cx, oy, r, fx.col, 1 - f, true);
+      ringDots(cx, oy, Math.max(1, r - ap(2)), '#ffffff', (1 - f) * 0.5, true);
     }
-    if (k < 0.2) { const r = ap(3); for (const [i, j] of [[0, -r], [0, r], [-r, 0], [r, 0]]) dot(cx + i, cy - ap(5) + j, '#ffffff', true, k * 5); }
-    lights.push({ x: cx, y: cy - ap(5), r: TILE * (0.6 + p), i: 0.6 * p, c: rgb01(fx.col) });
+    lights.push({ x: cx, y: oy, r: TILE * (0.8 + draw * 1.2), i: draw < 1 ? 0.4 + 0.5 * draw : 1.2 * (1 - (t - 0.78) / 0.22), c: rgb01(fx.col) });
     return;
   }
   // the tether: a line of the field's light, motes running along it home

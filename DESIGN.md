@@ -265,9 +265,9 @@ Gear is two halves: a **base you craft**, exactly what its recipe says, and **mo
 - **The anvil only adds.** Three strikes set the temper: rough as the recipe says, fair +5% on its numbers, fine +10%, a masterwork +15%, a module socket more and, on a caster, its second and third slots linked. A fine forge or better makes a stone a tier higher.
 - **Sockets** by tier: 1 at tiers 1–2, 2 at 3–5, 3 at Starmetal; a pick 1 (2 at 5–6), the rusty pick none.
 - **A caster's size is chosen:** a wand or gauntlet 3 or 4 circuit slots, a staff 4, 5 or 6; each slot past the first costs 5 ore and a part more. A resonance must fill its caster exactly, so the size is a choice, not luck.
-- **What it takes:** the recipe's ore (any ore: it sets the tier; a wand 12, a gauntlet 14, a staff 18, plate 16, a weave 12, a shell 20, a charm or lantern 10, a pick 16, a drill 18) and parts. The plain recipes known from the start (wand, gauntlet, plate, charm, pick) take any creature's parts; the rest name their creature: staff 3 ether, weave 3 fibre, shell 3 chitin, lantern 2 spores, drill 2 cogs.
+- **What it takes:** the recipe's ore (any ore: it sets the tier; a wand 12, a gauntlet 14, a staff 18, plate 16, a weave 12, a shell 20, a charm or lantern 10, a pick 12, a drill 18) and parts. The plain recipes known from the start (wand, gauntlet, plate, charm, pick) take any creature's parts; the rest name their creature: staff 3 ether, weave 3 fibre, shell 3 chitin, lantern 2 spores, drill 2 cogs.
 - **Optional exotics:** riftglass forges a base a tier above its ore; an elemental exotic worked into a caster brings its Element's stone out with it.
-- **The forge's tabs:** CASTERS, ARMOR, CHARMS, TOOLS (picks and the carried tools), STONES, and the CODEX. A dot marks what can be made now. At the top, **CLOSE TO MAKING** names up to two recipes better than what's worn that are short by a little, and what they're missing. (Recipes of cat `structure` and `wick`, the outpost's buildings and Wick's upgrades, are a later pass: the forge shows their tabs once a recipe exists.)
+- **The forge's tabs,** in two rows: CASTERS, ARMOR, CHARMS, TOOLS (picks and the carried tools), STONES, BUILDINGS (the outpost's buildings), WICK (Wick's upgrades) and the CODEX. A dot marks what can be made now, a tick what's built or fitted. At the top, **CLOSE TO MAKING** names up to two recipes better than what's worn that are short by a little, and what they're missing.
 - **Stones** for circuits (Combat and builds) are recipes too: a Form's 6 ore and 2 ether; an Element's 4 ore and its exotic (Force needs none); a Glyph's 5 ore and 3 of its creature's parts (chitin Pierce and Split, ether Echo, cogs Quicken, fibre Linger and Trigger, spores Chain, any Amplify).
 - **Tools** are made once at the forge, from the stash, when the star has grown enough (Tools).
 
@@ -465,6 +465,26 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
 | Proximity | +8% close spell damage |
 | Clarity | +8% spell damage |
 | Stride | +5% move speed |
+
+### The buildings
+The Charter planned more base than came down with the seed. Each building has a plot in the outpost's plan from the first day (a deck slab with amber corner lights, the seed-star stencilled on it while it's empty), the same spot every visit. Each is built once at the forge's BUILDINGS tab; the *Meridian* drops it, and it comes down to its plot on its thrusters the first time the plot is in view. They're painted as the stations are, cast the star's shadows and grow starstone. Numbers in `T.structures`.
+
+| Building | Magnitude | Costs | What it does |
+|---|---|---|---|
+| Drone Bay | 2 | 8 Ferrite, 15 threads | Wick can be fitted with upgrades (the forge's WICK tab) |
+| Refinery | 2 | 8 Lumenite, 30 threads | At SUPPLIES: 4 of an ore and 2 threads refine into 1 of the next ore up (one already brought home) |
+| Forward Relay | 3 | 10 Resonite, 60 threads, 3 chitin | An emergency recall takes half the time and loses half as much; banking and travel at a spire are quicker |
+| Settlers' Quarters | 4 | 8 Aetherglass, 90 threads, a Lodestone shard | A fourth contract on the board, each settled pays 6 threads besides; two more settlers, and their lines |
+
+### Wick's upgrades
+Fitted once at the forge's WICK tab, once the Drone Bay stands; each can be turned off and on at the locker, free. Each shows what it does, and Wick says a line the first time. Numbers in `T.wickUp`.
+
+| Upgrade | Magnitude | Costs | What it does |
+|---|---|---|---|
+| Scanner | 2 | 5 Lumenite, 15 threads, 3 spore | Every 7 s out in the land a ring goes out from Wick: veins within 8 tiles glint, arrows mark the pack and modules on the ground |
+| Lamp | 3 | 6 Resonite, 25 threads, 3 fibre | A second, dimmer beam behind you (with the lamp as a beam) |
+| Hex Shield | 3 | 8 Resonite, 50 threads, 3 chitin | Once a fight, a hex shield stops the hit that would leave you under 35% health; ready again after 20 s unhurt |
+| Spark | 4 | 8 Aetherglass, 65 threads, 3 cogs | Every 2.6 s, a shock at the nearest awake foe within 4 tiles: 7% of its health |
 
 ### Fewer trips home
 - **Salvage in the field:** break found gear down into ore in the cargo, so it isn't all weight. Ore that doesn't fit is left on the floor.
