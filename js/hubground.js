@@ -6,9 +6,9 @@
 // neighbour's look (its ground, its clime's marks, its plants' beds; its
 // rock in pntPaintRock), and laid over the cleared ground pixel by pixel
 // where the meld reaches, the border wandering and torn in streaks, so the
-// site grades into the land round it. Over both: the Charter's deck under
-// the modules, the ring round the cradle, the landing pads and the marked
-// paths out to the openings. Every helper here is named hgr…; numbers are
+// site grades into the land round it. On the cleared earth: the starstone
+// spreading out from the cradle as the star grows, faint trodden tracks
+// out to the openings, and the landing pads. Every helper here is named hgr…; numbers are
 // in T.outpost and T.paint.site.
 // ---------------------------------------------------------------------------
 
@@ -77,62 +77,106 @@ function hgrPaintMeld(f, tx0, ty0, tx1, ty1) {
 }
 
 // ---- the plaza's ground ------------------------------------------------------
-// Is tile point (gx, gy) on the Charter's plates: the ring round the
-// cradle, a module's slab or a walkway (m: tiles more all round)?
-function hgrOnDeck(S, gx, gy, m = 0) {
-  const sq = T.paint.site.squash, rg = S.ring;
-  if (Math.hypot(gx - rg.x, (gy - rg.y) / sq) <= rg.r + m) return true;
-  for (const b of S.slabs) if (Math.abs(gx - b.x) <= b.rx + m && Math.abs(gy - b.y) <= b.ry + m) return true;
-  for (const w of S.walks) if (outpostSegDist(gx, gy, w.ax, w.ay, w.bx, w.by)[0] <= T.paint.site.walkW + m) return true;
-  return false;
+// Starstone: the star's own growth spreading into the ground round its
+// cradle, dark lodestone veined with gold, reaching further at every
+// magnitude (T.outpost.ground: from reach[0] tiles at magnitude 1, reach[1]
+// more each). Its edge isn't a circle: it wanders by a noise, and tendrils
+// (the ridges of another noise) creep ahead of it into the earth. At tile
+// point (gx, gy), for the star at magnitude mag: 0 the earth, 1 starstone,
+// 2 a tendril; and how far in from its edge it is (tiles), and how far from
+// the cradle, in _hgrStone.
+const _hgrStone = { inset: 0, d: 0 };
+function hgrStoneReach(mag) { const G = T.outpost.ground; return G.reach[0] + G.reach[1] * Math.max(0, mag - 1); }
+function hgrStoneAt(f, gx, gy, R) {
+  const G = T.outpost.ground, rg = f.site.ring, dx = gx - rg.x, dy = (gy - rg.y) / G.squash, d = Math.hypot(dx, dy);
+  _hgrStone.d = d;
+  if (d > R + G.wander + G.tendril[0]) return 0;
+  const x = gx * ATILE, y = gy * ATILE, seed = f.seed + 40;
+  const v = R - d + (pntNoise(x, y, G.wobble[0], G.wobble[0], seed) - 0.5) * 2 * G.wander + (pntNoise(x, y, G.wobble[1], G.wobble[1], seed + 1) - 0.5) * G.wander;
+  _hgrStone.inset = v;
+  if (v >= 0) return 1;
+  // a tendril: a ridge of a noise, running out ahead, thinner further out
+  const r = 1 - Math.abs(2 * pntNoise(x, y, G.tendril[2], G.tendril[2], seed + 2) - 1);
+  return r > G.tendril[1] && -v < G.tendril[0] * (r - G.tendril[1]) / (1 - G.tendril[1]) ? 2 : 0;
 }
-// The plates, the pads and the paths over one tile's ground (paintTileArt,
+// What's underfoot at world px x, y at home: 'metal' on a landing pad,
+// the land beyond's clime where the meld has taken over ('frost',
+// 'bloomfen'…), 'starstone', or 'earth'; null away from home. (For the
+// footsteps' sound.)
+function outpostGroundAt(x, y) {
+  const d = Game.dive, f = d && d.hub ? d.floor : null;
+  if (!f || !f.site) return null;
+  const gx = x / TILE, gy = y / TILE, Ps = T.paint.site;
+  if (f.site.pads.some((p) => Math.hypot(gx - p.x, (gy - p.y) / Ps.squash) < Ps.padR)) return 'metal';
+  const k = hgrMeldAt(f, x * AP, y * AP);
+  if (k >= 0) return hgrMeldTerr(f, k).clime || 'earth';
+  return hgrStoneAt(f, gx, gy, hgrStoneReach(magnitudeOf(Save.data.star))) ? 'starstone' : 'earth';
+}
+// The footsteps' material at home (audio.js sndGroundAt): starstone rings
+// like stone, the cleared earth is dirt, the land beyond its own clime's.
+if (typeof Snd !== 'undefined') Snd.hubGround = (x, y) => {
+  const g = outpostGroundAt(x, y);
+  return !g ? null : g === 'starstone' ? 'stone' : g === 'earth' ? 'dirt' : g === 'metal' ? 'metal' : SND_CLIME_GROUND[g] || 'dirt';
+};
+// The cleared earth's own marks, the starstone, the trodden tracks out to
+// the openings and the landing pads, over one tile's ground (paintTileArt,
 // after the ground and before what grows on it, so the shadows of what
 // stands there still fall on them). Each takes its tone from the ground's
 // (View.groundTone), so the strokes and the light's patches carry on
-// across them.
+// across them. In the meld's pass (the land beyond, painted again) only
+// the pads: the land beyond covers the rest.
 function hgrPaintGround(P, f, tx, ty, ox, oy) {
-  const S = f.site, Ps = T.paint.site, R = View.rockPx, tone = View.groundTone, W = P.w, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em;
+  const S = f.site, Ps = T.paint.site, G = T.outpost.ground, R = View.rockPx, tone = View.groundTone, W = P.w, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em;
   if (!S) return;
-  const gx0 = tx + 0.5, gy0 = ty + 0.5, sq = Ps.squash, px1 = 1 / ATILE;
-  const deckNear = hgrOnDeck(S, gx0, gy0, 1);
+  const gx0 = tx + 0.5, gy0 = ty + 0.5, sq = Ps.squash, px1 = 1 / ATILE, base = !(f.meldPainting >= 0);
+  const reach = hgrStoneReach(magnitudeOf(Save.data.star)), rg = S.ring;
+  const stoneNear = base && Math.hypot(gx0 - rg.x, (gy0 - rg.y) / G.squash) < reach + G.wander + G.tendril[0] + 1;
   const pads = S.pads.filter((p) => Math.abs(p.x - gx0) < Ps.padR + 1.5 && Math.abs(p.y - gy0) < Ps.padR * sq + 1.5);
-  const paths = S.paths.filter((p) => outpostSegDist(gx0, gy0, p.ax, p.ay, p.bx, p.by)[0] < Ps.pathW + 1.5);
-  if (!deckNear && !pads.length && !paths.length) return;
-  const DK = hgrRamp('deck'), GV = hgrRamp('gravel'), mark = Ps.mark.map(pntU32), star = Ps.star.map(pntU32), lamp = rgbOf(Ps.lamp), rg = S.ring;
-  const put = (x, y, c, glow) => { const k = y * W + x; C32[k] = c; if (glow) { E[k * 4] = glow[0]; E[k * 4 + 1] = glow[1]; E[k * 4 + 2] = glow[2]; E[k * 4 + 3] = 255; } };
+  const paths = base ? S.paths.filter((p) => outpostSegDist(gx0, gy0, p.ax, p.ay, p.bx, p.by)[0] < Ps.pathW + 1.5) : [];
+  if (!stoneNear && !pads.length && !paths.length) return;
+  const DK = hgrRamp('deck'), LS = hgrRamp('lodestone'), V = Ps.vein.map((h) => pntU32(rgbOf(h))), VR = Ps.vein.map(rgbOf), mark = Ps.mark.map(pntU32), star = Ps.star.map(pntU32), lamp = rgbOf(Ps.lamp), seed = f.seed + 50;
+  const put = (x, y, c, glow, a = 255) => { const k = y * W + x; C32[k] = c; if (glow) { E[k * 4] = glow[0]; E[k * 4 + 1] = glow[1]; E[k * 4 + 2] = glow[2]; E[k * 4 + 3] = a; } };
   for (let y = oy; y < oy + ATILE; y++)
     for (let x = ox; x < ox + ATILE; x++) {
       const q = y * W + x;
       if (R[q]) continue;
       const gx = (x + 0.5) / ATILE, gy = (y + 0.5) / ATILE, t = tone[q];
-      // the paths: packed gravel, a dashed amber line along each edge
+      // the trodden tracks: the earth worn a shade darker, in broken
+      // streaks, along the way from the cradle to each opening
       for (const p of paths) {
-        const [dd, along] = outpostSegDist(gx, gy, p.ax, p.ay, p.bx, p.by), e = Ps.pathW - dd;
-        if (e < 0) continue;
-        const edge = e * ATILE < 1.5 && (Math.floor(along * ATILE / Ps.dash) % 3 === 0);
-        put(x, y, edge ? mark[t > 3 ? 1 : 0] : GV[clamp(t + 1 + (artHash(x >> 1, y, 0x9a7) < 0.2 ? -1 : 0), 0, 6)]);
+        const [dd] = outpostSegDist(gx, gy, p.ax, p.ay, p.bx, p.by);
+        if (dd > Ps.pathW || pntNoise(x, y, 14, 4, seed + 1) < 0.15 + dd / Ps.pathW * 0.45) continue;
+        C32[q] = ugDarken(C32[q], Ps.trod);
       }
-      // the plates: in courses, seams dark, their top and left edges lit;
-      // the deck's own edge lit along the north and west, a dark lip south
-      if (hgrOnDeck(S, gx, gy)) {
-        const pw = Ps.plate[0], ph = Ps.plate[1], row = Math.floor(y / ph), sx = x + (row & 1) * (pw >> 1), u = sx % pw, v = y % ph;
-        let k = clamp(Math.round(Ps.deckTone[0] + t * Ps.deckTone[1] + (artHash(Math.floor(sx / pw), row, 0xd3c) - 0.5) * 1.2), 0, 6);
-        if (u === 0 || v === 0) k = Math.max(0, k - 2); else if (u === 1 || v === 1) k = Math.min(6, k + 1);
-        if (!hgrOnDeck(S, gx, gy + 2 * px1)) k = 0; else if (!hgrOnDeck(S, gx, gy + 3 * px1)) k = Math.max(0, k - 2);
-        else if (!hgrOnDeck(S, gx, gy - 1.5 * px1) || !hgrOnDeck(S, gx - 1.5 * px1, gy)) k = 6;
-        let c = DK[k];
-        // the ring's line, dashed amber, inside its edge
-        const rr = Math.hypot(gx - rg.x, (gy - rg.y) / sq);
-        if (Math.abs(rr - (rg.r - 0.45)) * ATILE < 1.1) { const a = Math.atan2((gy - rg.y) / sq, gx - rg.x); if (Math.floor((a + Math.PI) / (Math.PI * 2) * 36) % 3) c = mark[t > 2 ? 1 : 0]; }
-        put(x, y, c);
+      // the starstone: dark lodestone in the ground's strokes, gold veins
+      // through it, brighter and glowing nearer the cradle; a lit front of
+      // gold where it meets the earth; tendrils of it out ahead
+      const st = stoneNear ? hgrStoneAt(f, gx, gy, reach) : 0;
+      if (st) {
+        const near = clamp(1 - _hgrStone.d / Math.max(4, reach), 0, 1), inset = _hgrStone.inset;
+        const c = LS[clamp(Math.round(t * 0.85 + (artHash(x >> 2, y, seed + 2) < 0.15 ? 1 : 0)), 0, 6)];
+        let vk = -1;
+        const v1 = 1 - Math.abs(2 * pntNoise(x, y, G.vein[0], G.vein[1], seed + 3) - 1), v2 = 1 - Math.abs(2 * pntNoise(x, y, G.vein[2], G.vein[3], seed + 4) - 1);
+        // (a tendril's core gold, its sides lodestone; the front a broken
+        // line of gold; then the veins, the bright and the fine)
+        if (st === 2) vk = artHash(x >> 1, y, seed + 7) < 0.55 ? 2 : -1;
+        else if (inset < G.front) vk = artHash(x >> 2, y, seed + 5) < 0.45 ? 1 : -1;
+        else if (v1 > G.veinCut[0]) vk = v1 > (1 + G.veinCut[0]) / 2 ? 3 : 2;
+        else if (v2 > G.veinCut[1]) vk = 1;
+        if (vk >= 0) {
+          // (the bright veins near the cradle glow faintly, in loose
+          // strokes: the stroke a pixel is in is lit or not)
+          vk = clamp(vk + (near > 0.55 && vk >= 2 ? 1 : 0) - (t < 2 ? 1 : 0), 0, 4);
+          const glow = vk >= 3 && artHash(Math.floor((x + (y & 3) * 2) / 5), y, seed + 6) < G.glint[0] + near * (1 - G.glint[0]) && near > 0.1;
+          put(x, y, V[vk], glow ? VR[vk] : null, Math.round(255 * G.glint[1] * (0.3 + near * 0.7)));
+        } else put(x, y, c);
       }
       // the landing pads: a disc of plates, a ring of amber, the seed-star
       // in the middle, and four landing lights
       for (const p of pads) {
         const dx = gx - p.x, dy = (gy - p.y) / sq, r = Math.hypot(dx, dy);
         if (r > Ps.padR) continue;
-        let c = DK[clamp(Math.round(Ps.deckTone[0] + 0.5 + t * Ps.deckTone[1]), 0, 6)];
+        let c = DK[clamp(Math.round(2.1 + t * 0.75), 0, 6)];
         if (r > Ps.padR - 1.5 * px1) c = DK[0];
         else if (r > Ps.padR - 2.5 * px1) c = DK[6];
         else if (Math.abs(r - Ps.padR * 0.78) * ATILE < 1.3) c = mark[1];
@@ -151,14 +195,15 @@ function hgrRamp(id) { return _hgrRamps[id] || (_hgrRamps[id] = Uint32Array.from
 
 // ---- what grows ------------------------------------------------------------
 // The plants: each side's own, growing in thicker towards its opening, and
-// none on the plates, the pads or the paths; each side with its own beds and
+// none on the pads or the starstone; each side with its own beds and
 // cover (View.ugMeld[k]), painted in with its land (hgrPaintMeld). The
 // cleared ground's own (View.ug) grows nothing but moss on the rock.
 function hgrFlora(f) {
   const S = f.site, M = f.meld, N = f.w * f.h, Ps = T.paint.site, sq = Ps.squash, clear = new Uint8Array(N);
+  const reach = hgrStoneReach(magnitudeOf(Save.data.star));
   for (let ty = 0; ty < f.h; ty++) for (let tx = 0; tx < f.w; tx++) {
     const gx = tx + 0.5, gy = ty + 0.5;
-    if (hgrOnDeck(S, gx, gy, 1) || S.pads.some((p) => Math.hypot(gx - p.x, (gy - p.y) / sq) < Ps.padR + 1) || S.paths.some((p) => outpostSegDist(gx, gy, p.ax, p.ay, p.bx, p.by)[0] < Ps.pathW + 0.8)) clear[ty * f.w + tx] = 1;
+    if (S.pads.some((p) => Math.hypot(gx - p.x, (gy - p.y) / sq) < Ps.padR + 1) || hgrStoneAt(f, gx, gy, reach + 0.5) === 1) clear[ty * f.w + tx] = 1;
   }
   placeUndergrowth(f, 'surface', { mask: new Float32Array(N) });
   const U0 = View.ug, all = [];

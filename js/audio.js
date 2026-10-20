@@ -2,7 +2,8 @@
 // ---------------------------------------------------------------------------
 // Sound, made in code with Web Audio: nothing is loaded. This file is the
 // engine and the effects; the music and each place's own sound are in
-// music.js.
+// music.js; the fight's sounds and the footsteps are layered and rendered
+// ahead after the first tap (sndbank.js), and played here as buffers.
 //
 // snd(name, opts) plays a named cue (SND_CUES). A name it doesn't know
 // does nothing, and nothing plays or throws before the first tap, when the
@@ -61,15 +62,7 @@ const Snd = {
     const n = c.sampleRate * 2, buf = c.createBuffer(1, n, c.sampleRate), ch = buf.getChannelData(0);
     for (let i = 0; i < n; i++) ch[i] = sndRand() * 2 - 1;
     this.noise = buf;
-    // tones with a few soft harmonics, so a low note still sounds on a
-    // phone without being harsh
-    const wave = (amp) => { const re = new Float32Array(amp.length + 1), im = new Float32Array(amp.length + 1); amp.forEach((a, i) => { im[i + 1] = a; }); return c.createPeriodicWave(re, im); };
-    const H = (n, f) => Array.from({ length: n }, (_, i) => f(i + 1));
-    this.waves = {
-      warm: wave(H(12, (k) => 1 / Math.pow(k, 1.45))),
-      hollow: wave(H(11, (k) => (k % 2 ? 1 / Math.pow(k, 1.1) : 0.12 / k))),
-      reed: wave(H(10, (k) => (k === 3 || k === 4 ? 0.7 : 1) / k)),
-    };
+    this.waves = sndWaves(c);
     this.levels = { music: -1, sfx: -1 };
     this.applyLevels(true);
     this.ready = true;
@@ -109,7 +102,7 @@ const Snd = {
   cueDone(o) {
     let tail = null;
     for (const s of o.srcs) if (!tail || s.stopAt > tail.stopAt) tail = s;
-    if (tail) tail.onended = () => { try { o.node.disconnect(); if (o.last !== o.node) o.last.disconnect(); if (o.send) o.send.disconnect(); } catch (e) { /* already loose */ } };
+    if (tail) tail.onended = () => { try { o.node.disconnect(); if (o.extra) o.extra.disconnect(); if (o.last !== o.node) o.last.disconnect(); if (o.send) o.send.disconnect(); } catch (e) { /* already loose */ } };
   },
 
   // Where a cue is heard from: { g, pan }, by its distance from the Kindler.
@@ -131,14 +124,41 @@ const Snd = {
     if (t - (this.last[name] === undefined ? -99 : this.last[name]) < (cue.gap === undefined ? T.sound.gap : cue.gap)) return false;
     this.ends = this.ends.filter((e) => e > t);
     if (this.ends.length >= T.sound.voices && !cue.pri) return false;
-    const w = this.where(o.x === undefined && cue.at ? cue.at() : o);
+    const parts = cue.bank ? cue.bank(o) : null;
+    if (parts && !SndBank.has(parts[0][0])) return false;
+    const w = cue.where ? cue.where(o) : this.where(o.x === undefined && cue.at ? cue.at() : o);
     if (w.g < 0.03) return false;
     this.last[name] = t;
     const out = this.cueOut(t, (cue.g || 0.3) * w.g * (o.g || 1), w.pan);
-    cue.fn(this, out, t, o);
+    if (parts) this.playBank(out, t, parts, cue.spread === undefined ? 0.04 : cue.spread, w.rate || 1, cue.lp);
+    else cue.fn(this, out, t, o);
+    if (cue.also) cue.also(t);
     this.cueDone(out);
     this.ends.push(out.end);
     return true;
+  },
+
+  // A cue from the bank (sndbank.js): each part [key, level, delay] a
+  // rendered variant, all at one speed a little off true (and through a
+  // low pass somewhere in lp [lo, hi], if it has one), so no two plays are
+  // the same.
+  playBank(out, t, parts, spread, k, lp) {
+    const c = this.ctx, rate = k * (1 + sndRange(-spread, spread));
+    if (lp) {
+      const f = c.createBiquadFilter(), was = out.node;
+      f.type = 'lowpass'; f.frequency.value = sndRange(lp[0], lp[1]); f.Q.value = 0.6;
+      f.connect(was); out.node = f; out.extra = was;
+    }
+    for (const [k, g, dt] of parts) {
+      if (!SndBank.has(k)) continue;
+      const b = SndBank.pick(k), src = c.createBufferSource(), at = t + (dt || 0);
+      src.buffer = b; src.playbackRate.value = rate;
+      let node = src;
+      if (g !== 1) { const gn = c.createGain(); gn.gain.value = g; src.connect(gn); node = gn; }
+      node.connect(out.node);
+      src.start(at); src.stopAt = at + b.duration / rate;
+      out.srcs.push(src); out.end = Math.max(out.end, src.stopAt);
+    }
   },
 
   // Every frame, from the loop: the settings, then the music and what it
@@ -151,6 +171,18 @@ const Snd = {
     } catch (e) { /* sound never stops the game */ }
   },
 };
+
+// Tones with a few soft harmonics, so a low note still sounds on a phone
+// without being harsh, made on context c.
+function sndWaves(c) {
+  const wave = (amp) => { const re = new Float32Array(amp.length + 1), im = new Float32Array(amp.length + 1); amp.forEach((a, i) => { im[i + 1] = a; }); return c.createPeriodicWave(re, im); };
+  const H = (n, f) => Array.from({ length: n }, (_, i) => f(i + 1));
+  return {
+    warm: wave(H(12, (k) => 1 / Math.pow(k, 1.45))),
+    hollow: wave(H(11, (k) => (k % 2 ? 1 / Math.pow(k, 1.1) : 0.12 / k))),
+    reed: wave(H(10, (k) => (k === 3 || k === 4 ? 0.7 : 1) / k)),
+  };
+}
 
 // A promise from the context, its rejection ignored (a browser may refuse
 // to resume, which isn't an error worth showing).
@@ -244,42 +276,18 @@ function sndSwell(S, o, t, semis, g, a, d, w = 'warm', lp = 1600, send = 0.3) {
   semis.forEach((s, i) => sndTone(S, o, t, { f: sndHz(s), w, lp, a, d, g: g / Math.sqrt(semis.length), det: (i % 2 ? 4 : -4), send }));
 }
 
-// Each element's own colour on a cast or a hit. k: pitch, len: length.
-function sndElementTint(S, o, t, el, k = 1, len = 1) {
-  if (el === 'shock') {
-    sndTone(S, o, t, { f: 1100 * k, f2: 380 * k, glide: 0.08 * len, w: 'square', lp: 2600, a: 0.002, d: 0.035 * len, g: 0.45 });
-    sndCrackle(S, o, t, Math.round(3 * len) + 1, 0.08 * len, 0.9, 3200);
-  } else if (el === 'frost') {
-    sndBell(S, o, t, 1318 * k, 0.35, 0.16 * len, 0.2);
-    sndBell(S, o, t + 0.03, 1760 * k, 0.2, 0.12 * len, 0.2);
-    sndNoise(S, o, t, { f: 4200, q: 1.2, a: 0.01, d: 0.07 * len, g: 0.22 });
-  } else if (el === 'ember') {
-    sndNoise(S, o, t, { f: 500, f2: 1800, glide: 0.08 * len, q: 0.8, a: 0.02, d: 0.09 * len, g: 1.1 });
-    sndCrackle(S, o, t + 0.03, Math.round(3 * len), 0.15 * len, 0.35, 2200);
-  } else if (el === 'blight') {
-    sndTone(S, o, t, { f: 300 * k, f2: 200 * k, glide: 0.15 * len, w: 'triangle', vib: [17, 35], lp: 1100, a: 0.01, d: 0.07 * len, g: 0.55 });
-    sndNoise(S, o, t, { f: 650, q: 6, a: 0.01, d: 0.06 * len, g: 0.55 });
-  } else {
-    sndTone(S, o, t, { f: 260 * k, f2: 150 * k, glide: 0.08, w: 'warm', lp: 1200, a: 0.003, d: 0.06 * len, g: 0.7 });
-    sndNoise(S, o, t, { f: 900, q: 0.8, a: 0.004, d: 0.04 * len, g: 0.6 });
-  }
+// What the Kindler walks on, for footsteps (the bank's step.<material>):
+// a clime's ground, else water or ice where he wades. At the outpost it's
+// packed earth unless Snd.hubGround(x, y) (world px) says otherwise, for
+// the outpost's own paving to set.
+const SND_CLIME_GROUND = { badlands: 'dirt', frost: 'snow', cinder: 'ash', bloomfen: 'moss', caverns: 'stone', grotto: 'stone', magma: 'gravel', rootdeep: 'roots', archive: 'stone', temple: 'stone', vault: 'metal' };
+function sndGroundAt(d, x, y) {
+  if (d.hub) return (Snd.hubGround && Snd.hubGround(x, y)) || 'dirt';
+  if (d.wading === HAZ_CODES.pool) return 'water';
+  if (d.wading === HAZ_CODES.slick) return 'ice';
+  if (d.zone === 'lair') return 'stone';
+  return SND_CLIME_GROUND[d.clime] || 'stone';
 }
-
-// How a footstep sounds on each ground: a filtered scuff (ft, f, q, d),
-// a soft knock under it (tone), and its level (g).
-const SND_GROUND = {
-  grit: { f: 1500, q: 1.3, d: 0.03, g: 1 },
-  snow: { f: 1700, q: 1.1, d: 0.05, a: 0.012, g: 0.9 },
-  ash: { f: 950, q: 0.7, d: 0.035, g: 0.8 },
-  soft: { ft: 'lowpass', f: 750, q: 1.5, d: 0.045, tone: 170, tg: 0.4, g: 0.8 },
-  stone: { f: 1300, q: 1.6, d: 0.02, tone: 165, tg: 0.45, g: 1 },
-  wet: { f: 1150, q: 2.5, d: 0.04, tone: 230, tg: 0.35, g: 1 },
-  flag: { f: 1600, q: 1.4, d: 0.022, tone: 190, tg: 0.5, g: 1 },
-  metal: { f: 2300, q: 4, d: 0.03, tone: 340, tg: 0.35, g: 0.8 },
-  splash: { f: 1100, q: 1, d: 0.08, a: 0.01, g: 1.3 },
-  ice: { f: 3200, q: 2, d: 0.018, g: 0.8 },
-};
-const SND_CLIME_GROUND = { badlands: 'grit', frost: 'snow', cinder: 'ash', bloomfen: 'soft', caverns: 'stone', grotto: 'wet', magma: 'stone', rootdeep: 'soft', archive: 'flag', temple: 'flag', vault: 'metal' };
 
 // Loot, by rarity: its notes (semis from D4), how far apart, how long each
 // rings, and the space; the best shimmer, and glow under a chord.
@@ -300,6 +308,9 @@ function sndLootNotes(S, o, t, L, g = 0.4) {
 }
 
 // ---------------------------------------------------------------------------
+// Each Form's motion, under its element: how loud (the sustained ones less).
+const SND_FORM_G = { lance: 0.3, ward: 0.3, orb: 0.35, glaive: 0.4, nova: 0.5, well: 0.6 };
+
 // The cues. g: the cue's level; gap: the least time between two (else
 // T.sound.gap); pri: always plays, however many are sounding; music: a
 // moment of the music's (music.js), heard whatever the effects' setting.
@@ -308,17 +319,13 @@ function sndLootNotes(S, o, t, L, g = 0.4) {
 const SND_CUES = {
   // a screen's button: barely there
   tap: { g: 0.05, gap: 0.04, fn(S, o, t) { sndTone(S, o, t, { f: 1250, a: 0.002, d: 0.018 }); sndNoise(S, o, t, { f: 3000, q: 2, a: 0.001, d: 0.006, g: 0.4 }); } },
-  // ground: SND_GROUND's
-  step: { g: 0.1, gap: 0.1, fn(S, o, t, a) {
-    const G = SND_GROUND[a.ground] || SND_GROUND.stone, v = sndRange(0.85, 1.15), g = G.g * sndRange(0.75, 1);
-    sndNoise(S, o, t, { ft: G.ft, f: G.f * v, q: G.q, a: G.a || 0.002, d: G.d, g });
-    if (G.tone) sndTone(S, o, t, { f: G.tone * v, f2: G.tone * 0.7 * v, glide: 0.03, w: 'warm', lp: 900, a: 0.002, d: 0.025, g: G.tg * g });
-  } },
-  dash: { g: 0.45, gap: 0.15, fn(S, o, t) {
-    sndNoise(S, o, t, { f: 600, f2: 2000, glide: 0.12, q: 1.2, a: 0.015, d: 0.07, g: 1.2 });
-    sndTone(S, o, t, { f: 300, f2: 520, glide: 0.1, w: 'hollow', lp: 1500, a: 0.01, d: 0.05, g: 0.25 });
-  } },
-
+  // a footstep: ground (a material: BANK_STEPS), foot (0 left, 1 right),
+  // each a little different in pitch, level and brightness
+  step: { g: 0.07, gap: 0.1, spread: 0.05, lp: [3500, 7500], bank(a) {
+    const k = 'step.' + (BANK['step.' + a.ground] ? a.ground : 'dirt');
+    return [[k, BANK[k].g * sndRange(0.75, 1)]];
+  }, where: (a) => ({ g: 1, pan: a.foot ? 0.12 : -0.12, rate: a.foot ? 1.01 : 0.99 }) },
+  dash: { g: 0.25, gap: 0.15, bank: () => [['dash', 1]] },
   // mining: tier, the ore's
   mine: { g: 0.28, gap: 0.08, fn(S, o, t, a) {
     const f = 820 + (a.tier || 1) * 110 + sndRange(-40, 40);
@@ -341,51 +348,31 @@ const SND_CUES = {
   } },
 
   // a cast: form, els (its elements), charged, step (an Arc's combo; the
-  // third is heavy), res (a resonance)
-  cast: { g: 0.3, gap: 0.05, fn(S, o, t, a) {
-    const el = (a.els && a.els[0]) || 'force', form = a.form || 'spark', heavy = a.step === 2, big = a.charged || form === 'nova', k = heavy ? 0.8 : 1;
-    if (form === 'arc' || form === 'glaive') sndNoise(S, o, t, { f: 500 * k, f2: 1800 * k, glide: 0.09, q: 1.2, a: 0.02, d: 0.06, g: heavy ? 1.8 : 1.3 });
-    else if (big) {
-      sndNoise(S, o, t, { ft: 'lowpass', f: 300, f2: 2400, glide: 0.12, a: 0.01, d: 0.18, g: 0.8, send: 0.25 });
-      sndTone(S, o, t, { f: 220, f2: 110, glide: 0.2, w: 'warm', lp: 900, a: 0.005, d: 0.16, g: 0.6 });
-    } else if (form === 'bolt' || form === 'lance') sndTone(S, o, t, { f: form === 'lance' ? 700 : 900, f2: form === 'lance' ? 350 : 520, glide: 0.1, w: 'hollow', lp: 2400, a: 0.003, d: 0.05, g: 0.65 });
-    else if (form === 'orb') sndTone(S, o, t, { f: 330, w: 'hollow', vib: [6, 8], lp: 1400, a: 0.03, d: 0.14, g: 0.45, send: 0.2 });
-    else if (form === 'well') sndTone(S, o, t, { f: 520, f2: 160, glide: 0.35, w: 'warm', lp: 1200, a: 0.01, d: 0.12, g: 0.55 });
-    else if (form === 'ward') { sndBell(S, o, t, sndHz(7), 0.4, 0.25, 0.3); sndBell(S, o, t + 0.07, sndHz(12), 0.35, 0.3, 0.3); }
-    else sndTone(S, o, t, { f: 1500, f2: 900, glide: 0.04, a: 0.002, d: 0.03, g: 0.3 });
-    sndElementTint(S, o, t + 0.01, el, k, big ? 2 : 1);
-    if (a.res) sndSwell(S, o, t, [0, 7, 16], 0.4, 0.03, 0.4, 'hollow', 2000, 0.4);
+  // third is heavy), res (a resonance). Its Form's motion and its element's
+  // character, rendered (sndbank.js).
+  cast: { g: 0.42, gap: 0.05, bank(a) {
+    const form = a.form || 'spark', el = (a.els && a.els[0]) || 'force';
+    const fk = form === 'arc' && a.step === 2 ? 'arcHeavy' : BANK['form.' + form] ? form : 'spark';
+    const parts = [['form.' + fk, SND_FORM_G[fk] || 0.55], [BANK['cast.' + el] ? 'cast.' + el : 'cast.force', 0.55]];
+    if (a.charged && form !== 'nova') parts.push(['form.charged', 0.5]);
+    if (a.res) parts.push(['res', 0.5]);
+    return parts;
   } },
   // charge too low to cast
-  noCharge: { g: 0.12, gap: 0.35, fn(S, o, t) { sndTone(S, o, t, { f: 300, f2: 220, glide: 0.06, w: 'hollow', lp: 900, a: 0.003, d: 0.04 }); } },
+  noCharge: { g: 0.14, gap: 0.35, bank: () => [['noCharge', 1]] },
   // a spell strikes a foe: el, crit, heavy; x, y
-  hit: { g: 0.24, gap: 0.045, fn(S, o, t, a) {
-    const h = a.heavy ? 1.4 : 1;
-    sndTone(S, o, t, { f: 280 / h, f2: 150 / h, glide: 0.06, w: 'warm', lp: 1400, a: 0.002, d: 0.045 * h, g: 0.8 });
-    sndNoise(S, o, t, { f: 1500, q: 0.9, a: 0.001, d: 0.02, g: 0.5 });
-    sndElementTint(S, o, t, a.el || 'force', 1.15, 0.5);
-    if (a.crit) sndBell(S, o, t + 0.01, sndHz(19), 0.25, 0.08);
+  hit: { g: 0.28, gap: 0.045, bank(a) {
+    const parts = [[BANK['hit.' + a.el] ? 'hit.' + a.el : 'hit.force', 1]];
+    if (a.crit) parts.push(['hit.crit', 0.5]);
+    if (a.heavy) parts.push(['hit.heavy', 0.7]);
+    return parts;
   } },
   // a reaction between elements (Shatter, Conduct, Steam…)
-  react: { g: 0.32, gap: 0.15, fn(S, o, t) { sndBell(S, o, t, sndHz(14), 0.4, 0.14, 0.2); sndBell(S, o, t + 0.05, sndHz(19), 0.35, 0.18, 0.2); sndNoise(S, o, t, { f: 2200, q: 1, a: 0.002, d: 0.05, g: 0.3 }); } },
+  react: { g: 0.2, gap: 0.15, bank: () => [['react', 1]] },
   // a foe falls: big for a boss
-  kill: { g: 0.36, gap: 0.06, fn(S, o, t, a) {
-    sndNoise(S, o, t, { ft: 'lowpass', f: 2200, f2: 500, glide: 0.2, a: 0.004, d: 0.08, g: 0.6 });
-    sndTone(S, o, t, { f: 620, f2: 260, glide: 0.25, w: 'hollow', lp: 1800, a: 0.005, d: 0.09, g: 0.45 });
-    if (a.big) {
-      sndTone(S, o, t, { f: 180, f2: 90, glide: 0.6, w: 'warm', lp: 700, a: 0.01, d: 0.35, g: 0.9 });
-      sndNoise(S, o, t, { ft: 'lowpass', f: 900, f2: 200, glide: 1, a: 0.01, d: 0.4, g: 0.7, send: 0.3 });
-    }
-  } },
-
-  // the Kindler is hurt
-  hurt: { g: 0.36, gap: 0.12, pri: true, fn(S, o, t) {
-    sndTone(S, o, t, { f: 240, f2: 120, glide: 0.12, w: 'warm', lp: 1000, a: 0.002, d: 0.08, g: 0.9 });
-    sndNoise(S, o, t, { ft: 'lowpass', f: 1200, a: 0.001, d: 0.05, g: 0.6 });
-    sndTone(S, o, t + 0.01, { f: 311, w: 'hollow', lp: 1300, a: 0.004, d: 0.1, g: 0.22 });
-    sndTone(S, o, t + 0.01, { f: 330, w: 'hollow', lp: 1300, a: 0.004, d: 0.1, g: 0.22 });
-    if (typeof Music !== 'undefined') Music.duck(t, 0.55, 0.4);
-  } },
+  kill: { g: 0.3, gap: 0.06, bank: (a) => (a.big ? [['kill.big', 1.4]] : [['kill', 1]]) },
+  // the Kindler is hurt (the music dips a moment)
+  hurt: { g: 0.38, gap: 0.12, pri: true, bank: () => [['hurt', 1]], also(t) { if (typeof Music !== 'undefined') Music.duck(t, 0.55, 0.4); } },
   // low health: a heartbeat (music.js listens for it)
   heart: { g: 0.2, gap: 0.5, pri: true, fn(S, o, t) {
     for (const [dt, g] of [[0, 1], [0.17, 0.65]]) {
@@ -435,7 +422,7 @@ const SND_CUES = {
     sndNoise(S, o, t, { f: 1200, q: 3, a: 0.6, d: 0.2, g: 0.2, send: 0.5 });
   } },
   // a healing mote
-  heal: { g: 0.1, gap: 0.12, fn(S, o, t) { sndTone(S, o, t, { f: 520, f2: 780, glide: 0.12, w: 'hollow', lp: 2000, a: 0.02, d: 0.08 }); } },
+  heal: { g: 0.12, gap: 0.12, bank: () => [['heal', 1]] },
   // a resonance stone
   resStone: { g: 0.28, gap: 0.3, pri: true, fn(S, o, t) { sndLootNotes(S, o, t, SND_LOOT.legendary, 0.35); } },
 
@@ -532,19 +519,7 @@ const SND_CUES = {
 
   // something big seen: kind 'elite', 'boss' (a Keeper or the warden) or
   // 'hollow'
-  sting: { g: 0.22, gap: 1.5, pri: true, fn(S, o, t, a) {
-    if (a.kind === 'hollow') {
-      sndNoise(S, o, t, { ft: 'lowpass', f: 200, f2: 900, glide: 1, a: 0.9, d: 0.3, g: 0.7, send: 0.4 });
-      sndTone(S, o, t, { f: 146.8, w: 'warm', lp: 500, a: 0.8, d: 0.5, g: 0.5 });
-      sndTone(S, o, t, { f: 207.7, w: 'warm', lp: 500, a: 0.8, d: 0.5, g: 0.4 });
-    } else if (a.kind === 'boss') {
-      sndSwell(S, o, t, [-12, -6, 1], 0.9, 0.05, 1.2, 'reed', 1300, 0.5);
-      sndTone(S, o, t, { f: 110, f2: 73, glide: 0.4, w: 'warm', lp: 500, a: 0.005, d: 0.4, g: 0.7 });
-    } else {
-      sndTone(S, o, t, { f: sndHz(-12), w: 'reed', lp: 1200, a: 0.01, d: 0.18, hold: 0.08, g: 0.5, send: 0.3 });
-      sndTone(S, o, t + 0.14, { f: sndHz(-6), w: 'reed', lp: 1200, a: 0.01, d: 0.3, hold: 0.1, g: 0.5, send: 0.3 });
-    }
-  } },
+  sting: { g: 0.3, gap: 1.5, pri: true, spread: 0.02, bank: (a) => [[a.kind === 'hollow' ? 'sting.hollow' : a.kind === 'boss' ? 'sting.boss' : 'sting.elite', a.kind === 'boss' ? 1.2 : a.kind === 'hollow' ? 0.9 : 0.75]] },
   // the uplink to the Meridian: a carrier, and a few blips
   uplink: { g: 0.22, gap: 1, fn(S, o, t) {
     sndNoise(S, o, t, { f: 1800, q: 1.2, a: 0.02, d: 0.12, hold: 0.2, g: 0.3 });
@@ -651,6 +626,8 @@ function sndUnlock() {
       try { ctx = new AC({ latencyHint: 'balanced' }); } catch (e) { ctx = new AC(); }
       Snd.build(ctx, true);
       Music.build(Snd);
+      // the fight's sounds, rendered between frames (sndbank.js)
+      if (typeof OfflineAudioContext !== 'undefined') SndBank.start(ctx.sampleRate, 800).catch(() => {});
       // a moment of silence started inside the tap wakes iOS's output
       const b = ctx.createBufferSource(); b.buffer = ctx.createBuffer(1, 1, ctx.sampleRate); b.connect(ctx.destination); b.start(0);
     }

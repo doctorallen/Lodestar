@@ -468,11 +468,11 @@ function outpostSegDist(gx, gy, ax, ay, bx, by) {
   const vx = bx - ax, vy = by - ay, t = clamp(((gx - ax) * vx + (gy - ay) * vy) / (vx * vx + vy * vy || 1), 0, 1);
   return [Math.hypot(gx - ax - vx * t, gy - ay - vy * t), t * Math.hypot(vx, vy)];
 }
-// The plaza's plan (tiles): the plated ring round the cradle, a slab under
-// each module, walkways of plates from the ring to each, the landing pads
-// round the plaza where they're furthest from the ways out (in the order
-// the landers come down: the nearest the front first), and a marked path
-// from the ring out to each opening.
+// The plaza's plan (tiles): the cradle's footprint (ring), the landing
+// pads round the plaza where they're furthest from the ways out (in the
+// order the landers come down: the nearest the front first), and the way
+// from the cradle out to each opening (paths: a faint trodden track, and
+// the line the star's lodelines run along).
 const OUTPOST_MIDDLE = { x: 20, y: 21.6 };
 function outpostSite(exits) {
   const C = OUTPOST_MIDDLE, P = T.outpost.pads, ang = exits.map((e) => Math.atan2(e.y - C.y, e.x - C.x)), cr = OUTPOST_CRADLE;
@@ -481,9 +481,7 @@ function outpostSite(exits) {
   for (let k = 0; k < 12; k++) { const a = (k + 0.5) / 12 * Math.PI * 2; cand.push({ a, s: off(a) }); }
   cand.sort((p, q) => q.s - p.s || Math.sin(q.a) - Math.sin(p.a));
   const pads = cand.slice(0, P.n).map(({ a }) => ({ x: C.x + Math.cos(a) * P.r, y: C.y + Math.sin(a) * P.r * 0.92 })).sort((p, q) => q.y - p.y || p.x - q.x);
-  const ring = { x: cr.x, y: cr.y + 0.3, r: 3.4 };
-  const slabs = HUB_STATIONS.map((s) => ({ id: s.id, x: s.x + 0.5, y: s.y + 0.75, rx: s.id === 'wreck' ? 2 : s.id === 'forge' ? 2.3 : 1.6, ry: s.id === 'wreck' ? 1.3 : 1.1 }));
-  const walks = slabs.filter((b) => b.id !== 'dummy' && b.id !== 'altar').map((b) => ({ ax: ring.x, ay: ring.y, bx: b.x, by: b.y }));
+  const ring = { x: cr.x, y: cr.y + 0.3, r: 2 };
   const paths = exits.map((e) => {
     const vx = e.x - ring.x, vy = e.y - ring.y, m = Math.hypot(vx, vy);
     return { ax: ring.x + (vx / m) * ring.r, ay: ring.y + (vy / m) * ring.r * 0.72, bx: e.x + e.nx * 0.5, by: e.y + e.ny * 0.5, to: e.to };
@@ -498,5 +496,5 @@ function outpostSite(exits) {
     const room = (o) => Math.min(away(o.x, o.y), ...pads.filter((q) => q !== p).map((q) => Math.hypot(o.x - q.x, (o.y - q.y) / 0.72) - 3.6));
     p.pod = opts.sort((u, v) => room(v) - room(u))[0] || { x: p.x, y: p.y - 3 };
   }
-  return { ring, slabs, walks, pads, paths, home: { x: home.x, y: home.y } };
+  return { ring, pads, paths, home: { x: home.x, y: home.y } };
 }

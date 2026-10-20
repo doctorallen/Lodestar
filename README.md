@@ -49,6 +49,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/save.js` | The save in localStorage |
 | `js/audio.js` | Sound, made in code with Web Audio: the engine (started by the first tap, suspended when hidden, the settings), the effects (the opening's cues among them), and `snd(name, opts)`, the hook the game calls |
 | `js/music.js` | The music that grows with the star and thins in the dark, each place's own sound, the turn's unease; footsteps, heartbeat, stings and landers it listens for |
+| `js/sndbank.js` | The fight's sounds and the footsteps, layered and rendered ahead into a few variants each after the first tap (an OfflineAudioContext), so a play is only a buffer |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline; the outpost's site, its openings and its plan |
 | `js/world.js` | The world: its rings of territories laid out from the save's seed, their neighbours, climes, names and goals; each territory's map (`generateTerritory`) with its openings, heart and waystones |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, item icons, cave painting |
@@ -58,7 +59,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/story.js` | The story: the opening's captions, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
 | `js/hub.js` | The outpost: stations, the star over its cradle and its lodelines across the ground, light masts, starstone, the uplink, the settlement's landers and pods, feeding the star (held at its altar) |
 | `js/hubart.js` | The outpost, painted: the Charter's modules, the star and its cradle, starstone, light masts, landers, pods and people; the ancient forges in the land |
-| `js/hubground.js` | The outpost's ground: its edges melding into each neighbour's land (ground, plants, rock), the Charter's plates, pads and marked paths |
+| `js/hubground.js` | The outpost's ground: packed earth, the starstone spreading from the cradle as the star grows, its edges melding into each neighbour's land (ground, plants, rock), the landing pads, faint trodden tracks; `outpostGroundAt` (what's underfoot) |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
 | `js/intro.js` | The opening: five painted scenes that play on their own (the crossing, the survey, the landing, the Meridian, the outpost), their captions, SKIP and tap to hurry, and the last shot drawn by the game itself as the modules wake, the camera comes down and the Kindler steps out of their pod and is handed over |
 | `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp; Wick |
