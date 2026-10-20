@@ -680,7 +680,7 @@ const T = {
     part: 0.45, partTwo: 0.15, eliteParts: [2, 3], bossParts: 4,
     exotic: 0.03, eliteExotic: 0.5,
     relic: 0.008, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
-    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [1, 0.35], set: [0.8, 0.25] },
+    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.5, 0.15], set: [0.45, 0.12] },
   },
 
   // Gear. Base numbers at tier 1, times tierGrowth a tier (affixes grow by
