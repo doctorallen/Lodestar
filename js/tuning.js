@@ -127,11 +127,13 @@ const T = {
   // their own land, as much as the meld's weight to the power floraPow, and `outcrops` of their rock stand in it.
   // sun: the daylight over the site at magnitude 1, and from magnitude
   // sunFull on (the star's own ground grows brighter as it does). pads: the
-  // landing pads round the plaza, `r` tiles out from the star.
+  // landing pads round the plaza, `r` tiles out from the star. homeClear:
+  // the ground kept clear round the Kindler's pod and before its door, of
+  // pads and outcrops ([half width, behind its feet, in front], tiles).
   outpost: {
     size: 40, rim: [1.4, 3.4], passage: 1.7,
     meld: { from: 13, to: 3, wobble: 2.5, flora: 1.8, floraPow: 1.4 }, outcrops: [5, 8],
-    sun: [0.35, 1], sunFull: 6, pads: { r: 11.5, n: 6 },
+    sun: [0.35, 1], sunFull: 6, pads: { r: 11.5, n: 6 }, homeClear: [1.6, 1.8, 2.6],
     // lode: the lodelines out across the ground, reach [at magnitude 1,
     // more each magnitude] (tiles; all the way towards kindled land), how
     // fast their breaks run out (px/s), and how faint towards the dark.
