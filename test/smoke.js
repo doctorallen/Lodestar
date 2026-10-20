@@ -115,6 +115,9 @@ async function phone(browser) {
   await run(page, 0.5);
   await page.touchscreen.touchEnd();
   check(await page.evaluate((h0) => Game.dive.p.y < h0 - 4, h0), 'phone: the joystick did not walk at the outpost');
+  // the star's altar stands in the way: the Kindler stops in front of it, not in it
+  await page.evaluate(() => { Input.bot = { x: 0, y: -1 }; for (let i = 0; i < 90; i++) Game.step(1 / 60); Input.bot = null; });
+  check(await page.evaluate(() => { const a = HUB_STATIONS.find((s) => s.id === 'altar'), d = Game.dive; return Math.abs(d.p.x - (a.x + 0.5) * TILE) > 12 || d.p.y > (a.y + 0.5) * TILE + 4; }), 'phone: the Kindler walked into the altar');
   await page.evaluate(atStation, 'setout');
   await run(page, 0.1);
   check(await page.evaluate(() => $('btn-act').textContent === 'SET OUT'), 'phone: no SET OUT at the portal');
@@ -421,7 +424,8 @@ async function phone(browser) {
   await run(page, 0.3);
   await shot(page, 'smoke-hollow');
   // an emergency recall brings most of it home
-  await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) e.dead = true; d.cargo = { ferrite: 20 }; d.items = []; Save.data.stash.ferrite = 0; window._recallDepth = d.depth; });
+  // (with light again, so the dark sends nothing to break the channel)
+  await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) e.dead = true; d.pull = 1; d.cargo = { ferrite: 20 }; d.items = []; Save.data.stash.ferrite = 0; window._recallDepth = d.depth; });
   await tap(page, '#btn-pause');
   await tap(page, '#pause-recall');
   await run(page, T_RECALL + 0.3);

@@ -55,6 +55,7 @@ function newWorld(fields) {
 function enterHub(report, at = {}) {
   if (report) Save.data.swapped = false;
   const f = outpostFloor(worldState().seed);
+  f.solids = outpostSolids();
   const d = (Game.dive = newWorld({ hub: true, floor: f, zone: 'surface', sun: outpostSun() }));
   const ex = at.from !== undefined && f.exits.find((e) => e.to === at.from);
   if (ex) { d.p.x = (ex.ax + 0.5) * TILE; d.p.y = (ex.ay + 0.5) * TILE; d.p.fx = ex.nx; d.p.fy = ex.ny; d.arrive = { t: 0, zone: 'surface' }; }
@@ -370,6 +371,8 @@ const BODY_RING = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [Math.cos((k * Math.PI) / 
 function bodyHits(f, x, y, r) {
   if (rockAt(f, x, y)) return true;
   for (const [c, s] of BODY_RING) if (rockAt(f, x + c * r, y + s * r)) return true;
+  // what stands at home (outpostSolids): ellipses on the ground
+  if (f.solids) for (const o of f.solids) { const u = (x - o.x) / (o.rx + r), v = (y - o.y) / (o.ry + r); if (u * u + v * v < 1) return true; }
   return false;
 }
 // How far into rock a body is: its ring points in rock, its centre double.
