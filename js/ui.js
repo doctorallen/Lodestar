@@ -372,9 +372,14 @@ const UI = {
     const rh = a === 'rift' && riftHere(d);
     let way = '';
     if (a === 'way') way = !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'STEP THROUGH: ' + wayPlaceName(d, wayHere(d)).toUpperCase();
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'TUNE', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `FEED THE STAR · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'TUNE', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `HOLD TO FEED · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
+    // feeding the star is a hold, not a tap: the button says so, pulses to
+    // be pressed, and fills as the flow speeds up while it's held
+    const hold = a === 'altar' && !(Story.shardsHeld() > Story.shardsSet()) && (!!d.feed || lightWaiting() > 0);
+    btn.classList.toggle('hold', hold);
+    if (hold) { const k = d.feed ? Math.min(1, d.feed.t / T.star.feed.ramp) : 0, v = Math.round(k * 100) + '%'; if (btn.style.getPropertyValue('--fill') !== v) btn.style.setProperty('--fill', v); }
     // at a spire (or a beacon's light), TRAVEL too; at the altar, ATTUNE; at
     // the fabricator, SUPPLIES (supplies.js)
     const travel = a === 'extract' && d.sortie && !d.deep, attune = a === 'altar', sup = a === 'forge' && d.hub && onboardHas('supplies'), b2 = $('btn-act2');

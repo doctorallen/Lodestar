@@ -74,7 +74,7 @@ const TUTORS = {
     screen: 'screen-star', title: 'THE STAR',
     steps: [
       { at: '#star-body .mag', say: 'The star\'s magnitude. Light from deeds grows it, not ore.', next: true },
-      { at: '#star-body .light-chips', say: 'Light waiting. Hold FEED THE STAR at the altar.', next: true },
+      { at: '#star-body .light-chips', say: 'Light waiting. At the altar, press and hold to feed it.', next: true },
       { at: '#star-body .reach', say: 'Its reach: a spire only holds where its light does.', next: true },
       { at: '#star-body .att-list', say: 'A point each magnitude, spent here. Tap +.', next: true },
     ],

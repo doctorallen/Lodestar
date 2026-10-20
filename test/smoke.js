@@ -443,7 +443,7 @@ async function phone(browser) {
   await page.evaluate(() => { Save.data.stash.heartlight = 20; Save.data.stash.deeplight = 6; Save.data.star = 0; Save.data.magSeen = 1; });
   await page.evaluate(atStation, 'altar');
   await run(page, 0.05);
-  check(await page.evaluate(() => /^FEED THE STAR/.test($('btn-act').textContent) && !$('btn-act2').hidden && /^ATTUNE/.test($('btn-act2').textContent)), 'phone: no FEED THE STAR and ATTUNE at the altar');
+  check(await page.evaluate(() => /^(FEED THE STAR|HOLD TO FEED)/.test($('btn-act').textContent) && ($('btn-act').classList.contains('hold') || !lightWaiting()) && !$('btn-act2').hidden && /^ATTUNE/.test($('btn-act2').textContent)), 'phone: no hold-to-feed and ATTUNE at the altar');
   await hold(page, '#btn-act', 0.8);
   await run(page, 0.05);
   const fed = await page.evaluate(() => { const s = Save.data; return [6 - (s.stash.deeplight || 0), s.star, s.stash.heartlight, !!Game.dive.feed, (Game.dive.feedMotes || []).length]; });

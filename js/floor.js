@@ -423,7 +423,7 @@ function outpostFloor(worldSeed) {
     // (distance from the line from the opening to the middle)
     const vx = c - e.x, vy = c - e.y, t = clamp(((x - e.x) * vx + (y - e.y) * vy) / (vx * vx + vy * vy), 0, 1);
     return Math.hypot(x - e.x - vx * t, y - e.y - vy * t) > r + 2.6;
-  }) && !outpostNearHome(site.home, x, y, r + 1) && site.pads.every((p) => Math.hypot(x - p.x, (y - p.y) / sq) > padR + r + 1 && Math.hypot(x - p.pod.x, y - p.pod.y) > r + 2.6)
+  }) && !outpostNearHome(site.home, x, y, r + 1) && site.pads.every((p) => Math.hypot(x - p.x, (y - p.y) / sq) > padR + r + 1 && Math.hypot(x - p.pod.x, y - p.pod.y) > r + 3.2)
     && site.plots.every((p) => Math.hypot(x - p.x, y - p.y + 0.6) > r + 3);
   for (let n = rng.i(S.outcrops[0], S.outcrops[1]), tries = 0; n > 0 && tries < 200; tries++) {
     const x = rng.f(4, w - 5), y = rng.f(4, h - 5), r = rng.f(1.1, 2.3), e = edgeOf(x, y);
@@ -510,8 +510,8 @@ function outpostSite(exits) {
   // other pads and the Kindler's pod), clear of the rock
   const S = T.outpost.size, inside = (x, y) => Math.min(x, y, S - 1 - x, S - 1 - y) > T.outpost.rim[1] + 1.5;
   for (const p of pads) {
-    const a = Math.atan2(p.y - C.y, p.x - C.x), opts = [-1, 1].map((sd) => ({ x: p.x - Math.sin(a) * sd * 4.4, y: p.y + Math.cos(a) * sd * 3.4 + 0.6 })).filter((o) => inside(o.x, o.y));
-    const room = (o) => Math.min(away(o.x, o.y), outpostNearHome(home, o.x, o.y, 1.5) ? -9 : 9, ...pads.filter((q) => q !== p).map((q) => Math.hypot(o.x - q.x, (o.y - q.y) / 0.72) - 3.6));
+    const a = Math.atan2(p.y - C.y, p.x - C.x), opts = [-1, 1].map((sd) => ({ x: p.x - Math.sin(a) * sd * 5.6, y: p.y + Math.cos(a) * sd * 4.2 + 0.6 })).filter((o) => inside(o.x, o.y));
+    const room = (o) => Math.min(away(o.x, o.y), outpostNearHome(home, o.x, o.y, 2.2) ? -9 : 9, ...pads.filter((q) => q !== p).map((q) => Math.hypot(o.x - q.x, (o.y - q.y) / 0.72) - 3.6));
     p.pod = opts.sort((u, v) => room(v) - room(u))[0] || { x: p.x, y: p.y - 3 };
   }
   const site = { ring, pads, paths, home: { x: home.x, y: home.y } };
@@ -534,8 +534,8 @@ function outpostPlots(site) {
   const obs = HUB_STATIONS.map((s) => { const k = ST[s.id] || [1, 1, 1, 0.5]; return box(s.x + 0.5, s.y + 0.8, k[0], k[1], k[2], k[3]); });
   // the cradle and its masts, and the sky over it where the star hangs
   obs.push([14.5, 13.2, 26, 21.3], [17, 9.5, 24, 13.2]);
-  obs.push(box(site.home.x, site.home.y, 1.6, 1.6, 1.4, 2.8));
-  for (const p of site.pads) obs.push(box(p.x, p.y, 2.4, 2.4, 2.4, 1.8), box(p.pod.x, p.pod.y, 1.4, 1.4, 1.3, 0.5));
+  obs.push(box(site.home.x, site.home.y, 2.4, 2.4, 3.2, 2.8));
+  for (const p of site.pads) obs.push(box(p.x, p.y, 2.4, 2.4, 2.4, 1.8), box(p.pod.x, p.pod.y, 2.3, 2.3, 3.2, 0.6));
   if (typeof HUB_DRESSING !== 'undefined') for (const d of HUB_DRESSING) obs.push(box(d.x, d.y, 0.5, 0.5, 0.6, 0.3));
   const gap = (a, b) => Math.max(a[0] - b[2], b[0] - a[2], a[1] - b[3], b[1] - a[3]);
   const edge = (x, y) => Math.min(x, y, E - 1 - x, E - 1 - y), out = [];

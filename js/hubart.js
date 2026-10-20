@@ -708,39 +708,50 @@ function hartGate() {
 
 // ---------------------------------------------------------------------------
 // A habitat pod: a Charter module to live in, a long box with rounded ends
-// on skids, seen from above and in front: a pale top, the Charter's blue
-// face with a door and a lit window (lamps: its light), the seed-star, an
-// amber light by the door. v: which way it's laid out.
+// on skids, seen from above and in front, sized for the Kindler (about 42
+// art px tall) to walk out of: a pale top with a vent, the Charter's blue
+// face with a full-height door (a slit of light in it) and a lit window
+// (lamps: its light), the seed-star, an amber light by the door. v: which
+// way it's laid out (the door left or right).
 // ---------------------------------------------------------------------------
 function hartPod(v = 0) {
   return hartKeep('pod' + v, () => {
-    const W = 56, H = 38, FY = 35, s = new PntSpr(W, H, 1901 + v), Hu = HART.hull, CB = HART.charter, St = HART.steel, lamps = [];
-    const x0 = 3, x1 = 52, top = 4, lip = 13, foot = 29;
+    const W = 100, H = 82, FY = 79, s = new PntSpr(W, H, 1901 + v), Hu = HART.hull, CB = HART.charter, St = HART.steel, lamps = [];
+    const x0 = 3, x1 = 96, top = 4, lip = 22, foot = 72;
     // the skids
-    for (const sx of [8, 44]) { hartLine(s, [sx, foot], [sx - 2, FY - 1], Hu[4]); hartLine(s, [sx + 1, foot], [sx - 1, FY - 1], Hu[2]); }
-    for (let x = 4; x <= 51; x++) s.px(x, FY - 1, x < 26 ? Hu[3] : Hu[2]);
-    for (let x = 4; x <= 51; x++) s.px(x, FY, Hu[0]);
-    // the top: pale panels, rounded at its ends
-    hartStrokes(s, x0, top, x1, lip - 1, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < 3 - (y - top) * 0.6 ? null : 0.78 - (x - x0) / (x1 - x0) * 0.2 - (lip - y) * 0.015; }, St, 1902 + v, { jit: 0.1 });
-    for (let x = x0 + 4; x <= x1 - 4; x += 12) for (let y = top + 1; y < lip; y++) s.px(x, y, St[2]);
-    s.box(x0 + 30, top + 2, x0 + 38, top + 6, Hu, { lo: 2, hi: 5 });
+    for (const sx of [14, 84]) for (let k = 0; k < 3; k++) { hartLine(s, [sx + k, foot], [sx + k - 3, FY - 1], k === 0 ? Hu[4] : k === 1 ? Hu[3] : Hu[2]); }
+    for (let x = 4; x <= 95; x++) s.px(x, FY - 1, x < 48 ? Hu[3] : Hu[2]);
+    for (let x = 4; x <= 95; x++) s.px(x, FY, Hu[0]);
+    // the top: pale panels, rounded at its ends, a vent on it
+    hartStrokes(s, x0, top, x1, lip - 1, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < 5 - (y - top) * 0.45 ? null : 0.78 - (x - x0) / (x1 - x0) * 0.2 - (lip - y) * 0.01; }, St, 1902 + v, { jit: 0.1 });
+    for (let x = x0 + 8; x <= x1 - 8; x += 16) for (let y = top + 2; y < lip; y++) s.px(x, y, St[2]);
+    const vx = v ? x0 + 14 : x0 + 58;
+    s.box(vx, top + 4, vx + 16, top + 12, Hu, { lo: 2, hi: 5 });
+    for (let x = vx + 2; x <= vx + 14; x += 3) for (let y = top + 6; y <= top + 10; y++) s.px(x, y, Hu[1]);
     // the face
-    hartStrokes(s, x0, lip, x1, foot, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < 2 - Math.min(2, (y - lip) * 0.5) ? null : 0.55 - (x - x0) / (x1 - x0) * 0.32 - (y - lip) * 0.005; }, CB, 1904 + v, { jit: 0.12 });
-    for (let x = x0 + 1; x <= x1 - 1; x++) { s.px(x, lip, St[4]); s.px(x, foot, CB[0]); }
-    for (let y = lip + 1; y < foot; y++) { s.px(x0 + 1, y, CB[5]); s.px(x1 - 1, y, CB[1]); }
-    for (let x = x0 + 2; x <= x1 - 2; x++) s.px(x, lip + 3, CB[1]);
-    // the door, its frame, its light; the window, lit warm inside
-    const dx = v ? 38 : 9, wx = v ? 12 : 28;
-    for (let y = lip + 4; y < foot; y++) for (let x = dx; x <= dx + 7; x++) s.px(x, y, x === dx || y === lip + 4 ? Hu[5] : x === dx + 7 ? Hu[1] : Hu[2 + ((y >> 2) & 1)]);
-    s.px(dx + 6, lip + 13, HART.amber[2], true);
-    s.px(dx - 2, lip + 6, HART.amber[3], true);
-    for (let y = lip + 5; y <= lip + 10; y++) for (let x = wx; x <= wx + 12; x++) {
-      const edge = y === lip + 5 || x === wx || x === wx + 12 || y === lip + 10;
-      s.px(x, y, edge ? Hu[1] : y > lip + 7 ? '#d8862c' : (x + y) % 5 === 0 ? '#ffe0a0' : '#ffc060', !edge);
+    hartStrokes(s, x0, lip, x1, foot, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < 3 - Math.min(3, (y - lip) * 0.5) ? null : 0.55 - (x - x0) / (x1 - x0) * 0.32 - (y - lip) * 0.003; }, CB, 1904 + v, { jit: 0.12 });
+    for (let x = x0 + 1; x <= x1 - 1; x++) { s.px(x, lip, St[4]); s.px(x, lip + 1, St[3]); s.px(x, foot, CB[0]); s.px(x, foot - 1, CB[1]); }
+    for (let y = lip + 2; y < foot - 1; y++) { s.px(x0 + 1, y, CB[5]); s.px(x0 + 2, y, CB[4]); s.px(x1 - 1, y, CB[1]); }
+    for (let x = x0 + 3; x <= x1 - 3; x++) { s.px(x, lip + 5, CB[1]); s.px(x, foot - 8, CB[1]); }
+    // the door, full height, its frame, a slit of light in it, an amber
+    // lamp beside it and a handle light
+    const dw = 18, dx = v ? x1 - 12 - dw : x0 + 9, dy = lip + 6, wx = v ? x0 + 12 : x1 - 42;
+    for (let y = dy - 2; y < foot - 1; y++) for (let x = dx - 2; x <= dx + dw + 1; x++) s.px(x, y, x < dx || y < dy ? Hu[5] : x > dx + dw - 1 ? Hu[1] : Hu[1]);
+    for (let y = dy; y < foot - 1; y++) for (let x = dx; x < dx + dw; x++) s.px(x, y, x === dx ? Hu[4] : x === dx + dw - 1 ? Hu[1] : (y - dy) % 9 === 8 ? Hu[1] : Hu[2 + (((x - dx) >> 3) & 1)]);
+    for (let y = dy + 5; y <= dy + 16; y++) for (let x = dx + 7; x <= dx + 10; x++) s.px(x, y, x === dx + 7 || y === dy + 5 ? Hu[0] : '#ffc060', x !== dx + 7 && y !== dy + 5);
+    lamps.push([dx + 9, dy + 10]);
+    s.px(dx + dw - 4, dy + 24, HART.amber[2], true); s.px(dx + dw - 4, dy + 25, HART.amber[1], true);
+    for (let k = 0; k < 3; k++) s.px(v ? dx + dw + 4 : dx - 5, dy + 2 + k, HART.amber[3 - (k >> 1)], true);
+    // the window, lit warm inside, with a mullion
+    for (let y = lip + 10; y <= lip + 26; y++) for (let x = wx; x <= wx + 28; x++) {
+      const edge = y === lip + 10 || x === wx || x === wx + 28 || y === lip + 26 || x === wx + 14;
+      s.px(x, y, edge ? Hu[1] : y > lip + 21 ? '#d8862c' : (x + y) % 5 === 0 ? '#ffe0a0' : '#ffc060', !edge);
     }
-    lamps.push([wx + 6, lip + 8]);
-    hartSeedStar(s, v ? 31 : 46, lip + 8, false);
-    return hartDone(s, 27, FY, { lamps, door: { x: dx, y: lip + 4, w: 8, h: foot - lip - 4 }, stone: [[2, FY, -1], [53, FY, 1], [x1, lip, 1]] });
+    lamps.push([wx + 14, lip + 18]);
+    // the seed-star, and a row of small status lights under the window
+    hartSeedStar(s, v ? x1 - 14 - dw - 20 : x0 + 9 + dw + 16, lip + 30, true);
+    for (let k = 0; k < 4; k++) s.px(wx + 4 + k * 3, lip + 31, k === 0 ? '#5cffb4' : HART.amber[1 + (k & 1)], true);
+    return hartDone(s, 50, FY, { lamps, door: { x: dx, y: dy, w: dw, h: foot - 1 - dy }, stone: [[2, FY, -1], [97, FY, 1], [x1, lip, 1], [x0 + 30, FY, 1], [x1 - 30, FY, -1]] });
   });
 }
 

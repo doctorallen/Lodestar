@@ -100,6 +100,13 @@ function outpostSolids(f) {
     out.push({ id: s.id, x: (s.x + 0.5) * TILE + b[0], y: fy - 2 - b[2], rx: b[1], ry: b[2] });
   }
   out.push({ id: 'cradle', x: OUTPOST_CRADLE.x * TILE, y: OUTPOST_CRADLE.y * TILE - 2 - 9, rx: 26, ry: 9 });
+  // the habitat pods: the Kindler's, and one by each lander's pad that's
+  // come down (ending a little behind the feet, so the opening's walk out
+  // of the door starts clear of it)
+  if (f && f.site) {
+    const pods = [f.site.home].concat(f.site.pads.slice(0, typeof settlementSize === 'function' ? settlementSize() : 0).map((p) => p.pod));
+    pods.forEach((p, k) => out.push({ id: 'pod' + k, x: p.x * TILE, y: p.y * TILE - 10 - 7, rx: 31, ry: 7 }));
+  }
   // the buildings standing on their plots (structures.js)
   if (f && f.site) for (const b of structureSolids(f.site)) out.push(b);
   return out;
@@ -375,7 +382,7 @@ function hubProps(d) {
       const p = S.pads[k];
       out.push({ lander: p, k, hubDraw: drawLander, y: p.y * TILE + 4 });
       out.push({ pod: p.pod, look: 1 + k, hubDraw: drawPod, y: p.pod.y * TILE });
-      out.push({ lamp: true, lit: true, at: [p.pod.x + 1.6, p.pod.y - 0.2], hubDraw: drawHubLantern, hidden: true, y: (p.pod.y + 0.3) * TILE });
+      out.push({ lamp: true, lit: true, at: [p.pod.x + 2.6, p.pod.y - 0.2], hubDraw: drawHubLantern, hidden: true, y: (p.pod.y + 0.3) * TILE });
     }
   }
   for (const it of HUB_DRESSING) if (n >= it.from) out.push({ dress: it, hubDraw: drawHubDressing, hidden: true, y: it.y * TILE });

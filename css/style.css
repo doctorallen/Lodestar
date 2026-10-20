@@ -122,6 +122,15 @@ body.home #btn-mine { display: none; }
 #app.wide .deck-btn.act { bottom: calc(166px + env(safe-area-inset-bottom)); right: 8px; }
 /* at a spire, TRAVEL sits over BANK */
 .deck-btn.act.held { background: #fff0c0; box-shadow: 0 0 14px rgba(255, 210, 120, 0.8); }
+/* a hold, not a tap (feeding the star): a dot to press with rings going out
+   from it and round the button, and a fill as the hold goes on */
+.deck-btn.act.hold { padding-left: 38px; background: linear-gradient(90deg, #fff4cc var(--fill, 0%), var(--gold) var(--fill, 0%)); animation: hold-ring 1.6s ease-out infinite; }
+.deck-btn.act.hold::before { content: ''; position: absolute; left: 14px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: #111; animation: hold-dot 1.6s ease-out infinite; }
+.deck-btn.act.hold.held { animation: none; box-shadow: 0 0 16px rgba(255, 210, 120, 0.9); }
+.deck-btn.act.hold.held::before { animation: none; background: transparent; border: 3px solid #111; width: 14px; height: 14px; margin-top: -7px; left: 13px; box-sizing: border-box; }
+@keyframes hold-ring { 0% { box-shadow: 0 0 0 0 rgba(240, 196, 90, 0.75); } 70%, 100% { box-shadow: 0 0 0 12px rgba(240, 196, 90, 0); } }
+@keyframes hold-dot { 0% { box-shadow: 0 0 0 0 rgba(17, 17, 17, 0.6); } 70%, 100% { box-shadow: 0 0 0 8px rgba(17, 17, 17, 0); } }
+@media (prefers-reduced-motion: reduce) { .deck-btn.act.hold, .deck-btn.act.hold::before { animation: none; } }
 .deck-btn.act.act2 { bottom: calc(100% + 60px); background: #2a2210; color: var(--gold); border-color: var(--gold); }
 #app.wide .deck-btn.act.act2 { bottom: calc(218px + env(safe-area-inset-bottom)); }
 /* the smallest phones, and shorter ones (whose deck is shorter): the

@@ -130,7 +130,7 @@ const T = {
   outpost: {
     size: 40, rim: [1.4, 3.4], passage: 1.7,
     meld: { from: 13, to: 3, wobble: 2.5, flora: 1.8, floraPow: 1.4 }, outcrops: [5, 8],
-    sun: [0.35, 1], sunFull: 6, pads: { r: 11.5, n: 6 }, homeClear: [1.6, 1.8, 2.6],
+    sun: [0.35, 1], sunFull: 6, pads: { r: 11.5, n: 6 }, homeClear: [2.4, 2.0, 2.6],
     // lode: the lodelines out across the ground, reach [at magnitude 1,
     // more each magnitude] (tiles; all the way towards kindled land), how
     // fast their breaks run out (px/s), and how faint towards the dark.

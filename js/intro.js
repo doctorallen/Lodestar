@@ -1017,7 +1017,7 @@ function introHubShot(d) {
   if (!pod) from = { x: (f.entry.x + 0.5) * TILE, y: (f.entry.y + 0.5) * TILE };
   // (the pod itself is in the way too, and rock may stand before its door:
   // then he steps out along its front)
-  const inPod = (q) => pod && Math.abs(q.x / TILE - pod.x) < 1.25 && q.y / TILE > pod.y - 1.6 && q.y / TILE < pod.y - 0.05;
+  const inPod = (q) => pod && Math.abs(q.x / TILE - pod.x) < 2.1 && q.y / TILE > pod.y - 2.0 && q.y / TILE < pod.y - 0.05;
   const clear = (a, b) => { for (let k = 1, n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 3); k <= n; k++) { const q = { x: a.x + (b.x - a.x) * k / n, y: a.y + (b.y - a.y) * k / n }; if (!walkable(q) || inPod(q)) return false; } return true; };
   const path = [from];
   if (pod) {
@@ -1117,7 +1117,7 @@ function introPodDoor(spr, x, y, lights) {
   if (!h || !h.door || !spr.door) return;
   const D = spr.door, open = Math.round(D.w * h.door), c = View.ctx;
   c.fillStyle = '#120a06'; c.fillRect(x + D.x + 1, y + D.y + 1, open - 1, D.h - 1);
-  for (let k = 0; k < 6; k++) dot(x + D.x + 1 + ((k * 3) % Math.max(1, open - 1)), y + D.y + 2 + k * 2, '#ffb860', true, 0.5 * h.door);
+  for (let k = 0; k < 10; k++) dot(x + D.x + 1 + ((k * 5) % Math.max(1, open - 1)), y + D.y + 2 + Math.round(k * (D.h - 4) / 9), '#ffb860', true, 0.5 * h.door);
   lights.push({ x: x + D.x + (D.w >> 1), y: y + D.y + D.h, r: TILE * 1.6, i: 0.7 * h.door, c: rgb01('#ffb860') });
 }
 // Over the lit frame (render.js): late, out in the dark land past the
