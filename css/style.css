@@ -529,3 +529,72 @@ body.intro #deck-left { border-right-color: transparent; }
 /* sideways, Wick speaks at the top of the view, clear of the Kindler */
 #app.wide .intro-cap.said { top: calc(52px + env(safe-area-inset-top)); bottom: auto; background: rgba(8, 10, 16, 0.85); border: 1px solid #2a3a48; padding: 8px 12px; }
 body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s; }
+
+/* the loading: the Charter's systems booting up (loader.js). Deep blue-black,
+   the seed-star's pale gold waking, the Charter's blue in the lines; only
+   transforms and opacity animate, so it costs the loading nothing */
+.loader {
+  --ld-blue: #5078b4; --ld-blue-d: #203464; --ld-mark: #b8a46a; --ld-pale: #e2d29c; --ld-hi: #fff4d0; --ld-gold: #f0c050;
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: radial-gradient(ellipse 120% 70% at 50% 30%, #0e1a34 0%, #080d1c 42%, #04050a 100%);
+  color: var(--ld-pale); letter-spacing: 0.08em;
+  transition: opacity 0.3s ease-out;
+  touch-action: none;
+}
+.loader[hidden] { display: none; }
+.loader.gone { opacity: 0; pointer-events: none; }
+.loader.ready { cursor: pointer; }
+.ld-in { width: min(360px, 100%); display: flex; flex-direction: column; gap: 18px; }
+.ld-head { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ld-body { display: flex; flex-direction: column; gap: 8px; }
+.ld-mark { position: relative; width: 132px; height: 132px; display: grid; place-items: center; --wake: 0; }
+.ld-star { position: relative; width: 75px; height: 75px; opacity: calc(0.45 + 0.55 * var(--wake)); }
+.ld-halo {
+  position: absolute; inset: 0; border-radius: 50%; opacity: 0.15;
+  background: radial-gradient(circle, rgba(255, 244, 208, 0.65) 0%, rgba(240, 192, 80, 0.28) 26%, rgba(240, 192, 80, 0.06) 52%, rgba(240, 192, 80, 0) 70%);
+  animation: ld-breathe 2.6s ease-in-out infinite;
+}
+.ld-ring { position: absolute; inset: 6px; border-radius: 50%; border: 1px dashed rgba(80, 120, 180, 0.45); animation: ld-turn 24s linear infinite; }
+.ld-ring::after { content: ''; position: absolute; inset: 8px; border-radius: 50%; border: 1px solid transparent; border-top-color: rgba(240, 192, 80, 0.55); animation: ld-turn 3.2s linear infinite reverse; }
+@keyframes ld-breathe { 50% { transform: scale(1.1); } }
+@keyframes ld-turn { to { transform: rotate(360deg); } }
+.ld-title { margin: 6px 0 0; font-size: 22px; font-weight: 600; letter-spacing: 0.5em; padding-left: 0.5em; color: var(--ld-hi); text-shadow: 0 0 12px rgba(240, 192, 80, 0.45); }
+.ld-sub { margin: 0; font-size: 10px; letter-spacing: 0.24em; color: var(--ld-blue); }
+.ld-log { height: calc(7 * 18px); display: flex; flex-direction: column; justify-content: flex-end; font-size: 11px; line-height: 18px; overflow: hidden; }
+.ld-line { display: flex; gap: 6px; color: var(--ld-mark); white-space: nowrap; }
+.ld-line::before { content: '>'; color: var(--ld-blue); }
+.ld-tx { overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.ld-dots { flex: 1 1 8px; min-width: 8px; border-bottom: 1px dotted rgba(80, 120, 180, 0.4); margin-bottom: 5px; }
+.ld-st { flex: none; color: #86b0ff; }
+.ld-line.run { color: var(--ld-hi); }
+.ld-line.run .ld-st { color: var(--ld-gold); }
+.ld-line.run .ld-tx::after { content: '_'; animation: ld-blink 0.8s steps(1) infinite; }
+.ld-line.skip .ld-st { color: var(--danger); }
+@keyframes ld-blink { 50% { opacity: 0; } }
+.ld-bar { position: relative; height: 16px; padding: 3px; border: 1px solid var(--ld-blue-d); background: #04070f; box-shadow: inset 0 0 8px #000, 0 0 10px rgba(80, 120, 180, 0.18); }
+.ld-bar::before, .ld-bar::after { content: ''; position: absolute; top: 4px; bottom: 4px; width: 3px; background: var(--ld-blue); }
+.ld-bar::before { left: -5px; } .ld-bar::after { right: -5px; }
+.ld-fill { position: absolute; inset: 3px; transform-origin: left center; transform: scaleX(0); background: linear-gradient(180deg, var(--ld-hi) 0%, var(--ld-gold) 40%, #a8701c 100%); box-shadow: 0 0 10px rgba(240, 192, 80, 0.6); transition: transform 0.25s linear; }
+.ld-segs { position: absolute; inset: 3px; display: grid; grid-template-columns: repeat(24, 1fr); }
+.ld-segs i { border-right: 2px solid #04070f; }
+.ld-segs i:last-child { border-right: 0; }
+.ld-segs i.on { animation: ld-spark 0.5s ease-out; }
+@keyframes ld-spark { from { background: rgba(255, 255, 255, 0.7); } to { background: rgba(255, 255, 255, 0); } }
+.ld-foot { display: flex; justify-content: space-between; gap: 10px; font-size: 10px; color: var(--ld-blue); }
+.ld-now { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ld-pct { color: var(--ld-gold); font-variant-numeric: tabular-nums; white-space: pre; }
+.ld-go { margin: 10px 0 0; text-align: center; font-size: 15px; letter-spacing: 0.42em; padding-left: 0.42em; color: var(--ld-hi); text-shadow: 0 0 10px rgba(240, 192, 80, 0.6); animation: ld-pulse 1.8s ease-in-out infinite; }
+.ld-go[hidden] { display: block; visibility: hidden; }
+@keyframes ld-pulse { 50% { opacity: 0.45; } }
+.loader.ready .ld-star { opacity: 1; }
+/* sideways: the mark on the left, the log beside it */
+@media (orientation: landscape) and (max-height: 560px) {
+  .ld-in { width: min(700px, 100%); flex-direction: row; align-items: center; gap: 36px; }
+  .ld-head { flex: none; width: 250px; }
+  .ld-sub { font-size: 9px; letter-spacing: 0.16em; white-space: nowrap; }
+  .ld-body { flex: 1; min-width: 0; }
+  .ld-mark { width: 116px; height: 116px; }
+}
+@media (prefers-reduced-motion: reduce) { .ld-halo, .ld-ring, .ld-ring::after, .ld-go { animation: none; } }
