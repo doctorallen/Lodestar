@@ -120,6 +120,10 @@ function installBot() {
     window.recoverCache = function (d, c) { const n = rec(d, c); if (!Save.data.cache) Bot.packs.recovered++; return n; };
     window.leaveCache = function (d) { const r = leave(d); if (r.cache) Bot.packs.left++; if (r.old) Bot.packs.lost++; return r; };
     window.useSupply = function (k) { const ok = use(k); if (ok) Bot.packs.used[k] = (Bot.packs.used[k] || 0) + 1; return ok; };
+    // the modules rolled, by where they came from and their rarity
+    const drops = window.moduleDrops, unseal = window.unsealRelic, tally = (from, m) => { const t = Bot.rolled[from] || (Bot.rolled[from] = {}); t[m.rarity] = (t[m.rarity] || 0) + 1; };
+    window.moduleDrops = function (d, e) { const out = drops(d, e); for (const m of out) tally(e.type === 'keeper' ? 'keeper' : e.boss ? 'warden' : e.elite ? 'elite' : 'foe', m); return out; };
+    window.unsealRelic = function (rng, r) { const m = unseal(rng, r); tally('relic', m); return m; };
   }
 
   // The world's next step out: the dark territory next to lit land (the
@@ -659,6 +663,7 @@ function installBot() {
       r.kindledAll = kindledCount();
       r.star = s.star;
       r.packs = JSON.parse(JSON.stringify(Bot.packs));
+      r.rolled = JSON.parse(JSON.stringify(Bot.rolled));
       r.built = Object.assign({}, Bot.built);
       r.supplies = Object.assign({}, s.supplies || {});
       out.push(r);
@@ -666,7 +671,7 @@ function installBot() {
     return out;
   }
 
-  window.Bot = { sortie, plan, home, career, circuits, feedStar, makeSupplies, buildings, packs: { recovered: 0, left: 0, lost: 0, used: {} }, built: {}, n: 0 };
+  window.Bot = { sortie, plan, home, career, circuits, feedStar, makeSupplies, buildings, packs: { recovered: 0, left: 0, lost: 0, used: {} }, rolled: {}, built: {}, n: 0 };
 }
 
 module.exports = { installBot };
