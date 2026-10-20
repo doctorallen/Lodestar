@@ -411,7 +411,7 @@ function installBot() {
     UI.closeCard();
     // the outpost's buildings and Wick's upgrades from what the gear left
     // (the ore for the next pick kept back), before supplies take the old ore
-    log.push(...buildings());
+    log.push(...Bot.buildings());
     // supplies from old ore, then the light its deeds earned to the star
     log.push(...makeSupplies());
     const fed = feedStar();
