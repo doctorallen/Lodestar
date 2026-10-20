@@ -47,8 +47,9 @@ function resonanceCast(res, d) {
   Story.say('resonance');
   d.resSeen = d.resSeen || {};
   if (!d.resSeen[res.id]) { d.resSeen[res.id] = true; d.nums.push({ x: d.p.x, y: d.p.y - 30, word: res.name.toUpperCase(), col: RES_GOLD, t: 1.4 }); }
-  // a gold rune circle under the feet, over the cast's own
-  if (CFX.dive === d) CFX.rings.push({ kind: 'glyph', x: 0, y: 0, r0: 10, r1: 15, col: RES_GOLD, t: 0.45, max: 0.45, f: true, rot: 0 });
+  // a gold sigil under the feet, over the cast's own, the Charter's
+  // seed-star in it
+  if (CFX.dive === d) CFX.rings.push({ kind: 'glyph', x: 0, y: 0, r0: 10, r1: 15, col: RES_GOLD, t: 0.45, max: 0.45, f: true, rot: 0, seed: true });
 }
 
 // A group of a resonant circuit fires: true if the resonance fired it its
@@ -125,6 +126,7 @@ function starfallStrike(s, nova, x, y) {
   starfallCrater(x, y);
   cfxSweep(x, y, 4, r * 1.3, '#fff2c8', 0.5, false, 18);
   CFX.rings.push({ kind: 'burst', x, y: y - 4, r0: 3, r1: 16, col: '#ffffff', t: 0.2, max: 0.2, f: false });
+  CFX.rings.push({ kind: 'seed', x, y: y - 6, col: RES_GOLD, t: 0.5, max: 0.5, f: false, big: true });
   cfxFlare(x, y - 8, r * 1.4, 1.5, '#fff2c8', 0.45);
   for (let k = 0; k < 16; k++) { const a = FX_R.f(Math.PI * 2), sp = FX_R.f(40, 110), q = cfxPart(CFX_SPARK, x, y - 4, Math.cos(a) * sp, Math.sin(a) * sp * 0.6 - 30, FX_R.f(0.2, 0.45), k % 3 ? '#fff2c8' : '#ffffff'); if (q) q.g = 120; }
   freezeFrame(T.impact.heavyStop, true);
@@ -260,9 +262,21 @@ function drawThunderhead(au, ox, oy, tick, lights) {
   c.globalAlpha = cfxBand(fade);
   c.drawImage(pic.c, x - pic.cx, y - pic.cy);
   c.globalAlpha = 1;
-  // its underside: a crackle of the storm's colour, brighter as it strikes
-  const n = au.flashT > 0 ? 14 : 5;
-  for (let k = 0; k < n; k++) dot(x + FX_R.i(-20, 20), y + ap(6) + FX_R.i(0, 3), k % 3 ? ELEMENT_COLS.shock : '#ffffff', true, fade);
+  // held in a ring of six gold emitters under it, arcs crawling between
+  // them, all of them flashing as it strikes
+  const ft = Math.floor(Game.realT * 30), SR = cfxRamp(ELEMENT_COLS.shock), ey = y + ap(7), nodes = [];
+  for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2 + Game.realT * 0.8; nodes.push([Math.round(x + Math.cos(a) * ap(15)), Math.round(ey + Math.sin(a) * ap(3))]); }
+  for (const [nx, ny] of nodes) { dot(nx, ny, au.flashT > 0 ? '#ffffff' : HL_GOLD[4], true, fade); dot(nx + 1, ny, HL_GOLD[2], true, fade * 0.8); }
+  for (let k = 0; k < (au.flashT > 0 ? 3 : 1); k++) {
+    const q = (ft >> 2) + k * 2, a = nodes[q % 6], b = nodes[(q + 1) % 6];
+    cfxPaintBolt(cfxBoltPath(a[0], a[1], b[0], b[1], ft + k * 17, 0.25), SR, fade * 0.9, 0.6, ft + k);
+  }
+  // a lock-on on the foe it will strike next, closing as the strike nears
+  if (au.fly <= 0 && au.tick < 0.3) {
+    let best = null, bd = au.r;
+    for (const e of Game.dive.enemies) { if (e.dead) continue; const m = dist(e.x, e.y, au.x, au.y); if (m < bd + e.r) { bd = m; best = e; } }
+    if (best) { const g = 1 + au.tick * 3, w = ap(best.r * 2 + 7) * g; hlBrackets(Math.round(best.x * AP) + ox, Math.round((best.y - best.r - 5) * AP) + oy, w, w * 1.15, 3, HL_GOLD[4], fade); }
+  }
   // a shadow on the ground under it
   for (let i = -ap(11); i <= ap(11); i += 2) dot(x + i, Math.round(au.y * AP) + oy + (i & 2 ? 1 : 0), '#0a0812', false, 0.35 * fade);
   cfxLight(lights, x, y, TILE * 2, 0.7 * fade, [0.75, 0.75, 0.95]);
@@ -301,24 +315,33 @@ function drawResonanceAir(d, ox, oy, tick, lights) {
   if (RES_FX.dive !== d) return;
   const vx = (wx) => Math.round(wx * AP) + ox, vy = (wy) => Math.round(wy * AP) + oy, H = 70;
   for (const st of RES_FX.stars) {
-    const apex = { x: st.x1, y: st.y1 - H };
+    const apex = { x: st.x1, y: st.y1 - H }, gx = vx(st.x1), gy = vy(st.y1), all = st.t / (st.rise + st.fall), ft = Math.floor(Game.realT * 30);
+    // where it will fall: a gold ring closing on the spot, brackets round
+    // it, the seed-star at its heart, blinking faster as it nears
+    const rx = hlQuant(Math.max(8, ap(T.circuits.resonance.starfall.r) * (1.25 - all * 0.35)));
+    hlRing(gx, gy, rx, RES_GOLD, 0.6, ft % (all > 0.7 ? 4 : 8) < 2 ? 0.5 : 0.9, all < 0.6 ? 2 : 1);
+    hlBrackets(gx, gy, rx * 2 + 6, Math.round(rx * 1.2) + 6, 4, HL_GOLD[4], 0.85);
+    cfxBlit(hlSeedPic(5), gx, gy, 0.8);
     if (st.t < st.rise) {
-      // three bolts rise on arcs that fan out and close again
+      // three slugs rise on arcs that fan out and close again, each with a
+      // contrail
       const u = st.t / st.rise;
       for (const side of [-1, 0, 1]) {
         const pt = (w) => { const mx = lerp(st.x0, apex.x, 0.5) + side * 34, my = Math.min(st.y0, apex.y) - 18; return { x: (1 - w) * (1 - w) * st.x0 + 2 * (1 - w) * w * mx + w * w * apex.x, y: (1 - w) * (1 - w) * st.y0 + 2 * (1 - w) * w * my + w * w * apex.y }; };
-        for (let k = 5; k >= 0; k--) { const q = pt(Math.max(0, u - k * 0.035)); dot(vx(q.x), vy(q.y), k ? (k < 3 ? '#e8f4ff' : '#9a94c8') : '#ffffff', true, cfxBand(1 - k / 6)); }
-        const h = pt(u);
-        for (const [i, j] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) dot(vx(h.x) + i, vy(h.y) + j, '#e8f4ff', true);
-        cfxLight(lights, vx(h.x), vy(h.y), TILE * 0.9, 0.7, rgb01('#e8f4ff'));
+        for (let k = 8; k >= 1; k--) { const q = pt(Math.max(0, u - k * 0.025)); dot(vx(q.x), vy(q.y), k < 3 ? '#fff6dc' : k < 6 ? HL_GOLD[3] : HL_GOLD[1], true, cfxBand(1 - k / 9)); }
+        const h = pt(u), hx = vx(h.x), hy = vy(h.y);
+        hlDiamond(hx, hy, 1, '#ffffff', 1); dot(hx, hy, '#ffffff', true);
+        cfxLight(lights, hx, hy, TILE * 0.9, 0.7, rgb01('#fff2c8'));
       }
     } else {
-      // they meet, and the star falls
-      const u = (st.t - st.rise) / st.fall, x = vx(apex.x), y = vy(lerp(apex.y, st.y1 - 4, u));
-      for (let k = 1; k < 18; k++) dot(x + (k % 3 === 0 ? (k & 4 ? 1 : -1) : 0), y - k, k < 4 ? '#ffffff' : k < 10 ? '#fff2c8' : '#9a94c8', true, cfxBand(1 - k / 18));
-      for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]]) dot(x + i, y + j, Math.abs(i) + Math.abs(j) > 1 ? '#fff2c8' : '#ffffff', true);
+      // they meet: the seed-star flashes where; then the star falls, a
+      // white slug down a column of gold light
+      const u = (st.t - st.rise) / st.fall, x = vx(apex.x), y = vy(lerp(apex.y, st.y1 - 4, u)), top = vy(apex.y);
+      if (u < 0.35) cfxBlitHard(hlSeedPic(u < 0.15 ? 12 : 8), x, top, 1 - u / 0.35);
+      for (let j = top; j < y - 2; j++) { const f = (y - j) / Math.max(1, y - top); dot(x, j, f < 0.3 ? '#fff6dc' : HL_GOLD[3], true, cfxBand(1 - f * 0.8)); if ((j + ft) % 3 === 0) { dot(x - 1, j, HL_GOLD[2], true, 0.6); dot(x + 1, j, HL_GOLD[2], true, 0.6); } }
+      for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [0, -2], [0, 2]]) dot(x + i, y + j, '#ffffff', true);
+      hlDiamond(x, y, 3, HL_GOLD[3], 0.9);
       cfxLight(lights, x, y, TILE * 2, 1.2, rgb01('#fff2c8'));
-      if (u < 0.15) ringDots(x, vy(apex.y), ap(6), '#ffffff', 0.8, true);
     }
   }
   for (const fl of RES_FX.burning) {

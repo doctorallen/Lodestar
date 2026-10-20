@@ -504,6 +504,11 @@ const T = {
   //     most lights flaring at once (the oldest make way); day: under the
   //     sky in daylight, the share of its radius a cast's light keeps (and
   //     it's never brighter than one band of light: cfxLight).
+  //   lock: a shot's or a placed spell's lock-on on its foe, [seconds,
+  //     seconds its brackets take to close in, seconds its guide line
+  //     shows]; scar: a lance's line burnt on the ground, [seconds it
+  //     cools, the most at once]; beam: how far back from its head a
+  //     lance's beam reaches, world px.
   castFx: {
     pose: 0.2, thrust: 0.45,
     lean: { wand: [1, 1], gauntlet: [2, 1], staff: [1, 0] }, reach: { wand: 3, gauntlet: 1, staff: 4 }, lift: 4,
@@ -522,6 +527,7 @@ const T = {
     charge: { motes: 40, glyph: [5, 13] },
     echo: 0.3,
     cap: 180, flares: 10, day: 0.33,
+    lock: [0.4, 0.13, 0.07], scar: [0.7, 8], beam: 40,
   },
   // What each element does on a hit (its stone sets a Form's). shock: this
   // share of hits arcs on; frost: hits chill, and a heavy hit on the
