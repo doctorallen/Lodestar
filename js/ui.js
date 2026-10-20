@@ -14,7 +14,7 @@ const esc = escapeHtml;
 
 // "12 Ferrite, 2 Voltaic crystal"
 function stuffLines(stash) {
-  return stuffIds().filter((id) => stash[id]).map((id) => `${stash[id]} ${stuffName(id)}`).join(', ');
+  return stuffIds().filter((id) => stash[id]).map((id) => `${stash[id]} ${id === 'thread' ? (stash[id] === 1 ? 'thread' : 'threads') : stuffName(id)}`).join(', ');
 }
 const exoticName = (id) => T.exotics.find((x) => x.id === id).name;
 const stuffIds = () => T.ores.map((o) => o.id).concat(PART_STACK_IDS, T.exotics.map((x) => x.id), ['thread'], LIGHT_IDS);
@@ -171,6 +171,7 @@ const UI = {
     const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawUplink_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-bench': drawBench, 'screen-research': drawResearch, 'screen-star': drawStar, 'screen-cargo': drawCargo, 'screen-supplies': drawSupplies }[UI.screen];
     if (r) r();
     if (UI.card) drawCard();
+    UI.placeToasts();
   },
 
   // report: how the last dive ended
@@ -214,8 +215,9 @@ const UI = {
     $('card').hidden = false;
     UI.openedAt = Game.realT;
     drawCard();
+    UI.placeToasts();
   },
-  closeCard() { UI.card = null; $('card').hidden = true; },
+  closeCard() { UI.card = null; $('card').hidden = true; UI.placeToasts(); },
 
   // Someone speaking: Wick, or the star. Lines wait their turn.
   // A line spoken, queued behind any still being said. Lines wait while a
@@ -281,8 +283,16 @@ const UI = {
     el.style.animationDuration = secs + 's';
     box.appendChild(el);
     while (box.children.length > most) box.firstChild.remove();
+    UI.placeToasts();
     if (kind === 'tip') UI.hintsSeen.add(msg);
     setTimeout(() => { el.remove(); UI.pumpToasts(); }, secs * 1000);
+  },
+  // Over a card, the toasts sit under its bar, clear of KEEP and its way
+  // out (else where the stylesheet puts them).
+  placeToasts() {
+    const box = $('toasts'), bar = UI.card && !$('card').hidden && document.querySelector('#card-body .card-bar');
+    const top = bar ? Math.round(bar.getBoundingClientRect().bottom + 4) + 'px' : '';
+    if (box.style.top !== top) box.style.top = top;
   },
   // Every step: what a place left behind goes, and a waiting hint shows if
   // there's room for it.
