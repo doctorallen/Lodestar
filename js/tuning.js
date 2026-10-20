@@ -507,7 +507,9 @@ const T = {
   //   shapeOf: each Form's shape (and a spark's).
   //   bolt: originT, how long a bolt takes to leave the fist for its true
   //     path; trail: dots behind it; every: seconds between the motes it
-  //     sheds. impact: [sparks, light radius, light, seconds]; decal:
+  //     sheds; core: its white-hot core, art px [plain, charged]; linger:
+  //     how long its contrail stays where it went; light: [radius, tiles,
+  //     strength]. impact: [sparks, light radius, light, seconds]; decal:
   //     [seconds a mark on the ground lasts, the most at once].
   //   charge: motes drawn into the focus a second at full charge; glyph
   //     radius [empty, full].
@@ -516,11 +518,17 @@ const T = {
   //     most lights flaring at once (the oldest make way); day: under the
   //     sky in daylight, the share of its radius a cast's light keeps (and
   //     it's never brighter than one band of light: cfxLight).
+  //   lock: a shot's or a placed spell's lock-on on its foe, [seconds,
+  //     seconds its brackets take to close in, seconds its guide line
+  //     shows]; scar: a lance's line burnt on the ground, [seconds it
+  //     cools, the most at once]; beam: how far back from its head a
+  //     lance's beam reaches, world px; swarm: how long Blight's nanites
+  //     cling to what it struck.
   castFx: {
     pose: 0.2, thrust: 0.45,
     lean: { wand: [1, 1], gauntlet: [2, 1], staff: [1, 0] }, reach: { wand: 3, gauntlet: 1, staff: 4 }, lift: 4,
-    flash: [0.12, 1.5, 1.0], streaks: 5, streakSpeed: [50, 110],
-    glyph: [6, 10, 0.32], glyphBig: [9, 16, 0.5], motes: 6, moteTime: 0.55,
+    flash: [0.14, 2.2, 1.4], streaks: 7, streakSpeed: [50, 110],
+    glyph: [8, 13, 0.45], glyphBig: [11, 19, 0.6], motes: 6, moteTime: 0.55,
     shapes: {
       projectile: {},
       sweep: { time: 0.16, heavyTime: 0.24, sparks: 10, dust: 6, bloom: [1, 0.8, 0.2] },
@@ -530,10 +538,11 @@ const T = {
       move: { ghosts: 6, time: 0.3, alpha: 0.4, ends: [3, 12, 0.18], bloom: [2, 1.2, 0.25] },
     },
     shapeOf: { spark: 'projectile', bolt: 'projectile', lance: 'projectile', orb: 'projectile', arc: 'sweep', glaive: 'burst', nova: 'burst', well: 'placed', ward: 'guard' },
-    bolt: { originT: 0.07, trail: 5, every: 0.035 }, impact: [7, 1.1, 1.1, 0.16], decal: [1.6, 16],
+    bolt: { originT: 0.07, trail: 5, every: 0.035, core: [12, 18], linger: 0.26, light: [1.7, 0.85] }, impact: [12, 1.9, 1.7, 0.24], decal: [1.8, 16],
     charge: { motes: 40, glyph: [5, 13] },
     echo: 0.3,
-    cap: 180, flares: 10, day: 0.33,
+    cap: 260, flares: 14, day: 0.33,
+    lock: [0.45, 0.1, 0.1], scar: [0.9, 8], beam: 40, swarm: 1.1,
   },
   // What each element does on a hit (its stone sets a Form's). shock: this
   // share of hits arcs on; frost: hits chill, and a heavy hit on the
