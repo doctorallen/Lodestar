@@ -100,7 +100,7 @@ function plantBeacon() {
   if ((d.fieldForge && Math.hypot(d.fieldForge.x - tx, d.fieldForge.y - ty) < 2) || (d.rift && d.rift.open && [d.rift, d.rift.pair].some((r) => r && Math.hypot(r.x - tx, r.y - ty) < 2))) { UI.toast('Not so close to that'); return false; }
   if (floorTile(f, tx, ty) !== TILE_FLOOR) { UI.toast('The beacon needs open ground'); return false; }
   d.beacon = { x: tx, y: ty, t: 0, landed: false };
-  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.tools.beacon.noise) wake(d, e);
+  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.tools.beacon.noise) wake(d, e, true);
   UI.toast(d.deep ? "The beacon is calling the star's light down" : "The beacon is calling a spire's light down", 'legendary');
   snd('beacon');
   return true;
@@ -115,7 +115,7 @@ function landBeacon(d, quiet) {
   d.padDark = false;
   repaintAround(f, b.x, b.y);
   if (quiet) return;
-  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, (b.x + 0.5) * TILE, (b.y + 0.5) * TILE) < T.tools.beacon.noise) wake(d, e);
+  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, (b.x + 0.5) * TILE, (b.y + 0.5) * TILE) < T.tools.beacon.noise) wake(d, e, true);
   UI.toast(d.deep ? 'The light lands: rise here' : "A spire's light lands: bank here, or stand in it", 'legendary');
   snd('beaconLand');
   buzz(40);

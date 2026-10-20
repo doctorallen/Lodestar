@@ -143,12 +143,12 @@ async function phone(browser) {
   const v = await page.evaluate(() => ({ w: View.w, h: View.h, cssW: View.canvas.getBoundingClientRect().width, stageW: $('stage').getBoundingClientRect().width }));
   check(Math.min(v.w, v.h) >= 176 && v.cssW >= v.stageW - 1, `phone: the view is ${v.w}×${v.h}, ${v.cssW}px across a ${v.stageW}px stage`);
 
-  // the joystick walks
+  // the joystick walks (away from the opening it came in by: the real loop
+  // steps too while the thumb is down, and walking back out of it would
+  // go home)
   await page.evaluate(calm);
   const before = await page.evaluate(() => [Game.dive.p.x, Game.dive.p.y]);
   const [lx, ly] = await center(page, '#deck-left');
-  // (inward, away from the opening it came in by: walking out of it would
-  // go home)
   const inward = await page.evaluate(() => { const e = Game.dive.floor.exits.find((x) => x.to === 0); return e ? [e.nx, e.ny] : [1, 0]; });
   await page.touchscreen.touchStart(lx, ly);
   for (let i = 1; i <= 5; i++) await page.touchscreen.touchMove(lx + i * 8 * inward[0], ly + i * 8 * inward[1]);
