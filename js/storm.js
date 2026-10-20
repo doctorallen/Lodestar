@@ -16,7 +16,8 @@ function updateWorld(d, dt) {
 }
 
 // --- the Lodestorm -------------------------------------------------------
-function stormHere(d) { return d.storm && d.zone === 'surface' && !d.hub; }
+// (No storm while Wick walks a new Kindler through the first landing.)
+function stormHere(d) { return d.storm && d.zone === 'surface' && !d.hub && !(typeof Guide !== 'undefined' && Guide.on()); }
 
 function updateStorm(d, dt) {
   if (!stormHere(d)) return;
