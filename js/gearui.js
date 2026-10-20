@@ -39,14 +39,14 @@ function moduleRow(m, act, arg, tag = '', sub = '') {
 // Cost tags for a bench cost from `src`.
 function benchCostTags(cost, src) {
   const out = [];
-  if (cost.threads) out.push(costTag('thread', cost.threads, src.thread || 0));
+  if (cost.threads) out.push(costTag('thread', cost.threads, src.thread || 0, cost.threads === 1 ? 'thread' : 'threads'));
   if (cost.ore) out.push(costTag(cost.ore.id, cost.ore.n, src[cost.ore.id] || 0));
   for (const s of cost.stuff || []) out.push(costTag(s.id, s.n, src[s.id] || 0));
   return out.join(' ');
 }
 // "need 3 more Lumenite and 2 threads"
 function shortWords(short) {
-  return short.map((x) => (x.part ? partWords(x.part, x.n) : `${x.n} ${stuffName(x.id)}${x.id === 'thread' && x.n !== 1 ? 's' : ''}`)).join(', ');
+  return short.map((x) => (x.part ? partWords(x.part, x.n) : `${x.n} ${x.id === 'thread' ? (x.n === 1 ? 'thread' : 'threads') : stuffName(x.id)}`)).join(', ');
 }
 // Where a module is: in the stash, or in a worn base's socket (or one
 // in the stash). { m, base, i, slot } or null.
@@ -136,7 +136,9 @@ function drawForge() {
   const sizes = bp.kind === 'caster' ? casterSizes(F.bp) : [null];
   if (!sizes.includes(F.size)) F.size = sizes[0];
   if (!tool && (!F.ore || !forgeOres(src).some((o) => o.id === F.ore))) F.ore = forgeBestOre(F.bp, src, F.size);
-  const exotics = bp.kind === 'caster' || bp.kind === 'armor' || bp.kind === 'charm' || bp.kind === 'pick' ? T.exotics.filter((x) => (src[x.id] || 0) > 0 && exoticForgeWord(F.bp, x)) : [];
+  // (riftglass can't raise what's made in the densest ore)
+  const topOre = F.ore && T.ores[ORE_INDEX[F.ore]] && T.ores[ORE_INDEX[F.ore]].tier >= T.ores.length;
+  const exotics = bp.kind === 'caster' || bp.kind === 'armor' || bp.kind === 'charm' || bp.kind === 'pick' ? T.exotics.filter((x) => (src[x.id] || 0) > 0 && exoticForgeWord(F.bp, x) && !(x.tierUp && topOre)) : [];
   if (F.exotic && !exotics.some((x) => x.id === F.exotic)) F.exotic = null;
   const ore = tool ? null : T.ores[ORE_INDEX[F.ore]], cost = recipeCost(F.bp, F.ore, F.size), short = recipeShort(cost, src), lock = recipeLock(F.bp);
   const ready = !short.length && !lock;
@@ -161,7 +163,7 @@ function drawForge() {
     const oreChips = ores.map((o) => chip('forgeOre', o.id, `${stuffIcon(o.id)}${esc(o.name)}<small>tier ${o.tier} · have ${src[o.id]}</small>`, o.id === F.ore)).join('')
       || `<span class="note">${F.field ? 'No ore in your cargo.' : 'No ore banked. Mine some and bring it home.'}</span>`;
     h += `<h3>MADE IN <span class="dim">· THE ORE SETS THE TIER</span></h3><div class="chips">${oreChips}</div>`;
-    if (sizes.length > 1) h += `<h3>SIZE <span class="dim">· CIRCUIT SLOTS</span></h3><div class="chips">${sizes.map((n, i) => chip('forgeSize', n, `${n} slots<small>${i ? `+${i * T.gear.sizeOre} ore, +${i * T.gear.sizeParts} part${i * T.gear.sizeParts > 1 ? 's' : ''}` : 'as it comes'}</small>`, n === F.size)).join('')}</div>`;
+    if (sizes.length > 1) h += `<h3>SIZE <span class="dim">· CIRCUIT SLOTS</span></h3><div class="chips">${sizes.map((n, i) => chip('forgeSize', n, `${casterSlotCount(F.bp, n, ore.tier)} slots<small>${i ? `+${i * T.gear.sizeOre} ore, +${i * T.gear.sizeParts} part${i * T.gear.sizeParts > 1 ? 's' : ''}` : 'as it comes'}</small>`, n === F.size)).join('')}</div>`;
     if (exotics.length) h += `<h3>EXOTIC <span class="dim">· IF YOU LIKE</span></h3><div class="chips">${exotics.map((x) => chip('forgeExotic', x.id, `${stuffIcon(x.id)}${esc(x.name)}<small>have ${src[x.id]} · ${esc(exoticForgeWord(F.bp, x))}</small>`, x.id === F.exotic)).join('')}</div>`;
   }
   // exactly what comes out
@@ -250,11 +252,11 @@ function openForge(field) {
   snd('forgeOpen');
 }
 function drawResearch() {
-  const finds = UI.research || [];
+  const finds = UI.research || [], step = Math.min(0.35, 2 / Math.max(1, finds.length));
   $('research-body').innerHTML = `<p class="note center">The forge studies what you brought home.</p>` + finds.map((f, i) => `
-    <div class="find" style="--d:${i * 0.35}s"><div class="find-what"><img class="icon" src="${researchIconUrl(f.r)}" alt=""><span>${esc(researchWhat(f.r))}</span></div>
+    <div class="find" style="--d:${i * step}s"><div class="find-what"><img class="icon" src="${researchIconUrl(f.r)}" alt=""><span>${esc(researchWhat(f.r))}</span></div>
     <div class="find-arrow">→</div>
-    <div class="find-opens">${f.opened.map((id, j) => `<span class="find-recipe" style="--d:${i * 0.35 + 0.25 + j * 0.15}s"><img class="icon" src="${recipeIconUrl(id)}" alt=""><b>${esc(recipeName(id))}</b></span>`).join('')}</div></div>`).join('')
+    <div class="find-opens">${f.opened.map((id, j) => `<span class="find-recipe" style="--d:${i * step + 0.25 + j * 0.15}s"><img class="icon" src="${recipeIconUrl(id)}" alt=""><b>${esc(recipeName(id))}</b></span>`).join('')}</div></div>`).join('')
     + `<p class="note center">${finds.reduce((n, f) => n + f.opened.length, 0)} new recipe${finds.reduce((n, f) => n + f.opened.length, 0) === 1 ? '' : 's'} at the forge.</p><div class="menu"><button class="btn primary" data-act="researchDone">SEE THE RECIPES</button></div>`;
 }
 
@@ -273,7 +275,7 @@ function drawGear() {
     const list = mods.filter((m) => m.fits === f).sort((a, b) => moduleWorth(b) - moduleWorth(a));
     return list.length ? `<div class="gl">FOR ${f === 'armor' ? 'ARMOR' : KIND_WORDS[f].toUpperCase() + 'S'}</div>${list.map((m) => moduleRow(m, 'cardStash', m.uid, moduleTag(m, s.equip))).join('')}` : '';
   }).join('');
-  const kinds = ['relic', 'caster', 'armor', 'charm', 'pick'];
+  const kinds = ['caster', 'armor', 'charm', 'pick'], relics = s.items.filter((it) => it.kind === 'relic');
   const bases = s.items.filter((it) => kinds.includes(it.kind)).sort((a, b) => kinds.indexOf(a.kind) - kinds.indexOf(b.kind) || b.tier - a.tier)
     .map((it) => itemRow(it, 'cardStash', it.uid, compareTag(it, s.equip))).join('');
   const stones = groupStones(s.items), down = downgrades();
@@ -283,6 +285,7 @@ function drawGear() {
     <h3>WORN</h3>${slots}
     <p class="note">Tap a piece for its module sockets (and a caster's circuit). Socketing is free: change it as often as you like.</p>
     <h3>MODULES · ${mods.length}</h3>${modList || '<p class="note">None spare. Creatures leave them when they fall: their pattern, caught in a lattice.</p>'}
+    ${relics.length ? `<h3>SEALED RELICS · ${relics.length}</h3>${relics.map((it) => itemRow(it, 'cardStash', it.uid)).join('')}<p class="note">The Lodestar's light opens them: tap one to unseal it.</p>` : ''}
     <h3>BASES · ${s.items.filter((it) => kinds.includes(it.kind)).length}</h3>${bases || '<p class="note">None spare. Bases are forged at the forge.</p>'}
     <h3>STONES · ${stones.reduce((n, x) => n + x.n, 0)}</h3>${stones.length ? `<div class="drawer-row">${stones.map((x) => stoneTile(x, { act: 'cardStone', arg: x.stone + ':' + x.tier, count: x.n })).join('')}</div>` : '<p class="note">None spare. Forge Form, Element and Glyph stones at the forge.</p>'}
     ${down.length ? `<div class="menu"><button class="btn danger" data-act="salvageAll">${UI.salvageAllArmed ? `TAP AGAIN: SALVAGE ${down.length}` : `SALVAGE ALL ▼ (${down.length})`}</button></div><p class="note">Breaks down every base and module marked ▼ that isn't kept (★): bases into ore, modules into threads. What's in a base comes out first.</p>` : ''}
