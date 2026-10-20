@@ -395,7 +395,9 @@ function drawUplink_() {
     <h3>SHARDS SET · ${set}/3</h3>${T.biomes.map(shardRow).join('')}
     ${call}
     ${log ? `<h3>THE LOG · ${kindled} KINDLED</h3>${log}` : ''}
-    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The Kindlers before you left logs out in the dark.</p>'}`;
+    <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3>${echoes || '<p class="note">None yet. The Kindlers before you left logs out in the dark.</p>'}
+    <h3>THE LANDING</h3><p class="note">The Meridian's record of how we came down.</p>
+    <div class="menu"><button class="btn" data-act="replayIntro">WATCH THE LANDING AGAIN</button></div>`;
 }
 
 // How the last dive ended, over the outpost.
@@ -790,6 +792,8 @@ UI.acts = {
     UI.story = null; UI.close();
     if (st.done) st.done();
   },
+  // the opening again, from the uplink (intro.js)
+  replayIntro: () => { UI.close(); Intro.play(null); },
   // calling the colony down, at the uplink (story.js)
   callLanders: () => { if (Story.canCall()) Story.callLanders(() => UI.useStation('wreck')); },
   recall: () => {
@@ -986,6 +990,14 @@ UI.acts = {
     Snd.applyLevels(false);
     drawSoundButtons();
   },
+  // the pause screen's lamp: a beam the way you're turned, or the round
+  // glow (render.js lampBeamOf; an example to compare)
+  lampSet: () => {
+    const s = Save.data.settings || (Save.data.settings = {});
+    s.lamp = lampIsBeam() ? 'glow' : 'beam';
+    Save.saveField('settings');
+    drawSoundButtons();
+  },
   attune: (id) => {
     const s = Save.data;
     if (attunePointsLeft(s) <= 0 || (s.attune[id] || 0) >= T.attune[id].max) return;
@@ -1000,6 +1012,7 @@ function drawSoundButtons() {
   const word = (k) => { const v = Snd.level(k); return v >= 1 ? 'ON' : v > 0 ? 'SOFT' : 'OFF'; };
   setTextIfChanged('pause-music', `MUSIC: ${word('music')}`);
   setTextIfChanged('pause-sfx', `SOUNDS: ${word('sfx')}`);
+  setTextIfChanged('pause-lamp', `LAMP: ${lampIsBeam() ? 'BEAM' : 'GLOW'}`);
 }
 
 // A caster's stones moved into another, slot for slot; what doesn't fit goes

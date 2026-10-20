@@ -1117,6 +1117,36 @@ const T = {
       walls: true, baked: true, eye: 26, rays: 1.25, step: 2, reach: 3, top: 0,
       cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, near: 1 }, hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
     },
+    // The suit lamp as a beam (an example to compare with the round glow:
+    // render.js lampBeamOf, shadow.js addConeLight; cosmetic). on: the
+    // default, until the pause screen's LAMP is set. It points the way the
+    // Kindler is turned (the rig's smoothed facing), or the aim while
+    // casting. reach: × the glow's reach; i: its strength on its axis.
+    // core, edge: half-angles (degrees) of its full middle and of where it
+    // has faded out, smoothly between; axis: how much brighter still
+    // right on its axis; halo: a faint wider cone round it [its edge, ×
+    // edge; strength]; ragged: how far its edges are broken into short
+    // strokes across (a share of the halo's edge's cosine range). pow: how it fades with distance, (1 − d)^pow
+    // (the glow's is 2). rise: where the cone starts, from the feet (0) to
+    // the brow lamp (1); back: art px its apex is set back behind that, so
+    // it's already as wide as the body where it leaves him. spill: a dim
+    // round light round him [its reach, × the glow's; strength]; hot: a
+    // small bright spot at the lamp [reach, art px; strength]. low: as your
+    // light drains below T.pull.dimAt it narrows (its half-angles × narrow
+    // when it's all but gone) and gutters (dips of up to flicker).
+    // sightSteps: the turns the walls' sight is worked out for; rays: its
+    // rays, × T.light.shadow.rays (it reaches further). air: what
+    // shows of it in the air, in a dark place: a haze of loose strokes in a
+    // shaft from the lamp coming down to the ground [how many, alpha, how
+    // far out (× reach)], and motes drifting in it [how many a 100 × 100
+    // art px of cone, alpha].
+    beam: {
+      on: true, reach: 1.7, i: 1.75, core: 8, edge: 30, axis: 0.6, halo: [1.6, 0.16], ragged: 0.1, pow: 1.1, rise: 0.45, back: 10,
+      spill: [0.36, 0.42], hot: [9, 0.7],
+      low: { narrow: 0.7, flicker: 0.45 },
+      sightSteps: 64, rays: 0.8,
+      air: { haze: [46, 0.45, 0.6], motes: [3, 0.8] },
+    },
   },
 
   // Wick, the drone (render.js, drawDrone; cosmetic): where it hovers from
@@ -1126,6 +1156,31 @@ const T = {
   // its whole bob). ease: how quickly it catches up (a second); bob: [its
   // speed, how far (world px)].
   wick: { back: [7, 4], aside: [6, 3], up: 29, ease: 5, bob: [3, 1.5] },
+
+  // The opening (intro.js): five painted scenes that play on their own,
+  // the last in the outpost itself. scenes: each one's length (s); fade:
+  // the black into and out of each of the first four (s); capAt: when each
+  // of their captions starts (s), typed at cps characters a second;
+  // tapGuard: seconds before a tap counts; warm: seconds the outpost is
+  // still drawn under the first scene (so it's painted); sndWait: the
+  // longest (s) a cue waits for its sound to be rendered (sndbank.js). hub: the last
+  // shot, in seconds into it: the fade in from black; the star rising out
+  // of its cradle from `drop` art px down (over `rise`) and lighting (over
+  // `lit`); the outpost's light up from `amb0` of its own (over `ambUp`);
+  // its lodelines running out (over `lode`); the modules waking, the
+  // nearest the cradle first: [the first, then one every, each light of
+  // one after the one before]; the camera starting with the star `camAt`
+  // of the way down the view and coming down over `cam`; the Kindler's pod
+  // door open over `door`, his suit lamp flickering on over `lampOn` as he
+  // looks out, and him stepping out and `step` tiles on at
+  // `walk` of his pace; Wick lifting off his pack at `wickAt`; him turning
+  // to the star at `look`; Wick's lines at `caps`; and something in the
+  // dark over `dark`.
+  intro: {
+    scenes: [9, 9.5, 11, 9.5, 17.5], fade: 0.6, capAt: [1.0, 1.0, 1.2, 1.0], cps: 30, tapGuard: 0.4, warm: 1, sndWait: 2.5,
+    hub: { fadeIn: 0.9, drop: 34, rise: [0.6, 3.2], lit: [0.8, 2.8], amb0: 0.3, ambUp: [1.5, 9], lode: [2.8, 6], wake: [2.6, 0.2, 0.08], camAt: 0.42, cam: [3.4, 8.2], door: [5.8, 7.6], lampOn: 0.6, step: 1.6, walk: 0.42, wickAt: 7.4, look: 8.4, caps: [8.0, 12.6], dark: [14.2, 15.4] },
+  },
+
 
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
   // at once (ui.js; hints wait their turn).

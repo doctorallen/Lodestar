@@ -112,6 +112,7 @@
     <div class="menu sound-row">
       <button id="pause-music" class="btn" data-act="soundSet" data-arg="music">MUSIC: ON</button>
       <button id="pause-sfx" class="btn" data-act="soundSet" data-arg="sfx">SOUNDS: ON</button>
+      <button id="pause-lamp" class="btn" data-act="lampSet">LAMP: BEAM</button>
     </div>
     <p id="pause-note" class="note">Recalling takes you home: a few seconds standing still, and the dark keeps part of the cargo. Giving up loses all of it. What you wear, your pocket and what you've banked are safe either way.</p>
     <div class="build" id="build"></div>
@@ -129,6 +130,14 @@
   </section>
 
   <div id="card" class="card-wrap" hidden><div id="card-body" class="card"></div></div>
+
+  <!-- the opening: painted scenes over everything, then the outpost (intro.js) -->
+  <div id="intro" class="intro" hidden>
+    <canvas id="intro-view"></canvas>
+    <div id="intro-cap" class="intro-cap" aria-live="polite"></div>
+    <button id="intro-skip" class="intro-skip">SKIP INTRO</button>
+    <p id="intro-sound" class="intro-sound" hidden>TAP FOR SOUND</p>
+  </div>
 </div>
 
 <script src="js/util.js"></script>
@@ -183,6 +192,7 @@
 <script src="js/ui.js"></script>
 <script src="js/worldmap.js"></script>
 <script src="js/anvil.js"></script>
+<script src="js/intro.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

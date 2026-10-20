@@ -18,7 +18,7 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Set out / step through / bank / light / plant | The button that appears at a portal, a spire, a waystone or a heart | E / Enter |
 | Travel | TRAVEL, over BANK at a spire | |
 | Cargo | CARGO in the top bar | I |
-| Pause (and the MUSIC and SOUNDS settings) | II | Esc / P |
+| Pause (and the MUSIC, SOUNDS and LAMP settings) | II | Esc / P |
 
 The loop:
 1. Walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to a spire.
@@ -47,7 +47,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/version.js` | The build stamp, written by `.githooks/pre-commit` |
 | `js/tuning.js` | Every gameplay number, the ores, exotics and biomes |
 | `js/save.js` | The save in localStorage |
-| `js/audio.js` | Sound, made in code with Web Audio: the engine (started by the first tap, suspended when hidden, the settings), the effects, and `snd(name, opts)`, the hook the game calls |
+| `js/audio.js` | Sound, made in code with Web Audio: the engine (started by the first tap, suspended when hidden, the settings), the effects (the opening's cues among them), and `snd(name, opts)`, the hook the game calls |
 | `js/music.js` | The music that grows with the star and thins in the dark, each place's own sound, the turn's unease; footsteps, heartbeat, stings and landers it listens for |
 | `js/sndbank.js` | The fight's sounds and the footsteps, layered and rendered ahead into a few variants each after the first tap (an OfflineAudioContext), so a play is only a buffer |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins, portals' places, lodeline; the outpost's site, its openings and its plan |
@@ -56,11 +56,12 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/paint.js` | The painted style (docs/PAINTED.md): stroke ramps and strokes, the ground's tones, the rock rising as a heightfield from a steep three-quarter camera, occlusion, lazy painting in chunks, and the painted sprite builder |
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
 | `js/climes.js` | Climes: each one's palette, flora, critters and weather; rolling and naming them |
-| `js/story.js` | The story: the opening, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
+| `js/story.js` | The story: the opening's captions, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
 | `js/hub.js` | The outpost: stations, the star over its cradle and its lodelines across the ground, light masts, starstone, the uplink, the settlement's landers and pods, feeding the star (held at its altar) |
 | `js/hubart.js` | The outpost, painted: the Charter's modules, the star and its cradle, starstone, light masts, landers, pods and people; the ancient forges in the land |
 | `js/hubground.js` | The outpost's ground: packed earth, the starstone spreading from the cradle as the star grows, its edges melding into each neighbour's land (ground, plants, rock), the landing pads, faint trodden tracks; `outpostGroundAt` (what's underfoot) |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
+| `js/intro.js` | The opening: five painted scenes that play on their own (the crossing, the survey, the landing, the Meridian, the outpost), their captions, SKIP and tap to hurry, and the last shot drawn by the game itself as the modules wake, the camera comes down and the Kindler steps out of their pod and is handed over |
 | `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp; Wick |
 | `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
 | `js/blueprints.js` | What can be forged: blueprints (casters, gear, stones), creature parts |
