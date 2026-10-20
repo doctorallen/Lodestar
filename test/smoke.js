@@ -633,6 +633,8 @@ async function phone(browser) {
   await tap(page, '#screen-cargo [data-act=resume]');
   // a flare holds your light; a charge blasts the first foe near it
   const set = await page.evaluate(() => {
+    // (in dark land, where the light drains)
+    if (Game.dive.kindled) { enterTerritory(ring1(null), { from: 0 }); sturdy(); }
     const d = Game.dive, b = Save.data.supplies; b.flare1 = 1; b.charge1 = 1; d.pull = 0.5;
     const flare = useSupply('flare'), charge = useSupply('charge'), p0 = d.pull;
     Game.render();

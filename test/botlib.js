@@ -122,8 +122,10 @@ function installBot() {
   // beside it.
   function plan(deepOdds = 0) {
     const L = worldMap(), lit = (id) => isKindled(id), c = Save.data.cache;
-    // the pack a fall left, first: from the spire nearest it
-    if (c && terrOf(c.terr)) {
+    // the pack a fall left, first: from the spire nearest it (but after two
+    // falls going back for packs, it leaves them to the dark, as a player
+    // would, until it comes home well again)
+    if (c && terrOf(c.terr) && (Save.data.botChase || 0) < 2) {
       const t = terrOf(c.terr), deep = c.site > 0;
       if (hasSpire(t.id)) return { target: t.id, spire: t.id, deep, cache: true };
       if (t.nb.includes(0)) return { target: t.id, walk: t.id, deep, cache: true };
@@ -322,7 +324,8 @@ function installBot() {
     // two good sorties at its edge and it's ready for a level more; a fall
     // and it starts counting again
     const lv = terrLevel(terrOf(target)), sv = Save.data;
-    if (ended === 'died') sv.botWins = 0;
+    if (ended === 'died') { sv.botWins = 0; if (P.cache) sv.botChase = (sv.botChase || 0) + 1; }
+    else if (ended === 'home') sv.botChase = 0;
     else if (ended === 'home' && lv >= (sv.botBest || 1) && (sv.botWins = (sv.botWins || 0) + 1) >= 2) { sv.botBest = (sv.botBest || 1) + 1; sv.botWins = 0; }
     const r = result();
     if (!ended) { if (Game.dive === d) abandonDive(); ended = 'timeout'; }
