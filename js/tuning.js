@@ -753,7 +753,9 @@ const T = {
     part: 0.45, partTwo: 0.15, eliteParts: [2, 3], bossParts: 4,
     exotic: 0.03, eliteExotic: 0.5,
     relic: 0.008, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
-    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.4, 0.12], set: [0.35, 0.1] },
+    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.15, 0.05], set: [0.15, 0.04] },
+    // a sealed relic opens into a rare module, or now and then better
+    relicOpens: { rare: 80, legendary: 12, set: 8 },
   },
 
   // Gear. Base numbers at tier 1, times tierGrowth a tier (affixes grow by
@@ -814,7 +816,7 @@ const T = {
   //     cargo.
   modules: {
     drop: { foe: 0.07, elite: 0.65, boss: 2, keeper: 3, deep: 1.4, early: { found: 8, mult: 2.6 }, lens: 1.5 },
-    keeperLegend: 3,
+    keeperLegend: 5,
     affixes: { common: 1, magic: 2, rare: 3, legendary: 2, set: 1 },
     value: 0.6,
     fits: { caster: 4, armor: 2.5, charm: 2, pick: 1.5 },
@@ -1013,7 +1015,9 @@ const T = {
   //   occlude: draw the rock back over sprites behind it.
   //   lazy: a floor is painted in chunks as the view nears them: near,
   //     the margin (tiles) round the view painted before a frame; far, the
-  //     margin painted as time allows, budget ms a frame.
+  //     margin painted as time allows, budget ms a frame, out from lead
+  //     world px ahead of where the diver is heading; arrive, the budget
+  //     a frame for the view still behind the iris while it opens.
   paint: {
     // shade (pshadow.js): the shadows baked into the ground's tones, as how
     // far each lowers its light value (0-1, as ground.sunDark): sun, by day
@@ -1024,7 +1028,7 @@ const T = {
     // most] its depth, at [x, y] from the foot, fall (how softly it fades
     // out); cover: under a tuft or a stand's blade, coverPad, coverRy.
     shade: { mul: 0.75, sun: 0.32, stand: 0.6, light: 0.3, home: 0.6, edge: [1.5, 0.05], contact: [0.16, 0.24, 0.3], contactPad: [1, 2, 3], contactRy: [2.5, 4.5], contactAt: [0.5, 0.5], contactFall: 0.7, cover: 0.14, coverPad: 0.5, coverRy: 1.6 },
-    lazy: { near: 2, far: 7, budget: 3 },
+    lazy: { near: 2, far: 7, budget: 3, arrive: 12, lead: 96 },
     ramp: { dark: [0.62, 0.3], light: [0.14, 0.28], rock: { dark: [0.6, 0.3], light: [0.3, 0.6] } },
     rampEven: { ground: { deep: 0.45, high: 0.24, gamma: 1 }, rock: { deep: 0.55, high: 0.45, gamma: 1.15 }, darkAt: [0.95, 0.42], liftGround: [0.7, 1.2], liftRock: [1.3, 2.2], under: [0.38, 8] },
     stroke: { whole: 0.12, one: 0.48 },
@@ -1338,8 +1342,9 @@ const T = {
 
 
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
-  // at once (ui.js; hints wait their turn).
-  ui: { tapGuard: 0.4, toasts: 2 },
+  // at once (ui.js; hints wait their turn). lineWait: seconds a spoken line
+  // waits behind others (out of any screen) before it's dropped as stale.
+  ui: { tapGuard: 0.4, toasts: 2, lineWait: 14 },
 
   // Sound (audio.js, music.js; cosmetic). master, music, sfx: levels; soft:
   // a setting's soft level; space: the echo's level. voices: the most

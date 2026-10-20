@@ -154,10 +154,8 @@ function installBot() {
     // (not one it has fallen in twice with the gear it has now)
     const deeps = L.terrs.filter((t) => !t.home && t.deep && lit(t.id) && (hasSpire(t.id) || t.ring === 1) && deepZone(t, t.deep) !== 'lair' && !botBeaten(t.id));
     const fresh = deeps.filter((t) => !deepReached(t.id));
-    // (and when nothing at its edge is one it's ready for: a Deep to gear
-    // up in, as a player farms before pushing on)
     const ready = front.filter((t) => terrLevel(t) <= best);
-    if (deeps.length && (Math.random() < deepOdds * (fresh.length ? 2 : 1) || !front.length || !ready.length)) {
+    if (deeps.length && (Math.random() < deepOdds * (fresh.length ? 2 : 1) || !front.length)) {
       const t = (fresh.length ? fresh : deeps).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
       return hasSpire(t.id) ? { target: t.id, spire: t.id, deep: true } : { target: t.id, walk: t.id, deep: true };
     }

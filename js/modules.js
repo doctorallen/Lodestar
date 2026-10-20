@@ -171,7 +171,7 @@ function forgeFindOnce(d) {
 
 // A sealed relic opens at the Lodestar into a rare module or better.
 function unsealRelic(rng, relic) {
-  const rarity = rng.weighted([[60, 'rare'], [25, 'legendary'], [15, 'set']]);
+  const W = T.loot.relicOpens, rarity = rng.weighted([[W.rare, 'rare'], [W.legendary, 'legendary'], [W.set, 'set']]);
   return makeModule(rng, moduleFits(rng, null, rarity === 'set'), relic.tier, { rarity, src: { relic: true } });
 }
 
