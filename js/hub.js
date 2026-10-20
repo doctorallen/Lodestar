@@ -133,9 +133,11 @@ function drawHubOver(d, ox, oy, lights) {
   View.ctx.globalAlpha = View.emCtx.globalAlpha = 0.35 + 0.65 * lit;
   drawArtSprite(st, sx - st.ax, sy - st.ay);
   View.ctx.globalAlpha = View.emCtx.globalAlpha = 1;
-  // brighter while it's fed, swelling as each ore lands; a ring out from
-  // it as it reaches a magnitude
-  lights.push({ x: sx, y: sy, r: TILE * (4 + mag * 0.4 + pulse * 3 + hum * 2) * (0.35 + 0.65 * lit), i: (1.1 + pulse + hum * 0.6) * (0.3 + 0.7 * lit), c: rgb01(ART.pal.star[2]) });
+  // its light: a pool on the ground round the cradle, wider and brighter
+  // as it grows (T.outpost.pool), from a little under the star; brighter
+  // while it's fed, swelling as each ore lands
+  const P = T.outpost.pool, cy = Math.round((STAR_AT.y + OUTPOST_CRADLE.y) / 2 * ATILE) + oy;
+  lights.push({ x: sx, y: cy, r: TILE * (P.r[0] + P.r[1] * mag + pulse * 3 + hum * 2) * (0.35 + 0.65 * lit), i: (P.i[0] + P.i[1] * mag + pulse + hum * 0.6) * (0.3 + 0.7 * lit), c: rgb01(ART.pal.star[2]) });
   if (hum > 0.05) cfxStrokeRing(sx, sy - 4, (14 + hum * 6) * AP, (14 + hum * 6) * AP * 0.75, cfxRamp(ART.pal.star[2]), hum * 0.5, 7177, false, 0.45);
   if (pulse > 0) ringDots(sx, sy, (20 + (1 - pulse) * 30) * AP, ART.pal.star[3], pulse, true);
 }

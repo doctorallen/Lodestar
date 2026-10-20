@@ -416,12 +416,14 @@ function outpostFloor(worldSeed) {
       if (edgeOf(x, y) + 0.5 < deep) tiles[y * w + x] = TILE_ROCK;
     }
   // a few outcrops of the land beyond in the stretch that melds into it,
-  // clear of the ways in from the openings and of the plaza
+  // clear of the ways in from the openings, of the plaza, of the Kindler's
+  // pod and the ground before its door, and of the pads and their pods
+  const site = outpostSite(exits), sq = T.paint.site.squash, padR = T.paint.site.padR;
   const c = (w - 1) / 2, clearOf = (x, y, r) => exits.every((e) => {
     // (distance from the line from the opening to the middle)
     const vx = c - e.x, vy = c - e.y, t = clamp(((x - e.x) * vx + (y - e.y) * vy) / (vx * vx + vy * vy), 0, 1);
     return Math.hypot(x - e.x - vx * t, y - e.y - vy * t) > r + 2.6;
-  });
+  }) && !outpostNearHome(site.home, x, y, r + 1) && site.pads.every((p) => Math.hypot(x - p.x, (y - p.y) / sq) > padR + r + 1 && Math.hypot(x - p.pod.x, y - p.pod.y) > r + 2.6);
   for (let n = rng.i(S.outcrops[0], S.outcrops[1]), tries = 0; n > 0 && tries < 200; tries++) {
     const x = rng.f(4, w - 5), y = rng.f(4, h - 5), r = rng.f(1.1, 2.3), e = edgeOf(x, y);
     if (e < S.rim[1] + 1.5 || e > S.meld.from - 4 || !clearOf(x, y, r)) continue;
@@ -459,8 +461,16 @@ function outpostFloor(worldSeed) {
   const entry = { x: 20, y: 23 };
   return {
     seed, depth: 0, biome: 0, hub: true, zone: 'surface', w, h, tiles, ore: new Uint8Array(N), rooms: [], entry, portal: null, pad: null, ways: [],
-    exits, meld: { sec, wt, to: exits.map((e) => e.to) }, site: outpostSite(exits),
+    exits, meld: { sec, wt, to: exits.map((e) => e.to) }, site,
   };
+}
+// Is tile point (x, y) within m tiles of the Kindler's pod at home (its
+// feet at home.x, home.y), or of the ground before its door, which is kept
+// clear to walk out onto (T.outpost.homeClear: [half width, behind, in
+// front], tiles)?
+function outpostNearHome(home, x, y, m = 0) {
+  const K = T.outpost.homeClear;
+  return Math.abs(x - home.x) < K[0] + m && y > home.y - K[1] - m && y < home.y + K[2] + m;
 }
 // How far tile point (gx, gy) is from the segment a-b, and how far along
 // it (tiles).
@@ -480,20 +490,26 @@ function outpostSite(exits) {
   const cand = [];
   for (let k = 0; k < 12; k++) { const a = (k + 0.5) / 12 * Math.PI * 2; cand.push({ a, s: off(a) }); }
   cand.sort((p, q) => q.s - p.s || Math.sin(q.a) - Math.sin(p.a));
-  const pads = cand.slice(0, P.n).map(({ a }) => ({ x: C.x + Math.cos(a) * P.r, y: C.y + Math.sin(a) * P.r * 0.92 })).sort((p, q) => q.y - p.y || p.x - q.x);
   const ring = { x: cr.x, y: cr.y + 0.3, r: 2 };
   const paths = exits.map((e) => {
     const vx = e.x - ring.x, vy = e.y - ring.y, m = Math.hypot(vx, vy);
     return { ax: ring.x + (vx / m) * ring.r, ay: ring.y + (vy / m) * ring.r * 0.72, bx: e.x + e.nx * 0.5, by: e.y + e.ny * 0.5, to: e.to };
   });
-  // the Kindler's own habitat pod by the plaza, and a pod beside each pad
-  // (whichever side is further from the paths), clear of the rock
+  // the Kindler's own habitat pod by the plaza, where it's furthest from
+  // the ways out
   const away = (x, y) => Math.min(9, ...paths.map((p) => outpostSegDist(x, y, p.ax, p.ay, p.bx, p.by)[0]));
   const home = [[27.4, 13.4], [13.6, 13.4], [28.2, 30.2], [12.8, 30.2]].map(([x, y]) => ({ x, y, s: away(x, y) })).sort((p, q) => q.s - p.s)[0];
+  // the pads where they're furthest from the ways out, and none on the
+  // Kindler's pod or the ground before its door
+  const padR = T.paint.site.padR, padAt = (a) => ({ x: C.x + Math.cos(a) * P.r, y: C.y + Math.sin(a) * P.r * 0.92 });
+  const padOk = (p) => !outpostNearHome(home, p.x, p.y, padR + 0.5);
+  const pads = cand.map(({ a }) => padAt(a)).filter(padOk).concat(cand.map(({ a }) => padAt(a)).filter((p) => !padOk(p))).slice(0, P.n).sort((p, q) => q.y - p.y || p.x - q.x);
+  // a pod beside each pad (whichever side is further from the paths, the
+  // other pads and the Kindler's pod), clear of the rock
   const S = T.outpost.size, inside = (x, y) => Math.min(x, y, S - 1 - x, S - 1 - y) > T.outpost.rim[1] + 1.5;
   for (const p of pads) {
     const a = Math.atan2(p.y - C.y, p.x - C.x), opts = [-1, 1].map((sd) => ({ x: p.x - Math.sin(a) * sd * 4.4, y: p.y + Math.cos(a) * sd * 3.4 + 0.6 })).filter((o) => inside(o.x, o.y));
-    const room = (o) => Math.min(away(o.x, o.y), ...pads.filter((q) => q !== p).map((q) => Math.hypot(o.x - q.x, (o.y - q.y) / 0.72) - 3.6));
+    const room = (o) => Math.min(away(o.x, o.y), outpostNearHome(home, o.x, o.y, 1.5) ? -9 : 9, ...pads.filter((q) => q !== p).map((q) => Math.hypot(o.x - q.x, (o.y - q.y) / 0.72) - 3.6));
     p.pod = opts.sort((u, v) => room(v) - room(u))[0] || { x: p.x, y: p.y - 3 };
   }
   return { ring, pads, paths, home: { x: home.x, y: home.y } };
