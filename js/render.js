@@ -1267,7 +1267,7 @@ function drawDrop(dr, ox, oy, lights) {
   else if (dr.item && dr.item.kind === 'module') {
     // a lattice crystal, settled out of its capture (modules.js)
     drawModuleDrop(dr, fx, fy, col);
-    if (dr.t < 0.35) return;
+    if (!modSettled(dr)) return;
     if (dr.item.rarity !== 'common' && dr.item.rarity !== 'magic') for (let k = ap(5), n = ap(20); k < n; k++) dot(fx, fy - k, col, true, 0.6 * (1 - k / n));
   }
   else if (dr.stuff) {

@@ -204,7 +204,7 @@ function killEnemy(e) {
   // a boss's hoard: ordinary parts of any creature (its own heart is apart)
   const hoard = (n) => { for (let k = 0; k < n; k++) drop({ stuff: partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), grade), n: 1 }); };
   const tier = dropTier(d);
-  for (const m of moduleDrops(d, e)) { drop({ item: m }); const dr = d.drops[d.drops.length - 1]; moduleCaptureFx(d, dr.x, dr.y, ART.rarity[m.rarity]); }
+  for (const m of moduleDrops(d, e)) { drop({ item: m }); const dr = d.drops[d.drops.length - 1]; dr.cap = moduleCaptureFx(d, dr.x, dr.y, ART.rarity[m.rarity]); }
   if (e.type === 'keeper') {
     // its lodeline lights, and the dark starts to come back: a short pull
     if (d.zone === 'lair') { d.padDark = false; d.pull = 1; d.pullTime = T.enemies.keeper.afterPull; UI.toast("The star's light reaches down. Go, before the dark comes back", 'legendary'); }
@@ -283,7 +283,7 @@ function updatePickups(dt) {
         // a small +n in the stuff's colour, not a toast: pickups are many
         const pk = parsePart(dr.stuff);
         d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : pk ? ART.parts[pk.kind] : '#ffffff' });
-        if (parsePart(dr.stuff)) UI.tip('parts', 'Creature parts bind what you forge: each kind brings its own affixes'); }
+        if (parsePart(dr.stuff)) UI.tip('parts', 'Creature parts are what you forge with: each recipe names the kinds it takes'); }
       if (dr.n > 0) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } } else dr.gone = true;
       continue;
     }

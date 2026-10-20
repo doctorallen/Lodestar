@@ -110,7 +110,7 @@ function saveRun(d) {
     hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, pullTime: d.pullTime, kills: d.kills, time: d.time, mined: d.mined || [],
     gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b ? { x: b.x, y: b.y, t: b.t, landed: b.landed } : null,
     sealed: !!(d.deep && d.rift && !d.rift.open), storm: !!d.storm, tally: d.tally || {}, keeperDown: !!(d.zone === 'lair' && d.keeper && d.keeper.dead), lairT: d.lairT || 0,
-    drops: d.deep ? d.drops.filter((x) => !x.mote && !x.gone).map((x) => Object.assign({}, x, { t: 0 })) : [],
+    drops: d.deep ? d.drops.filter((x) => !x.mote && !x.gone).map((x) => Object.assign({}, x, { t: 0, cap: undefined, settleT: undefined })) : [],
   };
   // only what a sortie changes: the run, the world, what's worn, the craft counter
   Save.saveField('run'); Save.saveField('world'); Save.saveField('equip'); Save.saveField('crafts');
