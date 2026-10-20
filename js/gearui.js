@@ -118,7 +118,8 @@ function forgeCloseTo(src) {
       if (!short.length) continue;
       const total = (cost.ore ? cost.ore.n : 0) + cost.parts.reduce((a, p) => a + p.n, 0) + cost.stuff.reduce((a, x) => a + x.n, 0) + (cost.exotic ? 1 : 0);
       const miss = short.reduce((a, x) => a + x.n, 0);
-      if (miss / total <= 0.45) out.push({ id, ore: o && o.id, short, k: miss / total - (o ? o.tier : 0) * 0.01 });
+      // (gear before tools)
+      if (miss / total <= 0.45) out.push({ id, ore: o && o.id, short, k: miss / total - (o ? o.tier : 0) * 0.01 + (bp.kind === 'tool' ? 0.3 : 0) });
     }
   }
   // one row a recipe: its best tier in reach
@@ -622,8 +623,8 @@ Object.assign(UI.acts, {
     Story.say('fuse');
     Save.save();
     UI.closeCard();
-    Reveal.show(m, 'stash', 'screen-bench');
-    UI.card = null;
+    Reveal.show(m, fa && fa.base ? 'socket' : 'stash', 'screen-bench');
+    if (fa && fa.base) Reveal.host = fa.base;
   },
   benchBack: () => UI.close(),
 

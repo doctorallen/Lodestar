@@ -185,5 +185,7 @@ const Reveal = {
     this.item = null;
     if (this.back) UI.show(this.back); else UI.close();
     UI.openCard(it, this.where, it.uid);
+    // a woven module that took a socket's place says so
+    if (this.host) { UI.card.host = this.host; this.host = null; drawCard(); }
   },
 };

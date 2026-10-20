@@ -9,7 +9,7 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 ## Pillars
 
 1. **Always another upgrade.** A new ore leads to a new pick, which opens new depths, which leads to new gear.
-2. **Every item is a roll.** Crafted and found gear both have random affixes. Materials let you steer the rolls, but never fix them completely.
+2. **Crafted bases, found power.** What you forge is exactly what its recipe says; what you find (modules) is rolled, and gives it its identity. The anvil only adds.
 3. **Push your luck.** The further out you go, the better the loot and the higher the risk of losing it.
 4. **Built for a thumb.** It plays well upright with one or two thumbs, in short or long sessions.
 
@@ -61,9 +61,9 @@ The Lodestar is the seed-star the Charter sent down with you, planted in the mid
 ## The loop
 
 1. **At the Lodestar:**
-   - forge casters, gear, picks and the stones circuits are built from;
-   - rework affixes and salvage what you don't need;
-   - build circuits at the locker, unseal relics, feed the star and spend attunements.
+   - forge bases (casters, plate, charms, picks), tools and the stones circuits are built from; the forge studies what's new and reveals recipes;
+   - socket modules and build circuits at the locker; work modules at the rune bench, and salvage what you don't need;
+   - unseal relics, feed the star and spend attunements.
 2. **Set out:** walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to any spire, and the tool to carry (walking out carries the last one chosen).
 3. **Push into the dark:** cross from territory to territory. In dark land your light drains, the enemies are out, and the ore is worth taking.
 4. **Mine, fight, kindle:** work on a territory's heart goal, or just take what you can carry. Some territories have a Deep below, a short dungeon richer in ore.
@@ -96,7 +96,7 @@ The world is rolled once for each save from its seed (world.js) and kept in the 
 - **Saved as you go.** A sortie is saved on arriving anywhere and whenever the page is hidden; reopening the game offers to carry on from where you came in.
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room at depth 3 or more. It charges and fires rings of orbs. It drops three rare-or-better pieces and often a relic.
-- **Cargo is limited** (40 units, more from attunements and affixes). Ore and exotics weigh 1, gear and relics 3. You can drop gear to make room.
+- **Cargo is limited** (40 units, more from attunements and affixes). Ore, exotics and modules weigh 1, bases and relics 3. You can drop gear to make room.
 - **The pocket.** A few cargo slots whose contents survive a fall: 1 slot at first, 2 from magnitude 3, 3 from magnitude 5. A slot holds one piece of gear or up to 10 of an ore.
 - **(proposed, stage 2)** More heart goals (purge the nest, cap the vents, carry the seed, break the Keeper), scouting, tithes and boons, richer kindled looks and settlers, optional dark tides on border territories. **(stage 3)** Keepers as ring gates, pick and spell gates, the Edge's own content.
 
@@ -145,7 +145,7 @@ The board keeps moving: never two of a kind; 70% of hauls are set in the furthes
 
 ## Tools
 
-The diver carries one tool, chosen at the portal before setting out. Each changes what you can see or do out there, so the choice shapes the sortie. The Compass is carried from the start; the rest are made once, from the stash, as the star grows.
+The diver carries one tool, chosen at the portal before setting out. Each changes what you can see or do out there, so the choice shapes the sortie. The Compass is carried from the start; the rest are made once, at the forge (its TOOLS tab), as the star grows.
 
 | Tool | From magnitude | What it does |
 |---|---|---|
@@ -154,6 +154,7 @@ The diver carries one tool, chosen at the portal before setting out. Each change
 | Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
 | Surveyor's Map | 3 | A map of each place, drawn as you walk it, in the view's corner, with its openings, portals, spire, waystones and ancient forge once seen. |
 | Deep Satchel | 3 | One more pocket slot. |
+| Capture Lens | 2 | Modules half again as likely. Revealed by research once the first module comes home; made from Lumenite and threads. |
 | Lode Beacon | 2 | Once a sortie, from the pause menu: call a spire's light down where you stand, where no spire is: you can bank and travel from it, and standing in it brings your light back slowly. In a Deep it's a lodeline. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
 
 ## Rifts
@@ -183,7 +184,7 @@ All of them glow brighter while winding up, so you can see the attack coming. En
 
 Only two enemies can wind up at once, plus one more every three floors down. The rest circle and wait their turn. Your hits knock enemies back, and heavy hits stagger anything but the warden out of an attack.
 
-**Elites** have more health, hit harder and always drop magic-or-better gear. They wear a coloured pip for their affix:
+**Elites** have more health, hit harder and often leave a magic-or-better module. They wear a coloured pip for their affix:
 - **Fast:** moves half again as fast.
 - **Tough:** extra health.
 - **Volatile:** bursts a moment after it dies.
@@ -244,68 +245,62 @@ While a skink is under the sand, an eel under the water or a dropper on the roof
 
 ## Crafting (the heart of the game)
 
-Finished gear comes from the forge. Enemies leave the materials to make it, not gear.
+Gear is two halves: a **base you craft**, exactly what its recipe says, and **modules you find**, rolled loot that slots into it and gives it its identity. Joy comes in layers: a find each fight (a module), a craft each trip home (a base, an upgrade), an unlock every few sessions (the star).
 
-- **Blueprints are item types**, each with its own feel. Known from the start: wand, gauntlet, plate, charm, pick, the Arc and Bolt Forms, and every Element and Glyph stone. The rest are found in the depths:
+- **Each half has its own currency:** bases are made from ore and creature parts; modules come from what you kill; their work at the rune bench is paid in **threads** (from salvaging modules) and ore.
 
-  | Blueprint | Slot | What it does |
-  |---|---|---|
-  | Staff | hand (caster) | 4–6 slots; slower to cast, every reach 30% wider |
-  | Weave | armour | Light: dash 30% more often, move faster |
-  | Shell | armour | Heavy: much more armour, a little slower |
-  | Lantern | charm | A brighter lamp; your light fades 20% slower |
-  | Drill | pick | Mines 60% faster, but the noise wakes what's near |
-  | Glaive, Lance, Orb, Nova, Well, Ward | Form stone | The other Forms (Combat and builds) |
+### Bases, at the forge
 
-- **Where blueprints come from.** Elites sometimes drop one, the warden always does, and ancient forges often have one lying by them. Each biome favours its own. A blueprint rides home in the cargo (weight 1) and is learned when it gets there, so a fall loses it unless it's pocketed. A sealed relic can open into a piece of a blueprint not yet known.
-- **A forging takes three things:**
-  - **an ore head:** the blueprint's amount of one ore, which sets the tier;
-  - **a binding:** creature parts, which guarantee affixes from their family, as many as the part's grade, each stronger the higher the grade;
-  - **an exotic, optionally:** an elemental one brings its Element stone out with a caster; the others guarantee an affix family, raise the rarity, or (riftglass) forge it a tier higher.
-- **The anvil decides the rest:** three timed strikes set the temper (rough, fair, fine, masterwork), which sets the rarity odds and a caster's slots (a wand or gauntlet 3, 4 from a fine forge; a staff 4, 5 from fair or fine, 6 from a masterwork).
-- **Stones** are forged too, for circuits (Combat and builds). A stone's tier is its ore's, one higher from a fine forge.
-  - **Form stones:** 6 ore and 2 ether (or a heart), once the Form's blueprint is known.
-  - **Element stones:** 4 ore and the element's exotic. Force needs no exotic.
-  - **Glyph stones:** 5 ore and 3 creature parts: chitin makes Pierce and Split, ether Echo, cogs Quicken, fibre Linger and Trigger, spores Chain; any part makes Amplify.
-- **The forge previews** what the chosen parts guarantee before you commit.
+- **A recipe is known and exact.** The forge shows, for the ore you choose, the base's tier (the ore's), its stats, its circuit slots (a caster's) and its **module sockets**, and the cost of every resource by name, with how many you have. There are no random affixes on a crafted base.
+- **The anvil only adds.** Three strikes set the temper: rough as the recipe says, fair +5% on its numbers, fine +10%, a masterwork +15%, a module socket more and, on a caster, its second and third slots linked. A fine forge or better makes a stone a tier higher.
+- **Sockets** by tier: 1 at tiers 1–2, 2 at 3–5, 3 at Starmetal; a pick 1 (2 at 5–6), the rusty pick none.
+- **A caster's size is chosen:** a wand or gauntlet 3 or 4 circuit slots, a staff 4, 5 or 6; each slot past the first costs 3 ore and a part more. A resonance must fill its caster exactly, so the size is a choice, not luck.
+- **What it takes:** the recipe's ore (any ore: it sets the tier) and parts. The plain recipes known from the start (wand, gauntlet, plate, charm, pick) take any creature's parts; the rest name their creature: staff 3 ether, weave 3 fibre, shell 3 chitin, lantern 2 spores, drill 2 cogs.
+- **Optional exotics:** riftglass forges a base a tier above its ore; an elemental exotic worked into a caster brings its Element's stone out with it.
+- **The forge's tabs:** CASTERS, ARMOR, CHARMS, TOOLS (picks and the carried tools), STONES, and the CODEX. A dot marks what can be made now. At the top, **CLOSE TO MAKING** names up to two recipes better than what's worn that are short by a little, and what they're missing. (Recipes of cat `structure` and `wick`, the outpost's buildings and Wick's upgrades, are a later pass: the forge shows their tabs once a recipe exists.)
+- **Stones** for circuits (Combat and builds) are recipes too: a Form's 6 ore and 2 ether; an Element's 4 ore and its exotic (Force needs none); a Glyph's 5 ore and 3 of its creature's parts (chitin Pierce and Split, ether Echo, cogs Quicken, fibre Linger and Trigger, spores Chain, any Amplify).
+- **Tools** are made once at the forge, from the stash, when the star has grown enough (Tools).
 
-| Part | From | Binds |
-|---|---|---|
-| Chitin | crawlers | defense |
-| Ether | wisps | spell (and binds Form stones) |
-| Cog | constructs | close (close spell damage, cast speed, crits) |
-| Fibre | snapjaws | utility |
-| Spore | spitters | mining |
-| Heart | the warden | anything; a fine forge or better is legendary |
+### Research
 
-Parts come in three grades, Rim, Choir and Forge, one per biome. Deeper biomes give stronger bindings.
+Recipes are revealed by research, instantly, at the forge. When you bring home something new, the forge studies it the next time you open it, and a short reveal shows what it can make now:
 
-| Element | Exotic | On hit | Stacked on itself |
-|---|---|---|---|
-| Force | none | Knocks back harder; heavy hits stagger | a second heavy hit stuns |
-| Shock | Voltaic crystal | Arcs to the next enemy | five overload it, stunning |
-| Frost | Frostglass | Chills (slows) | three freeze it solid |
-| Ember | Emberglass | Burns | burns stack, and spread |
-| Blight | Blightcap | Poisons, spreading when its host falls | poison spreads on a hit |
+| Brought home | Reveals |
+|---|---|
+| Lumenite | Lantern, Nova stone |
+| Resonite | Staff, Drill |
+| Aetherglass | Lance stone, Well stone |
+| Sigilite | Shell |
+| Chitin | Pierce and Split stones |
+| Ether | Echo stone |
+| Cog | Quicken stone |
+| Fibre | Linger and Trigger stones |
+| Spore | Chain stone |
+| A warden's heart | Ward stone |
+| An elemental exotic | its Element's stone |
+| The first module | the Capture Lens |
+| A module from a snapjaw, a wisp, a construct | Weave, Orb stone, Glaive stone |
 
-Shock is drawn in its stone's yellow everywhere in play (bolts, arcs, bursts, numbers), never cyan, which is the Glyphs' teal and the diver's circuits; the Voltaic crystal is yellow to match.
-
-Bloodresin guarantees a leech affix, and a Lodestone shard raises the rarity.
-
-### Imprinting
-
-Salvaging a legendary at home writes its power into the forge's **Codex**. Any later forging of a piece that power suits can imprint it (step 5 at the forge), paid with a heart of any grade or 2 riftglass: a fine forge or better always sets it, a rougher one half the time. Found legendaries become recipes, and hearts and riftglass have a use. Elites drop sealed relics half as often (5%) to leave room for it.
+Known from the start: the wand, gauntlet, plate, charm and pick, the Arc and Bolt, Force and Amplify, and the tools. Blueprints are gone as drops; an old save's blueprints are known recipes.
 
 ## Loot
 
-- **Drops are materials:** each creature's own part, graded by the biome. Elites drop more, sometimes an exotic, a blueprint or a sealed relic. The warden drops a heart, parts, a blueprint and often a relic.
-- **The rune bench**, on any item card at home, costs ore of the item's tier:
-  - reroll an affix,
-  - upgrade one by 20% (twice at most),
-  - add one, which also raises a common or magic item a rarity.
-- **Salvage** gives back some ore, the part that bound the piece, and sometimes an exotic.
-- **Rarities:** Common has 1 affix, Magic 2, Rare 3, Legendary 3 plus a legendary power, Set 2 plus a set bonus.
-- **Legendary powers** change how you play:
+- **Drops are materials, and modules.** Each creature leaves its own part, graded by the biome; elites and wardens more, and now and then an exotic or a sealed relic.
+- **Modules** are the Diablo layer. The dark's creatures are made of the world's own living energy; when one dies, its pattern unravels, and the Charter suit's capture field catches the strongest thread of it and sets it in a blank lattice crystal. Rarity is how much of the pattern was caught.
+  - **Few but meaningful:** a kill leaves one 8.5% of the time, an elite 70% (magic or better), a warden two and a Keeper three (rare or better, a tier up, a Keeper's legendaries three times likelier). A Deep's chances are 1.4 times, the Capture Lens 1.5 times, and the first six modules ever come 2.2 times as often. About three a sortie.
+  - **In the field:** the creature's energy draws in and collapses into a small faceted crystal in its rarity's colour, which glints now and then (rare and better stand in a beam). Walked over, the capture field's tether pulls a few motes to the Kindler. A module weighs 1 in the cargo.
+  - **Rolled:** for a caster, armor, a charm or a pick (a creature's family leans it: a crawler's to defense, a wisp's to spell, a construct's to close, a snapjaw's to utility, a spitter's to mining, each clime creature its own). Traits by rarity: common 1, magic 2, rare 3, legendary 2 and a power, set 1 and the set bonus; each at 70% of an old item affix (there are more sockets than there were pieces). Their tier is where they were caught, so deeper modules roll higher.
+  - **The card** says where it was caught ("Caught from an elite Wisp, Bloomfen"), its traits with how well each rolled, and UPGRADE or DOWNGRADE against what's in the socket it would take.
+- **Socketing is free** at home, at the locker: tap a base, tap a socket, tap a module from the drawer, each line saying what it would change. A better base takes the old one's modules (and circuit) when equipped.
+- **The rune bench** works modules, paid in threads and ore:
+  - **Upgrade** a tier (its lattice regrown in denser ore): 6 ore of the new tier and 4, 8, 14, 20 or 28 threads; every trait that grows with the tier grows.
+  - **Reroll** one trait, the rest locked: 3 threads (+2 a tier above 1) and 2 ore of its tier. With Bloodresin, the new trait is leech.
+  - **Fuse** two of the same kind: keep a trait of each (a power or the set counts as one), at the higher tier, each 15% stronger; both are used up, and everything else on them is lost. 8 threads (+3 a tier) and 4 ore.
+  - **Add a trait** with a Lodestone shard (common to magic, magic to rare), and 4 threads.
+  - **Imprint** a power the forge remembers (Imprinting).
+- **Salvage** a module into threads (common 1, magic 2, rare 4, legendary or set 7, +1 a tier above 1); a base into 40% of its ore (its modules and stones come out whole), now and then an exotic. SALVAGE ALL ▼ breaks down every base and module marked ▼ that isn't kept (★).
+- **Sealed relics** open at home into a rare module or better.
+- **Legendary powers** change how you play; a module carries one, and a caster's acts on its own circuit:
 
 | Name | Kind | Power |
 |---|---|---|
@@ -315,8 +310,11 @@ Salvaging a legendary at home writes its power into the forge's **Codex**. Any l
 | Lodeheart | armour or charm | Kills heal and pull in nearby loot |
 | Stormcaller | caster | Bolts chain to two more enemies |
 
-- **Sets.** Prospector's Regalia (pick, plate and charm): 2 pieces give +20% mining speed and +6 cargo; 3 pieces heal you when you break a vein and give +20% chance of double ore.
-- **Sealed relics** only drop at rare or better and are unsealed at home.
+- **Sets.** Prospector's Regalia: three set modules (Edge for a pick, Seam for armor, Token for a charm). 2 socketed give +20% mining speed and +6 cargo; 3 heal you when you break a vein and give +20% chance of double ore.
+
+### Imprinting
+
+Salvaging a legendary module at home writes its power into the forge's **Codex**. At the rune bench, a module of a kind that power suits, with no power or set, can be imprinted with it for a heart (any grade) or 2 riftglass, and 6 threads: it turns legendary, keeping its traits.
 
 ## Combat and builds
 
@@ -436,18 +434,18 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
 | Station | What it does |
 |---|---|
 | The portal (SET OUT) | In a Charter gate. The world map: a territory next to the outpost to walk out into, or a spire to set out to, and the tool to carry |
-| The forge (FORGE) | The Charter's fabricator. Make casters, plate, charms, picks, and Form, Element and Glyph stones from banked ore, parts and exotics. Every forge is played on the anvil |
-| The rune bench (RUNES) | Rework affixes on any piece: reroll, raise, add |
-| The locker (GEAR) | What's worn, the stash and its stones, stats; equip, build circuits (free), salvage, unseal relics |
+| The forge (FORGE) | The Charter's fabricator. Recipes by tab, each exact: casters, plate, charms, picks and tools, and Form, Element and Glyph stones, from banked ore, parts and exotics. Studies what's new (research). Every forge is played on the anvil |
+| The rune bench (REWORK) | Work a module: upgrade its tier, reroll a trait, fuse two, add a trait, imprint a power; paid in threads and ore |
+| The locker (OPEN LOCKER) | What's worn, its module sockets and circuits, the stash's modules, bases and stones, stats; equip, socket modules and build circuits (free), salvage, unseal relics, KEEP |
 | The star's altar (THE STAR) | Hold FEED THE STAR and ore after ore rises into the star, the plainest first, faster the longer you hold, until you let go; ATTUNE spends attunements and marks ore kept for the forge. A shard carried home is set here instead (SET THE SHARD) |
 | The practice target | A construct that takes every hit and never falls, for trying combos |
 | The uplink (THE UPLINK) | A relay mast to the *Meridian* in orbit: the landers it can send, the shards set, the echoes, and calling the colony down |
 
 - **The anvil.** Each forge is three hammer strikes: a marker sweeps a bar, faster each time and dragging as it crosses the glowing zone, and you tap while it's in the zone.
   - A strike in the zone is good, and one in its marked middle is perfect.
-  - The strikes add up to a quality from rough to masterwork, which shifts the rarity odds. A masterwork can even come out legendary.
-  - It sets a caster's slots, and a fine forge raises a stone's tier.
-- **The reveal.** A forged piece or an unsealed relic rises in a beam of its rarity's colour, then its card opens.
+  - The strikes add up to a quality from rough to masterwork, which only adds to the recipe (Crafting): +5%, +10% or +15% on its numbers, and a masterwork a module socket more and a linked pair of slots.
+  - A fine forge raises a stone's tier.
+- **The reveal.** A forged piece rises in a beam of its quality's colour (an unsealed or fused module, its rarity's), then its card opens.
 - **After a sortie,** a report says what came home or what was lost (and where you wake, after a fall), then you're back on the plaza or at that spire.
 
 | Attunement | Each rank (up to 5) |
