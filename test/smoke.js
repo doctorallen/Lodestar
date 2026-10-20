@@ -703,6 +703,29 @@ async function sideways(browser) {
   await page.close();
 }
 
+// On phones short and tall, upright: the deck's round buttons (the hands,
+// DASH, MINE, the supply slot and its ▸) all inside the deck, none on another.
+async function deckSizes(browser) {
+  for (const [width, height] of [[320, 568], [360, 640], [375, 667], [390, 844], [430, 932]]) {
+    const { page, errors } = await openGame(browser, { width, height });
+    await page.evaluate(() => { Save.data.supplies = { injector1: 1, cell1: 1 }; UI.acts.setOutWalk(String(worldMap().terrs.find((t) => t.starter).id)); });
+    await run(page, 0.2);
+    const bad = await page.evaluate(() => {
+      const deck = $('deck-right').getBoundingClientRect(), out = [];
+      const r = ['btn-main', 'btn-off', 'btn-dash', 'btn-mine', 'btn-supply', 'btn-supply-next'].filter((id) => !$(id).hidden).map((id) => [id, $(id).getBoundingClientRect()]);
+      for (const [id, b] of r) if (b.top < deck.top - 1 || b.left < deck.left - 1 || b.right > deck.right + 1 || b.bottom > deck.bottom + 1) out.push(id + ' leaves the deck');
+      for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) {
+        const a = r[i][1], b = r[j][1], m = Math.hypot(a.left + a.width / 2 - b.left - b.width / 2, a.top + a.height / 2 - b.top - b.height / 2);
+        if (m < (a.width + b.width) / 2) out.push(`${r[i][0]} on ${r[j][0]}`);
+      }
+      return out;
+    });
+    check(!bad.length, `deck at ${width}×${height}: ${bad.join(', ')}`);
+    check(!errors.length, `deck at ${width}×${height}: ` + errors.join(' | '));
+    await page.close();
+  }
+}
+
 // Opening the game again with a sortie under way in the land where the
 // pack lies: the loading builds that territory with the pack placed in it,
 // and on CARRY ON walking to it takes it back.
@@ -908,6 +931,7 @@ async function spellcraft(browser) {
     await opening(browser);
     await phone(browser);
     await sideways(browser);
+    await deckSizes(browser);
     await reopen(browser);
     await desktop(browser);
     await reopenPack(browser);
