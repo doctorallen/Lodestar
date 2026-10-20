@@ -302,17 +302,19 @@ const T = {
     { id: 'starmetal', name: 'Starmetal', tier: 6, hardness: 4.0 },
   ],
   // Exotic materials: dropped by elites (and now and then anything else).
-  // Each does one thing: an elemental one is forged into its Element stone
-  // (and worked into a caster, one comes out with it); the others, worked
-  // into a forging, guarantee an affix family, raise the rarity a step, or
-  // forge it a tier higher.
+  // Each does one thing: an elemental one is forged into its Element core
+  // (and worked into a rig frame, one comes out with it); a Lodestone shard
+  // worked into a frame gives its spells a second Mod slot (and the
+  // Settlers' Quarters take one); riftglass forges a piece a tier higher.
+  // Bloodresin is retired (it fed the old reroll): it no longer drops, and
+  // what's banked is unravelled into retiredThreads threads each.
   exotics: [
     { id: 'voltaic', name: 'Voltaic crystal', element: 'shock' },
     { id: 'frostglass', name: 'Frostglass', element: 'frost' },
     { id: 'emberglass', name: 'Emberglass', element: 'ember' },
     { id: 'blightcap', name: 'Blightcap', element: 'blight' },
-    { id: 'bloodresin', name: 'Bloodresin', family: 'leech' },
-    { id: 'lodeshard', name: 'Lodestone shard', rarity: true },
+    { id: 'bloodresin', name: 'Bloodresin', retired: true },
+    { id: 'lodeshard', name: 'Lodestone shard', modSlot: true },
     // only from sealing a rift
     { id: 'riftglass', name: 'Riftglass', tierUp: true, riftOnly: true },
   ],
@@ -326,13 +328,14 @@ const T = {
   ],
   levelPerBiome: 4,
 
-  // The hands. Each has its own button: a press casts its caster's whole
-  // circuit, holding past chargeStart charges it, and letting go once it's
-  // past chargeFull casts it charged. Close Forms aim at the nearest enemy
-  // within autoAim, else straight ahead; another press within comboWindow
-  // carries an Arc's combo on. fist: an empty main hand's power (it casts a
-  // free Arc).
+  // The hands: the rig's two spells, each its own button (spell A on the
+  // right wrist, B on the left). A press casts it, holding past chargeStart
+  // charges it, and letting go once it's past chargeFull casts it charged.
+  // Close Forms aim at the nearest enemy within autoAim, else straight
+  // ahead; another press within comboWindow carries an Arc's combo on.
+  // fist: the power with no rig worn (spell A casts a free Arc).
   hands: { autoAim: 52, comboWindow: 0.6, chargeStart: 0.25, chargeFull: 0.7, fist: 3 },
+  retiredThreads: 4,
   // A dash: a burst of speed with a moment of untouchability. A flick of
   // the move thumb (flickPx in flickMs) dashes too.
   dash: { speed: 230, time: 0.13, invuln: 0.22, cooldown: 0.55, flickPx: 26, flickMs: 90 },
@@ -349,21 +352,21 @@ const T = {
   impact: { flashMost: 4, hitstop: 0.045, heavyStop: 0.09, stopGap: 0.15, shake: 0, heavyShake: 0, hurtShake: 0, knockDecay: 9,
     targetStop: 0.07, heavyTargetStop: 0.13, flinch: 0.15, flinchTime: 0.25, flinchGap: 1.2, shotKnock: [75, 130] },
 
-  // Circuits (circuits.js): a caster's row of slots, read left to right.
-  // A Form starts a spell, Elements after it set its damage type, Glyphs
-  // change it. The charge a cast costs is the sum of its Forms' costs, each
-  // times its glyphs' costs (at least 1). Damage is the caster's power ×
-  // the Form's mult × its stone's growth (stoneGrowth a tier past the first;
-  // otherGrowth for each Element and Glyph stone with it) × (1 + spell
-  // damage %, + close damage % for close Forms).
+  // Spells (circuits.js): the rig's two, each one Form core, one Element
+  // core and a Mod core (two, from a better frame: rig). The charge a cast
+  // costs is its Form's cost times its Mods' costs (at least 1). Damage is
+  // the rig's power × the Form's mult × its cores' growth (stoneGrowth a
+  // tier past the first for the Form; otherGrowth for each other core) ×
+  // (1 + spell damage %, + close damage % for close Forms).
   //   charged (held): chargedMult the damage for chargedCost the charge;
   //     bolts and lances are bigger and pass through chargedPierce more.
   //   aimRange: how far a cast looks for something to aim at.
-  //   spark: what a caster with no Form casts (a weak bolt).
-  //   bases: slots, by the anvil's quality (rough, fair, fine, masterwork);
-  //     cd, a share of the hand's wait; area, a share of every reach;
-  //     closeCost, charge off each close Form; aim, its aimRange.
-  //   forms: cost, mult and cd (seconds the hand waits) for each, and:
+  //   spark: what a spell with no Form casts (a weak bolt).
+  //   rig: the frame. cd, a share of every spell's wait; area, a share of
+  //     every reach; aim, its aimRange. mods: Mod slots a spell; one more
+  //     from a frame of mod2Tier or better, a masterwork, or one forged with
+  //     a Lodestone shard.
+  //   forms: cost, mult and cd (seconds the spell waits) for each, and:
   //     arc: combo [damage ×, cooldown, arc cos, knockback px/s, lunge px]
   //       (the last is heavy and staggers); range px; heldMult, the damage
   //       of the Nova it bursts into when held (instead of chargedMult);
@@ -380,24 +383,20 @@ const T = {
   //     ward: soak (× power) for time s; thorns (× power) to what strikes it.
   //     close: it refunds `refund` charge for each foe it hits, for at most
   //       refundMost foes a cast. field: the radius of a Linger's field.
-  //   glyphs: cost, times the Form's (each stone of it). split: n each at
-  //     mult, spread rad apart (closeSpread for an Arc's sweeps). amplify:
-  //     area ×, damage ×. quicken: cd ×. chain: jumps a stone, within range
-  //     px, each falloff × the last. echo: again after delay at mult.
-  //     pierce: more foes passed through. linger: a field of its element
-  //     for time s, hurting dps × the hit a second. trigger: no numbers.
+  //   glyphs (the Mods): cost, times the Form's (each Mod core of it).
+  //     split: n each at mult, spread rad apart (closeSpread for an Arc's
+  //     sweeps). amplify: area ×, damage ×. quicken: cd ×. chain: jumps a
+  //     core, within range px, each falloff × the last. echo: again after
+  //     delay at mult. pierce: more foes passed through. linger: a field of
+  //     its element for time s, hurting dps × the hit a second.
   //   force: what Force adds: knockback ×.
-  //   stones: what forging one takes: ore, parts (creature parts) or an
-  //     exotic. A fine forge or better makes it a tier higher.
+  //   stones (the cores): what forging one takes: ore, parts (creature
+  //     parts) or an exotic. A fine forge or better makes it a tier higher.
   circuits: {
     chargedMult: 1.8, chargedCost: 1.5, chargedPierce: 3, aimRange: 140,
     stoneGrowth: 0.25, otherGrowth: 0.05,
     spark: { cost: 3, mult: 0.6, cd: 0.3, speed: 170, life: 1.2 },
-    bases: {
-      wand: { slots: [3, 3, 4, 4], cd: 0.85, area: 1, aim: 140 },
-      gauntlet: { slots: [3, 3, 4, 4], cd: 1, area: 1, closeCost: 1, aim: 130 },
-      staff: { slots: [4, 5, 5, 6], cd: 1.3, area: 1.3, aim: 170 },
-    },
+    rig: { cd: 0.9, area: 1, aim: 140, mods: 1, mod2Tier: 3 },
     forms: {
       arc: { cost: 3, mult: 0.9, close: true, refund: 2, refundMost: 3, range: 22, heldMult: 2.2, field: 14, slow: 0.6,
         combo: [[1, 0.24, 0.3, 90, 4], [1, 0.24, 0.3, 90, 4], [1.7, 0.45, -0.1, 170, 9]] },
@@ -417,7 +416,6 @@ const T = {
       echo: { cost: 1.25, delay: 0.4, mult: 0.6 },
       pierce: { cost: 1.1, more: 3 },
       linger: { cost: 1.2, time: 3, dps: 0.35, every: 0.5 },
-      trigger: { cost: 1 },
     },
     force: { knock: 1.3 },
     stones: { form: { ore: 6, parts: 2 }, element: { ore: 4, exotic: 1 }, glyph: { ore: 5, parts: 3 } },
@@ -467,35 +465,27 @@ const T = {
       plague: { r: 40 },
       stun: { time: 1 },
     },
-    // Ore affinity: a caster's ore (the one it's named for) favours an
-    // element. A spell of it is attuned: attuned.dmg more damage (by its
-    // share of the spell's elements) and its status attuned.status × as
-    // long. And each ore's own way: ferrite takes glaive charge off a
-    // Glaive; lumenite casts `cast` faster; resonite makes its resonances
-    // `resonance` stronger; aetherglass sends a Lance `lance` × as far;
-    // sigilite makes its glyphs `glyphs` stronger; starmetal has `slots`
-    // more than its base.
+    // Ore affinity: a frame's ore (the one it's named for) favours an
+    // element. A spell of it is attuned: attuned.dmg more damage and its
+    // status attuned.status × as long. Resonite favours none: its
+    // resonances are `resonance` stronger.
     attuned: { dmg: 0.25, status: 1.5 },
     ores: {
-      ferrite: { el: 'force', glaive: 1 },
-      lumenite: { el: 'shock', cast: 0.1 },
+      ferrite: { el: 'force' },
+      lumenite: { el: 'shock' },
       resonite: { resonance: 0.25 },
-      aetherglass: { el: 'frost', lance: 1.35 },
-      sigilite: { el: 'ember', glyphs: 0.1 },
-      starmetal: { slots: 1 },
+      aetherglass: { el: 'frost' },
+      sigilite: { el: 'ember' },
+      starmetal: { el: 'blight' },
     },
-    // Linked slots: a masterwork caster's chance of a linked pair of slots;
-    // a Glyph in either counts twice.
-    links: { chance: 0.5 },
-    // Resonances (resonance.js): a circuit that fills its caster exactly
-    // with one of them hits mult × as hard. Resonance stones, which show
-    // parts of them in the Codex, drop from elites (elite), lie by an
-    // ancient forge (forge), and pay contracts (contract: its weight among
-    // the rewards).
+    // Resonances (resonance.js): a spell whose cores hold all of one's
+    // parts hits mult × as hard. Resonance traces, which show parts of them
+    // in the Codex, drop from elites (elite), lie by an ancient forge
+    // (forge), and pay contracts (contract: its weight among the rewards).
     //   thunderhead: the orb flies `fly` s to a point `ahead` px out (or the
     //     foe in aim) and becomes a cloud `height` px up for `time` s,
     //     striking the nearest foe within r px every `every` s for mult × the
-    //     group's damage, drifting at drift px/s to stand over it.
+    //     spell's damage, drifting at drift px/s to stand over it.
     //   shatterglass: the echo's lance hits the chilled for mult ×, and
     //     flings `shards` shards out to either side, each shardMult × the
     //     hit, at shardSpeed px/s for shardLife s.
@@ -509,9 +499,9 @@ const T = {
     //   stormglaive: every `every` s the blades arc to every foe within
     //     reach px of the diver, for mult × a blade's cut.
     //   starfall: three bolts rise for rise s and meet over the target, the
-    //     star falls for fall s; it strikes within r px for the nova's and
-    //     the bolts' damage, stunning for stun s. ahead: px out with nothing
-    //     in aim.
+    //     star falls for fall s; it strikes within r px for the three bolts'
+    //     damage and burst × a bolt's more, stunning for stun s. ahead: px
+    //     out with nothing in aim.
     resonance: {
       mult: 1.5, elite: 0.04, forge: 0.35, contract: 1,
       thunderhead: { fly: 0.3, ahead: 56, height: 30, time: 4, r: 64, every: 0.4, mult: 1, drift: 30 },
@@ -519,17 +509,16 @@ const T = {
       kindling: { flames: 5, half: 0.9, r: 1, time: 3, dps: 0.3, size: 7 },
       wildfire: { every: 10, r: 7, time: 2.5, dps: 0.15, most: 60, ignite: 12, spread: 20, spreadEvery: 0.35, burn: 3, flora: 40 },
       stormglaive: { every: 0.45, reach: 64, mult: 0.5 },
-      starfall: { rise: 0.5, fall: 0.16, r: 40, stun: 1, ahead: 70 },
+      starfall: { rise: 0.5, fall: 0.16, r: 40, stun: 1, ahead: 70, burst: 1.3 },
     },
   },
   // How a cast looks (castfx.js; cosmetic only: the spell still fires on the
   // tap, and nothing here changes what it does). Sizes are world px, times
   // seconds, light radii tiles.
   //   pose: how long the diver holds the cast pose; thrust: the share of it
-  //     the arm is out before it eases back. lean: by the focus's style, [art
-  //     px the body leans into the cast, art px it recoils back]; reach: art
-  //     px the focus is held out past the fist; lift: art px a staff's head
-  //     rises before it swings down at the aim.
+  //     the arm is out before it eases back. lean: [art px the body leans
+  //     into the cast, art px it recoils back]; reach: art px past the fist
+  //     the wrist projector's light leaves from.
   //   flash: the burst at the fist, [seconds, light radius, light]; streaks:
   //     how many motes it kicks out, [least, most] speed.
   //   glyph: the rune circle under the feet, [radius from, radius to,
@@ -570,7 +559,7 @@ const T = {
   //     cling to what it struck.
   castFx: {
     pose: 0.2, thrust: 0.45,
-    lean: { wand: [1, 1], gauntlet: [2, 1], staff: [1, 0] }, reach: { wand: 3, gauntlet: 1, staff: 4 }, lift: 4,
+    lean: [2, 1], reach: 2,
     flash: [0.14, 2.2, 1.4], streaks: 7, streakSpeed: [50, 110],
     glyph: [8, 13, 0.45], glyphBig: [11, 19, 0.6], motes: 6, moteTime: 0.55,
     shapes: {
@@ -588,7 +577,7 @@ const T = {
     cap: 260, flares: 14, day: 0.33,
     lock: [0.45, 0.1, 0.1], scar: [0.9, 8], beam: 40, swarm: 1.1,
   },
-  // What each element does on a hit (its stone sets a Form's). shock: this
+  // What each element does on a hit (its core sets a spell's). shock: this
   // share of hits arcs on; frost: hits chill, and a heavy hit on the
   // chilled shatters for `shatter` times; ember: hits burn for burnTime,
   // `burn` of the hit a second; blight: poison for blightTime, `blight` of
@@ -777,18 +766,15 @@ const T = {
   salvage: { back: 0.4, exotic: 0.15, exoticRare: 0.5 },
 
   // Crafted bases (blueprints.js, items.js). Exact: the recipe and its
-  // ore's tier set the stats, the circuit slots and the module sockets, and
-  // the anvil only adds. stat: how much more of its base numbers, by the
-  // anvil's quality (rough, fair, fine, masterwork); a masterwork has
-  // masterSocket more module sockets, and a masterwork caster a linked pair
-  // of slots. sockets: module sockets by tier (1–6); a pick's, pickSockets
-  // (the rusty pick has none). size: the circuit slots a caster can be made
-  // with, smallest first; each slot past the first costs sizeOre ore and
-  // sizeParts parts more.
+  // ore's tier set the stats and the module sockets (and a rig frame's Mod
+  // slots: T.circuits.rig), and the anvil only adds. stat: how much more of
+  // its base numbers, by the anvil's quality (rough, fair, fine,
+  // masterwork); a masterwork has masterSocket more module sockets (and a
+  // masterwork frame a second Mod slot). sockets: module sockets by tier
+  // (1–6); a pick's, pickSockets (the rusty pick has none).
   gear: {
     stat: [0, 0.05, 0.1, 0.15], masterSocket: 1,
     sockets: [1, 1, 2, 2, 2, 3], pickSockets: [1, 1, 1, 1, 2, 2],
-    size: { wand: [3, 4], gauntlet: [3, 4], staff: [4, 5, 6] }, sizeOre: 5, sizeParts: 1,
   },
   // Modules (modules.js): a dying creature's strongest thread, caught by
   // the suit's capture field and set in a lattice crystal. Rolled loot,
@@ -803,15 +789,11 @@ const T = {
   //   affixes: traits by rarity (a legendary's power and a set's bonus are
   //     traits too, besides these); value: a trait's strength against the
   //     old item affix's (there are more sockets than there were pieces).
-  //   fits: the odds a module is for a caster, armor, a charm or a pick
+  //   fits: the odds a module is for a rig, armor, a charm or a pick
   //     (a creature leans it to where its family can go).
   //   upgrade: a tier up (to 2–6): ore of the new tier, and threads by the
-  //     new tier. reroll: one trait, the rest locked: threads (+perTier a
-  //     tier above 1) and ore of its tier. fuse: two into one, keeping a
-  //     trait of each, boost stronger: threads (+perTier), ore of the
-  //     higher tier. enrich: a Lodestone shard and threads add a trait
-  //     (common to magic, magic to rare). imprint: a remembered power, for
-  //     a heart or `glass` riftglass, and threads.
+  //     new tier. It's the only work done on a module: legendaries are
+  //     found, never made.
   //   salvage: threads, by rarity, +perTier a tier above 1. weight: in the
   //     cargo.
   modules: {
@@ -819,12 +801,8 @@ const T = {
     keeperLegend: 5,
     affixes: { common: 1, magic: 2, rare: 3, legendary: 2, set: 1 },
     value: 0.6,
-    fits: { caster: 4, armor: 2.5, charm: 2, pick: 1.5 },
+    fits: { caster: 3, armor: 2.5, charm: 2, pick: 1.5 },
     upgrade: { ore: 10, threads: [0, 4, 8, 14, 20, 28] },
-    reroll: { threads: 3, perTier: 2, ore: 2 },
-    fuse: { threads: 8, perTier: 3, ore: 4, boost: 0.15 },
-    enrich: { shards: 1, threads: 4 },
-    imprint: { glass: 2, threads: 6 },
     salvage: { common: 1, magic: 2, rare: 4, legendary: 7, set: 7, perTier: 1 },
     weight: 1,
   },
@@ -915,7 +893,8 @@ const T = {
   // a strike) is good; inside its middle `perfect` of it, perfect. Quality
   // (perfect 1, good 0.5, summed, rounded down) is rough, fair, fine or
   // masterwork, and only ever adds to the recipe (T.gear: stat, sockets, a
-  // linked pair); a fine forge or better makes a stone a tier higher.
+  // frame's second Mod slot); a fine forge or better makes a core a tier
+  // higher.
   // Made kinder after the designer found it hard (it was speeds 0.9, 1.25,
   // 1.6, zone 0.26, shrink 0.04, no drag). The good window is now about
   // 500, 350 and 250 ms, strike by strike (was 290, 175, 110), so most

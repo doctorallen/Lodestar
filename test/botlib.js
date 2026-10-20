@@ -13,13 +13,12 @@
 //   it ended.
 //   Bot.home() spends the haul like a player might: the forge studies
 //   what's new, it equips any better base, forges a better pick, then
-//   keeps every slot up (casters, plate and a charm, the one furthest
-//   behind first, in the best ore it can pay for, striking the anvil
-//   fairly), forges the stones its circuits want and sockets them (an Arc
-//   in the gauntlet, a Bolt or Lance in the other hand, with an element
-//   and glyphs as it finds them), socketing the best modules, upgrading
-//   those behind its gear from ore to spare and now and then rerolling a
-//   weak trait, salvages the rest (modules into threads),
+//   keeps every slot up (the rig's frame, plate and a charm, the one
+//   furthest behind first, in the best ore it can pay for, striking the
+//   anvil fairly), forges the cores its spells want and sets them (spell A
+//   an Arc, B a Bolt or Lance, each with an element and Mods as it finds
+//   them), socketing the best modules, upgrading those behind its gear
+//   from ore to spare, salvages the rest (modules into threads),
 //   unseals relics, sets any shard and feeds the light its deeds earned to
 //   the star (held at the altar), makes supplies from old ore at the
 //   fabricator, builds the outpost's buildings and fits Wick's upgrades
@@ -100,11 +99,11 @@ function installBot() {
     return bd < 40 ? best : null;
   }
 
-  // How well a hand's circuit does against a foe: its first group's
-  // elements against the foe's nature (as Wick would show it, or the truth
-  // once hit), twice as good for Force against a warded shell.
-  function handScore(it, foe) {
-    const P = it ? parseCircuit(it.slots, it.links) : null, g = P && P.groups[0], els = g && g.els.length ? g.els : ['force'];
+  // How well a spell does against a foe: its element against the foe's
+  // nature (as Wick would show it, or the truth once hit), twice as good
+  // for Force against a warded shell.
+  function handScore(sp, foe) {
+    const g = spellGroup(sp), els = g && g.els.length ? g.els : ['force'];
     let k = elementMult(foe, els);
     if (foe.ward > 0 && els.includes('force')) k *= 2;
     return k;
@@ -299,11 +298,12 @@ function installBot() {
         aim = { foe };
         if (m > 14) goTile(d, steps, Math.floor(foe.x / TILE), Math.floor(foe.y / TILE));
         // tap, don't hold: alternate presses make combos; dash out of a tell.
-        // With the choice, not the hand whose elements the foe resists (and
+        // With the choice, not the spell whose element the foe resists (and
         // Force for a warded shell)
-        const tap = (iter++ & 1) === 0, mf = firstForm(Save.data.equip.main), mainClose = !Save.data.equip.main || mf === 'arc' || mf === 'glaive';
-        const inMain = mainClose ? m < 30 : m < 120, inOff = m < 120 && !!Save.data.equip.off;
-        const sm = handScore(Save.data.equip.main, foe), so = handScore(Save.data.equip.off, foe);
+        const rig = Save.data.equip.main, spA = rigSpell(rig, 0), spB = rigSpell(rig, 1);
+        const tap = (iter++ & 1) === 0, mf = spellForm(spA), mainClose = !rig || mf === 'arc' || mf === 'glaive';
+        const inMain = mainClose ? m < 30 : m < 120, inOff = m < 120 && !!rig;
+        const sm = handScore(spA, foe), so = handScore(spB, foe);
         // (a hand the foe shrugs off rests while the other can reach it)
         const skip = inMain && inOff ? (sm < 0.8 && so > sm * 1.3 ? 'main' : so < 0.8 && sm > so * 1.3 ? 'off' : null) : null;
         // (still a tap at a time: a button down two turns running is a hold,
@@ -373,7 +373,7 @@ function installBot() {
     // unseal relics
     for (const r of s.items.filter((i) => i.kind === 'relic')) { UI.openCard(r, 'stash', r.uid); acts.unseal(); Reveal.done(); UI.closeCard(); log.push('unsealed'); }
     const best = () => {
-      // equip any base better than what's worn (casters: below); its
+      // equip any base better than what's worn (frames: below); its
       // modules move across
       for (const it of s.items.slice()) {
         const slot = compareSlot(s.equip, it);
@@ -382,10 +382,10 @@ function installBot() {
       }
     };
     best();
-    // forge: a recipe in an ore, at a size, striking the anvil fairly
-    const forge = (bpId, oreId, size) => {
-      if (!s.blueprints.includes(bpId) || recipeShort(recipeCost(bpId, oreId, size), s.stash).length) return false;
-      Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, size: size || null, exotic: null, codex: false });
+    // forge: a recipe in an ore, striking the anvil fairly
+    const forge = (bpId, oreId) => {
+      if (!s.blueprints.includes(bpId) || recipeShort(recipeCost(bpId, oreId), s.stash).length) return false;
+      Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, exotic: null, codex: false });
       acts.craft();
       if (Anvil.job) { Anvil.finish(1); Reveal.done(); }
       return true;
@@ -405,8 +405,8 @@ function installBot() {
     UI.closeCard();
     log.push(...circuits(forge));
     log.push(...modules());
-    // salvage what's left: bases into ore, modules into threads (the
-    // rune bench's work is paid in them)
+    // salvage what's left: bases into ore, modules into threads (a
+    // module's upgrade is paid in them)
     for (const it of s.items.filter((i) => i.kind !== 'stone' && i.kind !== 'relic' && !i.fav)) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
     UI.closeCard();
     // the outpost's buildings and Wick's upgrades from what the gear left
@@ -422,30 +422,29 @@ function installBot() {
     return log;
   }
 
-  // Puts a base on (its circuit and modules move across, as the locker
-  // does it).
+  // Puts a base on (its cores and modules move across, as the locker does
+  // it).
   function wear(it, slot) {
     if (!it || !Save.data.items.includes(it)) return;
     UI.openCard(it, 'stash', it.uid);
     UI.acts.equip(slot);
     UI.closeCard();
   }
-  // How far behind a worn base is: its tier (the scrap gauntlet and the
-  // cracked wand count as below Ferrite; nothing worn, below that).
+  // How far behind a worn base is: its tier (the Scrap Rig counts as below
+  // Ferrite; nothing worn, below that).
   function wornTier(slot) {
     const cur = Save.data.equip[slot];
     return !cur ? -1 : /^(Scrap|Cracked) /.test(cur.name) ? 0 : cur.tier;
   }
-  // Gear as a player keeps it up: every slot (the casters, plate and a
+  // Gear as a player keeps it up: every slot (the rig's frame, plate and a
   // charm) forged again in better ore whenever there's enough, the slot
-  // furthest behind first, in the best ore it can pay for (a caster as big
-  // as it can afford), keeping back what the next pick takes. A gauntlet in
-  // the main hand; a staff in the off hand once known, else a wand.
+  // furthest behind first, in the best ore it can pay for, keeping back
+  // what the next pick takes.
   function forgeGear(forge, pickOre) {
     const s = Save.data, log = [];
     const reserve = (o) => (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0);
-    const afford = (bpId, o, size) => { const c = recipeCost(bpId, o.id, size); return s.blueprints.includes(bpId) && (s.stash[o.id] || 0) - reserve(o) >= c.ore.n && !recipeShort(c, s.stash).length; };
-    const wants = { main: ['gauntlet'], off: ['staff', 'wand'], armor: ['plate'], charm: ['charm'] };
+    const afford = (bpId, o) => { const c = recipeCost(bpId, o.id); return s.blueprints.includes(bpId) && (s.stash[o.id] || 0) - reserve(o) >= c.ore.n && !recipeShort(c, s.stash).length; };
+    const wants = { main: ['rig'], armor: ['plate'], charm: ['charm'] };
     const tried = new Set();
     for (let k = 0; k < 8; k++) {
       // the slot furthest behind that something better can be made for
@@ -456,11 +455,9 @@ function installBot() {
         for (const o of T.ores.slice().reverse()) {
           if (o.tier <= cur) break;
           for (const bpId of wants[slot]) {
-            const bp = BLUEPRINTS[bpId], sizes = bp.kind === 'caster' ? casterSizes(bpId).slice().reverse() : [null];
-            const size = sizes.find((n) => afford(bpId, o, n));
-            if (size === undefined || !forge(bpId, o.id, size)) continue;
+            if (!afford(bpId, o) || !forge(bpId, o.id)) continue;
             wear(s.items[s.items.length - 1], slot);
-            log.push(`forged ${bpId} in ${o.name}${size ? ' ×' + size : ''} for ${slot}`);
+            log.push(`forged ${bpId} in ${o.name} for ${slot}`);
             made = true;
             break;
           }
@@ -477,15 +474,14 @@ function installBot() {
   // Modules as a player might work them: every module back out, then each
   // worn base's sockets filled with the best of its kind (the main hand
   // first); then, with threads and ore to spare, a tier up for the best
-  // socketed module that's behind its base, and now and then a reroll of
-  // a weak trait. Keeps one spare of each kind in the stash; the rest go
-  // to salvage.
+  // socketed module that's behind its base. Keeps one spare of each kind
+  // in the stash; the rest go to salvage.
   function modules() {
     const s = Save.data, log = [];
     for (const k of SLOTS) { const b = s.equip[k]; if (b && b.sockets) b.sockets.forEach((m, i) => { if (m) { s.items.push(m); b.sockets[i] = null; } }); }
     const pool = s.items.filter((x) => x.kind === 'module').sort((a, b) => moduleWorth(b) - moduleWorth(a));
     let n = 0;
-    for (const k of ['main', 'off', 'armor', 'charm', 'pick']) {
+    for (const k of ['main', 'armor', 'charm', 'pick']) {
       const b = s.equip[k];
       if (!b || !b.sockets) continue;
       for (let i = 0; i < b.sockets.length; i++) {
@@ -508,13 +504,6 @@ function installBot() {
       if (!next) break;
       benchPay(upgradeCost(next), s.stash); moduleUpgrade(next); s.botUps = (s.botUps || 0) + 1;
       log.push(`upgraded ${next.name} to ${next.tier}`);
-    }
-    // a reroll of the weakest trait now and then
-    const [w] = socketed.map(([m]) => m).filter((m) => m.affixes.length > 1).sort((a, b) => moduleWorth(b) - moduleWorth(a));
-    if (w && Math.random() < 0.3 && !benchShort(rerollCost(w), s.stash).length && (s.stash.thread || 0) > 20) {
-      const i = w.affixes.map((a, j) => [a.v * (AFFIX_WORTH[a.id] || 0.3), j]).sort((a, b) => a[0] - b[0])[0][1];
-      benchPay(rerollCost(w), s.stash); moduleReroll(Save.rng(), w, i); s.botRerolls = (s.botRerolls || 0) + 1;
-      log.push(`rerolled ${w.name}`);
     }
     // one spare of each kind, kept
     for (const f of MOD_FITS) { const spare = s.items.filter((x) => x.kind === 'module' && x.fits === f).sort((a, b) => moduleWorth(b) - moduleWorth(a)); spare.forEach((m, i) => { m.fav = i === 0; }); }
@@ -584,23 +573,21 @@ function installBot() {
     return log;
   }
 
-  // The circuits a player might build: the gauntlet an Arc (Quicken,
-  // Amplify, Chain), the other hand a Lance if it has one, else a Bolt
-  // (Pierce or Split, Amplify), each with an Element if it has the exotic.
-  // It forges the stones it wants from what's in the stash (a Form again
-  // when its ore is a tier better), with home's forge(bp, ore), then
-  // sockets them.
+  // The spells a player might build: spell A an Arc (Quicken, Amplify),
+  // B a Lance if it has one, else a Bolt (Split or Pierce, Amplify), each
+  // with an Element if it has the exotic. It forges the cores it wants from
+  // what's in the stash (a core again when its ore is a tier better), with
+  // home's forge(bp, ore), then sets them.
   function circuits(forge) {
-    const s = Save.data, log = [];
-    const want = {
-      main: ['arc', 'el', 'quicken', 'amplify', 'chain', 'linger'],
-      off: [s.blueprints.includes('form_lance') ? 'lance' : 'bolt', 'el', s.blueprints.includes('form_lance') ? 'split' : 'pierce', 'amplify', 'echo', 'chain'],
-    };
+    const s = Save.data, log = [], rig = s.equip.main;
+    if (!rig || !rig.spells) return log;
+    const lance = s.blueprints.includes('form_lance');
+    const want = [['arc', ['quicken', 'amplify']], [lance ? 'lance' : 'bolt', [lance ? 'split' : 'pierce', 'amplify']]];
     // the elements, best first: by how often the kinds it meets fear them
     // and how seldom they shrug them off
     const worth = (el) => ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'].reduce((n, t) => { const v = (natureTable(t) || {})[el]; return n + T.enemies[t].weight * (v ? T.circuits.resist[v] : 1); }, 0);
     const elements = ['shock', 'frost', 'ember', 'blight'].sort((a, b) => worth(b) - worth(a));
-    const have = (id) => s.items.filter((x) => x.kind === 'stone' && x.stone === id).concat(['main', 'off'].flatMap((k) => (s.equip[k] ? s.equip[k].slots.filter((x) => x && x.stone === id) : [])));
+    const have = (id) => s.items.filter((x) => x.kind === 'stone' && x.stone === id).concat(rig.spells.flatMap(spellCores).filter((x) => x.stone === id));
     // (keeping back what the next pick takes)
     const pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
     const bestOre = (bp) => T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) - (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0) >= bp.ore + 4);
@@ -611,36 +598,29 @@ function installBot() {
       if (!ore) return false;
       const top = Math.max(0, ...have(id).map((x) => x.tier));
       if (top >= ore.tier) return false;
-      if (forge(bpId, ore.id)) { log.push(`forged ${id} stone in ${ore.name}`); return true; }
+      if (forge(bpId, ore.id)) { log.push(`forged ${id} core in ${ore.name}`); return true; }
       return false;
     };
-    for (const k of ['main', 'off']) {
-      const it = s.equip[k];
-      if (!it) continue;
-      const n = it.slots.length;
-      for (const id of want[k].slice(0, n)) {
-        if (id !== 'el') { make(id); continue; }
-        // an element: one this hand hasn't, from an exotic it has
-        const own = elements.filter((e) => have(e).length);
-        if (own.length < 2) { const e = elements.find((x) => !have(x).length && s.stash[STONE_ELEMENTS[x]] && s.blueprints.includes('el_' + x)); if (e) make(e); }
-      }
+    const n = rigMods(rig);
+    for (const [form, mods] of want) {
+      make(form);
+      for (const id of mods.slice(0, n)) make(id);
     }
-    // socket: every stone back to the stash, then each hand's best
-    for (const k of ['main', 'off']) { const it = s.equip[k]; if (!it) continue; it.slots.forEach((x, i) => { if (x) { s.items.push(x); it.slots[i] = null; } }); }
+    // an element for each spell, from an exotic it has
+    if (elements.filter((e) => have(e).length).length < 2) { const e = elements.find((x) => !have(x).length && s.stash[STONE_ELEMENTS[x]] && s.blueprints.includes('el_' + x)); if (e) make(e); }
+    // set them: every core back to the stash, then each spell's best
+    for (const sp of rig.spells) for (const c of spellCores(sp)) s.items.push(c);
+    rig.spells = rig.spells.map(() => emptySpell(n));
     const take = (id) => { const st = s.items.filter((x) => x.kind === 'stone' && x.stone === id).sort((a, b) => b.tier - a.tier)[0]; if (st) s.items.splice(s.items.indexOf(st), 1); return st || null; };
     const used = [];
-    for (const k of ['main', 'off']) {
-      const it = s.equip[k];
-      if (!it) continue;
-      let i = 0;
-      for (const id of want[k]) {
-        if (i >= it.slots.length) break;
-        let st;
-        if (id === 'el') { const e = elements.find((x) => !used.includes(x) && s.items.some((y) => y.stone === x)) || elements.find((x) => s.items.some((y) => y.stone === x)); st = e ? take(e) : null; if (st) used.push(e); }
-        else st = take(id) || (id === 'lance' ? take('bolt') : null);
-        if (st) it.slots[i++] = st;
-      }
-    }
+    want.forEach(([form, mods], i) => {
+      const sp = rig.spells[i];
+      sp.form = take(form) || (form === 'lance' ? take('bolt') : null);
+      const e = elements.find((x) => !used.includes(x) && s.items.some((y) => y.stone === x)) || elements.find((x) => s.items.some((y) => y.stone === x));
+      if (e) { sp.el = take(e); used.push(e); }
+      let k = 0;
+      for (const id of mods) { if (k >= n) break; const st = take(id); if (st) sp.mods[k++] = st; }
+    });
     Save.save();
     return log;
   }
@@ -655,13 +635,13 @@ function installBot() {
       r.home = home();
       r.mag = magnitudeOf(s.star);
       r.pick = s.equip.pick ? s.equip.pick.base.power : 0;
-      r.hands = ['main', 'off'].map((k) => (s.equip[k] ? `${s.equip[k].name} t${s.equip[k].tier} [${s.equip[k].slots.map((x) => (x ? x.stone : '-')).join(' ')}]` : 'fist')).join(' / ');
+      r.hands = s.equip.main ? `${s.equip.main.name} t${s.equip.main.tier} [${s.equip.main.spells.map(spellName).join(' / ')}]` : 'fist';
       r.maxHp = computeStats(s.equip, s.attune).maxHp;
-      r.gearTier = ['main', 'off', 'armor', 'charm', 'pick'].map((k) => (s.equip[k] ? s.equip[k].tier : 0));
+      r.gearTier = ['main', 'armor', 'charm', 'pick'].map((k) => (s.equip[k] ? s.equip[k].tier : 0));
       const mods = SLOTS.flatMap((k) => (s.equip[k] && s.equip[k].sockets ? s.equip[k].sockets.filter(Boolean) : []));
       r.socketed = mods.length; r.sockets = SLOTS.reduce((a, k) => a + (s.equip[k] && s.equip[k].sockets ? s.equip[k].sockets.length : 0), 0);
       r.modTiers = mods.map((m) => m.tier); r.modRarities = mods.map((m) => m.rarity[0]).join('');
-      r.found = s.modsFound || 0; r.ups = s.botUps || 0; r.rerolls = s.botRerolls || 0; r.threads = s.stash.thread || 0;
+      r.found = s.modsFound || 0; r.ups = s.botUps || 0; r.threads = s.stash.thread || 0;
       r.kindledAll = kindledCount();
       r.star = s.star;
       r.packs = JSON.parse(JSON.stringify(Bot.packs));

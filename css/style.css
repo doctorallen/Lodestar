@@ -308,7 +308,6 @@ body.home #btn-mine { display: none; }
 .card .base { margin: 10px 0 6px; }
 .affixes { list-style: none; padding: 0; margin: 0 0 8px; }
 .affixes li { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 0; border-top: 1px solid var(--line); color: var(--magic); }
-.affixes .rune { white-space: nowrap; }
 .power { color: var(--legendary); margin: 8px 0; }
 .set { color: var(--set); margin: 8px 0; font-size: 12px; }
 .sockets .sock { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; color: #9fc4ff; }
@@ -408,7 +407,7 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 
 /* costs: the material's icon, how many and what, and how many there are */
 .cost-tag { white-space: nowrap; color: var(--ink); }
-.cost-tag.short, .cost-line.short, .rune-head .short { color: var(--danger); }
+.cost-tag.short, .cost-line.short { color: var(--danger); }
 .cost-have { color: var(--dim); white-space: nowrap; }
 .row-sub .cost-tag { display: block; white-space: normal; margin: 2px 0; }
 .cost-tag.short .cost-have { color: var(--danger); }
@@ -416,21 +415,15 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .cost-line { margin: 0 0 6px; }
 /* rune work on the card: which ore pays, then each affix with its two
    buttons under it, each saying what it costs or why it can't */
-.rune-head { display: flex; align-items: center; gap: 6px; margin: 8px 0; padding: 6px 8px; border: 1px solid var(--line); background: var(--panel2); font-size: 12px; }
-.rune-head .cost-icon { width: 20px; height: 20px; margin: 0; flex: none; }
-.rune-head b { color: var(--gold); font-weight: normal; }
-.affixes li.runed { flex-wrap: wrap; }
-.affixes li.runed .rune { display: flex; gap: 6px; width: 100%; white-space: normal; }
-.rune-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; }
-.affixes .rune .rune-btn { flex: 1; margin: 0; }
-.rune-btn small { display: block; font-size: 10px; letter-spacing: 0.04em; color: var(--dim); }
-.btn.rune-btn small { font-size: 11px; }
-.rune-btn:disabled { opacity: 0.75; color: var(--dim); }
-.rune-btn.short small { color: var(--danger); }
+.tune-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; }
+.tune-btn small { display: block; font-size: 10px; letter-spacing: 0.04em; color: var(--dim); }
+.btn.tune-btn small { font-size: 11px; }
+.tune-btn:disabled { opacity: 0.75; color: var(--dim); }
+.tune-btn.short small { color: var(--danger); }
 
-/* circuits: a stone as a tile. A Form's is stone with a heavy rim, an
-   Element's filled with its colour, a Glyph's etched with a dashed rim; an
-   empty slot is dotted. --c is the stone's colour */
+/* spells: a core as a tile. A Form's has a heavy rim, an Element's is
+   filled with its colour, a Mod's has a dashed rim; an empty part is
+   dotted and says what it takes. --c is the core's colour */
 .tile { --c: var(--ink); flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
   width: 50px; min-height: 64px; padding: 3px 0; background: #0b0c10; border: 2px solid var(--c); color: var(--c); font: inherit; font-size: 11px; letter-spacing: 0.04em; }
 .tile img { width: 40px; height: 40px; image-rendering: pixelated; pointer-events: none; }
@@ -446,29 +439,20 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .tile.mini.t-form { border-width: 2px; box-shadow: none; }
 .tile.mini.t-empty b { font-size: 11px; }
 .mini-circuit { display: flex; gap: 3px; margin-top: 4px; }
-/* a caster's circuit: its slots in a row, joined */
-.circuit { display: flex; align-items: center; flex-wrap: nowrap; gap: 0; margin: 6px 0 4px; }
+.row-gems .mini-circuit { display: inline-flex; margin-right: 8px; }
+/* a spell on the rig's card: A or B and its name, its parts in a row, one
+   short line (gold when it wakes a resonance, red when something's idle) */
+.spell { margin: 6px 0 10px; padding: 6px 8px 4px; border-left: 2px solid #2f5cd8; background: var(--panel2); }
+.spell.res { border-left-color: var(--gold); }
+.spell-head { display: flex; align-items: baseline; gap: 8px; font-size: 13px; letter-spacing: 0.08em; }
+.spell-key { display: inline-block; min-width: 18px; padding: 0 3px; text-align: center; color: #0a0b16; background: #86b0ff; font-weight: bold; }
+.spell.res .spell-key { background: var(--gold); }
+.spell-name { color: var(--ink); }
+.spell-line { margin: 2px 0 0; font-size: 12px; color: var(--dim); }
+.spell.res .spell-line { color: var(--gold); }
+.spell-line.warn { color: #ffb0a0; }
+.circuit { display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; margin: 6px 0 4px; }
 .circuit .tile { width: 48px; }
-.circuit .link { flex: 1 1 4px; min-width: 3px; max-width: 10px; height: 2px; background: #3a3f4c; }
-.circuit-cost { font-size: 12px; margin: 4px 0; color: var(--dim); }
-.circuit-cost b { color: var(--gold); font-weight: normal; }
-.readout { padding: 6px 8px; border-left: 2px solid var(--gold); background: var(--panel2); font-size: 12px; }
-.readout p { margin: 3px 0; }
-.readout .warn { color: #ffb0a0; }
-.readout .ore { color: #9fe0c8; }
-.readout .linked { color: var(--gold); }
-/* a linked pair: a gold chain between its tiles, and gold corners on them */
-.circuit .link.linked { height: 8px; min-width: 8px; max-width: 12px; background: repeating-linear-gradient(90deg, var(--gold) 0 3px, transparent 3px 5px); border-top: 1px solid #8a6a20; border-bottom: 1px solid #8a6a20; }
-.tile.linked { box-shadow: inset 0 -4px 0 var(--gold), 0 0 0 1px #8a6a20; }
-.tile.mini.linked { box-shadow: inset 0 -2px 0 var(--gold); }
-/* a long circuit (six or seven slots) on a phone: narrower tiles */
-.circuit.long .tile { width: 44px; min-width: 40px; flex: 0 1 44px; }
-.circuit.long .tile img { width: 32px; height: 32px; }
-/* a resonance: gold when it's live, a dim stir when it's a stone away */
-.res-banner { margin: 6px 0 2px; padding: 5px 8px; font-size: 12px; letter-spacing: 0.12em; border: 1px solid var(--line); color: var(--dim); }
-.res-banner.on { color: #1a1206; background: linear-gradient(90deg, #f0c050, #ffe08a 60%, #f0c050); border-color: #ffe08a; font-weight: bold; }
-.res-banner.stir { color: #d8c48a; border-style: dashed; border-color: #6a5a30; font-style: italic; letter-spacing: 0.06em; }
-.res-text { font-size: 12px; margin: 2px 0 6px; color: #f0dca0; }
 /* the Codex at the forge */
 .codex { display: grid; gap: 6px; }
 .rcard { padding: 7px 8px; border: 1px solid var(--line); background: var(--panel2); }
@@ -602,7 +586,7 @@ body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s;
 .find-recipe .icon { width: 32px; height: 32px; filter: drop-shadow(0 0 6px rgba(255, 210, 120, 0.6)); }
 .find-recipe b { color: var(--gold); font-weight: normal; font-size: 14px; }
 @keyframes findrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.card .btn small, .btn.rune-btn small { display: block; font-size: 11px; letter-spacing: 0.04em; margin-top: 2px; color: var(--dim); }
+.card .btn small, .btn.tune-btn small { display: block; font-size: 11px; letter-spacing: 0.04em; margin-top: 2px; color: var(--dim); }
 /* Deeds and supplies (deeds.js, supplies.js) */
 /* the light waiting, over what the star has: the bar's paler part */
 .rep-bar { position: relative; }
@@ -696,3 +680,4 @@ body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s;
   .ld-mark { width: 116px; height: 116px; }
 }
 @media (prefers-reduced-motion: reduce) { .ld-halo, .ld-ring, .ld-ring::after, .ld-go { animation: none; } }
+.tile.t-empty small { letter-spacing: 0; font-size: 8px; }

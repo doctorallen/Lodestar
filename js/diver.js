@@ -4,10 +4,12 @@
 // Charter's blue and amber, painted in the painted style (docs/PAINTED.md):
 // no outline, a dark mass with a few lit accents. Small close-fitting
 // plates of royal blue catch the light (a helm, shoulder caps, the upper
-// chest, the forearms, kneecaps and shins); the helm has a dark visor pane
-// with one glint and the warm-white brow lamp over it (the lamp you see
-// by); amber circuits run in a V down the chest to the seed-star, round
-// the cuffs and down the shins; a small pack rides on his back.
+// chest, kneecaps and shins); the forearms are the rig, the suit's wrist
+// projectors: a bracer of blue plate flaring to the wrist with an amber
+// lens on its back, that the spells leave from. The helm has a dark visor
+// pane with one glint and the warm-white brow lamp over it (the lamp you
+// see by); amber circuits run in a V down the chest to the seed-star,
+// round the cuffs and down the shins; a small pack rides on his back.
 //
 // He is posed, not drawn frame by frame: a skeleton (pelvis, a spine that
 // leans and twists, legs and arms of two bones each, the head) is set by a
@@ -399,14 +401,15 @@ function kdRender(face, key) {
     const F = J.foot[i];
     ball(kdAdd(J.ankle[i], kdYaw([0, -0.35, 0.95], F.yaw)), [1.5, 1.3, 2.5], F.yaw, () => 3, 0, 2, F.toe * 0.6);
   };
-  // arms: a cap of plate on the shoulder, the forearm's bracer, the glove
+  // arms: a cap of plate on the shoulder, the rig's bracer flaring to the
+  // wrist, the glove
   const armMat = (s, t, nx, ny) => {
     if (s === 0 && t < 0.2 && ny > 0.1) return 2;
-    if (s === 1 && t > 0.55) return 2;
+    if (s === 1 && t > 0.3) return 2;
     return 1;
   };
   const arm = (i) => {
-    tube([J.shoulder[i], J.elbow[i], J.wrist[i]], [1.5, 1.2, 1.08], armMat, true);
+    tube([J.shoulder[i], J.elbow[i], J.wrist[i]], [1.5, 1.2, 1.32], armMat, true);
     ball(J.hand[i], [1.15, 1.2, 1.2], 0, () => 6);
   };
   // the pack, a rounded block between the shoulder blades, lidded in plate
@@ -492,10 +495,16 @@ function kdRender(face, key) {
   for (let i = 0; i < 2; i++) {
     const el = J.elbow[i], wr = J.wrist[i], dv = [wr[0] - el[0], wr[1] - el[1], wr[2] - el[2]], cuff = kdAdd(el, dv, 0.84), u = kdNorm(dv);
     const e1 = kdNorm(Math.abs(u[1]) < 0.9 ? [u[2], 0, -u[0]] : [1, 0, 0]), e2 = [u[1] * e1[2] - u[2] * e1[1], u[2] * e1[0] - u[0] * e1[2], u[0] * e1[1] - u[1] * e1[0]];
+    let top = null, best = -9;
     for (let k = 0; k < 16; k++) {
       const th = (k / 16) * kdTau, n = kdAdd(kdAdd([0, 0, 0], e1, Math.cos(th)), e2, Math.sin(th));
-      dot(kdAdd(cuff, n, 1.2), A[shade(n).s > 0 ? 2 : 1], true, 0.6);
+      dot(kdAdd(cuff, n, 1.4), A[shade(n).s > 0 ? 2 : 1], true, 0.6);
+      if (n[2] + n[1] * 0.6 > best) { best = n[2] + n[1] * 0.6; top = n; }
     }
+    // the projector's lens, on the back of the bracer just short of the
+    // cuff: a bright amber eye, a dimmer one behind it
+    dot(kdAdd(kdAdd(el, dv, 0.68), top, 1.35), A[3], true, 0.8);
+    dot(kdAdd(kdAdd(el, dv, 0.56), top, 1.3), A[2], true, 0.8);
     const kn = J.knee[i], an = J.ankle[i], sd = i ? -1 : 1, out = kdNorm(kdYaw([sd * 0.75, 0, 0.66], o.hipYaw));
     for (let k = 0; k <= 12; k++) {
       const t = lerp(0.22, 0.84, k / 12), c = kdAdd(kn, [an[0] - kn[0], an[1] - kn[1], an[2] - kn[2]], t);

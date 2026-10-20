@@ -1,9 +1,9 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Fighting. Each hand holds a caster and has its own button: a press casts
-// the caster's whole circuit (circuits.js) for charge, and holding charges
-// a stronger cast. A press during a cooldown is held over until it ends. An
-// empty main hand casts a free Arc with its fist. The dash is a burst of
+// Fighting. The rig drives two spells, each its own button (spell A, the
+// right wrist; spell B, the left): a press casts it (circuits.js) for
+// charge, and holding charges a stronger cast. A press during a cooldown
+// is held over until it ends. With no rig worn, spell A is a free Arc. The dash is a burst of
 // speed that nothing can touch. Hits stop the world for a moment and knock
 // enemies back (the view never shakes); heavy ones stagger them. Kills drop
 // creature parts, exotics, modules (their pattern caught, modules.js),
@@ -21,12 +21,12 @@ function nearestEnemy(d, range, from = d.p, except = null) {
   return best;
 }
 
-// Each step: presses, holds and releases of both hands' buttons.
+// Each step: presses, holds and releases of both spells' buttons.
 function updateHands(dt) {
-  const d = Game.dive, p = d.p;
+  const d = Game.dive, p = d.p, item = Save.data.equip.main;
   p.strikeT = Math.max(0, (p.strikeT || 0) - dt);
   for (const slot of ['main', 'off']) {
-    const item = Save.data.equip[slot], h = p.hands[slot], btn = Input.hand(slot);
+    const h = p.hands[slot], btn = Input.hand(slot);
     h.cd = Math.max(0, h.cd - dt);
     h.comboT = Math.max(0, h.comboT - dt);
     h.buffer = Math.max(0, h.buffer - dt);
@@ -240,7 +240,7 @@ function killEnemy(e) {
 }
 
 // Any exotic but the rifts' own.
-function randomExotic(rng) { return rng.pick(T.exotics.filter((x) => !x.riftOnly)).id; }
+function randomExotic(rng) { return rng.pick(T.exotics.filter((x) => !x.riftOnly && !x.retired)).id; }
 
 // The tier of loot on this floor: the biome's lower ore, or its deeper one
 // more often further down.

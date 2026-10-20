@@ -5,9 +5,10 @@
 // the pick is too weak for, crossing an edge into the neighbour, pausing,
 // the cargo screen, lighting the waystones and planting a spire, banking
 // at it and travelling home with the haul in the stash; a module caught
-// and tethered in; the forge's research and recipes, equipping what it
-// makes, socketing a module, a reroll and an upgrade at the rune bench,
-// an old save's gear turned into bases and modules; feeding the star the
+// and tethered in; the forge's research and recipes, equipping the rig
+// frame it makes (the cores move across), socketing a module, an upgrade
+// at the tuning bench, cores set in the rig's spells; an old save's gear
+// turned into bases, modules and the rig; feeding the star the
 // light of deeds (held at the altar), supplies made at the fabricator and
 // from the cargo, and used from the deck; the star's reach; your light
 // running out, a recall, tools, the Drone Bay built and coming down to its
@@ -166,7 +167,7 @@ async function phone(browser) {
   const moved = Math.hypot(after[0] - before[0], after[1] - before[1]);
   check(moved > 4 || (await page.evaluate(() => rockAt(Game.dive.floor, Game.dive.p.x + 8, Game.dive.p.y))), `phone: the joystick didn't walk (${before} → ${after})`);
 
-  // the main hand's button is the gauntlet's Arc, and it hurts an enemy
+  // spell A's button is the Scrap Rig's Arc, and it hurts an enemy
   // beside the diver
   check(await page.evaluate(() => /ARC/.test($('btn-main').textContent) && /BOLT/.test($('btn-off').textContent)), 'phone: the hands\' buttons do not show ARC and BOLT');
   const hit = await page.evaluate(() => {
@@ -342,7 +343,7 @@ async function phone(browser) {
   await tap(page, '#screen-report [data-act=closeReport]');
   check(await page.evaluate(() => Game.dive.hub && !Game.modal), 'phone: CONTINUE did not come back to the outpost');
 
-  // the forge: what's new is studied first (a cog: the Quicken stone);
+  // the forge: what's new is studied first (a cog: the Quicken core);
   // then three strikes on the anvil, the reveal, the card
   await page.evaluate(() => { Save.data.stash.ferrite = 40; Save.data.stash.cog1 = 2; });
   await page.evaluate(atStation, 'forge');
@@ -356,13 +357,13 @@ async function phone(browser) {
   await tap(page, '#research-body [data-act=researchDone]');
   check(await visible(page, '#screen-forge'), 'phone: the research did not go on to the forge');
   await tap(page, '#forge-body [data-act=forgeTab][data-arg=caster]');
-  await tap(page, '#forge-body [data-act=forgeBp][data-arg=gauntlet]');
+  await tap(page, '#forge-body [data-act=forgeBp][data-arg=rig]');
   await tap(page, '#forge-body [data-act=forgeOre][data-arg=ferrite]');
   await shot(page, 'smoke-forge');
-  check(await page.evaluate(() => new RegExp(BLUEPRINTS.gauntlet.ore + ' Ferrite').test($('forge-body').textContent) && /2 creature parts/.test($('forge-body').textContent) && /1 module socket/.test($('forge-body').textContent)), 'phone: the gauntlet\'s recipe does not say what it costs and makes');
+  check(await page.evaluate(() => new RegExp(BLUEPRINTS.rig.ore + ' Ferrite').test($('forge-body').textContent) && /2 creature parts/.test($('forge-body').textContent) && /1 socket/.test($('forge-body').textContent) && /1 Mod slot/.test($('forge-body').textContent) && /FRAMES/.test($('forge-body').textContent) && !/CASTERS|Wand|Staff|Gauntlet/.test($('forge-body').textContent)), 'phone: the rig frame\'s recipe does not say what it costs and makes');
   const parts0 = await page.evaluate(() => partsHave(Save.data.stash, 'any'));
   await tap(page, '#forge-body [data-act=craft]');
-  check(await page.evaluate((p0) => Save.data.stash.ferrite === 40 - BLUEPRINTS.gauntlet.ore && partsHave(Save.data.stash, 'any') === p0 - 2, parts0), 'phone: forging a gauntlet did not cost its Ferrite and 2 creature parts');
+  check(await page.evaluate((p0) => Save.data.stash.ferrite === 40 - BLUEPRINTS.rig.ore && partsHave(Save.data.stash, 'any') === p0 - 2, parts0), 'phone: forging a rig frame did not cost its Ferrite and 2 creature parts');
   await shot(page, 'smoke-anvil');
   const [ax, ay] = await center(page, '#anvil-canvas');
   for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.touchscreen.tap(ax, ay); await sleep(60); }
@@ -373,9 +374,9 @@ async function phone(browser) {
   check(await visible(page, '#card'), 'phone: the reveal did not open the card');
   await shot(page, 'smoke-forged');
   await tap(page, '#card [data-act=equip][data-arg=main]');
-  check(await page.evaluate(() => Save.data.equip.main.name !== 'Scrap Gauntlet' && Save.data.items.some((i) => i.name === 'Scrap Gauntlet')), 'phone: the forged gauntlet is not in the main hand');
-  check(await page.evaluate(() => { const g = Save.data.equip.main, want = recipePreview('gauntlet', 1, g.q, 3); return !g.affixes.length && g.sockets.length === want.sockets.length && g.base.power === want.base.power && g.slots.length === 3; }), 'phone: the forged gauntlet is not what its recipe said');
-  check(await page.evaluate(() => Save.data.equip.main.slots[0] && Save.data.equip.main.slots[0].stone === 'arc'), 'phone: the empty gauntlet did not take the old one\'s circuit');
+  check(await page.evaluate(() => Save.data.equip.main.name !== 'Scrap Rig' && Save.data.items.some((i) => i.name === 'Scrap Rig')), 'phone: the forged frame is not the rig worn');
+  check(await page.evaluate(() => { const g = Save.data.equip.main, want = recipePreview('rig', 1, g.q); return !g.affixes.length && g.sockets.length === want.sockets.length && g.base.power === want.base.power && rigMods(g) === rigMods(want); }), 'phone: the forged frame is not what its recipe said');
+  check(await page.evaluate(() => spellName(Save.data.equip.main.spells[0]) === 'ARC' && spellName(Save.data.equip.main.spells[1]) === 'BOLT'), 'phone: the empty frame did not take the old one\'s cores');
   await tap(page, '#screen-forge [data-act=back]');
 
   // the locker: a module socketed into what's worn, free, and its traits
@@ -396,45 +397,45 @@ async function phone(browser) {
   await shot(page, 'smoke-gear');
   await tap(page, '#screen-gear [data-act=back]');
 
-  // the rune bench: a trait rerolled (the others kept), a tier up, paid in
-  // threads and ore
+  // the tuning bench: a tier up, paid in threads and ore; no reroll, fuse
+  // or imprint
   await page.evaluate(atStation, 'runes');
   await run(page, 0.05);
-  check(await page.evaluate(() => $('btn-act').textContent === 'REWORK'), 'phone: no REWORK at the rune bench');
+  check(await page.evaluate(() => $('btn-act').textContent === 'TUNE'), 'phone: no TUNE at the tuning bench');
   await tap(page, '#btn-act');
   await run(page, 0.05);
-  check(await visible(page, '#screen-bench'), 'phone: the rune bench did not open');
+  check(await visible(page, '#screen-bench'), 'phone: the tuning bench did not open');
   await tap(page, `#bench-body [data-act=benchMod][data-arg="${mod}"]`);
   await shot(page, 'smoke-bench');
-  const affBefore = await page.evaluate(() => JSON.stringify(Save.data.equip.main.sockets[0].affixes));
-  await tap(page, '#card [data-act=modReroll][data-arg="0"]');
-  const rr = await page.evaluate((b) => { const m = Save.data.equip.main.sockets[0], old = JSON.parse(b), c = rerollCost(m); return [Save.data.stash.thread === 30 - c.threads, m.affixes.slice(1).every((a, i) => a.id === old[i + 1].id && a.v === old[i + 1].v), m.affixes.length === old.length]; }, affBefore);
-  check(rr.every(Boolean), `phone: the reroll was wrong (${rr})`);
+  check(await page.evaluate(() => !document.querySelector('#card [data-act=modReroll], #card [data-act=modFuse], #card [data-act=modImprint], #card [data-act=modEnrich]') && /UPGRADE · TIER 2/.test($('card-body').textContent) && /Threads \+ 10 Lumenite/.test($('card-body').textContent)), 'phone: the bench offers more than UPGRADE, or its cost does not name its resources');
   const tier0 = await page.evaluate(() => Save.data.equip.main.sockets[0].tier);
   await tap(page, '#card [data-act=modUpgrade]');
-  check(await page.evaluate((t) => Save.data.equip.main.sockets[0].tier === t + 1 && Save.data.stash.lumenite === 20 - T.modules.upgrade.ore, tier0), 'phone: the upgrade did not raise the tier for Lumenite');
+  check(await page.evaluate((t) => Save.data.equip.main.sockets[0].tier === t + 1 && Save.data.stash.lumenite === 20 - T.modules.upgrade.ore && Save.data.stash.thread === 30 - T.modules.upgrade.threads[1], tier0), 'phone: the upgrade did not raise the tier for threads and Lumenite');
   await tap(page, '#card [data-act=closeCard]');
   await tap(page, '#screen-bench [data-act=back]');
 
-  // the locker: a stone set in a caster's slot from the drawer, free, and
-  // the circuit's words and cost follow it
+  // the locker: cores set in spell B's parts from the drawer, free, and
+  // its name and cost follow them
   const fe0 = await page.evaluate(() => { Save.data.items.push(makeStone('shock', 1), makeStone('split', 1)); return Save.data.stash.ferrite; });
   await page.evaluate(atStation, 'locker');
   await run(page, 0.05);
   await tap(page, '#btn-act');
   await run(page, 0.05);
-  await tap(page, '#gear-body [data-act=cardEquip][data-arg=off]');
-  check(await visible(page, '#card .circuit'), 'phone: a caster\'s card shows no circuit');
-  await tap(page, '#card [data-act=slotPick][data-arg="1"]');
-  await tap(page, '#card [data-act=slotPut][data-arg="shock:1"]');
-  await tap(page, '#card [data-act=slotPut][data-arg="split:1"]');
-  const circ = await page.evaluate(() => [Save.data.equip.off.slots.map((x) => x && x.stone).join(), circuitCost(Save.data.equip.off), $('card-body').textContent, Save.data.stash.ferrite, Math.round(T.circuits.forms.bolt.cost * T.circuits.glyphs.split.cost * 10) / 10]);
-  check(circ[0] === 'bolt,shock,split', `phone: socketing gave the wand ${circ[0]}`);
-  check(circ[1] === circ[4] && /Shock damage/.test(circ[2]) && /three at once/.test(circ[2]), 'phone: the readout or the cost did not follow the circuit');
-  check(circ[3] === fe0, 'phone: socketing cost something');
-  await tap(page, '#card [data-act=slotPick][data-arg="1"]');
-  await tap(page, '#card [data-act=slotPick][data-arg="1"]');
-  check(await page.evaluate(() => !Save.data.equip.off.slots[1] && Save.data.items.some((x) => x.stone === 'shock')), 'phone: tapping a chosen slot again did not empty it');
+  await tap(page, '#gear-body [data-act=cardEquip][data-arg=main]');
+  check(await visible(page, '#card .spell'), 'phone: the rig\'s card shows no spells');
+  await tap(page, '#card [data-act=partPick][data-arg="1:el"]');
+  check(await page.evaluate(() => !document.querySelector('#card [data-act=partPut][data-arg^="split:"]')), 'phone: the drawer for an Element offers a Mod');
+  await tap(page, '#card [data-act=partPut][data-arg="shock:1"]');
+  await tap(page, '#card [data-act=partPick][data-arg="1:m0"]');
+  await tap(page, '#card [data-act=partPut][data-arg="split:1"]');
+  const circ = await page.evaluate(() => [spellName(Save.data.equip.main.spells[1]), spellCost(Save.data.equip.main.spells[1]), $('card-body').textContent, Save.data.stash.ferrite, Math.round(T.circuits.forms.bolt.cost * T.circuits.glyphs.split.cost * 10) / 10]);
+  check(circ[0] === 'BOLT · SHOCK · SPLIT', `phone: setting cores gave spell B ${circ[0]}`);
+  check(circ[1] === circ[4] && circ[2].includes(`BOLT · SHOCK · SPLIT`) && circ[2].includes(`${circ[4]} charge`), 'phone: the spell\'s name or cost did not follow its cores');
+  check(circ[3] === fe0, 'phone: setting cores cost something');
+  await shot(page, 'smoke-rig');
+  await tap(page, '#card [data-act=partPick][data-arg="1:el"]');
+  await tap(page, '#card [data-act=partPick][data-arg="1:el"]');
+  check(await page.evaluate(() => !Save.data.equip.main.spells[1].el && Save.data.items.some((x) => x.stone === 'shock')), 'phone: tapping a chosen part again did not empty it');
   await tap(page, '#card [data-act=closeCard]');
   await tap(page, '#screen-gear [data-act=back]');
 
@@ -631,7 +632,7 @@ async function phone(browser) {
       UI.close(); abandonDive(); UI.close();
     }
     [T.rifts.chance, T.rifts.kinds] = was;
-    out.tier = forgeItem('gauntlet', 'ferrite', 'riftglass', 1).tier;
+    out.tier = forgeItem('rig', 'ferrite', 'riftglass', 1).tier;
     return out;
   });
   check(rifts.bloom === true && rifts.graft === true, `phone: sealing a tear did not leave riftglass (${JSON.stringify(rifts)})`);
@@ -1024,12 +1025,12 @@ async function spellcraft(browser) {
     for (let i = 0; i < 120; i++) Game.step(1 / 60);
     // a resonance at the locker fills the Codex
     UI.close(); enterHub(); UI.close();
-    const it = makeBase('wand', 2, 0); it.slots = [makeStone('lance', 2), makeStone('frost', 2), null];
+    const it = makeBase('rig', 2, 0); it.spells[0].form = makeStone('lance', 2); it.spells[0].el = makeStone('frost', 2);
     Save.data.items.push(it, makeStone('echo', 2));
     out.codex0 = codexWhole(resonanceById('kindling')) && !codexWhole(resonanceById('shatterglass'));
-    out.stirs = !!(resonanceNear(it) || {}).stir;
-    UI.show('screen-gear'); UI.openCard(it, 'stash', it.uid); UI.card.slot = 2; UI.acts.slotPut('echo:2');
-    out.live = !!document.querySelector('.res-banner.on') && codexWhole(resonanceById('shatterglass'));
+    out.stirs = !!(resonanceNear(it.spells[0]) || {}).stir;
+    UI.show('screen-gear'); UI.openCard(it, 'stash', it.uid); UI.card.focus = 'spells'; UI.card.part = '0:m0'; UI.acts.partPut('echo:2');
+    out.live = !!document.querySelector('.spell.res') && /Shatterglass/.test($('card-body').textContent) && codexWhole(resonanceById('shatterglass'));
     return out;
   });
   check(r.crawler.join() === '1,1.5,1', `natures: a crawler is ${r.crawler} to force, ember, shock`);
@@ -1045,28 +1046,30 @@ async function spellcraft(browser) {
 }
 
 // Saves made before modules (test/fixtures: on main's code, and on the
-// preview's just before modules):
-// it loads, its gear is bases with modules in their sockets, its stats
-// are what they were, and the locker, the bench and a card all open.
+// preview's just before modules) and before the rig (v6): it loads, its
+// gear is bases with modules in their sockets and one rig frame worn, its
+// stats are what they were, and the locker, the bench and a card all open.
 async function oldSave(browser) {
   const fs = require('fs'), path = require('path');
-  for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json']) {
+  for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json', 'save-v6-home.json']) {
     const save = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
     const { page, errors } = await openFresh(browser, Object.assign({ save }, PHONE));
     const r = await page.evaluate(() => {
       const s = Save.data, mods = SLOTS.flatMap((k) => baseModules(s.equip[k])).concat(s.items.filter((x) => x.kind === 'module'));
-      const out = { v: s.v, bases: SLOTS.every((k) => !s.equip[k] || Array.isArray(s.equip[k].sockets)), mods: mods.length, lode: mods.some((m) => m.power === 'lodeheart'), armor: computeStats(s.equip, s.attune).armor, run: !!s.run };
+      const out = { v: s.v, bases: SLOTS.every((k) => !s.equip[k] || Array.isArray(s.equip[k].sockets)), rig: !!s.equip.main && s.equip.main.bp === 'rig' && s.equip.main.spells.length === 2 && !('off' in s.equip) && s.items.every((x) => x.kind !== 'caster' || x.spells), mods: mods.length, lode: mods.some((m) => m.power === 'lodeheart'), armor: computeStats(s.equip, s.attune).armor, run: !!s.run };
       if (s.run) { UI.close(); resumeRun(); out.resumed = !!Game.dive && Game.dive.items.every((it) => it.kind === 'module' || it.kind === 'relic' || Array.isArray(it.sockets)); UI.close(); abandonDive(); UI.close(); }
       out.powers = mods.filter((x) => x.power).map((x) => x.power);
       UI.close(); UI.useStation('locker'); const m = mods.find((x) => x.power) || mods[0]; UI.openCard(m, 'stash', m.uid); UI.closeCard();
       UI.close(); UI.useStation('runes'); UI.acts.benchMod(mods[0].uid);
-      out.bench = /REROLL|UPGRADE/.test($('card-body').textContent);
+      out.bench = /UPGRADE/.test($('card-body').textContent) && !/REROLL|FUSE|IMPRINT/.test($('card-body').textContent);
+      UI.closeCard(); UI.close(); UI.useStation('locker'); UI.acts.cardEquip('main');
+      out.rigCard = /SPELLS/.test($('card-body').textContent) && !!document.querySelector('#card .spell');
       UI.closeCard(); UI.close(); UI.useStation('forge');
       out.forge = UI.screen === 'screen-forge' || UI.screen === 'screen-research';
       return out;
     });
     // the worn plate's 7 armor, its own +5 and the pick's +4, as before
-    check(r.v === 6 && r.bases && r.mods >= 5 && r.lode && r.bench && r.forge && (f !== 'save-v5-home.json' || r.armor === 16), `old save ${f}: ${JSON.stringify(r)}`);
+    check(r.v === 7 && r.bases && r.rig && r.rigCard && r.mods >= 5 && r.lode && r.bench && r.forge && (f !== 'save-v5-home.json' || r.armor === 16), `old save ${f}: ${JSON.stringify(r)}`);
     if (f === 'save-v5-run.json') check(r.run && r.resumed, `old save ${f}: the sortie under way did not come back as bases and modules (${JSON.stringify(r)})`);
     await page.evaluate(() => { UI.close(); UI.useStation('locker'); });
     await new Promise((res) => setTimeout(res, 450));

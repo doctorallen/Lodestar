@@ -1,16 +1,17 @@
 'use strict';
 // ---------------------------------------------------------------------------
 // Gear: the affix table, rarities, legendary powers and the set (which
-// modules carry, modules.js); crafted bases (casters, plate, charms,
-// picks) and the stones circuits are built from; sealed relics; forging a
+// modules carry, modules.js); crafted bases (rig frames, plate, charms,
+// picks) and the cores spells are built from; sealed relics; forging a
 // base from its recipe; salvaging one; and the stats an outfit adds up to,
 // the modules in its sockets with it. What can be made is in blueprints.js;
-// how a circuit casts, in circuits.js.
+// how a spell casts, in circuits.js.
 //
-// A base is exact. Its recipe and its ore's tier set its stats, its
-// circuit slots (a caster's, by the size chosen) and its module sockets;
-// the anvil's quality only adds (T.gear). It never rolls an affix: what
-// gives it an identity is what's socketed into it.
+// A base is exact. Its recipe and its ore's tier set its stats, its module
+// sockets and a frame's Mod slots; the anvil's quality only adds (T.gear).
+// It never rolls an affix: what gives it an identity is what's socketed
+// into it. (Internally a rig frame is still kind 'caster' and a core kind
+// 'stone', as the save has always called them.)
 // ---------------------------------------------------------------------------
 
 // Affixes, the traits a module carries. lo–hi at tier 1, grown by
@@ -44,23 +45,25 @@ const KIND_FAMILIES = {
   charm: ['close', 'spell', 'defense', 'utility', 'mining', 'shock', 'leech', 'chill'],
   pick: ['mining', 'utility'],
 };
-const KIND_NAMES = { caster: 'Caster', armor: 'Plate', charm: 'Charm', pick: 'Pick', stone: 'Stone', relic: 'Sealed relic', module: 'Module' };
+const KIND_NAMES = { caster: 'Rig frame', armor: 'Plate', charm: 'Charm', pick: 'Pick', stone: 'Core', relic: 'Sealed relic', module: 'Module' };
 // what a base of a kind is called in a sentence ("a module for armor")
-const KIND_WORDS = { caster: 'caster', armor: 'armor', charm: 'charm', pick: 'pick' };
-const KIND_PHRASE = { caster: 'a caster', armor: 'armor', charm: 'a charm', pick: 'a pick' };
-const KIND_SLOT = { caster: 'hand', armor: 'armor', charm: 'charm', pick: 'pick' };
-const SLOTS = ['main', 'off', 'pick', 'armor', 'charm'];
-const SLOT_NAMES = { main: 'Main hand', off: 'Off hand', pick: 'Pick', armor: 'Armor', charm: 'Charm' };
+const KIND_WORDS = { caster: 'rig', armor: 'armor', charm: 'charm', pick: 'pick' };
+const KIND_PHRASE = { caster: 'the rig', armor: 'armor', charm: 'a charm', pick: 'a pick' };
+// The slots worn: the rig (still 'main' in the save), the pick, armor and a
+// charm. (An older save's off hand is a frame in the stash now: save.js.)
+const KIND_SLOT = { caster: 'main', armor: 'armor', charm: 'charm', pick: 'pick' };
+const SLOTS = ['main', 'pick', 'armor', 'charm'];
+const SLOT_NAMES = { main: 'Rig', pick: 'Pick', armor: 'Armor', charm: 'Charm' };
 const QUALITY_NAMES = ['Rough', 'Fair', 'Fine', 'Masterwork'];
 
 const RARITIES = ['common', 'magic', 'rare', 'legendary', 'set'];
 const RARITY_NAMES = { common: 'Common', magic: 'Magic', rare: 'Rare', legendary: 'Legendary', set: 'Set' };
 
 // Legendary powers: each changes how you play, and fits certain kinds. A
-// module carries one; a caster's own power acts on its own circuit.
+// module carries one.
 const LEGENDARIES = {
   seismic: { name: 'Faultline', kinds: ['pick'], text: 'Breaking a vein sends out a shockwave' },
-  echo: { name: 'Twice-Told', kinds: ['caster'], text: 'Every Form in its circuit fires twice' },
+  echo: { name: 'Twice-Told', kinds: ['caster'], text: 'Every spell fires twice' },
   bloodedge: { name: 'Redwake', kinds: ['caster'], text: 'Critical hits heal 4% of max health' },
   lodeheart: { name: 'Lodeheart', kinds: ['armor', 'charm'], text: 'Kills heal 3 and pull nearby loot to you' },
   stormcaller: { name: 'Stormcaller', kinds: ['caster'], text: 'Bolts chain to two more enemies' },
@@ -132,74 +135,69 @@ function socketCount(kind, tier, q = 0) {
   return S[clamp(tier, 1, S.length) - 1] + (q >= 3 ? T.gear.masterSocket : 0);
 }
 
-// How many circuit slots a caster of a recipe has, made at a size, in an
-// ore of a tier (Starmetal adds one).
-function casterSlotCount(bpId, size, tier = 1) {
-  const way = T.circuits.ores[oreOfTier(tier).id] || {};
-  return (size || casterSizes(bpId)[0]) + (way.slots || 0);
-}
-
 // A base, exactly as its recipe says: in an ore of `tier`, forged at
-// quality q (0–3), a caster at `size` slots. A masterwork caster links its
-// second and third slots: a Glyph in either counts twice.
-function makeBase(bpId, tier, q = 0, size) {
+// quality q (0–3). A rig frame's two spells start empty, each with its Mod
+// slots (rigModSlots: a second from a better frame, or `shard`, a Lodestone
+// shard worked in).
+function makeBase(bpId, tier, q = 0, shard = false) {
   const bp = BLUEPRINTS[bpId], kind = bp.kind;
   const item = { uid: newItemUid(), kind, bp: bpId, tier, q: clamp(q, 0, 3), rarity: 'common', base: baseStats(kind, tier, bp, q), affixes: [], sockets: new Array(socketCount(kind, tier, q)).fill(null) };
-  if (kind === 'caster') {
-    item.slots = new Array(casterSlotCount(bpId, size, tier)).fill(null);
-    if (q >= 3 && item.slots.length >= 3) item.links = [1];
-  }
+  if (kind === 'caster') { const n = rigModSlots(tier, q, shard); item.spells = [emptySpell(n), emptySpell(n)]; if (shard) item.shard = true; }
   item.name = baseName(item);
   return item;
 }
+// How many Mod slots a frame's spells have.
+const rigMods = (it) => (it && it.spells && it.spells[0] ? it.spells[0].mods.length : 0);
 
-// "Lumenite Wand"; the rusty pick.
+// "Lumenite Rig"; the rusty pick.
 function baseName(item) {
   if (item.kind === 'pick' && item.tier === 0) return 'Rusty Pick';
   const bp = bpOf(item);
   return `${oreOfTier(item.tier).name} ${bp ? bp.name : KIND_NAMES[item.kind]}`;
 }
 
-// A stone for a circuit: a Form, an Element or a Glyph, of a tier.
+// A core for a spell: a Form, an Element or a Mod, of a tier.
 function makeStone(stone, tier) {
-  return { uid: newItemUid(), kind: 'stone', stone, tier: clamp(tier, 1, T.ores.length), rarity: 'magic', affixes: [], name: `${stoneWords(stone).name} stone` };
+  return { uid: newItemUid(), kind: 'stone', stone, tier: clamp(tier, 1, T.ores.length), rarity: 'magic', affixes: [], name: `${stoneWords(stone).name} core` };
 }
 
 function makeRelic(tier) {
   return { uid: newItemUid(), kind: 'relic', tier: Math.max(1, tier), rarity: 'relic', affixes: [], name: 'Sealed relic' };
 }
 
-// A Scrap Gauntlet with an Arc in it and a Cracked Wand with a Bolt: the
-// first fight has close and far, and both have room to grow. Each has a
-// module socket; the rusty pick has none.
+// The Scrap Rig: spell A an Arc, spell B a Bolt, so the first fight has
+// close and far, and room to grow. It has a module socket; the rusty pick
+// has none.
 function startingGear() {
-  const gauntlet = makeBase('gauntlet', 1, 0);
-  gauntlet.base.power = 5; gauntlet.name = 'Scrap Gauntlet'; gauntlet.slots[0] = makeStone('arc', 1);
-  const wand = makeBase('wand', 1, 0);
-  wand.base.power = 5; wand.name = 'Cracked Wand'; wand.slots[0] = makeStone('bolt', 1);
+  const rig = makeBase('rig', 1, 0);
+  rig.base.power = 5; rig.name = 'Scrap Rig';
+  rig.spells[0].form = makeStone('arc', 1); rig.spells[1].form = makeStone('bolt', 1);
   const pick = makeBase('pick', 0, 0);
-  return { main: gauntlet, off: wand, pick, armor: null, charm: null };
+  return { main: rig, pick, armor: null, charm: null };
 }
 
 // Makes what a recipe makes, in an ore, at the anvil's quality q (0–3),
-// a caster at `size` slots, maybe with an exotic: riftglass forges it a
-// tier above its ore; an elemental exotic worked into a caster brings its
-// Element's stone out with it (item.withStone). A stone comes out a tier
-// higher from a fine forge. The caller has checked and paid the cost.
-function forgeItem(bpId, oreId, exoticId, q = 0, size) {
+// maybe with an exotic: riftglass forges it a tier above its ore; an
+// elemental exotic worked into a frame brings its Element's core out with
+// it (item.withStone); a Lodestone shard gives a frame a second Mod slot. A
+// core comes out a tier higher from a fine forge. The caller has checked
+// and paid the cost.
+function forgeItem(bpId, oreId, exoticId, q = 0) {
   const bp = BLUEPRINTS[bpId], ex = exoticId && T.exotics.find((e) => e.id === exoticId);
   const tier = Math.min(T.ores.length, T.ores[ORE_INDEX[oreId]].tier + (ex && ex.tierUp ? 1 : 0));
   if (bp.kind === 'stone') return makeStone(bp.stone, tier + (q >= 2 ? 1 : 0));
-  const item = makeBase(bpId, tier, q, size);
+  const item = makeBase(bpId, tier, q, bp.kind === 'caster' && !!(ex && ex.modSlot));
   if (bp.kind === 'caster' && ex && ex.element) item.withStone = makeStone(ex.element, tier);
   return item;
 }
-// What an optional exotic does for a recipe, in words (null: nothing).
-function exoticForgeWord(bpId, ex) {
+// What an optional exotic does for a recipe, in words (null: nothing). A
+// shard is offered for a frame that wouldn't have the second Mod slot.
+function exoticForgeWord(bpId, ex, tier = 1) {
   const bp = BLUEPRINTS[bpId];
-  if (!ex || bp.kind === 'stone' || bp.kind === 'tool') return null;
-  if (ex.tierUp) return 'a tier above its ore';
-  if (ex.element && bp.kind === 'caster') return `with a ${CIRCUIT_ELEMENTS[ex.element].name} stone`;
+  if (!ex || ex.retired || bp.kind === 'stone' || bp.kind === 'tool') return null;
+  if (ex.tierUp) return 'a tier up';
+  if (ex.element && bp.kind === 'caster') return `+ ${CIRCUIT_ELEMENTS[ex.element].name} core`;
+  if (ex.modSlot && bp.kind === 'caster' && rigModSlots(tier, 0) < 2) return '+1 Mod slot';
   return null;
 }
 
@@ -211,7 +209,7 @@ function fmtAffix(a) { return AFFIXES[a.id].text.replace('{v}', a.v); }
 function itemBaseLine(item) {
   const b = item.base || {};
   if (item.kind === 'module') return moduleLine(item);
-  if (item.kind === 'caster') { const el = (T.circuits.ores[oreOfTier(item.tier).id] || {}).el; return `${b.power} spell power · ${(item.slots || []).length} slots${item.links && item.links.length ? ' (2 linked)' : ''}${el ? ` · attuned to ${CIRCUIT_ELEMENTS[el].name}` : ''}`; }
+  if (item.kind === 'caster') { const ore = rigOreLine(item), n = rigMods(item); return `${b.power} power · ${n} Mod slot${n === 1 ? '' : 's'}${ore ? ' · ' + ore : ''}`; }
   if (item.kind === 'armor') return `${b.armor} armor, +${b.hp} max health`;
   if (item.kind === 'pick') { const top = T.ores.filter((o) => o.tier <= b.power).pop(); return `Breaks up to ${top ? top.name : 'nothing'}, ${b.speed}× speed`; }
   if (item.kind === 'stone') return stoneLine(item.stone);
@@ -221,10 +219,10 @@ function itemBaseLine(item) {
 
 function itemKindLine(item) {
   if (item.kind === 'relic') return 'Sealed relic';
-  if (item.kind === 'stone') return `${STONE_KIND_NAMES[stoneKind(item.stone)]} stone · tier ${item.tier}`;
-  if (item.kind === 'module') return `${item.woven ? 'Woven' : RARITY_NAMES[item.rarity]} module for ${KIND_PHRASE[item.fits]} · tier ${item.tier}`;
-  const bp = bpOf(item), n = (item.sockets || []).length;
-  return `${item.q ? QUALITY_NAMES[item.q] + ' ' : ''}${(bp ? bp.name : KIND_NAMES[item.kind]).toLowerCase()} · tier ${item.tier} · ${n ? `${n} socket${n > 1 ? 's' : ''}` : 'no sockets'}`;
+  if (item.kind === 'stone') return `${STONE_KIND_NAMES[stoneKind(item.stone)]} core · tier ${item.tier}`;
+  if (item.kind === 'module') return `${item.woven ? 'Woven' : RARITY_NAMES[item.rarity]} module · ${KIND_WORDS[item.fits]} · tier ${item.tier}`;
+  const n = (item.sockets || []).length, what = item.kind === 'caster' ? 'rig frame' : (bpOf(item) || { name: KIND_NAMES[item.kind] }).name.toLowerCase();
+  return `${item.q ? QUALITY_NAMES[item.q] + ' ' : ''}${what} · tier ${item.tier} · ${n ? `${n} socket${n > 1 ? 's' : ''}` : 'no sockets'}`;
 }
 
 // What else a piece says about itself: its recipe's way.
@@ -285,27 +283,28 @@ function computeStats(equip, attune) {
 }
 
 // A rough worth, for UPGRADE / DOWNGRADE at a glance. A base's is its own
-// (its stats, its slots and sockets), as its modules move with it.
+// (its stats, its Mod slots and sockets), as its modules and cores move
+// with it.
 const AFFIX_WORTH = { closeDmg: 0.4, castSpeed: 0.5, crit: 0.6, spellDmg: 0.4, chargeRegen: 0.2, maxCharge: 0.6, maxHp: 0.3, armor: 0.8, regen: 6, moveSpeed: 0.6, cargo: 0.8, magnet: 0.2, mineSpeed: 0.2, oreLuck: 0.3, shock: 0.5, leech: 1.5, chill: 0.3 };
 function itemWorth(it) {
   if (!it) return 0;
   if (it.kind === 'module') return moduleWorth(it);
   const b = it.base || {};
   let w = (b.power || 0) * (it.kind === 'pick' ? 8 : 2) + (b.armor || 0) + (b.hp || 0) * 0.3 + (b.speed || 0) * 4;
-  if (it.slots) w += it.slots.length * 3;
+  if (it.spells) w += rigMods(it) * 6;
   w += (it.sockets || []).length * 6;
   return w;
 }
 
 // What an item adds, stat by stat, for comparing two pieces (a base's own
 // numbers; a module's traits).
-const STAT_WORDS = { power: ['spell power', ''], slots: ['circuit slots', ''], sockets: ['module sockets', ''], armor: ['armor', ''], hp: ['max health', ''], speed: ['mining speed', '×'] };
+const STAT_WORDS = { power: ['power', ''], mods: ['Mod slot a spell', ''], sockets: ['module sockets', ''], armor: ['armor', ''], hp: ['max health', ''], speed: ['mining speed', '×'] };
 function itemStatMap(it) {
   const m = {};
   if (!it) return m;
   const b = it.base || {};
   for (const k of ['armor', 'hp']) if (b[k]) m[k] = b[k];
-  if (it.kind === 'caster') { m.power = b.power; m.slots = it.slots.length; }
+  if (it.kind === 'caster') { m.power = b.power; m.mods = rigMods(it); }
   if (it.kind === 'pick') m.speed = b.speed;
   if (it.kind !== 'module' && it.kind !== 'stone' && it.kind !== 'relic') m.sockets = (it.sockets || []).length;
   for (const a of it.affixes || []) m['a:' + a.id] = (m['a:' + a.id] || 0) + a.v;
@@ -336,25 +335,16 @@ function affixRoll(a, tier, k = 1) {
   return hi > lo ? (a.v - lo) / (hi - lo) : 1;
 }
 
-// The slot a base would replace. A caster compares with the hand holding
-// the same recipe, else an empty hand, else the weaker one.
-function compareSlot(equip, it) {
-  const s = KIND_SLOT[it.kind];
-  if (!s) return null;
-  if (s !== 'hand') return s;
-  for (const h of ['main', 'off']) if (equip[h] && equip[h].bp === it.bp) return h;
-  if (!equip.main) return 'main';
-  if (!equip.off) return 'off';
-  return itemWorth(equip.off) < itemWorth(equip.main) ? 'off' : 'main';
-}
+// The slot a base would replace.
+function compareSlot(equip, it) { return KIND_SLOT[it.kind] || null; }
 
-// What breaking a base or a stone down gives back: { ore: id, n, exotic:
+// What breaking a base or a core down gives back: { ore: id, n, exotic:
 // id | null }: some of its ore, and now and then an exotic. (Its modules
-// and stones come out whole.)
+// and cores come out whole.)
 function salvageYield(rng, item) {
   const bp = item.kind === 'stone' ? bpOfStone(item.stone) : bpOf(item);
   const n = Math.max(1, Math.floor((bp ? bp.ore : 0) * T.salvage.back));
-  const exotic = item.kind !== 'stone' && rng.chance((item.q || 0) >= 2 ? T.salvage.exoticRare : T.salvage.exotic) ? rng.pick(T.exotics.filter((x) => !x.riftOnly)).id : null;
+  const exotic = item.kind !== 'stone' && rng.chance((item.q || 0) >= 2 ? T.salvage.exoticRare : T.salvage.exotic) ? rng.pick(T.exotics.filter((x) => !x.riftOnly && !x.retired)).id : null;
   return { ore: oreOfTier(item.tier).id, n, exotic };
 }
 

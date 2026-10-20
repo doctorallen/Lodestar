@@ -29,29 +29,32 @@ function costTag(id, n, have, name = stuffName(id)) {
 function iconImg(item, cls = 'icon') { return `<img class="${cls}" src="${itemIconUrl(item)}" alt="">`; }
 function itemRow(item, act, arg, tag = '') {
   if (item.kind === 'module') return moduleRow(item, act, arg, tag);
-  return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name ${item.q ? 'q-' + item.q : 'r-' + item.rarity}">${item.fav ? '★ ' : ''}${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span><span class="row-gems">${isCaster(item) ? miniCircuit(item) : ''}${item.sockets ? miniSockets(item) : ''}</span></span>${tag}</button>`;
+  return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name ${item.q ? 'q-' + item.q : 'r-' + item.rarity}">${item.fav ? '★ ' : ''}${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span><span class="row-gems">${isCaster(item) ? miniSpells(item) : ''}${item.sockets ? miniSockets(item) : ''}</span></span>${tag}</button>`;
 }
 
 // ---------------------------------------------------------------------------
-// Circuits on the screens: a stone as a tile, a caster's row of them, and
-// the drawer of stones to socket
+// Spells on the screens: a core as a tile, the rig's two spells, and the
+// drawer of cores to set in them
 // ---------------------------------------------------------------------------
 const STONE_ORDER = Object.keys(CIRCUIT_FORMS).concat(Object.keys(CIRCUIT_ELEMENTS), Object.keys(CIRCUIT_GLYPHS));
 
-// A stone as a tile: a Form's is stone with a heavy rim, an Element's filled
-// with its colour, a Glyph's etched with a dashed rim; or an empty slot.
-// st: a stone, or { stone, tier }; opts: { act, arg, sel, mini, count }.
+// A core as a tile: a Form's with a heavy rim, an Element's filled with its
+// colour, a Mod's with a dashed rim; or an empty part, labelled with the
+// kind it takes. st: a core, or { stone, tier }; opts: { act, arg, sel,
+// mini, count, kind (an empty one's) }.
 function stoneTile(st, opts = {}) {
-  const tag = opts.act ? 'button' : 'span', cls = `${opts.sel ? ' sel' : ''}${opts.mini ? ' mini' : ''}${opts.linked ? ' linked' : ''}`;
+  const tag = opts.act ? 'button' : 'span', cls = `${opts.sel ? ' sel' : ''}${opts.mini ? ' mini' : ''}`;
   const attrs = opts.act ? ` data-act="${opts.act}" data-arg="${opts.arg}"` : '';
-  if (!st) return `<${tag} class="tile t-empty${cls}"${attrs} aria-label="Empty slot"><b>·</b>${opts.mini ? '' : '<small>EMPTY</small>'}</${tag}>`;
+  if (!st) return `<${tag} class="tile t-empty${cls}"${attrs} aria-label="Empty ${opts.kind ? STONE_KIND_NAMES[opts.kind] : 'part'}"><b>·</b>${opts.mini ? '' : `<small>${opts.kind ? STONE_KIND_NAMES[opts.kind].toUpperCase() : 'EMPTY'}</small>`}</${tag}>`;
   const W = stoneWords(st.stone), k = stoneKind(st.stone);
   const img = opts.mini ? '' : `<img src="${stoneIconUrl(st.stone)}" alt="">`;
   const sub = opts.mini ? '' : `<small>${opts.count ? '×' + opts.count + ' · ' : ''}T${st.tier}</small>`;
   return `<${tag} class="tile t-${k}${cls}" style="--c:${stoneTint(st.stone)}"${attrs} aria-label="${esc(W.name)}, tier ${st.tier}">${img}<b>${W.abbr}</b>${sub}</${tag}>`;
 }
-function miniCircuit(it) { return `<span class="mini-circuit">${it.slots.map((s) => stoneTile(s, { mini: true })).join('')}</span>`; }
-// The stones in a list, one entry for each kind and tier: { stone, tier, n }.
+// A spell's parts, in order: [key, core].
+const spellParts = (sp) => [['form', sp.form], ['el', sp.el]].concat(sp.mods.map((m, k) => ['m' + k, m]));
+function miniSpells(it) { return (it.spells || []).map((sp) => `<span class="mini-circuit">${spellParts(sp).map(([key, c]) => stoneTile(c, { mini: true, kind: spellPartKind(key) })).join('')}</span>`).join(''); }
+// The cores in a list, one entry for each kind and tier: { stone, tier, n }.
 function groupStones(items) {
   const m = new Map();
   for (const it of items) {
@@ -62,32 +65,22 @@ function groupStones(items) {
   return [...m.values()].sort((a, b) => STONE_ORDER.indexOf(a.stone) - STONE_ORDER.indexOf(b.stone) || b.tier - a.tier);
 }
 
-// A caster's circuit on its card: the row of slots, what it costs, what it
-// does in words; and at home, the drawer to socket stones from (free).
-function circuitPanel(it, edit, c, drawer = edit) {
-  if (edit && (typeof c.slot !== 'number' || c.slot >= it.slots.length)) c.slot = Math.max(0, it.slots.indexOf(null));
-  const R = circuitReadout(it), links = it.links || [];
-  // a linked pair: a chain drawn between its two tiles
-  const tiles = it.slots.map((st, i) => (i ? `<span class="link${links.includes(i - 1) ? ' linked' : ''}" aria-hidden="true"></span>` : '') + stoneTile(st, Object.assign(edit ? { act: 'slotPick', arg: i, sel: drawer && c.slot === i } : {}, { linked: slotLinked(links, i) }))).join('');
-  let h = `<h3>CIRCUIT · ${it.slots.length} SLOTS${links.length ? ' · 2 LINKED' : ''}</h3><div class="circuit${it.slots.length > 5 ? ' long' : ''}">${tiles}</div>`;
-  // a resonance: a gold banner when it's live; a stir when it's a stone away
-  const near = resonanceNear(it);
-  if (near && near.live) h += `<div class="res-banner on">✦ RESONANCE · ${esc(near.live.name.toUpperCase())}</div><p class="res-text">${esc(capFirst(near.live.text))}. It hits ${Math.round((resonanceMult(it) - 1) * 100)}% harder.</p>`;
-  else if (near && near.stir) h += `<div class="res-banner stir">Resonance stirs…${codexWhole(near.stir) ? ` one stone from ${esc(near.stir.name)}` : ''}</div>`;
-  h += `<p class="circuit-cost">Costs <b>${R.cost} charge</b> a cast · held, <b>${R.held} charge</b>${R.close ? ' · close Forms give charge back' : ''}</p>`;
-  h += `<div class="readout">${R.lines.map((l) => `<p${l.warn ? ' class="warn"' : l.ore ? ' class="ore"' : l.link ? ' class="linked"' : ''}>${esc(l.text)}</p>`).join('')}</div>`;
-  if (!edit) return h + (c.where === 'cargo' || c.where === 'worn' ? '<p class="note">Its stones can be changed at home, at the locker.</p>' : '');
-  if (!drawer) return h + '<p class="note">Tap a slot to change its stone.</p>';
-  const sel = it.slots[c.slot], have = groupStones(Save.data.items);
-  const grp = (kind, label, none) => {
-    const list = have.filter((x) => stoneKind(x.stone) === kind);
-    return `<div class="drawer-grp"><div class="gl">${label}</div><div class="drawer-row">${list.length ? list.map((x) => stoneTile(x, { act: 'slotPut', arg: x.stone + ':' + x.tier, count: x.n })).join('') : `<span class="note">${none}</span>`}</div></div>`;
-  };
-  h += `<div class="drawer"><div class="drawer-head"><span>SLOT ${c.slot + 1} · ${sel ? `${esc(stoneWords(sel.stone).name.toUpperCase())} · TIER ${sel.tier}` : 'EMPTY'}</span>${sel ? '<button class="mini" data-act="slotEmpty">TAKE OUT</button>' : ''}</div>
-    <p class="note">Tap a stone to set it in slot ${c.slot + 1}. Socketing is free: change it as often as you like.</p>
-    ${grp('form', 'FORMS · THE SHAPE', 'No spare Form stones: forge them at the forge.')}
-    ${grp('element', 'ELEMENTS · THE DAMAGE', 'No Element stones: forge them from exotics, or Force from ore.')}
-    ${grp('glyph', 'GLYPHS · WHAT CHANGES IT', 'No Glyph stones: forge them from creature parts.')}</div>`;
+// The rig's two spells on its card: each a row of its parts, its name
+// (BOLT · SHOCK · CHAIN) and one short line; at home, a part tapped opens
+// the drawer of the cores that fit it (free to change). c.part: the chosen
+// part, as 'i:key'.
+function spellPanel(it, edit, c) {
+  let h = '';
+  it.spells.forEach((sp, i) => {
+    const L = spellLine(it, sp), tiles = spellParts(sp).map(([key, core]) => stoneTile(core, Object.assign({ kind: spellPartKind(key) }, edit ? { act: 'partPick', arg: `${i}:${key}`, sel: c.part === `${i}:${key}` } : {}))).join('');
+    h += `<div class="spell${L.res ? ' res' : ''}"><div class="spell-head"><b class="spell-key">${i ? 'B' : 'A'}</b><span class="spell-name">${esc(spellName(sp))}</span></div><div class="circuit">${tiles}</div><p class="spell-line${L.warn ? ' warn' : ''}">${esc(L.text)}</p></div>`;
+  });
+  if (!edit) return h;
+  if (!c.part) return h + '<p class="note">Tap a part to change it.</p>';
+  const [i, key] = c.part.split(':'), sp = it.spells[Number(i)], sel = spellGet(sp, key), kind = spellPartKind(key);
+  const list = groupStones(Save.data.items).filter((x) => stoneKind(x.stone) === kind);
+  h += `<div class="drawer"><div class="drawer-head"><span>${i === '1' ? 'B' : 'A'} · ${STONE_KIND_NAMES[kind].toUpperCase()}${sel ? ' · ' + esc(stoneWords(sel.stone).name.toUpperCase()) : ''}</span>${sel ? '<button class="mini" data-act="partOut">TAKE OUT</button>' : ''}</div>
+    <div class="drawer-row">${list.length ? list.map((x) => stoneTile(x, { act: 'partPut', arg: x.stone + ':' + x.tier, count: x.n })).join('') : `<span class="note">No spare ${STONE_KIND_NAMES[kind]} cores. Forge them: CORES.</span>`}</div></div>`;
   return h;
 }
 // ▲ or ▼ against what's worn in the slot it would go in
@@ -104,8 +97,8 @@ function compareTag(item, equip) {
 const UI = {
   openedAt: 0,
   screen: null,
-  card: null, // { item, where, key, slot (the circuit's chosen slot), sock (the chosen socket), focus ('circuit' or 'modules'), bench, fuse }
-  forge: { bp: null, ore: null, size: null, exotic: null, field: false },
+  card: null, // { item, where, key, part (the chosen spell part, 'i:key'), sock (the chosen socket), focus ('spells' or 'modules'), bench }
+  forge: { bp: null, ore: null, exotic: null, field: false },
 
   init() {
     for (const s of document.querySelectorAll('.screen')) s.addEventListener('click', (e) => UI.onTap(e));
@@ -211,7 +204,7 @@ const UI = {
   openCargo() { UI.show('screen-cargo'); },
 
   openCard(item, where, key) {
-    UI.card = { item, where, key, slot: null };
+    UI.card = { item, where, key, part: null };
     $('card').hidden = false;
     UI.openedAt = Game.realT;
     drawCard();
@@ -354,25 +347,25 @@ const UI = {
     setTextIfChanged('btn-cargo', `CARGO ${cargoUsed(d)}/${st.cargo}`);
     drawSupplyDeck(d);
     const eq = Save.data.equip;
+    const rig = isCaster(eq.main) ? eq.main : null;
     for (const slot of ['main', 'off']) {
-      // each hand's button shows its circuit's first Form
-      const it = eq[slot], P = isCaster(it) ? parseCircuit(it.slots, it.links) : null, g = P && P.groups[0];
-      const form = it ? (g ? g.form : null) : 'arc', tier = g ? g.tier : 1, btn = $('btn-' + slot), key = `${it ? it.uid : 'fist'}:${form}:${tier}`;
+      // each spell's button shows its Form
+      const sp = rig && rigSpell(rig, slot === 'off' ? 1 : 0), form = rig ? spellForm(sp) : 'arc', btn = $('btn-' + slot), key = `${rig ? rig.uid : 'fist'}:${form}`;
       if (btn.dataset.key !== key) {
         btn.dataset.key = key;
-        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt')}" alt=""><span>${!it ? 'FIST' : form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
+        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt')}" alt=""><span>${!rig ? 'FIST' : form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
       }
       const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
       btn.classList.toggle('charging', lv > 0 && lv < 1);
       btn.classList.toggle('charged', lv >= 1);
     }
-    if ($('btn-off').hidden !== !eq.off) $('btn-off').hidden = !eq.off;
+    if ($('btn-off').hidden !== !rig) $('btn-off').hidden = !rig;
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     const rh = a === 'rift' && riftHere(d);
     let way = '';
     if (a === 'way') way = !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'STEP THROUGH: ' + wayPlaceName(d, wayHere(d)).toUpperCase();
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'REWORK', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `FEED THE STAR · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'TUNE', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `FEED THE STAR · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
     // at a spire (or a beacon's light), TRAVEL too; at the altar, ATTUNE; at
@@ -566,9 +559,9 @@ function cardBar(where, extra = '') {
 // Ore or an exotic in the cargo: how much, and dropping some.
 function drawStuffCard(id) {
   const n = (Game.dive && Game.dive.cargo[id]) || 0, x = T.exotics.find((e) => e.id === id), pk = parsePart(id);
-  const what = id === 'thread' ? 'A module unravelled. Threads pay for work at the rune bench: a tier up, a trait rerolled, two fused.'
-    : x ? (x.element ? `Forged into a ${CIRCUIT_ELEMENTS[x.element].name} stone, it gives a spell ${CIRCUIT_ELEMENTS[x.element].name.toLowerCase()} damage: ${CIRCUIT_ELEMENTS[x.element].status}. Worked into a caster, the stone comes with it.` : x.id === 'bloodresin' ? 'At the rune bench, a trait rerolled with it comes out leech: a share of the damage you deal heals you.' : x.tierUp ? 'Left where a rift was sealed. Worked into a piece at the forge, it comes out a tier above its ore; at the rune bench, it imprints a power.' : 'At the rune bench, it adds a trait to a common or magic module.')
-    : pk ? (PARTS[pk.kind].family ? `A creature part, for the forge: ${Object.keys(BLUEPRINTS).filter((b) => BLUEPRINTS[b].need && BLUEPRINTS[b].need[pk.kind] && !BLUEPRINTS[b].stone).map((b) => BLUEPRINTS[b].name.toLowerCase()).join(', ') || 'stones'} take it.` : "A warden's heart. At the rune bench, it imprints a power the forge remembers into a module.")
+  const what = id === 'thread' ? 'A module unravelled. Threads pay to upgrade a module.'
+    : x ? (x.element ? `Forges a ${CIRCUIT_ELEMENTS[x.element].name} core.` : x.retired ? 'Old stock: unravelled into threads at home.' : x.tierUp ? 'Forge with it: a tier above its ore.' : x.modSlot ? 'Forge it into a rig frame: +1 Mod slot.' : '')
+    : pk ? (PARTS[pk.kind].family ? `A creature part, for the forge: ${Object.keys(BLUEPRINTS).filter((b) => BLUEPRINTS[b].need && BLUEPRINTS[b].need[pk.kind] && !BLUEPRINTS[b].stone).map((b) => BLUEPRINTS[b].name.toLowerCase()).join(', ') || 'cores'} take it.` : "A warden's heart. It forges a Ward core.")
     : isLight(id) ? LIGHT_KINDS[id].text
     : `Tier ${T.ores[ORE_INDEX[id]].tier} ore. Forge with it, or make supplies from it.`;
   $('card-body').innerHTML = cardBar('IN YOUR CARGO') + `<div class="card-scroll">
@@ -704,8 +697,15 @@ function drawSoundButtons() {
   setTextIfChanged('pause-lamp', `LAMP: ${lampIsBeam() ? 'BEAM' : 'GLOW'}`);
 }
 
-// A caster's stones moved into another, slot for slot; what doesn't fit goes
-// to `list`.
-function moveCircuit(from, to, list) {
-  from.slots.forEach((st, i) => { if (!st) return; if (i < to.slots.length) to.slots[i] = st; else list.push(st); from.slots[i] = null; });
+// A frame's cores moved into another, part for part; a Mod the new one has
+// no slot for goes to `list`.
+function moveSpells(from, to, list) {
+  from.spells.forEach((sp, i) => {
+    const dst = to.spells[i];
+    for (const [key, c] of spellParts(sp)) {
+      if (!c) continue;
+      spellSet(sp, key, null);
+      if (key[0] !== 'm' || Number(key.slice(1)) < dst.mods.length) spellSet(dst, key, c); else list.push(c);
+    }
+  });
 }

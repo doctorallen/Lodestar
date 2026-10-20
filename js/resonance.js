@@ -1,9 +1,10 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Resonances: exact circuits that wake into named spells (RESONANCES, in
-// circuits.js). One must fill its caster exactly, so the base and its slot
-// count matter. A resonant circuit hits T.circuits.resonance.mult as hard
-// (more from Resonite), and does something its parts alone don't:
+// Resonances: named spells (RESONANCES, in circuits.js). A spell whose
+// cores hold all of a resonance's parts, in any order, wakes it; a
+// four-part one needs a frame with two Mod slots. A resonant spell hits
+// T.circuits.resonance.mult as hard (more from a Resonite frame), and does
+// something its parts alone don't:
 //   Thunderhead   ORB SHOCK LINGER: the orb stops overhead and becomes a
 //                 stormcloud, striking the nearest foe below until it fades.
 //   Shatterglass  LANCE FROST ECHO: the echo lance shatters the chilled
@@ -15,16 +16,17 @@
 //                 only for show).
 //   Stormglaive   GLAIVE SHOCK CHAIN AMPLIFY: the blades arc lightning to
 //                 every foe within reach.
-//   Starfall      BOLT FORCE SPLIT TRIGGER NOVA: three bolts rise and meet
-//                 as a falling star: a crater, a stun, a ring of light.
-// circuits.js calls in: resonanceFire (a group fired its own way),
+//   Starfall      BOLT FORCE SPLIT AMPLIFY: three bolts rise and meet as a
+//                 falling star: a crater, a stun, a ring of light.
+// circuits.js calls in: resonanceFire (a spell fired its own way),
 // kindleCrescent, wildfireTrail, shatterglassShards, stormglaiveArcs,
 // thunderheadTick.
 //
-// The Codex, at the forge, shows each as a silhouette with its slot count;
-// resonance stones (from elites, by ancient forges, from contracts) show
-// its parts one by one. Kindling Arc is known from the start, and building
-// one fills it in. Looks are drawn here too, in whole art px, with no shake.
+// They're found by trying. The Codex, at the forge, shows each as a row of
+// unknown parts; resonance traces (from elites, by ancient forges, from
+// contracts) show its parts one by one. Kindling Arc is known from the
+// start, and building one fills it in. Looks are drawn here too, in whole
+// art px, with no shake.
 // ---------------------------------------------------------------------------
 
 const RES_FX = { dive: null, floor: null, stars: [], burning: [], spreadT: 0 };
@@ -36,11 +38,11 @@ function resFxFor(d) {
   if (RES_FX.floor !== d.floor) { RES_FX.floor = d.floor; RES_FX.burning = []; }
 }
 
-// How much harder a caster's resonance hits (more in Resonite).
+// How much harder a frame's resonance hits (more in Resonite).
 function resonanceMult(it) { return T.circuits.resonance.mult * (1 + (casterOreWay(it).resonance || 0)); }
 const resonanceById = (id) => RESONANCES.find((r) => r.id === id) || null;
 
-// A resonant circuit is cast: the Codex fills in, Wick says what it is the
+// A resonant spell is cast: the Codex fills in, Wick says what it is the
 // first time, and its name rises over the diver the first time a dive.
 function resonanceCast(res, d) {
   codexFill(res.id);
@@ -57,9 +59,9 @@ function resonanceCast(res, d) {
   }
 }
 
-// A group of a resonant circuit fires: true if the resonance fired it its
-// own way (Thunderhead's orb, Starfall's bolts); the rest change how their
-// Form's cast goes (circuits.js).
+// A resonant spell fires: true if the resonance fired it its own way
+// (Thunderhead's orb, Starfall's bolts); the rest change how their Form's
+// cast goes (circuits.js).
 function resonanceFire(s) {
   const id = s.cx.res;
   if (s.cx.from) return false;
@@ -71,7 +73,7 @@ function resonanceFire(s) {
 // Where a placed resonance lands: the foe in aim, else `ahead` px out, but
 // short of the rock.
 function resonancePoint(s, ahead) {
-  const d = Game.dive, p = d.p, aim = circuitAim(null, casterBase(s.cx.item).aim, null, null);
+  const d = Game.dive, p = d.p, aim = circuitAim(null, rigBase().aim, null, null);
   if (aim.target) return { x: aim.target.x, y: aim.target.y, a: aim.a };
   let x = p.x, y = p.y;
   for (let k = 4; k <= ahead; k += 4) {
@@ -113,19 +115,18 @@ function castStarfall(s) {
   resFxFor(d);
   const o = CFX.origin || { x: 0, y: -10 };
   RES_FX.stars.push({ x0: p.x + o.x, y0: p.y + o.y, x1: at.x, y1: at.y, t: 0, rise: R.rise, fall: R.fall });
-  const nova = s.g.next ? circuitGroupState(s.g.next, Object.assign({}, s.cx, { from: { x: at.x, y: at.y } })) : null;
-  d.later.push({ t: R.rise + R.fall, fn: () => starfallStrike(s, nova, at.x, at.y) });
+  d.later.push({ t: R.rise + R.fall, fn: () => starfallStrike(s, at.x, at.y) });
 }
-function starfallStrike(s, nova, x, y) {
+function starfallStrike(s, x, y) {
   const d = Game.dive;
   if (!d) return;
-  const R = T.circuits.resonance.starfall, Gl = T.circuits.glyphs, r = R.r * (nova ? nova.area : s.area);
-  // the three bolts and the nova, all at once
-  const dmg = s.dmg * Gl.split.mult * s.gk * 3 + (nova ? nova.dmg : 0), hs = nova || s;
+  const R = T.circuits.resonance.starfall, Gl = T.circuits.glyphs, r = R.r * s.area;
+  // the three bolts and the star's burst, all at once
+  const dmg = s.dmg * (Gl.split.mult * 3 + R.burst);
   for (const e of d.enemies) {
     if (e.dead || dist(e.x, e.y, x, y) > r + e.r) continue;
     const k = norm(e.x - x, e.y - y);
-    circuitHit(hs, e, dmg, { heavy: true, knock: { x: k.x * 140, y: k.y * 140 }, noChain: true });
+    circuitHit(s, e, dmg, { heavy: true, knock: { x: k.x * 140, y: k.y * 140 }, noChain: true });
     if (!e.dead) reactStun(e, R.stun);
   }
   // a crater, a ring of light, the light it gives; no shake
@@ -378,52 +379,55 @@ function drawResonanceAir(d, ox, oy, tick, lights) {
 // ---------------------------------------------------------------------------
 // The Codex
 // ---------------------------------------------------------------------------
-// The parts of each resonance shown so far: { id: [slot indices] }.
+// The parts of each resonance shown so far: { id: [indices into its parts] }.
 function resCodex() {
   const s = Save.data;
   if (!s.resCodex || typeof s.resCodex !== 'object') s.resCodex = { kindling: [0, 1, 2] };
   return s.resCodex;
 }
 const codexShown = (r) => resCodex()[r.id] || [];
-const codexWhole = (r) => codexShown(r).length >= r.seq.length;
+const codexWhole = (r) => codexShown(r).length >= r.parts.length;
 const codexAllWhole = () => RESONANCES.every(codexWhole);
 // Building or casting a resonance fills in its page.
 function codexFill(id) {
   const r = resonanceById(id), C = resCodex();
   if (!r || codexWhole(r)) return false;
-  C[id] = r.seq.map((x, i) => i);
+  C[id] = r.parts.map((x, i) => i);
   Save.saveField('resCodex');
   return true;
 }
-// A resonance stone: one part of a resonance not yet whole. Returns
+// A resonance trace: one part of a resonance not yet whole. Returns
 // { res, i } or null if the Codex is whole.
 function revealResonancePart(rng) {
   const open = RESONANCES.filter((r) => !codexWhole(r));
   if (!open.length) return null;
-  const r = rng.pick(open), shown = codexShown(r), hidden = r.seq.map((x, i) => i).filter((i) => !shown.includes(i)), i = rng.pick(hidden);
+  const r = rng.pick(open), shown = codexShown(r), hidden = r.parts.map((x, i) => i).filter((i) => !shown.includes(i)), i = rng.pick(hidden);
   resCodex()[r.id] = shown.concat([i]).sort((a, b) => a - b);
   Save.saveField('resCodex');
   return { res: r, i };
 }
-// A resonance stone picked up (or paid by a contract): the toast it shows.
+// A resonance trace picked up (or paid by a contract): the toast it shows.
+// (Its id stays resonanceStoneFound, which contracts.js calls.)
 function resonanceStoneFound(rng) {
   const got = revealResonancePart(rng);
-  if (!got) { UI.toast('A resonance stone. The Codex is already whole'); return; }
-  UI.toast(`Resonance stone: ${got.res.name} · ${stoneWords(got.res.seq[got.i]).name}${codexWhole(got.res) ? '. Its page is whole' : ''}`, 'legendary');
+  if (!got) { UI.toast('Resonance trace. The Codex is whole'); return; }
+  UI.toast(`Resonance trace: ${got.res.name} · ${stoneWords(got.res.parts[got.i]).name}${codexWhole(got.res) ? '. Whole' : ''}`, 'legendary');
   Story.say('resStone');
 }
 
-// What a caster's circuit is to the resonances: { live } when it is one,
-// { stir } when it's a stone away from one that fills it, else null.
-function resonanceNear(it) {
-  if (!it || !it.slots) return null;
-  const live = circuitResonance(it.slots);
+// What a spell is to the resonances: { live } when it wakes one, { stir }
+// when it's one core from one that fits its Mod slots, else null.
+function resonanceNear(sp) {
+  if (!sp) return null;
+  const live = spellResonance(sp);
   if (live) return { live };
+  const have = spellCores(sp).map((c) => c.stone);
   for (const r of RESONANCES) {
-    if (r.seq.length !== it.slots.length) continue;
-    let diff = 0;
-    r.seq.forEach((id, i) => { if (!it.slots[i] || it.slots[i].stone !== id) diff++; });
-    if (diff === 1) return { stir: r };
+    if (r.parts.length > 2 + (sp.mods || []).length) continue;
+    const left = have.slice();
+    let miss = 0;
+    for (const id of r.parts) { const i = left.indexOf(id); if (i < 0) miss++; else left.splice(i, 1); }
+    if (miss === 1 && have.length >= 2) return { stir: r };
   }
   return null;
 }

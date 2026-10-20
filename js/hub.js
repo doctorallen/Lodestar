@@ -7,7 +7,7 @@
 // more for every magnitude, reaching further as it grows, and all the way
 // and brighter towards land already kindled. Round the cradle stand the
 // modules that came down with the seed (the star's altar, the locker, the
-// portal's gate, the fabricator, the rune bench), the practice target and
+// portal's gate, the fabricator, the tuning bench), the practice target and
 // the Meridian uplink, and light masts, one lit for every magnitude.
 // Starstone grows up the modules' feet as the star does. As territories are
 // kindled the colony comes down: a lander on a pad for each, a habitat pod
@@ -40,7 +40,7 @@ function drawHubUnder(d, ox, oy, tick, lights) {
   for (const s of HUB_STATIONS) {
     if (s.id === 'dummy' || s.id === 'wreck' || s.id === 'setout') continue;
     const at = stationAt(s, ox, oy), spr = stationSprite(s.id);
-    const glow = { forge: [ART.pal.glass[0], 2.2, 1.0], runes: [ART.pal.arcane[0], 1.2, 0.5], locker: [DIVER_PAL.circuit[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
+    const glow = { forge: [ART.pal.glass[0], 2.2, 1.0], runes: ['#ffb030', 1.2, 0.5], locker: [DIVER_PAL.circuit[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
     const gx = s.id === 'forge' ? at.x - spr.ax + HART_MOUTH.x : at.x, gy = s.id === 'forge' ? at.y - spr.ay + HART_MOUTH.y : at.y - (spr.ay >> 1);
     const fl = s.id === 'forge' ? 0.8 + 0.12 * Math.sin(Game.realT * 11) + 0.08 * Math.sin(Game.realT * 23) : 0.85 + 0.15 * Math.sin(Game.realT * 3);
     lights.push({ x: gx, y: gy, r: TILE * glow[1], i: glow[2] * fl * introWake(s.id), c: rgb01(glow[0]) });
@@ -483,7 +483,7 @@ function drawLabel(text, cx, y, col, alpha, c = View.ctx) {
   }
   c.globalAlpha = 1;
 }
-const STATION_LABELS = { setout: 'THE PORTAL', altar: 'THE STAR', locker: 'LOCKER', forge: 'FORGE', runes: 'RUNE BENCH', wreck: 'THE UPLINK', dummy: 'TARGET' };
+const STATION_LABELS = { setout: 'THE PORTAL', altar: 'THE STAR', locker: 'LOCKER', forge: 'FORGE', runes: 'TUNING BENCH', wreck: 'THE UPLINK', dummy: 'TARGET' };
 // (world px above or below the station's middle)
 const STATION_LABEL_Y = { setout: -46, altar: -34, locker: -38, forge: -46, runes: -32, wreck: -52, dummy: -22 };
 function drawStationLabels(d, ox, oy) {
