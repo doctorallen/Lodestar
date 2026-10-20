@@ -152,6 +152,9 @@ function pnrOccludeGround(ox, oy) {
     for (const m of CFX.decals) { const c = m.pic.col; mark(m.x - c.cx / AP - 1, m.y - c.cy / AP - 1, m.x + (c.c.width - c.cx) / AP + 1, m.y + (c.c.height - c.cy) / AP + 1); }
     for (const r of CFX.rings) if (r.kind === 'glyph' || (r.kind === 'sweep' && !r.air)) round(r.f ? d.p.x + r.x : r.x, r.f ? d.p.y + r.y : r.y, Math.max(r.r0, r.r1) + 2);
     round(d.p.x, d.p.y, T.castFx.charge.glyph[1] + 2);
+    for (const au of d.auras) if (au.kind === 'well') round(au.x, au.y, 6);
+    // a lance's scar, along its line
+    for (const sc of CFX.scars) { const L = Math.hypot(sc.x1 - sc.x0, sc.y1 - sc.y0); for (let s = 0; s <= L; s += 8) { const u = L ? s / L : 0; round(lerp(sc.x0, sc.x1, u), lerp(sc.y0, sc.y1, u), 5); } }
   }
   // each marked tile's rock laid back
   const B = View.rockBlk, bw = Math.ceil((f.w * ATILE) / PNT_BLK), per = ATILE / PNT_BLK, ex = View.emCtx;

@@ -3,7 +3,7 @@
 // Sound, made in code with Web Audio: nothing is loaded. This file is the
 // engine and the effects; the music and each place's own sound are in
 // music.js; the fight's sounds and the footsteps are layered and rendered
-// ahead after the first tap (sndbank.js), and played here as buffers.
+// ahead while the game loads (sndbank.js), and played here as buffers.
 //
 // snd(name, opts) plays a named cue (SND_CUES). A name it doesn't know
 // does nothing, and nothing plays or throws before the first tap, when the
@@ -174,14 +174,22 @@ const Snd = {
 
 // Tones with a few soft harmonics, so a low note still sounds on a phone
 // without being harsh, made on context c.
+// (each made only when it's first wanted on c: making one costs a few ms)
+const SND_WAVE_AMPS = {
+  warm: [12, (k) => 1 / Math.pow(k, 1.45)],
+  hollow: [11, (k) => (k % 2 ? 1 / Math.pow(k, 1.1) : 0.12 / k)],
+  reed: [10, (k) => (k === 3 || k === 4 ? 0.7 : 1) / k],
+};
 function sndWaves(c) {
-  const wave = (amp) => { const re = new Float32Array(amp.length + 1), im = new Float32Array(amp.length + 1); amp.forEach((a, i) => { im[i + 1] = a; }); return c.createPeriodicWave(re, im); };
-  const H = (n, f) => Array.from({ length: n }, (_, i) => f(i + 1));
-  return {
-    warm: wave(H(12, (k) => 1 / Math.pow(k, 1.45))),
-    hollow: wave(H(11, (k) => (k % 2 ? 1 / Math.pow(k, 1.1) : 0.12 / k))),
-    reed: wave(H(10, (k) => (k === 3 || k === 4 ? 0.7 : 1) / k)),
-  };
+  const out = {};
+  for (const [name, [n, f]] of Object.entries(SND_WAVE_AMPS)) {
+    let w = null;
+    Object.defineProperty(out, name, { enumerable: true, get() {
+      if (!w) { const re = new Float32Array(n + 1), im = new Float32Array(n + 1); for (let k = 1; k <= n; k++) im[k] = f(k); w = c.createPeriodicWave(re, im); }
+      return w;
+    } });
+  }
+  return out;
 }
 
 // A promise from the context, its rejection ignored (a browser may refuse
@@ -587,9 +595,11 @@ function sndUnlock() {
       try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = new AC(); }
       Snd.build(ctx, true);
       Music.build(Snd);
-      // the fight's sounds, rendered between frames (sndbank.js)
-      // (sooner while the opening plays: it wants its sounds now)
-      if (typeof OfflineAudioContext !== 'undefined') SndBank.start(ctx.sampleRate, typeof Intro !== 'undefined' && Intro.on ? 150 : 800).catch(() => {});
+      // the fight's sounds (sndbank.js) are rendered while the game loads,
+      // before the tap; if they weren't (no loading, or it failed), they're
+      // rendered now, between frames (sooner while the opening plays: it
+      // wants its sounds now)
+      if (typeof OfflineAudioContext !== 'undefined' && !SndBank.started) SndBank.start(ctx.sampleRate, typeof Intro !== 'undefined' && Intro.on ? 150 : 800).catch(() => {});
       // a moment of silence started inside the tap wakes iOS's output
       const b = ctx.createBufferSource(); b.buffer = ctx.createBuffer(1, 1, ctx.sampleRate); b.connect(ctx.destination); b.start(0);
     }

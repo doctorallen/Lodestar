@@ -11,7 +11,9 @@
 // running out, a recall, tools, rifts, a Deep, a Keeper; then a fall that
 // leaves the cargo in a pack where it fell (not what's worn), wakes at the
 // last spire, and the pack recovered. An older save's star is rescaled.
-// Held sideways, the decks sit either side of the view. On a desktop: WASD,
+// Held sideways, the decks sit either side of the view. Opened again with
+// a sortie under way, the loading builds its territory and CARRY ON is
+// there at once. On a desktop: WASD,
 // J to cast, Space to mine, Esc to pause. No page errors anywhere;
 // screenshots go to test/out/.
 const { launch, openGame: openFresh, shot, finish, PHONE, DESKTOP } = require('./lib');
@@ -711,6 +713,30 @@ async function migration(browser) {
   await page.close();
 }
 
+// Opening the game again with a sortie under way: the loading builds and
+// paints that territory, the tap shows the question, and CARRY ON is there
+// at once (nothing painted again), named as it would be on arriving.
+async function reopen(browser) {
+  const { page, errors } = await openGame(browser);
+  await page.evaluate(() => { UI.acts.setOutWalk(String(worldMap().terrs.find((t) => t.starter).id)); for (let i = 0; i < 60; i++) Game.step(1 / 60); saveRun(Game.dive); });
+  const terr = await page.evaluate(() => Game.dive.terr);
+  await page.reload();
+  await page.waitForFunction(() => typeof Loader !== 'undefined' && Loader.state === 'ready', { timeout: 120000, polling: 100 });
+  check(await page.evaluate(() => !Game.ready && Loader.jobs.every((j) => j.state === 'ok') && $('loader').classList.contains('ready')), 'reopen: the loading did not finish every task');
+  check(await page.evaluate((id) => Game.dive && Game.dive.terr === id && View.floorFor === Game.dive.floor && View.pnt.left < View.pnt.nx * View.pnt.ny / 2, terr), 'reopen: the sortie\'s territory was not built and painted while loading');
+  await shot(page, 'smoke-loader');
+  await page.touchscreen.tap(195, 420);
+  await page.waitForFunction(() => Game.ready, { timeout: 10000 });
+  check(await visible(page, '#screen-resume') && await page.evaluate(() => $('loader').hidden || $('loader').classList.contains('gone')), 'reopen: the tap did not open the question');
+  await page.evaluate(() => { window._named = 0; const said = UI.toast; UI.toast = (m, k) => { if (/ · ring \d/.test(m)) window._named++; return said(m, k); }; window._floor = View.floorFor; });
+  await tap(page, '#screen-resume [data-act=resumeRun]');
+  await run(page, 0.2);
+  check(await page.evaluate((id) => !Game.modal && Game.dive.terr === id && View.floorFor === window._floor && window._named === 1, terr), 'reopen: CARRY ON did not carry on in the territory built while loading');
+  check(!errors.length, 'reopen: ' + errors.join(' | '));
+  check(!(await page.evaluate(() => Errors.length)), 'reopen: ' + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
+  await page.close();
+}
+
 async function desktop(browser) {
   const { page, errors } = await openGame(browser, DESKTOP);
   await page.evaluate(() => { UI.mapSel = worldMap().terrs.find((t) => t.starter).id; UI.useStation('setout'); });
@@ -743,8 +769,8 @@ async function desktop(browser) {
   await page.close();
 }
 
-// The opening, played out: the first tap brings the sound in, a tap then
-// shows the caption in full, the next moves on; it plays through to the
+// The opening, played out: the loading's tap has brought the sound in, so a
+// tap shows the caption in full, the next moves on; it plays through to the
 // outpost and hands over there, the Kindler stepped out of his pod and the
 // controls back; it's seen for good, and the
 // uplink plays it again, which Esc ends.
@@ -752,10 +778,8 @@ async function opening(browser) {
   const { page, errors } = await openGame(browser, PHONE);
   check(await page.evaluate(() => Intro.on && Intro.scene === 0), 'opening: a fresh game did not open on it');
   await run(page, 1.2);
-  // the first tap only brings the sound in
-  check(await visible(page, '#intro-sound'), 'opening: no TAP FOR SOUND before the first tap');
-  await tap(page, '#intro');
-  check(await page.evaluate(() => Intro.scene === 0 && !Intro.capKey.startsWith('0/0/' + STORY_INTRO[0][0].text.length) && $('intro-sound').hidden), 'opening: the first tap did more than bring the sound in');
+  // the loading's tap brought the sound in, so there's no TAP FOR SOUND
+  check(!(await visible(page, '#intro-sound')) && (await page.evaluate(() => Intro.heard)), 'opening: TAP FOR SOUND after the loading\'s tap');
   await tap(page, '#intro');
   check(await page.evaluate(() => Intro.scene === 0 && $('intro-cap').querySelector('.ghost').textContent === '' && $('intro-cap').textContent === STORY_INTRO[0][0].text), 'opening: a tap did not show the caption in full');
   await tap(page, '#intro');
@@ -858,6 +882,7 @@ async function spellcraft(browser) {
     await opening(browser);
     await phone(browser);
     await sideways(browser);
+    await reopen(browser);
     await desktop(browser);
     await migration(browser);
   } catch (e) {
