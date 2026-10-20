@@ -247,6 +247,48 @@ const T = {
     satchel: { mag: 3, cost: { lumenite: 8, chitin: 4 } },
     lens: { mag: 2, cost: { lumenite: 6, thread: 6 } },
   },
+  // The outpost's buildings (structures.js): each built once, at the
+  // forge's BUILDINGS tab, and set down at its plot. mag: the magnitude the
+  // star must have reached; cost: what it takes from the stash (ore,
+  // threads, a part's kind, an exotic). Mid-game goals, and where the
+  // threads go once the modules are worked.
+  //   bay: the Drone Bay, where Wick is fitted with upgrades (wickUp).
+  //   refinery: at the fabricator, `n` of an ore and `threads` refine into
+  //     one of the next ore up (only to an ore already brought home).
+  //   relay: an emergency recall takes `recall` of its time and costs
+  //     `loss` of its share; banking and travelling at a spire, `bank`.
+  //   quarters: `contracts` more on the board, each one settled pays
+  //     `pay` threads besides, and `settlers` more live at the outpost.
+  structures: {
+    bay: { mag: 2, cost: { ferrite: 8, thread: 15 } },
+    refinery: { mag: 2, cost: { lumenite: 8, thread: 30 }, n: 4, threads: 2 },
+    relay: { mag: 3, cost: { resonite: 10, thread: 60, chitin: 3 }, recall: 0.5, loss: 0.5, bank: 0.6 },
+    quarters: { mag: 4, cost: { aetherglass: 8, thread: 90, lodeshard: 1 }, contracts: 1, pay: 6, settlers: 2 },
+    // the plots (tiles; floor.js outpostPlots): the footprint kept clear
+    // [half width, behind, in front of the feet], how far from the middle
+    // they'd best be, and how far from the tracks out (the lodelines)
+    plot: { box: [1.6, 1.4, 0.5], r: 10, path: 2.1 },
+    // a building coming down to its plot: how long (s), from how high (px)
+    land: { time: 1.8, high: 150 },
+  },
+  // Wick's upgrades (wick.js), fitted at the forge's WICK tab once the Drone
+  // Bay stands; each can be turned off and on at the locker, free.
+  //   scan: every `every` s out in the land, a ping: veins within `reach`
+  //     tiles glint for `show` s, and marks point to the pack and to
+  //     modules on the ground.
+  //   lamp: a second, dimmer beam behind you: × the lamp's reach and
+  //     strength, its half-angle (degrees).
+  //   shield: a hit that would leave you under `below` of your health is
+  //     stopped by a hex shield; it's ready again once nothing has hurt you
+  //     for `rest` s (once a fight).
+  //   spark: every `every` s, a small shock at the nearest awake foe
+  //     within `reach` px: `frac` of its health (a boss's, `boss`).
+  wickUp: {
+    scan: { mag: 2, cost: { lumenite: 5, thread: 15, spore: 3 }, every: 7, reach: 8, show: 3.5 },
+    lamp: { mag: 3, cost: { resonite: 6, thread: 25, fiber: 3 }, reach: 0.62, i: 0.6, edge: 32 },
+    shield: { mag: 3, cost: { resonite: 8, thread: 50, chitin: 3 }, below: 0.35, rest: 20 },
+    spark: { mag: 4, cost: { aetherglass: 8, thread: 65, cog: 3 }, every: 2.6, reach: 64, frac: 0.07, boss: 0.012 },
+  },
 
   // The chance a vein is the biome's deeper ore, by site.
   oreDeep: { base: 0.12, perFloor: 0.12, max: 0.6 },

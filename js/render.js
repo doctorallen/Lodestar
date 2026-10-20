@@ -830,6 +830,8 @@ function renderFrame() {
   // the diver's bolts: trails, flicker, a frost lance's glint (castfx.js)
   cfxDrawTrails(ox, oy);
   for (const b of d.bolts) drawCastBolt(b, ox, oy, tick, lights);
+  // Wick's upgrades at work: a ping, a spark, a shield (wick.js)
+  drawWickAir(d, ox, oy, lights);
   const shotCol = artBiome(f).glow;
   for (const sh of d.shots) {
     const sx = vx(sh.x), sy = vy(sh.y), col = sh.col || shotCol;
@@ -893,7 +895,7 @@ function renderFrame() {
   }
   // the lamp, from the helm's brow, in its own warm white, stopped by the
   // rock (shadow.js): a round glow, or a beam the way he's turned
-  if (beam) addLampBeam(d, L, beam, rgb01(DIVER_PAL.lamp[0]));
+  if (beam) { addLampBeam(d, L, beam, rgb01(DIVER_PAL.lamp[0])); addWickLamp(d, L, beam); }
   else { const lamp = diverLampAt(d); addLampLight(d, L, lamp.x, lamp.y, lv.r, lv.i, rgb01(DIVER_PAL.lamp[0])); }
   lightScene(-ox, -oy);
   if (d.hub && Intro.hub) introHubOver(d, ox, oy);
@@ -952,7 +954,7 @@ function renderFrame() {
   }
   // the tools' marks and the outpost's labels too
   View.ctx = o;
-  try { drawToolHud(d, ox, oy); drawDeedsHud(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else drawStormMark(d, ox, oy); if (!Intro.hub) drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
+  try { drawToolHud(d, ox, oy); drawWickHud(d, ox, oy); drawDeedsHud(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else drawStormMark(d, ox, oy); if (!Intro.hub) drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
   // stepping through a portal, or just through one: over everything
   drawPortalIris(d, ox, oy);
 }

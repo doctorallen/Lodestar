@@ -175,6 +175,7 @@ function pshHubStill(d) {
     else if (a.pod) out.push({ spr: hartPod(a.look % 2), x: Math.round(a.pod.x * ATILE), y: Math.round(a.pod.y * ATILE) });
     else if (a.lander) out.push({ spr: hartLander(), x: Math.round(a.lander.x * ATILE), y: Math.round(a.lander.y * ATILE + ap(4)) });
     else if (a.dress) out.push({ spr: hartProp(a.dress.kind), x: Math.round(a.dress.x * ATILE), y: Math.round(a.dress.y * ATILE) });
+    else if (a.structure && !a.landing) { const at = plotAt(a.plot, 0, 0); out.push({ spr: structureSprite(a.structure), x: at.x, y: at.y }); }
   }
   return out;
 }
@@ -306,9 +307,10 @@ function pshBake(f) {
   }
   return A;
 }
-// What the plaza's baked shadows were made for: its settlement and its lit
-// lanterns (if either changes, the outpost is painted again).
-function pshHubSig() { return settlementSize() + '/' + hubStarMag(); }
+// What the plaza's baked shadows were made for: its settlement, its lit
+// lanterns and its buildings (if any changes, the outpost is painted
+// again).
+function pshHubSig() { return settlementSize() + '/' + hubStarMag() + '/' + structuresStanding().join(); }
 
 // ---------------------------------------------------------------------------
 // Each frame: a mask of greys over the view, multiplied over the ground

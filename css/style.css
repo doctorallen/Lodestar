@@ -486,8 +486,8 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .drawer-grp .gl { font-size: 10px; letter-spacing: 0.16em; color: var(--dim); margin-bottom: 4px; }
 .drawer-row { display: flex; flex-wrap: wrap; gap: 5px; }
 .drawer .note { margin: 4px 0 0; }
-.forge-tabs { margin-bottom: 6px; }
-.forge-tabs .chip { flex: 1; min-width: 0; padding: 8px 2px; font-size: 11px; letter-spacing: 0; }
+.forge-tabs { margin-bottom: 6px; display: grid; grid-template-columns: repeat(4, 1fr); }
+.forge-tabs .chip { min-width: 0; padding: 8px 2px; font-size: 11px; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* what kindling the territory takes, over the view's right side */
 .hud-goal { position: absolute; right: 6px; top: 118px; z-index: 4; max-width: 46%; pointer-events: none;
@@ -581,6 +581,12 @@ body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s;
 /* the forge: the recipes in a grid, a dot on those that can be made now */
 .bp { position: relative; }
 .bp .can { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; background: #6fe08a; border-radius: 50%; box-shadow: 0 0 4px #6fe08a; }
+.bp .made { position: absolute; top: 2px; right: 4px; color: #6fe08a; font-style: normal; font-size: 12px; line-height: 1; }
+.wick-row .toggle { min-width: 64px; }
+.wick-row.dim-row .icon { opacity: 0.45; filter: grayscale(0.8); }
+.wick-row.dim-row .row-name { color: var(--dim); }
+.wick-row .toggle.on { color: #0b0d12; background: #7dffd8; border-color: #7dffd8; }
+.refine-row .cost-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .bp.locked { opacity: 0.5; }
 .cost-list { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
 .close-row { border-color: #4a3a1a; }

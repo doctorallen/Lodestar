@@ -22,7 +22,9 @@
 //   weak trait, salvages the rest (modules into threads),
 //   unseals relics, sets any shard and feeds the light its deeds earned to
 //   the star (held at the altar), makes supplies from old ore at the
-//   fabricator, and spends attunements. Out there it uses its supplies (an
+//   fabricator, builds the outpost's buildings and fits Wick's upgrades
+//   as the stash can spare them (refining ore for its next pick once the
+//   Refinery stands), and spends attunements. Out there it uses its supplies (an
 //   injector when hurt, a Lightcell when its light is low, a Ward Cell at a
 //   Keeper or an elite, a charge in a crowd, a flare while it holds a
 //   waystone), goes back for the pack a fall left before anything else,
@@ -383,8 +385,14 @@ function installBot() {
       return true;
     };
     UI.forge.field = false;
-    // a pick that breaks the next ore up, first: it's what reaches better ore
+    // a pick that breaks the next ore up, first: it's what reaches better
+    // ore (refining the ore below into its ore if it's a little short and
+    // the Refinery stands)
     const pick = s.equip.pick, pickOre = T.ores.find((o) => o.tier === (pick ? pick.base.power : 1));
+    if (pickOre && structureStands('refinery')) {
+      const below = T.ores[ORE_INDEX[pickOre.id] - 1], R = T.structures.refinery, want = BLUEPRINTS.pick.ore - (s.stash[pickOre.id] || 0);
+      if (below && want > 0 && want <= 6 && (s.stash[below.id] || 0) >= want * R.n + 20) { let n = 0; while (n < want && refineOre(below.id)) n++; if (n) log.push(`refined ${n} ${pickOre.name}`); }
+    }
     const pickBp = s.blueprints.includes('drill') && !recipeShort(recipeCost('drill', pickOre && pickOre.id), s.stash).length ? 'drill' : 'pick';
     if (pickOre && forge(pickBp, pickOre.id)) { log.push('forged ' + pickOre.name + ' ' + pickBp); wear(s.items[s.items.length - 1], 'pick'); }
     log.push(...forgeGear(forge, pickOre));
@@ -395,6 +403,9 @@ function installBot() {
     // rune bench's work is paid in them)
     for (const it of s.items.filter((i) => i.kind !== 'stone' && i.kind !== 'relic' && !i.fav)) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
     UI.closeCard();
+    // the outpost's buildings and Wick's upgrades from what the gear left
+    // (the ore for the next pick kept back), before supplies take the old ore
+    log.push(...Bot.buildings());
     // supplies from old ore, then the light its deeds earned to the star
     log.push(...makeSupplies());
     const fed = feedStar();
@@ -504,6 +515,32 @@ function installBot() {
     return log;
   }
 
+  // The outpost's buildings and Wick's upgrades as a player might: in turn,
+  // each once the star allows it and the stash can pay (the ore its next
+  // pick takes kept back), after the gear, through the forge's BUILD and
+  // FIT. Each is noted with the sortie it came after.
+  function buildings() {
+    const s = Save.data, log = [], pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
+    const order = ['bld_bay', 'wick_scan', 'bld_refinery', 'wick_shield', 'bld_relay', 'wick_lamp', 'wick_spark', 'bld_quarters'];
+    for (const id of order) {
+      const bp = BLUEPRINTS[id];
+      if (recipeLock(id)) continue;
+      const cost = recipeCost(id);
+      // (ore to spare: what's left after it covers the next pick and a little)
+      const spare = cost.stuff.every((x) => !ORE_INDEX.hasOwnProperty(x.id) || (s.stash[x.id] || 0) - x.n >= (pickOre && x.id === pickOre.id ? BLUEPRINTS.pick.ore : 0));
+      if (!spare || recipeShort(cost, s.stash).length) continue;
+      Object.assign(UI.forge, { field: false, bp: id, codex: false });
+      UI.acts.craft();
+      if (!(bp.structure ? structureBuilt(bp.structure) : wickFitted(bp.wick))) continue;
+      // (it comes down at once: the bot doesn't look)
+      if (bp.structure) s.landing = null;
+      Bot.built[id] = Bot.n;
+      log.push((bp.structure ? 'built ' : 'fitted ') + recipeName(id));
+    }
+    UI.close();
+    return log;
+  }
+
   // Feeding the star as a player does: at the altar, a shard set first if
   // one came home, then FEED THE STAR held until all the light has gone up.
   // Returns how much went.
@@ -606,6 +643,7 @@ function installBot() {
     const out = [];
     for (let n = 0; n < sorties; n++) {
       const s = Save.data, f0 = s.modsFound || 0;
+      Bot.n = n + 1;
       const r = sortie();
       r.mods = (s.modsFound || 0) - f0;
       r.home = home();
@@ -621,13 +659,14 @@ function installBot() {
       r.kindledAll = kindledCount();
       r.star = s.star;
       r.packs = JSON.parse(JSON.stringify(Bot.packs));
+      r.built = Object.assign({}, Bot.built);
       r.supplies = Object.assign({}, s.supplies || {});
       out.push(r);
     }
     return out;
   }
 
-  window.Bot = { sortie, plan, home, career, circuits, feedStar, makeSupplies, packs: { recovered: 0, left: 0, lost: 0, used: {} } };
+  window.Bot = { sortie, plan, home, career, circuits, feedStar, makeSupplies, buildings, packs: { recovered: 0, left: 0, lost: 0, used: {} }, built: {}, n: 0 };
 }
 
 module.exports = { installBot };

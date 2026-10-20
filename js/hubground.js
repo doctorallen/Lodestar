@@ -107,7 +107,7 @@ function outpostGroundAt(x, y) {
   const d = Game.dive, f = d && d.hub ? d.floor : null;
   if (!f || !f.site) return null;
   const gx = x / TILE, gy = y / TILE, Ps = T.paint.site;
-  if (f.site.pads.some((p) => Math.hypot(gx - p.x, (gy - p.y) / Ps.squash) < Ps.padR)) return 'metal';
+  if (f.site.pads.some((p) => Math.hypot(gx - p.x, (gy - p.y) / Ps.squash) < Ps.padR) || hgrOnPlot(f.site, gx, gy, 0)) return 'metal';
   const k = hgrMeldAt(f, x * AP, y * AP);
   if (k >= 0) return hgrMeldTerr(f, k).clime || 'earth';
   return hgrStoneAt(f, gx, gy, hgrStoneReach(magnitudeOf(Save.data.star))) ? 'starstone' : 'earth';
@@ -119,12 +119,13 @@ if (typeof Snd !== 'undefined') Snd.hubGround = (x, y) => {
   return !g ? null : g === 'starstone' ? 'stone' : g === 'earth' ? 'dirt' : g === 'metal' ? 'metal' : SND_CLIME_GROUND[g] || 'dirt';
 };
 // The cleared earth's own marks, the starstone, the trodden tracks out to
-// the openings and the landing pads, over one tile's ground (paintTileArt,
-// after the ground and before what grows on it, so the shadows of what
-// stands there still fall on them). Each takes its tone from the ground's
-// (View.groundTone), so the strokes and the light's patches carry on
-// across them. In the meld's pass (the land beyond, painted again) only
-// the pads: the land beyond covers the rest.
+// the openings, the landing pads and the buildings' plots, over one tile's
+// ground (paintTileArt, after the ground and before what grows on it, so
+// the shadows of what stands there still fall on them). Each takes its
+// tone from the ground's (View.groundTone), so the strokes and the light's
+// patches carry on across them. In the meld's pass (the land beyond,
+// painted again) only the pads and the plots: the land beyond covers the
+// rest.
 function hgrPaintGround(P, f, tx, ty, ox, oy) {
   const S = f.site, Ps = T.paint.site, G = T.outpost.ground, R = View.rockPx, tone = View.groundTone, W = P.w, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em;
   if (!S) return;
@@ -133,7 +134,8 @@ function hgrPaintGround(P, f, tx, ty, ox, oy) {
   const stoneNear = base && Math.hypot(gx0 - rg.x, (gy0 - rg.y) / G.squash) < reach + G.wander + G.tendril[0] + 1;
   const pads = S.pads.filter((p) => Math.abs(p.x - gx0) < Ps.padR + 1.5 && Math.abs(p.y - gy0) < Ps.padR * sq + 1.5);
   const paths = base ? S.paths.filter((p) => outpostSegDist(gx0, gy0, p.ax, p.ay, p.bx, p.by)[0] < Ps.pathW + 1.5) : [];
-  if (!stoneNear && !pads.length && !paths.length) return;
+  const PB = T.structures.plot.box, plots = (S.plots || []).filter((p) => Math.abs(p.x - gx0) < PB[0] + 1 && gy0 > p.y - PB[1] - 1 && gy0 < p.y + PB[2] + 1);
+  if (!stoneNear && !pads.length && !paths.length && !plots.length) return;
   const DK = hgrRamp('deck'), LS = hgrRamp('lodestone'), V = Ps.vein.map((h) => pntU32(rgbOf(h))), VR = Ps.vein.map(rgbOf), mark = Ps.mark.map(pntU32), star = Ps.star.map(pntU32), lamp = rgbOf(Ps.lamp), seed = f.seed + 50;
   const put = (x, y, c, glow, a = 255) => { const k = y * W + x; C32[k] = c; if (glow) { E[k * 4] = glow[0]; E[k * 4 + 1] = glow[1]; E[k * 4 + 2] = glow[2]; E[k * 4 + 3] = a; } };
   for (let y = oy; y < oy + ATILE; y++)
@@ -187,7 +189,37 @@ function hgrPaintGround(P, f, tx, ty, ox, oy) {
         put(x, y, c);
         for (let n = 0; n < 4; n++) { const b = n * Math.PI / 2 + Math.PI / 4, lx = p.x + Math.cos(b) * Ps.padR * 0.9, ly = p.y + Math.sin(b) * Ps.padR * 0.9 * sq; if (Math.abs(gx - lx) * ATILE < 1.1 && Math.abs(gy - ly) * ATILE < 1.1) put(x, y, pntU32(lamp), lamp); }
       }
+      // the buildings' plots: a slab of deck plates, its edge lit, amber
+      // brackets at its corners with a light in each, hazard stripes
+      // along its front; while it's empty, the seed-star stencilled on it
+      for (const p of plots) {
+        const k = S.plots.indexOf(p), u = (gx - p.x) * ATILE, v = (gy - p.y) * ATILE, hw = (PB[0] - 0.25) * ATILE, top = -(PB[1] - 0.5) * ATILE, bot = (PB[2] - 0.1) * ATILE;
+        if (Math.abs(u) > hw || v < top || v > bot) continue;
+        const ex = hw - Math.abs(u), ey = Math.min(v - top, bot - v), e = Math.min(ex, ey);
+        let c = DK[clamp(Math.round(1.6 + t * 0.7), 0, 6)];
+        // (plates: a seam every 8 px across and 6 down)
+        if (Math.abs(((u + hw) % 8)) < 1 || Math.abs(((v - top) % 6)) < 1) c = DK[clamp(Math.round(1 + t * 0.5), 0, 6)];
+        if (e < 1) c = bot - v < 1 ? DK[0] : DK[2];
+        else if (e < 2) c = v - top < 2 || hw + u < 2 ? DK[5] : DK[3];
+        else if (bot - v < 4 && e >= 2) c = ((Math.floor(u) + Math.floor(v)) >> 1) % 2 ? mark[1] : DK[0];
+        const empty = !structureBuilt(STRUCTURE_IDS[k]);
+        if (empty && e >= 2 && bot - v >= 4) {
+          // the seed-star in the middle, as on a pad
+          const cy = (top + bot - 4) / 2, dx = u / ATILE, dy = (v - cy) / ATILE / sq, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx), arm = Math.abs(Math.cos(a * 4)), len = (Math.abs(Math.cos(a * 2)) > 0.7 ? 0.95 : 0.6) * 0.75;
+          if (r < len && arm > 0.72 + r / len * 0.25) c = star[r < len * 0.4 ? 1 : 0];
+        }
+        put(x, y, c);
+        // the corner brackets and their lights
+        const cu = hw - Math.abs(u), cv = Math.min(v - top, bot - v);
+        if (cu >= 2 && cv >= 2 && ((cu < 3 && cv < 7) || (cv < 3 && cu < 7))) put(x, y, mark[1]);
+        if (cu >= 3 && cu < 5 && cv >= 3 && cv < 5) put(x, y, pntU32(lamp), lamp, empty ? 150 : 255);
+      }
     }
+}
+// Is tile point (gx, gy) on a building's plot (or within m tiles of one)?
+function hgrOnPlot(S, gx, gy, m) {
+  const B = T.structures.plot.box;
+  return (S.plots || []).some((p) => Math.abs(gx - p.x) < B[0] + m && gy > p.y - B[1] - m && gy < p.y + B[2] + m);
 }
 // The ground's materials, seven tones each (T.paint.site), as whole pixels.
 const _hgrRamps = {};
@@ -203,7 +235,7 @@ function hgrFlora(f) {
   const reach = hgrStoneReach(magnitudeOf(Save.data.star));
   for (let ty = 0; ty < f.h; ty++) for (let tx = 0; tx < f.w; tx++) {
     const gx = tx + 0.5, gy = ty + 0.5;
-    if (S.pads.some((p) => Math.hypot(gx - p.x, (gy - p.y) / sq) < Ps.padR + 1) || hgrStoneAt(f, gx, gy, reach + 0.5) === 1) clear[ty * f.w + tx] = 1;
+    if (S.pads.some((p) => Math.hypot(gx - p.x, (gy - p.y) / sq) < Ps.padR + 1) || hgrStoneAt(f, gx, gy, reach + 0.5) === 1 || hgrOnPlot(S, gx, gy, 1)) clear[ty * f.w + tx] = 1;
   }
   placeUndergrowth(f, 'surface', { mask: new Float32Array(N) });
   const U0 = View.ug, all = [];
