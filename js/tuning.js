@@ -1141,6 +1141,31 @@ const T = {
   // speed, how far (world px)].
   wick: { back: [7, 4], aside: [6, 3], up: 29, ease: 5, bob: [3, 1.5] },
 
+  // The opening (intro.js): five painted scenes that play on their own,
+  // the last in the outpost itself. scenes: each one's length (s); fade:
+  // the black into and out of each of the first four (s); capAt: when each
+  // of their captions starts (s), typed at cps characters a second;
+  // tapGuard: seconds before a tap counts; warm: seconds the outpost is
+  // still drawn under the first scene (so it's painted); sndWait: the
+  // longest (s) a cue waits for its sound to be rendered (sndbank.js). hub: the last
+  // shot, in seconds into it: the fade in from black; the star rising out
+  // of its cradle from `drop` art px down (over `rise`) and lighting (over
+  // `lit`); the outpost's light up from `amb0` of its own (over `ambUp`);
+  // its lodelines running out (over `lode`); the modules waking, the
+  // nearest the cradle first: [the first, then one every, each light of
+  // one after the one before]; the camera starting with the star `camAt`
+  // of the way down the view and coming down over `cam`; the Kindler's pod
+  // door open over `door`, his suit lamp flickering on over `lampOn` as he
+  // looks out, and him stepping out and `step` tiles on at
+  // `walk` of his pace; Wick lifting off his pack at `wickAt`; him turning
+  // to the star at `look`; Wick's lines at `caps`; and something in the
+  // dark over `dark`.
+  intro: {
+    scenes: [9, 9.5, 11, 9.5, 17.5], fade: 0.6, capAt: [1.0, 1.0, 1.2, 1.0], cps: 30, tapGuard: 0.4, warm: 1, sndWait: 2.5,
+    hub: { fadeIn: 0.9, drop: 34, rise: [0.6, 3.2], lit: [0.8, 2.8], amb0: 0.3, ambUp: [1.5, 9], lode: [2.8, 6], wake: [2.6, 0.2, 0.08], camAt: 0.42, cam: [3.4, 8.2], door: [5.8, 7.6], lampOn: 0.6, step: 1.6, walk: 0.42, wickAt: 7.4, look: 8.4, caps: [8.0, 12.6], dark: [14.2, 15.4] },
+  },
+
+
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
   // at once (ui.js; hints wait their turn).
   ui: { tapGuard: 0.4, toasts: 2 },

@@ -43,7 +43,7 @@ function drawHubUnder(d, ox, oy, tick, lights) {
     const glow = { forge: [ART.pal.glass[0], 2.2, 1.0], runes: [ART.pal.arcane[0], 1.2, 0.5], locker: [DIVER_PAL.circuit[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
     const gx = s.id === 'forge' ? at.x - spr.ax + HART_MOUTH.x : at.x, gy = s.id === 'forge' ? at.y - spr.ay + HART_MOUTH.y : at.y - (spr.ay >> 1);
     const fl = s.id === 'forge' ? 0.8 + 0.12 * Math.sin(Game.realT * 11) + 0.08 * Math.sin(Game.realT * 23) : 0.85 + 0.15 * Math.sin(Game.realT * 3);
-    lights.push({ x: gx, y: gy, r: TILE * glow[1], i: glow[2] * fl, c: rgb01(glow[0]) });
+    lights.push({ x: gx, y: gy, r: TILE * glow[1], i: glow[2] * fl * introWake(s.id), c: rgb01(glow[0]) });
   }
 }
 // The lodelines: one along each path out to an opening for every
@@ -54,9 +54,11 @@ function drawHubLodelines(d, ox, oy, lights) {
   const f = d.floor, S = f.site, L = T.outpost.lode, mag = hubStarMag(d), G = HART.star;
   if (!S || mag <= 0) return;
   const len = (p) => Math.hypot(p.bx - p.ax, p.by - p.ay), order = S.paths.map((p, k) => k).sort((a, b) => len(S.paths[a]) - len(S.paths[b]));
-  const reach = L.reach[0] + L.reach[1] * (mag - 1), t = Game.realT;
+  // (in the opening's last shot they run out once the star has lit: intro.js)
+  const run = Intro.hub ? Intro.hub.lode : 1, reach = (L.reach[0] + L.reach[1] * (mag - 1)) * run, t = Game.realT;
+  if (run <= 0) return;
   for (const k of order.slice(0, mag)) {
-    const p = S.paths[k], lit = isKindled(p.to), n = len(p), far = Math.min(n, lit ? n : reach), ux = (p.bx - p.ax) / n, uy = (p.by - p.ay) / n;
+    const p = S.paths[k], lit = isKindled(p.to), n = len(p), far = Math.min(n, lit ? n * run : reach), ux = (p.bx - p.ax) / n, uy = (p.by - p.ay) / n;
     // (in art px along it from the ring's edge, wandering a little either
     // side of the path's middle)
     const N = Math.floor(far * ATILE), x0 = p.ax * ATILE + ox, y0 = p.ay * ATILE + oy;
@@ -119,17 +121,21 @@ function drawStarstone(spr, x, y, key, lights) {
 // Over everything: the Lodestar itself, bigger as it grows, in its halo.
 function drawHubOver(d, ox, oy, lights) {
   const mag = hubStarMag(d), k = mag >= 5 ? 3 : 2;
-  const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE + Math.sin(Game.realT * 1.2) * 2 * AP) + oy;
+  // (in the opening's last shot it rises out of its cradle and lights:
+  // intro.js)
+  const ih = Intro.hub, lit = ih ? ih.lit : 1;
+  const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE + Math.sin(Game.realT * 1.2) * 2 * AP) + oy + (ih ? Math.round(ih.starDY) : 0);
   const pulse = d.feedT > 0 ? d.feedT : 0, hum = d.feedHum || 0, halo = hartHalo(k, Math.floor(Game.realT * 3) % 2), st = hartStar(k);
   // the ores rising into it, behind it as they arrive
   drawStarFeed(d, ox, oy, lights);
-  View.ctx.globalAlpha = 0.8;
+  View.ctx.globalAlpha = 0.8 * lit;
   View.ctx.drawImage(halo.c, sx - halo.ax, sy - halo.ay - 4);
-  View.ctx.globalAlpha = 1;
+  View.ctx.globalAlpha = View.emCtx.globalAlpha = 0.35 + 0.65 * lit;
   drawArtSprite(st, sx - st.ax, sy - st.ay);
+  View.ctx.globalAlpha = View.emCtx.globalAlpha = 1;
   // brighter while it's fed, swelling as each ore lands; a ring out from
   // it as it reaches a magnitude
-  lights.push({ x: sx, y: sy, r: TILE * (4 + mag * 0.4 + pulse * 3 + hum * 2), i: 1.1 + pulse + hum * 0.6, c: rgb01(ART.pal.star[2]) });
+  lights.push({ x: sx, y: sy, r: TILE * (4 + mag * 0.4 + pulse * 3 + hum * 2) * (0.35 + 0.65 * lit), i: (1.1 + pulse + hum * 0.6) * (0.3 + 0.7 * lit), c: rgb01(ART.pal.star[2]) });
   if (hum > 0.05) cfxStrokeRing(sx, sy - 4, (14 + hum * 6) * AP, (14 + hum * 6) * AP * 0.75, cfxRamp(ART.pal.star[2]), hum * 0.5, 7177, false, 0.45);
   if (pulse > 0) ringDots(sx, sy, (20 + (1 - pulse) * 30) * AP, ART.pal.star[3], pulse, true);
 }
@@ -265,8 +271,9 @@ function drawCradle(d, a, ox, oy, lights) {
   const spr = hartCradle(), fx = Math.round(OUTPOST_CRADLE.x * ATILE) + ox, fy = Math.round(OUTPOST_CRADLE.y * ATILE) + oy, x = fx - spr.ax, y = fy - spr.ay;
   drawArtSprite(spr, x, y);
   const mag = hubStarMag(d), k = 0.6 + 0.4 * Math.sin(Game.realT * 2.2);
-  for (const [cx, cy] of spr.lamps) dot(x + cx, y + cy, HART.star[mag >= 4 ? 6 : 5], true, 0.7 + 0.3 * k);
-  lights.push({ x: fx, y: fy - ap(8), r: TILE * (1.6 + mag * 0.15), i: 0.5 + 0.1 * k, c: rgb01(HART.star[4]) });
+  // (its lamps come on one by one in the opening's last shot: intro.js)
+  spr.lamps.forEach(([cx, cy], i) => { const w = introWake('cradle', i); if (w > 0) dot(x + cx, y + cy, HART.star[mag >= 4 ? 6 : 5], true, (0.7 + 0.3 * k) * w); });
+  lights.push({ x: fx, y: fy - ap(8), r: TILE * (1.6 + mag * 0.15), i: (0.5 + 0.1 * k) * introWake('cradle'), c: rgb01(HART.star[4]) });
   drawStarstone(spr, x, y, 'cradle', lights);
   paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
 }
@@ -279,12 +286,12 @@ function drawUplink(d, a, ox, oy, lights) {
   const fx = Math.round((s.x + 0.5) * ATILE) + ox, fy = Math.round((s.y + 0.5) * ATILE) + oy, x = fx - spr.ax, y = fy - spr.ay;
   drawArtSprite(spr, x, y);
   // the tip: a slow cold blink, then a great warm light once called
-  const bx = x + spr.tip.x, by = y + spr.tip.y, lit = Story.landersCalled();
+  const bx = x + spr.tip.x, by = y + spr.tip.y, lit = Story.landersCalled(), wk = introWake('wreck');
   if (lit) { lights.push({ x: bx, y: by, r: TILE * 6, i: 1.4, c: rgb01(ART.pal.star[3]) }); dot(bx, by, ART.pal.star[3], true); dot(bx, by + 1, ART.pal.star[2], true); }
   else {
     const b = Math.max(0, Math.sin(Game.realT * 2));
-    lights.push({ x: bx, y: by, r: TILE, i: 0.25 + 0.2 * b, c: [0.5, 0.6, 0.8] });
-    dot(bx, by, b > 0.5 ? '#9cb4e0' : '#2a3448', b > 0.5);
+    lights.push({ x: bx, y: by, r: TILE, i: (0.25 + 0.2 * b) * wk, c: [0.5, 0.6, 0.8] });
+    dot(bx, by, b > 0.5 && wk > 0.5 ? '#9cb4e0' : '#2a3448', b > 0.5 && wk > 0.5);
   }
   // the dish's feed and the console's screen, faintly
   lights.push({ x: x + spr.feed.x, y: y + spr.feed.y, r: TILE * 0.8, i: 0.35, c: rgb01(ART.pal.rune[0]) });
@@ -298,8 +305,8 @@ function drawUplink(d, a, ox, oy, lights) {
 function drawGate(d, a, ox, oy, lights) {
   const s = HUB_STATIONS.find((x) => x.id === 'setout'), spr = hartGate(), fx = Math.round((s.x + 0.5) * ATILE) + ox, fy = Math.round((s.y + 0.5) * ATILE) + oy + 1, x = fx - spr.ax, y = fy - spr.ay;
   drawArtSprite(spr, x, y);
-  for (const [cx, cy] of spr.lamps) dot(x + cx, y + cy, '#ffc860', true, 0.65 + 0.35 * Math.sin(Game.realT * 3 + cy));
-  lights.push({ x: fx, y: y + 10, r: TILE * 1.2, i: 0.35, c: rgb01('#ffc860') });
+  spr.lamps.forEach(([cx, cy], i) => dot(x + cx, y + cy, '#ffc860', true, (0.65 + 0.35 * Math.sin(Game.realT * 3 + cy)) * introWake('setout', i)));
+  lights.push({ x: fx, y: y + 10, r: TILE * 1.2, i: 0.35 * introWake('setout'), c: rgb01('#ffc860') });
   drawStarstone(spr, x, y, 'gate', lights);
   paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
 }
@@ -322,7 +329,7 @@ function hubProps(d) {
     out.push({ station: s, hubDraw: drawHubStation, hidden: true, y: (s.y + 0.5) * TILE + 6 });
   }
   out.push({ cradle: true, hubDraw: drawCradle, y: OUTPOST_CRADLE.y * TILE });
-  LANTERNS.forEach(([lx, ly], k) => out.push({ lamp: true, lit: k < mag, at: [lx, ly], hubDraw: drawHubLantern, hidden: true, y: (ly + 0.5) * TILE }));
+  LANTERNS.forEach(([lx, ly], k) => out.push({ lamp: true, mast: k, lit: k < mag, at: [lx, ly], hubDraw: drawHubLantern, hidden: true, y: (ly + 0.5) * TILE }));
   if (S) {
     out.push({ pod: S.home, look: 0, hubDraw: drawPod, y: S.home.y * TILE });
     for (let k = 0; k < n && k < S.pads.length; k++) {
@@ -341,7 +348,9 @@ function hubProps(d) {
 function drawPod(d, a, ox, oy, lights) {
   const spr = hartPod(a.look % 2), fx = Math.round(a.pod.x * ATILE) + ox, fy = Math.round(a.pod.y * ATILE) + oy, x = fx - spr.ax, y = fy - spr.ay;
   drawArtSprite(spr, x, y);
-  for (const [cx, cy] of spr.lamps) lights.push({ x: x + cx, y: y + cy, r: TILE * 1.1, i: 0.45, c: rgb01('#ffc070') });
+  for (const [cx, cy] of spr.lamps) lights.push({ x: x + cx, y: y + cy, r: TILE * 1.1, i: 0.45 * (a.look ? 1 : introWake('pod0')), c: rgb01('#ffc070') });
+  // (its door opening for the Kindler in the opening: intro.js)
+  if (!a.look) introPodDoor(spr, x, y, lights);
   drawStarstone(spr, x, y, 'pod' + a.look, lights);
   paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
 }
@@ -354,10 +363,12 @@ function drawLander(d, a, ox, oy, lights) {
 }
 // A light mast, lit (one for each magnitude, and the settlement's) or dark.
 function drawHubLantern(d, a, ox, oy, lights) {
-  const [lx, ly] = a.at, x = Math.round((lx + 0.5) * ATILE) + ox, y = Math.round((ly + 0.5) * ATILE) + oy, spr = hartLantern(a.lit);
+  // (a mast comes on in its turn in the opening's last shot: intro.js)
+  const wk = a.mast === undefined ? 1 : introWake('mast' + a.mast), lit = a.lit && wk > 0.5;
+  const [lx, ly] = a.at, x = Math.round((lx + 0.5) * ATILE) + ox, y = Math.round((ly + 0.5) * ATILE) + oy, spr = hartLantern(lit);
   drawArtSprite(spr, x - spr.ax, y - spr.ay);
   paintOcclude(x - spr.ax, y - spr.ay, spr.w, spr.h, y, ox, oy);
-  if (a.lit) lights.push({ x: x - spr.ax + spr.lamp.x, y: y - spr.ay + spr.lamp.y, r: TILE * 2.4, i: 0.75 + 0.05 * Math.sin(Game.realT * 5 + lx), c: rgb01(ART.pal.star[2]) });
+  if (lit) lights.push({ x: x - spr.ax + spr.lamp.x, y: y - spr.ay + spr.lamp.y, r: TILE * 2.4, i: (0.75 + 0.05 * Math.sin(Game.realT * 5 + lx)) * wk, c: rgb01(ART.pal.star[2]) });
 }
 
 // What's set down by the modules (tiles; from: how many landers down
