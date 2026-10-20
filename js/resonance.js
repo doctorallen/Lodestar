@@ -23,8 +23,8 @@
 // thunderheadTick.
 //
 // They're found by trying. The Codex, at the forge, shows each as a row of
-// unknown parts; resonance traces (from elites, by ancient forges, from
-// contracts) show its parts one by one. Kindling Arc is known from the
+// unknown parts; resonance traces (from elites, by ancient forges) show its
+// parts one by one. Kindling Arc is known from the
 // start, and building one fills it in. Looks are drawn here too, in whole
 // art px, with no shake.
 // ---------------------------------------------------------------------------
@@ -406,8 +406,7 @@ function revealResonancePart(rng) {
   Save.saveField('resCodex');
   return { res: r, i };
 }
-// A resonance trace picked up (or paid by a contract): the toast it shows.
-// (Its id stays resonanceStoneFound, which contracts.js calls.)
+// A resonance trace picked up: the toast it shows.
 function resonanceStoneFound(rng) {
   const got = revealResonancePart(rng);
   if (!got) { UI.toast('Resonance trace. The Codex is whole'); return; }

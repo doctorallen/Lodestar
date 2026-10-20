@@ -28,7 +28,6 @@ const AFFIXES = {
   armor: { family: 'defense', text: '+{v} armor', lo: 3, hi: 6 },
   regen: { family: 'defense', text: '+{v} health a second', lo: 0.3, hi: 0.6, dp: 1 },
   moveSpeed: { family: 'utility', text: '+{v}% move speed', lo: 4, hi: 8, flat: true },
-  cargo: { family: 'utility', text: '+{v} cargo', lo: 2, hi: 4 },
   magnet: { family: 'utility', text: '+{v} pickup reach', lo: 6, hi: 12, flat: true },
   mineSpeed: { family: 'mining', text: '+{v}% mining speed', lo: 10, hi: 20 },
   oreLuck: { family: 'mining', text: '+{v}% chance of double ore', lo: 6, hi: 12 },
@@ -75,7 +74,7 @@ const SETS = {
   regalia: {
     name: "Prospector's Regalia",
     pieces: { pick: "Prospector's Edge", armor: "Prospector's Seam", charm: "Prospector's Token" },
-    bonus2: { text: '+20% mining speed, +6 cargo', mineSpeed: 20, cargo: 6 },
+    bonus2: { text: '+20% mining speed, +6 pickup reach', mineSpeed: 20, magnet: 6 },
     bonus3: { text: 'Breaking a vein heals 3; +20% chance of double ore', oreLuck: 20 },
   },
 };
@@ -239,7 +238,7 @@ function freshStats() {
   return {
     maxHp: T.player.hp, armor: 0, regen: 0, closeDmg: 0, castSpeed: 0, crit: 0,
     spellDmg: 0, chargeRegen: 0, maxCharge: T.player.charge, moveSpeed: 0,
-    cargo: T.cargo.capacity, magnet: T.player.magnet, mineSpeed: 0, oreLuck: 0,
+    magnet: T.player.magnet, mineSpeed: 0, oreLuck: 0,
     shock: 0, leech: 0, chill: 0, powers: {}, sets: {}, regalia3: false,
     // from recipes' implicits
     dashCd: 0, lamp: 0, pullSlow: 0, noisy: 0,
@@ -271,11 +270,11 @@ function computeStats(equip, attune) {
     if (imp) for (const k in imp) s[k] += imp[k];
   }
   const reg = s.sets.regalia || 0, R = SETS.regalia;
-  if (reg >= 2) { s.mineSpeed += R.bonus2.mineSpeed; s.cargo += R.bonus2.cargo; }
+  if (reg >= 2) { s.mineSpeed += R.bonus2.mineSpeed; s.magnet += R.bonus2.magnet; }
   if (reg >= 3) { s.oreLuck += R.bonus3.oreLuck; s.regalia3 = true; }
   for (const id in T.attune) {
     const rank = (attune && attune[id]) || 0, A = T.attune[id];
-    for (const k of ['maxHp', 'cargo', 'closeDmg', 'spellDmg', 'moveSpeed']) if (A[k]) s[k] += A[k] * rank;
+    for (const k of ['maxHp', 'closeDmg', 'spellDmg', 'moveSpeed']) if (A[k]) s[k] += A[k] * rank;
   }
   for (const k in T.caps) s[k] = Math.min(s[k], T.caps[k]);
   s.maxHp = Math.round(s.maxHp);
@@ -285,7 +284,7 @@ function computeStats(equip, attune) {
 // A rough worth, for UPGRADE / DOWNGRADE at a glance. A base's is its own
 // (its stats, its Mod slots and sockets), as its modules and cores move
 // with it.
-const AFFIX_WORTH = { closeDmg: 0.4, castSpeed: 0.5, crit: 0.6, spellDmg: 0.4, chargeRegen: 0.2, maxCharge: 0.6, maxHp: 0.3, armor: 0.8, regen: 6, moveSpeed: 0.6, cargo: 0.8, magnet: 0.2, mineSpeed: 0.2, oreLuck: 0.3, shock: 0.5, leech: 1.5, chill: 0.3 };
+const AFFIX_WORTH = { closeDmg: 0.4, castSpeed: 0.5, crit: 0.6, spellDmg: 0.4, chargeRegen: 0.2, maxCharge: 0.6, maxHp: 0.3, armor: 0.8, regen: 6, moveSpeed: 0.6, magnet: 0.2, mineSpeed: 0.2, oreLuck: 0.3, shock: 0.5, leech: 1.5, chill: 0.3 };
 function itemWorth(it) {
   if (!it) return 0;
   if (it.kind === 'module') return moduleWorth(it);

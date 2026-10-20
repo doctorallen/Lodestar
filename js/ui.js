@@ -195,9 +195,8 @@ const UI = {
   },
   openPause() {
     const home = !!(Game.dive && Game.dive.hub);
-    $('pause-cargo').hidden = home; $('pause-abandon').hidden = home; $('pause-note').hidden = home; $('pause-recall').hidden = home;
+    $('pause-cargo').hidden = home; $('pause-note').hidden = home; $('pause-recall').hidden = home;
     $('pause-beacon').hidden = home || Game.dive.tool !== 'beacon' || !!Game.dive.beaconUsed || !!Game.dive.beacon;
-    if (!home) $('pause-recall').textContent = `EMERGENCY RECALL · LOSE ${Math.round(recallCost(Game.dive) * 100)}%`;
     drawSoundButtons();
     UI.show('screen-pause');
   },
@@ -334,7 +333,7 @@ const UI = {
     const hpW = Math.round(hp * 100) + '%', chW = Math.round(ch * 100) + '%';
     if ($('hp-fill').style.width !== hpW) $('hp-fill').style.width = hpW;
     if ($('ch-fill').style.width !== chW) $('ch-fill').style.width = chW;
-    $('hud-goal').hidden = !drawGoalHud(d);
+    $('hud-goal').hidden = !(d.hub ? drawNextHud() : drawGoalHud(d));
     const pW = Math.round(d.pull * 100) + '%';
     if ($('pull-fill').style.width !== pW) $('pull-fill').style.width = pW;
     $('hud-pull').classList.toggle('fading', d.pull < T.pull.dimAt);
@@ -344,7 +343,7 @@ const UI = {
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
     $('hud-ch').classList.toggle('low', p.lowCharge > 0);
     if (!d.hub) setTextIfChanged('hud-depth', d.deep ? `THE DEEP ${d.deep.site}/${d.deep.of}` : d.terr ? terrOf(d.terr).name.toUpperCase() : '');
-    setTextIfChanged('btn-cargo', `CARGO ${cargoUsed(d)}/${st.cargo}`);
+    setTextIfChanged('btn-cargo', `CARGO ${cargoCount(d)}`);
     drawSupplyDeck(d);
     const eq = Save.data.equip;
     const rig = isCaster(eq.main) ? eq.main : null;
@@ -386,7 +385,7 @@ function drawResume() {
   if (!r) return;
   const n = Object.values(r.cargo || {}).reduce((a, b) => a + b, 0) + (r.items || []).length;
   const t = terrOf(r.terr);
-  $('resume-text').textContent = `A sortie was under way: ${t ? t.name : 'out in the world'}${r.deep ? `, in its Deep (site ${r.deep})` : ''}, carrying ${n ? n + ' things' : 'nothing yet'}. Carry on from where you came in, or give it up and lose the cargo (the pocket and what you banked are safe).`;
+  $('resume-text').textContent = `You were out in ${t ? t.name : 'the world'}${r.deep ? `, in its Deep (site ${r.deep})` : ''}, carrying ${n ? n + ' things' : 'nothing yet'}. Carry on from where you came in, or give up: your haul stays there in your pack.`;
 }
 
 function drawStory() {
@@ -438,33 +437,23 @@ function drawReport() {
   const got = [stuffLines(r.banked || r.lost || {}), gear(r.items)].filter(Boolean).join(', ');
   const rows = [], row = (label, cls, text) => rows.push(`<div class="rep-row"><span class="rep-label ${cls}">${label}</span><span class="rep-text">${esc(text)}</span></div>`);
   let title;
-  if (r.recalled) {
-    title = 'RECALLED';
-    if (got) row('BANKED', 'good', got);
-    const lost = [stuffLines(r.recalled.lost), gear({ length: r.recalled.lostItems })].filter(Boolean).join(', ');
-    if (lost) row('THE DARK KEPT', 'bad', lost);
-  } else if (r.banked) { title = 'HOME'; row('BANKED', 'good', got || 'Nothing this time'); }
+  if (r.banked) { title = r.recalled ? 'RECALLED' : 'HOME'; row('BANKED', 'good', got || 'Nothing this time'); }
   else {
     title = r.died ? 'YOU FELL' : 'YOU GAVE UP';
-    if (r.died) {
-      // the haul waits where it fell (deeds.js)
-      const c = r.cache;
-      if (c) row('YOUR PACK', 'gold', `Left where you fell, in ${c.where}: ${[stuffLines(c.cargo), gear(c.items), c.blueprints.length ? `${c.blueprints.length} blueprint${c.blueprints.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}. Go back for it: it waits there once. Fall again before you reach it, and it's lost.`);
-      const o = r.oldCache;
-      if (o) row('LOST TO THE DARK', 'bad', `Your older pack, in ${o.where}: ${[stuffLines(o.cargo), gear(o.items)].filter(Boolean).join(', ') || 'what was in it'}`);
-    } else if (got) row('LOST', 'bad', got);
+    // the haul waits where it was (deeds.js)
+    const c = r.cache;
+    if (c) row('YOUR PACK', 'gold', `In ${c.where}: ${[stuffLines(c.cargo), gear(c.items), c.blueprints.length ? `${c.blueprints.length} blueprint${c.blueprints.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(', ')}. Go back for it. Fall again first and it's lost.`);
+    const o = r.oldCache;
+    if (o) row('LOST', 'bad', `Your older pack, in ${o.where}: ${[stuffLines(o.cargo), gear(o.items)].filter(Boolean).join(', ') || 'what was in it'}`);
     const before = r.earlier && [stuffLines(r.earlier.stuff || {}), gear(r.earlier.items)].filter(Boolean).join(', ');
     if (before) row('BANKED BEFORE', 'good', before);
     if (r.wake) row('YOU WAKE', 'gold', `At the spire of ${r.wake}`);
   }
   if (r.kindled) row('KINDLED', 'gold', `${r.kindled} territor${r.kindled > 1 ? 'ies' : 'y'}`);
-  if (r.kept && (r.kept.items.length || Object.keys(r.kept.stuff).length)) row('POCKET KEPT', 'gold', [stuffLines(r.kept.stuff), r.kept.items.map((i) => i.name).join(', ')].filter(Boolean).join(', '));
-  const learned = (r.learned || []).concat((r.kept && r.kept.blueprints) || []);
+  const learned = r.learned || [];
   if (learned.length) row('LEARNED', 'gold', learned.map((id) => BLUEPRINTS[id].name).join(', '));
-  if (r.lostBlueprints) row('BLUEPRINTS LOST', 'bad', `${r.lostBlueprints}, with the cargo`);
-  if (r.shard) row('SHARD', 'gold', 'Carried home. Set it in the star at the altar.');
-  for (const c of r.contracts || []) row('CONTRACT DONE', 'good', `${contractText(c)}: ${contractRewardText(c)}`);
-  if (r.contracts && r.contracts.bonus) row('THE WHOLE BOARD', 'gold', `Supplies besides: ${r.contracts.bonus.join(', ')}`);
+  if (r.shard) row('SHARD', 'gold', 'Set it in the star at the altar.');
+  if (r.settlers) row('SETTLERS', 'good', `+${r.settlers} threads`);
   if (r.echoes) row('ECHOES', 'gold', `${r.echoes} found: read ${r.echoes > 1 ? 'them' : 'it'} at the uplink`);
   // the star: the light this sortie earned, what's waiting at the altar,
   // and how far to the next magnitude
@@ -517,7 +506,7 @@ function drawStar() {
     ${light}
     <h3>WHAT GROWS IT</h3><div class="next-steps">${grows.map((l) => `<p>${esc(l)}</p>`).join('')}</div>
     <h3>ITS REACH</h3><p class="note">A spire holds only where the star's light reaches. ${reach}.</p>
-    <p class="note">Each magnitude also gives an attunement point, makes the star's light likelier to reach down into a Deep, a recall gentler, and now and then a pocket slot more.</p>
+    <p class="note">Each magnitude also gives an attunement point.</p>
     <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3>${att}`;
 }
 
@@ -526,25 +515,24 @@ function drawCargo() {
   if (!d) return;
   const mods = d.items.filter((it) => it.kind === 'module'), items = d.items.filter((it) => it.kind !== 'module').map((it) => itemRow(it, 'cardCargo', it.uid, compareTag(it, Save.data.equip))).join('');
   const worn = SLOTS.filter((k) => Save.data.equip[k]).map((k) => itemRow(Save.data.equip[k], 'cardWorn', k, `<span class="slot">${SLOT_NAMES[k]}</span>`)).join('');
-  const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${ORE_INDEX[id] !== undefined ? 'Ore' : parsePart(id) ? 'Creature part' : isLight(id) ? 'Light for the star' : id === 'thread' ? 'Threads, from a module unravelled' : 'Exotic material'} · weighs ${isLight(id) ? 'nothing' : d.cargo[id]}</span></span></button>`).join('');
+  const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${stuffKindWord(id)}</span></span></button>`).join('');
   const heart = (d.tally && d.tally.light && d.tally.light.heartlight) || 0, pack = Save.data.cache;
-  const slots = pocketSlots(), pocket = d.pocket.map((e, i) => `<div class="row static">${e.item ? iconImg(e.item) : e.blueprint ? `<img class="icon" src="${recipeIconUrl(e.blueprint)}" alt="">` : `<img class="icon" src="${stuffIconUrl(e.stuff)}" alt="">`}<span class="row-text"><span class="row-name ${e.item ? 'r-' + e.item.rarity : e.blueprint ? 'r-legendary' : ''}">${esc(e.item ? e.item.name : e.blueprint ? 'Blueprint: ' + BLUEPRINTS[e.blueprint].name : `${stuffName(e.stuff)} × ${e.n}`)}</span><span class="row-sub">In the pocket</span></span><button class="mini" data-act="unpocket" data-arg="${i}">TAKE OUT</button></div>`).join('');
   $('cargo-body').innerHTML = `
-    <div class="mag">CARGO ${cargoUsed(d)}/${d.stats.cargo}</div>
-    <h3>POCKET · ${d.pocket.length}/${slots}</h3>
-    ${pocket || '<p class="note">Empty. Whatever you pocket comes home even if you fall: tap something below to pocket it.</p>'}
-    ${heart ? `<p class="note">${heart} heartlight earned this sortie: bound to you, safe whatever happens.</p>` : ''}
-    <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">No ore yet.</p>'}
+    <div class="mag">CARRYING ${cargoCount(d)}</div>
+    <p class="note">No limit. If you fall, it all stays in your pack where you fell. Bank at a spire to keep it safe.</p>
+    ${pack ? `<p class="note gold">Your old pack waits in ${esc(pack.where)}.</p>` : ''}
+    ${heart ? `<p class="note">${heart} heartlight earned: safe whatever happens.</p>` : ''}
+    <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">None yet.</p>'}
     ${supplyMakeHtml()}
-    ${d.blueprints.length ? `<h3>BLUEPRINTS · LEARNED WHEN BANKED</h3>${d.blueprints.map((b, i) => `<div class="row static"><img class="icon" src="${recipeIconUrl(b.id)}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint · weighs 1</span></span>${d.pocket.length < pocketSlots() ? `<button class="mini" data-act="pocketBp" data-arg="${i}">POCKET</button>` : ''}</div>`).join('')}` : ''}
-    <h3>MODULES · ${mods.length} · WEIGH ${T.modules.weight} EACH</h3>${mods.map((m) => moduleRow(m, 'cardCargo', m.uid, moduleTag(m, Save.data.equip))).join('') || '<p class="note">None caught yet. When a creature falls, the suit catches its pattern now and then.</p>'}
+    ${d.blueprints.length ? `<h3>BLUEPRINTS · LEARNED WHEN BANKED</h3>${d.blueprints.map((b) => `<div class="row static"><img class="icon" src="${recipeIconUrl(b.id)}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint</span></span></div>`).join('')}` : ''}
+    ${mods.length ? `<h3>MODULES · ${mods.length}</h3>${mods.map((m) => moduleRow(m, 'cardCargo', m.uid, moduleTag(m, Save.data.equip))).join('')}` : ''}
     ${items ? `<h3>FOUND</h3>${items}` : ''}
-    <h3>CONTRACTS</h3>${contractRows(d)}
-    <h3>WORN</h3>${worn}
-    <p class="note">What you wear, your pocket and your supplies are safe. If you fall, the rest of the cargo stays where you fell, in your pack: go back for it once. Fall again first and it's lost. Bank at a spire to be sure of it.</p>
-    ${pack ? `<p class="note gold">Your pack waits in ${esc(pack.where)}.</p>` : ''}
-    <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL · LOSE ${Math.round(recallCost(d) * 100)}%</button></div>`;
+    <h3>WORN · ALWAYS SAFE</h3>${worn}
+    <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL</button></div>
+    <p class="note">A recall takes you home with everything. Stand still for ${Math.round(relayRecallTime())} s.</p>`;
 }
+// What a stack in the cargo is, in a word or two.
+function stuffKindWord(id) { return ORE_INDEX[id] !== undefined ? 'Ore' : parsePart(id) ? 'Creature part' : isLight(id) ? 'Light for the star' : id === 'thread' ? 'Threads' : 'Exotic material'; }
 
 // ---------------------------------------------------------------------------
 // The cards (gearui.js draws the gear's)
@@ -568,7 +556,6 @@ function drawStuffCard(id) {
     <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${id === 'thread' ? 'Threads' : x ? 'Exotic material' : pk ? 'Creature part' : isLight(id) ? 'Light for the star' : 'Ore'}</div></div></div>
     <p class="base">${esc(what)}</p>
     <div class="menu">
-      ${n && Game.dive.pocket.length < pocketSlots() ? `<button class="btn" data-act="pocket" data-arg="${T.cargo.pocketStack}">POCKET ${Math.min(n, T.cargo.pocketStack)} (SAFE IF YOU FALL)</button>` : ''}
       ${n ? `<button class="btn danger" data-act="dropStuff" data-arg="1">DROP 1</button>` : ''}
       ${n > 5 ? `<button class="btn danger" data-act="dropStuff" data-arg="5">DROP 5</button>` : ''}
       ${n > 1 ? `<button class="btn danger" data-act="dropStuff" data-arg="all">DROP ALL</button>` : ''}
@@ -587,20 +574,25 @@ UI.acts = {
   go: (id) => UI.show(id),
   back: () => UI.close(),
   resume: () => UI.close(),
-  abandon: () => abandonDive(),
+  // START OVER, from the pause screen: a screen that says what's lost, then
+  // a second tap on its button (Save.startOver), and the game starts again
+  restartAsk: () => UI.show('screen-restart'),
+  restartBack: () => UI.openPause(),
+  startOver: () => { Save.startOver(); UI.close(); location.reload(); },
   closeReport: () => {
     UI.report = null; UI.close();
     Story.starGrew();
   },
   // (built while loading, if it was: loader.js)
   resumeRun: () => { UI.close(); if (!loaderCarryOn()) resumeRun(); },
+  // giving up a sortie found under way: back where it came in, and the
+  // haul left there in the pack, as a fall would (game.js loseDive)
   dropRun: () => {
     UI.close();
+    if (!Save.data.run) return;
+    if (!loaderCarryOn()) resumeRun();
     Loader.landed = null;
-    const r = Save.data.run;
-    if (!r) return;
-    Game.dive = newWorld({ sortie: true, terr: r.terr, depth: 1, zone: 'surface', cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], pocket: r.pocket || [], gotShard: r.gotShard, echoes: r.echoes, banked: r.banked });
-    abandonDive();
+    loseDive(false);
   },
   storyNext: () => {
     const st = UI.story;
@@ -621,33 +613,6 @@ UI.acts = {
   },
   beacon: () => { UI.close(); plantBeacon(); },
   carryTool: (id) => { if (toolOwned(id)) { Save.data.tool = id; Save.save(); UI.redraw(); } },
-  swapContract: (id) => { if (swapContract(id)) UI.redraw(); },
-  // the pocket: what's in it comes home whatever happens
-  pocket: (n) => {
-    const d = Game.dive, c = UI.card;
-    if (d.pocket.length >= pocketSlots()) return;
-    if (c.stuff) {
-      const k = Math.min(Number(n) || T.cargo.pocketStack, d.cargo[c.stuff] || 0);
-      if (!k) return;
-      d.cargo[c.stuff] -= k; if (!d.cargo[c.stuff]) delete d.cargo[c.stuff];
-      d.pocket.push({ stuff: c.stuff, n: k });
-    } else { removeFrom(d.items, c.item); d.pocket.push({ item: c.item }); }
-    UI.closeCard(); UI.redraw();
-  },
-  unpocket: (i) => {
-    const d = Game.dive, e = d.pocket[Number(i)];
-    if (!e) return;
-    d.pocket.splice(Number(i), 1);
-    if (e.item) d.items.push(e.item); else if (e.blueprint) d.blueprints.push({ id: e.blueprint }); else d.cargo[e.stuff] = (d.cargo[e.stuff] || 0) + e.n;
-    UI.redraw();
-  },
-  pocketBp: (i) => {
-    const d = Game.dive, b = d.blueprints[Number(i)];
-    if (!b || d.pocket.length >= pocketSlots()) return;
-    d.blueprints.splice(Number(i), 1);
-    d.pocket.push({ blueprint: b.id });
-    UI.redraw();
-  },
   closeCard: () => { UI.closeCard(); UI.redraw(); },
   cardEquip: (slot) => UI.openCard(Save.data.equip[slot], 'equip', slot),
   cardStash: (uid) => UI.openCard(findStash(uid), 'stash', uid),

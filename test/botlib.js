@@ -8,7 +8,8 @@
 //   works the heart goal while it has the light and health for it (the
 //   waystones, the tear, planting the spire), mines what its pick can
 //   break, now and then goes down into a Deep, and turns back towards lit
-//   land when the cargo is nearly full, it's hurt, or the light is low;
+//   land when it carries a good haul (BOT_HAUL: there's no limit, so it
+//   sets its own), it's hurt, or the light is low;
 //   then it banks at a spire and travels home, or walks home. Returns how
 //   it ended.
 //   Bot.home() spends the haul like a player might: the forge studies
@@ -22,16 +23,17 @@
 //   unseals relics, sets any shard and feeds the light its deeds earned to
 //   the star (held at the altar), makes supplies from old ore at the
 //   fabricator, builds the outpost's buildings and fits Wick's upgrades
-//   as the stash can spare them (refining ore for its next pick once the
-//   Refinery stands), and spends attunements. Out there it uses its supplies (an
-//   injector when hurt, a Lightcell when its light is low, a Ward Cell at a
-//   Keeper or an elite, a charge in a crowd, a flare while it holds a
-//   waystone), goes back for the pack a fall left before anything else,
+//   as the stash can spare them (upgrading the Refinery, and refining ore
+//   for its next pick once it stands), and spends attunements. Out there it
+//   uses its supplies (an injector when hurt, a Lightcell when its light
+//   is low), goes back for the pack a fall left before anything else,
 //   and only kindles where the star's light reaches.
 //   Bot.career({ sorties }) does both over and over from a fresh save.
 
 function installBot() {
   const STEP = 1 / 60;
+  // the haul it turns back with (the old cargo limit)
+  const BOT_HAUL = 40;
 
   // steps on foot from the diver to every tile, round a clime's lava and
   // vents (the generator never lets them cut anything off)
@@ -199,7 +201,7 @@ function installBot() {
     const skipOre = new Set(), skipFoe = new Set();
     let progressT = 0, progress = '', aim = null;
     Bot.lastHurt = null;
-    const result = () => ({ target, ring: terrOf(target).ring, level: terrLevel(terrOf(target)), clime: terrOf(target).clime, kills: d.kills, cargo: cargoUsed(d) + Object.values((d.banked && d.banked.stuff) || {}).reduce((a, b) => a + b, 0), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t), deep: !!(d.tally && d.tally.deeps), kindled: kindledCount() - kindled0, lastHurt: Bot.lastHurt, hollow: d.enemies.some((e) => e.type === 'hollow' && !e.dead) });
+    const result = () => ({ target, ring: terrOf(target).ring, level: terrLevel(terrOf(target)), clime: terrOf(target).clime, kills: d.kills, cargo: cargoCount(d) + Object.values((d.banked && d.banked.stuff) || {}).reduce((a, b) => a + b, 0), items: d.items.length, hp: Math.round(d.p.hp), time: Math.round(t), deep: !!(d.tally && d.tally.deeps), kindled: kindledCount() - kindled0, lastHurt: Bot.lastHurt, hollow: d.enemies.some((e) => e.type === 'hollow' && !e.dead) });
     const at = (x, y) => { const w = d.floor.w; return y * w + x; };
     while (t < maxTime) {
       if (Game.dive !== d) { ended = UI.report && UI.report.recalled ? 'recalled' : UI.report && UI.report.banked ? 'home' : 'died'; break; }
@@ -207,7 +209,7 @@ function installBot() {
       if (d.warp) { for (let k = 0; k < 6; k++) Game.step(STEP); t += 0.1; continue; }
       const p = d.p, st = d.stats, f = d.floor, steps = stepsFromMe(d), ts = terrPeek(d.terr) || {}, T0 = terrOf(d.terr);
       Input.bot = { x: 0, y: 0 };
-      const now = [d.kills, cargoUsed(d), d.terr, d.deep && d.deep.site, (ts.lit || []).length, ts.done, ts.state].join();
+      const now = [d.kills, cargoCount(d), d.terr, d.deep && d.deep.site, (ts.lit || []).length, ts.done, ts.state].join();
       if (now !== progress) { progress = now; progressT = t; }
       else if (t - progressT > 20 && aim) { (aim.ore !== undefined ? skipOre.add(aim.ore) : skipFoe.add(aim.foe)); aim = null; progressT = t; }
       const hollow = d.enemies.find((e) => !e.dead && e.type === 'hollow');
@@ -217,11 +219,11 @@ function installBot() {
       const foeM = foe ? dist(foe.x, foe.y, p.x, p.y) : 1e9, close = foe && (foeM < 40 || (foe.state === 'windup' && foeM < 70));
       // dim: no more light than the walk back to lit land takes, and a bit
       const lead = d.deep ? 0.3 : (() => { const g = compassTargetWorld(d, steps), n = g ? steps[at(g.x, g.y)] : 30; return (Math.max(0, n) / 3.2 + 3) / T.world.light; })();
-      const full = cargoUsed(d) >= st.cargo * 0.92, hurt = p.hp < st.maxHp * 0.3, dim = !d.kindled && d.pull < lead;
+      const full = cargoCount(d) >= BOT_HAUL * 0.92, hurt = p.hp < st.maxHp * 0.3, dim = !d.kindled && d.pull < lead;
       if (!d.kindled && (full || hurt || dim || (t > 420 && d.terr === target))) back = true;
       if (d.terr === target && d.kindled && !P.deep) back = true;
       // back in lit land with light again: push out once more, if it's fit
-      const canPush = pushes < 3 && p.hp > st.maxHp * 0.6 && t < 360 && cargoUsed(d) < st.cargo * 0.7;
+      const canPush = pushes < 3 && p.hp > st.maxHp * 0.6 && t < 360 && cargoCount(d) < BOT_HAUL * 0.7;
       const action = actionHere();
       let goal = null; // where to walk, if not fighting or mining
       let act = false, mine = true;
@@ -243,7 +245,7 @@ function installBot() {
         } else if (back || d.terr === target) {
           // bank, push out again if it's fit, or go home: at a spire, travel
           // home; else walk home
-          const spire = f.pad && hasSpire(d.terr), carrying = cargoUsed(d) > 0 || d.items.length;
+          const spire = f.pad && hasSpire(d.terr), carrying = cargoCount(d) > 0 || d.items.length;
           if (canPush && !(spire && carrying)) { back = false; pushes++; target = plan(0).target; }
           else if (spire) { if (action === 'extract') { if (carrying) act = true; else travelFrom(d, 0); } else goal = f.pad; }
           else { const e = f.exits.find((x) => x.to === 0) || exitTowards(d, 0); goal = e; }
@@ -274,16 +276,10 @@ function installBot() {
       // the pack a fall left, when it lies here: before anything else
       const pk = cacheHere(d);
       if (pk && !d.channel && !(hollow && dist(hollow.x, hollow.y, p.x, p.y) < 60)) { const at = cacheSpot(d, pk); goal = { x: Math.floor(at.x / TILE), y: Math.floor(at.y / TILE) }; act = false; mine = false; }
-      // supplies: an injector when hurt, a Lightcell when the light's low,
-      // a Ward Cell at a Keeper or an elite, a charge in a crowd, a flare
-      // while holding a waystone
+      // supplies: an injector when hurt, a Lightcell when the light's low
       if (!d.channel || d.hold) {
-        const near = d.enemies.filter((e) => !e.dead && !e.hid && e.type !== 'dummy' && dist(e.x, e.y, p.x, p.y) < 50);
-        if (p.hp < st.maxHp * 0.35 && supplyBest('injector')) useSupply('injector');
-        else if (!d.kindled && d.pull < 0.2 && supplyBest('cell')) useSupply('cell');
-        else if (p.ward <= 0 && near.some((e) => e.boss || e.elite) && supplyBest('ward')) useSupply('ward');
-        else if (near.length >= 3 && supplyBest('charge') && !(d.charges || []).length) useSupply('charge');
-        else if (d.hold && !inFlare(d) && d.pull < 0.6 && supplyBest('flare')) useSupply('flare');
+        if (p.hp < st.maxHp * 0.35 && supplyCount('injector')) useSupply('injector');
+        else if (!d.kindled && d.pull < 0.2 && supplyCount('cell')) useSupply('cell');
       }
       Bot.why = [d.terr, target, !!d.deep, d.kindled, back, action, !!foe, !!hollow, full, hurt, dim].join(',');
       if (act) Input.bot.act = true;
@@ -356,7 +352,7 @@ function installBot() {
       if (lv >= (sv.botBest || 1) && (sv.botWins = (sv.botWins || 0) + 1) >= 2) { sv.botBest = (sv.botBest || 1) + 1; sv.botWins = 0; }
     }
     const r = result();
-    if (!ended) { if (Game.dive === d) abandonDive(); ended = 'timeout'; }
+    if (!ended) { if (Game.dive === d) { loseDive(false); UI.close(); } ended = 'timeout'; }
     // a fall wakes at a spire: home from there to spend the haul
     if (Game.dive && !Game.dive.hub) { const w = Game.dive; UI.close(); w.cargo = {}; goHome('spire'); }
     UI.close();
@@ -416,7 +412,7 @@ function installBot() {
     log.push(...makeSupplies());
     const fed = feedStar();
     if (fed) log.push(`fed the star ${fed}`);
-    for (const id of ['vitality', 'proximity', 'capacity', 'vitality', 'clarity', 'stride', 'capacity']) if (attunePointsLeft(s) > 0) acts.attune(id);
+    for (const id of ['vitality', 'proximity', 'vitality', 'clarity', 'stride', 'proximity']) if (attunePointsLeft(s) > 0) acts.attune(id);
     Save.save();
     UI.close();
     return log;
@@ -532,6 +528,13 @@ function installBot() {
       Bot.built[id] = Bot.n;
       log.push((bp.structure ? 'built ' : 'fitted ') + recipeName(id));
     }
+    // the Refinery's next level, at SUPPLIES, once the stash can spare it
+    for (let n = refineryNext(); n && !refineryBlock(); n = refineryNext()) {
+      const spare = Object.keys(n.cost).every((k) => !ORE_INDEX.hasOwnProperty(k) || (s.stash[k] || 0) - n.cost[k] >= (pickOre && k === pickOre.id ? BLUEPRINTS.pick.ore : 0));
+      if (!spare || !upgradeRefinery()) break;
+      Bot.built['refinery' + refineryLevel()] = Bot.n;
+      log.push('Refinery level ' + refineryLevel());
+    }
     UI.close();
     return log;
   }
@@ -557,17 +560,16 @@ function installBot() {
 
   // Supplies from old ore, as a player might: the region's ore behind the
   // one its pick is working through is spare, the current one's is kept
-  // back for gear. Injectors most, then Lightcells, a Ward Cell, a charge
-  // and a flare, the best grade it can pay for.
+  // back for gear (30 of it). Injectors most, then Lightcells.
   function makeSupplies() {
     const s = Save.data, log = [], power = s.equip.pick ? s.equip.pick.base.power : 1, region = Math.floor((power - 1) / 2);
-    const want = [['injector', 4], ['cell', 2], ['ward', 1], ['charge', 1], ['flare', 1]];
+    const want = [['injector', 4], ['cell', 2]];
     const spare = (ore) => { const i = ORE_INDEX[ore], r = Math.floor(i / 2); return (s.stash[ore] || 0) - (r >= region ? 30 : 0); };
     for (const [kind, n] of want) {
-      for (let k = 0; k < n && supplyCount(kind) < n; k++) {
-        const r = [3, 2, 1].map((g) => supplyRecipe(kind + g)).find((x) => Object.keys(x.cost).every((o) => spare(o) >= x.cost[o]));
-        if (!r || !makeSupply(r.id, false)) break;
-        log.push('made ' + r.name);
+      while (supplyCount(kind) < n) {
+        const c = supplyCost(s.stash);
+        if (!c.ok || spare(c.ore) < c.n || !makeSupply(kind, false)) break;
+        log.push('made ' + SUPPLY_KINDS[kind].name);
       }
     }
     return log;

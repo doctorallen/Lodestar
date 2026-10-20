@@ -143,11 +143,12 @@ const coreIds = (list) => list.flatMap((x) => (x && x.kind === 'stone' ? [x] : x
 for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json', 'save-main-run.json', 'save-v6-home.json']) {
   const s = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
   const old = JSON.parse(JSON.stringify(s));
-  // what the old gear's affixes added up to, worn and stashed
-  const sum = (list) => { const o = {}; for (const it of list) for (const a of it.affixes || []) o[a.id] = Math.round(((o[a.id] || 0) + a.v) * 10) / 10; return Object.keys(o).sort().map((k) => k + ' ' + o[k]).join(', '); };
+  // what the old gear's affixes added up to, worn and stashed (the cargo
+  // trait is gone with the cargo limit)
+  const sum = (list) => { const o = {}; for (const it of list) for (const a of it.affixes || []) if (G.AFFIXES[a.id]) o[a.id] = Math.round(((o[a.id] || 0) + a.v) * 10) / 10; return Object.keys(o).sort().map((k) => k + ' ' + o[k]).join(', '); };
   const v5 = (old.v || 5) < 6;
   if (v5 && (!G.migrateGearSave(s) || s.v !== 6 || G.migrateGearSave(s))) fail(`${f}: migrated wrong to modules`);
-  const mid = JSON.parse(JSON.stringify(s)), all = (x) => Object.values(x.equip).filter(Boolean).concat(x.items, x.run ? x.run.items : [], x.run ? x.run.pocket.filter((e) => e.item).map((e) => e.item) : []);
+  const mid = JSON.parse(JSON.stringify(s)), all = (x) => Object.values(x.equip).filter(Boolean).concat(x.items, x.run ? x.run.items : [], x.run ? (x.run.pocket || []).filter((e) => e.item).map((e) => e.item) : []);
   const modsOf = (list) => list.filter((x) => x.kind === 'module').concat(list.flatMap((x) => (x.sockets || []).filter(Boolean)));
   const oldMods = modsOf(all(mid)), oldCores = coreIds(all(mid)), oldThreads = (mid.stash.thread || 0) + ((mid.stash.bloodresin || 0) + all(mid).flatMap((x) => (x.kind === 'stone' ? [x] : x.slots || [])).filter((c) => c && c.stone === 'trigger').length) * G.T.retiredThreads;
   if (!G.migrateRigSave(s) || s.v !== 7 || G.migrateRigSave(s)) fail(`${f}: migrated wrong to the rig`);
@@ -186,7 +187,7 @@ function checkModuleLoose(m, at) {
 for (let seed = 1; seed <= 400; seed++) {
   const rng = new G.Rng(seed * 7), eq = { main: G.makeBase('rig', 6, 3), pick: G.makeBase('pick', 6, 3), armor: G.makeBase('plate', 6, 3), charm: G.makeBase('charm', 6, 3) };
   for (const k in eq) eq[k].sockets = eq[k].sockets.map(() => G.makeModule(rng, eq[k].kind, 6, { rarity: rng.pick(['rare', 'legendary', 'set']) }));
-  const st = G.computeStats(eq, { vitality: 5, proximity: 5, capacity: 5, clarity: 5, stride: 5 });
+  const st = G.computeStats(eq, { vitality: 5, proximity: 5, clarity: 5, stride: 5 });
   for (const k in G.T.caps) if (st[k] > G.T.caps[k]) fail(`outfit ${seed}: ${k} ${st[k]} over its cap`);
   if (!(st.maxHp > G.T.player.hp)) fail(`outfit ${seed}: plate added no health`);
   if (bad(JSON.stringify(st))) fail(`outfit ${seed}: ${JSON.stringify(st)}`);

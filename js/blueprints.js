@@ -47,7 +47,7 @@ const BLUEPRINTS = {
 };
 // The carried tools (tools.js), made once: their cost is T.tools[id].cost,
 // and the star must have reached T.tools[id].mag.
-for (const id of ['oresense', 'radar', 'beacon', 'map', 'satchel', 'lens']) BLUEPRINTS['tool_' + id] = { name: id, kind: 'tool', cat: 'tool', tool: id, start: id !== 'lens' };
+for (const id of ['oresense', 'radar', 'beacon', 'map', 'lens']) BLUEPRINTS['tool_' + id] = { name: id, kind: 'tool', cat: 'tool', tool: id, start: id !== 'lens' };
 // The outpost's buildings (structures.js) and Wick's upgrades (wick.js),
 // each made once at home: known from the first day, their cost is
 // T.structures[id].cost or T.wickUp[id].cost, and the star must have

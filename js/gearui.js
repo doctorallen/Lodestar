@@ -304,7 +304,7 @@ function drawGear() {
     <h3>MATERIALS</h3><p class="note">${esc(stuffLines(s.stash)) || 'None.'}</p>`;
 }
 function statLine(st) {
-  const bits = [`${st.maxHp} health`, `${st.armor} armor`, `${st.cargo} cargo`];
+  const bits = [`${st.maxHp} health`, `${st.armor} armor`];
   if (st.closeDmg) bits.push(`+${Math.round(st.closeDmg)}% close`);
   if (st.spellDmg) bits.push(`+${Math.round(st.spellDmg)}% spells`);
   if (st.crit) bits.push(`${Math.round(st.crit)}% crit`);
@@ -377,8 +377,6 @@ function drawBaseCard(c) {
   } else if (c.where === 'equip') acts.push('<button class="btn" data-act="unequip">UNEQUIP</button>');
   else if (c.where === 'cargo') {
     if (slotOf) acts.push(`<button class="btn primary" data-act="equip" data-arg="${slotOf}">EQUIP</button>`);
-    if (Game.dive.pocket.length < pocketSlots()) acts.push('<button class="btn wide" data-act="pocket">POCKET (SAFE IF YOU FALL)</button>');
-    if (it.kind !== 'relic') acts.push(salvageBtn);
     acts.push('<button class="btn danger" data-act="drop" data-confirm="SURE? DROP IT">DROP</button>');
   }
   const cmp = (c.where === 'stash' || c.where === 'cargo') ? compareTag(it, s.equip) : '';
@@ -458,8 +456,6 @@ function drawModuleCard(c) {
     if (!m.fav) acts.push(salvageBtn);
   } else if (c.where === 'socket' && home) acts.push('<button class="btn" data-act="modOut">TAKE OUT</button>');
   else if (c.where === 'cargo') {
-    if (Game.dive.pocket.length < pocketSlots()) acts.push('<button class="btn wide" data-act="pocket">POCKET (SAFE IF YOU FALL)</button>');
-    acts.push(salvageBtn);
     acts.push('<button class="btn danger" data-act="drop" data-confirm="SURE? DROP IT">DROP</button>');
   }
   const favBtn = home ? `<button class="mini fav ${m.fav ? 'on' : ''}" data-act="fav" title="Keep: never salvaged">${m.fav ? '★ KEPT' : '☆ KEEP'}</button>` : '';
@@ -615,13 +611,6 @@ Object.assign(UI.acts, {
     const s = field ? Game.dive.cargo : Save.data.stash, list = field ? Game.dive.items : Save.data.items;
     const got = salvageInto(it, list, s, field);
     removeFrom(list, it);
-    if (field) {
-      const d = Game.dive, over = cargoUsed(d) - d.stats.cargo;
-      for (const k of Object.keys(got)) {
-        const left = Math.min(over, s[k] || 0);
-        if (left > 0) { s[k] -= left; if (!s[k]) delete s[k]; d.drops.push({ x: d.p.x, y: d.p.y, t: 0, stuff: k, n: left, left: true }); break; }
-      }
-    }
     UI.toast('Salvaged: ' + stuffLines(got));
     UI.closeCard();
     afterChange();

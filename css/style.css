@@ -125,20 +125,18 @@ body.home #btn-mine { display: none; }
 .deck-btn.act.act2 { bottom: calc(100% + 60px); background: #2a2210; color: var(--gold); border-color: var(--gold); }
 #app.wide .deck-btn.act.act2 { bottom: calc(218px + env(safe-area-inset-bottom)); }
 /* the smallest phones, and shorter ones (whose deck is shorter): the
-   cluster tightens, and the supply slot shrinks, so nothing overlaps */
+   cluster tightens, and the supply buttons shrink, so nothing overlaps */
 @media (max-width: 360px), (max-height: 800px) {
-  #app:not(.wide) .deck-btn.supply { left: 6px; top: 6px; width: 46px; height: 46px; font-size: 8px; letter-spacing: 0; }
-  #app:not(.wide) .deck-btn.supply .btn-icon { width: 20px; height: 20px; }
-  #app:not(.wide) .deck-btn.supply-next { left: 56px; top: 14px; width: 28px; height: 28px; }
+  #app:not(.wide) .deck-btn.supply { top: 4px; width: 42px; height: 42px; }
+  #app:not(.wide) .deck-btn.supply.mend { left: 4px; }
+  #app:not(.wide) .deck-btn.supply.cell { left: 50px; }
+  #app:not(.wide) .deck-btn.supply .btn-icon { width: 18px; height: 18px; }
   #app:not(.wide) .deck-btn.main { width: 80px; height: 80px; right: 10px; bottom: calc(14px + env(safe-area-inset-bottom)); }
   #app:not(.wide) .deck-btn.off { width: 52px; height: 52px; right: 96px; bottom: calc(18px + env(safe-area-inset-bottom)); }
   #app:not(.wide) .deck-btn.dash { width: 46px; height: 46px; right: 86px; bottom: calc(80px + env(safe-area-inset-bottom)); }
   #app:not(.wide) .deck-btn.mine { width: 46px; height: 46px; right: 22px; bottom: calc(100px + env(safe-area-inset-bottom)); }
 }
-@media (max-width: 340px) {
-  #app:not(.wide) .deck-btn.supply { left: 3px; top: 3px; width: 42px; height: 42px; }
-  #app:not(.wide) .deck-btn.supply-next { left: 49px; top: 10px; }
-}
+
 .deck-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
 .btn-icon { width: 40px; height: 40px; image-rendering: pixelated; pointer-events: none; }
 .deck-btn.off .btn-icon { width: 20px; height: 20px; }
@@ -597,20 +595,20 @@ body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s;
 .next-steps p::before { content: '◇ '; color: var(--gold); }
 .note .ok { color: var(--gold); }
 .note.gold { color: var(--gold); }
-/* the quick-use slot: the right deck's top-left corner, and the small
-   button beside it that moves it on */
-.deck-btn.supply { left: 12px; top: 12px; right: auto; bottom: auto; width: 60px; height: 60px; border-color: #7ff0a0; color: #c8ffd8; background: rgba(120, 240, 160, 0.07); font-size: 9px; }
-.deck-btn.supply .btn-icon { width: 26px; height: 26px; image-rendering: pixelated; }
-.deck-btn.supply .supply-n { position: absolute; right: -4px; top: -4px; background: #0e1410; border: 1px solid #7ff0a0; border-radius: 9px; padding: 0 4px; font-size: 10px; color: #c8ffd8; pointer-events: none; }
-.deck-btn.supply-next { left: 78px; top: 26px; right: auto; bottom: auto; width: 32px; height: 32px; border-color: #5a7a62; color: #c8ffd8; background: rgba(120, 240, 160, 0.04); font-size: 14px; }
-#app.wide .deck-btn.supply { left: 8px; top: 10px; width: 54px; height: 54px; }
-#app.wide .deck-btn.supply-next { left: 68px; top: 21px; }
-.supply-kind { border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-bottom: 4px; }
-.supply-grade { display: flex; align-items: center; gap: 8px; padding: 4px 0 4px 8px; }
-.supply-g { width: 24px; flex: none; color: var(--gold); font-weight: bold; text-align: center; }
-.supply-cost { flex: 1; font-size: 12px; }
-.supply-cost small { display: block; color: var(--dim); font-size: 11px; margin-top: 2px; }
-.supply-grade .mini { flex: none; }
+/* the two supplies, side by side in the right deck's top-left corner:
+   the injector green, the Lightcell gold, how many on a badge; dim at none */
+.deck-btn.supply { top: 8px; right: auto; bottom: auto; width: 44px; height: 44px; font-size: 8px; letter-spacing: 0; --c: #7ff0a0; border-color: var(--c); color: var(--c); background: rgba(255, 255, 255, 0.04); }
+.deck-btn.supply.mend { left: 8px; }
+.deck-btn.supply.cell { left: 58px; --c: #ffd36a; }
+.deck-btn.supply .btn-icon { width: 20px; height: 20px; image-rendering: pixelated; }
+.deck-btn.supply .supply-n { position: absolute; right: -4px; top: -4px; min-width: 16px; background: #0e1012; border: 1px solid var(--c); border-radius: 9px; padding: 0 4px; font-size: 10px; color: var(--c); pointer-events: none; }
+.deck-btn.supply.empty { opacity: 0.4; }
+#app.wide .deck-btn.supply { top: 10px; width: 50px; height: 50px; font-size: 9px; }
+#app.wide .deck-btn.supply .btn-icon { width: 22px; height: 22px; }
+#app.wide .deck-btn.supply.mend { left: 8px; }
+#app.wide .deck-btn.supply.cell { left: 64px; }
+.supply-row .mini { flex: none; }
+.btn.quiet { opacity: 0.75; font-size: 11px; }
 
 /* the loading: the Charter's systems booting up (loader.js). Deep blue-black,
    the seed-star's pale gold waking, the Charter's blue in the lines; only
