@@ -109,9 +109,11 @@ function graftAt(f, x, y) {
   return Math.hypot(x - cx, y - cy) / TILE <= g.r - 0.5 + 1.1 * Math.sin(3 * a + g.p1) + 0.6 * Math.sin(5 * a + g.p2);
 }
 
-// How a tile looks: the floor's own, or while the graft is being painted,
-// the graft's.
+// How a tile looks: the floor's own, or while the graft (or the outpost's
+// meld) is being painted, the graft's.
 function tileArt(f, tx, ty) {
+  // (the outpost's meld: the land beyond an opening, hubground.js)
+  if (f.meldPainting >= 0) return hgrMeldLook(f, f.meldPainting);
   if (f.graft && f.paintingGraft) {
     const id = T.biomes[f.graft.biome].id;
     return CLIME_ART[f.graft.clime] || (f.graft.sky ? ART.surface[id] : ART.biomes[id]);
@@ -205,6 +207,7 @@ function useRift(d) {
     if (bodyHits(d.floor, p.x, p.y, T.player.radius)) p.y = (h.gate.y + 0.5) * TILE;
     p.invuln = Math.max(p.invuln, 0.5);
     spawnSparks(p.x, p.y - 6, [RIFT_PAL.riftedge[0], RIFT_PAL.riftcyan[0]], 14);
+    snd('riftGate');
     buzz(20);
     Story.say('riftGate');
   } else startChannel('seal');
@@ -220,9 +223,10 @@ function sealRift() {
   if (View.floorFor === d.floor) { const x0 = (r.x - 6) * ATILE, y0 = (r.y - 6) * ATILE; for (let y = r.y - 6; y <= r.y + 6; y++) for (let x = r.x - 6; x <= r.x + 6; x++) if (x >= 0 && y >= 0 && x < d.floor.w && y < d.floor.h) paintTileArt(d.floor, x, y); paintGraft(d.floor, r.x - 6, r.y - 6, r.x + 6, r.y + 6); tintRift(d.floor, x0, y0, x0 + 13 * ATILE, y0 + 13 * ATILE); pnrRepaintArea(d.floor, x0, y0, x0 + 13 * ATILE, y0 + 13 * ATILE); }
   const cx = (r.x + 0.5) * TILE, cy = (r.y + 0.5) * TILE, n = d.rng.i(T.rifts.glass[0], T.rifts.glass[1]) + riftTouchedAlive(d);
   for (let k = 0; k < n; k++) d.drops.push({ x: cx + d.rng.f(-6, 6), y: cy + d.rng.f(-4, 4), t: 0, exotic: 'riftglass', home: true });
-  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, cx, cy) < T.leave.noise) wake(d, e);
+  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, cx, cy) < T.leave.noise) wake(d, e, true);
   spawnSparks(cx, cy - 10, [RIFT_PAL.riftedge[0], RIFT_PAL.riftcyan[0], '#ffffff'], 30);
   UI.toast('The tear closes', 'legendary');
+  snd('seal');
   Story.say('riftSealed');
   buzz(40);
 }

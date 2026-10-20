@@ -84,7 +84,8 @@ function mapBase(L) {
 function sizeWorldMap() {
   const cv = $('world-map'), L = worldMap(), M = L.M, dpr = window.devicePixelRatio || 1;
   if (cv.width !== M) { cv.width = M; cv.height = M; }
-  const avail = Math.min(420, $('map-wrap').clientWidth || 360);
+  // (held sideways, small enough that the card shows below it)
+  const avail = Math.min(420, $('map-wrap').clientWidth || 360, Math.max(200, window.innerHeight * 0.6));
   const k = Math.max(1, Math.floor((avail * dpr) / M)), css = (k * M) / dpr + 'px';
   if (cv.style.width !== css) { cv.style.width = css; cv.style.height = css; }
   if (!WorldMapView.bound) {
@@ -93,7 +94,12 @@ function sizeWorldMap() {
       if (Game.realT - UI.openedAt < T.ui.tapGuard) return;
       const r = cv.getBoundingClientRect(), x = Math.floor(((e.clientX - r.left) * M) / r.width), y = Math.floor(((e.clientY - r.top) * M) / r.height);
       const id = x >= 0 && y >= 0 && x < M && y < M ? worldMap().idMap[y * M + x] : -1;
-      if (id >= 0) { UI.mapSel = id; drawMapCard(); drawWorldMap(); }
+      if (id >= 0) {
+        UI.mapSel = id; drawMapCard(); drawWorldMap();
+        // a card out of sight below the map is brought up into view
+        const card = $('map-card'), cr = card.getBoundingClientRect();
+        if (cr.top > window.innerHeight - 60 && card.scrollIntoView) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
     });
   }
 }
@@ -141,6 +147,8 @@ function drawWorldMap() {
       if (mark) mark.forEach((row, j) => [...row].forEach((ch, i) => { if (ch !== '.') px(cx - 2 + i, cy - 2 + j, MAP_MARK_COLS[ch]); }));
     }
   }
+  // the pack a fall left (deeds.js)
+  drawMapCache(px, at, on);
   // where the diver is, blinking
   const d = Game.dive;
   if (d && d.sortie && d.terr && on) { const [cx, cy] = at(L.terrs[d.terr]); for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) px(cx + 3 + i, cy + 1 + j, '#ffffff'); }
@@ -168,7 +176,7 @@ function drawMapCard() {
   const pill = `<span class="pill ${seen ? word : 'edge'}">${seen ? word.toUpperCase() : 'UNKNOWN'}</span>`;
   const row = (a, b) => `<div class="trow"><span>${a}</span><span>${b}</span></div>`;
   let h = `<div class="nm">${esc(t.name.toUpperCase())}</div><div class="sub">${t.home ? 'Ring 0 · home' : `Ring ${t.ring} · ${esc(seen ? climeName(t.clime) : 'beyond the light')}`}${pill}</div>`;
-  if (t.home) h += `<div class="goal">Home. The Lodestar hangs over the sinkhole, and every station is here. Its spire's light reaches the land next to it.</div>`;
+  if (t.home) h += `<div class="goal">Home. The Lodestar hangs over its cradle, and every station is here. Walk out any of its openings into the land next to it.</div>`;
   else if (!seen) h += `<div class="goal">Beyond the light. Nothing is known until it's walked.</div>` + row('ENEMIES', `level ${terrLevel(t)}+`);
   else {
     const ores = T.biomes[t.biome].ores.map((id) => T.ores[ORE_INDEX[id]].name).join(', ');
@@ -182,7 +190,13 @@ function drawMapCard() {
       h += `<div class="goal"><b>To kindle: ${esc(g[0])}.</b><br>${esc(g[1])}${prog ? `<br><span class="r-legendary">${prog}</span>` : ''}</div>` + row('THEN', `plant the spire (${T.world.plant} s)`);
     }
     if (s.visits && t.deep) h += row('A DEEP', `a portal down, ${t.deep} site${t.deep > 1 ? 's' : ''}${deepZone(t, t.deep) === 'lair' ? ", the Keeper's Lair at the bottom" : ''}`);
+    // what its deeds would give the star (deeds.js)
+    if (word !== 'kindled' && !s.starter) h += row('KINDLING IT', `+${heartLightFor(t)} heartlight${starHoldsSpire(t.id) ? '' : ` · its spire needs magnitude ${spireMagFor(t.id)}`}`);
+    if (s.visits && t.deep) h += row('ITS DEEP\'S END', deepReached(t.id) ? 'reached' : `+${deepLightFor(t)} deeplight, the first time`);
   }
+  // the pack a fall left here
+  const pack = Save.data.cache;
+  if (pack && pack.terr === t.id) h += `<div class="goal"><b class="r-legendary">Your pack lies here</b>${pack.site ? `, in its Deep (site ${pack.site})` : ''}. Walk to it to take it back. Fall again before you do, and it's lost.</div>`;
   const btns = [];
   if (mode === 'travel') {
     if (d && d.terr === t.id) btns.push('<p class="note">You are here.</p>');
@@ -210,7 +224,7 @@ function drawSetOut() {
   if (travel) { $('setout-body').innerHTML = `<p class="note">Tap a spire to travel there, or the star to go home. Travelling banks what you carry first.</p>`; return; }
   const owned = TOOL_IDS.filter(toolOwned);
   const carry = `<h3>CARRYING</h3><div class="chips">${owned.map((id) => `<button class="chip ${s.tool === id ? 'on' : ''}" data-act="carryTool" data-arg="${id}"><img class="chip-icon" src="${toolIconUrl(id)}" alt="">${esc(TOOLS[id].name)}</button>`).join('')}</div>`;
-  $('setout-body').innerHTML = carry + `<p class="note">Tap a territory for its card. Walk out into any land next to the outpost, or set out to any spire. Your light drains in dark land and fills again in kindled land.</p>`
+  $('setout-body').innerHTML = nextStepsHtml() + carry + `<p class="note">Tap a territory for its card. Walk out into any land next to the outpost, or set out to any spire. Your light drains in dark land and fills again in kindled land.</p>`
     + `<h3>CONTRACTS · SETTLED WHEN YOU COME HOME${s.swapped ? '' : ' · ONE SWAP A TRIP'}</h3>${contractRows(null)}` + drawToolRows();
 }
 

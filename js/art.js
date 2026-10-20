@@ -55,7 +55,7 @@ const ART = {
     star: ['#3a2a14', '#8a6430', '#d8ae5c', '#fff2c8'],
     shell: ['#0e0a10', '#1c1520', '#302434', '#4a3a4e'], eyeglow: ['#ff3d3d'], crystal: ['#a070ff'], coreglow: ['#fff4e0'], legs: ['#060407'],
   },
-  // the surface round the sinkhole, under the sun: each region's badlands.
+  // the surface round the outpost, under the sun: each region's badlands.
   // Mesa tops stay darker than the dust, and cast shadow to the south-east.
   surface: {
     rim: { sun: true, floor: ['#5a4632', '#6a543c', '#7a6248'], rock: ['#2a2018', '#33271d', '#3c2e22', '#a08060'], front: ['#4a3626', '#5a4430', '#6a523a'], glow: '#ffd25a' },
@@ -64,7 +64,7 @@ const ART = {
   },
   // what each rarity's drops and names glow with
   rarity: { common: '#b8b0a0', magic: '#6fa8ff', rare: '#ffd34d', legendary: '#ff8a3d', set: '#5fe08a', relic: '#c9a2ff' },
-  exotics: { voltaic: '#ffe45c', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890', riftglass: '#c060ff', emberglass: '#ff8a3a', blightcap: '#9ad04a' },
+  exotics: { voltaic: '#ffe45c', bloodresin: '#ff4a5c', frostglass: '#c8f0ff', lodeshard: '#ffd890', riftglass: '#c060ff', thread: '#d8ccff', emberglass: '#ff8a3a', blightcap: '#9ad04a' },
   // creature parts, until they have their own art: a colour a kind
   parts: { chitin: '#8a6a7a', ether: '#9fd8ff', cog: '#b89a58', fiber: '#8ab86a', spore: '#c87ab0', heart: '#ff6a4a' },
   // a Form's colour (when it has no Element), and each Glyph's; a Glyph's
@@ -97,8 +97,10 @@ const ART = {
   biomes: {
     rim: { floor: ['#22303a', '#2c3e4a', '#3a4e5c'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#9ccf4a' },
     choir: { floor: ['#282242', '#342c56', '#42386a'], rock: ['#06050e', '#0b0918', '#110e22', '#9a84d0'], front: ['#30285a', '#3e3470', '#504488'], glow: '#e070b0' },
-    // the outpost: worn flagstones on the rim, the same dark rock round it
-    outpost: { paving: true, floor: ['#2a2b33', '#34363f', '#40434d'], rock: ['#05070a', '#0a0d12', '#10141b', '#7c90b0'], front: ['#2c3448', '#3a445c', '#4c5872'], glow: '#9ccf4a' },
+    // the outpost: cleared ground under the sky, trodden, packed earth (the
+    // land beyond comes in at its edges, and starstone spreads from the
+    // cradle: hubground.js)
+    outpost: { sun: true, floor: ['#574c3f', '#65594a', '#736656'], rock: ['#2a2620', '#322d26', '#3a342c', '#a8987a'], front: ['#4a4236', '#584e40', '#665b4a'], glow: '#ffd25a' },
     underforge: { floor: ['#33252a', '#402e34', '#503a40'], rock: ['#080506', '#0f090b', '#160d10', '#b07060'], front: ['#46282a', '#5a3436', '#704244'], glow: '#ff7a2a' },
   },
 };
@@ -904,6 +906,7 @@ function art2Sprite(rows, pal, opts) {
 
 function itemIconUrl(item) {
   if (item.kind === 'stone') return stoneIconUrl(item.stone);
+  if (item.kind === 'module') return moduleIconUrl(item);
   const style = item.kind === 'relic' ? item.kind : ((typeof bpOf === 'function' && bpOf(item)) || {}).style;
   const own = ICON_ROWS2[style] && !ICON_ROWS[style];
   const rows = own ? ICON_ROWS2[style] : ICON_ROWS[item.kind];
@@ -940,9 +943,12 @@ const STUFF_ROWS = [
   'MMMMMMMMMMM',
 ];
 function stuffIconUrl(id) {
+  if (id === 'thread') return threadIconUrl();
   const key = 'stuff/' + id;
   let url = _iconCache.get(key);
   if (url) return url;
+  // (the light of deeds has its own: deeds.js)
+  if (typeof isLight === 'function' && isLight(id)) return lightIconUrl(id);
   const part = parsePart(id);
   if (part) {
     url = art2Sprite(PART_ROWS[part.kind], PART_PAL[part.kind][part.grade - 1]).c.toDataURL();

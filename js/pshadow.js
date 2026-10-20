@@ -155,31 +155,51 @@ function pshBlocked(f, x0, y0, x1, y1) {
   const W = f.w * ATILE, R = View.rockPx, n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 4);
   for (let i = 1; i < n; i++) {
     const x = (x0 + ((x1 - x0) * i) / n) | 0, y = (y0 + ((y1 - y0) * i) / n) | 0;
-    if (R[y * W + x] && floorTile(f, Math.floor(x / ATILE), Math.floor(y / ATILE)) !== TILE_PIT) return true;
+    if (R[y * W + x]) return true;
   }
   return false;
 }
 
 // What stands at home and doesn't move, each { spr, x, y } (its feet, floor
-// px), and the plaza's lights, each { x, y (its foot), h (how high it
-// stands), lx, ly (where its light is), r, i } (px).
+// px), and the plaza's lights (its light masts and the forge), each { x, y
+// (its foot), h (how high it stands), lx, ly (where its light is), r, i }
+// (px).
 function pshHubStill(d) {
   const out = [];
   for (const a of hubProps(d)) {
     if (a.station) { const s = a.station, at = stationAt(s, 0, 0); out.push({ spr: stationSprite(s.id), x: at.x, y: at.y }); }
     else if (a.wreck) { const s = HUB_STATIONS.find((x) => x.id === 'wreck'); out.push({ spr: hartUplink(), x: Math.round((s.x + 0.5) * ATILE), y: Math.round((s.y + 0.5) * ATILE) }); }
     else if (a.lamp) out.push({ spr: hartLantern(a.lit), x: Math.round((a.at[0] + 0.5) * ATILE), y: Math.round((a.at[1] + 0.5) * ATILE), lamp: a });
-    else if (a.tent !== undefined) { const [tx, ty] = TENT_SPOTS[a.tent]; out.push({ spr: hartTent(a.tent % 2), x: Math.round((tx + 0.5) * ATILE), y: Math.round((ty + 0.5) * ATILE) + ap(2) }); }
-    else if (a.dress) out.push({ spr: hartProp(a.dress.kind), x: Math.round(a.dress.x * ATILE), y: Math.round(a.dress.y * ATILE), fire: a.dress.kind === 'firering' });
+    else if (a.gate) { const s = HUB_STATIONS.find((x) => x.id === 'setout'); out.push({ spr: hartGate(), x: Math.round((s.x + 0.5) * ATILE), y: Math.round((s.y + 0.5) * ATILE) + 1 }); }
+    else if (a.cradle) out.push({ spr: hartCradle(), x: Math.round(OUTPOST_CRADLE.x * ATILE), y: Math.round(OUTPOST_CRADLE.y * ATILE), cradle: true });
+    else if (a.pod) out.push({ spr: hartPod(a.look % 2), x: Math.round(a.pod.x * ATILE), y: Math.round(a.pod.y * ATILE) });
+    else if (a.lander) out.push({ spr: hartLander(), x: Math.round(a.lander.x * ATILE), y: Math.round(a.lander.y * ATILE + ap(4)) });
+    else if (a.dress) out.push({ spr: hartProp(a.dress.kind), x: Math.round(a.dress.x * ATILE), y: Math.round(a.dress.y * ATILE) });
   }
   return out;
 }
+// The star, as a light that casts at home: its foot on the ground under it
+// (the cradle's middle, where its share is measured from), how high it
+// hangs, its reach and strength, and how dark and how crisp its shadows
+// are, all growing with the magnitude (T.light.shadow.cast.star).
+function pshStarLight() {
+  const C = T.light.shadow.cast.star, mag = magnitudeOf(Save.data.star), k = clamp((mag - 1) / 7, 0, 1);
+  const x = Math.round(STAR_AT.x * ATILE), y = Math.round(OUTPOST_CRADLE.y * ATILE);
+  return { x, y, h: C.h, lx: x, ly: y, r: TILE * AP * (C.r[0] + C.r[1] * mag), i: C.i[0] + C.i[1] * mag, star: true, drop: lerp(C.drop[0], C.drop[1], k), spread: lerp(C.spread[0], C.spread[1], k) };
+}
+// The same, kept while the settlement and magnitude stay as they are (it's
+// read every frame for the lamp's shadows).
+const _pshStill = { sig: null, d: null, list: null };
+function pshHubStillKept(d) {
+  const K = _pshStill, sig = pshHubSig();
+  if (K.d !== d || K.sig !== sig) { K.d = d; K.sig = sig; K.list = pshHubStill(d); }
+  return K.list;
+}
 function pshHubLights(d, still) {
-  const L = [], C = T.light.shadow.cast.home;
+  const L = [pshStarLight()], C = T.light.shadow.cast.home;
   for (const s of still) {
     const spr = s.spr;
     if (s.lamp && s.lamp.lit) L.push({ x: s.x, y: s.y, h: spr.ay - spr.lamp.y, lx: s.x - spr.ax + spr.lamp.x, ly: s.y - spr.ay + spr.lamp.y, r: TILE * 2.2 * AP, i: 0.7, own: s });
-    if (s.fire) L.push({ x: s.x, y: s.y + 1, h: C.fireH, lx: s.x, ly: s.y - 6, r: TILE * 1.8 * AP, i: 0.75, own: s });
   }
   const fg = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(fg, 0, 0), fs = hartForge();
   L.push({ x: at.x - fs.ax + HART_MOUTH.x, y: at.y + 2, h: fs.ay - HART_MOUTH.y, lx: at.x - fs.ax + HART_MOUTH.x, ly: at.y - fs.ay + HART_MOUTH.y, r: TILE * 2.2 * AP, i: 1.0, forge: true });
@@ -208,7 +228,7 @@ function pshAxes(lx, ly, h, fx, fy, k) {
 function pshBake(f) {
   const d = Game.dive, P = T.paint.shade, C = T.light.shadow.cast, W = f.w * ATILE, Hp = f.h * ATILE;
   if (!d || d.floor !== f) return null;
-  const A = new Uint8Array(W * Hp), U = View.ug, sky = !!artBiome(f).sun && !d.hub;
+  const A = new Uint8Array(W * Hp), U = View.ug, sky = !!artBiome(f).sun;
   // the sun's strength (daylight in kindled land, a dusk in the dark)
   const sun = sky ? clamp(sunOf(d), 0, 1) : 0, G = T.paint.ground, szx = G.sunDir[0] / G.sunSlope, szy = G.sunDir[1] / G.sunSlope;
   const lv = lampLevels(d), amb = lv.amb * (lv.tint[0] + lv.tint[1] + lv.tint[2]) / 3;
@@ -235,9 +255,10 @@ function pshBake(f) {
     if (it.top) continue;
     if (it.strip) {
       // (a stand's row: its picture in the stands' atlas)
-      if (!U || !U.atlas) continue;
+      const UA = it.ug || U;
+      if (!UA || !UA.atlas) continue;
       let st = _pshItems.get(it);
-      if (!st) { const dd = U.atlas.getContext('2d').getImageData(it.sx, it.sy, it.w, it.h); st = { w: it.w, h: it.h, px: new Uint32Array(dd.data.buffer) }; _pshItems.set(it, st); }
+      if (!st) { const dd = UA.atlas.getContext('2d').getImageData(it.sx, it.sy, it.w, it.h); st = { w: it.w, h: it.h, px: new Uint32Array(dd.data.buffer) }; _pshItems.set(it, st); }
       const S = pshSil(st);
       if (S.foot < 0) continue;
       const fy = it.by0 + S.foot;
@@ -250,9 +271,10 @@ function pshBake(f) {
     pshBakeContact(A, f, cx + P.contactAt[0], fy + 0.5 + P.contactAt[1], hw + P.contactPad[cls], Math.min(P.contactRy[1], P.contactRy[0] + hw * 0.15), P.contact[cls]);
     cast(S, fx - sx, spr.h - 1, fx, fy + 0.5, spr.h);
   }
-  if (U && U.stamps) {
+  // (at the outpost, each side's too: hubground.js)
+  for (const UU of [U].concat(View.ugMeld || [])) if (UU && UU.stamps) {
     const seen = new Set();
-    for (const list of U.stamps) if (list) for (const s of list) {
+    for (const list of UU.stamps) if (list) for (const s of list) {
       if (seen.has(s)) continue;
       seen.add(s);
       const S = pshSil(s.st);
@@ -260,16 +282,23 @@ function pshBake(f) {
       pshBakeContact(A, f, s.x + (S.l + S.r + 1) / 2 + 0.5, s.y + S.foot + 1, (S.r - S.l + 1) / 2 + P.coverPad, P.coverRy, P.cover);
     }
   }
-  // at home: what stands round the plaza, from its lanterns, the forge and
-  // the fire (whichever is strongest at its feet)
+  // at home: what stands round the plaza, from the sun, from the star
+  // (away from it, long, longer further out, as dark as its share of the
+  // light there), and from the strongest of the light masts and the forge
+  // at its feet
   if (d.hub) {
-    const still = pshHubStill(d), HL = pshHubLights(d, still), amb0 = amb;
+    const still = pshHubStill(d), HL = pshHubLights(d, still), amb0 = amb, SL = HL[0], SC = C.star;
     PshBake.sig = pshHubSig();
     for (const s of still) {
       const spr = s.spr, S = pshSil(spr), hw = (S.r - S.l + 1) / 2, cx = s.x - spr.ax + (S.l + S.r + 1) / 2;
       pshBakeContact(A, f, cx + P.contactAt[0], s.y + 0.5 + P.contactAt[1], hw + P.contactPad[2], Math.min(P.contactRy[1], P.contactRy[0] + hw * 0.15), P.contact[2]);
+      if (sun > 0 && !s.flat) pshBakeCast(A, f, S, spr.ax, spr.ay, s.x, s.y + 0.5, 1, 0, szx, szy, 0, P.sun * sun, null);
+      const sa = s.cradle ? null : pshAxes(SL.x, SL.y, SL.h, s.x, s.y + 0.5, SC.k);
+      // (as dark as the star's share of the light at its foot: worked out
+      // once a thing, not a pixel)
+      if (sa) pshBakeCast(A, f, S, spr.ax, spr.ay, s.x, s.y + 0.5, sa[0], sa[1], sa[2], sa[3], sa[4] * SL.spread, SL.drop * Math.min(1, pshShare(SL, s.x, s.y, amb0) / SC.full), null);
       let best = null, bs = C.home.min;
-      for (const L of HL) { if (L.own === s) continue; const sh = pshShare(L, s.x, s.y, amb0); if (sh > bs) { bs = sh; best = L; } }
+      for (const L of HL) { if (L.own === s || L.star) continue; const sh = pshShare(L, s.x, s.y, amb0); if (sh > bs) { bs = sh; best = L; } }
       if (!best) continue;
       const ax2 = pshAxes(best.x, best.y, best.h, s.x, s.y + 0.5, C.home.k);
       if (ax2) pshBakeCast(A, f, S, spr.ax, spr.ay, s.x, s.y + 0.5, ax2[0], ax2[1], ax2[2], ax2[3], ax2[4], P.home, (x, y) => Math.min(1, pshShare(best, x, y, amb0) / C.home.full));
@@ -279,7 +308,7 @@ function pshBake(f) {
 }
 // What the plaza's baked shadows were made for: its settlement and its lit
 // lanterns (if either changes, the outpost is painted again).
-function pshHubSig() { return settlementSize() + '/' + magnitudeOf(Save.data.star); }
+function pshHubSig() { return settlementSize() + '/' + hubStarMag(); }
 
 // ---------------------------------------------------------------------------
 // Each frame: a mask of greys over the view, multiplied over the ground
@@ -349,8 +378,8 @@ function pshClipRun(k, c0, lo, hi, vfx) {
 // fx, fy (floor px), its axes as pshGeom's; footRow, the floor row it stands
 // on (rock whose foot is south of it stands in front, and hides it). Its
 // darkness: dark, all over (the sun's); or, if tab is given, by the
-// distance from the light Lt (pshTab), only within its reach and where its
-// sight S2 (if any) lets it.
+// distance from the light Lt (pshTab) times dark, only within its reach and
+// where its sight S2 (if any) lets it.
 function pshMaskCast(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, footRow, dark, tab, Lt, S2, ox, oy) {
   const M = PshMask, f = Game.dive.floor, W = f.w * ATILE, Hp = f.h * ATILE, LF = View.rockLift || View.rockPx, R = View.rockPx;
   let cx0 = 0, cy0 = 0, cx1 = M.w, cy1 = M.h;
@@ -408,7 +437,7 @@ function pshMaskCast(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, footRow, dark, t
       if (tab !== null) {
         const dx = x + 0.5 - lvx, n = ((dx * dx + dy2) * tk) | 0;
         if (n >= PSH_TAB) continue;
-        s = tab[n];
+        s = tab[n] * dark;
         if (svis !== null) { const ci = ((wx * iLC) | 0) - sx0; if (ci < 0 || ci >= sww || svis[vrow + ci] < 1) continue; }
       }
       // (softer further from the foot: its penumbra widens)
@@ -451,12 +480,13 @@ function pshKindlerSpr(d) {
 // it's drawn).
 function pshMovers(d) {
   const out = [], p = d.p;
-  out.push({ spr: pshKindlerSpr(d), x: Math.round(p.x * AP), y: Math.round(p.y * AP), me: true });
+  // (none while he's still in his pod, in the opening: intro.js)
+  if (!(d.hub && Intro.hub && Intro.hub.hidden)) out.push({ spr: pshKindlerSpr(d), x: Math.round(p.x * AP), y: Math.round(p.y * AP), me: true });
   if (d.hub) {
     for (const s of d.settlers || []) out.push({ spr: settlerSprite(s.look, s.walkT > 0 ? 1 + (Math.floor(s.walkT * 7) % 4) : 0, s.west), x: Math.round(s.x * AP), y: Math.round(s.y * AP) });
     const n = settlementSize();
     if (n >= 1) { const fg = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(fg, 0, 0), fs = hartForge(); out.push({ spr: hartPerson(1, 'smith', 0), x: at.x - fs.ax + HART_ANVIL.x - 14, y: at.y + 2 }); }
-    if (n >= 2) out.push({ spr: hartPerson(2, 'sit', 0), x: Math.round(HUB_SITTER[0] * ATILE), y: Math.round(HUB_SITTER[1] * ATILE) });
+    if (n >= 2) { const [sx, sy] = hubSitterAt(d.floor.site); out.push({ spr: hartPerson(2, 'sit', 0), x: Math.round(sx * ATILE), y: Math.round(sy * ATILE) }); }
     return out;
   }
   for (const e of d.enemies) {
@@ -469,7 +499,7 @@ function pshMovers(d) {
     if (a.wprop === 'spire') out.push({ spr: spireSprite(), x: Math.round((a.at.x + 0.5) * ATILE), y: Math.round(((a.at.y + 0.5) * TILE + 1) * AP) });
     else { const ts = terrPeek(d.terr) || {}, lit = (ts.lit || []).includes(a.k) || ts.done; out.push({ spr: waystoneSprite(lit), x: Math.round((a.at.x + 0.5) * ATILE), y: Math.round(((a.at.y + 0.5) * TILE + 1) * AP) }); }
   }
-  if (d.fieldForge) { const spr = stationSprite('forge'); out.push({ spr, x: Math.round((d.fieldForge.x + 0.5) * ATILE), y: Math.round((d.fieldForge.y + 0.5) * ATILE + ap(6)) }); }
+  if (d.fieldForge) out.push({ spr: fieldForgeSprite(d), x: Math.round((d.fieldForge.x + 0.5) * ATILE), y: Math.round((d.fieldForge.y + 0.5) * ATILE + ap(6)) });
   return out;
 }
 
@@ -512,14 +542,20 @@ function pshFrame(d, ox, oy) {
       let best = null, bs = C.home.min;
       for (const L of HL) { const s = pshShare(L, o.x, o.y, base); if (s > bs) { bs = s; best = L; } }
       if (!best) continue;
-      const ax = pshAxes(best.x, best.y, best.h, o.x, o.y + 0.5, C.home.k), spr = o.spr;
+      const ax = pshAxes(best.x, best.y, best.h, o.x, o.y + 0.5, best.star ? C.star.kMove : C.home.k), spr = o.spr;
       // (against the place's light and the lamp's at its feet)
-      const gl = lamp.i * lightFade(Math.min(1, Math.hypot(o.x - lamp.lx, o.y - lamp.ly) / lamp.r));
-      if (ax) pshMaskCast(pshSil(spr), spr.ax, spr.ay, o.x, o.y + 0.5, ax[0], ax[1], ax[2], ax[3], ax[4], o.y, 1, pshTab(best, base + gl, C.home.dark, C.home.full, 1), best, null, ox, oy);
+      const gl = lamp.i * lightFade(Math.min(1, Math.hypot(o.x - lamp.lx, o.y - lamp.ly) / lamp.r)) * (best.star ? C.star.lamp : 1);
+      if (ax) pshMaskCast(pshSil(spr), spr.ax, spr.ay, o.x, o.y + 0.5, ax[0], ax[1], ax[2], ax[3], ax[4] * (best.star ? best.spread : 1), o.y, 1, pshTab(best, base + gl, best.star ? best.drop : C.home.dark, best.star ? C.star.full : C.home.full, 1), best, null, ox, oy);
+    }
+    // Wick's, a soft blob away from the star, as far off as it hovers
+    const SL = HL[0];
+    if (d.drone) {
+      const wx = d.drone.x * AP, wy = (d.drone.y + T.wick.up) * AP, m = Math.hypot(wx - SL.x, wy - SL.y), up = T.wick.up * AP * clamp(m / SL.h, C.star.k[0], C.star.k[1]);
+      if (m > 2) pshMaskBlob(wx + ox + (wx - SL.x) / m * up, wy + oy + (wy - SL.y) / m * up, 4, 2.2, SL.drop * Math.min(1, pshShare(SL, wx, wy, base) / C.star.full));
     }
   }
   // by day under the sky: the sun's, for what moves
-  const sky = !!artBiome(f).sun && !d.hub, sun = sky ? clamp(sunOf(d), 0, 1) : 0;
+  const sky = !!artBiome(f).sun, sun = sky ? clamp(sunOf(d), 0, 1) : 0;
   if (sun > 0.05) {
     const G = T.paint.ground, szx = G.sunDir[0] / G.sunSlope, szy = G.sunDir[1] / G.sunSlope, dk = C.sun * sun;
     for (const o of movers) {
@@ -532,19 +568,31 @@ function pshFrame(d, ox, oy) {
   }
   // the lamp's: what stands within its reach, away from it (not at home,
   // where the lanterns cast them)
-  if (lv.lamp > 0 && lv.i > 0 && !d.hub) {
-    const S2 = T.light.shadow.walls && !d.hub ? lampSight(d, lv.r) : null, E = ap(T.light.shadow.eye), r = lv.r;
+  // (the lamp as a beam, T.light.beam: what stands in the beam casts from
+  // it, as dark as the beam is there across it; what stands only in the
+  // dim spill round him, from that)
+  const Bm = !d.hub ? lampBeamOf(d, lv) : null;
+  if (Bm) { lamp.x = Bm.lx; lamp.lx = Bm.x; lamp.ly = Bm.y; lamp.r = Bm.r; lamp.i = Bm.i; }
+  const spill = Bm ? { lx: Bm.lx, ly: Bm.sy, x: Bm.lx, y: lamp.y, r: Bm.sr, i: Bm.si } : null;
+  // (at home, the modules, masts, pods and landers near it too)
+  if (lv.lamp > 0 && lv.i > 0) {
+    const S2 = T.light.shadow.walls && !d.hub ? (Bm ? lampBeamSight(d, Bm) : lampSight(d, lv.r)) : null, E = ap(T.light.shadow.eye), r = lamp.r;
     // (the fixed lights already there at the lamp's foot share the light)
     const bk = View.bake, bake = (x, y) => { if (!bk) return 0; const i = Math.floor(x / LC), j = Math.floor(y / LC); if (i < 0 || j < 0 || i >= bk.w || j >= bk.h) return 0; const o = (j * bk.w + i) * 3; return (bk.a[o] + bk.a[o + 1] + bk.a[o + 2]) / 3 / T.art.lightSteps; };
     const one = (spr, ax, ay, fx, fy, footRow) => {
       const dx = fx - lamp.x, dy = fy - lamp.y;
       if (dx * dx + dy * dy > r * r) return;
       if (S2) { const ci = Math.floor(fx / LC) - S2.x0, cj = Math.floor((fy - 1) / LC) - S2.y0; if (ci < 0 || cj < 0 || ci >= S2.w || cj >= S2.w || S2.vis[cj * S2.w + ci] < 1) return; }
+      let Lt = lamp, dk = 1;
+      if (Bm) {
+        dk = Math.min(1, beamAcross(Bm, fx, fy));
+        if (dk < 0.2) { Lt = spill; dk = 1; if ((fx - spill.lx) ** 2 + (fy - spill.ly) ** 2 >= spill.r * spill.r) return; }
+      }
       // (none where the lamp's shadow would be faint at its foot)
-      const tab = pshTab(lamp, amb + bake(fx, fy), C.lamp, 0, C.pow), hx = fx - lamp.lx, hy = fy - lamp.ly, n = ((hx * hx + hy * hy) * PSH_TAB / (r * r)) | 0;
-      if (n >= PSH_TAB || tab[n] < C.least) return;
+      const tab = pshTab(Lt, amb + bake(fx, fy), C.lamp, 0, C.pow), hx = fx - Lt.lx, hy = fy - Lt.ly, n = ((hx * hx + hy * hy) * PSH_TAB / (Lt.r * Lt.r)) | 0;
+      if (n >= PSH_TAB || tab[n] * dk < C.least) return;
       const a = pshAxes(lamp.x, lamp.y, E, fx, fy, C.lampK);
-      if (a) pshMaskCast(pshSil(spr), ax, ay, fx, fy, a[0], a[1], a[2], a[3], a[4], footRow, 1, tab, lamp, S2, ox, oy);
+      if (a) pshMaskCast(pshSil(spr), ax, ay, fx, fy, a[0], a[1], a[2], a[3], a[4], footRow, dk, tab, Lt, S2, ox, oy);
     };
     const FG = pshFloraGrid(f), ti0 = Math.max(0, Math.floor((lamp.x - r) / ATILE)), ti1 = Math.min(f.w - 1, Math.floor((lamp.x + r) / ATILE));
     for (let tj = Math.max(0, Math.floor((lamp.y - r) / ATILE)); tj <= Math.min(f.h - 1, Math.floor((lamp.y + r) / ATILE)); tj++) for (let ti = ti0; ti <= ti1; ti++) for (const it of FG.cells[tj * f.w + ti] || PSH_NONE) {
@@ -556,6 +604,12 @@ function pshFrame(d, ox, oy) {
       one(spr, fx - Math.round(fx - spr.w / 2), spr.h - 1, fx, fy + 0.5, fy);
     }
     for (const o of movers) if (!o.me) one(o.spr, o.spr.ax, o.spr.ay + (o.lift || 0) * AP, o.x, o.y + 0.5, o.y);
+    // (at home only at dusk, and only the few things nearest: the props
+    // are big)
+    if (d.hub && lv.lamp >= C.homeLamp[0]) {
+      const near = pshHubStillKept(d).filter((s) => Math.abs(s.x - lamp.x) < r + s.spr.w / 2 && Math.abs(s.y - lamp.y) < r).sort((a, b) => Math.hypot(a.x - lamp.x, a.y - lamp.y) - Math.hypot(b.x - lamp.x, b.y - lamp.y));
+      for (const s of near.slice(0, C.homeLamp[1])) one(s.spr, s.spr.ax, s.spr.ay, s.x, s.y + 0.5, s.y);
+    }
   }
   pshMaskEnd();
 }

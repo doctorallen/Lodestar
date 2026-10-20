@@ -11,8 +11,13 @@
 // Your light (d.pull) drains in dark land and refills in kindled land. When
 // it's gone the Hollow comes, in every dark territory entered until it's
 // back. A spire (TILE_PAD at a kindled territory's heart) banks the cargo
-// (BANK) and opens the world map (TRAVEL). A fall loses the cargo and wakes
-// the diver at the last spire touched; the pocket is safe.
+// (BANK) and opens the world map (TRAVEL). A fall leaves the cargo where it
+// fell, the Kindler's pack, to go back for once (deeds.js), and wakes the
+// diver at the last spire touched; the pocket comes home.
+//
+// The star grows from deeds (deeds.js): kindling a territory gives
+// heartlight, a Deep's end, an ancient forge and an echo deeplight. A spire
+// holds only where the star's light reaches (T.star.ringMag).
 //
 // Each territory has a heart goal (light the waystones, or seal the tear at
 // its heart). Done, the spire is planted there and the territory is kindled
@@ -115,6 +120,7 @@ function enterTerritory(id, how = {}) {
   if (d.kindled) { const s = d.enemies.find((e) => !e.elite && !e.boss); d.enemies = s && rng.chance(X.straggler) ? [s] : []; }
   placeFieldForge(d);
   placeLife(d);
+  placeCacheHere(d);
   ts.visits = (ts.visits || 0) + 1;
   d.maxRing = Math.max(d.maxRing || 0, t.ring);
   if (d.kindled) { d.pull = 1; d.pullTime = X.light; }
@@ -128,6 +134,7 @@ function enterTerritory(id, how = {}) {
   // the story's first times (story.js; a key it doesn't know says nothing)
   Story.say([null, null, 'ring2', 'ring3', 'theEdge'][t.ring]);
   if (!d.kindled) UI.tip('darkLand', 'Dark land: your light runs down here. Kindled land fills it again');
+  if (!d.kindled && !starHoldsSpire(id)) UI.toast(`The star's light can't hold a spire here yet: magnitude ${spireMagFor(id)}`);
   else if (f.pad) { UI.tip('spire', 'A spire: BANK your cargo here, or TRAVEL to another'); Story.say('firstSpire'); }
   noticeRift(d);
   saveRun(d);
@@ -171,6 +178,7 @@ function updateFrontier(d, dt) {
       if (!ts.lit.includes(h.k)) ts.lit.push(h.k);
       ts.done = true;
       UI.toast('The waystones burn', 'legendary');
+      snd('waystonesBurn');
       buzz(40);
     }
   }
@@ -182,7 +190,8 @@ function updateFrontier(d, dt) {
 // Walking off the edge into the neighbour it faces (0: home).
 function crossTo(d, to) {
   d.p.mine = null; d.channel = null;
-  d.warp = { t: 0, at: null, zone: isKindled(to) ? 'surface' : 'dusk', go: () => (to === 0 ? goHome('walk') : enterTerritory(to, { from: d.terr })) };
+  d.warp = { t: 0, at: null, zone: isKindled(to) ? 'surface' : 'dusk', go: () => (to === 0 ? goHome('walk', d.terr) : enterTerritory(to, { from: d.terr })) };
+  snd('portal');
   buzz(20);
 }
 
@@ -195,10 +204,9 @@ function warpArrive(d, w) {
 }
 
 // --- banking, travel, home -----------------------------------------------------
-// The cargo and the pocket into the stash. Coming home (feed), the star
-// drinks from the deepest dark land walked this sortie, as the old ride home
-// did: once a sortie, however often it banked on the way.
-function bankHaul(d, feed) {
+// The cargo and the pocket into the stash (the deeplight carried with it,
+// for the altar).
+function bankHaul(d) {
   const s = Save.data.stash, b = d.banked, got = {};
   const add = (k, n) => { s[k] = (s[k] || 0) + n; b.stuff[k] = (b.stuff[k] || 0) + n; got[k] = (got[k] || 0) + n; };
   const run = Save.data.run, kept = bankPocket(d);
@@ -208,12 +216,9 @@ function bankHaul(d, feed) {
   for (const k in d.cargo) if (d.cargo[k] > 0) add(k, d.cargo[k]);
   Save.data.items.push(...d.items); b.items.push(...d.items);
   b.learned.push(...bankBlueprints(d));
-  const fed = feed && d.far ? T.star.extractStar * d.far * d.far : 0;
-  Save.data.star += fed; b.fed += fed;
-  if (feed) d.far = 0;
   const n = d.items.length;
   d.cargo = {}; d.items = [];
-  return { got, n, fed };
+  return { got, n };
 }
 
 function bankAtSpire(d, quiet) {
@@ -222,6 +227,7 @@ function bankAtSpire(d, quiet) {
   Save.save();
   saveRun(d);
   if (quiet) return;
+  snd('bank');
   const what = [stuffLines(r.got), r.n ? `${r.n} piece${r.n > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(', ');
   UI.toast(what ? `Banked: ${what}` : 'Nothing to bank', what ? 'legendary' : undefined);
 }
@@ -235,18 +241,20 @@ function travelFrom(d, to) {
 }
 function travelDone(d, to) {
   bankAtSpire(d, true);
+  snd('travel');
   d.warp = { t: 0, at: null, zone: 'surface', go: () => (to === 0 ? goHome('spire') : enterTerritory(to, { spire: true })) };
 }
 
 // Home: everything carried is banked, contracts settle, and the report.
-function goHome(how) {
+// from: the territory walked home from, if walked.
+function goHome(how, from) {
   const d = Game.dive;
-  bankHaul(d, true);
+  bankHaul(d);
   Save.data.run = null;
   Save.data.lastSpire = 0;
   const b = d.banked, contracts = settleContracts(d, b.stuff);
   Save.save();
-  enterHub({ banked: b.stuff, items: b.items, fed: b.fed, learned: b.learned, contracts, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), how, kindled: (d.tally && d.tally.kindled) || 0 });
+  enterHub({ banked: b.stuff, items: b.items, light: (d.tally && d.tally.light) || {}, learned: b.learned, contracts, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), how, kindled: (d.tally && d.tally.kindled) || 0 }, { from });
 }
 
 // Where a sortie got to, for the report.
@@ -277,6 +285,7 @@ function stoneLit(d, k) {
     d.hold = { k, t: 0, waveT: W.waveEvery };
   } else ts.lit.push(k);
   // (what's left to do is the goal's, over the view: goalLines)
+  snd('waystone');
   buzz(30);
 }
 
@@ -308,7 +317,10 @@ function kindleTerritory(d) {
   const line = typeof kindleLogLine === 'function' ? kindleLogLine(t.clime, t.name) : '';
   if (line) UI.toast(line, 'log');
   Story.say('firstKindled');
+  snd('kindle');
   buzz(60);
+  // its heart's light, bound to the Kindler (deeds.js)
+  deedKindled(d, t);
 }
 
 // --- the Deeps ------------------------------------------------------------
@@ -340,6 +352,7 @@ function enterDeepSite(k) {
   spawnEnemies(d);
   placeFieldForge(d);
   placeLife(d);
+  placeCacheHere(d);
   d.far = Math.max(d.far || 0, t.depth);
   // a lair's lodeline is dark until its Keeper falls; the Keeper holds the
   // dark off while it lives
@@ -348,6 +361,8 @@ function enterDeepSite(k) {
   d.arrive = { t: 0, zone };
   d.mined = [];
   if (k === 1) { const tl = d.tally || (d.tally = {}); tl.deeps = (tl.deeps || 0) + 1; }
+  // the Deep's end, reached: its light, the first time (deeds.js)
+  if (k >= n) deedDeepEnd(d, t);
   UI.toast(`The Deep · ${placeName(zone, clime)} · site ${k} of ${n}${d.floor.pad || zone === 'lair' ? '' : ': no light reaches down here'}`);
   Story.say('firstDeep');
   Story.say(T.biomes[t.biome].id);
@@ -473,6 +488,26 @@ function drawWorldProp(d, a, ox, oy, lights) {
   }
 }
 
+// An ancient forge, where one stands (game.js, placeFieldForge): it stands
+// among the actors by its feet, dust of this floor's ground round its foot
+// (hubart.js), its cracked port glowing cold and breathing slowly, one
+// status light still blinking.
+function fieldForgeSprite(d) { return hartOldForge(pntLook(artBiome(d.floor))); }
+function fieldForgeProps(d) {
+  return d.fieldForge ? [{ fieldForge: true, hubDraw: drawFieldForge, hidden: true, y: (d.fieldForge.y + 0.5) * TILE + 6 }] : [];
+}
+function drawFieldForge(d, a, ox, oy, lights) {
+  const spr = fieldForgeSprite(d), P = HART_OLD.port, O = T.paint.hub.old, fy = Math.round((d.fieldForge.y + 0.5) * ATILE + ap(6)) + oy;
+  const x = Math.round((d.fieldForge.x + 0.5) * ATILE) + ox - spr.ax, y = fy - spr.ay;
+  drawArtSprite(spr, x, y);
+  const glow = hartOldForgeGlow(Math.floor(Game.realT * 2.5) % 3);
+  drawArtSprite(glow, x + P.x - glow.ax, y + P.y - glow.ay);
+  if (Math.floor(Game.realT * 0.8) % 3 === 0) dot(x + HART_OLD.led.x, y + HART_OLD.led.y, HART.cold[3], true);
+  const br = 1 - O.breathAmt + O.breathAmt * Math.sin(Game.realT * O.breath);
+  lights.push({ x: x + P.x, y: y + P.y, r: TILE * O.light[0], i: O.light[1] * br, c: rgb01(HART.cold[4]) });
+  paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
+}
+
 // On the ground, under everyone: the light of a held waystone, and the mark
 // at the heart once the goal is done.
 function drawWorldUnder(d, ox, oy, lights) {
@@ -501,7 +536,7 @@ function drawWorldUnder(d, ox, oy, lights) {
 
 // Over the lit scene: where each opening leads, and its way out.
 function drawExitMarks(d, ox, oy) {
-  if (!d.sortie || d.deep || !d.floor.exits) return;
+  if (!(d.sortie || d.hub) || d.deep || !d.floor.exits) return;
   const p = d.p, blink = Math.floor(Game.realT * 3) % 2;
   for (const e of d.floor.exits) {
     const wx = (e.x + 0.5 + e.nx * 0.5) * TILE, wy = (e.y + 0.5 + e.ny * 0.5) * TILE, m = dist(wx, wy, p.x, p.y) / TILE;
@@ -545,14 +580,16 @@ function exitLabel(text, col) {
 function goalLines(d) {
   if (!d || !d.sortie || d.deep || d.kindled || !d.terr) return null;
   const t = terrOf(d.terr), ts = terrPeek(d.terr) || {}, out = [];
-  if (ts.done) return ['◇ Plant the spire at the heart'];
-  if (t.goal === 'rift') return ['◇ Seal the tear at the heart', 'then plant the spire'];
+  // (the star's reach: a spire holds only where its light does)
+  const reach = starHoldsSpire(d.terr) ? null : `◇ The star must reach magnitude ${spireMagFor(d.terr)} to hold a spire here`;
+  if (ts.done) return reach ? [reach, 'Bring it light from your deeds'] : ['◇ Plant the spire at the heart'];
+  if (t.goal === 'rift') return ['◇ Seal the tear at the heart', reach ? `then the spire, at magnitude ${spireMagFor(d.terr)}` : 'then plant the spire'];
   const lit = ts.lit || [];
   for (let k = 0; k < 3; k++) {
     if (d.hold && d.hold.k === k) out.push(`◈ Stay in its light: ${Math.max(0, Math.ceil(T.world.waystone.hold - d.hold.t))} s`);
     else if (lit.includes(k)) out.push(`◆ Waystone ${k + 1} lit`);
     else out.push(lit.length === 2 ? '◇ Light the last, and hold it' : `◇ Light waystone ${k + 1}`);
   }
-  out.push('then plant the spire');
+  out.push(reach ? `then the spire, at magnitude ${spireMagFor(d.terr)}` : 'then plant the spire');
   return out;
 }

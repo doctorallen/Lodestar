@@ -143,33 +143,15 @@ function deepSeed(worldSeed, id, site) { return hashInts(worldSeed, id, 0xdee9, 
 function generateTerritory(worldSeed, id) {
   const L = worldLayout(worldSeed), t = L.terrs[id];
   if (!t || t.home) return null;
-  const seed = territorySeed(worldSeed, id), X = T.world.exits;
+  const seed = territorySeed(worldSeed, id);
   const f = generateFloor(seed, t.depth, t.biome, 0, 'surface', t.deep ? 1 : 0, t.clime, T.world.gen);
   const { w, h, tiles, ore } = f, rng = new Rng(hashInts(seed, 0xe417));
-  const steps = floorDistances(tiles, w, h, f.entry.x, f.entry.y);
-  // the openings: each on the side of the map facing its neighbour, kept
-  // apart round the edge and away from the corners
-  const ang = t.nb.map((n) => ({ to: n, a: Math.atan2(L.terrs[n].cy - t.cy, L.terrs[n].cx - t.cx) })).sort((p, q) => p.a - q.a);
-  const gap = (X.apart / (4 * (w - 4))) * Math.PI * 2;
-  for (let it = 0; it < 30 && ang.length > 1; it++)
-    for (let k = 0; k < ang.length; k++) {
-      const p = ang[k], q = ang[(k + 1) % ang.length];
-      let dd = q.a - p.a;
-      if (k === ang.length - 1) dd += Math.PI * 2;
-      if (dd < gap) { const push = (gap - dd) / 2 + 1e-4; p.a -= push; q.a += push; }
-    }
-  const c = (w - 1) / 2, lo = 8, hi = w - 9;
+  const steps = floorDistances(tiles, w, h, f.entry.x, f.entry.y), c = (w - 1) / 2;
+  // the openings: each on the side of the map facing its neighbour
   f.exits = [];
-  for (const o of ang) {
-    const dx = Math.cos(o.a), dy = Math.sin(o.a), m = Math.max(Math.abs(dx), Math.abs(dy));
-    let ex = c + (dx / m) * (c - 1), ey = c + (dy / m) * (c - 1);
-    // which side, and the point along it
-    let nx = 0, ny = 0;
-    if (Math.abs(dx) >= Math.abs(dy)) { ex = dx > 0 ? w - 2 : 1; ey = clamp(Math.round(ey), lo, hi); nx = dx > 0 ? -1 : 1; }
-    else { ey = dy > 0 ? h - 2 : 1; ex = clamp(Math.round(ex), lo, hi); ny = dy > 0 ? -1 : 1; }
-    const ax = ex + nx * X.inward, ay = ey + ny * X.inward;
-    carveExit(f, steps, ex, ey, nx, ny, rng);
-    f.exits.push({ x: ex, y: ey, to: o.to, nx, ny, ax, ay });
+  for (const o of worldExitSpots(L, t, w, h)) {
+    carveExit(f, steps, o.x, o.y, o.nx, o.ny, rng);
+    f.exits.push(o);
   }
   // more veins than a site's: dark land is worth mining
   const deepOre = Math.min(T.oreDeep.max, T.oreDeep.base + T.oreDeep.perFloor * (t.depth - 1)), B = T.biomes[t.biome];
@@ -230,6 +212,35 @@ function generateTerritory(worldSeed, id) {
   }
   f.territory = id;
   return f;
+}
+
+// Where a map w × h tiles has its openings: one for each of t's
+// neighbours, on the side facing it, kept X.apart tiles apart round the
+// edge and away from the corners. Each is { x, y, to, nx, ny (pointing in),
+// ax, ay (where one walking in arrives) }, in order round the map. Drawn
+// from no generator, so the outpost and a territory agree on it.
+function worldExitSpots(L, t, w, h) {
+  const X = T.world.exits;
+  const ang = t.nb.map((n) => ({ to: n, a: Math.atan2(L.terrs[n].cy - t.cy, L.terrs[n].cx - t.cx) })).sort((p, q) => p.a - q.a);
+  const gap = (X.apart / (4 * (w - 4))) * Math.PI * 2;
+  for (let it = 0; it < 30 && ang.length > 1; it++)
+    for (let k = 0; k < ang.length; k++) {
+      const p = ang[k], q = ang[(k + 1) % ang.length];
+      let dd = q.a - p.a;
+      if (k === ang.length - 1) dd += Math.PI * 2;
+      if (dd < gap) { const push = (gap - dd) / 2 + 1e-4; p.a -= push; q.a += push; }
+    }
+  const c = (w - 1) / 2, lo = 8, hi = w - 9, out = [];
+  for (const o of ang) {
+    const dx = Math.cos(o.a), dy = Math.sin(o.a), m = Math.max(Math.abs(dx), Math.abs(dy));
+    let ex = c + (dx / m) * (c - 1), ey = c + (dy / m) * (c - 1);
+    // which side, and the point along it
+    let nx = 0, ny = 0;
+    if (Math.abs(dx) >= Math.abs(dy)) { ex = dx > 0 ? w - 2 : 1; ey = clamp(Math.round(ey), lo, hi); nx = dx > 0 ? -1 : 1; }
+    else { ey = dy > 0 ? h - 2 : 1; ex = clamp(Math.round(ex), lo, hi); ny = dy > 0 ? -1 : 1; }
+    out.push({ x: ex, y: ey, to: o.to, nx, ny, ax: ex + nx * X.inward, ay: ey + ny * X.inward });
+  }
+  return out;
 }
 
 // Open ground with open ground all round it and no hazard near: room for a

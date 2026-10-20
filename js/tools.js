@@ -3,9 +3,10 @@
 // Tools. The diver carries one, chosen at the portal before setting out, and
 // each changes what can be seen or done out there: where the light is,
 // where the ore is, what's coming, the lay of the land, a pocket more, a
-// spire's light called down where there's none. The Compass is carried from the
-// start; the rest are made once, from the stash, as the star grows
-// (T.tools: the magnitude each needs, and what it costs).
+// spire's light called down where there's none, modules likelier. The
+// Compass is carried from the start; the rest are made once, at the forge,
+// as the star grows (their recipes are in blueprints.js; T.tools: the
+// magnitude each needs, and what it costs).
 // ---------------------------------------------------------------------------
 
 const TOOLS = {
@@ -14,9 +15,10 @@ const TOOLS = {
   radar: { name: 'Threat Radar', icon: 'radar', text: 'Marks at the edge of the view for what is out there: red for the dangerous, violet for the Hollow.' },
   map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each place as you walk it, with its portals, spire and waystones once seen.' },
   satchel: { name: 'Deep Satchel', icon: 'satchel', text: 'One more pocket slot, so more comes home whatever happens.' },
+  lens: { name: 'Capture Lens', icon: 'lure', text: "The suit's capture field reaches further: creatures leave modules half again as often." },
   beacon: { name: 'Lode Beacon', icon: 'beacon', text: "Once a sortie: call a spire's light down where you stand, to bank and travel from, and to stand in while your light comes back. It takes a few seconds to land, and its light draws everything near." },
 };
-const TOOL_IDS = ['compass', 'oresense', 'radar', 'beacon', 'map', 'satchel'];
+const TOOL_IDS = ['compass', 'oresense', 'radar', 'beacon', 'map', 'satchel', 'lens'];
 
 const _toolIcons = {};
 function toolIconUrl(id) {
@@ -26,22 +28,11 @@ function toolIconUrl(id) {
 
 function toolOwned(id) { return (Save.data.tools || []).includes(id); }
 function toolOpen(id) { return magnitudeOf(Save.data.star) >= T.tools[id].mag; }
-// How many of k the stash holds: an ore or exotic by its id, a part by its
-// kind in any grade.
-function toolHave(k) { const s = Save.data.stash; return PARTS[k] ? [1, 2, 3].reduce((n, g) => n + (s[partId(k, g)] || 0), 0) : s[k] || 0; }
-function toolAffordable(id) { const c = T.tools[id].cost; return Object.keys(c).every((k) => toolHave(k) >= c[k]); }
+// Makes a tool from the stash (its recipe at the forge): once, when it's
+// known and the star has grown enough. It's carried next.
 function makeTool(id) {
-  if (toolOwned(id) || !toolOpen(id) || !toolAffordable(id)) return false;
-  const s = Save.data.stash, c = T.tools[id].cost;
-  for (const k in c) {
-    // parts from the lowest grade up
-    let left = c[k];
-    for (const id of PARTS[k] ? [1, 2, 3].map((g) => partId(k, g)) : [k]) {
-      const n = Math.min(left, s[id] || 0);
-      s[id] -= n; left -= n;
-      if (!s[id]) delete s[id];
-    }
-  }
+  const rid = 'tool_' + id;
+  if (toolOwned(id) || !toolOpen(id) || !Save.data.blueprints.includes(rid) || !recipePay(recipeCost(rid), Save.data.stash)) return false;
   Save.data.tools.push(id);
   Save.data.tool = id;
   Save.save();
@@ -109,8 +100,9 @@ function plantBeacon() {
   if ((d.fieldForge && Math.hypot(d.fieldForge.x - tx, d.fieldForge.y - ty) < 2) || (d.rift && d.rift.open && [d.rift, d.rift.pair].some((r) => r && Math.hypot(r.x - tx, r.y - ty) < 2))) { UI.toast('Not so close to that'); return false; }
   if (floorTile(f, tx, ty) !== TILE_FLOOR) { UI.toast('The beacon needs open ground'); return false; }
   d.beacon = { x: tx, y: ty, t: 0, landed: false };
-  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.tools.beacon.noise) wake(d, e);
+  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.tools.beacon.noise) wake(d, e, true);
   UI.toast(d.deep ? "The beacon is calling the star's light down" : "The beacon is calling a spire's light down", 'legendary');
+  snd('beacon');
   return true;
 }
 function landBeacon(d, quiet) {
@@ -123,8 +115,9 @@ function landBeacon(d, quiet) {
   d.padDark = false;
   repaintAround(f, b.x, b.y);
   if (quiet) return;
-  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, (b.x + 0.5) * TILE, (b.y + 0.5) * TILE) < T.tools.beacon.noise) wake(d, e);
+  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, (b.x + 0.5) * TILE, (b.y + 0.5) * TILE) < T.tools.beacon.noise) wake(d, e, true);
   UI.toast(d.deep ? 'The light lands: rise here' : "A spire's light lands: bank here, or stand in it", 'legendary');
+  snd('beaconLand');
   buzz(40);
 }
 

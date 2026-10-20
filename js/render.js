@@ -96,6 +96,40 @@ function diverLampAt(d) {
   return { x: Math.round(p.x * AP) - s.ax + s.lamp.x, y: Math.round(p.y * AP) - s.ay + s.lamp.y };
 }
 
+// Is the suit lamp a beam (T.light.beam) rather than the round glow? The
+// pause screen's LAMP, else the default.
+function lampIsBeam() {
+  const s = typeof Save !== 'undefined' && Save.data && Save.data.settings;
+  return s && s.lamp ? s.lamp === 'beam' : !!T.light.beam.on;
+}
+
+// The suit lamp's beam this frame, or null when it's the round glow. From
+// the brow lamp of the facing he's drawn turned to, the way he's turned
+// (the rig's smoothed facing, diver.js kindlerPick; the aim, casting).
+// lx, ly: the brow lamp; x, y: where the cone starts, between the feet and
+// the lamp; ax, ay: its apex, set back behind that; dx, dy: the way it
+// points; r, i: reach and strength; core, main, edge: the half-angles of
+// its core, its edge and its faint halo's edge (cOut, that one's cosine);
+// sy, sr, si: the spill round him (centred under the lamp). All in art px
+// in the world. lv: lampLevels(d).
+function lampBeamOf(d, lv) {
+  if (!lampIsBeam()) return null;
+  const B = T.light.beam, p = d.p, A = d.kAnim, pose = p.castPose;
+  const ang = pose && pose.a !== undefined ? pose.a : A && A.p === p ? A.ang : Math.atan2(p.fy, p.fx);
+  const dx = Math.cos(ang), dy = Math.sin(ang), s = Sprites.diver[facingIndex(dx, dy)][0];
+  const feet = Math.round(p.y * AP), lx = Math.round(p.x * AP) - s.ax + s.lamp.x, ly = feet - s.ay + s.lamp.y;
+  const x = lx, y = Math.round(lerp(feet, ly, B.rise));
+  // your light draining: it narrows, and gutters now and then
+  const low = d.hub ? 0 : clamp(1 - d.pull / T.pull.dimAt, 0, 1), t = Game.realT;
+  const wob = Math.sin(t * 7.1) + Math.sin(t * 12.7 + 1.3) + Math.sin(t * 19.3 + 2.1);
+  const flick = 1 - B.low.flicker * low * clamp((wob - 1.2) / 1.2, 0, 1), nar = lerp(1, B.low.narrow, low), rad = Math.PI / 180;
+  return {
+    ang, dx, dy, lx, ly, x, y, ax: x - dx * B.back, ay: y - dy * B.back, feet, r: lv.r * B.reach, i: B.i * lv.lamp * flick,
+    core: B.core * nar * rad, main: B.edge * nar * rad, edge: B.edge * B.halo[0] * nar * rad, cOut: Math.cos(B.edge * B.halo[0] * nar * rad),
+    sy: Math.round((feet + ly) / 2), sr: lv.r * B.spill[0], si: lv.i * B.spill[1] * flick, flick,
+  };
+}
+
 // Which of the eight facings a direction is.
 function facingIndex(fx, fy) { return (Math.round(Math.atan2(fy, fx) / (Math.PI / 4)) + 8) % 8; }
 
@@ -133,7 +167,7 @@ function floraSprite(set, piece, frame) {
 }
 // Which plants grow on a floor: its clime's own, if it has them; else the
 // surface's under the sky, or its biome's.
-function floraSetOf(f) { return f.hub ? 'rim' : f.clime && CLIME_FLORA[f.clime] ? f.clime : f.zone === 'surface' ? 'surface' : T.biomes[f.biome].id; }
+function floraSetOf(f) { return f.hub ? 'surface' : f.clime && CLIME_FLORA[f.clime] ? f.clime : f.zone === 'surface' ? 'surface' : T.biomes[f.biome].id; }
 
 function placeFlora(f, set) { return placeUndergrowth(f, set); }
 
@@ -144,7 +178,7 @@ function drawFlora(d, fl, ox, oy, lights) {
   if (fl.anchorT >= 0 && !TILE_SOLID[d.floor.tiles[fl.anchorT]]) return;
   const p = fl.piece, sky = View.ug && View.ug.sky;
   const frame = p.frames.length > 1 && !sky ? Math.floor(Game.realT * 2 + fl.phase * 2) % 2 : 0;
-  const spr = fl.top ? floraSprite(fl.set, p, frame) : ugMelted(floraSprite(fl.set, p, frame));
+  const spr = fl.top ? floraSprite(fl.set, p, frame) : ugMelted(floraSprite(fl.set, p, frame), fl.ug);
   const fx = Math.round(fl.x * AP) + ox, fy = Math.round(fl.y * AP) + oy;
   // (a hanging one from the lip of the face it hangs on: paintrock.js)
   const sx = Math.round(fx - spr.w / 2), sy = fl.top ? fy - (fl.lip === undefined ? (fl.lip = pnrLipAbove(fl.x * AP, fl.y * AP)) : fl.lip) : fy - spr.h + 1;
@@ -186,7 +220,8 @@ function paintFloor(f) {
   View.rockPx = new Uint8Array(P.w * P.h);
   fillRockField(f, 0, 0, P.w, P.h);
   // what grows here first: its beds are painted with the tiles
-  View.flora = placeFlora(f, floraSetOf(f));
+  View.ugMeld = null;
+  View.flora = f.hub ? hgrFlora(f) : placeFlora(f, floraSetOf(f));
   // the ground and the rock standing up over it are painted in chunks as
   // the view comes near them (paint.js, pntFrame)
   pntFloorStart(f);
@@ -211,10 +246,9 @@ function paintTileArt(f, tx, ty) {
   const rnd = tileRnd;
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
-  // (the sinkhole, falling away below the floor: painthole.js)
-  if (View.pitPx) phlPaintPit(P, f, tx, ty, ox, oy, b);
-  if (t === TILE_PIT) return;
-  if (f.clime) paintClimeTile(P, f, tx, ty, ox, oy, b);
+  if (f.clime || f.meldPainting >= 0) paintClimeTile(P, f, tx, ty, ox, oy, b);
+  // (the outpost's deck, pads and paths: hubground.js)
+  if (f.hub) hgrPaintGround(P, f, tx, ty, ox, oy);
   paintUndergrowth(P, f, tx, ty, ox, oy, b);
   // (ore and veins are on the rock layer: paint.js)
   if (t === TILE_PAD) paintDish(P, ox, oy);
@@ -245,6 +279,7 @@ function repaintAround(f, tx, ty) {
   pntGroundTones(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
   for (let y = ty - 3; y <= ty + below; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
   paintGraft(f, tx - 1, ty - 3, tx + 1, ty + below);
+  hgrPaintMeld(f, tx - 1, ty - 3, tx + 1, ty + below);
   tintRift(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
   pntRepaintRock(f, tx * T2, ty * T2, (tx + 1) * T2, (ty + 1) * T2, changed);
   // (the rock laid back over the ground's tiles too, where they're under it)
@@ -661,18 +696,21 @@ function bloomSceneWorld(cx, cy) {
 // light (i).
 function lampLevels(d) {
   const f = d.floor, Lt = T.light;
-  const cl = climeLight(f), zl0 = !d.hub && T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
+  const cl = climeLight(f), zl0 = T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
   // under the sky, the sun (sunOf: daylight in kindled land, a dim dusk in
-  // the dark, darker still at the Edge)
+  // the dark, darker still at the Edge; at home, as the star has grown)
   const sun = sunOf(d);
-  const amb = d.hub ? Lt.hubAmbient : zl ? Math.max(0.2, lerp(zl.dusk, zl.day, Math.min(1, sun))) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
+  const amb = zl ? Math.max(0.2, lerp(zl.dusk, zl.day, Math.min(1, sun))) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
   const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(sun * 1.5, 0, 1))) : (cl && cl.tint) || Lt.tint;
   // the lamp gutters out as the diver dies, and dims as your light fades
   let lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
   if (!d.hub && d.pull < T.pull.dimAt) lamp *= lerp(T.pull.lampMin, 1, d.pull / T.pull.dimAt);
   // in daylight the lamp isn't needed; it comes on at dusk
   if (zl && sun > zl.lampAt) lamp *= 0.15;
-  return { amb, tint, lamp, r: Lt.lamp[0] * ATILE * lamp * (1 + (d.stats.lamp || 0) / 100), i: Lt.lamp[1] * lamp };
+  // (in the opening's last shot, off while he's in his pod, coming on as he
+  // looks out: intro.js; its reach kept, only its strength)
+  const on = d.hub && Intro.hub ? Intro.hub.lamp : 1;
+  return { amb, tint, lamp: lamp * on, r: Lt.lamp[0] * ATILE * lamp * (1 + (d.stats.lamp || 0) / 100), i: Lt.lamp[1] * lamp * on };
 }
 
 // ---------------------------------------------------------------------------
@@ -698,10 +736,14 @@ function renderFrame() {
   // it as his place and the camera's round differently on an odd-sized
   // view)
   const steady = T.art.steadyCam, cxA = steady ? Math.round(pxA) - (View.w >> 1) : pxA - View.w / 2, cyA = steady ? Math.round(pyA) - (View.h >> 1) : pyA - View.h / 2;
-  const camX = (View.camX = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(cxA, 0, fw - View.w)));
+  const camX0 = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(cxA, 0, fw - View.w));
+  // (the opening's last shot starts over the star: intro.js)
+  const camX = (View.camX = d.hub && Intro.hub ? introCamX(camX0) : camX0);
   // at home the camera looks further up, to keep the star in sight
   const lookUp = ap(d.hub ? 56 : 8);
-  const camY = (View.camY = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h)));
+  const camY0 = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h));
+  // (the opening's last shot comes down from higher: intro.js)
+  const camY = (View.camY = d.hub && Intro.hub ? introCamY(camY0) : camY0);
   // the floor's painted chunks in view and near it (paint.js)
   pntFrame(f, camX, camY);
   const sh = View.shake > 0.3 ? View.shake * AP : 0;
@@ -753,17 +795,16 @@ function renderFrame() {
   // what stands up off the ground, each behind the rock by its feet
   if (!d.hub) drawHazardsStanding(d, ox, oy, tick, lights);
   cfxDrawGroundGhosts(d, ox, oy);
+  // an ancient forge's cold light on the ground before it (the forge
+  // itself stands among the actors: fieldForgeProps)
   if (d.fieldForge) {
-    const spr = stationSprite('forge'), x = Math.round((d.fieldForge.x + 0.5) * ATILE + ox - spr.ax), y = Math.round((d.fieldForge.y + 0.5) * ATILE + oy - spr.ay + ap(6));
-    drawArtSprite(spr, x, y);
-    const fire = hartForgeFire(Math.floor(Game.realT * 9) % 3);
-    drawArtSprite(fire, x + HART_MOUTH.x - (fire.w >> 1), y + HART_MOUTH.y - (HART_MOUTH.h >> 1));
-    lights.push({ x: x + HART_MOUTH.x, y: y + HART_MOUTH.y, r: TILE * 1.8, i: 0.9, c: rgb01(ART.pal.glass[0]) });
+    const fx = Math.round((d.fieldForge.x + 0.5) * ATILE) + ox, fy = Math.round((d.fieldForge.y + 0.5) * ATILE + ap(6)) + oy, sp = hartForgeSpill(Math.floor(Game.realT * 3) % 2, true);
+    drawArtSprite(sp, fx + HART_OLD.port.x - fieldForgeSprite(d).ax - sp.ax, fy + 1);
   }
 
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) { drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8, Math.round(dr.y * AP) + oy - 16, 16, 18, Math.round(dr.y * AP) + oy, ox, oy); }
-  const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d))).concat(portalProps(d));
+  const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d), fieldForgeProps(d))).concat(portalProps(d), deedProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
@@ -787,6 +828,7 @@ function renderFrame() {
   // where a world point is on the view
   const vx = (wx) => Math.round(wx * AP) + ox, vy = (wy) => Math.round(wy * AP) + oy;
   // the diver's bolts: trails, flicker, a frost lance's glint (castfx.js)
+  cfxDrawTrails(ox, oy);
   for (const b of d.bolts) drawCastBolt(b, ox, oy, tick, lights);
   const shotCol = artBiome(f).glow;
   for (const sh of d.shots) {
@@ -811,18 +853,10 @@ function renderFrame() {
     lights.push({ x: gx, y: gy, r: TILE, i: 0.6, c: rgb01(col) });
   }
   for (const au of d.auras) {
-    const cx = vx(au.x), cy = vy(au.y - (au.follow ? 6 : 0)), k = Math.min(1, au.t / 0.4), R = au.r * AP;
     if (au.kind === 'glaive') drawCastGlaive(au, ox, oy, tick, lights);
     else if (au.kind === 'cloud') drawThunderhead(au, ox, oy, tick, lights);
-    else {
-      // a gravity well: a dark spiral drawing in, lit in its element
-      const col = au.col || ART.forms.well;
-      for (let n = 0, N = Math.round(24 * AP); n < N; n++) {
-        const a = n * 0.7 - Game.realT * 5, r = ((n * 3 + Game.realT * 30 * AP) % R);
-        dot(Math.round(cx + Math.cos(a) * r), Math.round(cy + Math.sin(a) * r * 0.75), n % 3 ? '#2a1848' : col, true, k * (1 - r / R));
-      }
-      cfxLight(lights, cx, cy, au.r, 0.5 * k, rgb01(col));
-    }
+    // a gravity well (castfx.js)
+    else drawCastWell(au, ox, oy, tick, lights);
   }
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
   drawCastAir(d, ox, oy, tick, lights);
@@ -835,8 +869,14 @@ function renderFrame() {
   if (!d.hub) drawStorm(d, ox, oy, lights);
   const fx = vx(p.x), fy = vy(p.y);
 
+  // the lamp's beam, if it is one, and what shows of it in the air
+  const lv = lampLevels(d), beam = lampBeamOf(d, lv);
+  if (beam) drawBeamAir(d, beam, lv, ox, oy);
+
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
-  const lv = lampLevels(d), ambLevel = lv.amb, tint = lv.tint;
+  // (dimmed at first in the opening's last shot, intro.js; only here, so the
+  // floor isn't painted again for it)
+  const ambLevel = lv.amb * (d.hub && Intro.hub ? Intro.hub.amb : 1), tint = lv.tint;
   const L = View.light;
   if (View.bakedFrom !== View.lights) bakeFloorLights(f);
   startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
@@ -852,10 +892,11 @@ function renderFrame() {
     else addLight(L, s.x - ox, s.y - oy, s.r * AP, s.i, s.c);
   }
   // the lamp, from the helm's brow, in its own warm white, stopped by the
-  // rock (shadow.js)
-  const lamp = diverLampAt(d);
-  addLampLight(d, L, lamp.x, lamp.y, lv.r, lv.i, rgb01(DIVER_PAL.lamp[0]));
+  // rock (shadow.js): a round glow, or a beam the way he's turned
+  if (beam) addLampBeam(d, L, beam, rgb01(DIVER_PAL.lamp[0]));
+  else { const lamp = diverLampAt(d); addLampLight(d, L, lamp.x, lamp.y, lv.r, lv.i, rgb01(DIVER_PAL.lamp[0])); }
   lightScene(-ox, -oy);
+  if (d.hub && Intro.hub) introHubOver(d, ox, oy);
   bloomScene(-ox, -oy);
   drawLifeShade(d, ox, oy);
 
@@ -911,7 +952,7 @@ function renderFrame() {
   }
   // the tools' marks and the outpost's labels too
   View.ctx = o;
-  try { drawToolHud(d, ox, oy); if (d.hub) drawStationLabels(d, ox, oy); else { drawStormMark(d, ox, oy); drawExitMarks(d, ox, oy); } } finally { View.ctx = x; }
+  try { drawToolHud(d, ox, oy); drawDeedsHud(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else drawStormMark(d, ox, oy); if (!Intro.hub) drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
   // stepping through a portal, or just through one: over everything
   drawPortalIris(d, ox, oy);
 }
@@ -970,6 +1011,8 @@ function enemySprite(d, type) {
 function drawShadow(fx, fy, rx, up) { pshContact(fx, fy, rx, up || 0); }
 
 function drawProspector(d, ox, oy, tick, lights) {
+  // (still in his pod, in the opening: intro.js)
+  if (d.hub && Intro.hub && Intro.hub.hidden) return;
   const p = d.p;
   // casting: the pose, turned to the aim and leaning into it (castfx.js);
   // the legs keep walking. Charging a caster, the pose is held, wound back.
@@ -993,7 +1036,7 @@ function drawProspector(d, ox, oy, tick, lights) {
   // blink while hurt; fall still while dying
   if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(spr, sx, sy);
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot), face);
-  if (p.ward > 0) cfxStrokeRing(fx, fy - ap(10), 12 * AP, 9 * AP, cfxRamp(p.wardS ? p.wardS.col : ART.forms.ward), 0.5 + 0.3 * Math.sin(Game.realT * 6), 77, true, 0.25);
+  if (p.ward > 0) cfxDrawWard(p, fx, fy, lights);
   // a charging hand gathers light, and flashes when it's full (its circle
   // is on the ground, its motes drawn in: castfx.js; an empty fist rings)
   for (const slot of ['main', 'off']) {
@@ -1027,6 +1070,8 @@ function drawDrone(d, fx, fy, lights) {
   d.droneT = Game.realT;
   const W = T.wick, tx = p.x - p.fx * W.back[0] - p.fy * W.aside[0], ty = p.y - p.fy * W.back[1] + p.fx * W.aside[1] - W.up;
   if (!d.drone) d.drone = { x: tx, y: ty };
+  // (in the opening, folded on the pack until it lifts off: intro.js)
+  if (Intro.hub && !Intro.hub.wick) { d.drone.x = p.x + 2; d.drone.y = p.y - 17; }
   const k = 1 - Math.exp(-W.ease * dt);
   d.drone.x += (tx - d.drone.x) * k; d.drone.y += (ty - d.drone.y) * k;
   const x = Math.round((d.drone.x - p.x) * AP) + fx, y = Math.round((d.drone.y - p.y + Math.sin(Game.realT * W.bob[0]) * W.bob[1]) * AP) + fy;
@@ -1160,7 +1205,9 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   else if ((e.state === 'chase' || e.state === 'circle') && Math.floor(e.bob * 8) % 2) lift = 1;
   else if (e.state === 'lunge') lift = 2;
   const shake = e.state === 'windup' ? (tick % 2 ? 1 : -1) : 0;
-  const fx = Math.round(e.x * AP) + ox, fy = Math.round(e.y * AP) + oy;
+  // struck: jolted an art px or two the way the hit pushes it while it holds
+  const jx = e.hitT > 0 ? Math.sign(Math.round(e.kvx / 20)) * (e.hitT > T.impact.targetStop ? 2 : 1) : 0, jy = e.hitT > 0 ? Math.sign(Math.round(e.kvy / 20)) : 0;
+  const fx = Math.round(e.x * AP) + ox + jx, fy = Math.round(e.y * AP) + oy + jy;
   if (fx < -60 || fy < -15 || fx > View.w + 60 || fy > View.h + 75) return;
   if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r), lift > 2 ? lift : 0);
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
@@ -1217,6 +1264,12 @@ function drawDrop(dr, ox, oy, lights) {
   else if (dr.exotic) col = ART.exotics[dr.exotic];
   else col = ART.rarity[dr.item.rarity] || '#ffffff';
   if (dr.mote) { for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, fy + j, col, true); }
+  else if (dr.item && dr.item.kind === 'module') {
+    // a lattice crystal, settled out of its capture (modules.js)
+    drawModuleDrop(dr, fx, fy, col);
+    if (dr.t < 0.35) return;
+    if (dr.item.rarity !== 'common' && dr.item.rarity !== 'magic') for (let k = ap(5), n = ap(20); k < n; k++) dot(fx, fy - k, col, true, 0.6 * (1 - k / n));
+  }
   else if (dr.stuff) {
     // a little heap of crystals (pflora.js), on its shadow
     const s = pflDropSprite('heap', col, ART.ores[dr.stuff]);
@@ -1269,13 +1322,15 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
       dot(Math.round(cx + Math.cos(b) * r * s2 / n), Math.round(cy + Math.sin(b) * r * s2 / n), PLANT_GLOW, true, k);
     }
   } else if (fx.kind === 'shatter') {
-    // shards of ice thrown out
-    const r = (1 - k) * 12 * AP;
-    cfxRays(cx, cy, r * 0.5, r + 2, 8, cfxRamp(ELEMENT_COLS.frost), cfxBand(k), cfxSeed(fx));
+    // facets of ice thrown out (castfx.js)
+    const r = Math.round((1 - k) * 12 * AP) + 2;
+    cfxShards(cx, cy, r, 4, cfxRamp(ELEMENT_COLS.frost), cfxBand(k), cfxSeed(fx), true);
+  } else if (fx.kind === 'capture' || fx.kind === 'tether') {
+    drawModuleFx(fx, cx, cy, k, lights, ox, oy);
   } else if (fx.kind === 'iceBurst' || fx.kind === 'steam' || fx.kind === 'flare' || fx.kind === 'overload' || fx.kind === 'wardBreak') {
     drawReactFx(fx, cx, cy, k, tick, lights);
   } else if (fx.kind === 'mote') {
-    // ore fed to the star, rising from the altar into it
+    // a shard set in the star, its light rising from the altar into it
     const t = 1 - k, sx = STAR_AT.x * ATILE + ox, sy = STAR_AT.y * ATILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * AP * (1 - t);
     dot(Math.round(lerp(cx, sx, t * t) + wob), Math.round(lerp(cy, sy, t)), ART.pal.star[t > 0.8 ? 3 : 2], true);
   } else if (fx.kind === 'nova') {

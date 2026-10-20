@@ -48,21 +48,49 @@ function newWorld(fields) {
   }, fields);
 }
 
-// Home: the outpost on the sinkhole's rim. report: how the dive ended.
-function enterHub(report) {
+// Home: the outpost, the cleared site round the star in the middle of the
+// world. report: how the sortie ended. at.from: the territory walked home
+// from, to come in at the opening from it. at.quiet: built while the game
+// loads, with nothing said yet (hubWelcome says it).
+function enterHub(report, at = {}) {
   if (report) Save.data.swapped = false;
-  const f = makeHubFloor();
-  const d = (Game.dive = newWorld({ hub: true, floor: f }));
-  d.p.x = (f.entry.x + 0.5) * TILE; d.p.y = (f.entry.y + 0.5) * TILE; d.p.fy = -1;
+  const f = outpostFloor(worldState().seed);
+  f.solids = outpostSolids();
+  const d = (Game.dive = newWorld({ hub: true, floor: f, zone: 'surface', sun: outpostSun() }));
+  const ex = at.from !== undefined && f.exits.find((e) => e.to === at.from);
+  if (ex) { d.p.x = (ex.ax + 0.5) * TILE; d.p.y = (ex.ay + 0.5) * TILE; d.p.fx = ex.nx; d.p.fy = ex.ny; d.arrive = { t: 0, zone: 'surface' }; }
+  else { d.p.x = (f.entry.x + 0.5) * TILE; d.p.y = (f.entry.y + 0.5) * TILE; d.p.fy = -1; }
   d.drone = null;
   const dm = HUB_STATIONS.find((s) => s.id === 'dummy');
   const dummy = makeEnemy('dummy', (dm.x + 0.5) * TILE, (dm.y + 0.5) * TILE, 1, null);
   d.enemies = [dummy];
   placeSettlers(d);
   Game.scene = 'hub';
+  if (!at.quiet) hubWelcome(report);
+}
+// Arriving home: the sortie's report, or the opening the first time, or a hint.
+function hubWelcome(report) {
   UI.close();
   if (report) UI.openReport(report);
-  else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk to the portal under the star to set out');
+  else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk out any opening into the land next to the outpost, or take the portal');
+}
+// The daylight over the outpost: the star's own ground, brighter as it
+// grows (T.outpost.sun).
+function outpostSun() {
+  const S = T.outpost, m = magnitudeOf(Save.data.star);
+  return lerp(S.sun[0], S.sun[1], clamp((m - 1) / (S.sunFull - 1), 0, 1));
+}
+// Walking out of the outpost by an opening: into the land it faces, as
+// crossing a territory's edge does, with the tool last chosen at the portal.
+function updateOutpostExits(d) {
+  if (d.warp || d.dying) return;
+  const p = d.p;
+  for (const e of d.floor.exits) if (dist(p.x, p.y, (e.x + 0.5) * TILE, (e.y + 0.5) * TILE) < T.world.exits.reach) {
+    d.p.mine = null;
+    d.warp = { t: 0, at: null, zone: isKindled(e.to) ? 'surface' : 'dusk', go: () => startSortie({ terr: e.to, from: 0 }) };
+    buzz(20);
+    return;
+  }
 }
 
 function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0 }; }
@@ -129,7 +157,7 @@ function placeFieldForge(d) {
   if (hazardNear(f, d.fieldForge.x, d.fieldForge.y, 1)) { const dry = r.cells.filter((c) => !hazardNear(f, c % f.w, Math.floor(c / f.w), 1)); if (dry.length) { const j = dry[(i >>> 0) % dry.length]; d.fieldForge = { x: j % f.w, y: Math.floor(j / f.w) }; } }
   // whoever worked it left a schematic behind, now and then
   const leave = (thing) => d.drops.push(Object.assign({ x: (d.fieldForge.x + 1.5) * TILE, y: (d.fieldForge.y + 0.5) * TILE, t: 0 }, thing));
-  if (rng.chance(T.fieldForge.blueprint)) dropBlueprint(d, leave);
+  if (rng.chance(T.fieldForge.module) && forgeFindOnce(d)) leave({ item: makeModule(rng, moduleFits(rng), dropTier(d), { rarity: rollRarity(rng, floorLevel(d), 'magic'), src: { forge: true } }) });
   if (rng.chance(T.story.echoForge)) leave({ echo: true });
   // and a resonance stone, now and then, by the old forges
   if (rng.chance(T.circuits.resonance.forge) && !codexAllWhole()) leave({ resStone: true });
@@ -156,7 +184,8 @@ function updateDive(dtReal, dt) {
   // stepping through a portal: everything holds still until it's done
   if (updateWarp(d, dtReal) || Game.dive !== d) return;
   if (!d.hub) updateTools(dtReal);
-  if (d.sortie) updateFrontier(d, dtReal);
+  if (d.sortie) { updateFrontier(d, dtReal); updateDeeds(d, dtReal); }
+  else if (d.hub) updateOutpostExits(d);
   if (d.warp) return;
   p.invuln = Math.max(0, p.invuln - dtReal);
   p.hurtT = Math.max(0, p.hurtT - dtReal);
@@ -191,16 +220,21 @@ function updateDive(dtReal, dt) {
   updateBolts(dt);
   updateAuras(dt);
   updateCombatFx(dt);
-  if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); }
-  else updateSettlers(d, dt);
+  if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); updateSupplies(d, dt); }
+  else { updateSettlers(d, dt); updateStarFeed(d, dtReal); }
   updatePickups(dtReal);
   if (Input.consumeAct()) {
     const a = actionHere();
-    if (d.hub) { if (a) UI.useStation(a); }
+    // (the altar: a shard to set, or else the star fed for as long as it's held)
+    if (d.hub) { if (a === 'altar' && Story.shardsHeld() <= Story.shardsSet()) startStarFeed(d); else if (a) UI.useStation(a); }
     else if (a === 'way') stepThrough(d, wayHere(d));
     else if (a === 'extract') startChannel('extract');
     else if (a === 'stone') startChannel('stone');
-    else if (a === 'plant') startChannel('plant');
+    else if (a === 'plant') {
+      // a spire holds only where the star's light reaches (deeds.js)
+      if (starHoldsSpire(d.terr)) startChannel('plant');
+      else { UI.toast(`The star must reach magnitude ${spireMagFor(d.terr)} before a spire can hold here`); Story.say('starReach'); }
+    }
     else if (a === 'rift') useRift(d);
     else if (a === 'forge') UI.useStation('fieldForge');
   }
@@ -213,6 +247,7 @@ function startDying() {
   Save.data.run = null; Save.saveField('run');
   d.p.mine = null;
   d.fx.push({ kind: 'death', x: d.p.x, y: d.p.y - 6, t: 1.4, max: 1.4 });
+  snd('death');
 }
 
 // What the contextual button does where the diver stands: a station in
@@ -241,6 +276,8 @@ function updatePull(dt) {
   const d = Game.dive, P = T.pull;
   if (d.kindled && !d.deep) { d.pull = 1; return; }
   if (d.pull <= 0) return;
+  // a flare's light holds yours (supplies.js)
+  if (inFlare(d)) return;
   // in a lair the Keeper holds the dark off while it lives, but its rage grows
   if (d.zone === 'lair' && d.keeper && !d.keeper.dead) {
     if (!d.keeper.enraged && (d.lairT = (d.lairT || 0) + dt) >= T.enemies.keeper.enrageAt) { d.keeper.enraged = true; UI.toast('The Keeper rages', 'legendary'); }
@@ -248,8 +285,8 @@ function updatePull(dt) {
   }
   const was = d.pull;
   d.pull = Math.max(0, d.pull - (dt / (d.pullTime || T.world.light)) * (1 - d.stats.pullSlow / 100));
-  if (was > P.dimAt && d.pull <= P.dimAt) { UI.toast('Your light is fading', 'legendary'); Story.say('pullFading'); }
-  if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { d.waveT = P.waveEvery; stirTheDark(d, P.wave); }
+  if (was > P.dimAt && d.pull <= P.dimAt) { UI.toast('Your light is fading', 'legendary'); Story.say('pullFading'); snd('lightLow'); }
+  if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { const r = Math.min(d.biome || 0, P.wave.length - 1); d.waveT = P.waveEvery[r]; stirTheDark(d, P.wave[r]); }
   if (d.pull <= 0) theDarkComes(d);
 }
 
@@ -260,6 +297,7 @@ function theDarkComes(d) {
     if (d.channel && d.channel.kind === 'extract') breakChannel('The light went out');
   }
   UI.toast(d.deep ? 'Your light is out, and the shaft with it. Something is coming.' : 'Your light is out. Something is coming.', 'legendary');
+  snd('lightOut');
   const at = darkSpot(d);
   if (at) { const h = makeEnemy('hollow', at.x, at.y, floorLevel(d), null); h.aggro = true; d.enemies.push(h); }
 }
@@ -296,7 +334,7 @@ function startChannel(kind) {
   const max = { recall: L.recall, seal: T.rifts.seal, stone: T.world.waystone.channel, plant: T.world.plant }[kind] || L.extract;
   d.channel = { kind, t: 0, max, x: d.p.x, y: d.p.y, stone: kind === 'stone' ? stoneHere(d) : -1 };
   // the light draws attention
-  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, d.p.x, d.p.y) < L.noise) wake(d, e);
+  for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, d.p.x, d.p.y) < L.noise) wake(d, e, true);
 }
 
 function breakChannel(why) {
@@ -304,6 +342,7 @@ function breakChannel(why) {
   if (!d.channel) return;
   d.channel = null;
   UI.toast(why);
+  snd('channelBreak');
 }
 
 function updateChannel(dt) {
@@ -332,6 +371,8 @@ const BODY_RING = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [Math.cos((k * Math.PI) / 
 function bodyHits(f, x, y, r) {
   if (rockAt(f, x, y)) return true;
   for (const [c, s] of BODY_RING) if (rockAt(f, x + c * r, y + s * r)) return true;
+  // what stands at home (outpostSolids): ellipses on the ground
+  if (f.solids) for (const o of f.solids) { const u = (x - o.x) / (o.rx + r), v = (y - o.y) / (o.ry + r); if (u * u + v * v < 1) return true; }
   return false;
 }
 // How far into rock a body is: its ring points in rock, its centre double.
@@ -397,7 +438,7 @@ function updateMining(dt) {
   if (!tgt || !Input.mining()) { p.mine = null; return; }
   const o = T.ores[f.ore[tgt.i] - 1];
   // a refusal is said once per swing at a tile, not every step
-  const refuse = (why, msg) => { if (!p.mine || p.mine.i !== tgt.i || p.mine.refused !== why) { p.mine = { i: tgt.i, prog: 0, hitT: 0, refused: why }; UI.toast(msg); } };
+  const refuse = (why, msg) => { if (!p.mine || p.mine.i !== tgt.i || p.mine.refused !== why) { p.mine = { i: tgt.i, prog: 0, hitT: 0, refused: why }; UI.toast(msg); snd('mineRefuse'); } };
   if (!pick) return refuse('nopick', 'You need a pick');
   if (o.tier > pick.base.power) return refuse('weak', `Your pick can't break ${o.name}`);
   if (cargoUsed(d) >= d.stats.cargo) { UI.tip('full', 'Full: bank it at a spire, or carry it home'); return refuse('full', 'Cargo full'); }
@@ -407,8 +448,9 @@ function updateMining(dt) {
   if (p.mine.hitT <= 0) {
     p.mine.hitT = T.mine.hitEvery;
     // a drill is loud
-    if (d.stats.noisy) for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.mine.drillNoise) wake(d, e);
+    if (d.stats.noisy) for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.mine.drillNoise) wake(d, e, true);
     spawnSparks((tgt.tx + 0.5) * TILE, (tgt.ty + 0.5) * TILE, [ART.ores[o.id][3], '#ffffff'], 4);
+    snd('mine', { tier: o.tier });
     buzz(6);
   }
   if (p.mine.prog >= 1) breakOre(tgt, o);
@@ -427,6 +469,7 @@ function breakOre(tgt, o) {
   repaintAround(f, tgt.tx, tgt.ty);
   const cx = (tgt.tx + 0.5) * TILE, cy = (tgt.ty + 0.5) * TILE;
   spawnSparks(cx, cy, ART.ores[o.id].slice(2), 12);
+  snd('oreBreak', { tier: o.tier });
   if (st.regalia3) healPlayer(3);
   if (st.powers.seismic) {
     d.fx.push({ kind: 'nova', x: cx, y: cy, r: 40, t: 0.3, max: 0.3 });
@@ -470,14 +513,18 @@ function extractDive() {
   else bankAtSpire(d);
 }
 
-// Dying, or giving up: the cargo is lost, what's worn and what's in the
-// pocket are kept. A fall wakes the diver at the last spire touched (the
-// outpost if none); giving up goes home.
+// Dying, or giving up. What's worn and what's in the pocket are kept. A
+// fall leaves the cargo where it fell, the Kindler's pack, to go back for
+// once (an older pack is lost: deeds.js), and wakes the diver at the last
+// spire touched (the outpost if none); giving up loses the cargo and goes
+// home.
 function loseDive(died) {
   const d = Game.dive, kept = bankPocket(d), b = d.banked || { stuff: {}, items: [] };
   ageContracts();
   const at = died ? Save.data.lastSpire || 0 : 0;
-  const report = { lost: d.cargo, items: d.items, died, kept, lostBlueprints: d.blueprints.length, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), earlier: b, wake: at ? terrOf(at).name : '' };
+  const left = died ? leaveCache(d) : null;
+  const report = { lost: d.cargo, items: d.items, died, kept, lostBlueprints: d.blueprints.length, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), earlier: b, wake: at ? terrOf(at).name : '', cache: left && left.cache, oldCache: left && left.old, light: (d.tally && d.tally.light) || {} };
+  if (left && left.cache) Story.say('firstCache');
   Save.save();
   if (at && hasSpire(at)) { startSortie({ terr: at, spire: true }); UI.openReport(report); }
   else enterHub(report);
@@ -497,13 +544,11 @@ function recallDive() {
     if (d.cargo[k] <= 0) delete d.cargo[k];
   }
   d.items = d.items.filter(() => { if (d.rng.chance(cost)) { lostItems++; return false; } return true; });
-  // the ride home feeds the star nothing
-  d.far = 0;
   bankHaul(d);
   Save.data.run = null;
   const b = d.banked, contracts = settleContracts(d, b.stuff);
   Save.save();
-  enterHub({ banked: b.stuff, items: b.items, learned: b.learned, fed: b.fed, shard: d.gotShard, echoes: d.echoes, contracts, where: sortieWhere(d), recalled: { lost, lostItems, cost } });
+  enterHub({ banked: b.stuff, items: b.items, learned: b.learned, light: (d.tally && d.tally.light) || {}, shard: d.gotShard, echoes: d.echoes, contracts, where: sortieWhere(d), recalled: { lost, lostItems, cost } });
 }
 
 function abandonDive() { loseDive(false); }

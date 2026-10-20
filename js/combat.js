@@ -6,7 +6,8 @@
 // empty main hand casts a free Arc with its fist. The dash is a burst of
 // speed that nothing can touch. Hits stop the world for a moment and knock
 // enemies back (the view never shakes); heavy ones stagger them. Kills drop
-// creature parts, exotics, sealed relics and healing motes onto the floor.
+// creature parts, exotics, modules (their pattern caught, modules.js),
+// sealed relics and healing motes onto the floor.
 // ---------------------------------------------------------------------------
 
 // The nearest living enemy within range that the diver can see.
@@ -67,6 +68,7 @@ function updateDash(dt) {
     p.fx = dir.x; p.fy = dir.y;
     p.invuln = Math.max(p.invuln, D.invuln);
     p.dashCd = D.cooldown * (1 + d.stats.dashCd / 100);
+    snd('dash');
     buzz(8);
   }
   if (p.dashT > 0) {
@@ -100,6 +102,7 @@ function hurtPlayer(dmg, from) {
   p.hurtT = 0.25;
   p.restT = 0;
   if (d.channel) breakChannel('Hit: it broke off');
+  snd('hurt');
   buzz(30);
   if (p.hp <= 0) { p.hp = 0; startDying(); }
 }
@@ -115,7 +118,7 @@ function healPlayer(n) {
 // damage), or element (one); att: the elements its caster's ore is attuned
 // to (their statuses last longer) }
 function hurtEnemy(e, dmg, opts = {}) {
-  const d = Game.dive, st = d.stats, O = T.onHit;
+  const d = Game.dive, st = d.stats, O = T.onHit, I = T.impact;
   // (a foe under the sand, the water or on the roof can't be struck)
   if (e.dead || e.hid) return;
   const els = opts.els || (opts.element ? [opts.element] : null);
@@ -153,7 +156,14 @@ function hurtEnemy(e, dmg, opts = {}) {
   d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit, verdict, foe: e, quiet });
   if (opts.knock) { const kd = T.enemies[e.type].knock, k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : kd !== undefined ? kd : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
   if (opts.heavy && !e.boss && e.type !== 'hollow' && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
+  else if (e.state === 'windup' && !e.boss && e.type !== 'hollow' && dmg >= e.maxHp * I.flinch && Game.t - (e.flinchAt || -9) > I.flinchGap) {
+    // a solid hit breaks off its wind-up
+    e.state = 'stagger'; e.t = I.flinchTime; e.flinchAt = Game.t;
+  }
+  // it holds still a moment as the hit lands (the knock still takes it)
+  if (!e.boss && e.type !== 'hollow') e.hitT = Math.max(e.hitT || 0, opts.heavy ? I.heavyTargetStop : I.targetStop);
   if (e.type === 'dummy') { if (e.hp <= 0) e.hp = e.maxHp; e.kvx = e.kvy = 0; return; }
+  e.wakeT = 0;
   wake(d, e);
   if (st.leech) healPlayer((dmg * st.leech) / 100);
   if (!opts.noProc) {
@@ -173,6 +183,7 @@ function killEnemy(e) {
   tallyKill(d, e);
   if (e.blight) for (const o of d.enemies) if (!o.dead && o !== e && dist(o.x, o.y, e.x, e.y) < T.elements.blightSpread) o.blight = { t: T.elements.blightTime, dps: e.blight.dps };
   castFxDeath(e.x, e.y - 5, ENEMY_PAL[T.biomes[d.biome].id].crystal[0], !!e.boss);
+  snd('kill', { x: e.x, y: e.y, big: !!e.boss });
   if (e.elite === 'volatile') d.fx.push({ kind: 'volatile', x: e.x, y: e.y, t: T.enemies.volatileFuse, max: T.enemies.volatileFuse, dmg: e.dmg * T.enemies.volatileDmg });
   if (st.powers.lodeheart) {
     healPlayer(3);
@@ -185,19 +196,21 @@ function killEnemy(e) {
     d.drops.push(Object.assign({ x, y, t: 0 }, thing));
   };
   // what it was made of: its own part, graded by the biome; elites and the
-  // warden leave more, and now and then a blueprint, an exotic or a relic
+  // warden leave more, and now and then an exotic or a relic. Its pattern,
+  // caught: a module now and then, from an elite likely, from a warden or
+  // a Keeper several; it collapses where it fell into a crystal
   const grade = d.biome + 1, part = T.enemies[e.type].part || Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
   const parts = (n) => { if (part) for (let k = 0; k < n; k++) drop({ stuff: partId(part, grade), n: 1 }); };
   // a boss's hoard: ordinary parts of any creature (its own heart is apart)
   const hoard = (n) => { for (let k = 0; k < n; k++) drop({ stuff: partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), grade), n: 1 }); };
   const tier = dropTier(d);
+  for (const m of moduleDrops(d, e)) { drop({ item: m }); const dr = d.drops[d.drops.length - 1]; moduleCaptureFx(d, dr.x, dr.y, ART.rarity[m.rarity]); }
   if (e.type === 'keeper') {
     // its lodeline lights, and the dark starts to come back: a short pull
     if (d.zone === 'lair') { d.padDark = false; d.pull = 1; d.pullTime = T.enemies.keeper.afterPull; UI.toast("The star's light reaches down. Go, before the dark comes back", 'legendary'); }
     // its heart-shard, and what it had gathered
     drop({ shard: d.biome });
     drop({ echo: true });
-    dropBlueprint(d, drop, true);
     hoard(L.bossParts);
     for (let k = 0; k < 2; k++) drop({ exotic: randomExotic(rng) });
     if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
@@ -206,7 +219,6 @@ function killEnemy(e) {
   if (e.boss) {
     hoard(L.bossParts);
     drop({ stuff: partId('heart', grade), n: 1 });
-    dropBlueprint(d, drop, true);
     if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
     drop({ exotic: randomExotic(rng) });
     return;
@@ -214,7 +226,6 @@ function killEnemy(e) {
   if (e.elite) {
     parts(rng.i(L.eliteParts[0], L.eliteParts[1]));
     if (rng.chance(L.eliteExotic)) drop({ exotic: randomExotic(rng) });
-    if (rng.chance(L.eliteBlueprint)) dropBlueprint(d, drop);
     if (rng.chance(L.eliteRelic)) drop({ item: makeRelic(tier) });
     if (rng.chance(T.story.echoElite)) drop({ echo: true });
     if (rng.chance(T.circuits.resonance.elite) && !codexAllWhole()) drop({ resStone: true });
@@ -226,19 +237,8 @@ function killEnemy(e) {
   if (rng.chance(L.mote)) drop({ mote: L.moteHeal });
 }
 
-// A blueprint not yet known (nor already carried), likelier one of this
-// biome's own; when every one is known, an exotic instead.
 // Any exotic but the rifts' own.
 function randomExotic(rng) { return rng.pick(T.exotics.filter((x) => !x.riftOnly)).id; }
-
-function dropBlueprint(d, drop, sure) {
-  const known = new Set(Save.data.blueprints.concat(d.blueprints.map((b) => b.id), d.drops.filter((x) => x.blueprint).map((x) => x.blueprint), (d.pocket || []).filter((x) => x.blueprint).map((x) => x.blueprint)));
-  const local = BLUEPRINT_BIOME[T.biomes[d.biome].id].filter((id) => !known.has(id));
-  const any = BP_IDS.filter((id) => !known.has(id));
-  const pool = local.length && (sure || d.rng.chance(0.7)) ? local : any;
-  if (pool.length) drop({ blueprint: d.rng.pick(pool) });
-  else drop({ exotic: randomExotic(d.rng) });
-}
 
 // The tier of loot on this floor: the biome's lower ore, or its deeper one
 // more often further down.
@@ -272,13 +272,14 @@ function updatePickups(dt) {
     // something put down stays down until the diver has walked away from it
     if (dist(dr.x, dr.y, p.x, p.y) > reach) { dr.warned = false; dr.left = false; continue; }
     if (dr.left) continue;
-    if (dr.mote) { healPlayer(dr.mote); dr.gone = true; continue; }
+    if (dr.mote) { healPlayer(dr.mote); dr.gone = true; snd('heal'); continue; }
     const room = d.stats.cargo - cargoUsed(d);
     // a pile of ore: take what fits
     if (dr.stuff) {
       const k = Math.min(room, dr.n);
       if (k > 0) {
         d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k; dr.n -= k;
+        snd('pickup');
         // a small +n in the stuff's colour, not a toast: pickups are many
         const pk = parsePart(dr.stuff);
         d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : pk ? ART.parts[pk.kind] : '#ffffff' });
@@ -287,34 +288,48 @@ function updatePickups(dt) {
       continue;
     }
     // a heart-shard binds to the diver: safe whatever happens now
-    if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard, still warm', 'legendary'); dr.gone = true; continue; }
-    if (dr.resStone) { resonanceStoneFound(d.rng); dr.gone = true; buzz(12); continue; }
-    if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); } dr.gone = true; continue; }
+    if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard, still warm', 'legendary'); dr.gone = true; snd('shard'); continue; }
+    if (dr.resStone) { resonanceStoneFound(d.rng); dr.gone = true; snd('resStone'); buzz(12); continue; }
+    if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); snd('echo'); deedEcho(d); } dr.gone = true; continue; }
     if (dr.blueprint) {
       if (room < 1) { if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); } continue; }
       d.blueprints.push({ id: dr.blueprint });
+      snd('blueprint');
       UI.toast(`Blueprint: ${BLUEPRINTS[dr.blueprint].name}. Bring it home to learn it`, 'legendary');
       UI.tip('blueprint', 'Blueprints are learned when you get them home. Pocket one to be sure of it');
       dr.gone = true;
       continue;
     }
-    const w = dr.item ? T.cargo.itemWeight : 1;
+    const w = dr.item ? itemWeight(dr.item) : 1;
     if (room < w) {
       if (!dr.warned) { dr.warned = true; UI.toast('Cargo full'); }
       continue;
     }
-    if (dr.item) { UI.tip('gear', 'Tap CARGO to look at what you found'); d.items.push(dr.item); UI.toast(dr.item.kind === 'relic' ? 'A sealed relic' : dr.item.name, dr.item.rarity); }
-    else { d.cargo[dr.exotic] = (d.cargo[dr.exotic] || 0) + 1; UI.toast(T.exotics.find((x) => x.id === dr.exotic).name, 'exotic'); }
+    if (dr.item && dr.item.kind === 'module') {
+      // the capture field's tether pulls it home
+      d.items.push(dr.item);
+      Save.data.modsFound = (Save.data.modsFound || 0) + 1;
+      moduleTetherFx(d, dr.x, dr.y, ART.rarity[dr.item.rarity]);
+      UI.toast(`Module: ${dr.item.name}`, dr.item.rarity);
+      snd('loot', { rarity: dr.item.rarity });
+      Story.say('module');
+      UI.tip('module', 'Socket modules into your gear at home: free, as often as you like');
+    } else if (dr.item) { UI.tip('gear', 'Tap CARGO to look at what you found'); d.items.push(dr.item); UI.toast(dr.item.kind === 'relic' ? 'A sealed relic' : dr.item.name, dr.item.rarity); snd('loot', { rarity: dr.item.kind === 'relic' ? 'relic' : dr.item.rarity }); }
+    else { d.cargo[dr.exotic] = (d.cargo[dr.exotic] || 0) + 1; UI.toast(T.exotics.find((x) => x.id === dr.exotic).name, 'exotic'); snd('loot', { rarity: 'exotic' }); }
     dr.gone = true;
     buzz(12);
   }
   d.drops = d.drops.filter((dr) => !dr.gone);
 }
 
+// What a piece weighs in the cargo: a module little, a base or a relic more.
+function itemWeight(it) { return it.kind === 'module' ? T.modules.weight : T.cargo.itemWeight; }
 function cargoUsed(d) {
   let n = 0;
-  for (const k in d.cargo) n += d.cargo[k];
-  for (const e of d.pocket || []) n += e.item ? T.cargo.itemWeight : e.blueprint ? 1 : e.n;
-  return n + d.items.length * T.cargo.itemWeight + (d.blueprints || []).length;
+  // (light weighs nothing: deeds.js)
+  for (const k in d.cargo) if (!isLight(k)) n += d.cargo[k];
+  for (const e of d.pocket || []) n += e.item ? itemWeight(e.item) : e.blueprint ? 1 : isLight(e.stuff) ? 0 : e.n;
+  for (const it of d.items) n += itemWeight(it);
+  return n + (d.blueprints || []).length;
 }
 function pocketSlots() { return T.cargo.pocket[Math.min(T.cargo.pocket.length, magnitudeOf(Save.data.star)) - 1] + (Game.dive && Game.dive.tool === 'satchel' ? 1 : 0); }

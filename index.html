@@ -41,6 +41,8 @@
   <div id="deck-right" class="deck">
     <button id="btn-act" class="deck-btn act" hidden></button>
     <button id="btn-act2" class="deck-btn act act2" hidden>TRAVEL</button>
+    <button id="btn-supply" class="deck-btn supply" hidden aria-label="Use a supply"></button>
+    <button id="btn-supply-next" class="deck-btn supply-next" hidden aria-label="The next supply">▸</button>
     <button id="btn-off" class="deck-btn off" hidden></button>
     <button id="btn-dash" class="deck-btn dash">DASH</button>
     <button id="btn-mine" class="deck-btn mine">MINE</button>
@@ -90,9 +92,24 @@
     <div id="gear-body" class="list"></div>
   </section>
 
+  <section id="screen-bench" class="screen panel" hidden>
+    <header class="screen-head"><div class="head-in"><h2>THE RUNE BENCH</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
+    <div id="bench-body" class="list"></div>
+  </section>
+
+  <section id="screen-research" class="screen panel research" hidden>
+    <header class="screen-head"><div class="head-in"><h2>RESEARCH</h2><button class="head-close" data-act="researchDone" aria-label="To the forge">✕</button></div></header>
+    <div id="research-body" class="list"></div>
+  </section>
+
   <section id="screen-star" class="screen panel" hidden>
     <header class="screen-head"><div class="head-in"><h2>THE STAR</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
     <div id="star-body" class="list"></div>
+  </section>
+
+  <section id="screen-supplies" class="screen panel" hidden>
+    <header class="screen-head"><div class="head-in"><h2>SUPPLIES</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
+    <div id="supplies-body" class="list"></div>
   </section>
 
   <section id="screen-cargo" class="screen panel" hidden>
@@ -109,7 +126,12 @@
       <button id="pause-recall" class="btn" data-act="recall">EMERGENCY RECALL</button>
       <button id="pause-abandon" class="btn danger" data-act="abandon" data-confirm="SURE? THE CARGO IS LOST">GIVE UP AND GO HOME</button>
     </div>
-    <p id="pause-note" class="note">Recalling takes you home: a few seconds standing still, and the dark keeps part of the cargo. Giving up loses all of it. What you wear, your pocket and what you've banked are safe either way.</p>
+    <div class="menu sound-row">
+      <button id="pause-music" class="btn" data-act="soundSet" data-arg="music">MUSIC: ON</button>
+      <button id="pause-sfx" class="btn" data-act="soundSet" data-arg="sfx">SOUNDS: ON</button>
+      <button id="pause-lamp" class="btn" data-act="lampSet">LAMP: BEAM</button>
+    </div>
+    <p id="pause-note" class="note">Recalling takes you home: a few seconds standing still, and the dark keeps part of the cargo. Giving up loses all of it (a fall leaves it in your pack). What you wear, your pocket, your supplies and what you've banked are safe either way.</p>
     <div class="build" id="build"></div>
   </section>
 
@@ -125,12 +147,42 @@
   </section>
 
   <div id="card" class="card-wrap" hidden><div id="card-body" class="card"></div></div>
+
+  <!-- the opening: painted scenes over everything, then the outpost (intro.js) -->
+  <div id="intro" class="intro" hidden>
+    <canvas id="intro-view"></canvas>
+    <div id="intro-cap" class="intro-cap" aria-live="polite"></div>
+    <button id="intro-skip" class="intro-skip">SKIP INTRO</button>
+    <p id="intro-sound" class="intro-sound" hidden>TAP FOR SOUND</p>
+  </div>
 </div>
+
+<!-- the loading: the Charter's systems booting up (loader.js); its mark, the
+     Charter's seed-star in pale gold (hubart.js hartSeedStar, larger) -->
+<section id="loader" class="loader" aria-live="polite">
+  <div class="ld-in">
+    <div class="ld-head">
+      <div class="ld-mark"><div class="ld-halo"></div><div class="ld-ring"></div><svg class="ld-star" viewBox="0 0 15 15" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="7" width="1" height="1" fill="#6a5a34"/><rect x="1" y="7" width="1" height="1" fill="#6a5a34"/><rect x="2" y="7" width="1" height="1" fill="#b8a46a"/><rect x="3" y="7" width="1" height="1" fill="#b8a46a"/><rect x="4" y="4" width="1" height="1" fill="#6a5a34"/><rect x="4" y="7" width="1" height="1" fill="#e2d29c"/><rect x="4" y="10" width="1" height="1" fill="#6a5a34"/><rect x="5" y="5" width="1" height="1" fill="#b8a46a"/><rect x="5" y="7" width="1" height="1" fill="#e2d29c"/><rect x="5" y="9" width="1" height="1" fill="#b8a46a"/><rect x="6" y="6" width="1" height="1" fill="#e2d29c"/><rect x="6" y="7" width="1" height="1" fill="#fff4d0"/><rect x="6" y="8" width="1" height="1" fill="#e2d29c"/><rect x="7" y="0" width="1" height="1" fill="#6a5a34"/><rect x="7" y="1" width="1" height="1" fill="#6a5a34"/><rect x="7" y="2" width="1" height="1" fill="#b8a46a"/><rect x="7" y="3" width="1" height="1" fill="#b8a46a"/><rect x="7" y="4" width="1" height="1" fill="#e2d29c"/><rect x="7" y="5" width="1" height="1" fill="#e2d29c"/><rect x="7" y="6" width="1" height="1" fill="#fff4d0"/><rect x="7" y="7" width="1" height="1" fill="#fff4d0"/><rect x="7" y="8" width="1" height="1" fill="#fff4d0"/><rect x="7" y="9" width="1" height="1" fill="#e2d29c"/><rect x="7" y="10" width="1" height="1" fill="#e2d29c"/><rect x="7" y="11" width="1" height="1" fill="#b8a46a"/><rect x="7" y="12" width="1" height="1" fill="#b8a46a"/><rect x="7" y="13" width="1" height="1" fill="#6a5a34"/><rect x="7" y="14" width="1" height="1" fill="#6a5a34"/><rect x="8" y="6" width="1" height="1" fill="#e2d29c"/><rect x="8" y="7" width="1" height="1" fill="#fff4d0"/><rect x="8" y="8" width="1" height="1" fill="#e2d29c"/><rect x="9" y="5" width="1" height="1" fill="#b8a46a"/><rect x="9" y="7" width="1" height="1" fill="#e2d29c"/><rect x="9" y="9" width="1" height="1" fill="#b8a46a"/><rect x="10" y="4" width="1" height="1" fill="#6a5a34"/><rect x="10" y="7" width="1" height="1" fill="#e2d29c"/><rect x="10" y="10" width="1" height="1" fill="#6a5a34"/><rect x="11" y="7" width="1" height="1" fill="#b8a46a"/><rect x="12" y="7" width="1" height="1" fill="#b8a46a"/><rect x="13" y="7" width="1" height="1" fill="#6a5a34"/><rect x="14" y="7" width="1" height="1" fill="#6a5a34"/></svg></div>
+      <h1 class="ld-title">LODESTAR</h1>
+      <p class="ld-sub">THE CHARTER · KINDLER SYSTEMS</p>
+    </div>
+    <div class="ld-body">
+      <div class="ld-log"></div>
+      <div class="ld-bar"><div class="ld-fill"></div><div class="ld-segs"></div></div>
+      <div class="ld-foot"><span class="ld-now">POWERING UP</span><span class="ld-pct">  0%</span></div>
+      <p class="ld-go" hidden>TAP TO BEGIN</p>
+    </div>
+  </div>
+</section>
 
 <script src="js/util.js"></script>
 <script src="js/version.js"></script>
 <script src="js/tuning.js"></script>
 <script src="js/save.js"></script>
+<script src="js/loader.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/music.js"></script>
+<script src="js/sndbank.js"></script>
 <script src="js/floor.js"></script>
 <script src="js/world.js"></script>
 <script src="js/art.js"></script>
@@ -147,6 +199,7 @@
 <script src="js/circuits.js"></script>
 <script src="js/blueprints.js"></script>
 <script src="js/items.js"></script>
+<script src="js/modules.js"></script>
 <script src="js/game.js"></script>
 <script src="js/enemies.js"></script>
 <script src="js/foes.js"></script>
@@ -156,6 +209,7 @@
 <script src="js/portals.js"></script>
 <script src="js/frontier.js"></script>
 <script src="js/contracts.js"></script>
+<script src="js/deeds.js"></script>
 <script src="js/life.js"></script>
 <script src="js/storm.js"></script>
 <script src="js/hazards.js"></script>
@@ -165,16 +219,21 @@
 <script src="js/pshadow.js"></script>
 <script src="js/render.js"></script>
 <script src="js/castfx.js"></script>
+<script src="js/hardlight.js"></script>
 <script src="js/natures.js"></script>
 <script src="js/reactions.js"></script>
 <script src="js/resonance.js"></script>
 <script src="js/hub.js"></script>
 <script src="js/hubart.js"></script>
+<script src="js/hubground.js"></script>
 <script src="js/story.js"></script>
 <script src="js/input.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/gearui.js"></script>
 <script src="js/worldmap.js"></script>
+<script src="js/supplies.js"></script>
 <script src="js/anvil.js"></script>
+<script src="js/intro.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

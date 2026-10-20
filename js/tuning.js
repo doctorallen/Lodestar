@@ -29,9 +29,11 @@ const T = {
 
   // Your light (d.pull): full in kindled land and at home, it drains in the
   // dark over T.world.light seconds. Below dimAt the lamp dims (to lampMin)
-  // and every waveEvery seconds `wave` more enemies stir in the dark; when
-  // it's gone the Hollow comes (and a Deep's lodeline goes dark).
-  pull: { dimAt: 0.5, lampMin: 0.6, waveEvery: 16, wave: 2 },
+  // and every waveEvery seconds `wave` more enemies stir in the dark (each
+  // by region: the Rim, the Choir, the Underforge and the Edge, so the first
+  // ring is a place to learn); when it's gone the Hollow comes (and a Deep's
+  // lodeline goes dark).
+  pull: { dimAt: 0.5, lampMin: 0.6, waveEvery: [26, 18, 14], wave: [1, 2, 2] },
 
   // Leaving takes a moment: standing in a lodeline, EXTRACT takes `extract`
   // seconds; an emergency recall works anywhere but takes `recall` seconds
@@ -116,6 +118,46 @@ const T = {
     plant: 6,
     sun: { dark: -0.35, kindled: 1, edge: -0.6 },
   },
+  // The outpost (floor.js outpostFloor, hub.js): the middle of the world, a
+  // cleared site `size` tiles square with an opening on its edge towards
+  // each land next to it, as a territory has. rim: how deep the rock stands
+  // round its edge (tiles, by noise between the two). passage: an opening's
+  // way through it (its half width, tiles). meld: the cleared ground grades
+  // into the land beyond each opening from `from` tiles in from the edge to
+  // all of it by `to`, the border between two neighbours' sides wandering
+  // `wobble` tiles; their plants grow there `flora` times as thickly as in
+  // their own land, as much as the meld's weight to the power floraPow, and `outcrops` of their rock stand in it.
+  // sun: the daylight over the site at magnitude 1, and from magnitude
+  // sunFull on (the star's own ground grows brighter as it does). pads: the
+  // landing pads round the plaza, `r` tiles out from the star. homeClear:
+  // the ground kept clear round the Kindler's pod and before its door, of
+  // pads and outcrops ([half width, behind its feet, in front], tiles).
+  outpost: {
+    size: 40, rim: [1.4, 3.4], passage: 1.7,
+    meld: { from: 13, to: 3, wobble: 2.5, flora: 1.8, floraPow: 1.4 }, outcrops: [5, 8],
+    sun: [0.35, 1], sunFull: 6, pads: { r: 11.5, n: 6 }, homeClear: [1.6, 1.8, 2.6],
+    // lode: the lodelines out across the ground, reach [at magnitude 1,
+    // more each magnitude] (tiles; all the way towards kindled land), how
+    // fast their breaks run out (px/s), and how faint towards the dark.
+    // stone: the starstone on the modules, a cluster on each spot from
+    // magnitude 2, the next spot every `spread` magnitudes, a crystal more
+    // every `grow` (at most `most`), glowing from glowFrom crystals' worth.
+    // ground: the starstone spreading into the ground from the cradle,
+    // reach [tiles at magnitude 1, more each magnitude], flattened by
+    // squash; its edge wandering `wander` tiles by two noises (wobble: px
+    // across a bump of each); tendrils [how far they creep ahead (tiles),
+    // the ridge's cut, its noise's px]; vein: its gold veins' two noises
+    // [across, down, across, down] (px), cut by veinCut [the bright, the
+    // fine]; front: how deep the gold front at its edge is (tiles); glint:
+    // the bright veins' glow near the cradle [the share of strokes lit at
+    // the cradle, how strongly].
+    ground: { reach: [2.2, 1.85], squash: 0.82, wander: 1.4, wobble: [70, 26], tendril: [3.2, 0.9, 38], vein: [34, 15, 12, 7], veinCut: [0.965, 0.975], front: 0.09, glint: [0.35, 0.5] },
+    lode: { reach: [4, 2.4], speed: 26, dark: 0.45 },
+    // pool: the star's light, lying on the ground round the cradle: its
+    // reach and strength [at magnitude 0, more each magnitude] (tiles).
+    pool: { r: [6, 1.1], i: [1.1, 0.08] },
+    stone: { spread: 1.4, grow: 2, most: 5, glowFrom: 4 },
+  },
   // Climes: the kind of country a site is, rolled when the way to it is
   // made (so its portal can name it). zones: where it can turn up; weight:
   // how often, times lean[region] in a region it leans to (every clime can
@@ -165,13 +207,14 @@ const T = {
   // side. reach: how near its threshold (px) the diver must stand. light:
   // [radius in tiles, strength], times sunLight under the sky.
   portal: { enter: 0.45, arrive: 0.7, reach: 11, light: [2.6, 1.0], sunLight: 0.55 },
-  // Contracts: how many are posted, how often each kind comes up, and the
-  // star points each pays per magnitude.
+  // Contracts: how many are posted and how often each kind comes up. Each
+  // pays a thing (the star grows only from deeds); the whole board met in
+  // one sortie pays `board` supplies more.
   // newest: the share of hauls set in the furthest region reached;
   // stale: how many sorties one stands before it's replaced.
   // A hunt names a clime's own creature (one whose clime leans to a region
   // reached, or to none) with the chance huntSignature, huntN [least, most].
-  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, kindle: 2, deep: 1 }, star: 25, newest: 0.7, stale: 3, huntSignature: 0.4, huntN: [2, 4] },
+  contracts: { posted: 3, kinds: { haul: 3, hunt: 3, reach: 2, seal: 1, kindle: 2, deep: 1 }, board: 2, newest: 0.7, stale: 3, huntSignature: 0.4, huntN: [2, 4] },
   // A Lodestorm: the chance an expedition sets out under one; on the
   // surface a strike every `every` s (the first after `first`), within
   // `near` tiles of the diver, marked `warn` s ahead, hurting within
@@ -202,6 +245,7 @@ const T = {
     beacon: { mag: 2, cost: { lumenite: 6, cog: 3 }, land: 6, noise: 140, refill: 40, refillRate: 0.12 },
     map: { mag: 3, cost: { lumenite: 8, fiber: 4 }, sight: 6 },
     satchel: { mag: 3, cost: { lumenite: 8, chitin: 4 } },
+    lens: { mag: 2, cost: { lumenite: 6, thread: 6 } },
   },
 
   // The chance a vein is the biome's deeper ore, by site.
@@ -251,12 +295,17 @@ const T = {
   // the move thumb (flickPx in flickMs) dashes too.
   dash: { speed: 230, time: 0.13, invuln: 0.22, cooldown: 0.55, flickPx: 26, flickMs: 90 },
   // How hits land: the world freezes for hitstop (heavy: heavyStop);
-  // knockback fades at knockDecay a second. The view doesn't shake (the
-  // designer found it unpleasant), but the shake values are kept at 0 so it
-  // can be tried again.
+  // knockback fades at knockDecay a second. The foe struck holds still for
+  // targetStop s (heavy: heavyTargetStop) as the knock takes it, and a hit
+  // of at least `flinch` of its health breaks off its wind-up, staggering it
+  // for flinchTime s (not a boss's or the Hollow's; once every flinchGap s).
+  // shotKnock: a bolt's or a lance's knock, px/s [plain, charged]. The view
+  // doesn't shake (the designer found it unpleasant), but the shake values
+  // are kept at 0 so it can be tried again.
   // A struck enemy wears a rim a pixel wide (render.js) for hurtFlash s;
   // no more than flashMost at once.
-  impact: { flashMost: 4, hitstop: 0.045, heavyStop: 0.09, stopGap: 0.15, shake: 0, heavyShake: 0, hurtShake: 0, knockDecay: 9 },
+  impact: { flashMost: 4, hitstop: 0.045, heavyStop: 0.09, stopGap: 0.15, shake: 0, heavyShake: 0, hurtShake: 0, knockDecay: 9,
+    targetStop: 0.07, heavyTargetStop: 0.13, flinch: 0.15, flinchTime: 0.25, flinchGap: 1.2, shotKnock: [75, 130] },
 
   // Circuits (circuits.js): a caster's row of slots, read left to right.
   // A Form starts a spell, Elements after it set its damage type, Glyphs
@@ -309,7 +358,7 @@ const T = {
     },
     forms: {
       arc: { cost: 3, mult: 0.9, close: true, refund: 2, refundMost: 3, range: 22, heldMult: 2.2, field: 14, slow: 0.6,
-        combo: [[1, 0.24, 0.3, 70, 4], [1, 0.24, 0.3, 70, 4], [1.7, 0.45, -0.1, 160, 9]] },
+        combo: [[1, 0.24, 0.3, 90, 4], [1, 0.24, 0.3, 90, 4], [1.7, 0.45, -0.1, 170, 9]] },
       glaive: { cost: 6, mult: 0.5, close: true, refund: 1, refundMost: 4, cd: 0.4, blades: 2, radius: 20, reach: 7, time: 3, spin: 7, again: 0.35, most: 3, knock: 60, field: 20 },
       bolt: { cost: 4, mult: 1.0, cd: 0.3, speed: 170, life: 1.2, field: 12 },
       lance: { cost: 6, mult: 1.1, cd: 0.35, speed: 210, life: 0.9, pierce: 4, field: 12 },
@@ -460,7 +509,9 @@ const T = {
   //   shapeOf: each Form's shape (and a spark's).
   //   bolt: originT, how long a bolt takes to leave the fist for its true
   //     path; trail: dots behind it; every: seconds between the motes it
-  //     sheds. impact: [sparks, light radius, light, seconds]; decal:
+  //     sheds; core: its white-hot core, art px [plain, charged]; linger:
+  //     how long its contrail stays where it went; light: [radius, tiles,
+  //     strength]. impact: [sparks, light radius, light, seconds]; decal:
   //     [seconds a mark on the ground lasts, the most at once].
   //   charge: motes drawn into the focus a second at full charge; glyph
   //     radius [empty, full].
@@ -469,11 +520,17 @@ const T = {
   //     most lights flaring at once (the oldest make way); day: under the
   //     sky in daylight, the share of its radius a cast's light keeps (and
   //     it's never brighter than one band of light: cfxLight).
+  //   lock: a shot's or a placed spell's lock-on on its foe, [seconds,
+  //     seconds its brackets take to close in, seconds its guide line
+  //     shows]; scar: a lance's line burnt on the ground, [seconds it
+  //     cools, the most at once]; beam: how far back from its head a
+  //     lance's beam reaches, world px; swarm: how long Blight's nanites
+  //     cling to what it struck.
   castFx: {
     pose: 0.2, thrust: 0.45,
     lean: { wand: [1, 1], gauntlet: [2, 1], staff: [1, 0] }, reach: { wand: 3, gauntlet: 1, staff: 4 }, lift: 4,
-    flash: [0.12, 1.5, 1.0], streaks: 5, streakSpeed: [50, 110],
-    glyph: [6, 10, 0.32], glyphBig: [9, 16, 0.5], motes: 6, moteTime: 0.55,
+    flash: [0.14, 2.2, 1.4], streaks: 7, streakSpeed: [50, 110],
+    glyph: [8, 13, 0.45], glyphBig: [11, 19, 0.6], motes: 6, moteTime: 0.55,
     shapes: {
       projectile: {},
       sweep: { time: 0.16, heavyTime: 0.24, sparks: 10, dust: 6, bloom: [1, 0.8, 0.2] },
@@ -483,10 +540,11 @@ const T = {
       move: { ghosts: 6, time: 0.3, alpha: 0.4, ends: [3, 12, 0.18], bloom: [2, 1.2, 0.25] },
     },
     shapeOf: { spark: 'projectile', bolt: 'projectile', lance: 'projectile', orb: 'projectile', arc: 'sweep', glaive: 'burst', nova: 'burst', well: 'placed', ward: 'guard' },
-    bolt: { originT: 0.07, trail: 5, every: 0.035 }, impact: [7, 1.1, 1.1, 0.16], decal: [1.6, 16],
+    bolt: { originT: 0.07, trail: 5, every: 0.035, core: [12, 18], linger: 0.26, light: [1.7, 0.85] }, impact: [12, 1.9, 1.7, 0.24], decal: [1.8, 16],
     charge: { motes: 40, glyph: [5, 13] },
     echo: 0.3,
-    cap: 180, flares: 10, day: 0.33,
+    cap: 260, flares: 14, day: 0.33,
+    lock: [0.45, 0.1, 0.1], scar: [0.9, 8], beam: 40, swarm: 1.1,
   },
   // What each element does on a hit (its stone sets a Form's). shock: this
   // share of hits arcs on; frost: hits chill, and a heavy hit on the
@@ -499,12 +557,20 @@ const T = {
   onHit: { shockRange: 48, shockMult: 0.5, chillSlow: 0.5, chillTime: 2 },
 
   // Enemies at level 1; each level multiplies hp by hpGrowth and damage by
-  // dmgGrowth. windup: the tell before an attack. weight: how often each
-  // turns up. No more than `attackers` (plus attackersPerDepth a floor)
-  // wind up at once; the rest circle.
+  // dmgGrowth. The first levels are gentler: hp × hpEarly at level 1,
+  // rising evenly to all of it at level hpFullAt (the Choir's furthest), so
+  // the Rim is for learning (not the Hollow's). windup: the tell before an
+  // attack. weight: how often each turns up. No more than `attackers` (plus
+  // attackersPerDepth a depth and attackersPerBiome a region, rounded down)
+  // wind up at once; the rest circle. Of the kinds that close in to fight
+  // (crawlers, droppers, crabs, constructs), only the nearest `press` (plus
+  // pressPerBiome a region) come in; the rest hold off at holdBack px,
+  // circling, until one falls. One woken by another, or by a noise, waits
+  // wakeStagger s (between the two) before it comes.
   // A heavy hit staggers anything but the warden for staggerTime.
   enemies: {
-    hpGrowth: 1.16, dmgGrowth: 1.07, aggro: 96, hurtFlash: 0.08, attackers: 2, attackersPerDepth: 0.34, staggerTime: 0.35,
+    hpGrowth: 1.16, dmgGrowth: 1.07, hpEarly: 0.5, hpFullAt: 8, aggro: 96, hurtFlash: 0.12, staggerTime: 0.35,
+    attackers: 1, attackersPerDepth: 0.34, attackersPerBiome: 0.75, press: 2, pressPerBiome: 1, holdBack: 72, wakeStagger: [0.5, 1.6],
     // crawlers close to `circle` px, circle for a moment, wind up, lunge,
     // then recover (open to a counter)
     crawler: { hp: 26, dmg: 14, speed: 36, radius: 5, circle: 28, windup: 0.38, lungeSpeed: 145, lungeTime: 0.28, recover: 0.55, weight: 5 },
@@ -595,8 +661,9 @@ const T = {
     // Underforge's)
     keeper: { hp: 455, enrageAt: 90, enrageSpeed: 1.3, afterPull: 30, dmg: 18, speed: 22, radius: 12, range: 100, windup: 0.75, cooldown: 1.8, chargeSpeed: 130, chargeTime: 0.6, dazed: 1.5, shotSpeed: 70, shots: 12, summonEvery: 7, broodMax: 4, magma: 0.35, magmaR: 18, magmaTime: 4, summon: 2 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },
-    // a room's enemies: perRoom + perDepth × depth, give or take one
-    perRoom: 1.4, perDepth: 0.55, maxPerRoom: 6,
+    // a room's enemies: perRoom + perDepth × depth + perBiome × region,
+    // give or take one
+    perRoom: 1.0, perDepth: 0.4, perBiome: 0.8, maxPerRoom: 6,
     // elites: chance eliteBase + eliteDepth × depth, to eliteMax; elites:
     // how often each affix comes up
     eliteBase: 0.06, eliteDepth: 0.035, eliteMax: 0.35, eliteHp: 2.5, eliteDmg: 1.3,
@@ -637,13 +704,14 @@ const T = {
 
   // Drops. Enemies leave their own parts (part: the chance; partTwo: the
   // chance of a second), elites and the warden more, and now and then an
-  // exotic, a blueprint or a sealed relic. Finished gear comes from the
-  // forge. motes heal. rarity: [base, per depth] weights (for relics).
+  // exotic or a sealed relic (it opens into a rare or better module); and
+  // modules (T.modules.drop). Bases come from the forge. motes heal.
+  // rarity: [base, per enemy level] weights (for modules).
   loot: {
     part: 0.45, partTwo: 0.15, eliteParts: [2, 3], bossParts: 4,
-    exotic: 0.03, eliteExotic: 0.5, eliteBlueprint: 0.22,
+    exotic: 0.03, eliteExotic: 0.5,
     relic: 0.008, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
-    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [1, 0.35], set: [0.8, 0.25] },
+    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.4, 0.12], set: [0.35, 0.1] },
   },
 
   // Gear. Base numbers at tier 1, times tierGrowth a tier (affixes grow by
@@ -660,20 +728,124 @@ const T = {
   // Caps on what affixes can add up to.
   caps: { crit: 50, castSpeed: 100, moveSpeed: 50, leech: 15, shock: 60, chill: 60, oreLuck: 100, mineSpeed: 200 },
 
-  // The rune bench, in ore of the item's tier. add also raises the rarity.
-  runes: { reroll: 4, upgrade: 6, upgradeBy: 0.2, add: 10 },
+  // Salvaging a crafted base gives back `back` of its ore (its modules come
+  // out whole), and an exotic now and then.
   salvage: { back: 0.4, exotic: 0.15, exoticRare: 0.5 },
 
-  // The Lodestar. Each ore fed is worth tier² points; magnitude n needs
-  // levels[n - 1] points in all. Each level past the first is an
-  // attunement point, a Deep's lodelines a little likelier, a pocket slot
-  // now and then (T.cargo.pocket) and a gentler recall.
-  // extractStar: what coming home feeds the star, once a sortie, times the
-  // square of the deepest dark land walked (its depth, 1 to 4).
-  star: { levels: [0, 60, 250, 900, 3000, 6000, 10000, 15000], extractStar: 8 },
+  // Crafted bases (blueprints.js, items.js). Exact: the recipe and its
+  // ore's tier set the stats, the circuit slots and the module sockets, and
+  // the anvil only adds. stat: how much more of its base numbers, by the
+  // anvil's quality (rough, fair, fine, masterwork); a masterwork has
+  // masterSocket more module sockets, and a masterwork caster a linked pair
+  // of slots. sockets: module sockets by tier (1–6); a pick's, pickSockets
+  // (the rusty pick has none). size: the circuit slots a caster can be made
+  // with, smallest first; each slot past the first costs sizeOre ore and
+  // sizeParts parts more.
+  gear: {
+    stat: [0, 0.05, 0.1, 0.15], masterSocket: 1,
+    sockets: [1, 1, 2, 2, 2, 3], pickSockets: [1, 1, 1, 1, 2, 2],
+    size: { wand: [3, 4], gauntlet: [3, 4], staff: [4, 5, 6] }, sizeOre: 5, sizeParts: 1,
+  },
+  // Modules (modules.js): a dying creature's strongest thread, caught by
+  // the suit's capture field and set in a lattice crystal. Rolled loot,
+  // socketed into crafted bases.
+  //   drop: the chance a kill leaves one (foe, elite), or how many (boss:
+  //     a warden; keeper); deep: a Deep's chances, times; early: while
+  //     fewer than `found` have ever been caught, the chances times `mult`;
+  //     lens: carrying the Capture Lens, times.
+  //   rarity: weights as T.loot.rarity's ([base, per enemy level]); an
+  //     elite's is at least magic, a warden's or a Keeper's rare, and a
+  //     Keeper's legendary weight is keeperLegend times.
+  //   affixes: traits by rarity (a legendary's power and a set's bonus are
+  //     traits too, besides these); value: a trait's strength against the
+  //     old item affix's (there are more sockets than there were pieces).
+  //   fits: the odds a module is for a caster, armor, a charm or a pick
+  //     (a creature leans it to where its family can go).
+  //   upgrade: a tier up (to 2–6): ore of the new tier, and threads by the
+  //     new tier. reroll: one trait, the rest locked: threads (+perTier a
+  //     tier above 1) and ore of its tier. fuse: two into one, keeping a
+  //     trait of each, boost stronger: threads (+perTier), ore of the
+  //     higher tier. enrich: a Lodestone shard and threads add a trait
+  //     (common to magic, magic to rare). imprint: a remembered power, for
+  //     a heart or `glass` riftglass, and threads.
+  //   salvage: threads, by rarity, +perTier a tier above 1. weight: in the
+  //     cargo.
+  modules: {
+    drop: { foe: 0.07, elite: 0.65, boss: 2, keeper: 3, deep: 1.4, early: { found: 8, mult: 2.6 }, lens: 1.5 },
+    keeperLegend: 3,
+    affixes: { common: 1, magic: 2, rare: 3, legendary: 2, set: 1 },
+    value: 0.6,
+    fits: { caster: 4, armor: 2.5, charm: 2, pick: 1.5 },
+    upgrade: { ore: 10, threads: [0, 4, 8, 14, 20, 28] },
+    reroll: { threads: 3, perTier: 2, ore: 2 },
+    fuse: { threads: 8, perTier: 3, ore: 4, boost: 0.15 },
+    enrich: { shards: 1, threads: 4 },
+    imprint: { glass: 2, threads: 6 },
+    salvage: { common: 1, magic: 2, rare: 4, legendary: 7, set: 7, perTier: 1 },
+    weight: 1,
+  },
+
+  // The Lodestar grows from deeds, not ore (deeds.js): each deed gives
+  // light, motes of it, carried home and fed to the star at its altar, a
+  // point each. Magnitude n needs levels[n - 1] points in all. Each level
+  // past the first is an attunement point, a Deep's lodelines a little
+  // likelier, a pocket slot now and then (T.cargo.pocket) and a gentler
+  // recall. ringMag: the magnitude a spire needs, by ring: the star's light
+  // must reach that far before a spire can hold there. (Kindling every
+  // territory of a ring, with its Keeper's lair reached, always reaches the
+  // next ring's: never stuck.) scale: what this scale is, in the save
+  // (deeds.js rescales an older star, keeping its magnitude).
+  // feed: holding FEED THE STAR at the altar (hub.js). The light leaves the
+  // stash a mote at a time, deeplight first and heartlight last, rate0 a
+  // second at the start, climbing to rateMax over ramp s of holding (eased
+  // in, so a tap gives one). Moving on to the next kind, the flow rests for
+  // beat s and falls back to beatRamp of the way up. fly: s for a mote to
+  // rise from the Kindler to the star; arc: world px its path bows up over
+  // the altar's bowl. hum: how much each landing brightens the star (it
+  // fades at humFade a second). lights: at most this many rising motes
+  // carry a light of their own.
+  star: {
+    levels: [0, 12, 40, 100, 200, 340, 520, 740], ringMag: [0, 1, 3, 5, 7], scale: 2,
+    feed: { rate0: 2.5, rateMax: 22, ramp: 2.2, beat: 0.35, beatRamp: 0.5, fly: 0.9, arc: 46, hum: 0.06, humFade: 2.5, lights: 14 },
+  },
+  // Deeds (deeds.js): the light each gives the star. heart: heartlight for
+  // kindling a territory, by ring; bound to the Kindler the moment the spire
+  // stands, safe from any fall. deepEnd: deeplight for first reaching a
+  // Deep's last site (its deep vein, or its Keeper's lair), by ring, and
+  // deepSite more for each site past the first; forge: for each ancient
+  // forge found; echo: for each echo. Deeplight rides in the cargo (it
+  // weighs nothing), so a fall or a recall can cost it. (A Keeper's shard,
+  // set at the altar, is T.story.shardStar.)
+  // cache: a fall leaves the cargo where it fell, the Kindler's pack; walking
+  // within `reach` px of it picks it up. beacon: its light (tiles, strength).
+  deeds: {
+    heart: [0, 12, 16, 24, 32], deepEnd: [0, 8, 12, 16, 20], deepSite: 4, forge: 4, echo: 8,
+    cache: { reach: 14, beacon: [1.6, 0.6] },
+  },
+  // Supplies (supplies.js): consumables made from ore, at home (SUPPLIES at
+  // the fabricator) or the simple ones in the field (MAKE, in the cargo).
+  // Each comes in three grades, from each region's ore. most: how many of
+  // each kind can be carried (all grades together); they're on the belt,
+  // safe whatever happens, and spent when used.
+  //   injector: heals heal[grade] of your health.
+  //   ward: a ward soaking soak[grade] damage for `time` s.
+  //   cell: gives back light[grade] of your light (dark land and Deeps).
+  //   flare: lights r[grade] tiles round where it's set for life[grade] s;
+  //     standing in it, your light doesn't drain.
+  //   charge: set at your feet, it arms after `arm` s and blasts the first
+  //     foe within `trigger` px, hurting all within `r` px for dmg × the
+  //     enemies' growth to the grade's level (lvl[grade]).
+  supplies: {
+    most: 4,
+    injector: { heal: [0.35, 0.55, 0.8] },
+    ward: { soak: [30, 60, 100], time: 20 },
+    cell: { light: [0.25, 0.4, 0.6] },
+    flare: { r: [4, 5, 6], life: [40, 50, 60] },
+    charge: { arm: 0.8, trigger: 18, r: 34, dmg: 45, lvl: [3, 7, 11] },
+  },
   // The story (story.js): each region's Keeper waits in its lair, at the end
   // of its ring's furthest Deep, holding a shard of a star that went dark;
-  // each shard set in the Lodestar adds shardStar points. An echo (a log of
+  // each shard set in the Lodestar adds shardStar points of light. An echo (a log of
   // the Kindlers before) turns up by an ancient forge, from an elite now and
   // then, and from every Keeper.
   //   landerEvery: the Meridian can send a lander for every this many
@@ -686,22 +858,20 @@ const T = {
   //     comes before one speaks, and how long (s) before that one speaks
   //     again.
   story: {
-    shardStar: 400, echoForge: 0.5, echoElite: 0.05,
+    shardStar: 40, echoForge: 0.5, echoElite: 0.05,
     landerEvery: 3, callLanders: 5, turnEcho: 5,
     settlers: { perLander: 1, most: 6, speed: 9, rest: [2, 6], talkR: 1.4, talkGap: 40 },
   },
-  // An ancient forge stands on a floor this deep or deeper, by chance.
-  // Imprinting a known legendary power at the forge costs a heart (any
-  // grade) or `glass` riftglass; a fine forge or better always takes it,
-  // a rougher one with `chance`.
-  imprint: { glass: 2, chance: 0.5 },
-  fieldForge: { blueprint: 0.6 }, // the chance a schematic lies by one (how often one stands is the zone's)
+  // By an ancient forge, the chance a module lies, left by whoever worked
+  // it (how often one stands is the zone's).
+  fieldForge: { module: 0.6 },
   // The anvil: three strikes, each a marker sweeping a bar at `speeds`
   // (sweeps a second), slowed to `drag` of that while it's over the zone.
   // A strike inside the zone (`zone` of the bar wide, narrowing by `shrink`
   // a strike) is good; inside its middle `perfect` of it, perfect. Quality
-  // (perfect 1, good 0.5, summed, rounded down) picks the rarity odds:
-  // [common, magic, rare, legendary] for quality 0–3.
+  // (perfect 1, good 0.5, summed, rounded down) is rough, fair, fine or
+  // masterwork, and only ever adds to the recipe (T.gear: stat, sockets, a
+  // linked pair); a fine forge or better makes a stone a tier higher.
   // Made kinder after the designer found it hard (it was speeds 0.9, 1.25,
   // 1.6, zone 0.26, shrink 0.04, no drag). The good window is now about
   // 500, 350 and 250 ms, strike by strike (was 290, 175, 110), so most
@@ -709,7 +879,6 @@ const T = {
   // 55, 35, with perfect 0.3), so three in a row is still rare.
   anvil: {
     speeds: [0.75, 0.95, 1.15], drag: 0.75, zone: 0.28, shrink: 0.03, perfect: 0.25,
-    odds: [[55, 35, 10, 0], [40, 42, 16, 2], [25, 44, 26, 5], [10, 38, 40, 12]],
   },
   attune: {
     vitality: { name: 'Vitality', text: '+15 max health', max: 5, maxHp: 15 },
@@ -752,7 +921,7 @@ const T = {
   //     stands out: soften, how far its dark and light clumps are drawn
   //     towards its middle tone (0-1), and cut, as cluster.cut.
   //   groundDither: ordered dithering at the edges of the ground's large
-  //     gradients (wall shadows, the rift's wash, the sinkhole's faces).
+  //     gradients (wall shadows, the rift's wash).
   //   lightSteps: the light's bands for each 1.0 of light; lightDither: how
   //     much of each step's edge is dithered (0 hard, 1 the whole step).
   //   lampPerPixel: each pixel's light read off a slope through its cell
@@ -834,26 +1003,44 @@ const T = {
     // arc, an Arc's crescent's thickness at its thickest (art px), light and
     // heavy.
     fx: { lightR: 0.42, lightA: 0.8, arc: [6, 8.5] },
+    // hub (hubart.js, hub.js): the outpost's press keeps a beat of beat s:
+    // its ram rests on the work after it strikes (rest, a share of the
+    // beat, while the sparks fly), rises (rise), waits while the smith
+    // pushes the lever over (wait), and comes down hard in what's left.
+    // old: an ancient forge's cold light, [reach (tiles), strength], and how
+    // fast it breathes (rad/s) and by how much.
+    hub: { press: { beat: 1.5, rest: 0.16, rise: 0.46, wait: 0.26 }, old: { light: [1.8, 0.75], breath: 1.3, breathAmt: 0.15 } },
+    // site (hubground.js): the outpost's ground. tear: where the land beyond
+    // comes in, its border torn by two noises ([across, down] px, each) by
+    // tearAmt. squash: how much a circle on the ground is flattened by the
+    // camera. deck: a landing pad's plates, lodestone: the starstone in the
+    // ground, seven tones each (by the ground's tone); vein: its gold, dark
+    // to light. mark: the amber of a pad's ring [dark, light]; star: the
+    // seed-star's [dark, light]; lamp: a pad's landing lights. padR: a pad's
+    // radius (tiles). pathW: a trodden track's half width (tiles), trod how
+    // dark it wears the earth.
+    site: {
+      tear: [9, 3, 30, 10], tearAmt: 0.85, squash: 0.72,
+      deck: ['#232833', '#2d3340', '#383f4d', '#444c5b', '#515a6a', '#5e6879', '#6e7889'],
+      lodestone: ['#13141b', '#1b1e27', '#242833', '#2e3340', '#3a404d', '#474e5c', '#58606f'],
+      vein: ['#3e3424', '#6e5a34', '#a68a4e', '#d8bc76', '#fff0c0'],
+      mark: [[150, 104, 40], [214, 160, 66]], star: [[200, 180, 130], [238, 222, 176]], lamp: '#ffc860',
+      padR: 2.2, pathW: 0.9, trod: 0.72,
+    },
     // hole (painthole.js): what lies below the floor. depth: how far down a
     // hazard's surface lies (art px), shade how far (a share of it) its
-    // banks shade it from the light. A far wall: wall (the sinkhole's, on
-    // the rock's ramp) and bank (a pool's, cut in the ground,
-    // on the ground's): [its tone at the lip, at the foot, how much lighter
-    // turned to the light]; wallPow how fast it darkens; jitter, strata,
+    // banks shade it from the light. A far wall: bank (a pool's, cut in
+    // the ground, on the ground's ramp): [its tone at the lip, at the foot,
+    // how much lighter turned to the light]; wallPow how fast it darkens; jitter, strata,
     // strataAmt as the rock's faces'; plane: the upright planes it breaks
     // into [px across, how far their tones differ]; crack: [the share of
     // their borders cracked, a crack's length]; lipTone: the far lip's
     // least tone [a wall's, a bank's]; wet, foot: how many rows of a bank's
     // foot are a wet dark band (at water or ice), and its most tone; lip: how many tones lighter the near rim's ground; lavaLift,
     // lavaLick: how much lava lights its bank, and the share of the bank's
-    // foot laid in its colour's strokes; pit: how tall the sinkhole's far
-    // wall shows before the dark, pitFade how much darker it grows down it,
-    // pitEdge its edge's two noises [px across, px down, how far each
-    // moves it (a share of a tile)];
-    // starLick: the star's light on it at home [reach (px), how thick its
-    // strokes]; vent: how tall a vent's throat's far wall (px); wade: how much of a walker in a pool
+    // foot laid in its colour's strokes; vent: how tall a vent's throat's far wall (px); wade: how much of a walker in a pool
     // or lava is under its surface (art px), wadeEase how fast it steps down.
-    hole: { depth: { pool: 12, burn: 11, slick: 7 }, shade: 0.6, wall: [5.2, 1.2, 2.4], bank: [3.6, 1.2, 1.2], wet: 2, wallPow: 0.9, jitter: 0.45, strata: 0.45, strataAmt: 1.3, plane: [9, 0.7], crack: [0.3, 16], lipTone: [6.5, 5.5], foot: 0.5, lip: 3, lavaLift: 2, lavaLick: 0.75, pit: 84, pitFade: 2, pitEdge: [30, 22, 0.55, 7, 5, 0.22], starLick: [140, 0.55], vent: 5, wade: 6, wadeEase: 0.25 },
+    hole: { depth: { pool: 12, burn: 11, slick: 7 }, shade: 0.6, bank: [3.6, 1.2, 1.2], wet: 2, wallPow: 0.9, jitter: 0.45, strata: 0.45, strataAmt: 1.3, plane: [9, 0.7], crack: [0.3, 16], lipTone: [6.5, 5.5], foot: 0.5, lip: 3, lavaLift: 2, lavaLick: 0.75, vent: 5, wade: 6, wadeEase: 0.25 },
     // flora, props, ore and drops (pflora.js). ramp: a material's stroke
     // ramp (as ramp above); tones: [lo, hi] of the ramp's eight a form's
     // light is laid on; base, light, shade, fall, crease, rim, under: its
@@ -924,7 +1111,7 @@ const T = {
   //     softly that edge thins out; outlier: the odd one anywhere.
   //   floorP, wallP, ceilP: the most of a tile that grows a floor piece,
   //     a piece at the foot of a wall, one hanging from it (times the set's
-  //     density; at the outpost, times hub). space: how far apart pieces
+  //     density). space: how far apart pieces
   //     stand, a share of their half widths added (sameKind: for small ones
   //     of a kind, which clump). gather: [least, most] small pieces round
   //     each big one.
@@ -971,7 +1158,7 @@ const T = {
   flora: {
     foot: 1, wallReach: 1.6, nook: 0.35, wet: 0.7, wetReach: 3, light: 0.5, lightReach: 3, base: 0.12, openFrom: 3, openKeep: 0.25, narrow: 4,
     drift: 3.2, cut: 0.1, fray: 0.28, outlier: 0.04,
-    floorP: 0.55, wallP: 0.5, ceilP: 0.4, hub: 0.4, space: 0.9, sameKind: 0.8, gather: [1, 3],
+    floorP: 0.55, wallP: 0.5, ceilP: 0.4, space: 0.9, sameKind: 0.8, gather: [1, 3],
     stand: { cut: 0.5, minSuit: 0.45, reach: 2, rows: 3, gap: 5 },
     cover: { round: [2, 4], foot: 0.7, scree: [1, 3], open: 0.03 },
     bed: { reach: 5, squash: 0.62, fray: 0.6, strokes: 0.7, deep: 0.45, outer: 0.3, inner: 0.55, litter: 0.6, drift: 0.6 },
@@ -995,8 +1182,8 @@ const T = {
     },
   },
 
-  // Light (render.js). The world dims to `ambient` (tinted; at home, the
-  // brighter hubAmbient); lights add back
+  // Light (render.js). The world dims to `ambient` (tinted; under the sky,
+  // and at home, its zone's daylight); lights add back
   // [radius in tiles, strength]; the result is cut into T.art.lightSteps
   // bands, never brighter than `max`. flora: how bright a plant's glow is.
   // bloom: [downscale, strength] passes, times glow. bloomWorld: the
@@ -1005,7 +1192,7 @@ const T = {
   // moves (render.js, bloomSceneWorld). The lamp's radius may become a dial
   // that shrinks with depth.
   light: {
-    ambient: 0.45, hubAmbient: 0.85, tint: [0.72, 0.76, 0.95], max: 1.9,
+    ambient: 0.45, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: true,
     // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
@@ -1028,14 +1215,50 @@ const T = {
     // by day, how dark the sun's shadow of what moves (its strength, as
     // the baked ones' T.paint.shade.sun). fixedH: how high (px) the floor's
     // fixed lights stand, fixedMin the share of the light at a plant's foot
-    // from which one casts, fixedK as lampK. home: the outpost's lanterns,
-    // forge and fire: min, the share from which they cast; k as lampK; dark,
-    // as lamp; full: the share that casts the full shadow; fireH: the fire's
-    // height; near: what moves casts only within this share of the lamp's
-    // reach of the Kindler.
+    // from which one casts, fixedK as lampK. home: the outpost's light masts
+    // and forge: min, the share from which they cast; k as lampK; dark, as
+    // lamp; full: the share that casts the full shadow; near: what moves
+    // casts only within this share of the lamp's reach of the Kindler.
+    // star: the star over the cradle at home: h, how high it hangs (px);
+    // its reach r [tiles at magnitude 0, more each] and strength i [the
+    // same]; k as lampK; full as home's; drop [at magnitude 1, at 8]: how
+    // dark its shadows are; spread [the same]: how soft they are; lamp: how
+    // much the Kindler's brow lamp, overhead, takes from its shadows of
+    // what moves; kMove as k, for what moves. homeLamp: the lamp casts at
+    // home from this strength (at dusk), for the few things nearest it.
     shadow: {
       walls: true, baked: true, eye: 26, rays: 1.25, step: 2, reach: 3, top: 0,
-      cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, fireH: 8, near: 1 }, hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
+      cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, near: 1 }, star: { h: 74, r: [17, 2], i: [1.3, 0.15], k: [0.5, 2.6], kMove: [0.5, 1.6], full: 0.3, drop: [0.72, 0.9], spread: [1.6, 0.7], lamp: 0.3 }, homeLamp: [0.5, 3], hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
+    },
+    // The suit lamp as a beam (an example to compare with the round glow:
+    // render.js lampBeamOf, shadow.js addConeLight; cosmetic). on: the
+    // default, until the pause screen's LAMP is set. It points the way the
+    // Kindler is turned (the rig's smoothed facing), or the aim while
+    // casting. reach: × the glow's reach; i: its strength on its axis.
+    // core, edge: half-angles (degrees) of its full middle and of where it
+    // has faded out, smoothly between; axis: how much brighter still
+    // right on its axis; halo: a faint wider cone round it [its edge, ×
+    // edge; strength]; ragged: how far its edges are broken into short
+    // strokes across (a share of the halo's edge's cosine range). pow: how it fades with distance, (1 − d)^pow
+    // (the glow's is 2). rise: where the cone starts, from the feet (0) to
+    // the brow lamp (1); back: art px its apex is set back behind that, so
+    // it's already as wide as the body where it leaves him. spill: a dim
+    // round light round him [its reach, × the glow's; strength]; hot: a
+    // small bright spot at the lamp [reach, art px; strength]. low: as your
+    // light drains below T.pull.dimAt it narrows (its half-angles × narrow
+    // when it's all but gone) and gutters (dips of up to flicker).
+    // sightSteps: the turns the walls' sight is worked out for; rays: its
+    // rays, × T.light.shadow.rays (it reaches further). air: what
+    // shows of it in the air, in a dark place: a haze of loose strokes in a
+    // shaft from the lamp coming down to the ground [how many, alpha, how
+    // far out (× reach)], and motes drifting in it [how many a 100 × 100
+    // art px of cone, alpha].
+    beam: {
+      on: true, reach: 1.7, i: 1.75, core: 8, edge: 30, axis: 0.6, halo: [1.6, 0.16], ragged: 0.1, pow: 1.1, rise: 0.45, back: 10,
+      spill: [0.36, 0.42], hot: [9, 0.7],
+      low: { narrow: 0.7, flicker: 0.45 },
+      sightSteps: 64, rays: 0.8,
+      air: { haze: [46, 0.45, 0.6], motes: [3, 0.8] },
     },
   },
 
@@ -1047,7 +1270,64 @@ const T = {
   // speed, how far (world px)].
   wick: { back: [7, 4], aside: [6, 3], up: 29, ease: 5, bob: [3, 1.5] },
 
+  // The opening (intro.js): five painted scenes that play on their own,
+  // the last in the outpost itself. scenes: each one's length (s); fade:
+  // the black into and out of each of the first four (s); capAt: when each
+  // of their captions starts (s), typed at cps characters a second;
+  // tapGuard: seconds before a tap counts; warm: seconds the outpost is
+  // still drawn under the first scene (so it's painted); sndWait: the
+  // longest (s) a cue waits for its sound to be rendered (sndbank.js). hub: the last
+  // shot, in seconds into it: the fade in from black; the star rising out
+  // of its cradle from `drop` art px down (over `rise`) and lighting (over
+  // `lit`); the outpost's light up from `amb0` of its own (over `ambUp`);
+  // its lodelines running out (over `lode`); the modules waking, the
+  // nearest the cradle first: [the first, then one every, each light of
+  // one after the one before]; the camera starting with the star `camAt`
+  // of the way down the view and coming down over `cam`; the Kindler's pod
+  // door open over `door`, his suit lamp flickering on over `lampOn` as he
+  // looks out, and him stepping out and `step` tiles on at
+  // `walk` of his pace; Wick lifting off his pack at `wickAt`; him turning
+  // to the star at `look`; Wick's lines at `caps`; and something in the
+  // dark over `dark`.
+  intro: {
+    scenes: [9, 9.5, 11, 9.5, 17.5], fade: 0.6, capAt: [1.0, 1.0, 1.2, 1.0], cps: 30, tapGuard: 0.4, warm: 1, sndWait: 2.5,
+    hub: { fadeIn: 0.9, drop: 34, rise: [0.6, 3.2], lit: [0.8, 2.8], amb0: 0.3, ambUp: [1.5, 9], lode: [2.8, 6], wake: [2.6, 0.2, 0.08], camAt: 0.42, cam: [3.4, 8.2], door: [5.8, 7.6], lampOn: 0.6, step: 1.6, walk: 0.42, wickAt: 7.4, look: 8.4, caps: [8.0, 12.6], dark: [14.2, 15.4] },
+  },
+
+
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
   // at once (ui.js; hints wait their turn).
   ui: { tapGuard: 0.4, toasts: 2 },
+
+  // Sound (audio.js, music.js; cosmetic). master, music, sfx: levels; soft:
+  // a setting's soft level; space: the echo's level. voices: the most
+  // effects sounding at once; gap: the least time (s) between two of the
+  // same, unless the cue says. near: [full, silent] distance (px) from the
+  // Kindler of an effect with a place, panned over panW px, at most panMax.
+  // presence: how much of the star is there in kindled land, and in the
+  // dark and a Deep [with no light, more with full]. figureAt: the presence
+  // the figure needs; phraseRest, callRest: [least, most] s between its
+  // phrases (callRest below magnitude 4) at home, times awayRest away; beat
+  // (s). figure, bloom, ping: their levels; pingGap: s. Feeding swells the
+  // hum (feedPer an ore, feedHeld while held, fading feedFade a second) by
+  // feedSwell and opens it by feedOpen Hz. magLate: s before a magnitude
+  // reached without its bloom is heard anyway; lift: s the whole chord
+  // holds after kindling. bedUnder: how much the star's presence quiets a
+  // place's own sound; bedDay: by day; events: their level; breath: its
+  // level after the turn. uneaseFrom: the echoes read before the turn
+  // starts to be heard; uneasyPhrase: the chance a phrase is uneasy after
+  // it. lowHp: the share of health under which the heart beats; stingR: px
+  // a big foe is first seen at; channel: a channel's tone. stepAhead: px
+  // ahead of the Kindler's middle a footfall's ground is read (the foot that
+  // lands is ahead of the body).
+  sound: {
+    stepAhead: 6, master: 0.9, music: 0.1, sfx: 0.8, soft: 0.4, space: 0.6, voices: 14, gap: 0.03,
+    near: [50, 230], panW: 140, panMax: 0.7,
+    presence: { kindled: 0.78, dark: [0.12, 0.66], deep: [0.04, 0.58] },
+    figureAt: 0.62, phraseRest: [7, 12], callRest: [14, 22], awayRest: 1.5, beat: 0.8,
+    figure: 0.5, bloom: 0.5, ping: 0.18, pingGap: 0.055,
+    feedPer: 0.1, feedHeld: 0.6, feedFade: 0.45, feedSwell: 0.8, feedOpen: 900,
+    magLate: 8, lift: 6, bedUnder: 0.55, bedDay: 0.6, events: 0.5, breath: 0.09,
+    uneaseFrom: 2, uneasyPhrase: 0.6, lowHp: 0.3, stingR: 130, channel: 0.035,
+  },
 };

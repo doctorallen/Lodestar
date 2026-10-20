@@ -151,8 +151,8 @@ function ugFootCols(spr) {
 // pairs of columns, so there's no light line where it meets the ground.
 // Worked out once a sprite and floor look; the same size and anchor.
 const _ugMelts = new WeakMap();
-function ugMelted(spr) {
-  const U = View.ug, M = T.flora.melt;
+function ugMelted(spr, U = View.ug) {
+  const M = T.flora.melt;
   if (!U || !U.foot) return spr;
   const m = _ugMelts.get(spr);
   if (m && m.key === U.foot) return m.spr;
@@ -258,12 +258,15 @@ function ugHabitat(f, S) {
 // ---------------------------------------------------------------------------
 // What grows on a floor: the pieces and stands drawn among the actors, and
 // what's painted into the floor (View.ug: beds, shadows and stamps by the
-// tiles they touch). Needs the floor's rock pixels (View.rockPx).
-function placeUndergrowth(f, set) {
-  const F = T.flora, kit = floraKit(set), S = F.sets[set] || F.sets.rim, b = artBiome(f), K = ugKit(set, b);
-  const W = f.w, H = f.h, N = W * H, R = View.rockPx, PW = W * ATILE, PH = H * ATILE, seed = hashInts(f.seed, f.depth, 0xf10a) | 0;
-  const rng = new Rng(seed >>> 0), hab = ugHabitat(f, S), sky = kit.sky && !f.hub;
-  const dens = S.density * (f.hub ? F.hub : 1);
+// tiles they touch). Needs the floor's rock pixels (View.rockPx). o: for
+// one of several sets on a floor (the outpost's, hubground.js): mask, how
+// likely each tile is to take anything (0-1); salt, its own drifts; dens,
+// its density; and the look its beds are in (look).
+function placeUndergrowth(f, set, o = {}) {
+  const F = T.flora, kit = floraKit(set), S = F.sets[set] || F.sets.rim, b = o.look || artBiome(f), K = ugKit(set, b);
+  const W = f.w, H = f.h, N = W * H, R = View.rockPx, PW = W * ATILE, PH = H * ATILE, seed = (o.salt ? hashInts(f.seed, f.depth, 0xf10a, o.salt) : hashInts(f.seed, f.depth, 0xf10a)) | 0;
+  const rng = new Rng(seed >>> 0), hab = ugHabitat(f, S), sky = !!kit.sky, mask = o.mask;
+  const dens = S.density * (o.dens || 1);
   // where nothing grows: the entry, round each portal and its plinth, the
   // lodeline's dish, the outpost's stations, and on the hazards themselves
   const keep = new Uint8Array(N);
@@ -274,9 +277,9 @@ function placeUndergrowth(f, set) {
   if (f.hub) for (const s of HUB_STATIONS) for (let dy = -1; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) mark(s.x + dx, s.y + dy);
   for (let i = 0; i < N; i++) if (f.haz && f.haz[i]) keep[i] = 1;
   for (const p of f.hazPts || []) mark(p.x, p.y);
-  const open = (tx, ty) => tx > 0 && ty > 0 && tx < W - 1 && ty < H - 1 && f.tiles[ty * W + tx] === TILE_FLOOR && !keep[ty * W + tx];
+  const open = (tx, ty) => tx > 0 && ty > 0 && tx < W - 1 && ty < H - 1 && f.tiles[ty * W + tx] === TILE_FLOOR && !keep[ty * W + tx] && (!mask || mask[ty * W + tx] > artHash(tx, ty, seed + 9));
   const rockPx = (x, y) => { x = Math.round(x); y = Math.round(y); return x < 0 || y < 0 || x >= PW || y >= PH || R[y * PW + x] === 1; };
-  const wallAbove = (tx, ty) => TILE_SOLID[floorTile(f, tx, ty - 1)] && floorTile(f, tx, ty - 1) !== TILE_PIT;
+  const wallAbove = (tx, ty) => TILE_SOLID[floorTile(f, tx, ty - 1)];
 
   const U = { f, set, b, K, Q: ugTones(set, b), foot: ugFootTone(set, b), sky, orig: new Uint8Array(N), beds: new Array(N), shadows: new Array(N), stamps: new Array(N), grid: new Float32Array(N), gridNear: new Uint8Array(N), atlas: null };
   for (let i = 0; i < N; i++) U.orig[i] = TILE_SOLID[f.tiles[i]] ? 1 : 0;
@@ -320,7 +323,7 @@ function placeUndergrowth(f, set) {
   const footClear = (x, y, half) => !rockPx(x * AP, y * AP) && !rockPx((x - half) * AP, y * AP) && !rockPx((x + half) * AP, y * AP) && !rockPx(x * AP, (y + 2) * AP);
   const put = (piece, x, y, anchorT) => {
     const spr = floraSprite(set, piece, 0), top = piece.anchor === 'ceiling', sx = Math.round(x * AP - spr.w / 2), sy = top ? Math.round(y * AP) : Math.round(y * AP) - spr.h + 1;
-    items.push({ piece, set, x, y, top, phase: rng.f(), anchorT, bx0: sx, by0: sy, bx1: sx + spr.w, by1: sy + spr.h, hgt: spr.h, amp: 0, stir: 0, stirDir: 1 });
+    items.push({ piece, set, ug: U, x, y, top, phase: rng.f(), anchorT, bx0: sx, by0: sy, bx1: sx + spr.w, by1: sy + spr.h, hgt: spr.h, amp: 0, stir: 0, stirDir: 1 });
     return spr;
   };
   // a plant on the ground, with its bed, shadow and cover round it
@@ -560,7 +563,7 @@ function placeUndergrowth(f, set) {
       const o = s.owner;
       o.front = { sx: s.sx, sy: s.sy, w: s.w, h: s.h, x0: s.x0, y0: s.y0 };
       o.bx0 = Math.min(o.bx0, s.x0); o.bx1 = Math.max(o.bx1, s.x0 + s.w); o.by1 = Math.max(o.by1, s.y0 + s.h);
-    } else items.push({ strip: true, sx: s.sx, sy: s.sy, w: s.w, h: s.h, bx0: s.x0, by0: s.y0, bx1: s.x0 + s.w, by1: s.y0 + s.h, x: (s.x0 + s.w / 2) / AP, y: s.y, hgt: s.h, phase: rng.f(), amp: 0, stir: 0, stirDir: 1 });
+    } else items.push({ strip: true, ug: U, sx: s.sx, sy: s.sy, w: s.w, h: s.h, bx0: s.x0, by0: s.y0, bx1: s.x0 + s.w, by1: s.y0 + s.h, x: (s.x0 + s.w / 2) / AP, y: s.y, hgt: s.h, phase: rng.f(), amp: 0, stir: 0, stirDir: 1 });
   }
   // the tiles a bed of a stand or a wall's foot can reach
   for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
@@ -859,14 +862,14 @@ function ugGlows(spr) {
 // The blades in front of a plant's foot (it: the plant), leaning as far as
 // their height has it of the plant's lean.
 function drawFootFront(it, ox, oy) {
-  const U = View.ug, s = it.front;
+  const U = it.ug || View.ug, s = it.front;
   if (!U || !U.atlas) return;
   drawLeaning(U.atlas, null, s.sx, s.sy, s.w, s.h, s.x0 + ox, s.y0 + oy, (it.amp || 0) * Math.min(1, s.h / Math.max(1, it.hgt)) * 2, false, it.over !== false);
 }
 
 // A stand's row of stems.
 function drawStandRow(it, ox, oy) {
-  const U = View.ug;
+  const U = it.ug || View.ug;
   if (!U || !U.atlas) return;
   drawLeaning(U.atlas, null, it.sx, it.sy, it.w, it.h, it.bx0 + ox, it.by0 + oy, it.amp, false, it.over);
 }
