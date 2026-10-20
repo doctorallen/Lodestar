@@ -828,6 +828,7 @@ function renderFrame() {
   // where a world point is on the view
   const vx = (wx) => Math.round(wx * AP) + ox, vy = (wy) => Math.round(wy * AP) + oy;
   // the diver's bolts: trails, flicker, a frost lance's glint (castfx.js)
+  cfxDrawTrails(ox, oy);
   for (const b of d.bolts) drawCastBolt(b, ox, oy, tick, lights);
   const shotCol = artBiome(f).glow;
   for (const sh of d.shots) {

@@ -73,14 +73,18 @@ function hlHex(x, y, r, ry, rot) {
 }
 
 // A lock-on: four corner brackets round a box w × h (art px) centred on x,
-// y, each arm L long.
-function hlBrackets(x, y, w, h, L, col, alpha = 1) {
+// y, each arm L long and th pixels thick, a gold tick at each corner and a
+// dark stroke outside each arm so it holds on a lit floor.
+function hlBrackets(x, y, w, h, L, col, alpha = 1, th = 1) {
   const x0 = Math.round(x - w / 2), x1 = Math.round(x + w / 2), y0 = Math.round(y - h / 2), y1 = Math.round(y + h / 2);
-  for (let i = 0; i < L; i++) {
-    dot(x0 + i, y0, col, true, alpha); dot(x0, y0 + i, col, true, alpha);
-    dot(x1 - i, y0, col, true, alpha); dot(x1, y0 + i, col, true, alpha);
-    dot(x0 + i, y1, col, true, alpha); dot(x0, y1 - i, col, true, alpha);
-    dot(x1 - i, y1, col, true, alpha); dot(x1, y1 - i, col, true, alpha);
+  for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
+    for (let t = 0; t < th; t++) for (let i = 0; i < L; i++) {
+      dot(cx + sx * i, cy + sy * t, col, true, alpha); dot(cx + sx * t, cy + sy * i, col, true, alpha);
+    }
+    if (th > 1) {
+      for (let i = -1; i < L; i++) { dot(cx + sx * i, cy - sy, '#120c04', false, alpha * 0.6); dot(cx - sx, cy + sy * i, '#120c04', false, alpha * 0.6); }
+      dot(cx, cy, '#ffffff', true, alpha); dot(cx + sx * (L + 1), cy, HL_GOLD[4], true, alpha); dot(cx, cy + sy * (L + 1), HL_GOLD[4], true, alpha);
+    }
   }
 }
 
@@ -120,6 +124,8 @@ function hlSigilPic(rx, col, rot) {
   const ry = Math.max(1, Math.round(rx * 0.55));
   return cfxPic(`sg${rx} ${col} ${rot}`, rx * 2 + 7, ry * 2 + 7, (set) => {
     const R = cfxRamp(col), segs = rx >= 12 ? 12 : 6, turn = (rot / 6) * ((Math.PI * 2) / segs);
+    // (a dark stroke under the ring, so it holds on a pale floor)
+    for (const [x, y] of cfxEllipse(rx, ry)) { set(x, y + 1, R[0], 0.6); set(x + 1, y + 1, R[0], 0.4); }
     for (const [x, y, a] of cfxEllipse(rx, ry)) {
       const s = (((a + Math.PI - turn) / (Math.PI * 2)) * segs) % 1, u = s < 0 ? s + 1 : s;
       if (u > 0.82) continue;
@@ -133,7 +139,7 @@ function hlSigilPic(rx, col, rot) {
     for (let k = 0; k < 6; k++) { const a = rot2 + (k * Math.PI) / 3; hex.push([Math.round(Math.cos(a) * hr), Math.round(Math.sin(a) * hry), a]); }
     for (let k = 0; k < 6; k++) {
       const [x0, y0] = hex[k], [x1, y1] = hex[(k + 1) % 6], n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-      for (let i = 0; i <= n; i++) set(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), R[2]);
+      for (let i = 0; i <= n; i++) set(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), R[3]);
     }
     for (let k = 0; k < 6; k++) {
       const [x0, y0, a] = hex[k];
@@ -159,15 +165,16 @@ function hlSigilPic(rx, col, rot) {
 function hlWavePic(rx, col, aspect) {
   const ry = Math.max(1, Math.round(rx * aspect)), w = rx * 2 + 9, h = ry * 2 + 9, R = cfxRamp(col), sd = rx * 13 + 7;
   return cfxPic(`hw${rx} ${col} ${aspect}`, w, h, (set) => {
-    const th = clamp(Math.round(rx * 0.08), 1, 4);
+    const th = clamp(Math.round(rx * 0.12), 2, 6);
     for (let y = -ry - 4; y <= ry + 4; y++) for (let x = -rx - 4; x <= rx + 4; x++) {
       const e = Math.hypot(x / rx, y / ry), d = (1 - e) * Math.min(rx, ry / aspect), a = Math.atan2(y / ry, x / rx), s = (a + Math.PI) * rx, front = Math.max(0, y / ry);
       const T = th * (1 + 0.7 * front) + 0.5, hs = artHash(Math.floor(s / 5), 2, sd);
       if (d >= -0.5 && d < 0.5) set(x, y, R[4]);
       else if (d >= 0.5 && d < 1.5) set(x, y, R[3]);
-      else if (d >= 1.5 && d < 1.5 + T) { if (hs > 0.2) set(x, y, R[hs > 0.7 ? 2 : 1], 0.9); }
-      else if (d >= 1.5 + T && d < 1.5 + T + rx * 0.22) {
-        const k = (d - 1.5 - T) / (rx * 0.22);
+      else if (d >= 1.5 && d < 1.5 + T) { if (hs > 0.15) set(x, y, R[d < 2.5 ? 3 : hs > 0.6 ? 2 : 1], 0.95); }
+      else if (d >= 1.5 + T && d < 2.5 + T) { if (hs > 0.3) set(x, y, R[0], 0.75); }
+      else if (d >= 2.5 + T && d < 2.5 + T + rx * 0.22) {
+        const k = (d - 2.5 - T) / (rx * 0.22);
         if (artHash(Math.floor(s / 3), Math.floor(d / 2), sd + 5) < 0.1 * (1 - k)) set(x, y, R[1], 0.8);
       }
     }

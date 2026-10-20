@@ -36,6 +36,8 @@ const CFX = {
   flares: [], // lights that flare and die
   waves: [], // rings that stir the flora as they pass
   locks: [], // lock-on brackets on what a cast is aimed at
+  trails: [], // contrails: where shots have been, lingering
+  swarms: [], // nanite clouds clinging to what Blight struck
   scars: [], // the lines a lance's beam burns into the ground, cooling
   origin: null, // where the last cast's fist was, for the bolts it fired
   last: null, // the last cast's aim and hand, for an Echo
@@ -207,7 +209,7 @@ function cfxLightPic(r, col, v) {
 
 function cfxReset(d) {
   CFX.dive = d;
-  CFX.parts.length = CFX.rings.length = CFX.decals.length = CFX.ghosts.length = CFX.flares.length = CFX.waves.length = CFX.locks.length = CFX.scars.length = 0;
+  CFX.parts.length = CFX.rings.length = CFX.decals.length = CFX.ghosts.length = CFX.flares.length = CFX.waves.length = CFX.locks.length = CFX.scars.length = CFX.trails.length = CFX.swarms.length = 0;
   CFX.origin = CFX.last = null;
   CFX.focusAt.main = CFX.focusAt.off = null;
 }
@@ -421,14 +423,30 @@ function castFxImpact(b, how) {
   if (!d) return;
   if (CFX.dive !== d) cfxReset(d);
   b.cfxHit = how;
-  cfxBurst(b.x, b.y, cfxBoltCol(b), b.big ? 1.6 : 1, cfxBoltEl(b));
+  const el = cfxBoltEl(b), size = b.big ? 1.6 : b.kind === 'shard' ? 0.7 : 1;
+  cfxBurst(b.x, b.y, cfxBoltCol(b), size, el);
+  // a mark on the ground under it, and Blight's swarm clings to what it hit
+  cfxDecal(b.x, b.y + 8, cfxEl(el).decal, b.big);
+  if (how === 'hit' && cfxStyle(el) === 'blight') cfxSwarmOn(b.x, b.y + 5, cfxBoltCol(b), b.big);
+}
+
+// Blight's swarm: a cloud of nanites on the foe nearest x, y, crawling
+// over it and eating, for a second.
+function cfxSwarmOn(x, y, col, big) {
+  const d = Game.dive;
+  let e = null, bd = 16;
+  for (const q of d.enemies) { if (q.dead) continue; const m = dist(q.x, q.y, x, y); if (m < bd + q.r) { bd = m; e = q; } }
+  if (!e) return;
+  for (const w of CFX.swarms) if (w.e === e) { w.t = w.max; w.n = Math.min(40, w.n + 8); return; }
+  if (CFX.swarms.length >= 8) CFX.swarms.shift();
+  const t = T.castFx.swarm;
+  CFX.swarms.push({ e, col, t, max: t, n: big ? 34 : 24, sd: 1 + ((Math.random() * 1e6) | 0) });
 }
 
 function castFxBoltEnd(b) {
   if (!Game.dive || CFX.dive !== Game.dive) return;
   const el = cfxBoltEl(b);
-  if (b.t === 0 && b.cfxHit) cfxDecal(b.x, b.y + 7, cfxEl(el).decal, b.big);
-  else cfxBurst(b.x, b.y, cfxBoltCol(b), 0.4, el); // it ran out: a fizzle
+  if (!b.cfxHit) cfxBurst(b.x, b.y, cfxBoltCol(b), 0.4, el); // it ran out: a fizzle
 }
 
 // Ember's burst where its glob lands; a jump of a chain.
@@ -472,51 +490,131 @@ function cfxSpark(x, y, vx, vy, col, t) {
 
 // Where a shot lands: a flash frame, a shock ring, what its element
 // throws (sparks that fall and bounce, molten gobs, ice, a cloud of
-// nanites), and a flare of light (cfxDrawImpact draws the ring).
+// nanites), and a flare of light (cfxDrawImpact draws the ring). Shock
+// leaves emitter nodes arcing a moment; Frost grows crystals.
 function cfxBurst(x, y, col, size, el) {
   const I = T.castFx.impact, n = Math.round(I[0] * size), E = cfxEl(el), st = cfxStyle(el);
   for (let k = 0; k < n; k++) {
-    const a = FX_R.f(Math.PI * 2), s = FX_R.f(30, 80) * Math.sqrt(size), up = st === 'ember' ? -50 : -25;
-    const q = cfxPart(E.burst, x, y, Math.cos(a) * s, Math.sin(a) * s * 0.75 + up, FX_R.f(0.18, 0.34) * (st === 'blight' ? 2 : 1), k % 3 ? col : '#ffffff', col);
+    const a = FX_R.f(Math.PI * 2), s = FX_R.f(40, 110) * Math.sqrt(size), up = st === 'ember' ? -60 : -35;
+    const q = cfxPart(E.burst === CFX_GLIM ? CFX_SPARK : E.burst, x, y, Math.cos(a) * s, Math.sin(a) * s * 0.75 + up, FX_R.f(0.25, 0.5) * (st === 'blight' ? 1.6 : 1), k % 3 ? col : '#ffffff', col);
     if (!q) continue;
     if (E.burst === CFX_NANITE) { q.drag = 4; q.vx *= 0.6; q.vy *= 0.6; q.col = k % 4 ? col : '#c890ff'; }
     else if (E.burst === CFX_CINDER) q.g = -20;
-    else { q.g = st === 'ember' ? 260 : 200; q.floor = y + 8; q.drag = 1; }
+    else { q.g = st === 'ember' ? 300 : 260; q.floor = y + 8 + FX_R.f(-2, 2); q.drag = 0.8; }
   }
   if (E.smoke) for (let k = 0; k < 3 * size; k++) { const q = cfxPart(CFX_SMOKE, x + FX_R.f(-3, 3), y, FX_R.f(-8, 8), FX_R.f(-18, -8), FX_R.f(0.4, 0.7), '#2c2622', '#3e3630'); if (q) q.drag = 1; }
-  CFX.rings.push({ kind: 'impact', x, y, col, st, size, t: 0.18, max: 0.18, f: false });
-  cfxFlare(x, y, I[1] * TILE * Math.sqrt(size), I[2] * Math.min(1.3, size), col, I[3]);
+  CFX.rings.push({ kind: 'impact', x, y, col, st, size, t: 0.24, max: 0.24, f: false });
+  if (size >= 0.6 && st === 'shock') CFX.rings.push({ kind: 'zap', x, y, col, size, t: 0.4, max: 0.4, f: false });
+  if (size >= 0.6 && st === 'frost') CFX.rings.push({ kind: 'grow', x, y, col, size, t: 0.7, max: 0.7, f: false });
+  cfxFlare(x, y, I[1] * TILE * Math.sqrt(size), I[2] * Math.min(1.3, size), st === 'ember' && size >= 0.6 ? col : col, I[3]);
 }
 
 // The ring where a shot lands (art px x, y; k: its life left): on its
-// first frames a white diamond with spikes out, the side ones longer;
-// then a crisp ring running out, dotted as it dies; and by element: Force
-// gold ticks round the ring, Shock arcs out from the heart, Frost facets
-// of ice, Ember a violet shell round the splash.
+// first frames an emissive white burst, spikes out, the flat ones longer;
+// then a crisp ring two pixels thick running out (dotted as it dies), a
+// dark stroke inside it so it holds on a pale floor; and by element: Force
+// a heavy wave that bends the light (a bright edge, a dark band inside
+// it, gold ticks), Shock arcs out from the heart, Frost facets, Ember a
+// white-hot blob in a violet shell.
 function cfxDrawImpact(r, x, y, k, ft) {
   const u = 1 - k, R = cfxRamp(r.col), b = cfxBand(k), sz = r.size, sd = cfxSeed(r);
-  if (sz < 0.6) { hlDiamond(x, y, 1 + Math.round(u * 2), R[3], b); return; }
-  if (u < 0.25) {
-    hlDiamond(x, y, 2, '#ffffff', 1);
-    dot(x, y, '#ffffff', true);
-    const L = Math.round(4 + 4 * sz);
-    for (let i = 3; i <= L; i++) { const c = R[i < L - 2 ? 4 : 3]; dot(x + i, y, c, true); dot(x - i, y, c, true); if (i <= L / 2 + 1) { dot(x, y + i, c, true); dot(x, y - i, c, true); } }
+  if (sz < 0.6) { hlDiamond(x, y, 2 + Math.round(u * 3), R[3], b); dot(x, y, R[4], true, b); return; }
+  if (u < 0.16) {
+    const rr = Math.round(3 + 2 * sz);
+    for (let j = -rr; j <= rr; j++) for (let i = -rr; i <= rr; i++) if (i * i + j * j * 1.6 <= rr * rr) dot(x + i, y + j, '#ffffff', true);
+    const L = Math.round(10 * sz);
+    for (let i = rr; i <= L; i++) { const c = i < L * 0.6 ? '#ffffff' : R[4]; dot(x + i, y, c, true); dot(x - i, y, c, true); if (i <= L * 0.6) { dot(x, y + i, c, true); dot(x, y - i, c, true); } }
   }
-  const rx = Math.round(2 + u * (6 + 4 * sz)), ry = Math.max(1, Math.round(rx * 0.75));
+  const rx = Math.round(3 + u * (12 + 8 * sz)), ry = Math.max(1, Math.round(rx * 0.75)), heavy = r.st === 'force';
   let n = 0;
-  for (const [i, j] of cfxEllipse(rx, ry)) { if (u > 0.55 && n++ % 2) continue; dot(x + i, y + j, R[u < 0.4 ? 4 : 3], true, b); }
-  if (r.st === 'force') for (let q = 0; q < 4; q++) { const a = (q / 4) * Math.PI * 2 + Math.PI / 4, c = Math.cos(a), s = Math.sin(a) * 0.75; for (let i = 1; i <= 2; i++) dot(Math.round(x + c * (rx + i)), Math.round(y + s * (rx + i)), HL_GOLD[i === 1 ? 4 : 3], true, b); }
-  else if (r.st === 'shock' && u < 0.65) for (let q = 0; q < 3; q++) {
-    const a = artHash(q, ft >> 1, sd) * Math.PI * 2, L = rx + 3 + artHash(q, 5, sd) * 4;
-    cfxPaintBolt(cfxBoltPath(x, y, x + Math.cos(a) * L, y + Math.sin(a) * L * 0.75, sd + ft, 0.3), R, b, 0.7, sd);
-  } else if (r.st === 'frost') for (let q = 0; q < 6; q++) {
-    const a = (q / 6) * Math.PI * 2 + 0.26, c = Math.cos(a), s = Math.sin(a) * 0.75, L = Math.round(rx * (q % 2 ? 0.8 : 1.15) + 2);
-    for (let i = 2; i <= L; i++) { dot(Math.round(x + c * i), Math.round(y + s * i), R[i < L * 0.5 ? 4 : 3], true, b); if (i < L * 0.6) dot(Math.round(x + c * i - s), Math.round(y + s * i + c * 0.75), R[1], true, b * 0.8); }
-  } else if (r.st === 'ember') {
-    const S = cfxRamp(CFX_SHELL), rr = rx + 2;
+  for (const [i, j] of cfxEllipse(rx, ry)) {
+    if (u > 0.6 && n++ % 2) continue;
+    dot(x + i, y + j, u < 0.35 ? '#ffffff' : R[j > 0 ? 4 : 3], true, b);
+    const ii = i - Math.sign(i) * (Math.abs(i) > Math.abs(j) ? 1 : 0), jj = j - Math.sign(j) * (Math.abs(i) > Math.abs(j) ? 0 : 1);
+    if (u < 0.6) dot(x + ii, y + jj, R[3], true, b * 0.9);
+    // the dark band inside it: a heavy one bends the light
+    if (heavy || u < 0.5) { const s = heavy ? 3 : 2; dot(x + Math.round(i * (1 - s / rx)), y + Math.round(j * (1 - s / ry)), '#000000', false, (heavy ? 0.4 : 0.25) * b); if (heavy) dot(x + Math.round(i * (1 - 4 / rx)), y + Math.round(j * (1 - 4 / ry)), '#000000', false, 0.3 * b); }
+  }
+  if (heavy) for (let q = 0; q < 8; q++) { const a = (q / 8) * Math.PI * 2 + Math.PI / 8, c = Math.cos(a), s = Math.sin(a) * 0.75; for (let i = 1; i <= 3; i++) dot(Math.round(x + c * (rx + i)), Math.round(y + s * (rx + i)), HL_GOLD[i === 1 ? 4 : 3], true, b); }
+  else if (r.st === 'shock' && u < 0.7) for (let q = 0; q < 4; q++) {
+    const a = artHash(q, ft >> 1, sd) * Math.PI * 2, L = rx + 4 + artHash(q, 5, sd) * 6;
+    cfxPaintBolt(cfxBoltPath(x, y, x + Math.cos(a) * L, y + Math.sin(a) * L * 0.75, sd + ft, 0.3), R, b, 1, sd);
+  } else if (r.st === 'frost') cfxShards(x, y, rx + 3, 6, R, b, sd, true);
+  else if (r.st === 'ember') {
+    const S = cfxRamp(CFX_SHELL), rr = rx + 3;
     let m = 0;
-    for (const [i, j] of cfxEllipse(rr, Math.max(1, Math.round(rr * 0.75)))) if (m++ % 3 === 0) dot(x + i, y + j, S[u < 0.5 ? 3 : 2], true, b * 0.8);
-    if (u < 0.4) for (const [i, j] of [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1]]) dot(x + i, y + j, i || j ? R[4] : '#ffffff', true);
+    for (const [i, j] of cfxEllipse(rr, Math.max(1, Math.round(rr * 0.75)))) if (m++ % 2 === 0) dot(x + i, y + j, S[u < 0.5 ? 4 : 3], true, b);
+    if (u < 0.55) { const br = u < 0.3 ? 3 : 2; for (let j = -br; j <= br; j++) for (let i = -br; i <= br; i++) if (i * i + j * j <= br * br) dot(x + i, y + j, i * i + j * j <= 1 ? '#ffffff' : R[4], true); }
+  }
+}
+
+// A column of the Charter's light from x, y (art px) up past the top of
+// the view (a resonance waking, a star's strike): a white core, gold
+// either side, narrowing as it dies and switching off in scan-lines, its
+// light on the ground round its foot.
+function cfxDrawPillar(r, x, y, k, ft, lights) {
+  const w = Math.max(1, Math.round(r.w * (0.35 + 0.65 * k))), b = cfxBand(Math.min(1, k * 1.4)), G = HL_GOLD;
+  for (let j = y; j >= -2; j--) {
+    if (k < 0.5 && (j + ft) % 2) continue;
+    if (k < 0.25 && (j + ft) % 3) continue;
+    for (let i = -w; i <= w; i++) {
+      const e = Math.abs(i) / (w + 0.5), h = artHash(i, j >> 2, ft >> 2);
+      if (e > 0.75 && h < 0.4) continue;
+      dot(x + i, j, e < 0.3 ? '#ffffff' : e < 0.6 ? G[4] : e < 0.85 ? G[3] : G[2], true, b);
+    }
+  }
+  // its foot: a flat flare on the ground
+  for (let i = -w * 3; i <= w * 3; i++) dot(x + i, y, Math.abs(i) < w ? '#ffffff' : G[3], true, b * (1 - Math.abs(i) / (w * 3 + 1)));
+  cfxLight(lights, x, y - 6, TILE * (1.5 + r.w * 0.25), 1.4 * k, rgb01(G[3]));
+}
+
+// Shock's emitter nodes where it struck: three, turning, arcs jumping
+// between them and into the heart, a new shape every other frame.
+function cfxDrawZap(r, x, y, k, ft) {
+  const R = cfxRamp(r.col), b = cfxBand(k), sd = cfxSeed(r), rr = Math.round(8 * r.size), nodes = [];
+  for (let q = 0; q < 3; q++) { const a = Game.realT * 3 + (q * Math.PI * 2) / 3; nodes.push([Math.round(x + Math.cos(a) * rr), Math.round(y - 4 + Math.sin(a) * rr * 0.6)]); }
+  for (let q = 0; q < 3; q++) {
+    const a = nodes[q], c = nodes[(q + 1) % 3];
+    if ((ft >> 1) % 3 !== q) cfxPaintBolt(cfxBoltPath(a[0], a[1], c[0], c[1], sd + (ft >> 1) * 7 + q, 0.3), R, b, 0.9, sd + q);
+    else cfxPaintBolt(cfxBoltPath(a[0], a[1], x, y - 4, sd + (ft >> 1) * 5, 0.3), R, b, 1.1, sd);
+    hlDiamond(a[0], a[1], 1, '#ffffff', b, HL_GOLD[4]);
+  }
+}
+
+// Frost where it struck: crystals that grow out of it over their first
+// third, hold, and switch off in scan-lines: long ones on six axes, short
+// ones between, each lit on its upper side and deep below.
+function cfxDrawGrow(r, x, y, k, ft) {
+  const u = 1 - k, g = Math.min(1, u / 0.35), R = cfxRamp(r.col), sd = cfxSeed(r), b = k > 0.4 ? 1 : cfxBand(k / 0.4), Lmax = 11 * r.size;
+  for (let q = 0; q < 12; q++) {
+    const long = q % 2 === 0, a = (q / 12) * Math.PI * 2 + 0.26 + artHash(q, 1, sd) * 0.2, c = Math.cos(a), s = Math.sin(a) * 0.75, L = Math.round(Lmax * g * (long ? 0.8 + 0.4 * artHash(q, 2, sd) : 0.45));
+    for (let i = 2; i <= L; i++) {
+      const px = Math.round(x + c * i), py = Math.round(y + s * i), f = i / Math.max(1, L);
+      if (k < 0.4 && (py + ft) % 2) continue;
+      dot(px, py, R[f > 0.85 ? 4 : f < 0.4 ? 4 : 3], true, b);
+      if (long && f < 0.7) { dot(px, py - 1, R[3], true, b); dot(px, py + 1, R[0], false, b * 0.7); }
+      // a branch partway along
+      if (long && i === Math.round(L * 0.55) && L > 5) for (let m = 1; m <= 3; m++) { dot(Math.round(px + Math.cos(a + 0.8) * m), Math.round(py + Math.sin(a + 0.8) * m * 0.75), R[3], true, b); dot(Math.round(px + Math.cos(a - 0.8) * m), Math.round(py + Math.sin(a - 0.8) * m * 0.75), R[2], true, b); }
+    }
+  }
+  if (g < 1) hlDiamond(x, y, 2, '#ffffff', 1);
+}
+
+// Blight's swarms (vx, vy: a world point on the view): nanites crawling
+// over the foe they cling to, thicker at first, eating: green specks, some
+// with a violet sheen, some dark, a few drifting off.
+function cfxDrawSwarms(vx, vy, ft) {
+  for (const w of CFX.swarms) {
+    const e = w.e;
+    if (e.dead || e.hid) continue;
+    const k = w.t / w.max, R = cfxRamp(w.col), n = Math.round(w.n * (0.4 + 0.6 * k)), cx = vx(e.x), cy = vy(e.y) - ap(e.r + 3), rx = ap(e.r + 3), ry = ap(e.r + 6);
+    for (let q = 0; q < n; q++) {
+      const h = artHash(q, (ft >> 1) + q, w.sd), h2 = artHash(q + 99, (ft >> 1) + q * 3, w.sd), x = Math.round(cx + (h - 0.5) * 2 * rx), y = Math.round(cy + (h2 - 0.5) * 2 * ry);
+      const dk = q % 6 === 0;
+      dot(x, y, dk ? '#142008' : q % 5 === 0 ? '#c890ff' : R[q % 3 ? 3 : 4], !dk, k > 0.3 ? 1 : 0.7);
+      if (q % 4 === 0 && !dk) dot(x + 1, y, R[2], true, 0.8);
+    }
+    if (ft % 6 === 0 && k > 0.3) { const q = cfxPart(CFX_NANITE, e.x + FX_R.f(-e.r, e.r), e.y - FX_R.f(2, 12), FX_R.f(-10, 10), FX_R.f(-14, -4), FX_R.f(0.3, 0.5), w.col, w.col); if (q) q.drag = 2; }
   }
 }
 
@@ -542,12 +640,21 @@ function cfxDrawLocks(fx, fy, vx, vy, ft) {
   for (const l of CFX.locks) {
     const e = l.e;
     if (e.dead || e.hid) continue;
-    const age = Game.realT - l.born, k = l.t / l.max, snap = Math.min(1, age / L[1]), grow = 1 + (1 - snap) * (1 - snap) * 1.4;
-    const cx = vx(e.x), cy = vy(e.y) - ap(e.r + 5), w = ap(e.r * 2 + 7) * grow, h = ap(e.r * 2 + 9) * grow;
-    if (snap >= 1 && k < 0.45 && ft % 4 < 2) continue;
-    hlBrackets(cx, cy, w, h, snap < 1 ? 2 : 3, HL_GOLD[snap < 1 ? 3 : 4], cfxBand(Math.min(1, k * 1.5)));
-    if (snap >= 1 && k > 0.4) { const R = cfxRamp(l.col); for (const [i, j] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) dot(cx + i, cy + j, R[3], true, 0.9); }
-    if (age < L[2] && l.hand) hlLine(fx + Math.round(l.hand.x * AP), fy + Math.round(l.hand.y * AP), cx, cy, cfxRamp(l.col)[3], true, 0.55, 2);
+    const age = Game.realT - l.born, k = l.t / l.max, snap = Math.min(1, age / L[1]), grow = 1 + (1 - snap) * (1 - snap) * 1.6;
+    const cx = vx(e.x), cy = vy(e.y) - ap(e.r + 5), w = ap(e.r * 2 + 9) * grow, h = ap(e.r * 2 + 12) * grow;
+    if (snap >= 1 && k < 0.35 && ft % 4 < 2) continue;
+    hlBrackets(cx, cy, w, h, snap < 1 ? 4 : 6, HL_GOLD[snap < 1 ? 3 : 4], cfxBand(Math.min(1, k * 1.6)), 2);
+    if (snap >= 1 && k > 0.35) {
+      // the aim point: a small diamond in the spell's colour, ticks out
+      const R = cfxRamp(l.col);
+      hlDiamond(cx, cy, 2, R[4], 0.95);
+      for (const [i, j] of [[5, 0], [-5, 0], [0, 4], [0, -4], [6, 0], [-6, 0]]) dot(cx + i, cy + j, R[3], true, 0.9);
+    }
+    if (age < L[2] && l.hand) {
+      const x0 = fx + Math.round(l.hand.x * AP), y0 = fy + Math.round(l.hand.y * AP);
+      hlLine(x0, y0, cx, cy, cfxRamp(l.col)[4], true, 0.85, 2);
+      hlLine(x0, y0 + 1, cx, cy + 1, '#120c04', false, 0.35, 2);
+    }
   }
 }
 
@@ -614,7 +721,7 @@ function updateCastFx(dt) {
   }
   P.length = n;
   const tick = (list) => { let m = 0; for (const o of list) if ((o.t -= dt) > 0) list[m++] = o; list.length = m; };
-  tick(CFX.rings); tick(CFX.decals); tick(CFX.ghosts); tick(CFX.flares); tick(CFX.waves); tick(CFX.locks); tick(CFX.scars);
+  tick(CFX.rings); tick(CFX.decals); tick(CFX.ghosts); tick(CFX.flares); tick(CFX.waves); tick(CFX.locks); tick(CFX.scars); tick(CFX.swarms);
   // bolts: leaving the fist, and what they shed
   const o = CFX.origin, fresh = o && Game.realT - o.t < 0.05;
   for (const b of d.bolts) {
@@ -634,8 +741,26 @@ function updateCastFx(dt) {
     b.cfx.emit = C.bolt.every / (b.big ? 2 : 1);
     cfxShed(b.x, b.y, cfxBoltEl(b), cfxBoltCol(b), b.cfx.n++, b.vx, b.vy);
     // a charged shot leaves shock rings standing in the air behind it
-    if (b.big && b.cfx.n % 3 === 0) CFX.rings.push({ kind: 'edge', x: b.x, y: b.y, a: Math.atan2(b.vy, b.vx), col: cfxBoltCol(b), t: 0.16, max: 0.16, f: false });
+    if ((b.big || (cfxStyle(b.element) === 'force' && b.kind === 'bolt')) && b.cfx.n % 3 === 0) CFX.rings.push({ kind: 'edge', x: b.x, y: b.y, a: Math.atan2(b.vy, b.vx), col: cfxBoltCol(b), t: 0.16, max: 0.16, f: false });
   }
+  // contrails: each shot's way, kept a while after it's gone
+  const now = Game.realT, Lg = C.bolt.linger;
+  for (const tr of CFX.trails) tr.alive = false;
+  for (const b of d.bolts) {
+    if (b.orb || b.kind === 'lance' || !b.cfx) continue;
+    let tr = b.cfx.trail;
+    if (!tr) {
+      if (CFX.trails.length >= 24) CFX.trails.shift();
+      const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
+      tr = b.cfx.trail = { pts: [], col: cfxBoltCol(b), st: cfxStyle(b.element), big: b.big, lx: Math.abs(ux) > 0.3 ? 0 : -1, ly: Math.abs(ux) > 0.3 ? -1 : 0 };
+      CFX.trails.push(tr);
+    }
+    const o2 = Math.max(0, 1 - (now - b.cfx.born) / C.bolt.originT);
+    tr.pts.push([b.x + b.cfx.ox * o2, b.y + b.cfx.oy * o2, now, (Math.random() * 1000) | 0]);
+    tr.alive = true;
+  }
+  for (const tr of CFX.trails) { let k = 0; while (k < tr.pts.length - 1 && now - tr.pts[k][2] > Lg) k++; if (k) tr.pts.splice(0, k); }
+  CFX.trails = CFX.trails.filter((tr) => tr.alive || (tr.pts.length > 1 && now - tr.pts[tr.pts.length - 1][2] < Lg));
   for (const sc of CFX.scars) if (sc.b) { if (sc.b.t > 0 && d.bolts.includes(sc.b)) { sc.x1 = sc.b.x; sc.y1 = sc.b.y + 8; sc.t = sc.max; } else sc.b = null; }
   updateResonanceFx(dt);
   // a caster being charged draws motes in
@@ -657,7 +782,13 @@ function cfxShed(x, y, el, col, n, vx, vy) {
   const E = cfxEl(el), c = el ? E.col : col;
   switch (E.shed) {
     case CFX_ICE: { const q = cfxPart(CFX_ICE, x + FX_R.f(-1.5, 1.5), y + FX_R.f(-1.5, 1.5), vx * 0.05, 6, FX_R.f(0.3, 0.5), '#ffffff', c); if (q) q.g = 10; break; }
-    case CFX_CINDER: { const q = cfxPart(CFX_CINDER, x, y, -vx * 0.08 + FX_R.f(-10, 10), FX_R.f(-30, -15), FX_R.f(0.25, 0.4), '#ffd070', c); if (q) q.g = -10; break; }
+    case CFX_CINDER: {
+      const q = cfxPart(CFX_CINDER, x, y, -vx * 0.08 + FX_R.f(-10, 10), FX_R.f(-30, -15), FX_R.f(0.25, 0.4), '#ffd070', c);
+      if (q) q.g = -10;
+      // and molten drips falling from it
+      if (n % 2) { const g = cfxPart(CFX_GOB, x, y + 1, vx * 0.1, 10, FX_R.f(0.3, 0.45), '#ffd070', c); if (g) { g.g = 260; g.floor = y + 8; } }
+      break;
+    }
     case CFX_SPARK: { const a = FX_R.f(Math.PI * 2); cfxPart(CFX_SPARK, x, y, Math.cos(a) * 45, Math.sin(a) * 45, 0.1, n % 2 ? '#ffffff' : c); break; }
     case CFX_DRIP: { const q = cfxPart(CFX_DRIP, x, y + 1, 0, 8, FX_R.f(0.3, 0.45), c, E.dark || c); if (q) q.g = 70; break; }
     case CFX_NANITE: { for (let k = 0; k < 2; k++) { const q = cfxPart(CFX_NANITE, x + FX_R.f(-2, 2), y + FX_R.f(-2, 2), -vx * 0.05 + FX_R.f(-8, 8), FX_R.f(-6, 6), FX_R.f(0.3, 0.5), n % 3 ? c : '#c890ff', c); if (q) q.drag = 3; } break; }
@@ -774,12 +905,60 @@ function cfxBlitHard(pic, x, y, k, alpha = 1) {
   cfxBlit(k > 0.5 ? pic : hlScanPic(pic, k > 0.25 ? 2 : 3), x, y, alpha * (k > 0.25 ? 1 : 0.75));
 }
 
-// A mark left on the ground, by element: a scorch with embers in it, a star
-// of frost, a burn crazed with sparks, a green splash, or a burnt rune.
-// Each kind has a few shapes, painted once. A clump grown cell by cell from
-// a middle, flattened as ground is. Returns { c: colour, e: what glows }.
+// A mark left on the ground, by element, each kind a few shapes painted
+// once: a death's splash (cfxSplatPic); a shot's mark (cfxMarkPic):
+// Ember a plasma splash, a scorch with molten pools glowing in it and a
+// violet fleck or two; Frost a bloom of rime on six axes, branching;
+// Shock a burn crazed with branching lines that glow; Blight a nanite
+// stain, specks in it still glowing; Force a ring pressed into the ground
+// with gold cracks out from it. What glows in it dies first.
+// Returns { c: colour, e: what glows }.
 const _cfxDecals = new Map();
 function cfxDecalPic(kind, big, v) {
+  if (!kind.startsWith('splat:')) return cfxMarkPic(kind, big, v);
+  return cfxSplatPic(kind, big, v);
+}
+function cfxMarkPic(kind, big, v) {
+  const key = `m${kind} ${big ? 1 : 0} ${v}`;
+  let pic = _cfxDecals.get(key);
+  if (pic) return pic;
+  const W = 40, H = 20, glows = [], S = big ? 1.4 : 1, rnd = (() => { let q = hashInts(v, big ? 7 : 3, kind.length * 31 + kind.charCodeAt(0)); return () => ((q = (q * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff); })();
+  const col = cfxPic(`mc${key}`, W, H, (set) => {
+    const blob = (rx, ry, c0, c1, a) => { for (let y = -ry; y <= ry; y++) for (let x = -rx; x <= rx; x++) { const e = (x * x) / (rx * rx) + (y * y) / (ry * ry), h = artHash(x, y, v + 11); if (e <= 1 - h * 0.35) set(x, y, e < 0.4 ? c0 : c1, a); } };
+    if (kind === 'ember') {
+      blob(Math.round(7 * S), Math.round(3 * S), '#140806', '#2a140a', 0.9);
+      for (let k = 0; k < (big ? 6 : 4); k++) { const x = Math.round((rnd() - 0.5) * 9 * S), y = Math.round((rnd() - 0.5) * 3 * S); glows.push([x, y, '#fff0c8'], [x + 1, y, ELEMENT_COLS.ember], [x - 1, y, '#ff6a20'], [x, y + 1, '#c04818']); }
+      for (let k = 0; k < 3; k++) { const a = rnd() * Math.PI * 2; glows.push([Math.round(Math.cos(a) * 8 * S), Math.round(Math.sin(a) * 3.5 * S), CFX_SHELL]); }
+    } else if (kind === 'frost') {
+      for (let q = 0; q < 6; q++) {
+        const a = (q / 6) * Math.PI * 2 + 0.26, L = Math.round((q % 2 ? 5 : 8) * S), c = Math.cos(a), sn = Math.sin(a) * 0.5;
+        for (let i = 0; i <= L; i++) { const x = Math.round(c * i), y = Math.round(sn * i); set(x, y, i < L * 0.5 ? '#f4fcff' : '#b4dcf0'); if (i === Math.round(L * 0.6)) for (let m = 1; m <= 2; m++) { set(Math.round(x + Math.cos(a + 0.9) * m), Math.round(y + Math.sin(a + 0.9) * m * 0.5), '#cfeaf8'); set(Math.round(x + Math.cos(a - 0.9) * m), Math.round(y + Math.sin(a - 0.9) * m * 0.5), '#cfeaf8'); } }
+        glows.push([Math.round(c * L), Math.round(sn * L), ELEMENT_COLS.frost]);
+      }
+      glows.push([0, 0, '#ffffff'], [1, 0, '#ffffff']);
+    } else if (kind === 'shock') {
+      blob(Math.round(3 * S), 2, '#0e0e14', '#1e2028', 0.9);
+      for (let q = 0; q < (big ? 5 : 4); q++) {
+        let x = 0, y = 0, a = rnd() * Math.PI * 2;
+        for (let i = 0; i < Math.round(9 * S); i++) { a += (rnd() - 0.5) * 1.2; x += Math.cos(a); y += Math.sin(a) * 0.5; const X = Math.round(x), Y = Math.round(y); set(X, Y, '#16161e'); if (i % 2 === 0) glows.push([X, Y, i < 4 ? '#fff4a8' : ELEMENT_COLS.shock]); }
+      }
+    } else if (kind === 'blight') {
+      blob(Math.round(6 * S), Math.round(3 * S), '#16200c', '#2a3a14', 0.85);
+      for (let k = 0; k < (big ? 10 : 7); k++) { const x = Math.round((rnd() - 0.5) * 14 * S), y = Math.round((rnd() - 0.5) * 6 * S); set(x, y, '#3e5420'); glows.push([x, y, k % 3 === 0 ? '#c890ff' : ELEMENT_COLS.blight]); }
+    } else {
+      // a ring pressed in, darker inside, gold cracks out from it
+      const rx = Math.round(5 * S), ry = Math.round(2.5 * S);
+      blob(rx - 1, Math.max(1, ry - 1), '#100e18', '#1c1828', 0.75);
+      for (const [x, y] of cfxEllipse(rx, ry)) set(x, y, y < 0 ? '#3a3448' : '#141020', 0.95);
+      for (let q = 0; q < 6; q++) { const a = (q / 6) * Math.PI * 2 + rnd() * 0.4, c = Math.cos(a), sn = Math.sin(a) * 0.5; for (let i = rx; i <= rx + Math.round(3 * S); i++) { const X = Math.round(c * i), Y = Math.round(sn * i); set(X, Y, '#120e18'); glows.push([X, Y, i === rx ? HL_GOLD[4] : HL_GOLD[2]]); } }
+    }
+  });
+  const em = cfxPic(`me${key}`, W, H, (set) => { for (const [x, y, c] of glows) set(x, y, c); });
+  pic = { col, em, splat: false };
+  _cfxDecals.set(key, pic);
+  return pic;
+}
+function cfxSplatPic(kind, big, v) {
   const key = `${kind} ${big ? 1 : 0} ${v}`;
   let pic = _cfxDecals.get(key);
   if (pic) return pic;
@@ -888,7 +1067,7 @@ function drawCastGround(d, ox, oy, tick, lights) {
     if (r.kind === 'glyph') {
       const rx = cfxQuant(lerp(r.r0, r.r1, 1 - (1 - u) * (1 - u)) * AP), rot = (r.rot + Math.floor(Game.realT * 12)) % 6;
       cfxBlitHard(cfxGlyphPic(rx, r.col, rot), x, y, k, r.ghost ? 0.5 : 1);
-      if (r.seed) cfxBlitHard(hlSeedPic(5), x, y - 1, k);
+      if (r.seed) cfxBlitHard(hlSeedPic(8), x, y - 1, k);
     } else {
       // a pressure wave: crisp while it runs, in scan-lines as it dies
       cfxBlitHard(hlWavePic(hlQuant(lerp(r.r0, r.r1, 1 - (1 - u) * (1 - u)) * AP), r.col, 0.6), x, y, Math.min(1, k * 1.6));
@@ -999,12 +1178,17 @@ function drawCastAir(d, ox, oy, tick, lights) {
     const k = r.t / r.max, u = 1 - k, x = r.f ? fx + Math.round(r.x * AP) : vx(r.x), y = r.f ? fy + Math.round(r.y * AP) : vy(r.y);
     if (r.kind === 'flash') cfxDrawFlash(x, y, r.a, r.col, k, r.big, cfxSeed(r));
     else if (r.kind === 'impact') cfxDrawImpact(r, x, y, k, ft);
-    else if (r.kind === 'edge') hlEdgeRing(x, y, Math.cos(r.a), Math.sin(r.a), 2 + u * 5, cfxRamp(r.col)[u < 0.5 ? 3 : 2], cfxBand(k), cfxRamp(r.col)[4]);
+    else if (r.kind === 'zap') cfxDrawZap(r, x, y, k, ft);
+    else if (r.kind === 'pillar') cfxDrawPillar(r, x, y, k, ft, lights);
+    else if (r.kind === 'grow') cfxDrawGrow(r, x, y, k, ft);
+    else if (r.kind === 'edge') hlEdgeRing(x, y, Math.cos(r.a), Math.sin(r.a), 3 + u * 7, cfxRamp(r.col)[u < 0.5 ? 3 : 2], cfxBand(k), u < 0.4 ? '#ffffff' : cfxRamp(r.col)[4]);
     else if (r.kind === 'seed') cfxDrawSeed(r, x, y, k);
     else if (r.kind === 'hexflash') {
-      const R = cfxRamp(r.col), rr = Math.round(3 + u * (r.big ? 12 : 8)), b = cfxBand(k);
+      const R = cfxRamp(r.col), rr = Math.round(4 + u * (r.big ? 22 : 15)), b = cfxBand(k);
+      if (u < 0.2) { const fr = r.big ? 7 : 5; for (let j = -fr; j <= fr; j++) for (let i = -fr * 1.6; i <= fr * 1.6; i++) if ((i * i) / 2.56 + j * j <= fr * fr) dot(Math.round(x + i), y + j, '#ffffff', true); }
       hlPoly(hlHex(x, y, rr, Math.round(rr * 0.6), Math.PI / 6), R[u < 0.4 ? 4 : 3], b, u > 0.6 ? 2 : 1);
-      if (u < 0.35) { hlDiamond(x, y, 2, '#ffffff', 1); dot(x, y, '#ffffff', true); for (let i = 3; i < 8; i++) { dot(x + i, y, R[4], true, b); dot(x - i, y, R[4], true, b); } }
+      hlPoly(hlHex(x, y + 1, rr - 1, Math.round(rr * 0.6) - 1, Math.PI / 6), R[u < 0.4 ? 3 : 2], b, u > 0.6 ? 2 : 1);
+      if (u < 0.45) { hlDiamond(x, y, 3, '#ffffff', 1); for (let i = 4; i < 14; i++) { dot(x + i, y, R[4], true, b); dot(x - i, y, R[4], true, b); } }
       for (const [hx, hy] of hlHex(x, y, rr, Math.round(rr * 0.6), Math.PI / 6)) dot(hx, hy, HL_GOLD[4], true, b);
     }
     else if (r.kind === 'crescent') cfxDrawCrescent(r, x, y, u, lights);
@@ -1033,6 +1217,7 @@ function drawCastAir(d, ox, oy, tick, lights) {
     }
   }
   cfxDrawLocks(fx, fy, vx, vy, ft);
+  cfxDrawSwarms(vx, vy, ft);
   for (const l of CFX.flares) {
     const k = l.t / l.max;
     cfxLight(lights, l.f ? fx + Math.round(l.x * AP) : vx(l.x), l.f ? fy + Math.round(l.y * AP) : vy(l.y), l.r * (0.6 + 0.4 * k), l.i * k, l.c);
@@ -1046,26 +1231,33 @@ function drawCastAir(d, ox, oy, tick, lights) {
 // stands across the aim and runs out along it (a big cast: two, and a
 // sigil's gold at the diamond's points).
 function cfxDrawFlash(x, y, a, col, k, big, sd) {
-  const R = cfxRamp(col), ca = Math.cos(a), sa = Math.sin(a), u = 1 - k, b = cfxBand(k);
+  const R = cfxRamp(col), ca = Math.cos(a), sa = Math.sin(a), u = 1 - k, b = cfxBand(k), G = big ? 1.5 : 1;
   if (k > 0.6) {
-    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(x + i - (ca < 0 ? 1 : 0), y + j - 1, R[4], true);
-    hlDiamond(x, y, 3 + (big ? 1 : 0), R[3], 1, HL_GOLD[3]);
+    // its first frames: a white-hot heart, spikes out, in a diamond
+    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) dot(x + i, y + j, '#ffffff', true);
+    for (let i = 2; i <= Math.round(5 * G); i++) for (const [p, q] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) dot(x + p * i, y + q * i, i < 4 ? '#ffffff' : R[4], true);
+    hlDiamond(x, y, Math.round(6 * G), R[3], 1, HL_GOLD[4]);
+    hlDiamond(x, y, Math.round(6 * G) + 1, R[0], 0.5);
   } else {
-    // the diamond opening out, only its points left
-    const r = Math.round(3 + u * (big ? 9 : 6));
-    for (const [i, j] of [[r, 0], [-r, 0], [0, r], [0, -r]]) { dot(x + i, y + j, HL_GOLD[3], true, b); dot(x + Math.sign(i) * (r - 1), y + Math.sign(j) * (r - 1), R[2], true, b * 0.7); }
-    dot(x, y, R[3], true, b);
+    // the diamond opening out, only its points left, gold
+    const r = Math.round((6 + u * 12) * G);
+    for (const [i, j] of [[r, 0], [-r, 0], [0, r], [0, -r]]) { const si = Math.sign(i), sj = Math.sign(j); dot(x + i, y + j, HL_GOLD[4], true, b); dot(x + i - si, y + j - sj, HL_GOLD[3], true, b); dot(x + si * (r - 2) + (sj ? 1 : 0), y + sj * (r - 2) + (si ? 1 : 0), R[3], true, b * 0.8); dot(x + si * (r - 2) - (sj ? 1 : 0), y + sj * (r - 2) - (si ? 1 : 0), R[3], true, b * 0.8); }
+    for (const [i, j] of [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1]]) dot(x + i, y + j, R[4], true, b);
   }
-  // the rails: two lines along the aim, either side
-  const L = Math.round(3 + u * 5 + (big ? 2 : 0));
-  if (k > 0.3) for (const s of [-2, 2]) for (let i = 2; i < L; i++) dot(Math.round(x + ca * i - sa * s), Math.round(y + sa * i + ca * s), R[i < 4 ? 4 : 3], true, i > L - 2 ? b * 0.6 : b);
-  // the muzzle ring, standing across the aim and running out along it
-  const rr = 2 + u * (big ? 6 : 4), d = 2 + u * (big ? 10 : 7);
-  hlEdgeRing(x + ca * d, y + sa * d, ca, sa, rr, R[3], b, R[4]);
-  if (big && u > 0.25) { const d2 = d * 0.55; hlEdgeRing(x + ca * d2, y + sa * d2, ca, sa, rr * 0.7, R[2], b * 0.8); }
-  // a few hot pixels thrown forward
-  for (let n = 0; n < (big ? 5 : 3); n++) {
-    const h = artHash(n, Math.floor(k * 6), sd), bb = a + (h - 0.5) * 1.2, r = 3 + u * 9 + artHash(n, 9, sd) * 3;
+  // the rails: two lines along the aim, either side, a dark stroke outside
+  const L = Math.round((6 + u * 10) * G);
+  if (k > 0.25) for (const s of [-3, 3]) for (let i = 3; i < L; i++) {
+    const px = Math.round(x + ca * i - sa * s), py = Math.round(y + sa * i + ca * s);
+    dot(px, py, R[i < 6 ? 4 : 3], true, i > L - 3 ? b * 0.6 : b);
+    dot(Math.round(px - sa * Math.sign(s)), Math.round(py + ca * Math.sign(s)), R[0], false, b * 0.5);
+  }
+  // the muzzle rings, standing across the aim and running out along it
+  const rr = (3 + u * 8) * G, d = (3 + u * 13) * G;
+  hlEdgeRing(x + ca * d, y + sa * d, ca, sa, rr, R[3], b, '#ffffff');
+  if (u > 0.2) { const d2 = d * 0.55; hlEdgeRing(x + ca * d2, y + sa * d2, ca, sa, rr * 0.7, R[2], b * 0.85, R[4]); }
+  // hot pixels thrown forward
+  for (let n = 0; n < (big ? 9 : 6); n++) {
+    const h = artHash(n, Math.floor(k * 6), sd), bb = a + (h - 0.5) * 1.3, r = (4 + u * 16 + artHash(n, 9, sd) * 4) * G;
     dot(Math.round(x + Math.cos(bb) * r), Math.round(y + Math.sin(bb) * r * 0.75), R[h < 0.5 ? 3 : 4], true, b);
   }
 }
@@ -1089,61 +1281,92 @@ function drawCastBolt(b, ox, oy, tick, lights) {
   // a spark wobbles across its path
   const wob = look === 'wobble' ? Math.round(Math.sin(age * 45) * 1.2) : 0;
   const x = Math.round(bx * AP) + ox - Math.round(uy * wob), y = Math.round(by * AP) + oy + Math.round(ux * wob);
+  const B = T.castFx.bolt;
   if (look === 'orb') { cfxDrawOrb(b, x, y, tick, col, lights); return; }
-  if (b.kind === 'shard') { cfxDrawCrystal(x, y, ux, uy, 4, R, ft); cfxLight(lights, x, y, TILE * 0.8, 0.5, rgb01(col)); return; }
-  if (look === 'lance') { cfxDrawBeam(b, x, y, ux, uy, R, ft, sd); cfxLight(lights, x, y, TILE * 1.2, 0.7, rgb01(col)); return; }
+  if (b.kind === 'shard') { cfxDrawCrystal(x, y, ux, uy, 7, R, ft); cfxLight(lights, x, y, TILE * 1.1, 0.7, rgb01(col)); return; }
+  if (look === 'lance') { cfxDrawBeam(b, x, y, ux, uy, R, ft, sd); cfxLight(lights, x, y, TILE * B.light[0] * 1.2, B.light[1], rgb01(col)); return; }
   const P = (i, j) => [Math.round(x + ux * i - uy * j), Math.round(y + uy * i + ux * j)], st = cfxStyle(el), big = b.big;
   // (which side of its way is the upper, lit one)
   const lit = ux > 0.3 ? -1 : ux < -0.3 ? 1 : uy > 0 ? 1 : -1;
-  // the contrail: a hard line back along its way, breaking into dashes as
-  // it thins, with ionised strokes off it either side
-  const n = T.castFx.bolt.trail * 2 + 4 + (big ? 8 : 0);
-  for (let k = 2; k <= n; k++) {
-    const f = k / (n + 1), [tx, ty] = P(-k, 0), a = cfxBand(1 - f * 0.9);
-    if (f > 0.4 && artHash(k >> 1, ft >> 1, sd) < (f - 0.4) * 1.5) continue;
-    dot(tx, ty, R[k < 4 ? 4 : f < 0.4 ? 3 : f < 0.7 ? 2 : 1], true, a);
-    // (two pixels thick near the head: lit above, its colour below)
-    if (k < 9 && !big) { const [qx, qy] = P(-k, lit), [rx, ry] = P(-k, -lit); dot(qx, qy, R[k < 5 ? 3 : 2], true, a); if (k < 6) dot(rx, ry, R[k < 4 ? 2 : 1], true, a * 0.85); }
-    if (big && f < 0.5) for (const s of [-1, 1]) { const [qx, qy] = P(-k, s); dot(qx, qy, R[f < 0.25 ? 3 : 2], true, a * 0.8); }
-    const h = artHash(k, ft >> 1, sd + 3);
-    if (f > 0.2 && h < 0.2) { const [qx, qy] = P(-k, (h < 0.1 ? 1 : -1) * (big ? 3 : 2)); dot(qx, qy, R[2], true, a * 0.75); }
+  // the hot core: a white-hot line back from the head, three pixels thick
+  // (five, charged), lit above and deep below, a dark stroke under it so
+  // it holds on a pale floor (its contrail is drawn first: cfxDrawTrails)
+  const L = big ? B.core[1] : B.core[0], w = big ? 2 : 1;
+  for (let k = 0; k < L; k++) {
+    const f = k / L, [tx, ty] = P(-k, 0);
+    dot(tx, ty, k < 3 ? '#ffffff' : R[f < 0.6 ? 4 : 3], true);
+    if (f < 0.75) for (let s = 1; s <= w; s++) {
+      let [qx, qy] = P(-k, lit * s); dot(qx, qy, R[s === 1 && f < 0.5 ? 4 : 3], true);
+      [qx, qy] = P(-k, -lit * s); dot(qx, qy, R[s === 1 && f < 0.3 ? 3 : 2], true);
+    }
+    if (f < 0.6) { const [qx, qy] = P(-k, -lit * (w + 1)); dot(qx, qy, R[0], false, 0.7); }
   }
   // the head
-  if (st === 'frost') cfxDrawCrystal(x, y, ux, uy, big ? 7 : 5, R, ft);
+  if (st === 'frost') cfxDrawCrystal(x, y, ux, uy, big ? 11 : 8, R, ft);
   else if (st === 'ember') {
     // plasma: a white-hot heart, its colour round it, in a shell of violet
     // that turns
-    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) dot(x + i, y + j, i || j ? R[3] : R[4], true);
-    dot(x - 1, y - 1, R[4], true);
-    const S = cfxRamp(CFX_SHELL), rr = big ? 4 : 3;
-    for (let q = 0; q < (big ? 6 : 4); q++) { const a = Game.realT * 9 + (q * Math.PI * 2) / (big ? 6 : 4); dot(Math.round(x + Math.cos(a) * rr), Math.round(y + Math.sin(a) * rr), S[q % 2 ? 2 : 3], true, 0.9); }
+    const rr = big ? 3 : 2, S = cfxRamp(CFX_SHELL);
+    for (let j = -rr; j <= rr; j++) for (let i = -rr; i <= rr; i++) { const e = i * i + j * j; if (e <= rr * rr + 1) dot(x + i, y + j, e <= 1 ? '#ffffff' : e <= 4 ? R[4] : R[3], true); }
+    const sr = rr + 3, n = big ? 8 : 6;
+    for (let q = 0; q < n; q++) { const a = Game.realT * 9 + (q * Math.PI * 2) / n; dot(Math.round(x + Math.cos(a) * sr), Math.round(y + Math.sin(a) * sr * 0.9), S[q % 2 ? 2 : 4], true); if (q % 2 === 0) dot(Math.round(x + Math.cos(a + 0.25) * sr), Math.round(y + Math.sin(a + 0.25) * sr * 0.9), S[3], true, 0.8); }
   } else if (st === 'blight') {
-    // a swarm: a hot speck, nanites milling round it, some with a violet sheen
-    dot(x, y, R[4], true);
-    for (let q = 0; q < (big ? 12 : 8); q++) {
-      const h = artHash(q, ft, sd), h2 = artHash(q, ft + 50, sd), r = big ? 4 : 3;
-      dot(Math.round(x + (h - 0.5) * 2 * r - ux * h2 * 2), Math.round(y + (h2 - 0.5) * 2 * r * 0.8), q % 4 === 0 ? '#c890ff' : R[q % 3 ? 3 : 2], true, 0.9);
+    // a swarm: a hot speck, nanites milling round it, some with a violet
+    // sheen, some dark
+    for (const [i, j] of [[0, 0], [1, 0], [0, 1]]) dot(x + i, y + j, R[4], true);
+    const r = big ? 6 : 4;
+    for (let q = 0; q < (big ? 22 : 14); q++) {
+      const h = artHash(q, ft, sd), h2 = artHash(q, ft + 50, sd);
+      dot(Math.round(x + (h - 0.5) * 2 * r - ux * h2 * 3), Math.round(y + (h2 - 0.5) * 2 * r * 0.8), q % 5 === 0 ? '#c890ff' : q % 7 === 0 ? '#1a2a0c' : R[q % 3 ? 3 : 2], q % 7 !== 0, 0.95);
     }
   } else {
-    // a slug: three pixels white-hot along its way, a bow shock opening
-    // back from it, a glint at its tip
-    for (let i = 0; i < (big ? 5 : 4); i++) { const [qx, qy] = P(-i, 0); dot(qx, qy, i < 2 ? '#ffffff' : R[4], true); if (i > 0) for (const s of [-1, 1]) { const [rx, ry] = P(-i, s); dot(rx, ry, R[s === lit ? 4 : 3], true); } }
-    for (const s of [-1, 1]) { let [qx, qy] = P(-2, s * 2); dot(qx, qy, R[3], true, 0.9); [qx, qy] = P(-4, s * 3); dot(qx, qy, R[2], true, 0.6); }
-    const [gx, gy] = P(1, 0);
-    dot(gx, gy, ft % 2 ? HL_GOLD[4] : R[4], true);
+    // a slug: a bow shock opening back from it, a glint at its tip
+    const bs = big ? 7 : 5;
+    for (const s of [-1, 1]) for (let i = 1; i <= bs; i++) { const [qx, qy] = P(-i * 0.9, s * (1 + i * 0.75)); dot(qx, qy, R[i < 3 ? 4 : i < 5 ? 3 : 2], true, i < bs - 1 ? 0.95 : 0.6); }
+    const [gx, gy] = P(1, 0), [g2x, g2y] = P(2, 0);
+    dot(gx, gy, '#ffffff', true); dot(g2x, g2y, ft % 2 ? HL_GOLD[4] : R[4], true);
     if (st === 'shock') {
-      // arcs off the head, a new shape each frame
+      // arcs jumping off the head, a new shape each frame
       for (const s of [-1, 1]) {
-        const h = artHash(s + 3, ft, sd), [x1, y1] = P(-1 - h * 2, s * (2 + h)), [x2, y2] = P(-3 + h * 2, s * (4 + h * 2));
-        hlLine(x, y, x1, y1, R[4], true); hlLine(x1, y1, x2, y2, R[3], true, 0.85);
+        const h = artHash(s + 3, ft, sd), [x1, y1] = P(-2 - h * 3, s * (3 + h * 2)), [x2, y2] = P(-6 + h * 4, s * (6 + h * 3));
+        hlLine(x, y, x1, y1, '#ffffff', true); hlLine(x1, y1, x2, y2, R[4], true, 0.9);
+        dot(x2, y2, R[3], true);
       }
     }
   }
   if (big) {
-    // charged: held in a turning diamond, its points gold
-    hlDiamond(x, y, 5 + (ft % 2), R[3], 0.85, HL_GOLD[4]);
+    // charged: held in a turning diamond, its points gold, a ring across it
+    hlDiamond(x, y, 8 + (ft % 2), R[3], 0.9, HL_GOLD[4]);
+    hlEdgeRing(x - ux * 3, y - uy * 3, ux, uy, 6, R[3], 0.8, R[4]);
   }
-  cfxLight(lights, x, y, TILE * (big ? 1.4 : 1), 0.6 + (tick % 2) * 0.15, rgb01(col));
+  cfxLight(lights, x, y, TILE * B.light[0] * (big ? 1.5 : 1), B.light[1] + (tick % 2) * 0.15, rgb01(col));
+}
+
+// The contrails, before the shots (render.js): each a line through where
+// its shot has been this last T.castFx.bolt.linger s, hot and thick
+// nearest the shot, thinning and darkening to dashes, ionised strokes off
+// it either side, a dark stroke under its hot part so it holds on a pale
+// floor; Shock's zigzags, Ember's runs hot and long.
+function cfxDrawTrails(ox, oy) {
+  const now = Game.realT, Lg = T.castFx.bolt.linger;
+  for (const tr of CFX.trails) {
+    const pts = tr.pts, R = cfxRamp(tr.col), lx = tr.lx, ly = tr.ly;
+    for (let i = pts.length - 1; i > 0; i--) {
+      const p = pts[i], q = pts[i - 1], a = (now - q[2]) / Lg;
+      if (a >= 1) break;
+      const x0 = Math.round(p[0] * AP) + ox, y0 = Math.round(p[1] * AP) + oy, x1 = Math.round(q[0] * AP) + ox, y1 = Math.round(q[1] * AP) + oy;
+      const L = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)), ti = a < 0.2 ? 4 : a < 0.45 ? 3 : a < 0.75 ? 2 : 1, al = a < 0.6 ? 1 : 0.75;
+      for (let s = 0; s < L; s++) {
+        const u = s / Math.max(1, L), x = Math.round(x0 + (x1 - x0) * u), y = Math.round(y0 + (y1 - y0) * u) + (tr.st === 'shock' ? Math.round((artHash(q[3] + s, 1, 5) - 0.5) * 2.4 * (1 - a)) : 0), h = artHash(q[3] + s, 3, 9);
+        if (a > 0.55 && (s + q[3]) % 3 === 0) continue;
+        dot(x, y, R[ti], true, al);
+        if (a < (tr.big ? 0.6 : 0.35)) { dot(x + lx, y + ly, R[Math.max(1, ti - 1)], true, al); if (tr.big) dot(x - lx, y - ly, R[Math.max(1, ti - 1)], true, al); }
+        if (a < 0.4) { const k = tr.big ? 2 : 1; dot(x - lx * k, y - ly * k, R[0], false, 0.55); }
+        // ionised strokes off it
+        if (h < 0.14 * (1 - a)) { const o = (h < 0.07 ? 1 : -1) * (2 + ((h * 50) | 0) % 2); dot(x + lx * o, y + ly * o, R[3], true, 0.85); dot(x + lx * o - ly, y + ly * o - lx, R[2], true, 0.7); }
+      }
+    }
+  }
 }
 
 // A cut crystal flying point first at x, y along ux, uy, L px long: its
@@ -1170,6 +1393,8 @@ function cfxDrawBeam(b, x, y, ux, uy, R, ft, sd) {
     dot(tx, ty, R[f < 0.35 ? 4 : f < 0.7 ? 3 : 2], true, a);
     if (f < 0.45 || h > f * 0.9) dot(Math.round(tx + vx * lit), Math.round(ty + vy * lit), R[f < 0.4 ? 3 : 2], true, a * 0.9);
     if (f < 0.3 || h > 0.35 + f * 0.6) dot(Math.round(tx - vx * lit), Math.round(ty - vy * lit), R[f < 0.3 ? 2 : 1], true, a * 0.8);
+    if (f < 0.25) dot(Math.round(tx + vx * lit * 2), Math.round(ty + vy * lit * 2), R[3], true, a * 0.8);
+    if (f < 0.6) dot(Math.round(tx - vx * lit * 2), Math.round(ty - vy * lit * 2), R[0], false, 0.55);
     const h2 = artHash(k, ft + 7, sd);
     if (h2 < 0.07) { const s = h2 < 0.035 ? 2 : -2; dot(Math.round(tx + vx * s), Math.round(ty + vy * s), R[2], true, a * 0.6); }
   }
