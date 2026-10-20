@@ -397,7 +397,8 @@ function installBot() {
     const pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
     for (const [m, b] of socketed.sort((x, y) => moduleWorth(y[0]) - moduleWorth(x[0]))) {
       const cost = upgradeCost(m);
-      if (!cost || m.tier >= b.tier || benchShort(cost, s.stash).length || (pickOre && cost.ore.id === pickOre.id && (s.stash[pickOre.id] || 0) - cost.ore.n < BLUEPRINTS.pick.ore)) continue;
+      // (only from ore to spare: the forge comes first)
+      if (!cost || m.tier >= b.tier || benchShort(cost, s.stash).length || (s.stash[cost.ore.id] || 0) - cost.ore.n < 20 + (pickOre && cost.ore.id === pickOre.id ? BLUEPRINTS.pick.ore : 0)) continue;
       benchPay(cost, s.stash); moduleUpgrade(m); s.botUps = (s.botUps || 0) + 1;
       log.push(`upgraded ${m.name} to ${m.tier}`);
       break;
@@ -489,7 +490,7 @@ function installBot() {
         if (i >= it.slots.length) break;
         let st;
         if (id === 'el') { const e = elements.find((x) => !used.includes(x) && s.items.some((y) => y.stone === x)) || elements.find((x) => s.items.some((y) => y.stone === x)); st = e ? take(e) : null; if (st) used.push(e); }
-        else st = take(id);
+        else st = take(id) || (id === 'lance' ? take('bolt') : null);
         if (st) it.slots[i++] = st;
       }
     }
