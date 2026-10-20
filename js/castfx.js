@@ -741,7 +741,7 @@ function cfxDecal(x, y, kind, big) {
 // Under everyone: marks, glyphs, swept rings, a charging circle and the
 // afterimages. ox, oy: the floor's offset on the view.
 function drawCastGround(d, ox, oy, tick, lights) {
-  const zl = !d.hub && T.zones[d.zone] && T.zones[d.zone].light;
+  const zl = T.zones[d.zone] && T.zones[d.zone].light;
   CFX.day = !!(zl && sunOf(d) > zl.lampAt);
   CFX.dayLights.length = 0;
   if (CFX.dive !== d) return;

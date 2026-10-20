@@ -48,12 +48,16 @@ function newWorld(fields) {
   }, fields);
 }
 
-// Home: the outpost on the sinkhole's rim. report: how the dive ended.
-function enterHub(report) {
+// Home: the outpost, the cleared site round the star in the middle of the
+// world. report: how the sortie ended. at.from: the territory walked home
+// from, to come in at the opening from it.
+function enterHub(report, at = {}) {
   if (report) Save.data.swapped = false;
-  const f = makeHubFloor();
-  const d = (Game.dive = newWorld({ hub: true, floor: f }));
-  d.p.x = (f.entry.x + 0.5) * TILE; d.p.y = (f.entry.y + 0.5) * TILE; d.p.fy = -1;
+  const f = outpostFloor(worldState().seed);
+  const d = (Game.dive = newWorld({ hub: true, floor: f, zone: 'surface', sun: outpostSun() }));
+  const ex = at.from !== undefined && f.exits.find((e) => e.to === at.from);
+  if (ex) { d.p.x = (ex.ax + 0.5) * TILE; d.p.y = (ex.ay + 0.5) * TILE; d.p.fx = ex.nx; d.p.fy = ex.ny; d.arrive = { t: 0, zone: 'surface' }; }
+  else { d.p.x = (f.entry.x + 0.5) * TILE; d.p.y = (f.entry.y + 0.5) * TILE; d.p.fy = -1; }
   d.drone = null;
   const dm = HUB_STATIONS.find((s) => s.id === 'dummy');
   const dummy = makeEnemy('dummy', (dm.x + 0.5) * TILE, (dm.y + 0.5) * TILE, 1, null);
@@ -62,7 +66,25 @@ function enterHub(report) {
   Game.scene = 'hub';
   UI.close();
   if (report) UI.openReport(report);
-  else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk to the portal under the star to set out');
+  else if (!Save.data.run && !Story.intro()) UI.tip('hub', 'Walk out any opening into the land next to the outpost, or take the portal');
+}
+// The daylight over the outpost: the star's own ground, brighter as it
+// grows (T.outpost.sun).
+function outpostSun() {
+  const S = T.outpost, m = magnitudeOf(Save.data.star);
+  return lerp(S.sun[0], S.sun[1], clamp((m - 1) / (S.sunFull - 1), 0, 1));
+}
+// Walking out of the outpost by an opening: into the land it faces, as
+// crossing a territory's edge does, with the tool last chosen at the portal.
+function updateOutpostExits(d) {
+  if (d.warp || d.dying) return;
+  const p = d.p;
+  for (const e of d.floor.exits) if (dist(p.x, p.y, (e.x + 0.5) * TILE, (e.y + 0.5) * TILE) < T.world.exits.reach) {
+    d.p.mine = null;
+    d.warp = { t: 0, at: null, zone: isKindled(e.to) ? 'surface' : 'dusk', go: () => startSortie({ terr: e.to, from: 0 }) };
+    buzz(20);
+    return;
+  }
 }
 
 function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0 }; }
@@ -157,6 +179,7 @@ function updateDive(dtReal, dt) {
   if (updateWarp(d, dtReal) || Game.dive !== d) return;
   if (!d.hub) updateTools(dtReal);
   if (d.sortie) updateFrontier(d, dtReal);
+  else if (d.hub) updateOutpostExits(d);
   if (d.warp) return;
   p.invuln = Math.max(0, p.invuln - dtReal);
   p.hurtT = Math.max(0, p.hurtT - dtReal);

@@ -21,7 +21,7 @@
 // ray went, plus `reach` past it, so the near skin of the rock the light
 // strikes stays lit. A wall's front face is lit where the ground under it
 // is lit and the light is south of it, so a face the diver looks at never
-// goes dark however low the light strikes it. The sinkhole stops nothing.
+// goes dark however low the light strikes it.
 //
 // A sight S is { x0, y0 (the world cell of its first), w (cells across, and
 // down), vis (Float32Array) }.
@@ -65,8 +65,8 @@ function seeFrom(f, cx, cy, r, S, ey = 0) {
   if (!S.vis || S.vis.length < w * w) S.vis = new Float32Array(w * w);
   const vis = S.vis;
   if (oxi < 0 || oyi < 0 || oxi >= W || oyi >= Hp || R[oyi * W + oxi]) return false;
-  // how far each ray goes before it strikes rock (the floor's edge is rock;
-  // the sinkhole isn't), an art px at a time, but straight across a block
+  // how far each ray goes before it strikes rock (the floor's edge is
+  // rock), an art px at a time, but straight across a block
   // between four open tiles' middles, where there's no rock to find
   const depth = t.depth, lens = t.len, dxs = t.dx, dys = t.dy, ob = openBlocks(f), BW = f.w, h2 = ATILE / 2, st = Sh.step;
   for (let b = 0; b < B; b++) {
@@ -83,7 +83,7 @@ function seeFrom(f, cx, cy, r, S, ey = 0) {
         s += e >= st ? Math.floor(e) : st;
         continue;
       }
-      if (R[(y | 0) * W + (x | 0)] && floorTile(f, Math.floor(x / ATILE), Math.floor(y / ATILE)) !== TILE_PIT) break;
+      if (R[(y | 0) * W + (x | 0)]) break;
       s += st;
     }
     depth[b] = s;

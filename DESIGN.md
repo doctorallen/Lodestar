@@ -1,6 +1,6 @@
 # Lodestar: design
 
-Lodestar is a top-down pixel-art mining and looting game for the phone browser. You play a Kindler, an explorer in a blue Charter suit with amber circuits, a faced helm with a brow lamp, and a little drone, on a world where technology runs on arcane ore. From a seed-star hanging over a vast sinkhole, you carry its light out into a dark world, mine ore, fight, take the land one territory at a time, and decide when to push further and when to get back to a spire before you lose the haul.
+Lodestar is a top-down pixel-art mining and looting game for the phone browser. You play a Kindler, an explorer in a blue Charter suit with amber circuits, a faced helm with a brow lamp, and a little drone, on a world where technology runs on arcane ore. From a seed-star newly planted in the middle of a dark world, its Charter base round it, you carry its light out across the land, mine ore, fight, take the land one territory at a time, and decide when to push further and when to get back to a spire before you lose the haul.
 
 It mixes Terraria and Starbound (always another ore to find, and the gear it makes) with Diablo (every drop is a roll of the dice, so you never keep the same gear for long).
 
@@ -16,14 +16,14 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 ## The story
 
 **The Kindler.** You're a Kindler of the Lodestar Charter. The Charter sends seed-stars to dead worlds, and a Kindler rides down with each one to plant it and carry its light outward, spire by spire, until a colony can land.
-- **The landing:** this seed struck wrong, cracked, and sank into a sinkhole. You and Wick climb out of the landing capsule onto the rim, where its light reaches only a few steps. It's a planned landing gone wrong, not a crash.
+- **The landing:** a planned terraform, by the book. The seed is planted on a surveyed site in the middle of the world, and the Charter's base modules come down with it. A new seed always starts small, its light reaching only a little way; growing it, by feeding it the land's ore and planting spires to carry its light, is the Kindler's job. It's your first terraform, so you grow in skill as you go (the attunements are that skill). Wick has done this before.
 - **The *Meridian*** is the colony ship waiting in orbit with its settlers asleep. For every 3 territories kindled it can send a lander, and the outpost becomes a settlement.
 - **Why take ground:** it's the job. Every spire carries the star's light further, and the dark is thicker where the light has never been.
 
 | Act | What happens |
 |---|---|
 | Ring 1 | Plant spires and the land wakes up. The first landers come down and the settlers arrive. The star speaks as it grows. |
-| Ring 2 (the turn) | The echoes, logs of earlier Kindlers, show that the world wasn't dead. The dark is the world's own living night, and the Hollow is what grows in it. The Keepers are earlier seed-stars that went dark. |
+| Ring 2 (the turn) | The procedure itself is what's in question. The echoes, logs of earlier Kindlers, show that the world wasn't dead. The dark is the world's own living night, and the Hollow is what grows in it. The Keepers are earlier seed-stars that went dark. |
 | Ring 3 | Each Keeper holds a shard of its dead star. Set the shards in yours and your light reaches further. |
 | The Edge | The heart of the dark. You choose: **kindle it** (the world becomes a garden and the Hollow is gone) or **leave it** (the world keeps a night, the colony lives in the light, and the Hollow keeps to the dark). The game goes on after either. |
 
@@ -37,17 +37,17 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 How it's told:
 - **An opening** of five panels on a new game.
 - **Wick**, your drone, dry and kind, says a line the first time things happen: the first dive, parts, a blueprint, the anvil, the light thinning, a new biome, a Keeper, a shard, the first spire, the first territory kindled, the first dark tide, the first Deep, each ring, the Edge, the first settlers, the first feeding of the star.
-- **The star speaks** as it grows, a seed-star waking, as each shard is set, and when it first tastes the land's ore, and Starmetal.
+- **The star speaks** as it grows, a seed-star waking where it was planted, as each shard is set, and when it first tastes the land's ore, and Starmetal.
 - **Feeding seeds the turn.** It's the procedure, and the echoes show earlier Kindlers fed their stars the same way: the ore was the world's own, and the last of them stopped feeding hers. By the Edge, the player has been doing the kindling all along.
 - **Eight echoes:** logs of the Kindlers before, found by ancient forges, from elites now and then, and from every Keeper, and read at the uplink in the order found. The early ones are hopeful, the middle ones uneasy, and the later ones carry the turn.
-- **Settlers** at the outpost, one for each lander down, stroll the plaza among tents and lanterns and say a line when you pass. After the turn, they've heard.
+- **Settlers** at the outpost, one for each lander down, stroll the plaza among the modules and their pods and say a line when you pass. After the turn, they've heard.
 - **The log:** one line for each territory kindled, by its clime.
 - **Never say it outright.** No line says the dark is alive or that the Keepers were stars. The echoes, the star and the settlers let it show.
 - **The tone:** plain, warm and a little lonely, hopeful with unease. Short lines that read on a phone.
 
 ## The Lodestar (the base)
 
-The Lodestar is the seed-star the Charter sent down with you. A seed-star is planted small and fed the land's ore until it's strong enough to light a world: that's the procedure every Kindler follows, and this is your first. It now hangs over a sinkhole, held up by its own magnetic field. Your outpost is built on and around it.
+The Lodestar is the seed-star the Charter sent down with you, planted in the middle of the world. It hangs over its planting cradle, held up by its own magnetic field, and came down with the Charter's base modules, which stand round it on the cleared site: the outpost. A seed-star is planted small and fed the land's ore until it's strong enough to light a world: that's the procedure every Kindler follows, and this is your first.
 
 - **Its light.** The star's light reaches the land next to the outpost, and every spire planted further out carries it on. Out in the dark, your own light drains; in kindled land and at home it fills again.
 - **Feeding the star.** Each ore fed is worth its tier² in points, and the points raise the star's **magnitude**. Each magnitude gives an attunement point, a Deep's lodelines a little likelier, a gentler emergency recall, and now and then another pocket slot.
@@ -56,7 +56,7 @@ The Lodestar is the seed-star the Charter sent down with you. A seed-star is pla
   - **Keeping ore back:** ATTUNE, beside it at the altar, opens the star's screen (attunements, and the ore banked). Mark an ore ☆ KEEP, the same mark that keeps gear from salvage, and the star is never given it.
   - Each ore leaves the stash and its points join the star's at once (the save is never between the two); the star, its lodelines and lanterns are drawn as they were until each ore lands.
   - **Words:** Wick gives the why the first time (it's the procedure), and the star remarks on the first ore it ever takes, and the first Starmetal.
-- **(proposed) Lore hook.** The deepest ore, Starmetal, is pieces of the Lodestar that broke off when it fell. Something out there has been collecting them.
+- **(proposed) Lore hook.** The deepest ore, Starmetal, is what's left of seed-stars that went dark: it tastes like the earlier, dimmed stars. Something out there has been collecting it.
 
 ## The loop
 
@@ -64,7 +64,7 @@ The Lodestar is the seed-star the Charter sent down with you. A seed-star is pla
    - forge casters, gear, picks and the stones circuits are built from;
    - rework affixes and salvage what you don't need;
    - build circuits at the locker, unseal relics, feed the star and spend attunements.
-2. **Set out:** the outpost's portal opens the world map. Walk out into any territory next to the outpost, or set out to any spire, and pick the tool to carry.
+2. **Set out:** walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to any spire, and the tool to carry (walking out carries the last one chosen).
 3. **Push into the dark:** cross from territory to territory. In dark land your light drains, the enemies are out, and the ore is worth taking.
 4. **Mine, fight, kindle:** work on a territory's heart goal, or just take what you can carry. Some territories have a Deep below, a short dungeon richer in ore.
 5. **Bank or fall:** bank at any spire (or walk home). If you fall, what you wear and what's in your pocket are safe, but the cargo is lost, and you wake at the last spire you touched.
@@ -75,7 +75,7 @@ The world is rolled once for each save from its seed (world.js) and kept in the 
 
 | Ring | Region | Territories | Ore | Enemy level |
 |---|---|---|---|---|
-| 0 | The outpost | 1 | | |
+| 0 | The outpost: the cleared site round the star | 1 | | |
 | 1 | The Rim | 7 | Ferrite, Lumenite | 1–4 |
 | 2 | The Choir | 10 | Resonite, Aetherglass | 5–8 |
 | 3 | The Underforge | 12 | Sigilite, Starmetal | 9–12 |
@@ -158,7 +158,7 @@ The diver carries one tool, chosen at the portal before setting out. Each change
 
 ## Rifts
 
-Tears in the world, where the star's fall cracked more than the ground. Dark land and a Deep's sites may hold one (a quarter of the gentlest, rising to over half of the hardest), and a territory whose heart goal is to seal the tear always has one on its heart. Sealed, it stays sealed. Each changes the site around it:
+Tears in the world, where something has cracked more than the ground. Dark land and a Deep's sites may hold one (a quarter of the gentlest, rising to over half of the hardest), and a territory whose heart goal is to seal the tear always has one on its heart. Sealed, it stays sealed. Each changes the site around it:
 - **Graft:** another place has bled through. A blob of another biome's ground, stitched in with a glowing seam: a patch of sunlit badlands in a cave (its daylight with it), or a patch of cave on the surface. The ore inside is that biome's, so a graft can bring a better ore early.
 - **Ore wake:** the rock round the tear has woken into ore, half of it the site's better ore.
 - **Gate:** two tears in different rooms, one place. Step into one, out of the other: a shortcut, or an escape.
@@ -236,7 +236,7 @@ While a skink is under the sand, an eel under the water or a dropper on the roof
 
 | Biome | Feel | Ore (tier) |
 |---|---|---|
-| The Rim | Glowing fungal caverns just under the sinkhole's edge | Ferrite (1), Lumenite (2) |
+| The Rim | The first ring of land round the star; glowing fungal caverns under it | Ferrite (1), Lumenite (2) |
 | The Choir | Crystal caverns that sing when struck | Resonite (3), Aetherglass (4) |
 | The Underforge | Ancient machine ruins near magma | Sigilite (5), Starmetal (6) |
 
@@ -425,16 +425,18 @@ Salvaging a legendary at home writes its power into the forge's **Codex**. Any l
 
 ## The base: the outpost
 
-Home is a place you walk, not a menu. It's a compact plateau on the sinkhole's rim, every station a few steps apart:
-- **The Lodestar** hangs over the pit, bobbing. Its lodelines run down into the dark, one more for every magnitude, and it grows bigger as it grows stronger.
-- **Lanterns** round the plaza light up, one for every magnitude.
-- **The settlement.** For each lander the *Meridian* sends (one for every 3 territories kindled), a settler, a tent and a lantern join the plaza, up to six; all of them once the colony's called.
+Home is a place you walk, not a menu. It's the middle territory of the world: a cleared site round the star, its Charter base compact in the middle, every station a few steps apart:
+- **The Lodestar** hangs over its planting cradle, bobbing, and grows bigger as it grows stronger. Its lodelines run out across the ground along the paths to the openings, one more for every magnitude, reaching further as it grows, and all the way and brighter towards land already kindled.
+- **The base** came down with the seed: Charter modules (the fabricator, the locker, the rune bench, the star's altar, the uplink, the portal's gate, the Kindler's habitat pod) on plated slabs round a plated ring, walkways between, landing pads round the plaza, and marked paths out to the openings. Supply containers stand stacked by the modules. **Starstone,** gold and lodestone crystal, grows up the modules' feet and edges as the star grows, more at each magnitude.
+- **The light.** The outpost is the star's own ground, the first lit land, under the sky like kindled land; its daylight rises with the star, from a low warm light at magnitude 1 to full day by magnitude 6. Light masts round the ring come on, one for every magnitude.
+- **Ways out.** An opening on its edge towards each land next to it, as a territory has, labelled with the land's name; walk out of one into that land, and walk back in through its opening home. Near each opening the cleared ground grades into the land beyond: its ground, its plants and its rock, so each side of the outpost looks like the land past it.
+- **The settlement.** For each lander the *Meridian* sends (one for every 3 territories kindled), a lander on a pad, a habitat pod and a lamp beside it, and a settler on the plaza, up to six; all of them once the colony's called.
 - **The stations:** walk up to one and the contextual button names it.
 
 | Station | What it does |
 |---|---|
-| The portal (SET OUT) | The world map: a territory next to the outpost to walk out into, or a spire to set out to, and a tool |
-| The forge (FORGE) | Make casters, plate, charms, picks, and Form, Element and Glyph stones from banked ore, parts and exotics. Every forge is played on the anvil |
+| The portal (SET OUT) | In a Charter gate. The world map: a territory next to the outpost to walk out into, or a spire to set out to, and the tool to carry |
+| The forge (FORGE) | The Charter's fabricator. Make casters, plate, charms, picks, and Form, Element and Glyph stones from banked ore, parts and exotics. Every forge is played on the anvil |
 | The rune bench (RUNES) | Rework affixes on any piece: reroll, raise, add |
 | The locker (GEAR) | What's worn, the stash and its stones, stats; equip, build circuits (free), salvage, unseal relics |
 | The star's altar (THE STAR) | Hold FEED THE STAR and ore after ore rises into the star, the plainest first, faster the longer you hold, until you let go; ATTUNE spends attunements and marks ore kept for the forge. A shard carried home is set here instead (SET THE SHARD) |

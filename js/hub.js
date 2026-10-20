@@ -1,14 +1,18 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// The outpost on the sinkhole's rim, drawn. The Lodestar hangs over the pit,
-// bobbing, its lodelines running down into the dark: one more for every
-// magnitude. Round the plaza stand the stations (the star's altar, the
-// locker, the portal every expedition sets out through, the forge, the rune
-// bench), the practice target and the Meridian uplink, and lanterns, one
-// lit for every magnitude. As territories are kindled the colony comes down,
-// and tents and lanterns go up round the plaza (settlers: story.js). The
-// floor, walls and pit are painted like any floor (render.js); these are
-// drawn every frame on top.
+// The outpost, drawn: the Charter's base round the star, on the cleared site
+// in the middle of the world (floor.js lays it out; its ground is painted
+// in hubground.js). The Lodestar hangs over its planting cradle, bobbing,
+// its lodelines running out across the ground towards the openings, one
+// more for every magnitude, reaching further as it grows, and all the way
+// and brighter towards land already kindled. Round the cradle stand the
+// modules that came down with the seed (the star's altar, the locker, the
+// portal's gate, the fabricator, the rune bench), the practice target and
+// the Meridian uplink, and light masts, one lit for every magnitude.
+// Starstone grows up the modules' feet as the star does. As territories are
+// kindled the colony comes down: a lander on a pad for each, a habitat pod
+// and a lamp beside it, and settlers about the plaza (story.js). These are
+// drawn every frame over the painted floor.
 // ---------------------------------------------------------------------------
 
 // Each station, painted (hubart.js), its feet at ax, ay.
@@ -16,19 +20,20 @@ function stationSprite(id) {
   return { forge: hartForge, runes: hartRunes, locker: hartLocker, altar: hartAltar }[id]();
 }
 
-const LANTERNS = [[3, 12], [19, 12], [3, 17], [19, 17], [7, 21], [15, 21], [8, 13], [14, 13]];
-const STAR_AT = { x: 11.5, y: 5.6 }; // tiles: over the middle of the pit
+const STAR_AT = { x: OUTPOST_CRADLE.x, y: OUTPOST_CRADLE.y - 3.1 }; // tiles: over the cradle
+// The light masts round the cradle's ring (tiles), lit one for every
+// magnitude in this order: those in front first.
+const LANTERNS = [67.5, 112.5, 22.5, 157.5, 337.5, 202.5, 292.5, 247.5].map((a) => {
+  const r = a * Math.PI / 180;
+  return [OUTPOST_CRADLE.x - 0.5 + Math.cos(r) * 4.5, OUTPOST_CRADLE.y + 0.3 + Math.sin(r) * 3.5];
+});
 
-// Under everything that walks: the lodelines in the pit, the forge's light
-// on the ground, the stations' lights. (The stations, lanterns, tents and
-// what lies about the plaza stand among the walkers: hubProps.)
+// Under everything that walks: the lodelines across the ground, the forge's
+// light on the ground, the stations' lights. (The stations, masts, landers
+// and pods stand among the walkers: hubProps.)
 function drawHubUnder(d, ox, oy, tick, lights) {
-  const mag = hubStarMag(d), star = ART.pal.star, k = mag >= 5 ? 3 : 2;
-  const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE) + oy, st = hartStar(k);
-  // the lodelines, falling from the star's foot into the dark
-  if (mag > 0) { const L = hartLodelines(Math.min(mag, 8), Math.floor(Game.realT * 6) % 4); drawArtSprite(L, sx - L.ax, sy + (st.h - 15 - st.ay) - 4); }
-  // the plaza's flat dressing: cables, scuffs
-  drawHubGround(d, ox, oy);
+  const star = ART.pal.star;
+  drawHubLodelines(d, ox, oy, lights);
   // the forge's fire on the ground before it, flickering
   const fg = HUB_STATIONS.find((s) => s.id === 'forge'), fp = stationAt(fg, ox, oy), sp = hartForgeSpill(Math.floor(Game.realT * 7) % 2), fs = hartForge();
   drawArtSprite(sp, fp.x - fs.ax + HART_MOUTH.x - sp.ax, fp.y + 1);
@@ -41,8 +46,31 @@ function drawHubUnder(d, ox, oy, tick, lights) {
     lights.push({ x: gx, y: gy, r: TILE * glow[1], i: glow[2] * fl, c: rgb01(glow[0]) });
   }
 }
+// The lodelines: one along each path out to an opening for every
+// magnitude (the nearest openings first), each reaching further as the
+// star grows (T.outpost.lode), in broken strokes of gold running outward;
+// towards kindled land brighter and all the way, towards the dark faint.
+function drawHubLodelines(d, ox, oy, lights) {
+  const f = d.floor, S = f.site, L = T.outpost.lode, mag = hubStarMag(d), G = HART.star;
+  if (!S || mag <= 0) return;
+  const len = (p) => Math.hypot(p.bx - p.ax, p.by - p.ay), order = S.paths.map((p, k) => k).sort((a, b) => len(S.paths[a]) - len(S.paths[b]));
+  const reach = L.reach[0] + L.reach[1] * (mag - 1), t = Game.realT;
+  for (const k of order.slice(0, mag)) {
+    const p = S.paths[k], lit = isKindled(p.to), n = len(p), far = Math.min(n, lit ? n : reach), ux = (p.bx - p.ax) / n, uy = (p.by - p.ay) / n;
+    // (in art px along it from the ring's edge, wandering a little either
+    // side of the path's middle)
+    const N = Math.floor(far * ATILE), x0 = p.ax * ATILE + ox, y0 = p.ay * ATILE + oy;
+    for (let i = 0; i < N; i++) {
+      const k2 = i / ATILE / far, gap = artHash(Math.floor((i - t * L.speed * (lit ? 1 : 0.5)) / 4), k, 0x10de);
+      if (gap < 0.18 + k2 * k2 * (lit ? 0.35 : 0.7)) continue;
+      const side = Math.sin(i * 0.07 + k) * 1.5, x = Math.round(x0 + ux * i - uy * side), y = Math.round(y0 + uy * i + ux * side);
+      dot(x, y, k2 < 0.3 ? G[5] : k2 < 0.7 ? G[4] : G[3], true, (lit ? 1 : L.dark) * (1 - k2 * 0.6));
+    }
+    if (lit) lights.push({ x: Math.round(x0 + ux * N * 0.5), y: Math.round(y0 + uy * N * 0.5), r: TILE * 2, i: 0.25, c: rgb01(G[4]) });
+  }
+}
 // Where a station's feet are on the view (its tile's middle, a little
-// south, as the old sprites stood).
+// south).
 function stationAt(s, ox, oy) { return { x: Math.round((s.x + 0.5) * ATILE) + ox, y: Math.round((s.y + 0.5) * ATILE) + oy + ap(6) }; }
 function drawHubStation(d, a, ox, oy, lights) {
   const s = a.station, at = stationAt(s, ox, oy), spr = stationSprite(s.id), x = at.x - spr.ax, y = at.y - spr.ay;
@@ -57,17 +85,35 @@ function drawHubStation(d, a, ox, oy, lights) {
     if (beat) for (let i = -2; i <= 2; i++) dot(x + HART_ANVIL.x + i, y + HART_ANVIL.y, beat.hit >= 0 && beat.hit < 0.4 ? '#fff6dc' : Math.abs(i) < 2 ? '#ffd27a' : '#d85c18', true);
     // the status lights, the first blinking
     if (Math.floor(Game.realT * 1.7) % 3 === 0) dot(x + HART_LEDS[0][0], y + HART_LEDS[0][1], '#0c2014');
-    // heat and smoke off the stack, a spark now and then
-    for (let i = 0; i < 5; i++) {
-      const ph = (Game.realT * 0.6 + i / 5) % 1, cx = x + 33 + Math.round(Math.sin(i * 2.7 + ph * 4) * 2 + ph * 4), cy = y + 9 - Math.round(ph * 22);
-      dot(cx, cy, i % 2 ? '#3a3a40' : ph < 0.4 ? '#ffb347' : '#902a0a', i % 2 === 0, 1 - ph);
+    // heat off the vent stack, a spark now and then
+    for (let i = 0; i < 4; i++) {
+      const ph = (Game.realT * 0.6 + i / 4) % 1, cx = x + HART_STACK.x + Math.round(Math.sin(i * 2.7 + ph * 4) * 2 + ph * 3), cy = y + HART_STACK.y - Math.round(ph * 18);
+      dot(cx, cy, i % 2 ? '#5a5a62' : ph < 0.4 ? '#ffb347' : '#902a0a', i % 2 === 0, (1 - ph) * (i % 2 ? 0.5 : 1));
     }
   } else if (s.id === 'altar') {
     // the shard over the bowl, bobbing, its light
     const sh = hartShard(), by = y + spr.bowl.y - 4 + Math.round(Math.sin(Game.realT * 1.6) * 1.5);
     drawArtSprite(sh, Math.round(x + spr.bowl.x - sh.ax), by - sh.ay);
-  } else if (s.id === 'runes' && Math.floor(Game.realT * 5) % 7 === 0) dot(x + spr.candle.x, y + spr.candle.y - 1, '#ffe8a0', true, 0.7);
+  } else if (s.id === 'runes' && Math.floor(Game.realT * 5) % 7 === 0) dot(x + spr.lamp.x, y + spr.lamp.y, '#d8f4ff', true, 0.7);
+  drawStarstone(spr, x, y, s.id, lights);
   paintOcclude(x, y - 12, spr.w, spr.h + 12, at.y, ox, oy);
+}
+
+// Starstone: gold and lodestone crystal, the star's own, growing up the
+// feet and edges of what the Charter set down round it, more at every
+// magnitude (none at the first). Each sprite names the spots it grows from
+// (spr.stone: [x, y, side] in it; hubart.js); a spot takes a cluster once
+// the star has grown enough (T.outpost.stone), and the clusters grow with it.
+function drawStarstone(spr, x, y, key, lights) {
+  const n = hubStarMag() - 1, spots = spr.stone || [], G = T.outpost.stone;
+  if (n <= 0) return;
+  spots.forEach(([sx, sy, side], i) => {
+    const size = n - Math.floor(i * G.spread);
+    if (size <= 0) return;
+    const c = hartStarstone(Math.min(G.most, Math.ceil(size / G.grow)), (hashInts(i, key.length, sx) >>> 0) % 4, side);
+    drawArtSprite(c, x + sx - c.ax, y + sy - c.ay);
+    if (size >= G.glowFrom) lights.push({ x: x + sx, y: y + sy - 3, r: TILE * 0.7, i: 0.3, c: rgb01(HART.star[4]) });
+  });
 }
 
 // Over everything: the Lodestar itself, bigger as it grows, in its halo.
@@ -213,13 +259,24 @@ function drawStarFeed(d, ox, oy, lights) {
   });
 }
 
+// The planting cradle under the star: its ring of Charter segments and the
+// arms that hold the seed, their conduits glowing the star's gold.
+function drawCradle(d, a, ox, oy, lights) {
+  const spr = hartCradle(), fx = Math.round(OUTPOST_CRADLE.x * ATILE) + ox, fy = Math.round(OUTPOST_CRADLE.y * ATILE) + oy, x = fx - spr.ax, y = fy - spr.ay;
+  drawArtSprite(spr, x, y);
+  const mag = hubStarMag(d), k = 0.6 + 0.4 * Math.sin(Game.realT * 2.2);
+  for (const [cx, cy] of spr.lamps) dot(x + cx, y + cy, HART.star[mag >= 4 ? 6 : 5], true, 0.7 + 0.3 * k);
+  lights.push({ x: fx, y: fy - ap(8), r: TILE * (1.6 + mag * 0.15), i: 0.5 + 0.1 * k, c: rgb01(HART.star[4]) });
+  drawStarstone(spr, x, y, 'cradle', lights);
+  paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
+}
+
 // The Meridian uplink: a relay mast the diver walks in front of and behind,
 // talking to the colony ship in orbit. Its tip blinks cold until the colony's
 // called, then burns warm. (Its station keeps the id 'wreck'.)
 function drawUplink(d, a, ox, oy, lights) {
   const s = HUB_STATIONS.find((x) => x.id === 'wreck'), spr = hartUplink();
   const fx = Math.round((s.x + 0.5) * ATILE) + ox, fy = Math.round((s.y + 0.5) * ATILE) + oy, x = fx - spr.ax, y = fy - spr.ay;
-  drawShadow(fx, fy, 8);
   drawArtSprite(spr, x, y);
   // the tip: a slow cold blink, then a great warm light once called
   const bx = x + spr.tip.x, by = y + spr.tip.y, lit = Story.landersCalled();
@@ -232,77 +289,94 @@ function drawUplink(d, a, ox, oy, lights) {
   // the dish's feed and the console's screen, faintly
   lights.push({ x: x + spr.feed.x, y: y + spr.feed.y, r: TILE * 0.8, i: 0.35, c: rgb01(ART.pal.rune[0]) });
   lights.push({ x: x + spr.screen.x, y: y + spr.screen.y, r: TILE * 0.7, i: 0.3, c: rgb01(ART.pal.rune[0]) });
+  drawStarstone(spr, x, y, 'uplink', lights);
+  paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
+}
+// The portal's gate: Charter pylons either side of the portal (portals.js
+// draws the portal itself, in front) and a lintel over it with the
+// seed-star.
+function drawGate(d, a, ox, oy, lights) {
+  const s = HUB_STATIONS.find((x) => x.id === 'setout'), spr = hartGate(), fx = Math.round((s.x + 0.5) * ATILE) + ox, fy = Math.round((s.y + 0.5) * ATILE) + oy + 1, x = fx - spr.ax, y = fy - spr.ay;
+  drawArtSprite(spr, x, y);
+  for (const [cx, cy] of spr.lamps) dot(x + cx, y + cy, '#ffc860', true, 0.65 + 0.35 * Math.sin(Game.realT * 3 + cy));
+  lights.push({ x: fx, y: y + 10, r: TILE * 1.2, i: 0.35, c: rgb01('#ffc860') });
+  drawStarstone(spr, x, y, 'gate', lights);
+  paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
 }
 
-// The settlement: a tent, and a lantern beside it, for each lander down
-// (all of them once the colony's called).
-const TENT_SPOTS = [[8, 20], [14, 20], [4, 13], [18, 13], [5, 18], [17, 17]];
-const SETTLE_LANTERNS = [[10, 20], [13, 20], [6, 13], [17, 13], [7, 18], [16, 17]];
+// The settlement: for each lander down (all of them once the colony's
+// called), a lander on its pad, a habitat pod beside it and a lamp.
 function settlementSize() {
-  return Story.landersCalled() ? TENT_SPOTS.length : Math.min(TENT_SPOTS.length, storyLanders());
+  return Story.landersCalled() ? T.outpost.pads.n : Math.min(T.outpost.pads.n, storyLanders());
 }
 // What stands at home among the walkers, in order of their feet: the
-// stations, the uplink, the lanterns, the tents and what lies about the
-// plaza, the smith and the settlers (story.js). Each draws itself (hubDraw)
-// and says how much rock in front might hide it (occ).
+// stations, the cradle, the uplink, the gate, the light masts, the pods,
+// the landers and what's stacked by the modules, the smith and the
+// settlers (story.js). Each draws itself (hubDraw).
 function hubProps(d) {
-  const out = [], n = settlementSize(), mag = hubStarMag(d);
+  const out = [], n = settlementSize(), mag = hubStarMag(d), S = d.floor.site;
   for (const s of HUB_STATIONS) {
-    if (s.id === 'dummy' || s.id === 'setout') continue;
+    if (s.id === 'dummy') continue;
+    if (s.id === 'setout') { out.push({ gate: true, hubDraw: drawGate, y: (s.y + 0.5) * TILE - 2 }); continue; }
     if (s.id === 'wreck') { out.push({ wreck: true, hubDraw: drawUplink, y: (s.y + 0.5) * TILE }); continue; }
     out.push({ station: s, hubDraw: drawHubStation, hidden: true, y: (s.y + 0.5) * TILE + 6 });
   }
+  out.push({ cradle: true, hubDraw: drawCradle, y: OUTPOST_CRADLE.y * TILE });
   LANTERNS.forEach(([lx, ly], k) => out.push({ lamp: true, lit: k < mag, at: [lx, ly], hubDraw: drawHubLantern, hidden: true, y: (ly + 0.5) * TILE }));
-  for (let k = 0; k < n; k++) {
-    out.push({ tent: k, hubDraw: drawTent, y: (TENT_SPOTS[k][1] + 0.5) * TILE });
-    const [lx, ly] = SETTLE_LANTERNS[k];
-    out.push({ lamp: true, lit: true, at: [lx, ly], hubDraw: drawHubLantern, hidden: true, y: (ly + 0.5) * TILE });
+  if (S) {
+    out.push({ pod: S.home, look: 0, hubDraw: drawPod, y: S.home.y * TILE });
+    for (let k = 0; k < n && k < S.pads.length; k++) {
+      const p = S.pads[k];
+      out.push({ lander: p, k, hubDraw: drawLander, y: p.y * TILE + 4 });
+      out.push({ pod: p.pod, look: 1 + k, hubDraw: drawPod, y: p.pod.y * TILE });
+      out.push({ lamp: true, lit: true, at: [p.pod.x + 1.6, p.pod.y - 0.2], hubDraw: drawHubLantern, hidden: true, y: (p.pod.y + 0.3) * TILE });
+    }
   }
   for (const it of HUB_DRESSING) if (n >= it.from) out.push({ dress: it, hubDraw: drawHubDressing, hidden: true, y: it.y * TILE });
   if (n >= 1) { const f = HUB_STATIONS.find((s) => s.id === 'forge'); out.push({ smith: true, hubDraw: drawHubSmith, hidden: true, y: (f.y + 0.5) * TILE + 8 }); }
-  if (n >= 2) out.push({ sitter: true, hubDraw: drawHubSitter, hidden: true, y: HUB_SITTER[1] * TILE });
+  if (n >= 2 && S) out.push({ sitter: true, hubDraw: drawHubSitter, hidden: true, y: hubSitterAt(S)[1] * TILE });
   return out.concat(d.settlers || []);
 }
-function drawTent(d, a, ox, oy) {
-  const [tx, ty] = TENT_SPOTS[a.tent], spr = hartTent(a.tent % 2), fx = Math.round((tx + 0.5) * ATILE) + ox, fy = Math.round((ty + 0.5) * ATILE) + oy + ap(2);
-  drawArtSprite(spr, fx - spr.ax, fy - spr.ay);
+// A habitat pod: the Kindler's own, and one beside each lander's pad.
+function drawPod(d, a, ox, oy, lights) {
+  const spr = hartPod(a.look % 2), fx = Math.round(a.pod.x * ATILE) + ox, fy = Math.round(a.pod.y * ATILE) + oy, x = fx - spr.ax, y = fy - spr.ay;
+  drawArtSprite(spr, x, y);
+  for (const [cx, cy] of spr.lamps) lights.push({ x: x + cx, y: y + cy, r: TILE * 1.1, i: 0.45, c: rgb01('#ffc070') });
+  drawStarstone(spr, x, y, 'pod' + a.look, lights);
+  paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
 }
-// A lantern, lit (one for each magnitude, and the settlement's) or dark.
+// A lander on its pad, its landing lights blinking slowly in turn.
+function drawLander(d, a, ox, oy, lights) {
+  const spr = hartLander(), fx = Math.round(a.lander.x * ATILE) + ox, fy = Math.round(a.lander.y * ATILE + ap(4)) + oy, x = fx - spr.ax, y = fy - spr.ay;
+  drawArtSprite(spr, x, y);
+  spr.lamps.forEach(([cx, cy], i) => { if (Math.floor(Game.realT * 1.2 + a.k * 0.7) % spr.lamps.length === i) { dot(x + cx, y + cy, '#ff6a40', true); lights.push({ x: x + cx, y: y + cy, r: TILE * 0.8, i: 0.4, c: rgb01('#ff6a40') }); } });
+  paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
+}
+// A light mast, lit (one for each magnitude, and the settlement's) or dark.
 function drawHubLantern(d, a, ox, oy, lights) {
   const [lx, ly] = a.at, x = Math.round((lx + 0.5) * ATILE) + ox, y = Math.round((ly + 0.5) * ATILE) + oy, spr = hartLantern(a.lit);
-  drawShadow(x, y, 2);
   drawArtSprite(spr, x - spr.ax, y - spr.ay);
   paintOcclude(x - spr.ax, y - spr.ay, spr.w, spr.h, y, ox, oy);
-  if (a.lit) lights.push({ x: x - spr.ax + spr.lamp.x, y: y - spr.ay + spr.lamp.y, r: TILE * 2.2, i: 0.7 + 0.05 * Math.sin(Game.realT * 5 + lx), c: rgb01(ART.pal.star[2]) });
+  if (a.lit) lights.push({ x: x - spr.ax + spr.lamp.x, y: y - spr.ay + spr.lamp.y, r: TILE * 2.4, i: 0.75 + 0.05 * Math.sin(Game.realT * 5 + lx), c: rgb01(ART.pal.star[2]) });
 }
 
-// What lies about the plaza (tiles; from: how many landers down before it's
-// there). Hand placed, clear of the stations, the paths between them and
-// their names.
+// What's set down by the modules (tiles; from: how many landers down
+// before it's there): supply containers stacked by the locker and the
+// fabricator, the Charter's pennants by the ring, and more as the colony
+// comes.
 const HUB_DRESSING = [
-  // the Kindler's own: supplies by the locker and the uplink, a rack of
-  // tools by the forge
-  { kind: 'crate', x: 18.4, y: 11.6, from: 0 }, { kind: 'crate2', x: 19.3, y: 11.9, from: 0 },
-  { kind: 'crate2', x: 9.1, y: 20.1, from: 0 }, { kind: 'rack', x: 3.5, y: 14.2, from: 0 },
-  { kind: 'crate2', x: 9.4, y: 11.9, from: 0 },
-  // the colony's: barrels, sacks, a banner, a fire ring with a log
-  { kind: 'barrel', x: 8.2, y: 16.0, from: 1 }, { kind: 'sacks', x: 13.0, y: 21.9, from: 1 },
-  { kind: 'banner', x: 8.6, y: 15.6, from: 1 }, { kind: 'barrel', x: 18.3, y: 15.9, from: 2 },
-  { kind: 'firering', x: 11.4, y: 22.0, from: 2 }, { kind: 'log', x: 11.5, y: 22.9, from: 2 },
-  { kind: 'crate', x: 2.9, y: 19.2, from: 3 }, { kind: 'sacks', x: 19.2, y: 19.6, from: 3 },
-  { kind: 'crate2', x: 15.5, y: 21.6, from: 4 }, { kind: 'barrel', x: 6.4, y: 20.5, from: 4 },
-  { kind: 'cart', x: 13.7, y: 17.2, from: 1 }, { kind: 'sacks', x: 4.6, y: 19.4, from: 2 },
+  { kind: 'stack3', x: 28.9, y: 19.4, from: 0 }, { kind: 'stack1', x: 28.6, y: 17.6, from: 0 },
+  { kind: 'stack2', x: 11.2, y: 24.9, from: 0 }, { kind: 'pennant', x: 24.6, y: 21.2, from: 0 },
+  { kind: 'stack1', x: 11.4, y: 23.3, from: 1 }, { kind: 'stack2', x: 23.4, y: 28.6, from: 2 },
+  { kind: 'stack3', x: 16.4, y: 28.8, from: 3 }, { kind: 'pennant', x: 16.4, y: 21.2, from: 1 },
 ];
-const HUB_SITTER = [10.2, 22.0]; // a settler sitting by the fire ring (tiles)
+// Where a settler sits on a container by the Kindler's pod, a cup in hand
+// (tiles).
+function hubSitterAt(S) { return [S.home.x - 1.9, S.home.y + 1.1]; }
 function drawHubDressing(d, a, ox, oy, lights) {
   const it = a.dress, spr = hartProp(it.kind), x = Math.round(it.x * ATILE) + ox, y = Math.round(it.y * ATILE) + oy;
   drawArtSprite(spr, x - spr.ax, y - spr.ay);
-  if (it.kind === 'firering') {
-    const fl = hartFlames(Math.floor(Game.realT * 8) % 3);
-    drawArtSprite(fl, x - fl.ax, y - spr.ay + 6 - fl.ay);
-    lights.push({ x, y: y - 6, r: TILE * 1.8, i: 0.75 + 0.1 * Math.sin(Game.realT * 13), c: rgb01(ART.pal.glass[0]) });
-    for (let i = 0; i < 3; i++) { const ph = (Game.realT * 0.8 + i / 3) % 1; dot(x + Math.round(Math.sin(i * 3 + ph * 5) * 2), y - 10 - Math.round(ph * 14), ph < 0.5 ? '#ffb347' : '#902a0a', true, 1 - ph); }
-  }
+  if (spr.lamps) for (const [cx, cy] of spr.lamps) dot(x - spr.ax + cx, y - spr.ay + cy, '#ffc860', true, 0.6 + 0.4 * Math.sin(Game.realT * 2 + it.x));
   paintOcclude(x - spr.ax, y - spr.ay, spr.w, spr.h, y, ox, oy);
 }
 // The press's beat, shared by the ram and the smith (T.paint.hub.press):
@@ -343,35 +417,10 @@ function drawHubSmith(d, a, ox, oy, lights) {
   }
   paintOcclude(fx - spr.ax, fy - spr.ay, spr.w, spr.h, fy, ox, oy);
 }
-// A settler on a crate by the fire, a cup in hand.
 function drawHubSitter(d, a, ox, oy) {
-  const x = Math.round(HUB_SITTER[0] * ATILE) + ox, y = Math.round(HUB_SITTER[1] * ATILE) + oy, spr = hartPerson(2, 'sit', Math.floor(Game.realT * 1.5) % 2);
+  const [sx, sy] = hubSitterAt(d.floor.site), x = Math.round(sx * ATILE) + ox, y = Math.round(sy * ATILE) + oy, spr = hartPerson(2, 'sit', Math.floor(Game.realT * 1.5) % 2);
   drawShadow(x, y, 4);
   drawArtSprite(spr, x - spr.ax, y - spr.ay);
-}
-// Flat on the flagstones: a cable from the uplink's console to the locker's
-// supplies, the forge's coolant pipes and a power line from its foot to
-// the uplink's slab, scuffed paths worn between the stations.
-const HUB_CABLES = [
-  // [points (tiles), pixels across, colours: dark, lit, how often a lit one]
-  [[[13.6, 19.9], [14.8, 18.9], [17.6, 17.6], [18.3, 15.4], [18.6, 12.3]], 1, ['#07080c', '#252b38'], 9, 1.5],
-  [[[7.55, 15.79], [7.9, 16.5], [8.9, 17.6], [10.0, 18.6], [10.95, 19.35]], 2, ['#080b0f', '#1e2e38'], 0, 0.3],
-  [[[7.55, 15.87], [7.7, 16.75], [8.6, 17.95], [9.8, 19.0], [10.95, 19.5]], 1, ['#07080c', '#252b38'], 7, 0.8],
-];
-function drawHubGround(d, ox, oy) {
-  const c = View.ctx, inl = hartInlay();
-  drawArtSprite(inl, Math.round(11.5 * ATILE) + ox - inl.ax, Math.round(15.3 * ATILE) + oy - inl.ay);
-  for (const [pts, w, [dark, lit], every, wob] of HUB_CABLES) {
-    for (let i = 1; i < pts.length; i++) {
-      const [ax, ay] = pts[i - 1], [bx, by] = pts[i], n = Math.ceil(Math.hypot(bx - ax, by - ay) * ATILE);
-      for (let k = 0; k < n; k++) {
-        const x = Math.round((ax + (bx - ax) * k / n) * ATILE + Math.sin(k * 0.21 + i) * wob) + ox, y = Math.round((ay + (by - ay) * k / n) * ATILE) + oy;
-        // (a cable a pixel across, lit now and then; a pipe two, its top lit)
-        if (w === 1) { c.fillStyle = k % every === 0 ? lit : dark; c.fillRect(x, y, 1, 1); }
-        else { c.fillStyle = lit; c.fillRect(x, y, 1, 1); c.fillStyle = dark; c.fillRect(x, y + 1, 1, 1); }
-      }
-    }
-  }
 }
 
 // Each station's name, in a small pixel hand, over it: always there, a
@@ -403,10 +452,12 @@ function drawLabel(text, cx, y, col, alpha, c = View.ctx) {
 }
 const STATION_LABELS = { setout: 'THE PORTAL', altar: 'THE STAR', locker: 'LOCKER', forge: 'FORGE', runes: 'RUNE BENCH', wreck: 'THE UPLINK', dummy: 'TARGET' };
 // (world px above or below the station's middle)
-const STATION_LABEL_Y = { setout: 8, altar: -34, locker: -34, forge: -40, runes: -22, wreck: -50, dummy: -22 };
+const STATION_LABEL_Y = { setout: -46, altar: -34, locker: -38, forge: -46, runes: -32, wreck: -52, dummy: -22 };
 function drawStationLabels(d, ox, oy) {
   for (const s of HUB_STATIONS) {
-    const x = (s.x + 0.5) * TILE, y = (s.y + 0.5) * TILE, m = dist(x, y, d.p.x, d.p.y) / TILE;
+    const x = (s.x + 0.5) * TILE, y = (s.y + 0.5) * TILE, m = dist(x, y, d.p.x, d.p.y) / TILE, vx = Math.round(x * AP) + ox;
+    // (only those in view: the site is wider than the view)
+    if (vx < 0 || vx > View.w) continue;
     const a = clamp(1.1 - (m - 2) / 4, 0.45, 1);
     drawLabel(STATION_LABELS[s.id], Math.round(x * AP) + ox, Math.round((y + STATION_LABEL_Y[s.id]) * AP) + oy, m < 2 ? '#fff2c8' : '#c8bca0', a);
   }

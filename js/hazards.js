@@ -124,7 +124,7 @@ const HAZ_RAMPS = { pool: ['#0a2232', '#103248', '#18465f', '#6aa6c8'], slick: [
 
 function paintClimeTile(P, f, tx, ty, ox, oy, b) {
   const R = View.rockPx, W = P.w;
-  if (!R || floorTile(f, tx, ty) === TILE_PIT) return;
+  if (!R) return;
   // in a wall's shadow (or under the sky, a mesa's): left dark
   const shaded = (x, y) => {
     for (let k = 1; k <= CAVE_SHADE + 1; k++) if (R[(y - k) * W + x]) return true;

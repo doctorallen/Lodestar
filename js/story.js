@@ -3,9 +3,10 @@
 // The story. You're a Kindler of the Lodestar Charter. Kindlers ride
 // seed-stars down to dead worlds, plant them, and carry their light outward,
 // spire by spire, until the colony waiting in orbit can land. This seed, the
-// Lodestar, struck wrong, cracked, and sank into a sinkhole; you and Wick
-// climbed out of the landing capsule onto its rim. The Meridian, the colony
-// ship, waits above.
+// Lodestar, was planted by the book on a surveyed site in the middle of the
+// world, and the Charter's base modules came down with it. A new seed starts
+// small: growing it is the Kindler's job, and this is your first. Wick has
+// done it before. The Meridian, the colony ship, waits above.
 //
 // The turn comes in ring 2, in the echoes (logs of the Kindlers before):
 // the world wasn't dead. The dark is its own living night, the Hollow is
@@ -96,14 +97,14 @@ const WICK = {
   // the first time the star is fed, at its altar (hub.js)
   firstFeed: "By the book, then. A seed-star is planted small and fed the land's ore until it can light a world. Your first. You're doing fine.",
   // the world's (see the list at the top)
-  firstSpire: "Our first spire. Kindlers don't conquer. We just carry the light a little further than it was.",
+  firstSpire: "Our first spire. Your first, anyway. Kindlers don't conquer. We just carry the light a little further than it was.",
   firstKindled: "Kindled. The ground's warming already. Funny how quiet it went.",
   firstTide: "The dark's coming back in, like a tide. Hold the spire and it'll go out again. It always has.",
   firstDeep: "A Deep. Down here the star can't see us at all. Quick in, quicker out.",
   ring2: "The second ring. Nobody's mapped this far. Nobody but whoever left those logs.",
   ring3: "The third ring. The dark's thick enough to lean on out here. Stay close.",
   theEdge: "The Edge. Whatever this world has at its heart, it's out there. I don't think it's sleeping.",
-  firstSettlers: "The first lander's down. Settlers, on the rim. Try to look like you know what you're doing.",
+  firstSettlers: "The first lander's down, right on its pad. Settlers. Try to look like you've done this before.",
   // natures (natures.js)
   weakHit: "It hates that. I'll mark what each kind fears over its head: a point up for what hurts it, down for what it shrugs off.",
   resistHit: "That barely touched it. Some things shrug an element off. Try the other hand.",
@@ -141,10 +142,10 @@ const WICK = {
   foe_hound: "A wind-up hound. When the key stops, it runs, off the walls and all. After that it's spent.",
 };
 
-// The star, as it grows: a seed-star waking up where it fell.
+// The star, as it grows: a seed-star waking up where it was planted.
 const STAR_SPEAKS = {
   2: '…warm… you carry light back to me…',
-  3: '…I was meant to land softly. I remember the cold between, and then the stone…',
+  3: '…I remember the cold between, and then being set down. Gently. Here…',
   4: '…the ground is breathing. I did not know ground did that…',
   5: '…there were others of me here, once. Very far down. Very dim. Someone fed them too…',
   6: '…the dark does not hate me. I think it only wants me quieter…',
@@ -184,7 +185,7 @@ const KINDLER_ENDINGS = {
     // the Kindler at the heart of the dark, the Lodestar's light pouring
     // into it
     'At the heart of the dark, you give it your light. All of it, the way a Kindler is taught.',
-    'Morning runs out from the Edge like water. It reaches the rim, and the old dim stars underground, and keeps going.',
+    'Morning runs out from the Edge like water. It reaches the outpost, and the old dim stars underground, and keeps going.',
     'The Hollow do not fight it. They thin, and pale, and are gone. Where they were, green comes up.',
     "Wick: It's a garden. A whole world of it. The Charter will call it a triumph.",
     'Wick: …It went very quiet, at the end. I keep listening for it.',
@@ -204,7 +205,7 @@ const KINDLER_ENDINGS = {
 // kindled for T.story.callLanders landers.
 const STORY_LANDING = [
   'The uplink sends one word to orbit: now.',
-  'The Meridian wakes its sleepers. By nightfall the landers are down on the rim, in your light.',
+  'The Meridian wakes its sleepers. By nightfall the landers are down on the pads round the star, in your light.',
   "Wick: That's the colony, then. We should probably tidy up.",
   // the Edge on the horizon past the last spire, dark, and very still
   'Out past the third ring, the Edge is still dark. Whatever waits at its heart is waiting for you.',
@@ -328,7 +329,7 @@ const Story = {
     if (Save.data.introSeen) return false;
     // a save from before circuits started over: one line to say why
     const lines = Save.data.freshStart ? [FRESH_START_LINE].concat(STORY_INTRO) : STORY_INTRO;
-    UI.openStory(lines, () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); UI.tip('hub', 'Walk to the portal under the star to set out'); });
+    UI.openStory(lines, () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); UI.tip('hub', 'Walk out any opening into the land next to the outpost, or take the portal'); });
     return true;
   },
 
@@ -405,8 +406,8 @@ function settlerSprite(look, frame, west) {
   return _settlerSprites[key];
 }
 
-// Where settlers stroll (tiles): the open plaza south of the stations.
-const SETTLER_SPOTS = [[8, 17], [14, 17], [11, 16], [9, 18], [13, 18], [7, 13], [15, 13], [10, 14], [12, 14], [11, 21]];
+// Where settlers stroll (tiles): about the plaza, between the modules.
+const SETTLER_SPOTS = [[17, 21], [23.5, 21], [20, 24.5], [17.5, 27], [23, 26], [11.5, 20.5], [29, 22], [16.5, 15], [24.5, 15], [20, 30.5]];
 
 // How many settlers stand at the outpost now.
 function settlerCount() {
