@@ -35,15 +35,15 @@ const BLUEPRINTS = {
   // the rig: one frame, worn on both wrists, driving both spells
   rig: { name: 'Rig', kind: 'caster', cat: 'caster', style: 'rig', ore: 14, need: { any: 2 }, mult: 1, start: true },
   // armor
-  plate: { name: 'Plate', kind: 'armor', cat: 'armor', style: 'plate', ore: 16, need: { any: 2 }, mult: 1, start: true, text: 'Armor and health.' },
-  weave: { name: 'Weave', kind: 'armor', cat: 'armor', style: 'weave', ore: 12, need: { fiber: 3 }, mult: 0.55, implicit: { dashCd: -30, moveSpeed: 5 }, text: 'Light. Dash 30% more often, and move a little faster.' },
-  shell: { name: 'Shell', kind: 'armor', cat: 'armor', style: 'shell', ore: 20, need: { chitin: 3 }, mult: 1.6, implicit: { moveSpeed: -8 }, text: 'Heavy. Much more armor, a little slower.' },
+  plate: { name: 'Plate', kind: 'armor', cat: 'armor', style: 'plate', ore: 21, need: { any: 2 }, mult: 1, start: true, text: 'Armor and health.' },
+  weave: { name: 'Weave', kind: 'armor', cat: 'armor', style: 'weave', ore: 16, need: { fiber: 3 }, mult: 0.55, implicit: { dashCd: -30, moveSpeed: 5 }, text: 'Light. Dash 30% more often, and move a little faster.' },
+  shell: { name: 'Shell', kind: 'armor', cat: 'armor', style: 'shell', ore: 26, need: { chitin: 3 }, mult: 1.6, implicit: { moveSpeed: -8 }, text: 'Heavy. Much more armor, a little slower.' },
   // charms
-  charm: { name: 'Charm', kind: 'charm', cat: 'charm', style: 'charm', ore: 10, need: { any: 2 }, start: true, text: 'Takes modules of any family.' },
-  lantern: { name: 'Lantern', kind: 'charm', cat: 'charm', style: 'lantern', ore: 10, need: { spore: 2 }, implicit: { lamp: 30, pullSlow: 20 }, text: 'A brighter lamp, and your light fades 20% slower.' },
+  charm: { name: 'Charm', kind: 'charm', cat: 'charm', style: 'charm', ore: 13, need: { any: 2 }, start: true, text: 'Takes modules of any family.' },
+  lantern: { name: 'Lantern', kind: 'charm', cat: 'charm', style: 'lantern', ore: 13, need: { spore: 2 }, implicit: { lamp: 30, pullSlow: 20 }, text: 'A brighter lamp, and your light fades 20% slower.' },
   // picks, with the tools
-  pick: { name: 'Pick', kind: 'pick', cat: 'tool', style: 'pick', ore: 12, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
-  drill: { name: 'Drill', kind: 'pick', cat: 'tool', style: 'drill', ore: 18, need: { cog: 2 }, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },
+  pick: { name: 'Pick', kind: 'pick', cat: 'tool', style: 'pick', ore: 15, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
+  drill: { name: 'Drill', kind: 'pick', cat: 'tool', style: 'drill', ore: 23, need: { cog: 2 }, mult: 1.6, implicit: { noisy: 1 }, text: 'Mines 60% faster, but the noise wakes what is near.' },
 };
 // The carried tools (tools.js), made once: their cost is T.tools[id].cost,
 // and the star must have reached T.tools[id].mag.

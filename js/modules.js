@@ -35,7 +35,7 @@ const foeWord = (type) => FOE_WORDS[type] || (typeof FOE_NAMES !== 'undefined' &
 // magic one by its first trait's family; a rare one in two words; a
 // legendary for its power, a set piece for its set.
 const MOD_PREFIX = { close: 'Keen', spell: 'Humming', defense: 'Sturdy', utility: 'Light', mining: "Delver's", shock: 'Voltaic', leech: 'Thirsting', chill: 'Rimed' };
-const MOD_FIRST = ['Grim', 'Hollow', 'Ember', 'Ashen', 'Star', 'Dusk', 'Iron', 'Pale', 'Rune', 'Vein', 'Night', 'Storm', 'Thorn', 'Deep'];
+const MOD_FIRST = ['Grim', 'Hollow', 'Ember', 'Ashen', 'Star', 'Dusk', 'Iron', 'Pale', 'Flux', 'Vein', 'Night', 'Storm', 'Thorn', 'Deep'];
 const MOD_SECOND = {
   caster: ['Eye', 'Whisper', 'Spark', 'Choir', 'Coil', 'Lens'], armor: ['Ward', 'Mantle', 'Hide', 'Bulwark', 'Husk', 'Scale'],
   charm: ['Sigil', 'Knot', 'Mark', 'Seal', 'Token', 'Glim'], pick: ['Tooth', 'Auger', 'Crag', 'Delve', 'Bite', 'Vein'],
