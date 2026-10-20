@@ -592,7 +592,6 @@ The user wanted a loading bar when the game opens, showing what's loading in a s
 - **What it doesn't fix:** a territory walked into is still built and painted on arriving (about 2 s at 4×, 0.5–0.9 s at 1×, during the way's transition), and its chunks are still painted as the view nears them (25–140 ms at 4×). Only the place you open in is painted ahead: the view holds one floor at a time.
 - **Tests:** `openGame` waits for the loading and taps; `?noload` in the address skips it, and the old lazy paths are untouched. The smoke run opens the game again with a sortie under way and checks the loading built and painted it, and that CARRY ON goes straight in. The opening no longer asks TAP FOR SOUND: the loading's tap brought the sound in (with `?noload` it still asks).
 
-
 ## 2026-10-19: spells as Charter technology (branch `spellfx`)
 
 The user asked for spell effects that are "more interesting and scifi like", that "speak to a very advanced civilization conquering the galaxy". The Kindler's magic is the Lodestar Charter's technology running on arcane ore, so the spells are now drawn as engineered weapons rather than fantasy sparkles. Visuals only: no hitbox, timing, damage or sound changed.
