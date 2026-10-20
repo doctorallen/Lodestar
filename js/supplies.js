@@ -157,7 +157,7 @@ function drawSupplies() {
 }
 // The cargo screen's MAKE section (ui.js drawCargo).
 function supplyMakeHtml() {
-  return `<h3>MAKE · FROM YOUR ORE</h3>${supplyRows(true) || `<p class="note">An injector or a Lightcell takes ${T.supplies.cost[0]} ${stuffName(T.ores[0].id)}, or fewer of a higher ore. You carry ${T.supplies.most} of each at most.</p>`}`;
+  return `<h3>MAKE · FROM YOUR ORE</h3>${supplyRows(true) || `<p class="note">Each takes ${T.supplies.cost[0]} ${stuffName(T.ores[0].id)}, or fewer of a higher ore.</p>`}`;
 }
 
 // An older save's supplies: graded injectors and Lightcells ('injector2')

@@ -27,10 +27,9 @@ const T = {
   // and every waveEvery seconds `wave` more enemies stir in the dark (each
   // by region: the Rim, the Choir, the Underforge and the Edge, so the first
   // ring is a place to learn); when it's gone the Hollow comes (and a Deep's
-  // lodeline goes dark). (With three minutes of light, the dim stretch is
-  // shorter in share and the waves further apart than with 75 s, so the
-  // dark presses about as hard a minute.)
-  pull: { dimAt: 0.4, lampMin: 0.6, waveEvery: [30, 22, 17], wave: [1, 2, 2] },
+  // lodeline goes dark). (With three minutes of light the lamp dims later,
+  // at 40%, and the waves come as often as they did with 75 s.)
+  pull: { dimAt: 0.4, lampMin: 0.6, waveEvery: [26, 18, 14], wave: [1, 2, 2] },
 
   // Leaving takes a moment: standing in a lodeline, EXTRACT takes `extract`
   // seconds; an emergency recall works anywhere, loses nothing, but takes
@@ -46,12 +45,13 @@ const T = {
   // the tiles. veins: ore veins per cavern (none in the entry's). padOdds:
   // the chance each site of a Deep has a lodeline (back up to the surface),
   // up by padPerMag for each magnitude past the first, to no more than padCap.
+  // (Lowered with three minutes of light, so a Deep's way up is still a find.)
   floor: {
     w: 52, h: 52,
     rooms: [7, 10], roomR: [2.5, 4.8], roomGap: 3, loops: [1, 3],
     tunnelR: [1.0, 1.6], meander: 0.35, pillar: 0.4, wallNoise: 0.14,
     veins: [1, 2], veinLen: [2, 4],
-    padOdds: [1, 0.8, 0.6, 0.4], padPerMag: 0.05, padCap: [1, 0.9, 0.75, 0.55],
+    padOdds: [1, 0.7, 0.5, 0.35], padPerMag: 0.05, padCap: [1, 0.85, 0.7, 0.5],
   },
   // Zones: what kind of place a site is. gen: overrides of T.floor for its
   // generator. light: its ambient (a surface's runs from day, at full pull,

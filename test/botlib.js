@@ -352,7 +352,7 @@ function installBot() {
       if (lv >= (sv.botBest || 1) && (sv.botWins = (sv.botWins || 0) + 1) >= 2) { sv.botBest = (sv.botBest || 1) + 1; sv.botWins = 0; }
     }
     const r = result();
-    if (!ended) { if (Game.dive === d) abandonDive(); ended = 'timeout'; }
+    if (!ended) { if (Game.dive === d) { loseDive(false); UI.close(); } ended = 'timeout'; }
     // a fall wakes at a spire: home from there to spend the haul
     if (Game.dive && !Game.dive.hub) { const w = Game.dive; UI.close(); w.cargo = {}; goHome('spire'); }
     UI.close();
