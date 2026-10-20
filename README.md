@@ -31,9 +31,9 @@ The loop:
 7. Some territories have a portal down into a Deep: a short dungeon of richer ore. Its end, the first time, gives deeplight for the star, as do ancient forges and echoes.
 
 At home, walk the outpost's stations:
-- the forge: strike the anvil well for better odds; its Codex shows the resonances found; SUPPLIES beside it makes injectors, Lightcells, flares, Ward Cells and charges from old ore;
-- the rune bench: rework affixes;
-- the locker: your gear, and each caster's circuit, built from stones for free;
+- the forge: recipes, each saying exactly what it makes and costs; it studies anything new you bring home and reveals what it can make from it; strike the anvil well and it adds to the piece; its Codex shows the resonances and the powers it remembers; SUPPLIES beside it makes injectors, Lightcells, flares, Ward Cells and charges from old ore;
+- the locker: your gear (crafted bases), the modules you've caught socketed into them, and each caster's circuit, built from stones; socketing is free;
+- the rune bench: work a module: a tier up, one trait rerolled, two fused, a trait added, a power imprinted; paid in threads (salvaged modules) and ore;
 - the star's altar: hold FEED THE STAR and the light your deeds earned (heartlight, deeplight) rises into it, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements;
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
 - the portal: what's next, the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
@@ -62,15 +62,16 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/hub.js` | The outpost: stations, the star over its cradle and its lodelines across the ground, light masts, starstone, the uplink, the settlement's landers and pods, feeding the star the light of deeds (held at its altar) |
 | `js/hubart.js` | The outpost, painted: the Charter's modules, the star and its cradle, starstone, light masts, landers, pods and people; the ancient forges in the land |
 | `js/hubground.js` | The outpost's ground: packed earth, the starstone spreading from the cradle as the star grows, its edges melding into each neighbour's land (ground, plants, rock), the landing pads, faint trodden tracks; `outpostGroundAt` (what's underfoot) |
-| `js/anvil.js` | The forging minigame, and the reveal of what arrives |
+| `js/anvil.js` | The forging minigame (its quality only adds), and the reveal of what arrives |
 | `js/intro.js` | The opening: five painted scenes that play on their own (the crossing, the survey, the landing, the Meridian, the outpost), their captions, SKIP and tap to hurry, and the last shot drawn by the game itself as the modules wake, the camera comes down and the Kindler steps out of their pod and is handed over |
 | `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, hand points and brow lamp; Wick |
 | `js/circuits.js` | Circuits: the Forms, Elements and Glyphs in words, reading a caster's slots (and linked pairs), its charge and its words, ore affinity; casting each Form, triggers, echoes, fields; what's in flight and what lingers |
-| `js/blueprints.js` | What can be forged: blueprints (casters, gear, stones), creature parts |
+| `js/blueprints.js` | What can be made: the recipes (bases, stones, tools) and their costs, research (what reveals each), creature parts |
 | `js/art2.js` | Art for crafting and the story: new item icons, parts, stones, the uplink, a tent, the Shard Keepers |
 | `js/art3.js` | The sunlit surface's palette and plants, the rift, tool icons |
 | `js/foesart.js` | Each clime's own creature: its frames drawn by hand at 24 px, and its colours |
-| `js/items.js` | Affixes, rarities, legendaries, the set, casters and stones, relics; the forge, rune bench, salvage; stats |
+| `js/items.js` | Affixes, rarities, legendaries, the set; crafted bases (their stats, sockets and circuit slots), stones, relics; forging, salvage; stats |
+| `js/modules.js` | Modules: rolling them, what a kill leaves, sockets, the rune bench's work (upgrade, reroll, fuse, enrich, imprint, salvage), research, an old save's gear turned into bases and modules, and how a module looks (its icon, the crystal on the ground, its capture and tether) |
 | `js/game.js` | Game state, a sortie's play: walking, mining, your light, channels, and how it ends |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
 | `js/foes.js` | Each clime's own creature: where it's placed, what it does, its tells and signs |
@@ -94,11 +95,12 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/reactions.js` | Elements' statuses on enemies and the reactions between them (Shatter, Conduct, Steam…), the self stacks (Overload, Freeze…), and how they look |
 | `js/resonance.js` | The six resonances as spells (Thunderhead, Shatterglass, Kindling Arc, Wildfire, Stormglaive, Starfall) and how they look; the Codex and resonance stones |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
-| `js/ui.js` | The Lodestar, forge, gear, star, cargo and pause screens, the report, the item card (with a caster's circuit and the drawer of stones), the top bar |
+| `js/ui.js` | The Lodestar, star, cargo and pause screens, the report, the screens' plumbing, a caster's circuit on its card (and the drawer of stones), the top bar |
+| `js/gearui.js` | The gear screens: the forge (recipes by tab, close to making, research's reveal), the locker, the rune bench, and the cards for bases and modules |
 | `js/supplies.js` | Supplies from old ore: the recipes as data (`CONSUMABLE_RECIPES`), making them at home and in the field, the deck's quick-use slot, their effects (flares, charges) and the SUPPLIES screen |
 | `js/worldmap.js` | The world map (SET OUT at the portal, TRAVEL at a spire) in pixel art, a territory's card, and the heart goal over the view |
 | `js/main.js` | Boot, then the loading (`bootEnter` after its tap), the fixed-step loop, the upright and sideways layouts |
-| `test/` | Static checks, floor and world generation with golden hashes, the loot tables, a headless smoke run, and the autopilot (`botlib.js`) playing careers |
+| `test/` | Static checks, floor and world generation with golden hashes, the gear tables (bases, modules, the bench, the migration of `fixtures/`, saves made before modules), a headless smoke run, and the autopilot (`botlib.js`) playing careers |
 
 ## Tests
 

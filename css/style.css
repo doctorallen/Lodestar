@@ -473,7 +473,7 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .drawer-row { display: flex; flex-wrap: wrap; gap: 5px; }
 .drawer .note { margin: 4px 0 0; }
 .forge-tabs { margin-bottom: 6px; }
-.forge-tabs .chip { flex: 1; min-width: 0; padding: 8px 4px; }
+.forge-tabs .chip { flex: 1; min-width: 0; padding: 8px 2px; font-size: 11px; letter-spacing: 0; }
 
 /* what kindling the territory takes, over the view's right side */
 .hud-goal { position: absolute; right: 6px; top: 118px; z-index: 4; max-width: 46%; pointer-events: none;
@@ -530,6 +530,58 @@ body.intro #deck-left { border-right-color: transparent; }
 #app.wide .intro-cap.said { top: calc(52px + env(safe-area-inset-top)); bottom: auto; background: rgba(8, 10, 16, 0.85); border: 1px solid #2a3a48; padding: 8px 12px; }
 body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s; }
 
+/* modules (gearui.js): a socket as a tile, in its module's rarity colour
+   (--c), an empty one dotted; a base's sockets as small gems in a row */
+.sock-tile { --c: var(--ink); flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  width: 54px; min-height: 64px; padding: 3px 0; background: color-mix(in srgb, var(--c) 10%, #0b0c10); border: 2px solid var(--c); color: var(--c); font: inherit; font-size: 11px;
+  clip-path: polygon(14% 0, 86% 0, 100% 14%, 100% 86%, 86% 100%, 14% 100%, 0 86%, 0 14%); }
+.sock-tile img { width: 40px; height: 40px; image-rendering: pixelated; pointer-events: none; }
+.sock-tile small { font-size: 9px; color: var(--dim); line-height: 1; }
+.sock-tile.s-empty { --c: #3a3f4c; border-style: dotted; color: var(--dim); background: #0b0c10; }
+.sock-tile.s-empty b { font-size: 16px; line-height: 1; }
+.sock-tile.sel { outline: 2px solid var(--gold); outline-offset: 2px; clip-path: none; }
+.sock-tile.mini { width: 9px; min-height: 0; height: 9px; padding: 0; margin: 2px; border-width: 1px; clip-path: none; transform: rotate(45deg); background: var(--c); }
+.sock-tile.mini.s-empty { background: transparent; border-style: solid; border-color: #6a6f7c; }
+.sockets-row { display: flex; gap: 8px; margin: 6px 0 4px; flex-wrap: wrap; }
+.mini-sockets { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
+.row-gems { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.row-gems .mini-circuit { margin-top: 4px; }
+.row-gems .mini-sockets { margin: 4px 0 0; }
+.row-traits { font-size: 11px; color: var(--magic); line-height: 1.35; }
+.row-traits i { font-style: normal; white-space: nowrap; margin-right: 6px; }
+.row-traits i.up { color: #6fe08a; } .row-traits i.down { color: var(--danger); }
+.mod-row .icon { width: 36px; height: 36px; }
+.readout.mods p { color: var(--magic); }
+.readout.mods p.power { color: var(--legendary); margin: 3px 0; }
+.readout.mods p.set { color: var(--set); margin: 3px 0; font-size: 12px; }
+.card .src { margin: 6px 0 8px; font-size: 12px; color: #c9bfa6; font-style: italic; }
+.gl { font-size: 10px; letter-spacing: 0.16em; color: var(--dim); margin: 8px 0 2px; text-align: left; }
+.row-sub.short, .note.short, .warn-line { color: var(--danger); }
+.warn-line { font-size: 12px; margin: 10px 0 0; text-align: center; letter-spacing: 0.06em; }
+.have-line { margin: 6px 0; font-size: 13px; }
+/* a base forged fair, fine or a masterwork: its name in that light */
+.q-1 { color: #c8d2dc; } .q-2 { color: var(--rare); } .q-3 { color: var(--legendary); }
+.r-common.q-1, .r-common.q-2, .r-common.q-3 { color: inherit; }
+
+/* the forge: the recipes in a grid, a dot on those that can be made now */
+.bp { position: relative; }
+.bp .can { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; background: #6fe08a; border-radius: 50%; box-shadow: 0 0 4px #6fe08a; }
+.bp.locked { opacity: 0.5; }
+.cost-list { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.close-row { border-color: #4a3a1a; }
+.trait-chips .chip { text-align: left; }
+
+/* research: what was brought home, and the recipes it reveals, one by one */
+.screen.research .list { max-width: 380px; }
+.find { display: flex; align-items: center; gap: 10px; margin: 12px 0; padding: 10px; border: 1px solid #4a3a1a; background: var(--panel2); opacity: 0; animation: fadein 0.4s var(--d) forwards; }
+.find-what { flex: 0 0 84px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; text-align: center; color: var(--ink); }
+.find-arrow { color: var(--gold); font-size: 18px; }
+.find-opens { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.find-recipe { display: flex; align-items: center; gap: 8px; opacity: 0; animation: findrise 0.5s var(--d) forwards; }
+.find-recipe .icon { width: 32px; height: 32px; filter: drop-shadow(0 0 6px rgba(255, 210, 120, 0.6)); }
+.find-recipe b { color: var(--gold); font-weight: normal; font-size: 14px; }
+@keyframes findrise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.card .btn small, .btn.rune-btn small { display: block; font-size: 11px; letter-spacing: 0.04em; margin-top: 2px; color: var(--dim); }
 /* Deeds and supplies (deeds.js, supplies.js) */
 /* the light waiting, over what the star has: the bar's paler part */
 .rep-bar { position: relative; }

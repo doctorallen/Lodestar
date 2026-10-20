@@ -75,9 +75,15 @@ const STORY_INTRO = [
 // Wick, the first time each thing happens. Dry, and kind.
 const WICK = {
   firstDive: "Out we go. Mine what glows, and watch your light. Out in the dark it only lasts so long.",
-  firstParts: 'Parts, from what you killed. A lot of teeth, for a dead world. The forge can bind them into gear.',
+  firstParts: 'Parts, from what you killed. A lot of teeth, for a dead world. The forge can work them into gear.',
   firstBlueprint: "A blueprint. Charter make, older than ours. Get it home and we'll learn it.",
-  firstForge: 'Strike when the marker crosses the glow. The better the strikes, the better the piece.',
+  firstForge: 'Strike when the marker crosses the glow. The recipe is the recipe; good strikes only add to it.',
+  // modules (modules.js, gearui.js)
+  module: "The suit caught its pattern. That's a module: what it was, set in a lattice. Socket it at home.",
+  research: "The forge studies anything new we carry in. It's worked out what it can make from it.",
+  moduleUp: 'Denser ore, a bigger lattice. It holds more of what it caught now.',
+  fuse: 'Two patterns in one lattice. It holds. I would not have bet on it.',
+  unravel: "Unravelled. The threads keep, though. They'll grow or mend another lattice.",
   rift: 'A tear in the world. Things leak through. Seal it, and something solid is left behind.',
   rift_graft: "That ground isn't from here. Neither is the ore in it.",
   rift_bloom: 'The rock round the tear has woken. It is all ore now.',

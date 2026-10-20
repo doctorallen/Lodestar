@@ -282,7 +282,7 @@ function castHand(slot, item, h, charged) {
   const cx = { item: it, power: it.base.power, style, charged, step: h.step, from: null, aim: null, mult: res ? resonanceMult(it) : 1, spread: 0, echo: false, res: res ? res.id : null };
   if (res) resonanceCast(res, d);
   // the Twice-Told: everything again, fanned a little
-  for (let k = 0; k < (it.power === 'echo' ? 2 : 1); k++) {
+  for (let k = 0; k < (it.power === 'echo' || casterHasPower(it, 'echo') ? 2 : 1); k++) {
     const c = k ? Object.assign({}, cx, { spread: 0.25 }) : cx;
     if (!first.length) fireSpark(c);
     for (const g of first) fireGroup(g, c);

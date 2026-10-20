@@ -1,10 +1,14 @@
 'use strict';
 // ---------------------------------------------------------------------------
 // The save, kept in localStorage: what's banked at the Lodestar (ore,
-// parts and exotics in stash, gear in items), what's worn, the blueprints
-// known, the star's points, the attunements, the world, the pack a fall
-// left (cache), the supplies carried, and the deeds found. A sortie under
-// way is saved too (game.js, saveRun).
+// parts, exotics and threads in stash; bases, modules and stones in
+// items), what's worn, the recipes known (still called blueprints) and
+// what the forge has studied, the star's points, the attunements, the
+// world, the pack a fall left (cache), the supplies carried, and the deeds
+// found. A sortie under way is saved too (game.js, saveRun).
+//
+// Gear from before modules (save version 5) is turned into crafted bases
+// with modules in their sockets as it loads (modules.js, migrateGearSave).
 //
 // The world replaced the dive chain, and a save from before it (SAVE_OLD:
 // the circuits' save, or older) isn't converted: the game starts fresh,
@@ -16,14 +20,22 @@
 const SAVE_KEY = 'lodestar.save.v4';
 const SAVE_OLD = ['lodestar.save.v3', 'lodestar.save.v2'];
 
-// Drops what this version of the game doesn't know (blueprints, affixes,
-// stones), so a save can't crash a screen.
+// Drops what this version of the game doesn't know (recipes, affixes,
+// stones, powers), so a save can't crash a screen.
 function cleanSaveItem(it) {
   if (!it || typeof it !== 'object') return null;
   if (it.kind === 'stone') return stoneKind(it.stone) ? it : null;
+  if (it.kind === 'module') {
+    if (!KIND_SLOT[it.fits]) return null;
+    it.affixes = (Array.isArray(it.affixes) ? it.affixes : []).filter((a) => a && AFFIXES[a.id]);
+    if (it.power && !LEGENDARIES[it.power]) delete it.power;
+    if (it.set && !SETS[it.set]) delete it.set;
+    return it;
+  }
   if (!KIND_SLOT[it.kind] && it.kind !== 'relic') return null;
   if (it.bp && !BLUEPRINTS[it.bp]) delete it.bp;
   if (Array.isArray(it.affixes)) it.affixes = it.affixes.filter((a) => a && AFFIXES[a.id]);
+  if (it.kind !== 'relic') it.sockets = (Array.isArray(it.sockets) ? it.sockets : []).map((m) => (m && m.kind === 'module' && m.fits === it.kind ? cleanSaveItem(m) : null));
   if (it.kind === 'caster') {
     it.slots = (Array.isArray(it.slots) ? it.slots : [null, null, null]).map((c) => (c && c.kind === 'stone' && stoneKind(c.stone) ? c : null));
     if (it.links) it.links = Array.isArray(it.links) ? it.links.filter((a) => Number.isInteger(a) && a >= 0 && a < it.slots.length - 1) : [];
@@ -31,7 +43,10 @@ function cleanSaveItem(it) {
   return it;
 }
 function cleanSave(s) {
+  // gear from before modules: bases, and modules in their sockets
+  migrateGearSave(s);
   s.blueprints = (s.blueprints || []).filter((id) => BLUEPRINTS[id]);
+  s.studied = (s.studied || []).filter((id) => RESEARCH.some((r) => r.id === id));
   s.items = (s.items || []).map(cleanSaveItem).filter(Boolean);
   for (const k of Object.keys(s.equip)) s.equip[k] = cleanSaveItem(s.equip[k]);
   if (!s.stash || typeof s.stash !== 'object') s.stash = {};
@@ -48,12 +63,13 @@ function cleanSave(s) {
 const Save = {
   data: null,
   fresh() {
-    const rng = new Rng((Math.random() * 4294967296) >>> 0);
     return {
-      v: 5, uid: 100, crafts: 0, dives: 0, star: 0, magSeen: 1,
-      stash: {}, items: [], equip: startingGear(rng),
+      v: 6, uid: 100, crafts: 0, dives: 0, star: 0, magSeen: 1,
+      stash: {}, items: [], equip: startingGear(),
       attune: {}, tips: {}, settings: { haptics: true }, world: null, lastSpire: 0,
-      blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start),
+      // the recipes known (by their old name), what the forge has studied,
+      // and how many modules have ever been caught
+      blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start), studied: [], modsFound: 0,
       tools: ['compass'], tool: 'compass', codex: [], natures: {}, resCodex: { kindling: [0, 1, 2] },
       // the star's points are light (deeds.js; an older save's are rescaled),
       // what's been found, the pack a fall left, and the supplies carried
@@ -64,7 +80,8 @@ const Save = {
     let raw = null;
     try {
       raw = localStorage.getItem(SAVE_KEY);
-      this.data = raw ? Object.assign(this.fresh(), JSON.parse(raw)) : this.fresh();
+      // (a stored save without a version is from before modules)
+      this.data = raw ? Object.assign(this.fresh(), { v: 5 }, JSON.parse(raw)) : this.fresh();
       // a save from before circuits: a fresh start, said once
       if (!raw && SAVE_OLD.some((k) => localStorage.getItem(k))) this.data.freshStart = true;
       const s = this.data;
