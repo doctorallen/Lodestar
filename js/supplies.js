@@ -252,7 +252,7 @@ function supplyRows(field) {
   }).join('');
 }
 function drawSupplies() {
-  $('supplies-body').innerHTML = `<p class="note">Old ore makes supplies: the Rim's the plain ones (I), the Choir's better (II), the Underforge's the best (III). They ride on your belt, ${T.supplies.most} of each kind, safe whatever happens. Out there, the slot on the deck uses one; the small button beside it picks the next kind.</p>${supplyRows(false)}`;
+  $('supplies-body').innerHTML = `<p class="note">Old ore makes supplies: the Rim's the plain ones (I), the Choir's better (II), the Underforge's the best (III). They ride on your belt, ${T.supplies.most} of each kind, safe whatever happens. Out there, the slot on the deck uses one; the small button beside it picks the next kind.</p>${supplyRows(false)}${refineHtml()}`;
 }
 // The cargo screen's MAKE section (ui.js drawCargo).
 function supplyMakeHtml() {

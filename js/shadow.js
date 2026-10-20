@@ -219,12 +219,11 @@ function beamBox(Bm, wide, r) {
   return B;
 }
 const _beamCone = { ax: 0, ay: 0, dx: 0, dy: 0, cos: 0, near: 0 };
-function lampBeamSight(d, Bm) {
+function lampBeamSight(d, Bm, S = BeamSight) {
   const f = d.floor, Sh = T.light.shadow, R = View.rockPx, [cx, cy] = lampGroundCell(d, Bm.lx), n = T.light.beam.sightSteps;
   const rr = Math.ceil(Bm.r / (4 * LC)) * 4 * LC, ey = Math.round(ap(Sh.eye) / LC), q = ((Math.round((Bm.ang / (2 * Math.PI)) * n) % n) + n) % n;
   const near = Math.ceil((Bm.sr + Math.abs(Bm.feet - Bm.sy) + 2 * LC) / (4 * LC)) * 4 * LC, edge = Math.round(Bm.edge * 20);
   const key = cx + ',' + cy + ',' + rr + ',' + q + ',' + near + ',' + edge + ',' + (Bm.ax - Bm.lx) + ',' + (Bm.ay - Bm.feet);
-  const S = BeamSight;
   if (S.key !== key || S.rock !== R || S.lights !== View.lights) {
     S.key = key; S.rock = R; S.lights = View.lights;
     const a = (q / n) * 2 * Math.PI, C = _beamCone;

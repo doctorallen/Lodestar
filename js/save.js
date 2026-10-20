@@ -4,8 +4,9 @@
 // parts, exotics and threads in stash; bases, modules and stones in
 // items), what's worn, the recipes known (still called blueprints) and
 // what the forge has studied, the star's points, the attunements, the
-// world, the pack a fall left (cache), the supplies carried, and the deeds
-// found. A sortie under way is saved too (game.js, saveRun).
+// world, the pack a fall left (cache), the supplies carried, the deeds
+// found, the outpost's buildings and Wick's upgrades. A sortie under way
+// is saved too (game.js, saveRun).
 //
 // Gear from before modules (save version 5) is turned into crafted bases
 // with modules in their sockets as it loads (modules.js, migrateGearSave).
@@ -54,6 +55,14 @@ function cleanSave(s) {
   if (!s.tools.includes('compass')) s.tools.unshift('compass');
   if (!s.tools.includes(s.tool)) s.tool = 'compass';
   s.codex = (s.codex || []).filter((k) => LEGENDARIES[k]);
+  // the outpost's buildings and Wick's upgrades (none in an older save):
+  // their recipes are known from the first day
+  for (const id of BP_IDS) if ((BLUEPRINTS[id].kind === 'structure' || BLUEPRINTS[id].kind === 'wick') && !s.blueprints.includes(id)) s.blueprints.push(id);
+  s.built = (Array.isArray(s.built) ? s.built : []).filter((id, i, a) => STRUCTURE_IDS.includes(id) && a.indexOf(id) === i);
+  if (!s.built.includes(s.landing)) s.landing = null;
+  const wu = s.wickUps && typeof s.wickUps === 'object' ? s.wickUps : {};
+  s.wickUps = {};
+  for (const id of WICK_UP_IDS) if (Object.prototype.hasOwnProperty.call(wu, id)) s.wickUps[id] = wu[id] !== false;
   // what Wick knows of each kind's nature, and the resonances' Codex
   if (!s.natures || typeof s.natures !== 'object') s.natures = {};
   if (!s.resCodex || typeof s.resCodex !== 'object') s.resCodex = { kindling: [0, 1, 2] };
@@ -74,6 +83,9 @@ const Save = {
       // the star's points are light (deeds.js; an older save's are rescaled),
       // what's been found, the pack a fall left, and the supplies carried
       starScale: T.star.scale, found: {}, cache: null, supplies: {}, supplySel: null,
+      // the outpost's buildings (structures.js; landing: the one still to
+      // come down to its plot) and Wick's upgrades (wick.js; id: on)
+      built: [], landing: null, wickUps: {},
     };
   },
   load() {
