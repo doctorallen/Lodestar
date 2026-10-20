@@ -1101,6 +1101,36 @@ const T = {
       walls: true, baked: true, eye: 26, rays: 1.25, step: 2, reach: 3, top: 0,
       cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, near: 1 }, hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
     },
+    // The suit lamp as a beam (an example to compare with the round glow:
+    // render.js lampBeamOf, shadow.js addConeLight; cosmetic). on: the
+    // default, until the pause screen's LAMP is set. It points the way the
+    // Kindler is turned (the rig's smoothed facing), or the aim while
+    // casting. reach: × the glow's reach; i: its strength on its axis.
+    // core, edge: half-angles (degrees) of its full middle and of where it
+    // has faded out, smoothly between; axis: how much brighter still
+    // right on its axis; halo: a faint wider cone round it [its edge, ×
+    // edge; strength]; ragged: how far its edges are broken into short
+    // strokes across (a share of the halo's edge's cosine range). pow: how it fades with distance, (1 − d)^pow
+    // (the glow's is 2). rise: where the cone starts, from the feet (0) to
+    // the brow lamp (1); back: art px its apex is set back behind that, so
+    // it's already as wide as the body where it leaves him. spill: a dim
+    // round light round him [its reach, × the glow's; strength]; hot: a
+    // small bright spot at the lamp [reach, art px; strength]. low: as your
+    // light drains below T.pull.dimAt it narrows (its half-angles × narrow
+    // when it's all but gone) and gutters (dips of up to flicker).
+    // sightSteps: the turns the walls' sight is worked out for; rays: its
+    // rays, × T.light.shadow.rays (it reaches further). air: what
+    // shows of it in the air, in a dark place: a haze of loose strokes in a
+    // shaft from the lamp coming down to the ground [how many, alpha, how
+    // far out (× reach)], and motes drifting in it [how many a 100 × 100
+    // art px of cone, alpha].
+    beam: {
+      on: true, reach: 1.7, i: 1.75, core: 8, edge: 30, axis: 0.6, halo: [1.6, 0.16], ragged: 0.1, pow: 1.1, rise: 0.45, back: 10,
+      spill: [0.36, 0.42], hot: [9, 0.7],
+      low: { narrow: 0.7, flicker: 0.45 },
+      sightSteps: 64, rays: 0.8,
+      air: { haze: [46, 0.45, 0.6], motes: [3, 0.8] },
+    },
   },
 
   // Wick, the drone (render.js, drawDrone; cosmetic): where it hovers from

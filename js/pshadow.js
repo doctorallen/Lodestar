@@ -355,8 +355,8 @@ function pshClipRun(k, c0, lo, hi, vfx) {
 // fx, fy (floor px), its axes as pshGeom's; footRow, the floor row it stands
 // on (rock whose foot is south of it stands in front, and hides it). Its
 // darkness: dark, all over (the sun's); or, if tab is given, by the
-// distance from the light Lt (pshTab), only within its reach and where its
-// sight S2 (if any) lets it.
+// distance from the light Lt (pshTab) times dark, only within its reach and
+// where its sight S2 (if any) lets it.
 function pshMaskCast(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, footRow, dark, tab, Lt, S2, ox, oy) {
   const M = PshMask, f = Game.dive.floor, W = f.w * ATILE, Hp = f.h * ATILE, LF = View.rockLift || View.rockPx, R = View.rockPx;
   let cx0 = 0, cy0 = 0, cx1 = M.w, cy1 = M.h;
@@ -414,7 +414,7 @@ function pshMaskCast(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, footRow, dark, t
       if (tab !== null) {
         const dx = x + 0.5 - lvx, n = ((dx * dx + dy2) * tk) | 0;
         if (n >= PSH_TAB) continue;
-        s = tab[n];
+        s = tab[n] * dark;
         if (svis !== null) { const ci = ((wx * iLC) | 0) - sx0; if (ci < 0 || ci >= sww || svis[vrow + ci] < 1) continue; }
       }
       // (softer further from the foot: its penumbra widens)
@@ -538,19 +538,30 @@ function pshFrame(d, ox, oy) {
   }
   // the lamp's: what stands within its reach, away from it (not at home,
   // where the lanterns cast them)
+  // (the lamp as a beam, T.light.beam: what stands in the beam casts from
+  // it, as dark as the beam is there across it; what stands only in the
+  // dim spill round him, from that)
+  const Bm = !d.hub ? lampBeamOf(d, lv) : null;
+  if (Bm) { lamp.x = Bm.lx; lamp.lx = Bm.x; lamp.ly = Bm.y; lamp.r = Bm.r; lamp.i = Bm.i; }
+  const spill = Bm ? { lx: Bm.lx, ly: Bm.sy, x: Bm.lx, y: lamp.y, r: Bm.sr, i: Bm.si } : null;
   if (lv.lamp > 0 && lv.i > 0 && !d.hub) {
-    const S2 = T.light.shadow.walls && !d.hub ? lampSight(d, lv.r) : null, E = ap(T.light.shadow.eye), r = lv.r;
+    const S2 = T.light.shadow.walls && !d.hub ? (Bm ? lampBeamSight(d, Bm) : lampSight(d, lv.r)) : null, E = ap(T.light.shadow.eye), r = lamp.r;
     // (the fixed lights already there at the lamp's foot share the light)
     const bk = View.bake, bake = (x, y) => { if (!bk) return 0; const i = Math.floor(x / LC), j = Math.floor(y / LC); if (i < 0 || j < 0 || i >= bk.w || j >= bk.h) return 0; const o = (j * bk.w + i) * 3; return (bk.a[o] + bk.a[o + 1] + bk.a[o + 2]) / 3 / T.art.lightSteps; };
     const one = (spr, ax, ay, fx, fy, footRow) => {
       const dx = fx - lamp.x, dy = fy - lamp.y;
       if (dx * dx + dy * dy > r * r) return;
       if (S2) { const ci = Math.floor(fx / LC) - S2.x0, cj = Math.floor((fy - 1) / LC) - S2.y0; if (ci < 0 || cj < 0 || ci >= S2.w || cj >= S2.w || S2.vis[cj * S2.w + ci] < 1) return; }
+      let Lt = lamp, dk = 1;
+      if (Bm) {
+        dk = Math.min(1, beamAcross(Bm, fx, fy));
+        if (dk < 0.2) { Lt = spill; dk = 1; if ((fx - spill.lx) ** 2 + (fy - spill.ly) ** 2 >= spill.r * spill.r) return; }
+      }
       // (none where the lamp's shadow would be faint at its foot)
-      const tab = pshTab(lamp, amb + bake(fx, fy), C.lamp, 0, C.pow), hx = fx - lamp.lx, hy = fy - lamp.ly, n = ((hx * hx + hy * hy) * PSH_TAB / (r * r)) | 0;
-      if (n >= PSH_TAB || tab[n] < C.least) return;
+      const tab = pshTab(Lt, amb + bake(fx, fy), C.lamp, 0, C.pow), hx = fx - Lt.lx, hy = fy - Lt.ly, n = ((hx * hx + hy * hy) * PSH_TAB / (Lt.r * Lt.r)) | 0;
+      if (n >= PSH_TAB || tab[n] * dk < C.least) return;
       const a = pshAxes(lamp.x, lamp.y, E, fx, fy, C.lampK);
-      if (a) pshMaskCast(pshSil(spr), ax, ay, fx, fy, a[0], a[1], a[2], a[3], a[4], footRow, 1, tab, lamp, S2, ox, oy);
+      if (a) pshMaskCast(pshSil(spr), ax, ay, fx, fy, a[0], a[1], a[2], a[3], a[4], footRow, dk, tab, Lt, S2, ox, oy);
     };
     const FG = pshFloraGrid(f), ti0 = Math.max(0, Math.floor((lamp.x - r) / ATILE)), ti1 = Math.min(f.w - 1, Math.floor((lamp.x + r) / ATILE));
     for (let tj = Math.max(0, Math.floor((lamp.y - r) / ATILE)); tj <= Math.min(f.h - 1, Math.floor((lamp.y + r) / ATILE)); tj++) for (let ti = ti0; ti <= ti1; ti++) for (const it of FG.cells[tj * f.w + ti] || PSH_NONE) {
