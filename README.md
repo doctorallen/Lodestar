@@ -17,25 +17,26 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Mine | MINE, held | Space / L |
 | Set out / step through / bank / light / plant | The button that appears at a portal, a spire, a waystone or a heart | E / Enter |
 | Travel | TRAVEL, over BANK at a spire | |
-| Cargo | CARGO in the top bar | I |
+| Cargo (and MAKE: supplies from the ore carried) | CARGO in the top bar | I |
+| Use a supply / the next kind | The slot in the right deck's top-left corner / ▸ beside it | Q / R |
 | Pause (and the MUSIC, SOUNDS and LAMP settings) | II | Esc / P |
 
 The loop:
 1. Walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to a spire.
 2. Cross from territory to territory by the openings at their edges. Mine ore and fight what finds you.
 3. Watch the gold meter, your light: it drains in dark land and fills in kindled land. When it's gone, something hunts you.
-4. Light a territory's waystones or seal the tear at its heart, then plant a spire there, and it's kindled for good.
+4. Light a territory's waystones or seal the tear at its heart, then plant a spire there, and it's kindled for good, and its heartlight is yours for the star. A spire holds only where the star's light reaches: ring 2 from magnitude 3, ring 3 from 5, the Edge from 7.
 5. At a spire, BANK your cargo, or TRAVEL to another spire or home. An emergency recall works anywhere and loses part of the cargo.
-6. If you fall, the cargo is lost and you wake at the last spire you touched, but what you wear and what's in your pocket are safe.
-7. Some territories have a portal down into a Deep: a short dungeon of richer ore.
+6. If you fall, you wake at the last spire you touched. What you wear, your supplies and your pocket are safe; the rest of the cargo waits where you fell, in your pack, to go back for once. Fall again first and it's lost.
+7. Some territories have a portal down into a Deep: a short dungeon of richer ore. Its end, the first time, gives deeplight for the star, as do ancient forges and echoes.
 
 At home, walk the outpost's stations:
-- the forge: strike the anvil well for better odds; its Codex shows the resonances found;
+- the forge: strike the anvil well for better odds; its Codex shows the resonances found; SUPPLIES beside it makes injectors, Lightcells, flares, Ward Cells and charges from old ore;
 - the rune bench: rework affixes;
 - the locker: your gear, and each caster's circuit, built from stones for free;
-- the star's altar: hold FEED THE STAR and your ore rises into it, the plainest first, until you let go; ATTUNE spends attunements and marks ore to keep for the forge;
+- the star's altar: hold FEED THE STAR and the light your deeds earned (heartlight, deeplight) rises into it, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements;
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
-- the portal: the world map, to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
+- the portal: what's next, the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
 
 ## Files
 
@@ -57,7 +58,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/flora.js` | Each biome's flora: sprites, palettes and how they anchor |
 | `js/climes.js` | Climes: each one's palette, flora, critters and weather; rolling and naming them |
 | `js/story.js` | The story: the opening's captions, Wick's lines, the star's words, the echoes, the shards, the landers and the endings; the kindled log's lines; the settlers |
-| `js/hub.js` | The outpost: stations, the star over its cradle and its lodelines across the ground, light masts, starstone, the uplink, the settlement's landers and pods, feeding the star (held at its altar) |
+| `js/hub.js` | The outpost: stations, the star over its cradle and its lodelines across the ground, light masts, starstone, the uplink, the settlement's landers and pods, feeding the star the light of deeds (held at its altar) |
 | `js/hubart.js` | The outpost, painted: the Charter's modules, the star and its cradle, starstone, light masts, landers, pods and people; the ancient forges in the land |
 | `js/hubground.js` | The outpost's ground: packed earth, the starstone spreading from the cradle as the star grows, its edges melding into each neighbour's land (ground, plants, rock), the landing pads, faint trodden tracks; `outpostGroundAt` (what's underfoot) |
 | `js/anvil.js` | The forging minigame, and the reveal of what arrives |
@@ -78,6 +79,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/frontier.js` | Playing the world: sorties, entering territories, your light, spires (banking and travel), waystones and kindling, the Deeps, a fall waking at a spire; the spire and waystones drawn |
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
 | `js/contracts.js` | The three posted contracts, their tallies and rewards |
+| `js/deeds.js` | The star grows from deeds: heartlight and deeplight, what each deed gives, the star's reach over the rings, the pack a fall leaves and recovering it, what's next from home, and rescaling an older save's star |
 | `js/tools.js` | The carried tools: compass, ore sense, radar, map, satchel, beacon |
 | `js/hazards.js` | Each clime's hazard at play (pools, ice, lava, vents, spores), and painting a clime's ground |
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |
@@ -91,6 +93,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/resonance.js` | The six resonances as spells (Thunderhead, Shatterglass, Kindling Arc, Wildfire, Stormglaive, Starfall) and how they look; the Codex and resonance stones |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
 | `js/ui.js` | The Lodestar, forge, gear, star, cargo and pause screens, the report, the item card (with a caster's circuit and the drawer of stones), the top bar |
+| `js/supplies.js` | Supplies from old ore: the recipes as data (`CONSUMABLE_RECIPES`), making them at home and in the field, the deck's quick-use slot, their effects (flares, charges) and the SUPPLIES screen |
 | `js/worldmap.js` | The world map (SET OUT at the portal, TRAVEL at a spire) in pixel art, a territory's card, and the heart goal over the view |
 | `js/main.js` | Boot, the fixed-step loop, the upright and sideways layouts |
 | `test/` | Static checks, floor and world generation with golden hashes, the loot tables, a headless smoke run, and the autopilot (`botlib.js`) playing careers |

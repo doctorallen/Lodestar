@@ -238,11 +238,15 @@ function drawCachePack(d, a, ox, oy, lights) {
   // the faint beacon: a thin column of light over it, rising, and the tip's blink
   const t = Game.realT, blink = Math.floor(t * 1.6) % 2 === 0;
   if (blink) dot(x + spr.tip.x, y + spr.tip.y, '#fff2c8', true);
-  for (let i = 0; i < 26; i++) {
-    const k = ((i / 26) + t * 0.35) % 1, yy = Math.round(y + spr.tip.y - 2 - k * ap(46));
-    if ((i * 7 + Math.floor(t * 9)) % 4 === 0) continue;
-    dot(x + spr.tip.x, yy, k < 0.5 ? '#ffd27a' : '#ffb347', true, 0.55 * (1 - k));
+  for (let i = 0; i < 34; i++) {
+    const k = ((i / 34) + t * 0.35) % 1, yy = Math.round(y + spr.tip.y - 2 - k * ap(60));
+    if ((i * 7 + Math.floor(t * 9)) % 5 === 0) continue;
+    dot(x + spr.tip.x, yy, k < 0.4 ? '#fff2c8' : k < 0.7 ? '#ffd27a' : '#ffb347', true, 0.8 * (1 - k));
+    if (k < 0.5 && i % 3 === 0) dot(x + spr.tip.x + 1, yy, '#ffb347', true, 0.4 * (1 - k));
   }
+  // and a slow ring of light going out over the ground round it
+  const ph = (t * 0.5) % 1;
+  ringDots(fx, fy - 1, (6 + ph * 14) * AP, '#ffc860', 0.5 * (1 - ph), true);
   lights.push({ x: x + spr.tip.x, y: y + 2, r: TILE * B[0], i: B[1] * (0.85 + 0.15 * Math.sin(t * 3)), c: rgb01('#ffc070') });
   paintOcclude(x, y - 4, spr.w, spr.h + 4, fy, ox, oy);
 }

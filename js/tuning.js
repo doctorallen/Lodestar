@@ -720,7 +720,7 @@ const T = {
   // fades at humFade a second). lights: at most this many rising motes
   // carry a light of their own.
   star: {
-    levels: [0, 24, 72, 152, 256, 380, 540, 740], ringMag: [0, 1, 3, 5, 7], scale: 2,
+    levels: [0, 12, 40, 100, 200, 340, 520, 740], ringMag: [0, 1, 3, 5, 7], scale: 2,
     feed: { rate0: 2.5, rateMax: 22, ramp: 2.2, beat: 0.35, beatRamp: 0.5, fly: 0.9, arc: 46, hum: 0.06, humFade: 2.5, lights: 14 },
   },
   // Deeds (deeds.js): the light each gives the star. heart: heartlight for

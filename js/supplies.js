@@ -160,22 +160,23 @@ function supplyProps(d) {
 }
 function drawFlareProp(d, a, ox, oy, lights) {
   const f = a.flare, x = Math.round(f.x * AP) + ox, y = Math.round(f.y * AP) + oy, t = Game.realT, k = Math.min(1, f.t / 4);
-  // the stick, and its sputtering head
-  for (let i = 0; i < 5; i++) dot(x, y - i, i < 2 ? '#5a2a1a' : '#a83a20');
-  const fl = 0.7 + 0.3 * Math.sin(t * 23 + f.x);
-  dot(x, y - 5, '#fff0c0', true); dot(x - 1, y - 5, '#ff8a3a', true, fl); dot(x + 1, y - 5, '#ff8a3a', true, fl); dot(x, y - 6, '#ffd27a', true, fl);
-  for (let i = 0; i < 4; i++) { const ph = (t * 1.3 + i / 4) % 1; dot(Math.round(x + Math.sin(i * 2.1 + ph * 5) * 2), Math.round(y - 6 - ph * 10), i % 2 ? '#ff7a3a' : '#ffd27a', true, (1 - ph) * k); }
+  // the stick, planted, and its sputtering head
+  drawShadow(x, y, 2);
+  for (let i = 0; i < 9; i++) { dot(x, y - i, i < 2 ? '#3a1a10' : i % 3 ? '#b8402a' : '#e0c8a0'); dot(x + 1, y - i, i < 2 ? '#2a120a' : '#7a2a1a'); }
+  const fl = 0.7 + 0.3 * Math.sin(t * 23 + f.x), hy = y - 10;
+  for (const [i, j, c, a2] of [[0, 0, '#fff6dc', 1], [1, 0, '#fff0c0', 1], [0, -1, '#ffd27a', fl], [1, -1, '#ffb347', fl], [-1, 0, '#ff8a3a', fl], [2, 0, '#ff8a3a', fl], [0, 1, '#ff7a3a', 1], [1, 1, '#ff7a3a', 1], [0, -2, '#ff8a3a', fl * 0.7]]) dot(x + i, hy + j, c, true, a2);
+  for (let i = 0; i < 6; i++) { const ph = (t * 1.3 + i / 6) % 1; dot(Math.round(x + Math.sin(i * 2.1 + ph * 5) * 3), Math.round(hy - 2 - ph * 14), i % 2 ? '#ff7a3a' : '#ffd27a', true, (1 - ph) * k); }
   // where its light reaches, faintly on the ground
   const R = f.r * AP, n = Math.round(R * 1.4);
   for (let i = 0; i < n; i++) if ((i + Math.floor(t * 4)) % 5 === 0) { const an = (i / n) * Math.PI * 2; dot(Math.round(x + Math.cos(an) * R), Math.round(y + Math.sin(an) * R * 0.6), '#ff9a50', true, 0.35 * k); }
-  lights.push({ x, y: y - 5, r: f.r * 1.15, i: 1.25 * fl * (0.4 + 0.6 * k), c: rgb01('#ffb070') });
+  lights.push({ x, y: hy, r: f.r * 1.15, i: 1.3 * fl * (0.4 + 0.6 * k), c: rgb01('#ffb070') });
 }
 function drawChargeProp(d, a, ox, oy, lights) {
   const c = a.charge, x = Math.round(c.x * AP) + ox, y = Math.round(c.y * AP) + oy, armed = c.arm <= 0;
-  drawShadow(x, y, 3);
-  for (let i = -3; i <= 3; i++) for (let j = -1; j <= 0; j++) dot(x + i, y + j - 1, Math.abs(i) === 3 ? '#1a1a22' : j ? '#3a3a48' : '#2a2a34');
-  const on = armed ? Math.floor(Game.realT * 6) % 2 === 0 : Math.floor(Game.realT * 2) % 2 === 0;
-  if (on) { dot(x, y - 3, armed ? '#ff4a2a' : '#ffb030', true); lights.push({ x, y: y - 3, r: TILE * 0.6, i: 0.6, c: rgb01(armed ? '#ff4a2a' : '#ffb030') }); }
+  drawShadow(x, y, 4);
+  for (let i = -4; i <= 4; i++) for (let j = -3; j <= 0; j++) { if (Math.abs(i) === 4 && j < -1) continue; dot(x + i, y + j, j === -3 ? '#5a5a6a' : Math.abs(i) === 4 || j === 0 ? '#16161e' : j === -2 ? '#4a4a58' : '#30303c'); }
+  for (const i of [-3, -1, 1, 3]) dot(x + i, y - 1, '#c8862a');
+  if (on) { dot(x, y - 4, armed ? '#ff4a2a' : '#ffb030', true); dot(x, y - 5, armed ? '#ff8a6a' : '#ffd27a', true, 0.7); lights.push({ x, y: y - 4, r: TILE * 0.6, i: 0.6, c: rgb01(armed ? '#ff4a2a' : '#ffb030') }); }
 }
 
 // ---------------------------------------------------------------------------
