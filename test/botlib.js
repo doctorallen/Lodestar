@@ -336,7 +336,9 @@ function installBot() {
     for (const [bpId, slot] of [['gauntlet', 'main'], [offBp, 'off'], ['plate', 'armor'], ['charm', 'charm']]) {
       const bp = BLUEPRINTS[bpId], cur = s.equip[slot];
       const ore = T.ores.slice().reverse().find((o) => spare(o, bp.ore + 6));
-      if (!ore || (cur && cur.tier >= ore.tier && !(bp.kind === 'caster' && cur.bp !== bpId))) continue;
+      // (the scrap gauntlet and cracked wand count as below Ferrite)
+      const curTier = cur ? (/^(Scrap|Cracked) /.test(cur.name) ? 0 : cur.tier) : -1;
+      if (!ore || (curTier >= ore.tier && !(bp.kind === 'caster' && cur.bp !== bpId))) continue;
       const sizes = bp.kind === 'caster' ? casterSizes(bpId).slice().reverse() : [null];
       const size = sizes.find((n) => spare(ore, recipeCost(bpId, ore.id, n).ore.n + 6) && !recipeShort(recipeCost(bpId, ore.id, n), s.stash).length);
       if (size !== undefined && forge(bpId, ore.id, size)) log.push('forged ' + bpId + ' in ' + ore.name + (size ? ' ×' + size : ''));

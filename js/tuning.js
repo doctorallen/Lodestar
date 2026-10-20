@@ -701,7 +701,7 @@ const T = {
     part: 0.45, partTwo: 0.15, eliteParts: [2, 3], bossParts: 4,
     exotic: 0.03, eliteExotic: 0.5,
     relic: 0.008, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
-    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.5, 0.15], set: [0.45, 0.12] },
+    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.4, 0.12], set: [0.35, 0.1] },
   },
 
   // Gear. Base numbers at tier 1, times tierGrowth a tier (affixes grow by
@@ -761,10 +761,10 @@ const T = {
   //   salvage: threads, by rarity, +perTier a tier above 1. weight: in the
   //     cargo.
   modules: {
-    drop: { foe: 0.085, elite: 0.7, boss: 2, keeper: 3, deep: 1.4, early: { found: 6, mult: 2.2 }, lens: 1.5 },
+    drop: { foe: 0.07, elite: 0.65, boss: 2, keeper: 3, deep: 1.4, early: { found: 8, mult: 2.6 }, lens: 1.5 },
     keeperLegend: 3,
     affixes: { common: 1, magic: 2, rare: 3, legendary: 2, set: 1 },
-    value: 0.7,
+    value: 0.65,
     fits: { caster: 4, armor: 2.5, charm: 2, pick: 1.5 },
     upgrade: { ore: 6, threads: [0, 4, 8, 14, 20, 28] },
     reroll: { threads: 3, perTier: 2, ore: 2 },

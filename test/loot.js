@@ -161,7 +161,7 @@ for (const id of Object.keys(G.CIRCUIT_FORMS).concat(Object.keys(G.CIRCUIT_ELEME
 }
 
 // --- an old save -----------------------------------------------------------
-for (const f of ['save-v5-home.json', 'save-v5-run.json']) {
+for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json', 'save-main-run.json']) {
   const s = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
   const old = JSON.parse(JSON.stringify(s));
   // what the old gear's affixes added up to, worn and stashed

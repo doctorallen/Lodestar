@@ -812,12 +812,13 @@ async function spellcraft(browser) {
   await page.close();
 }
 
-// A save made before modules (test/fixtures, from the code before them):
+// Saves made before modules (test/fixtures: on main's code, and on the
+// preview's just before modules):
 // it loads, its gear is bases with modules in their sockets, its stats
 // are what they were, and the locker, the bench and a card all open.
 async function oldSave(browser) {
   const fs = require('fs'), path = require('path');
-  for (const f of ['save-v5-home.json', 'save-v5-run.json']) {
+  for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json']) {
     const save = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
     const { page, errors } = await openFresh(browser, Object.assign({ save }, PHONE));
     const r = await page.evaluate(() => {
