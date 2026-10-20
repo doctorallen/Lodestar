@@ -703,6 +703,32 @@ async function sideways(browser) {
   await page.close();
 }
 
+// Opening the game again with a sortie under way in the land where the
+// pack lies: the loading builds that territory with the pack placed in it,
+// and on CARRY ON walking to it takes it back.
+async function reopenPack(browser) {
+  const { page, errors } = await openGame(browser);
+  const terr = await page.evaluate(() => {
+    const t = worldMap().terrs.find((x) => x.ring === 1 && !x.starter && x.nb.includes(0));
+    UI.close(); startSortie({ terr: t.id, from: 0 });
+    const d = Game.dive; for (const e of d.enemies) e.dead = true;
+    for (let i = 0; i < 30; i++) Game.step(1 / 60);
+    Save.data.cache = { terr: t.id, site: 0, x: d.p.x + 20, y: d.p.y + 60, cargo: { ferrite: 7, deeplight: 4 }, items: [], blueprints: [], where: t.name };
+    saveRun(d); Save.save();
+    return t.id;
+  });
+  await page.reload();
+  await page.waitForFunction(() => typeof Loader !== 'undefined' && Loader.state === 'ready', { timeout: 120000, polling: 100 });
+  check(await page.evaluate((id) => { const d = Game.dive; return !!d && d.terr === id && !!d.cacheAt && d.cacheAt.floor === d.floor; }, terr), 'reopen: the pack was not placed in the territory built while loading');
+  await page.touchscreen.tap(195, 420);
+  await page.waitForFunction(() => Game.ready, { timeout: 10000 });
+  await tap(page, '#screen-resume [data-act=resumeRun]');
+  const got = await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) e.dead = true; d.p.x = d.cacheAt.x; d.p.y = d.cacheAt.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); Game.render(); return [d.cargo.ferrite, d.cargo.deeplight, Save.data.cache]; });
+  check(got[0] === 7 && got[1] === 4 && got[2] === null, `reopen: the pack was not taken back after carrying on (${JSON.stringify(got)})`);
+  check(!errors.length, 'reopen pack: ' + errors.join(' | '));
+  await page.close();
+}
+
 // An older save, its star fed ore: it loads with its magnitude kept (the
 // points rescaled to light), its ore still ore, and nothing kept from the star.
 async function migration(browser) {
@@ -884,6 +910,7 @@ async function spellcraft(browser) {
     await sideways(browser);
     await reopen(browser);
     await desktop(browser);
+    await reopenPack(browser);
     await migration(browser);
   } catch (e) {
     failures.push(String(e.stack || e));

@@ -153,6 +153,14 @@ function cacheSpot(d, c) {
   at = at || { x: d.p.x, y: d.p.y };
   return (d.cacheAt = { floor: f, c, x: at.x, y: at.y });
 }
+// Arriving anywhere (frontier.js: entering a territory or a Deep's site,
+// however it's built, the loading's resumed sortie among them): the pack,
+// if it lies here, is placed on this floor at once.
+function placeCacheHere(d) {
+  d.cacheAt = null; d.cacheTried = false;
+  const c = cacheHere(d);
+  if (c) cacheSpot(d, c);
+}
 // Picking the pack up: what fits goes into the cargo (light weighs
 // nothing); anything left over stays in it.
 function recoverCache(d, c) {

@@ -120,6 +120,7 @@ function enterTerritory(id, how = {}) {
   if (d.kindled) { const s = d.enemies.find((e) => !e.elite && !e.boss); d.enemies = s && rng.chance(X.straggler) ? [s] : []; }
   placeFieldForge(d);
   placeLife(d);
+  placeCacheHere(d);
   ts.visits = (ts.visits || 0) + 1;
   d.maxRing = Math.max(d.maxRing || 0, t.ring);
   if (d.kindled) { d.pull = 1; d.pullTime = X.light; }
@@ -351,6 +352,7 @@ function enterDeepSite(k) {
   spawnEnemies(d);
   placeFieldForge(d);
   placeLife(d);
+  placeCacheHere(d);
   d.far = Math.max(d.far || 0, t.depth);
   // a lair's lodeline is dark until its Keeper falls; the Keeper holds the
   // dark off while it lives
