@@ -1339,6 +1339,46 @@ async function guidedLanding(browser) {
   await page.close();
 }
 
+// The paint lab (lab.js): PAUSE → PAINT LAB opens the sheet with the room
+// still showing; every row flips once and the frame still draws; RESET
+// puts every row back; the address sets it before the game loads.
+async function paintLab(browser) {
+  const { page, errors } = await openGame(browser, Object.assign({}, PHONE, { query: '?lab=warm,brush:broad' }));
+  await page.evaluate(`window.ring1 = ${ring1}; window.sturdy = ${sturdy};`);
+  check(await page.evaluate(() => Lab.get('warm') === true && Lab.get('brush') === 'broad' && Lab.get('calm') === false), 'lab: ?lab= did not set the lab before the game loaded');
+  await tap(page, '#intro-skip');
+  await page.evaluate(() => { if (Game.modal === 'screen-onboard') UI.close(); });
+  await page.evaluate((id) => UI.acts.setOutWalk(String(id)), await page.evaluate(() => ring1('waystones')));
+  await page.evaluate(() => sturdy());
+  await run(page, 0.3);
+  await tap(page, '#btn-pause');
+  check(await visible(page, '#pause-lab') && !(await page.evaluate(() => $('pause-lamp'))), 'lab: the pause screen has no PAINT LAB button (or still has LAMP)');
+  await tap(page, '#pause-lab');
+  check(await visible(page, '#screen-lab') && (await page.evaluate(() => document.querySelectorAll('#lab-rows .lab-row').length === LAB_ROWS.length)), 'lab: PAINT LAB did not open the sheet with every row');
+  // the room shows above the sheet: the frame is still drawn under it
+  check(await page.evaluate(() => { const r = $('screen-lab').getBoundingClientRect(), v = $('view').getBoundingClientRect(); return r.top > v.top + 40 && Game.modal === 'screen-lab'; }), 'lab: the sheet covers the room');
+  await shot(page, 'smoke-lab');
+  for (const r of await page.evaluate(() => LAB_ROWS.map((r) => r.key))) {
+    const before = await page.evaluate((k) => Lab.get(k), r);
+    await page.evaluate((k) => $('lab-' + k).scrollIntoView({ block: 'center' }), r);
+    await tap(page, '#lab-' + r);
+    const after = await page.evaluate((k) => Lab.get(k), r);
+    check(after !== before, `lab: ${r} did not flip (${before} → ${after})`);
+    await run(page, 0.2);
+  }
+  check(await page.evaluate(() => Lab.get('warm') === false && Lab.get('brush') === 'fine' && Lab.get('finish') === 'flat' && Lab.get('calm') && Lab.get('form') && Lab.get('lose') && Lab.get('air') && Save.data.settings.paint.calm === true), 'lab: the rows did not land in the save');
+  check(await page.evaluate(() => !lampIsBeam()), 'lab: the LAMP row did not switch to the glow');
+  await tap(page, '#lab-lamp');
+  await page.evaluate(() => $('lab-reset').scrollIntoView({ block: 'center' }));
+  await tap(page, '#lab-reset');
+  check(await page.evaluate(() => !Lab.changed() && $('lab-reset').disabled && lampIsBeam()), 'lab: RESET did not put every row back');
+  await tap(page, '#screen-lab [data-act=labBack]');
+  check(await page.evaluate(() => Game.modal === null && $('screen-lab').hidden), 'lab: BACK did not close the sheet into play');
+  await run(page, 0.3);
+  check(!errors.length, 'lab: errors: ' + errors.slice(0, 3).join(' | '));
+  await page.close();
+}
+
 (async () => {
   require('fs').mkdirSync(require('path').join(__dirname, 'out', 'lean'), { recursive: true });
   require('fs').mkdirSync(require('path').join(__dirname, 'out', 'onboard'), { recursive: true });
@@ -1358,6 +1398,7 @@ async function guidedLanding(browser) {
     await desktop(browser);
     await reopenPack(browser);
     await migration(browser);
+    await paintLab(browser);
   } catch (e) {
     failures.push(String(e.stack || e));
   } finally {

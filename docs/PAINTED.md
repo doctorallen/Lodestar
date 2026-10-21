@@ -227,3 +227,20 @@ The Kindler's spells are the technology of a civilization that crosses between s
 - **Holds still.** The shadows' geometry follows the brow lamp's whole art px (`diverLampAt`), each pixel's inside or out from a fixed silhouette, and there's no noise in them, so they glide a pixel at a time as the Kindler walks.
 
 A new kind of thing standing on the ground: add it to `pshMovers` (moves, or may) or the bake (`pshBake`, for what never moves).
+
+## The paint lab (branch `lab`)
+
+Every option still in question is a setting to flip in play, so each can be judged in the Fen with the beam rather than in a mock (`js/lab.js`, defaults in `T.lab`, the sheet `screen-lab`). PAUSE → PAINT LAB opens a sheet over the deck with the room still showing above it; the simulation is paused as under any modal, and every row applies at once: the floor painted again round you (as a kindling paints it again), sprites rebuilt, or nothing when the option is read every frame. BACK and RESET stay at the top. It's kept in the save with the sound (`settings.paint`), survives START OVER, and every default is today's look, so with the lab untouched nothing changes. `?lab=calm,form,brush:broad,finish:wash` in the address sets it before the game loads (screenshots, the smoke test). LAMP (beam or glow) moved into the sheet.
+
+The painters and the light read `Lab.get(key)` at the one point each option branches, so a rejected option goes by deleting its branch and its row:
+
+| Row | Where it branches | Numbers | On a flip |
+|---|---|---|---|
+| CALM FIELDS | `pntGroundTones`, `pntStrokeRow` (a calm row) | `T.paint.calm` | the floor repaints |
+| FORM STROKES | `pntPaintRock` (runs down the faces, lit crease twins), `pntSlabs` (a plane on each boulder's crown, `PNT_FORMID`) | `T.paint.form` | the floor repaints |
+| WARM LIGHT | `lightScene` (a tint and an addition per band, a thread on the bands' edges) | `T.light.warm` | nothing; per frame |
+| LOST EDGES | `fpLoseEdges`, called from `fpReadable`, `kdGet` (after the mirroring, on a copy) and `pflFloraSprite` | `T.paint.foes.lose` | sprite caches cleared (`fpClearSprites`, `kdClearFrames`, `pflClearSprites`) |
+| AIR | `air.js` (`airHaze` before the actors, `airMotes` among them, `airVignette` after the light) | `T.air` | nothing; per frame |
+| BRUSH, FINISH | `pntBrush` (today's numbers, the brush's over them, the finish's over those): the stroke cutter's cell, shares and rows; the ramps' tone counts in `pntLook`; the rock's tones (given for ten) scaled; hard patches, a hatch, dithered bands | `T.paint.brush`, `T.paint.finish` | the floor repaints, the ramp cache cleared |
+
+With the brush at today and the finish at paint, the cutter and the ramps are exactly as before the lab.
