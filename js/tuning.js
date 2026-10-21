@@ -1320,7 +1320,8 @@ const T = {
     // pow (below 1, darker where the lamp's share is small); least: none
     // where it's fainter than this at the caster's foot; lampK: [least, most]
     // its length for its height (as far from the lamp as the lamp stands
-    // high: once); spread: how much a point light widens it further up (1
+    // over its top: once); gap: a caster as tall as the lamp, or taller,
+    // casts as if the lamp stood this share of its height over its top; spread: how much a point light widens it further up (1
     // as it would); edge: what a silhouette's edge pixel keeps of it. sun:
     // by day, how dark the sun's shadow of what moves (its strength, as
     // the baked ones' T.paint.shade.sun). fixedH: how high (px) the floor's
@@ -1338,7 +1339,7 @@ const T = {
     // home from this strength (at dusk), for the few things nearest it.
     shadow: {
       walls: true, baked: true, eye: 26, rays: 1.25, step: 2, reach: 3, top: 0,
-      cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, near: 1 }, star: { h: 74, r: [17, 2], i: [1.3, 0.15], k: [0.5, 2.6], kMove: [0.5, 1.6], full: 0.3, drop: [0.72, 0.9], spread: [1.6, 0.7], lamp: 0.3 }, homeLamp: [0.5, 3], hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
+      cast: { lamp: 1, pow: 0.75, least: 0.3, lampK: [0.3, 1.6], gap: 0.3, spread: 0.8, edge: [1.5, 0.05], sun: 0.34, fixedH: 12, fixedMin: 0.25, fixedK: [0.4, 2], home: { min: 0.1, k: [0.4, 2.2], dark: 0.8, full: 0.2, near: 1 }, star: { h: 74, r: [17, 2], i: [1.3, 0.15], k: [0.5, 2.6], kMove: [0.5, 1.6], full: 0.3, drop: [0.72, 0.9], spread: [1.6, 0.7], lamp: 0.3 }, homeLamp: [0.5, 3], hover: { shrink: 0.06, least: 0.55, fade: 0.1, faint: 0.3 } },
     },
     // The suit lamp as a beam (an example to compare with the round glow:
     // render.js lampBeamOf, shadow.js addConeLight; cosmetic). on: the

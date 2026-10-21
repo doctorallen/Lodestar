@@ -213,16 +213,21 @@ function pshShare(L, x, y, amb) {
 }
 // The shadow's axes from a light at ground point lx, ly, h px high, for a
 // caster at fx, fy: [aux, auy, azx, azy, spread] (shared: use it at once),
-// or null if it's too near.
+// or null if it's too near. hc: the caster's height (px), if its length is
+// to be as a point light's casts it, by the top: as far for its height as
+// it stands from the light for how far the light stands over its top (a
+// caster as tall as the light, or taller, as if the light stood
+// T.light.shadow.cast.gap of its height over it), so what stands tall by
+// the lamp casts long; else it's as if the caster were short.
 const _pshAx = new Float64Array(5);
-function pshAxes(lx, ly, h, fx, fy, k) {
+function pshAxes(lx, ly, h, fx, fy, k, hc = 0) {
   const dx = fx - lx, dy = fy - ly, m = Math.hypot(dx, dy);
   if (m < 2) return null;
-  const ux = dx / m, uy = dy / m, K = clamp(m / h, k[0], k[1]);
+  const ux = dx / m, uy = dy / m, K0 = clamp(m / h, k[0], k[1]), K = hc > 0 ? clamp(m / Math.max(h - hc, h * T.light.shadow.cast.gap), k[0], k[1]) : K0;
   // (across it: the caster's own left to right when the shadow falls away
   // from the view, turning with it)
   const o = _pshAx;
-  o[0] = -uy; o[1] = ux; o[2] = ux * K; o[3] = uy * K; o[4] = T.light.shadow.cast.spread * K / Math.max(8, m);
+  o[0] = -uy; o[1] = ux; o[2] = ux * K; o[3] = uy * K; o[4] = T.light.shadow.cast.spread * K0 / Math.max(8, m);
   return o;
 }
 
@@ -593,8 +598,8 @@ function pshFrame(d, ox, oy) {
       // (none where the lamp's shadow would be faint at its foot)
       const tab = pshTab(Lt, amb + bake(fx, fy), C.lamp, 0, C.pow), hx = fx - Lt.lx, hy = fy - Lt.ly, n = ((hx * hx + hy * hy) * PSH_TAB / (Lt.r * Lt.r)) | 0;
       if (n >= PSH_TAB || tab[n] * dk < C.least) return;
-      const a = pshAxes(lamp.x, lamp.y, E, fx, fy, C.lampK);
-      if (a) pshMaskCast(pshSil(spr), ax, ay, fx, fy, a[0], a[1], a[2], a[3], a[4], footRow, dk, tab, Lt, S2, ox, oy);
+      const Sl = pshSil(spr), a = pshAxes(lamp.x, lamp.y, E, fx, fy, C.lampK, ay - Sl.top);
+      if (a) pshMaskCast(Sl, ax, ay, fx, fy, a[0], a[1], a[2], a[3], a[4], footRow, dk, tab, Lt, S2, ox, oy);
     };
     const FG = pshFloraGrid(f), ti0 = Math.max(0, Math.floor((lamp.x - r) / ATILE)), ti1 = Math.min(f.w - 1, Math.floor((lamp.x + r) / ATILE));
     for (let tj = Math.max(0, Math.floor((lamp.y - r) / ATILE)); tj <= Math.min(f.h - 1, Math.floor((lamp.y + r) / ATILE)); tj++) for (let ti = ti0; ti <= ti1; ti++) for (const it of FG.cells[tj * f.w + ti] || PSH_NONE) {
