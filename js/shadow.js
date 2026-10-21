@@ -257,14 +257,22 @@ function beamRayReach(C, ox, oy, dx, dy, rm) {
 // distance as a share of its reach.
 const BEAM_N = 256, _beamTabs = { key: '', across: new Float32Array(BEAM_N + 1), pow: -1, along: new Float32Array(BEAM_N + 1) };
 function beamTables(Bm) {
-  const B = T.light.beam, Tb = _beamTabs, key = Bm.core + ',' + Bm.main + ',' + Bm.edge;
+  const B = T.light.beam, Tb = _beamTabs, key = Bm.core + ',' + Bm.main + ',' + Bm.edge + ',' + B.soften;
   if (Tb.key !== key) {
     Tb.key = key;
-    const sm = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u)), th0 = Bm.core, th1 = Bm.main, th2 = Bm.edge;
+    const sm = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u)), th0 = Bm.core, th1 = Bm.main, th2 = Bm.edge, raw = new Float32Array(BEAM_N + 1);
     for (let n = 0; n <= BEAM_N; n++) {
       const th = Math.acos(Math.min(1, Bm.cOut + ((1 - Bm.cOut) * n) / BEAM_N)), main = sm((th1 - th) / Math.max(1e-6, th1 - th0));
       const halo = B.halo[1] * sm((th2 - th) / Math.max(1e-6, th2 - th1 * 0.6));
-      Tb.across[n] = main * (1 + B.axis * clamp(1 - th / Math.max(1e-6, th0), 0, 1)) + halo * (1 - main);
+      raw[n] = main * (1 + B.axis * clamp(1 - th / Math.max(1e-6, th0), 0, 1)) + halo * (1 - main);
+    }
+    // softened: each the mean of those round it, soften of the cosine's
+    // range across, so its bright middle is a broad pool, not a stripe
+    const h = Math.round((B.soften * BEAM_N) / 2);
+    for (let n = 0; n <= BEAM_N; n++) {
+      let t = 0;
+      for (let m = n - h; m <= n + h; m++) t += raw[m < 0 ? 0 : m > BEAM_N ? BEAM_N : m];
+      Tb.across[n] = t / (2 * h + 1);
     }
   }
   if (Tb.pow !== B.pow) { Tb.pow = B.pow; for (let n = 0; n <= BEAM_N; n++) Tb.along[n] = Math.pow(1 - Math.sqrt(n / BEAM_N), B.pow); }
@@ -300,7 +308,7 @@ function beamAcross(Bm, x, y) {
 function addConeLight(L, Bm, c, S) {
   if (!(Bm.r > 0) || !(Bm.i > 0)) return;
   const s = Bm.i * T.art.lightSteps, cr = c[0] * s, cg = c[1] * s, cb = c[2] * s, a = L.a, Tb = beamTables(Bm), AC = Tb.across, AL = Tb.along;
-  const r = Bm.r, ir2 = 1 / (r * r), co = Bm.cOut, kc = BEAM_N / (1 - co), co2 = co * co, rg = T.light.beam.ragged * BEAM_N, rTo = T.light.beam.raggedTo;
+  const r = Bm.r, ir2 = 1 / (r * r), co = Bm.cOut, kc = BEAM_N / (1 - co), co2 = co * co, rg = T.light.beam.ragged * Math.PI / 180 * kc;
   // the cone's box
   const [bx0, by0, bx1, by1] = beamBox(Bm, 0, r);
   let i0 = Math.max(0, Math.floor(bx0 / LC) - L.x0), i1 = Math.min(L.w - 1, Math.ceil(bx1 / LC) - L.x0);
@@ -317,11 +325,10 @@ function addConeLight(L, Bm, c, S) {
       if (q >= 1) continue;
       const m = vis !== null ? vis[v] : 1;
       if (m <= 0) continue;
-      // (its edges broken into short strokes across, fixed to the world:
-      // only where it's faint, out to the halo's edge, as ragged across the
-      // whole beam broke its bands into bricks, busier than lit ground)
-      const c0 = (al / Math.sqrt(ux * ux + uy * uy) - co) * kc, a0 = AC[c0 > BEAM_N ? BEAM_N : c0 | 0], rw = a0 < rTo ? 1 - a0 / rTo : 0;
-      const st = n + L.x0 + rowPh, rag = rw > 0 ? (artHash((st / 3) | 0, j + L.y0, 0x6ec1) - 0.5) * rg * rw : 0;
+      // (its edges broken into short strokes across, fixed to the world, by
+      // as much of a turn right across it: in the cosine, that's less near
+      // its axis, where an even share scrambled its bright middle in bricks)
+      const c = al / Math.sqrt(ux * ux + uy * uy), c0 = (c - co) * kc, st = n + L.x0 + rowPh, rag = (artHash((st / 3) | 0, j + L.y0, 0x6ec1) - 0.5) * rg * Math.sqrt(1 - c * c);
       const ci = (c0 + rag) | 0, g = AC[ci < 0 ? 0 : ci > BEAM_N ? BEAM_N : ci] * AL[(q * BEAM_N) | 0] * m;
       a[o] += cr * g; a[o + 1] += cg * g; a[o + 2] += cb * g;
     }

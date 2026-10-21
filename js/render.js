@@ -595,27 +595,22 @@ function lightScene(cx, cy) {
   // goes (256ths); NT: the tint (256ths).
   const noct = Lab.on('nocturne'), Nc = Lt.nocturne, ND = new Int32Array(top + 2), NT = Nc.tint.map((v) => Math.round(v * 256));
   const nDark = noct ? clamp((Nc.darkAt[0] - ambI) / (Nc.darkAt[0] - Nc.darkAt[1]), 0, 1) : 0;
-  // Light past daylight's (T.light.flat: from, or the place's own if
-  // higher) doesn't multiply the paint further, which only raised its
-  // detail (a beam's ground blotched with strokes a lit place's isn't):
-  // the rest is added, as off a surface of an even `albedo`.
-  const Fl = Lt.flat, fCap = Math.max(Fl.from, ambI), fAdd = Fl.albedo * 255;
   // A dark place's ground is painted with its tones lifted apart, so its
   // strokes read in the dim light (paint.js pntLiftRamp); where a light
-  // reaches daylight's (fCap) they're the unlifted tones again, by UL (per
+  // reaches daylight's (fCap, or the place's own if higher) they're the unlifted tones again, by UL (per
   // step, 256ths), so a lamp shows the ground no busier than the sun does.
   // Only the ground's own pixels, nothing drawn over it: each matched
   // against its tone in the painted ramp (GL), and given the unlifted (GU).
-  const gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone, unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === gf.w * ATILE * gf.h * ATILE);
+  const fCap = Math.max(1, ambI), gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone, unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === gf.w * ATILE * gf.h * ATILE);
   const GL = unl ? pntLook(gLook) : null, GU = unl ? pntLook(gLook, 0) : null, gHue = unl && GL.groundW ? View.groundHue : null, gW = unl ? gf.w * ATILE : 0, gH = unl ? gf.h * ATILE : 0, UL = new Int32Array(top + 2);
   for (let q = 0; q <= top + 1; q++) {
-    const level = q * inv, lp = warm ? clamp((level - ambI) * lpK, 0, 1) : 0, k = Wm.lift * lp, over = level > fCap ? level - fCap : 0, fm = over ? fCap / level : 1;
+    const level = q * inv, lp = warm ? clamp((level - ambI) * lpK, 0, 1) : 0, k = Wm.lift * lp;
     LP[q] = lp;
     UL[q] = unl ? Math.round(clamp((level - ambI) / Math.max(0.05, fCap - ambI), 0, 1) * 256) : 0;
     ND[q] = nDark > 0 ? Math.round(Nc.amount * nDark * (1 - clamp((level - ambI) * lpK, 0, 1)) * 256) : 0;
     for (let c = 0; c < 3; c++) {
       const t = warm ? 1 + (Wm.lit[c] - 1) * lp + (Wm.dark[c] - 1) * (1 - lp) * dark : 1;
-      TF[q * 3 + c] = t * (1 - k) * fm; TA[q * 3 + c] = Wm.paper[c] * k * level * t + fAdd * over * t * (1 - k);
+      TF[q * 3 + c] = t * (1 - k); TA[q * 3 + c] = Wm.paper[c] * k * level * t;
     }
   }
   // each column's cell
@@ -639,7 +634,7 @@ function lightScene(cx, cy) {
   // the warm light's thread: a broken warmer line along the lit side of
   // each bright band's edge (where a pixel on the higher step meets one on
   // the lower, above or beside it). HI: the row above's steps.
-  const thread = warm && fit, Th = Wm.thread, thFrom = Th.from * 256, thGate = Math.round(Th.gate * 8), thA = Th.amount, thC = Th.col;
+  const Th = Wm.thread, thread = warm && fit && Th.amount > 0, thFrom = Th.from * 256, thGate = Math.round(Th.gate * 8), thA = Th.amount, thC = Th.col;
   // SOFT BEAM EDGE (the paint lab, T.light.soft): the threshold set by
   // strokes along each row (fixed to the world), not the dither, so a
   // band's edge breaks into strokes

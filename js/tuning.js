@@ -547,7 +547,7 @@ const T = {
   //   cap: the most motes alive at once (past it, new ones are skipped); flares: the
   //     most lights flaring at once (the oldest make way); day: under the
   //     sky in daylight, the share of its radius a cast's light keeps (and
-  //     it's never brighter than one band of light: cfxLight).
+  //     it's never brighter than dayMost: cfxLight).
   //   lock: a shot's or a placed spell's lock-on on its foe, [seconds,
   //     seconds its brackets take to close in, seconds its guide line
   //     shows]; scar: a lance's line burnt on the ground, [seconds it
@@ -571,7 +571,7 @@ const T = {
     bolt: { originT: 0.07, trail: 5, every: 0.035, core: [12, 18], linger: 0.26, light: [1.7, 0.85] }, impact: [12, 1.9, 1.7, 0.24], decal: [1.8, 16],
     charge: { motes: 40, glyph: [5, 13] },
     echo: 0.3,
-    cap: 260, flares: 14, day: 0.33,
+    cap: 260, flares: 14, day: 0.33, dayMost: 0.2,
     lock: [0.45, 0.1, 0.1], scar: [0.9, 8], beam: 40, swarm: 1.1,
   },
   // What each element does on a hit (its core sets a spell's). shock: this
@@ -935,8 +935,10 @@ const T = {
   //     towards its middle tone (0-1), and cut, as cluster.cut.
   //   groundDither: ordered dithering at the edges of the ground's large
   //     gradients (wall shadows, the rift's wash).
-  //   lightSteps: the light's bands for each 1.0 of light; lightDither: how
-  //     much of each step's edge is dithered (0 hard, 1 the whole step).
+  //   lightSteps: the light's bands for each 1.0 of light (fine, so a light
+  //     reads as a soft glow, not rings: at 5, even a faint light's tail
+  //     was a whole band); lightDither: how much of each step's edge is
+  //     dithered (0 hard, 1 the whole step).
   //   lampPerPixel: each pixel's light read off a slope through its cell
   //     (render.js, lightScene), so the bands' edges move a pixel at a time
   //     as the diver walks rather than a cell (3 art px) at a time.
@@ -948,7 +950,7 @@ const T = {
     form: { edge: 1.5, body: 0.3, part: 2, depth: 1.6, light: 0.5, shade: 0.32, fall: 0.1, crease: 0.24 },
     dither: false, outline: { creature: 'black', prop: 'selout' }, selout: 0.42,
     cluster: { patch: 9, grain: 3, cut: 0.32 }, rockCut: 0.34, sunGround: { soften: 0.55, cut: 0.4 }, groundDither: true,
-    lightSteps: 5, lightDither: 0, lampPerPixel: true, steadyCam: true,
+    lightSteps: 16, lightDither: 0, lampPerPixel: true, steadyCam: true,
   },
   // The painted style (paint.js, docs/PAINTED.md). All in art px.
   //   ramp: a clime's colours stretched to stroke ramps: dark, the two
@@ -1277,11 +1279,6 @@ const T = {
     ambient: 0.45, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: true,
-    // flat: light past `from` (or the place's own, if higher) is added, as
-    // off a surface of an even `albedo` (0-1), not multiplied, so a strong
-    // lamp brightens the ground without raising its detail (render.js
-    // lightScene)
-    flat: { from: 1.0, albedo: 0.4 },
     // The warm light (the paint lab's WARM LIGHT; render.js lightScene):
     // each of the light's bands tinted by its share of the lamp's light
     // (0 at the ambient, 1 at max): lit, the tint at the top; dark, at the
@@ -1290,8 +1287,8 @@ const T = {
     // lit bands are painted towards paper (added, not multiplied). thread:
     // a broken warmer line along the lit side of each band's edge, from the
     // band whose share is `from`, mixing `amount` of `col`, on `gate` of
-    // the pixels.
-    warm: { lit: [1.0, 0.92, 0.66], dark: [0.72, 0.64, 1.0], darkAt: [0.95, 0.42], lift: 0.22, paper: [255, 238, 200], thread: { from: 0.3, amount: 0.18, gate: 0.4, col: [255, 196, 120] } },
+    // the pixels (off: with the light's bands fine, it ringed every one).
+    warm: { lit: [1.0, 0.92, 0.66], dark: [0.72, 0.64, 1.0], darkAt: [0.95, 0.42], lift: 0.22, paper: [255, 238, 200], thread: { from: 0.3, amount: 0, gate: 0.4, col: [255, 196, 120] } },
     // The paint lab's NOCTURNE (lightScene): outside the light the colour
     // goes, `amount` of the way to its lightness tinted `tint`, by the
     // band's share of the light (as the warm light's) and how dark the
@@ -1350,9 +1347,9 @@ const T = {
     // has faded out, smoothly between; axis: how much brighter still
     // right on its axis; halo: a faint wider cone round it [its edge, ×
     // edge; strength]; ragged: how far its edges are broken into short
-    // strokes across (a share of the halo's edge's cosine range), fading
-    // out where the beam is raggedTo strong, so its bright middle is
-    // smooth. pow: how it fades with distance, (1 − d)^pow (the glow's is
+    // strokes across (degrees, all told); soften: its brightness across
+    // it evened out over this share of the halo's edge's cosine range, so
+    // its middle is a broad pool, not a stripe. pow: how it fades with distance, (1 − d)^pow (the glow's is
     // 2). rise: where the cone starts, from the feet (0) to
     // the brow lamp (1); back: art px its apex is set back behind that, so
     // it's already as wide as the body where it leaves him. spill: a dim
@@ -1367,7 +1364,7 @@ const T = {
     // far out (× reach)], and motes drifting in it [how many a 100 × 100
     // art px of cone, alpha].
     beam: {
-      on: true, reach: 1.7, i: 1.75, core: 8, edge: 30, axis: 0.6, halo: [1.6, 0.16], ragged: 0.1, raggedTo: 0.35, pow: 1.1, rise: 0.45, back: 10,
+      on: true, reach: 1.7, i: 1.75, core: 8, edge: 30, axis: 0.6, halo: [1.6, 0.16], ragged: 3, soften: 0.1, pow: 1.1, rise: 0.45, back: 10,
       spill: [0.36, 0.42], hot: [9, 0.7],
       low: { narrow: 0.7, flicker: 0.45 },
       sightSteps: 64, rays: 0.8,

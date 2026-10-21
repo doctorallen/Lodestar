@@ -858,12 +858,12 @@ function cfxPic(key, w, h, paint, draw) {
 // A cast's light (x, y on the view, r world px, i, c as for lights). In
 // the dark, as it is. Under the sky in daylight a light would only wash the
 // ground and the diver out, so it's small and tight (T.castFx.day: a share
-// of its radius), and kept to one band at most: lights that overlap are
-// merged into one, and none is brighter than a band (cfxDayLights). The
+// of its radius), and kept faint: lights that overlap are merged into
+// one, and none is brighter than T.castFx.dayMost (cfxDayLights). The
 // pixels carry the cast there, not the light.
 function cfxLight(lights, x, y, r, i, c) {
   if (!CFX.day) { lights.push({ x, y, r, i, c }); return; }
-  CFX.dayLights.push({ x, y, r: r * T.castFx.day, i: Math.min(i, 1 / T.art.lightSteps), c });
+  CFX.dayLights.push({ x, y, r: r * T.castFx.day, i: Math.min(i, T.castFx.dayMost), c });
 }
 
 // The day's cast lights, those that overlap merged (the brightest's place
