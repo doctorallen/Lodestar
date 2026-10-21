@@ -82,7 +82,9 @@ function pntLiftRamp(ramp, lift, L) {
 // rock's three dark tones and its face's three, sorted by lightness, lit
 // towards its rim colour), each evenly spaced in lightness (pntRampEven)
 // and lifted as dark as the floor being painted is (View.pntLift).
-const _pntLooks = new WeakMap();
+let _pntLooks = new WeakMap();
+// (the paint lab changes the brush, so the ramps are worked out again)
+function pntLookClear() { _pntLooks = new WeakMap(); }
 function pntLook(b, lift = View.pntLift || 0) {
   let M = _pntLooks.get(b);
   if (!M) _pntLooks.set(b, (M = new Map()));

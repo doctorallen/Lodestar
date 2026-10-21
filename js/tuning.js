@@ -1310,6 +1310,18 @@ const T = {
   },
 
 
+  // The paint lab (lab.js, docs/PAINTED.md): the painted look's options as
+  // settings to flip in play, each default today's look. calm: the ground
+  // in calm fields with the detail gathered (T.paint.calm); form: strokes
+  // down the rock's faces, one big plane an outcrop, lit cracks
+  // (T.paint.form); warm: the light's bands tinted, amber in the lamp and
+  // violet in the dark (T.light.warm); lose: figures' and caps' edges lost on
+  // the shadow side (T.paint.foes.lose); air: the clime's motes and a haze
+  // beyond the beam (T.air). brush: the strokes' size (today, broad, fine;
+  // T.paint.brush); finish: how much the paint shows (paint, flat, ink,
+  // wash; T.paint.finish).
+  lab: { calm: false, form: false, warm: false, lose: false, air: false, brush: 'today', finish: 'paint' },
+
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
   // at once (ui.js; hints wait their turn). lineWait: seconds a spoken line
   // waits behind others (out of any screen) before it's dropped as stale.

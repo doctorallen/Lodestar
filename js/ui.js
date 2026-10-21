@@ -166,7 +166,7 @@ const UI = {
   },
 
   redraw() {
-    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawUplink_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-bench': drawBench, 'screen-research': drawResearch, 'screen-star': drawStar, 'screen-cargo': drawCargo, 'screen-supplies': drawSupplies }[UI.screen];
+    const r = { 'screen-resume': drawResume, 'screen-report': drawReport, 'screen-story': drawStory, 'screen-wreck': drawUplink_, 'screen-setout': drawSetOut, 'screen-forge': drawForge, 'screen-gear': drawGear, 'screen-bench': drawBench, 'screen-research': drawResearch, 'screen-star': drawStar, 'screen-cargo': drawCargo, 'screen-supplies': drawSupplies, 'screen-lab': drawLab }[UI.screen];
     if (r) r();
     if (UI.card) drawCard();
     UI.placeToasts();
@@ -645,8 +645,13 @@ UI.acts = {
     const s = Save.data.settings || (Save.data.settings = {});
     s.lamp = lampIsBeam() ? 'glow' : 'beam';
     Save.saveField('settings');
-    drawSoundButtons();
+    if (UI.screen === 'screen-lab') drawLab();
   },
+  // the paint lab's rows (lab.js): a row's next value, every row back to
+  // today's look, and the sheet closed back into play
+  labSet: (key) => { Lab.cycle(key); drawLab(); },
+  labReset: () => { Lab.reset(); drawLab(); },
+  labBack: () => UI.close(),
   attune: (id) => {
     const s = Save.data;
     if (attunePointsLeft(s) <= 0 || (s.attune[id] || 0) >= T.attune[id].max) return;
@@ -661,7 +666,6 @@ function drawSoundButtons() {
   const word = (k) => { const v = Snd.level(k); return v >= 1 ? 'ON' : v > 0 ? 'SOFT' : 'OFF'; };
   setTextIfChanged('pause-music', `MUSIC: ${word('music')}`);
   setTextIfChanged('pause-sfx', `SOUNDS: ${word('sfx')}`);
-  setTextIfChanged('pause-lamp', `LAMP: ${lampIsBeam() ? 'BEAM' : 'GLOW'}`);
 }
 
 // A frame's cores moved into another, part for part; a Mod the new one has

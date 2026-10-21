@@ -49,9 +49,10 @@ function frame(now) {
 // A frame: the game, and the opening over it while it plays (its first
 // scenes cover the screen, and the game isn't drawn under them). Nor is it
 // under a screen, which covers it too (a report left open would otherwise
-// go on drawing the world, and a portal's iris, unseen, every frame).
+// go on drawing the world, and a portal's iris, unseen, every frame). The
+// paint lab's sheet is the exception: the room shows above it (lab.js).
 function renderAll() {
-  if (!introCovers() && !(UI.screen && Game.modal === UI.screen)) renderFrame();
+  if (!introCovers() && !(UI.screen && Game.modal === UI.screen && UI.screen !== 'screen-lab')) renderFrame();
   introDraw();
 }
 
@@ -78,6 +79,8 @@ function fitLayout() {
 
 function boot() {
   Save.load();
+  // the paint lab from the address (lab.js; screenshots and the tests)
+  Lab.fromQuery(location.search);
   buildSprites();
   setupView();
   setupInput();

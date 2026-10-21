@@ -222,8 +222,18 @@ body.home #btn-mine { display: none; }
 .list { width: 100%; max-width: 420px; text-align: left; }
 .menu { display: flex; flex-direction: column; align-items: center; margin-top: 8px; }
 /* the pause screen's sound settings, side by side */
-.menu.sound-row { flex-direction: row; justify-content: center; gap: 10px; }
+.menu.sound-row { flex-direction: row; justify-content: center; gap: 10px; flex-wrap: wrap; }
 .sound-row .btn { min-width: 105px; margin: 5px 0; padding-left: 8px; padding-right: 8px; font-size: 13px; }
+/* the paint lab (lab.js): a sheet over the deck, the room still showing
+   above it; BACK and RESET always at its top */
+.screen.lab { top: auto; height: min(62%, 540px); justify-content: flex-start; overflow-y: auto; overflow-x: hidden; touch-action: pan-y; padding-top: 10px; border-top: 1px solid var(--line); background: var(--panel); }
+.lab-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; max-width: 420px; margin-bottom: 8px; }
+.lab-top h3 { margin: 0; }
+.lab-top .btn { min-width: 96px; min-height: 40px; margin: 0; padding: 8px 12px; font-size: 12px; }
+.lab-row { min-height: 48px; background: var(--bg); }
+.lab-toggle { min-width: 64px; min-height: 36px; background: transparent; color: var(--ink); border: 1px solid var(--ink); font: inherit; font-size: 12px; letter-spacing: 0.1em; padding: 6px 10px; }
+.lab-toggle.on { color: #0b0d12; background: #7dffd8; border-color: #7dffd8; }
+.lab-toggle.choice { min-width: 84px; border-color: var(--gold); color: var(--gold); }
 
 .logo {
   margin: 8px 0 8px;

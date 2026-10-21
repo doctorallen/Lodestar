@@ -137,11 +137,21 @@
     <div class="menu sound-row">
       <button id="pause-music" class="btn" data-act="soundSet" data-arg="music">MUSIC: ON</button>
       <button id="pause-sfx" class="btn" data-act="soundSet" data-arg="sfx">SOUNDS: ON</button>
-      <button id="pause-lamp" class="btn" data-act="lampSet">LAMP: BEAM</button>
+      <button id="pause-lab" class="btn" data-act="go" data-arg="screen-lab">PAINT LAB</button>
     </div>
     <p id="pause-note" class="note center">A recall loses nothing. You stand still a few seconds.</p>
     <div class="menu"><button id="pause-restart" class="btn danger quiet" data-act="restartAsk">START OVER</button></div>
     <div class="build" id="build"></div>
+  </section>
+
+  <section id="screen-lab" class="screen lab" hidden>
+    <div class="lab-top">
+      <button class="btn primary" data-act="labBack">BACK</button>
+      <h3>PAINT LAB</h3>
+      <button id="lab-reset" class="btn quiet" data-act="labReset">RESET</button>
+    </div>
+    <div id="lab-rows" class="list"></div>
+    <p class="note">Each row applies at once; the ground round you repaints over a moment.</p>
   </section>
 
   <section id="screen-restart" class="screen" hidden>
@@ -197,6 +207,7 @@
 <script src="js/version.js"></script>
 <script src="js/tuning.js"></script>
 <script src="js/save.js"></script>
+<script src="js/lab.js"></script>
 <script src="js/loader.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/music.js"></script>
