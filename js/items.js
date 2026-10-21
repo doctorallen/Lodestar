@@ -211,7 +211,7 @@ function itemBaseLine(item) {
   if (item.kind === 'caster') { const ore = rigOreLine(item), n = rigMods(item); return `${b.power} power · ${n} Mod slot${n === 1 ? '' : 's'}${ore ? ' · ' + ore : ''}`; }
   if (item.kind === 'armor') return `${b.armor} armor, +${b.hp} max health`;
   if (item.kind === 'pick') { const top = T.ores.filter((o) => o.tier <= b.power).pop(); return `Breaks up to ${top ? top.name : 'nothing'}, ${b.speed}× speed`; }
-  if (item.kind === 'stone') return stoneLine(item.stone);
+  if (item.kind === 'stone') return `${stoneLine(item.stone)} ${stoneTierLine(item.stone, item.tier)}`;
   if (item.kind === 'relic') return `Tier ${item.tier}. The Lodestar's light will open it: a rare module, or better.`;
   return '';
 }

@@ -84,6 +84,12 @@ function stoneLine(id) {
   if (k === 'glyph') return capFirst(CIRCUIT_GLYPHS[id].text()) + '.';
   return '';
 }
+// What a core's tier does: its spell hits harder, a Form's tier by much,
+// the others' by a little (stonePower).
+function stoneTierLine(id, tier) {
+  const C = T.circuits, pct = Math.round((stoneKind(id) === 'form' ? C.stoneGrowth : C.otherGrowth) * 100);
+  return tier > 1 ? `Tier ${tier}: its spell hits ${pct * (tier - 1)}% harder (${pct}% a tier past the first).` : `Tier 1. Each tier higher makes its spell hit ${pct}% harder.`;
+}
 
 // A core's colour on the screens (its tile's rim): its own (ART.stones).
 function stoneTint(id) {

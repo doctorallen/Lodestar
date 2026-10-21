@@ -187,7 +187,7 @@ function drawForge() {
     lines.push(esc(TOOLS[bp.tool].text));
   } else if (bp.kind === 'stone') {
     title = `${bp.name} core`;
-    lines.push(`<b>T${ore.tier}</b> · ${esc(stoneLine(bp.stone))}`);
+    lines.push(`<b>T${ore.tier}</b> · ${esc(stoneLine(bp.stone))}`, esc(stoneTierLine(bp.stone, ore.tier)));
   } else {
     const tier = Math.min(T.ores.length, ore.tier + (ex && ex.tierUp ? 1 : 0)), it = recipePreview(F.bp, tier, 0, !!(ex && ex.modSlot));
     title = `${oreOfTier(tier).name} ${bp.name}`;

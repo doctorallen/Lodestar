@@ -314,6 +314,7 @@ Known from the start: the rig frame, plate, charm and cutter, the Arc and Bolt, 
   - **Holding charges it:** 1.8× the damage for 1.5× the charge; charged bolts and lances are bigger and pass through more. A held Arc bursts into a Nova of its element instead.
   - With no rig worn, spell A is a free Arc.
 - **A spell is three cores, in no order:** one **Form** (its shape and range), one **Element** (its damage and status; with none, Force) and one **Mod** (what changes it). A better frame has **two Mod slots**: Resonite or denser, a masterwork, or a Lodestone shard worked in at the forge. No Form: a weak spark.
+- **A core's tier** (its ore's) makes its spell hit harder, and does nothing else: 25% a tier past the first for the Form, 5% for each other core. A core's card and its forge recipe say so.
 - **Charge** is the mana. It refills on its own. A cast costs its Form's charge times its Mods'. **Close Forms give charge back** for each foe they hit (2 a foe, 3 foes at most), so fighting close keeps the casting going.
 - **Setting cores is free** at the locker: tap the rig, tap a part of a spell, tap a core from the drawer (it shows only the kind that part takes). Each spell reads as its name, `BOLT · SHOCK · CHAIN`, and one short line: its charge, and a resonance it wakes, or a Mod that does nothing for its Form.
 - **You start with the Scrap Rig: A `ARC`, B `BOLT`**, so the first fight has close and far, and both have room to grow.
