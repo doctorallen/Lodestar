@@ -1001,6 +1001,33 @@ const T = {
     ramp: { dark: [0.62, 0.3], light: [0.14, 0.28], rock: { dark: [0.6, 0.3], light: [0.3, 0.6] } },
     rampEven: { ground: { deep: 0.45, high: 0.24, gamma: 1 }, rock: { deep: 0.55, high: 0.45, gamma: 1.15 }, darkAt: [0.95, 0.42], liftGround: [0.7, 1.2], liftRock: [1.3, 2.2], under: [0.38, 8] },
     stroke: { whole: 0.12, one: 0.48 },
+    // The paint lab's CALM FIELDS (paint.js pntGroundTones): where a broad
+    // noise (scale px across and down, plus bias) is over cut, the ground
+    // is calm: strokes in cells of `cell`, `whole` of them whole, the tone
+    // jitter times jitter; elsewhere times busyJitter. It's cut back to
+    // busy at a wall's foot (by feet) and under the baked shadows (by shade
+    // times the shadow), where plants and stands are.
+    calm: { scale: [48, 30], bias: 0.08, cut: 0.5, cell: 16, whole: 0.6, jitter: 0.2, busyJitter: 1.3, feet: 0.6, shade: 1.2 },
+    // The paint lab's BRUSH and FINISH (pntBrush): today's numbers, each
+    // brush's over them, then the finish's. cell: the strokes' cell (px);
+    // whole, one: the shares of cells left whole and cut once; jitter:
+    // times the ground's and rock's own; rows: a stroke's height; gTones,
+    // rTones: the ground's and the rock's ramps (the rock's numbers above
+    // are given for 10 and scaled). flat: hard, the lit patches cut hard.
+    // ink: hatch, soot hatched over the shadows under hatchAt[0] of the
+    // ramp, crossed under hatchAt[1]. wash: dither, the light's bands
+    // dithered.
+    brush: {
+      today: { cell: 8, jitter: 1, rows: 1, gTones: 7, rTones: 10 },
+      broad: { cell: 14, whole: 0.4, one: 0.4, jitter: 0.8, rows: 2, gTones: 5, rTones: 7 },
+      fine: { cell: 5, whole: 0.05, one: 0.45, jitter: 1.3, rows: 1, gTones: 9, rTones: 13 },
+    },
+    finish: {
+      paint: {},
+      flat: { cell: 16, whole: 0.85, one: 0.1, jitter: 0, gTones: 4, rTones: 5, hard: true },
+      ink: { gTones: 5, rTones: 6, jitter: 0.5, hatch: true, hatchAt: [0.42, 0.22] },
+      wash: { cell: 10, whole: 0.2, jitter: 0.4, gTones: 14, rTones: 20, dither: true },
+    },
     ground: { base: 0.45, swell: 70, swellAmt: 0.2, patch: [64, 11], patchCut: [0.52, 0.62], patchSky: 0.36, patchCave: 0.32, clump: 0.06, foot: 7, footHard: 1, footAmt: 0.3, side: 0.1, sunDir: [2, 3], sunSteps: 9, sunSlope: 3.2, sunDark: 0.32, jitter: 0.62 },
     wall: { face: 22, edge: 5, bump: 16, bumpScale: 34, ramp: 9, boulder: 76, boulderR: [0.5, 0.95], boulderFlat: 1.6, rough: 0.2 },
     rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.2, topLo: 1.5, topHi: 6.6, faceBase: 0.15, faceUp: 0.55, faceWest: 0.3, faceLo: 1.5, faceHi: 5.5, jitter: 1.1, strata: 0.5, strataAmt: 1.6, crease: 1.6, creaseR: 3, rim: 8, rimLit: 0.6, lip: 7, foot: 0 },

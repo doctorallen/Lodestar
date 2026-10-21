@@ -88,15 +88,16 @@ function pntLookClear() { _pntLooks = new WeakMap(); }
 function pntLook(b, lift = View.pntLift || 0) {
   let M = _pntLooks.get(b);
   if (!M) _pntLooks.set(b, (M = new Map()));
-  const key = Math.round(lift * 20);
+  // (the brush sets how many tones: the paint lab)
+  const Bq = pntBrush(), key = Math.round(lift * 20) + '/' + Bq.gTones + '/' + Bq.rTones;
   let L = M.get(key);
   if (L) return L;
-  lift = key / 20;
+  lift = Math.round(lift * 20) / 20;
   const R = T.paint.rampEven, g = (b.sun ? calmRgb(b.floor) : rampRgb(b.floor)).slice(0, 3);
   const rk = rampRgb(b.rock), fr = rampRgb(b.front);
   const rock = rk.slice(0, 3).concat(fr.slice(0, 3)).sort((p, q) => pntLum(p) - pntLum(q));
-  const ground = pntLiftRamp(pntRampEven(g, 7, R.ground), lift, R.liftGround);
-  const rr = pntRockUnder(pntLiftRamp(pntRampEven(rock, 10, R.rock, rk[3]), lift, R.liftRock), ground);
+  const ground = pntLiftRamp(pntRampEven(g, Bq.gTones, R.ground), lift, R.liftGround);
+  const rr = pntRockUnder(pntLiftRamp(pntRampEven(rock, Bq.rTones, R.rock, rk[3]), lift, R.liftRock), ground);
   L = { ground: Uint32Array.from(ground.map(pntU32)), rock: Uint32Array.from(rr.map(pntU32)), groundRgb: ground, rockRgb: rr };
   M.set(key, L);
   return L;
@@ -107,10 +108,13 @@ function pntLook(b, lift = View.pntLift || 0) {
 // tone under[1] up) not at all, so a wall stands dark with lit edges
 // wherever a clime's rock and floor colours are close.
 function pntRockUnder(rock, ground) {
-  const U = T.paint.rampEven.under, k = pntLum(rock[4]) / Math.max(1, pntLum(ground[3]));
+  // (the middle tones, and the lip tone, at a ramp of any length: the
+  // numbers are given for 10 rock tones and 7 ground tones)
+  const U = T.paint.rampEven.under, sc = (rock.length - 1) / 9, m4 = Math.round(4 * sc), u1 = U[1] * sc, gm = Math.round((ground.length - 1) / 2);
+  const k = pntLum(rock[m4]) / Math.max(1, pntLum(ground[gm]));
   if (k <= U[0]) return rock;
   const s = U[0] / k;
-  return rock.map((c, i) => { const t = Math.min(1, Math.max(0, (i - 4) / (U[1] - 4))), m = i <= 4 ? s : s + (1 - s) * t * t; return c.map((v) => v * m); });
+  return rock.map((c, i) => { const t = Math.min(1, Math.max(0, (i - m4) / (u1 - m4))), m = i <= m4 ? s : s + (1 - s) * t * t; return c.map((v) => v * m); });
 }
 // How dark the floor being painted will be lit, 0 (daylight) to 1 (a deep
 // cave): from the place's ambient light as the frame will work it out.
@@ -154,27 +158,54 @@ const pntSmooth = (a, b, x) => { const t = x <= a ? 0 : x >= b ? 1 : (x - a) / (
 // pixel from x0 for n: mid, the stroke's middle (its tone is read there),
 // and jit, the stroke's jitter (about -1..1, near 0 most often).
 const PNT_CELL = 8;
-function pntStrokeRow(mid, jit, x0, n, y, seed) {
-  const ph = (artHash(y, 7, seed) * PNT_CELL) | 0, S = T.paint.stroke;
-  let c = Math.floor((x0 + ph) / PNT_CELL), cs = c * PNT_CELL - ph, i = 0;
+// The brush (the paint lab's BRUSH and FINISH, T.paint.brush and finish):
+// today's numbers with the chosen brush's over them, then the finish's.
+// cell: the strokes' cell; whole, one: the shares of cells left whole and
+// cut once (else T.paint.stroke's); jitter: times the painters' own; rows:
+// how many rows a stroke is tall; gTones, rTones: the ground's and rock's
+// ramps' tones; hard: the ground's lit patches cut hard; hatch: soot
+// hatched over the shadows (hatchAt: the values it starts under, crossed
+// under the second); dither: the light's bands dithered.
+let _pntBrushKey = '', _pntBrush = null;
+// The widest a stroke's cell can be (the margins a repaint reads across).
+function pntCellMax() { return Math.max(PNT_CELL, pntBrush().cell, T.paint.calm.cell); }
+function pntBrush() {
+  const bk = Lab.get('brush'), fk = Lab.get('finish'), key = bk + '/' + fk;
+  if (key === _pntBrushKey) return _pntBrush;
+  const B = T.paint.brush, F = T.paint.finish;
+  _pntBrushKey = key;
+  return (_pntBrush = Object.assign({}, B.today, B[bk] || {}, F[fk] || {}));
+}
+// calm: for each pixel from x0, how calm the ground is there (the paint
+// lab's CALM FIELDS, T.paint.calm): over `cut`, the cells are the calm
+// cell, mostly whole.
+function pntStrokeRow(mid, jit, x0, n, y, seed, calm) {
+  const Bq = pntBrush(), S = T.paint.stroke, C0 = Bq.cell, Cm = T.paint.calm;
+  const whole0 = Bq.whole !== undefined ? Bq.whole : S.whole, one0 = Bq.one !== undefined ? Bq.one : S.one;
+  // (a stroke two rows tall: the pair shares its cuts and jitter)
+  const yy = Bq.rows > 1 ? y - (y % Bq.rows) : y;
+  const ph = (artHash(yy, 7, seed) * C0) | 0;
+  let c = Math.floor((x0 + ph) / C0), cs = c * C0 - ph, i = 0;
   while (i < n) {
-    const h = artHash(c, y, seed + 1), h2 = artHash(c, y, seed + 2), h3 = artHash(c, y, seed + 3);
-    // the cuts: none (one stroke of 8), one, or two
-    let a = PNT_CELL, b = PNT_CELL;
-    if (h >= S.whole) {
-      if (h < S.whole + S.one) a = 2 + ((h2 * 5) | 0);
-      else { a = 2 + ((h2 * 3) | 0); b = Math.min(PNT_CELL - 2, a + 2 + ((h3 * 3) | 0)); }
+    const quiet = calm && calm[Math.min(n - 1, Math.max(0, cs + (C0 >> 1) - x0))] > Cm.cut;
+    const C = quiet ? Cm.cell : C0, whole = quiet ? Cm.whole : whole0, one = quiet ? one0 * 0.5 : one0;
+    const h = artHash(c, yy, seed + 1), h2 = artHash(c, yy, seed + 2), h3 = artHash(c, yy, seed + 3);
+    // the cuts: none (one stroke of the cell), one, or two
+    let a = C, b = C;
+    if (h >= whole) {
+      if (h < whole + one) a = 2 + ((h2 * (C - 3)) | 0);
+      else { a = 2 + ((h2 * (C * 0.375)) | 0); b = Math.min(C - 2, a + 2 + ((h3 * (C * 0.375)) | 0)); }
     }
     // each stroke's jitter, once
-    const ja = h2 + h3 - 1, jb = artHash(c, y, seed + 4) + h3 - 1, jc = artHash(c, y, seed + 5) + h - 1;
-    const ma = cs + ((a - 1) >> 1) - x0, mb = cs + ((a + b - 1) >> 1) - x0, mc = cs + ((b + PNT_CELL - 1) >> 1) - x0;
-    for (let k = 0; k < PNT_CELL; k++) {
+    const ja = h2 + h3 - 1, jb = artHash(c, yy, seed + 4) + h3 - 1, jc = artHash(c, yy, seed + 5) + h - 1;
+    const ma = cs + ((a - 1) >> 1) - x0, mb = cs + ((a + b - 1) >> 1) - x0, mc = cs + ((b + C - 1) >> 1) - x0;
+    for (let k = 0; k < C; k++) {
       if (cs + k < x0) continue;
       if (i >= n) break;
       if (k < a) { mid[i] = ma; jit[i] = ja; } else if (k < b) { mid[i] = mb; jit[i] = jb; } else { mid[i] = mc; jit[i] = jc; }
       i++;
     }
-    c++; cs += PNT_CELL;
+    c++; cs += C;
   }
 }
 
@@ -187,15 +218,21 @@ function pntStrokeRow(mid, jit, x0, n, y, seed) {
 // lower right as high as the rock stands). Then strokes: each pixel takes
 // its stroke's middle's value, jittered. paintCaveTile reads them.
 function pntGroundTones(f, x0, y0, x1, y1) {
-  const G = T.paint.ground, W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx, H = View.rockH, out = View.groundTone, nt = 7;
+  const G = T.paint.ground, Bq = pntBrush(), W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx, H = View.rockH, out = View.groundTone, nt = Bq.gTones;
   x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(Hp, y1);
   if (x1 <= x0 || y1 <= y0) return;
-  const sun = !!artBiome(f).sun, seedH = (f.seed ^ f.depth) | 0, pad = PNT_CELL, ax = x0 - pad, n = x1 - x0 + 2 * pad;
+  const sun = !!artBiome(f).sun, seedH = (f.seed ^ f.depth) | 0, pad = Math.max(PNT_CELL, Bq.cell, T.paint.calm.cell), ax = x0 - pad, n = x1 - x0 + 2 * pad;
   const v = new Float32Array(n), n1 = new Float32Array(n), n2 = new Float32Array(n), n3 = new Float32Array(n), cl = new Float32Array(n), mid = new Int16Array(n), jit = new Float32Array(n);
   // for each column, how many rows since rock above it (up to G.foot + 1)
-  const since = new Uint8Array(n), F = G.foot, pk = sun ? G.patchSky : G.patchCave, J = G.jitter * (nt - 1) * 0.48;
+  const since = new Uint8Array(n), F = G.foot, pk = sun ? G.patchSky : G.patchCave, J = G.jitter * Bq.jitter * (nt - 1) * 0.48;
   // (what stands on it: its contact, sun and fixed lights' shadows, pshadow.js)
   const SHD = pshShadeFor(f);
+  // the calm fields (the paint lab's CALM FIELDS, T.paint.calm): a broad
+  // slow noise says where the ground is quiet (long strokes, two tones);
+  // it's cut back to busy at a wall's foot and beside one, and under the
+  // baked shadows, which lie where plants and stands are
+  const Cm = T.paint.calm, calm = Lab.on('calm') ? new Float32Array(n) : null;
+  const hard = !!Bq.hard, hatch = !!Bq.hatch, hA = hatch ? Math.round((nt - 1) * Bq.hatchAt[0]) : 0, hB = hatch ? Math.round((nt - 1) * Bq.hatchAt[1]) : 0;
   const rk = (x, y) => x < 0 || y < 0 || x >= W || y >= Hp || R[y * W + x] === 1;
   for (let i = 0; i < n; i++) { let k = F + 1; for (let j = 1; j <= F; j++) if (rk(ax + i, y0 - j)) { k = j - 1; break; } since[i] = k; }
   for (let y = y0; y < y1; y++) {
@@ -203,18 +240,20 @@ function pntGroundTones(f, x0, y0, x1, y1) {
     pntNoiseRow(n2, ax, n, y, G.patch[0], G.patch[1], seedH + 22);
     pntNoiseRow(n3, ax, n, y, G.patch[0] * 0.45, G.patch[1] * 0.6, seedH + 23);
     artClumpRow(cl, ax, n, y, seedH);
+    if (calm) pntNoiseRow(calm, ax, n, y, Cm.scale[0], Cm.scale[1], seedH + 41);
     const row = y * W;
     for (let i = 0; i < n; i++) {
       const x = ax + i, here = x < 0 || x >= W || R[row + x] === 1;
       let val = G.base + (n1[i] - 0.5) * G.swellAmt + cl[i] * G.clump;
       // streaky light: patches of it, their edges torn in streaks
       const p = n2[i] * 0.65 + n3[i] * 0.35;
-      val += pk * (pntSmooth(G.patchCut[0], G.patchCut[1], p) - 0.35);
+      val += pk * ((hard ? (p > (G.patchCut[0] + G.patchCut[1]) * 0.5 ? 1 : 0) : pntSmooth(G.patchCut[0], G.patchCut[1], p)) - 0.35);
       // at a wall's foot: a hard dark line, then a falloff
       const k = since[i] + 1;
-      if (k <= F) val -= k <= G.footHard ? 0.5 : G.footAmt * (1 - (k - 1) / F);
+      let busy = 0;
+      if (k <= F) { val -= k <= G.footHard ? 0.5 : G.footAmt * (1 - (k - 1) / F); busy = (1 - (k - 1) / F) * Cm.feet; }
       since[i] = here ? 0 : Math.min(F + 1, since[i] + 1);
-      if (!here && (rk(x - 1, y) || rk(x + 1, y))) val -= G.side;
+      if (!here && (rk(x - 1, y) || rk(x + 1, y))) { val -= G.side; busy = Math.max(busy, Cm.feet * 0.5); }
       if (sun && !here) {
         for (let s = 1; s <= G.sunSteps; s++) {
           const sx = x - s * G.sunDir[0], sy = y - s * G.sunDir[1];
@@ -222,12 +261,16 @@ function pntGroundTones(f, x0, y0, x1, y1) {
           if (H[sy * W + sx] > s * G.sunSlope) { val -= G.sunDark; break; }
         }
       }
-      if (SHD && !here) val -= SHD[row + x] / 255;
+      if (SHD && !here) { const sh = SHD[row + x] / 255; val -= sh; busy += sh * Cm.shade; }
+      if (calm) calm[i] += Cm.bias - busy;
       v[i] = val;
     }
-    pntStrokeRow(mid, jit, ax, n, y, seedH + 31);
+    pntStrokeRow(mid, jit, ax, n, y, seedH + 31, calm);
     for (let x = x0; x < x1; x++) {
-      const i = x - ax, t = Math.round(v[mid[i]] * (nt - 1) + jit[i] * J);
+      const i = x - ax, jf = calm ? (calm[i] > Cm.cut ? Cm.jitter : Cm.busyJitter) : 1;
+      let t = Math.round(v[mid[i]] * (nt - 1) + jit[i] * J * jf);
+      // ink: soot hatched over the shadows, crossed in the deepest
+      if (hatch && ((t <= hA && (x + y) % 3 === 0) || (t <= hB && (x - y + 3 * W) % 3 === 0))) t = 0;
       out[row + x] = t < 0 ? 0 : t > nt - 1 ? nt - 1 : t;
     }
   }
@@ -341,7 +384,7 @@ function paintRockArea(f, x0, y0, x1, y1) {
   for (let y = y0; y < y1; y++) { C32.fill(0, y * W + x0, y * W + x1); for (let x = x0; x < x1; x++) E[(y * W + x) * 4 + 3] = 0; }
   // march: each pixel of rock notes how far its surface point is lifted
   // (a little past the area, as its edges look at their neighbours)
-  const mx0 = Math.max(0, x0 - PNT_CELL), mx1 = Math.min(W, x1 + PNT_CELL), my0 = Math.max(0, y0 - 4), my1 = Math.min(Hp, y1 + 4);
+  const cm = pntCellMax(), mx0 = Math.max(0, x0 - cm), mx1 = Math.min(W, x1 + cm), my0 = Math.max(0, y0 - 4), my1 = Math.min(Hp, y1 + 4);
   const yTop = Math.min(Hp - 1, my1 - 1 + maxH);
   for (let x = mx0; x < mx1; x++) {
     let ymin = yTop + 1;
@@ -470,6 +513,7 @@ function pntGraftLook(f) {
 function pntPaintRock(f, x0, y0, x1, y1) {
   const P = T.paint, Wl = P.wall, Rk = P.rock, Fc = P.facet, Sl = P.slab, HF = View.rockHf, LF = View.rockLift, Q = View.rockBuf, C32 = Q.col32, W = f.w * ATILE, Hp = f.h * ATILE;
   const b = artBiome(f), ramp = pntLook(b).rock, nt = ramp.length, seed = (f.seed ^ f.depth) | 0, rw = x1 - x0, rh = y1 - y0;
+  const Bq = pntBrush(), tsc = (nt - 1) / 9, hatch = !!Bq.hatch, hA = hatch ? Math.round((nt - 1) * Bq.hatchAt[0]) : 0;
   const ml = f.meld ? f.meld.to.map((_, k) => pntLook(hgrMeldLook(f, k)).rock) : null;
   const gl = pntGraftLook(f), gRamp = gl ? pntLook(gl).rock : null, g = f.graft, gcx = g ? (g.x + 0.5) * ATILE : 0, gcy = g ? (g.y + 0.5) * ATILE : 0, gR = g ? (g.r + 2) * ATILE : 0;
   const ll = Math.hypot(Rk.light[0], Rk.light[1], Rk.light[2]), lx = Rk.light[0] / ll, ly = Rk.light[1] / ll, lz = Rk.light[2] / ll;
@@ -550,7 +594,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       if (wb[i] < 0) continue;
       const sy = y + LF[y * W + x] - 1, face = wb[i] > 0.5, m = mid[i];
       // the stroke's tone, from its middle if that's rock too
-      let t = (wb[m] >= 0 ? tb[m] : tb[i]) + jit[i] * Rk.jitter;
+      let t = (wb[m] >= 0 ? tb[m] : tb[i]) + jit[i] * Rk.jitter * Bq.jitter;
       // strata on the faces: long strokes a shade or two off
       if (face) {
         const sc = (x + off) >> 4;
@@ -584,7 +628,10 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       else if (face && wbUp[i] < 0.3) t = Math.max(t, Rk.lip);
       if (!isRock(x, y + 1)) t = Math.min(t, Rk.foot);
       else if (!isRock(x, y + 2)) t = Math.min(t, Rk.foot + 1);
-      t = Math.round(t);
+      // (the tones above are given for a ramp of 10: the brush's may differ)
+      t = Math.round(t * tsc);
+      // ink: soot hatched over the shadowed rock
+      if (hatch && t <= hA && (x + sy) % 3 === 0) t = 0;
       let rp = gRamp && Math.abs(x - gcx) < gR && Math.abs(sy - gcy) < gR && graftAt(f, (x + 0.5) / AP - 0.5, (sy + 0.5) / AP - 0.5) ? gRamp : ramp;
       // (at the outpost, the rock of the land beyond where its meld reaches)
       if (ml) { const mk = hgrMeldAt(f, x, sy); if (mk >= 0) rp = ml[mk]; }
@@ -725,7 +772,8 @@ function pntPaintChunk(f, i, j) {
   S.done[j * S.nx + i] = 1; S.left--;
   const x0 = i * PNT_CH, y0 = j * PNT_CH, x1 = Math.min(W, x0 + PNT_CH), y1 = Math.min(Hp, y0 + PNT_CH), back = G.sunSteps * Math.max(G.sunDir[0], G.sunDir[1]);
   const sm = T.paint.facet.smooth + 3;
-  pntEnsureHeights(f, x0 - Math.max(back, PNT_CELL + sm) - 4, y0 - Math.max(back, sm) - 4, x1 + PNT_CELL + sm + 4, y1 + maxH + sm + 8);
+  const cm = pntCellMax();
+  pntEnsureHeights(f, x0 - Math.max(back, cm + sm) - 4, y0 - Math.max(back, sm) - 4, x1 + cm + sm + 4, y1 + maxH + sm + 8);
   pntGroundTones(f, x0, y0, x1, y1);
   const tx0 = Math.floor(x0 / ATILE), ty0 = Math.floor(y0 / ATILE), tx1 = Math.ceil(x1 / ATILE) - 1, ty1 = Math.ceil(y1 / ATILE) - 1;
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) paintTileArt(f, tx, ty);
@@ -794,7 +842,7 @@ function pntRepaintRock(f, x0, y0, x1, y1, hb) {
   // (as far as a pixel's tone reads the heights: its slope's broad reach,
   // and its stroke's middle; from the heights that changed, if known, else
   // from as far as they could have)
-  const sx = P.facet.smooth + PNT_CELL + 3, sy = P.facet.smooth + 5;
+  const sx = P.facet.smooth + pntCellMax() + 3, sy = P.facet.smooth + 5;
   // (nothing changed in the heights, as when a vein is charged into the
   // rock: the whole reach)
   const B = hb || { x0: x0 - m, y0: y0 - m, x1: x1 + m, y1: y1 + m };

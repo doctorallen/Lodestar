@@ -532,7 +532,8 @@ function startLight(cx, cy, r, g, b) {
 // its own colour. cx, cy: the camera in the world, which the dither is
 // fixed to.
 function lightScene(cx, cy) {
-  const w = View.w, h = View.h, Lt = T.light, A = T.art, L = View.light, a = L.a, lw = L.w * 3, dz = A.lightDither;
+  // (the wash finish dithers the bands: the paint lab)
+  const w = View.w, h = View.h, Lt = T.light, A = T.art, L = View.light, a = L.a, lw = L.w * 3, dz = pntBrush().dither ? 1 : A.lightDither;
   const img = View.ctx.getImageData(0, 0, w, h), d = img.data;
   LateDots.on = false;
   lateDotsColour(d, w, h);

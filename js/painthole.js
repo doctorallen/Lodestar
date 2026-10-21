@@ -97,7 +97,7 @@ function phlPut(P, x, y, c, glow) {
 // faces the light: its ground a few tones lighter, in its strokes.
 function phlNearLip(P, x, y, b, step) {
   const GR = pntLook(b).ground, t = View.groundTone[y * P.w + x] + step;
-  phlPut(P, x, y, GR[t > 6 ? 6 : t]);
+  phlPut(P, x, y, GR[t > GR.length - 1 ? GR.length - 1 : t]);
 }
 
 // ---- in the water --------------------------------------------------------------
