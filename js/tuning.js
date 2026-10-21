@@ -1372,6 +1372,15 @@ const T = {
   // T.paint.brush); finish: how much the paint shows (paint, flat, ink,
   // wash; T.paint.finish).
   lab: { calm: false, form: false, warm: false, lose: false, air: false, brush: 'today', finish: 'paint' },
+  // Air beyond the beam (air.js; the paint lab's AIR; cosmetic). motes:
+  // per, how many a 100 × 100 art px of the floor, in the clime's glow
+  // colour (the star's gold at home), at alpha, lit by the light where they
+  // are; drifting up at speed [least, most] art px a second, swaying sway
+  // px; wide of them two px across. haze: over dark land, a broad noise in
+  // the ground's lightest tone at alpha (times the dark), scale art px a
+  // bump, drifting speed px a second. vignette: the corners to the violet
+  // black, from `from` of the shorter side out, alpha at the corner.
+  air: { motes: { per: 2.5, alpha: 0.75, speed: [4, 10], sway: 4, wide: 0.3 }, haze: { alpha: 0.11, scale: 60, speed: 5 }, vignette: { from: 0.45, alpha: 0.42 } },
 
   // tapGuard: seconds a new screen ignores taps. toasts: the most on screen
   // at once (ui.js; hints wait their turn). lineWait: seconds a spoken line

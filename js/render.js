@@ -827,6 +827,8 @@ function renderFrame() {
   ex.drawImage(View.floorEm, ox, oy);
   // the shadows big things cast from the lamp, on the ground (shadow.js)
   drawLampShadows(d, ox, oy);
+  // a haze over dark land (air.js; the paint lab's AIR)
+  airHaze(d, ox, oy);
   // lights: x, y on the view (art px), r in world px
   const lights = [];
   // what's drawn flat on the ground, then the rock in front of it laid
@@ -943,6 +945,8 @@ function renderFrame() {
   if (!d.hub) drawStorm(d, ox, oy, lights);
   const fx = vx(p.x), fy = vy(p.y);
 
+  // the clime's motes, lit where they drift (air.js; the paint lab's AIR)
+  airMotes(d, ox, oy);
   // the lamp's beam, if it is one, and what shows of it in the air
   const lv = lampLevels(d), beam = lampBeamOf(d, lv);
   if (beam) drawBeamAir(d, beam, lv, ox, oy);
@@ -972,6 +976,8 @@ function renderFrame() {
   if (beam) { addLampBeam(d, L, beam, rgb01(DIVER_PAL.lamp[0])); addWickLamp(d, L, beam); }
   else { const lamp = diverLampAt(d); addLampLight(d, L, lamp.x, lamp.y, lv.r, lv.i, rgb01(DIVER_PAL.lamp[0])); }
   lightScene(-ox, -oy);
+  // the corners sinking to the violet black (air.js; the paint lab's AIR)
+  airVignette(d);
   if (d.hub && Intro.hub) introHubOver(d, ox, oy);
   bloomScene(-ox, -oy);
   drawLifeShade(d, ox, oy);
