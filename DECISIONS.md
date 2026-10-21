@@ -748,3 +748,5 @@ A second round, each its own switch (so it can go with WASH) or a brush, all off
 - **SOFT BEAM EDGE:** a band's edge broken into short strokes along each row instead of a clean line.
 - **CANVAS:** a faint weave pinned to the world under everything.
 - **DAB** brush: short dabs as tall as they're wide. **CONTOUR** brush: the ground's strokes are streaks along the way the land runs (round the rock, a slow drift in the open), a line integral of the value and a grain; the rock keeps its own strokes.
+
+The beam made the ground busier than daylight does (the designer: "too much detail ... compare this to a fully lit area"). Three causes, all fixed for every setting: its ragged edge jittered the whole beam, not just its edge, so its bands broke into bricks (now only where it's faint, `raggedTo`); a dark place's ground is painted with its tones lifted apart to read in the dim, and the beam multiplied that up (where a light reaches daylight's, the ground's own pixels go back to their unlifted tones); and light past daylight's multiplied the paint further (past `T.light.flat.from` it's added instead, as off an even surface).

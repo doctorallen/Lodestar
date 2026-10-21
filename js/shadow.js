@@ -300,7 +300,7 @@ function beamAcross(Bm, x, y) {
 function addConeLight(L, Bm, c, S) {
   if (!(Bm.r > 0) || !(Bm.i > 0)) return;
   const s = Bm.i * T.art.lightSteps, cr = c[0] * s, cg = c[1] * s, cb = c[2] * s, a = L.a, Tb = beamTables(Bm), AC = Tb.across, AL = Tb.along;
-  const r = Bm.r, ir2 = 1 / (r * r), co = Bm.cOut, kc = BEAM_N / (1 - co), co2 = co * co, rg = T.light.beam.ragged * BEAM_N;
+  const r = Bm.r, ir2 = 1 / (r * r), co = Bm.cOut, kc = BEAM_N / (1 - co), co2 = co * co, rg = T.light.beam.ragged * BEAM_N, rTo = T.light.beam.raggedTo;
   // the cone's box
   const [bx0, by0, bx1, by1] = beamBox(Bm, 0, r);
   let i0 = Math.max(0, Math.floor(bx0 / LC) - L.x0), i1 = Math.min(L.w - 1, Math.ceil(bx1 / LC) - L.x0);
@@ -317,9 +317,12 @@ function addConeLight(L, Bm, c, S) {
       if (q >= 1) continue;
       const m = vis !== null ? vis[v] : 1;
       if (m <= 0) continue;
-      // (its edges broken into short strokes across, fixed to the world)
-      const st = n + L.x0 + rowPh, rag = (artHash((st / 3) | 0, j + L.y0, 0x6ec1) - 0.5) * rg;
-      const ci = ((al / Math.sqrt(ux * ux + uy * uy) - co) * kc + rag) | 0, g = AC[ci < 0 ? 0 : ci > BEAM_N ? BEAM_N : ci] * AL[(q * BEAM_N) | 0] * m;
+      // (its edges broken into short strokes across, fixed to the world:
+      // only where it's faint, out to the halo's edge, as ragged across the
+      // whole beam broke its bands into bricks, busier than lit ground)
+      const c0 = (al / Math.sqrt(ux * ux + uy * uy) - co) * kc, a0 = AC[c0 > BEAM_N ? BEAM_N : c0 | 0], rw = a0 < rTo ? 1 - a0 / rTo : 0;
+      const st = n + L.x0 + rowPh, rag = rw > 0 ? (artHash((st / 3) | 0, j + L.y0, 0x6ec1) - 0.5) * rg * rw : 0;
+      const ci = (c0 + rag) | 0, g = AC[ci < 0 ? 0 : ci > BEAM_N ? BEAM_N : ci] * AL[(q * BEAM_N) | 0] * m;
       a[o] += cr * g; a[o + 1] += cg * g; a[o + 2] += cb * g;
     }
   }

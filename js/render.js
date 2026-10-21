@@ -576,8 +576,9 @@ function lightScene(cx, cy) {
   // the higher step's share of the lamp.
   // (factors in 256ths, so a pixel is lit in whole numbers, all three of
   // its channels in one 32-bit read and write) Then how much of each
-  // step's colour goes (NOCTURNE, below; else 0).
-  const CS = 16;
+  // step's colour goes (NOCTURNE, below; else 0), and how much of each
+  // step's ground is taken back to its tones unlifted (below).
+  const CS = 18;
   if (!View.lightCF || View.lightCF.length < L.w * CS) View.lightCF = new Int32Array(L.w * CS);
   const CF = View.lightCF, m256 = Math.round(mx * 256), d32 = new Uint32Array(d.buffer);
   // The warm light (the paint lab, T.light.warm): each band has a tint of
@@ -594,13 +595,27 @@ function lightScene(cx, cy) {
   // goes (256ths); NT: the tint (256ths).
   const noct = Lab.on('nocturne'), Nc = Lt.nocturne, ND = new Int32Array(top + 2), NT = Nc.tint.map((v) => Math.round(v * 256));
   const nDark = noct ? clamp((Nc.darkAt[0] - ambI) / (Nc.darkAt[0] - Nc.darkAt[1]), 0, 1) : 0;
+  // Light past daylight's (T.light.flat: from, or the place's own if
+  // higher) doesn't multiply the paint further, which only raised its
+  // detail (a beam's ground blotched with strokes a lit place's isn't):
+  // the rest is added, as off a surface of an even `albedo`.
+  const Fl = Lt.flat, fCap = Math.max(Fl.from, ambI), fAdd = Fl.albedo * 255;
+  // A dark place's ground is painted with its tones lifted apart, so its
+  // strokes read in the dim light (paint.js pntLiftRamp); where a light
+  // reaches daylight's (fCap) they're the unlifted tones again, by UL (per
+  // step, 256ths), so a lamp shows the ground no busier than the sun does.
+  // Only the ground's own pixels, nothing drawn over it: each matched
+  // against its tone in the painted ramp (GL), and given the unlifted (GU).
+  const gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone, unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === gf.w * ATILE * gf.h * ATILE);
+  const GL = unl ? pntLook(gLook) : null, GU = unl ? pntLook(gLook, 0) : null, gHue = unl && GL.groundW ? View.groundHue : null, gW = unl ? gf.w * ATILE : 0, gH = unl ? gf.h * ATILE : 0, UL = new Int32Array(top + 2);
   for (let q = 0; q <= top + 1; q++) {
-    const level = q * inv, lp = warm ? clamp((level - ambI) * lpK, 0, 1) : 0, k = Wm.lift * lp;
+    const level = q * inv, lp = warm ? clamp((level - ambI) * lpK, 0, 1) : 0, k = Wm.lift * lp, over = level > fCap ? level - fCap : 0, fm = over ? fCap / level : 1;
     LP[q] = lp;
+    UL[q] = unl ? Math.round(clamp((level - ambI) / Math.max(0.05, fCap - ambI), 0, 1) * 256) : 0;
     ND[q] = nDark > 0 ? Math.round(Nc.amount * nDark * (1 - clamp((level - ambI) * lpK, 0, 1)) * 256) : 0;
     for (let c = 0; c < 3; c++) {
       const t = warm ? 1 + (Wm.lit[c] - 1) * lp + (Wm.dark[c] - 1) * (1 - lp) * dark : 1;
-      TF[q * 3 + c] = t * (1 - k); TA[q * 3 + c] = Wm.paper[c] * k * level * t;
+      TF[q * 3 + c] = t * (1 - k) * fm; TA[q * 3 + c] = Wm.paper[c] * k * level * t + fAdd * over * t * (1 - k);
     }
   }
   // each column's cell
@@ -649,7 +664,7 @@ function lightScene(cx, cy) {
       }
       for (let n = 0, o = base, j = 0; n < L.w; n++, o += 3, j += CS) {
         const r = a[o], g = a[o + 1], b = a[o + 2], I = r > g ? (r > b ? r : b) : g > b ? g : b;
-        if (I <= 0) { CF[j] = 1 << 20; for (let c = 1; c < CS; c++) CF[j + c] = 0; CF[j + 14] = ND[0]; continue; }
+        if (I <= 0) { CF[j] = 1 << 20; for (let c = 1; c < CS; c++) CF[j + c] = 0; CF[j + 14] = ND[0]; CF[j + 16] = UL[0]; continue; }
         // (on a slope, the lower step is the one its lowest pixel can reach)
         let q0 = (I + lo - (fit ? (Math.abs(GX[j]) + Math.abs(GY[j])) / 65536 : 0)) | 0, q1 = q0 + 1;
         CF[j] = Math.ceil((q1 - I) * 65536);
@@ -663,6 +678,7 @@ function lightScene(cx, cy) {
         CF[j + 10] = TA[t1] * r * iI + 0.5; CF[j + 11] = TA[t1 + 1] * g * iI + 0.5; CF[j + 12] = TA[t1 + 2] * b * iI + 0.5;
         CF[j + 13] = LP[q1] * 256;
         CF[j + 14] = ND[q0]; CF[j + 15] = ND[q1];
+        CF[j + 16] = UL[q0]; CF[j + 17] = UL[q1];
       }
     }
     if (fit) {
@@ -674,7 +690,9 @@ function lightScene(cx, cy) {
       const wy = y + cy, sfPh = soft ? (Math.imul(wy, 0x9e3779b1) >>> 27) : 0;
       for (let x = 0, k = y * w; x < w; x++, k++) {
         const j = col[x], th = soft ? 32768 + (((Math.imul(Math.floor((x + cx + sfPh) / sfLen), 0x85ebca6b) ^ Math.imul(wy, 0xc2b2ae35)) >>> 24) - 127.5) * sfK : bt[(x + cx) & 3];
-        const hi = th + GXO[x] >= CFr[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, p = d32[k];
+        const hi = th + GXO[x] >= CFr[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, ul = CF[j + 16 + hi];
+        let p = d32[k];
+        if (ul) p = lightUnlift(p, ul, x + cx, wy, gW, gH, GT, gHue, GL, GU);
         let r = (((p & 255) * CF[sel] + 128) >> 8) + CF[sel + 6], g = ((((p >> 8) & 255) * CF[sel + 1] + 128) >> 8) + CF[sel + 7], b = ((((p >> 16) & 255) * CF[sel + 2] + 128) >> 8) + CF[sel + 8];
         // nocturne: the colour going, towards a cool grey of its lightness
         const nd = CF[j + 14 + hi];
@@ -704,7 +722,9 @@ function lightScene(cx, cy) {
     for (let x = 0, k = y * w; x < w; x++, k++) {
       // the pixel, lit by its cell's factors, on the higher step if its
       // threshold reaches it: its r, g, b in one 32-bit word
-      const j = col[x], hi = bt[(x + cx) & 3] >= CF[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, p = d32[k];
+      const j = col[x], hi = bt[(x + cx) & 3] >= CF[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, ul = CF[j + 16 + hi];
+      let p = d32[k];
+      if (ul) p = lightUnlift(p, ul, x + cx, y + cy, gW, gH, GT, gHue, GL, GU);
       let r = (((p & 255) * CF[sel] + 128) >> 8) + CF[sel + 6], g = ((((p >> 8) & 255) * CF[sel + 1] + 128) >> 8) + CF[sel + 7], b = ((((p >> 16) & 255) * CF[sel + 2] + 128) >> 8) + CF[sel + 8];
       const nd = CF[j + 14 + hi];
       if (nd) { const l = (r * 77 + g * 151 + b * 28) >> 8; r += (((l * NT[0]) >> 8) - r) * nd >> 8; g += (((l * NT[1]) >> 8) - g) * nd >> 8; b += (((l * NT[2]) >> 8) - b) * nd >> 8; }
@@ -718,6 +738,19 @@ function lightScene(cx, cy) {
   View.ctx.putImageData(img, 0, 0);
   lateDotsGlow(w, h);
   LateDots.q.length = 0;
+}
+
+// A pixel p of the view at floor px (x, y), taken a share ul (256ths) of
+// the way back to its ground tone unlifted, if it is the ground's own (its
+// tone there in the painted ramp, L; U the unlifted); else p as it is.
+function lightUnlift(p, ul, x, y, W, H, GT, HUE, L, U) {
+  if (x < 0 || y < 0 || x >= W || y >= H) return p;
+  const i = y * W + x, t = GT[i], hu = HUE ? HUE[i] : 0, a = hu === 1 ? L.groundW : hu === 2 ? L.groundC : L.ground;
+  if ((p | 0) !== (a[t] | 0)) return p;
+  const q = hu === 1 ? U.groundW[t] : hu === 2 ? U.groundC[t] : U.ground[t];
+  if (ul >= 256) return q;
+  const r = p & 255, g = (p >> 8) & 255, b = (p >> 16) & 255;
+  return 0xff000000 | ((b + ((((q >> 16) & 255) - b) * ul >> 8)) << 16) | ((g + ((((q >> 8) & 255) - g) * ul >> 8)) << 8) | (r + (((q & 255) - r) * ul >> 8));
 }
 
 // CANVAS (the paint lab, T.light.canvas): a weave under the paint, pinned

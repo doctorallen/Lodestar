@@ -1277,6 +1277,11 @@ const T = {
     ambient: 0.45, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: true,
+    // flat: light past `from` (or the place's own, if higher) is added, as
+    // off a surface of an even `albedo` (0-1), not multiplied, so a strong
+    // lamp brightens the ground without raising its detail (render.js
+    // lightScene)
+    flat: { from: 1.0, albedo: 0.4 },
     // The warm light (the paint lab's WARM LIGHT; render.js lightScene):
     // each of the light's bands tinted by its share of the lamp's light
     // (0 at the ambient, 1 at max): lit, the tint at the top; dark, at the
@@ -1344,8 +1349,10 @@ const T = {
     // has faded out, smoothly between; axis: how much brighter still
     // right on its axis; halo: a faint wider cone round it [its edge, ×
     // edge; strength]; ragged: how far its edges are broken into short
-    // strokes across (a share of the halo's edge's cosine range). pow: how it fades with distance, (1 − d)^pow
-    // (the glow's is 2). rise: where the cone starts, from the feet (0) to
+    // strokes across (a share of the halo's edge's cosine range), fading
+    // out where the beam is raggedTo strong, so its bright middle is
+    // smooth. pow: how it fades with distance, (1 − d)^pow (the glow's is
+    // 2). rise: where the cone starts, from the feet (0) to
     // the brow lamp (1); back: art px its apex is set back behind that, so
     // it's already as wide as the body where it leaves him. spill: a dim
     // round light round him [its reach, × the glow's; strength]; hot: a
@@ -1359,7 +1366,7 @@ const T = {
     // far out (× reach)], and motes drifting in it [how many a 100 × 100
     // art px of cone, alpha].
     beam: {
-      on: true, reach: 1.7, i: 1.75, core: 8, edge: 30, axis: 0.6, halo: [1.6, 0.16], ragged: 0.1, pow: 1.1, rise: 0.45, back: 10,
+      on: true, reach: 1.7, i: 1.75, core: 8, edge: 30, axis: 0.6, halo: [1.6, 0.16], ragged: 0.1, raggedTo: 0.35, pow: 1.1, rise: 0.45, back: 10,
       spill: [0.36, 0.42], hot: [9, 0.7],
       low: { narrow: 0.7, flicker: 0.45 },
       sightSteps: 64, rays: 0.8,
