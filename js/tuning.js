@@ -1132,6 +1132,13 @@ const T = {
     foes: {
       base: 0.47, light: 0.9, shade: 0.8, depth: 3, fall: 0.16, crease: 0.14, run: [2, 4], jitter: 0.32, rim: 0.85, rimHi: 0.35, under: 1, elite: 0.7,
       read: { top: 0.9, left: 0.6, lit: 0.28, glowLit: 0.6, pale: [255, 236, 200], shade: 0.85, dark: 0.55, glow: 0.7, shadow: [0.4, 0.62] },
+      // The paint lab's LOST EDGES (fpLoseEdges): on the shadow side, drop
+      // of a mass's edge pixels are dropped and the rest sunk `deep` towards
+      // the violet black; the lit side's rim goes `rim` towards pale on the
+      // Kindler, rimUp on creatures (whose rims were too close to find);
+      // tones under desatBelow of the brightest lose `desat` of their
+      // saturation; glint: the brow lamp's warm pixels on the helm.
+      lose: { drop: 0.5, deep: 0.6, rim: 0.3, rimUp: 0.5, desat: 0.35, desatBelow: 0.45, glint: [255, 224, 138] },
     },
     // The Kindler's animation (diver.js kindlerPick): cycle, art px walked
     // a walk cycle seen from the side (two steps), shortened seen from in
