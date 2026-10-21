@@ -92,7 +92,7 @@ function recipeLock(id) {
   }
   if (bp.kind === 'wick') {
     if (UI.forge.field) return 'Fitted at home';
-    if (wickFitted(bp.wick)) return 'Fitted: turn it off or on at the locker';
+    if (wickFitted(bp.wick)) return 'Fitted: turn it off or on above';
     if (!structureBuilt('bay')) return 'Build the Drone Bay first (BUILDINGS)';
     if (!structureStands('bay')) return 'The Drone Bay is still coming down';
     if (!wickOpen(bp.wick)) return `The star must reach magnitude ${T.wickUp[bp.wick].mag}`;
@@ -141,9 +141,10 @@ function forgeCloseTo(src) {
 }
 
 function drawForge() {
-  const src = forgeSource(), F = UI.forge, s = Save.data, known = s.blueprints.filter((id) => BLUEPRINTS[id] && forgeTabOpen(BLUEPRINTS[id].cat) && !(F.field && recipeOnce(BLUEPRINTS[id])));
-  $('forge-title').textContent = F.field ? 'AN ANCIENT FORGE' : 'THE FORGE';
-  if (F.codex && !F.field && forgeTabOpen('codex')) { drawCodex(); return; }
+  // (at the Drone Bay, only Wick's upgrades; at the forge, all but those)
+  const src = forgeSource(), F = UI.forge, s = Save.data, known = s.blueprints.filter((id) => BLUEPRINTS[id] && forgeTabOpen(BLUEPRINTS[id].cat) && !(F.field && recipeOnce(BLUEPRINTS[id])) && (BLUEPRINTS[id].cat === 'wick') === !!F.bay);
+  $('forge-title').textContent = F.bay ? 'THE DRONE BAY' : F.field ? 'AN ANCIENT FORGE' : 'THE FORGE';
+  if (F.codex && !F.field && !F.bay && forgeTabOpen('codex')) { drawCodex(); return; }
   if (!F.bp || !known.includes(F.bp)) F.bp = known.find((id) => BLUEPRINTS[id].kind === 'caster') || known[0];
   const bp = BLUEPRINTS[F.bp], cat = bp.cat, tool = recipeOnce(bp);
   if (!tool && (!F.ore || !forgeOres(src).some((o) => o.id === F.ore))) F.ore = forgeBestOre(F.bp, src);
@@ -155,10 +156,10 @@ function drawForge() {
   const ready = !short.length && !lock;
 
   // what's close, then the tabs and the recipes in this one
-  const close = F.field ? [] : forgeCloseTo(src);
+  const close = F.field || F.bay ? [] : forgeCloseTo(src).filter((c) => BLUEPRINTS[c.id].cat !== 'wick');
   const closeRows = close.map((c) => `<button class="row close-row" data-act="forgeGo" data-arg="${c.id}${c.ore ? ':' + c.ore : ''}"><img class="icon" src="${recipeIconUrl(c.id, c.ore ? T.ores[ORE_INDEX[c.ore]].tier : 1)}" alt=""><span class="row-text"><span class="row-name">${esc(c.ore && BLUEPRINTS[c.id].kind !== 'stone' ? `${stuffName(c.ore)} ${recipeName(c.id)}` : recipeName(c.id))}${c.ore && BLUEPRINTS[c.id].kind === 'stone' ? ` · tier ${T.ores[ORE_INDEX[c.ore]].tier}` : ''}</span><span class="row-sub short">${esc(shortWords(c.short))} short</span></span></button>`).join('');
-  const cats = forgeCats().filter(([, c]) => !(F.field && (c === 'tool' || c === 'structure' || c === 'wick')));
-  const tabs = `<div class="chips forge-tabs">${cats.map(([label, c]) => `<button class="chip ${!F.codex && cat === c ? 'on' : ''}" data-act="forgeTab" data-arg="${c}">${label}</button>`).join('')}${F.field || !forgeTabOpen('codex') ? '' : `<button class="chip" data-act="forgeTab" data-arg="codex">CODEX</button>`}</div>`;
+  const cats = forgeCats().filter(([, c]) => c !== 'wick' && !(F.field && (c === 'tool' || c === 'structure')));
+  const tabs = F.bay ? wickBayHtml() + '<h3>UPGRADES</h3>' : `<div class="chips forge-tabs">${cats.map(([label, c]) => `<button class="chip ${!F.codex && cat === c ? 'on' : ''}" data-act="forgeTab" data-arg="${c}">${label}</button>`).join('')}${F.field || !forgeTabOpen('codex') ? '' : `<button class="chip" data-act="forgeTab" data-arg="codex">CODEX</button>`}</div>`;
   const inTab = known.filter((id) => BLUEPRINTS[id].cat === cat);
   const canMake = (id) => !recipeLock(id) && (recipeOnce(BLUEPRINTS[id]) ? !recipeShort(recipeCost(id), src).length : forgeOres(src).some((o) => !recipeShort(recipeCost(id, o.id), src).length));
   const tiles = inTab.map((id) => `<button class="bp ${id === F.bp ? 'on' : ''}${recipeLock(id) ? ' locked' : ''}" data-act="forgeBp" data-arg="${id}"><img class="icon" src="${recipeIconUrl(id, ore ? ore.tier : 1)}" alt=""><span>${esc(BLUEPRINTS[id].tool ? TOOLS[BLUEPRINTS[id].tool].name.split(' ').pop() : BLUEPRINTS[id].structure ? STRUCTURES[BLUEPRINTS[id].structure].short : BLUEPRINTS[id].kind === 'caster' && ore ? `${ore.name} Rig` : BLUEPRINTS[id].name)}</span>${BLUEPRINTS[id].structure && structureBuilt(BLUEPRINTS[id].structure) || BLUEPRINTS[id].wick && wickFitted(BLUEPRINTS[id].wick) ? '<i class="made" aria-label="Made">✓</i>' : ''}${canMake(id) ? '<i class="can" aria-label="Can be made"></i>' : ''}</button>`).join('');
@@ -248,9 +249,9 @@ function drawCodex() {
 // ---------------------------------------------------------------------------
 // Opening the forge at home: anything new is studied first, and if it
 // revealed a recipe, the reveal shows before the forge.
-function openForge(field) {
-  UI.forge.field = !!field;
-  const finds = field ? [] : researchStudy();
+function openForge(field, bay) {
+  UI.forge.field = !!field; UI.forge.bay = !!bay;
+  const finds = field || bay ? [] : researchStudy();
   if (finds.length) { Save.save(); UI.research = finds; UI.show('screen-research'); snd('blueprint'); Story.say('research'); return; }
   UI.forge.scroll = true;
   UI.show('screen-forge');
@@ -288,7 +289,6 @@ function drawGear() {
   $('gear-body').innerHTML = `
     <div class="stats">${statLine(st)}</div>
     <h3>WORN</h3>${slots}
-    ${onboardHas('wick') ? wickLockerHtml() : ''}
     ${onboardHas('modules') || mods.length ? `<h3>MODULES · ${mods.length}</h3>${modList || '<p class="note">None spare.</p>'}` : ''}
     ${relics.length ? `<h3>SEALED RELICS · ${relics.length}</h3>${relics.map((it) => itemRow(it, 'cardStash', it.uid)).join('')}` : ''}
     <h3>FRAMES AND BASES · ${s.items.filter((it) => kinds.includes(it.kind)).length}</h3>${bases || '<p class="note">None spare.</p>'}

@@ -145,7 +145,7 @@ const WICK = {
   wake_gear: 'The forge has armour and charms for us now.',
   wake_tools: 'New tools at the forge. Carry one from the portal.',
   wake_buildings: 'The Meridian will drop buildings now. Plans at the forge.',
-  wake_wick: 'Fit me with something. The forge\'s WICK tab.',
+  wake_wick: 'Fit me with something. Walk me over to the Drone Bay.',
   wake_uplink: 'The uplink\'s warm. The Meridian is listening.',
   // natures (natures.js)
   weakHit: "It hates that. I'll mark what each kind fears over its head.",

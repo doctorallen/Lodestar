@@ -261,7 +261,7 @@ function actionHere() {
   if (!d || d.dying || d.warp) return null;
   const near = (tx, ty, r) => dist(d.p.x, d.p.y, (tx + 0.5) * TILE, (ty + 0.5) * TILE) < r;
   // (a station not yet awake has no button: onboard.js)
-  if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && stationAwake(s.id) && near(s.x, s.y, s.id === 'wreck' ? 30 : 20)); return s ? s.id : null; }
+  if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && stationAwake(s.id) && near(s.x, s.y, s.id === 'wreck' ? 30 : 20)); return s ? s.id : bayHere(d) ? 'bay' : null; }
   const t = floorTile(d.floor, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
   if (t === TILE_PAD && !d.padDark && !d.channel) return 'extract';
   if (d.sortie && !d.channel && stoneHere(d) >= 0) return 'stone';

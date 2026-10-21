@@ -440,7 +440,8 @@ function spireSprite() {
   return (_worldSprites.spire = s);
 }
 
-// A waystone: a squat stele of lodestone, its band of runes dark until lit.
+// A waystone: a squat stele of lodestone, its band of runes glowing dimly
+// until lit, so it can be found in the dark.
 function waystoneSprite(lit) {
   const key = 'stone' + (lit ? 1 : 0);
   if (_worldSprites[key]) return _worldSprites[key];
@@ -452,7 +453,7 @@ function waystoneSprite(lit) {
     for (let x = cx - half; x <= cx + half; x++) put(x, y, x === cx - half || y === 2 ? S[3] : x < cx ? S[2] : x === cx + half ? S[0] : S[1]);
   }
   const rune = ['G.G.G', '.GGG.', 'G.G.G', '..G..', '.G.G.'];
-  for (let j = 0; j < rune.length; j++) for (let i = 0; i < 5; i++) if (rune[j][i] === 'G') put(cx - 2 + i, 10 + j * 2, lit ? (j % 2 ? G[2] : G[3]) : '#16181c', lit);
+  for (let j = 0; j < rune.length; j++) for (let i = 0; i < 5; i++) if (rune[j][i] === 'G') put(cx - 2 + i, 10 + j * 2, lit ? (j % 2 ? G[2] : G[3]) : j % 2 ? '#5a4220' : '#7a5a2c', true);
   pflRepaintProp(P, solid, S, 0x5b1f);
   const s = spriteFromBuf(P);
   s.ax = cx; s.ay = H - 2;
@@ -490,6 +491,12 @@ function drawWorldProp(d, a, ox, oy, lights) {
   if (lit) {
     const k = held ? 0.8 + 0.2 * Math.sin(Game.realT * 6) : 0.85 + 0.15 * Math.sin(Game.realT * 2 + a.k);
     lights.push({ x: fx, y: fy - ap(14), r: TILE * (held ? 2.6 : 1.8), i: k, c: rgb01(G[2]) });
+  } else {
+    // unlit, a faint glow breathing slowly, and a mote now and then
+    const W = T.world.waystone, k = 0.75 + 0.25 * Math.sin(Game.realT * 1.2 + a.k * 2);
+    lights.push({ x: fx, y: fy - ap(14), r: TILE * W.dim[0], i: W.dim[1] * k, c: rgb01(G[2]) });
+    const ph = (Game.realT * 0.3 + a.k * 0.37) % 1;
+    dot(fx + Math.round(Math.sin(ph * 6 + a.k) * 3), fy - ap(16) - Math.round(ph * ap(14)), G[2], true, Math.sin(ph * Math.PI) * 0.8);
   }
 }
 

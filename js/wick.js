@@ -1,8 +1,8 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Wick's upgrades, fitted at the forge's WICK tab once the Drone Bay stands
-// (structures.js; their recipes in blueprints.js, their numbers in
-// T.wickUp), each once. Each can be turned off and on at the locker, free
+// Wick's upgrades, fitted at the Drone Bay once it stands (structures.js;
+// their recipes in blueprints.js, their numbers in T.wickUp), each once.
+// Each can be turned off and on there, free
 // (Save.data.wickUps: id → on). Out in the land, each shows what it does:
 //   scan    a ping now and then: a ring out from Wick, veins near glinting
 //           for a moment, marks on the pack and on modules on the ground
@@ -207,9 +207,9 @@ function addWickLamp(d, L, Bm) {
 }
 
 // ---------------------------------------------------------------------------
-// At the locker: Wick's upgrades, each turned off or on, free
+// At the Drone Bay: Wick's upgrades, each turned off or on, free
 // ---------------------------------------------------------------------------
-function wickLockerHtml() {
+function wickBayHtml() {
   if (!structureStands('bay')) return `<h3>WICK</h3><p class="note">${structureBuilt('bay') ? 'The Drone Bay is coming down.' : 'Needs the Drone Bay.'}</p>`;
   const rows = WICK_UP_IDS.map((id) => {
     const own = wickFitted(id), on = wickOn(id);

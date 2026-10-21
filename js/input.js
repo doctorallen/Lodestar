@@ -161,7 +161,7 @@ function setupInput() {
       else UI.openPause();
       return;
     }
-    if (e.code === 'KeyI' && Game.dive && !Game.dive.hub && !Game.modal) { UI.openCargo(); return; }
+    if (e.code === 'KeyI' && Game.dive && !Game.modal) { if (Game.dive.hub) UI.show('screen-gear'); else UI.openCargo(); return; }
     if ((e.code === 'KeyE' || e.code === 'Enter') && !Game.modal) Input.actReq = true;
     if (DASH_KEYS.includes(e.code) && !Game.modal) Input.dashReq = true;
     Input.keys.add(e.code);

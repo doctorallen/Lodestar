@@ -400,7 +400,7 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
 | The portal (SET OUT) | In a Charter gate. The world map: a territory next to the outpost to walk out into, or a spire to set out to, and the tool to carry |
 | The forge (FORGE, SUPPLIES) | The Charter's fabricator. Recipes by tab, each exact: rig frames, Form, Element and Mod cores, plate, charms, picks and tools, from banked ore, parts and exotics. Studies what's new (research). Every forge is played on the anvil. SUPPLIES, beside FORGE, makes supplies from ore |
 | The tuning bench (TUNE) | Every module, socketed first: tap one to UPGRADE it (threads and the new tier's ore) or SALVAGE it (threads) |
-| The locker (OPEN LOCKER) | What's worn, the rig's two spells and every module socket, the stash's modules, frames, bases and cores, stats; equip, socket modules and set cores (free), upgrade and salvage, unseal relics, KEEP |
+| The locker (OPEN LOCKER, or LOCKER in the top bar anywhere at home) | What's worn, the rig's two spells and every module socket, the stash's modules, frames, bases and cores, stats; equip, socket modules and set cores (free), upgrade and salvage, unseal relics, KEEP |
 | The star's altar (THE STAR) | Hold FEED THE STAR and the light your deeds earned rises into the star, mote by mote, faster the longer you hold, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements. A shard carried home is set here instead (SET THE SHARD) |
 | The practice target | A construct that takes every hit and never falls, for trying combos |
 | The uplink (THE UPLINK) | A relay mast to the *Meridian* in orbit: the landers it can send, the shards set, the echoes, and calling the colony down |
@@ -424,13 +424,13 @@ The Charter planned more base than came down with the seed. Each building has a 
 
 | Building | Magnitude | Costs | What it does |
 |---|---|---|---|
-| Drone Bay | 2 | 8 Ferrite, 15 threads | Wick can be fitted with upgrades (the forge's WICK tab) |
+| Drone Bay | 2 | 8 Ferrite, 15 threads | Wick can be fitted with upgrades: walk up to it |
 | Refinery | 2 | 4 Lumenite, 35 threads | Level 1 of 3: supplies stronger (below). Upgraded at SUPPLIES: level 2 at magnitude 3 for 6 Resonite and 50 threads, level 3 at magnitude 5 for 6 Sigilite and 90 threads. Also 4 of an ore and 2 threads refine into 1 of the next ore up (one already brought home) |
 | Forward Relay | 3 | 5 Resonite, 70 threads, 3 chitin | An emergency recall takes half the time; banking and travel at a spire are quicker |
 | Settlers' Quarters | 4 | 4 Aetherglass, 100 threads, a Lodestone shard | Each time you come home the settlers bring 6 threads; two more settlers, and their lines |
 
 ### Wick's upgrades
-Fitted once at the forge's WICK tab, once the Drone Bay stands; each can be turned off and on at the locker, free. Each shows what it does, and Wick says a line the first time. Numbers in `T.wickUp`.
+Fitted once at the Drone Bay (walk up to it), once it stands; each can be turned off and on there, free. Each shows what it does, and Wick says a line the first time. Numbers in `T.wickUp`.
 
 | Upgrade | Magnitude | Costs | What it does |
 |---|---|---|---|

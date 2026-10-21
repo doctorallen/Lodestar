@@ -105,7 +105,12 @@ const UI = {
     // a tap on the dark round the card closes it, as ✕ does
     $('card').addEventListener('click', (e) => { if (e.target === $('card')) { if (Game.realT - UI.openedAt >= T.ui.tapGuard) UI.acts.closeCard(); } else UI.onTap(e); });
     $('btn-pause').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.openPause(); });
-    $('btn-cargo').addEventListener('click', () => { if (Game.dive && !Game.dive.hub && !Game.modal) UI.openCargo(); });
+    // (at home it's the locker: what you own, anywhere in the outpost)
+    $('btn-cargo').addEventListener('click', () => { if (Game.dive && !Game.modal) { if (Game.dive.hub) UI.show('screen-gear'); else UI.openCargo(); } });
+    // the goal over the view folds to its heading when tapped, and back
+    const goal = $('hud-goal'), S0 = () => Save.data.settings || (Save.data.settings = {});
+    goal.classList.toggle('shut', !!(Save.data && Save.data.settings && Save.data.settings.goalShut));
+    goal.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); const s = S0(); s.goalShut = !s.goalShut; goal.classList.toggle('shut', s.goalShut); Save.saveField('settings'); snd('tap', {}); });
     // TRAVEL at a spire; at the star's altar, ATTUNE (its screen)
     $('btn-act2').addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -187,6 +192,7 @@ const UI = {
       UI.show('screen-star');
     }
     else if (id === 'locker') UI.show('screen-gear');
+    else if (id === 'bay') openForge(false, true);
     else if (id === 'runes') UI.show('screen-bench');
     else if (id === 'setout') UI.openMap('setout');
     else if (id === 'wreck') { UI.show('screen-wreck'); snd('uplink'); }
@@ -351,7 +357,7 @@ const UI = {
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
     $('hud-ch').classList.toggle('low', p.lowCharge > 0);
     if (!d.hub) setTextIfChanged('hud-depth', d.deep ? `THE DEEP ${d.deep.site}/${d.deep.of}` : d.terr ? terrOf(d.terr).name.toUpperCase() : '');
-    setTextIfChanged('btn-cargo', `CARGO ${cargoCount(d)}`);
+    setTextIfChanged('btn-cargo', d.hub ? 'LOCKER' : `CARGO ${cargoCount(d)}`);
     drawSupplyDeck(d);
     const eq = Save.data.equip;
     const rig = isCaster(eq.main) ? eq.main : null;
@@ -372,7 +378,7 @@ const UI = {
     const rh = a === 'rift' && riftHere(d);
     let way = '';
     if (a === 'way') way = !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'CLIMB DOWN: ' + wayPlaceName(d, wayHere(d)).toUpperCase();
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'TUNE', locker: 'OPEN LOCKER', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `HOLD TO FEED · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'TUNE', locker: 'OPEN LOCKER', bay: 'DRONE BAY', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `HOLD TO FEED · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
     // feeding the star is a hold, not a tap: the button says so, pulses to

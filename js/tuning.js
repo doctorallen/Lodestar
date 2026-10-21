@@ -98,7 +98,9 @@ const T = {
   //     round where the diver arrives that start clear of enemies.
   //   waystone: lighting one is a `channel` s channel within `touch` px;
   //     the last must then be held `hold` s within holdR px, the dark sending
-  //     `wave` more every waveEvery s. plant: the spire's channel, s.
+  //     `wave` more every waveEvery s; dim: an unlit one's faint glow, so
+  //     it can be found in the dark [radius in tiles, strength]. plant: the
+  //     spire's channel, s.
   //   sun: daylight on the surface (0 dusk, 1 noon) in dark land, in kindled
   //     land, and on the Edge.
   world: {
@@ -115,7 +117,7 @@ const T = {
     deep: { chance: 0.35, sites: [1, 3] },
     exits: { apart: 9, tunnelR: 1.2, reach: 9, inward: 3 },
     gen: { rooms: [5, 7] }, veins: [0, 1], regrow: 3, straggler: 0.4, clear: 7,
-    waystone: { channel: 2.5, touch: 18, hold: 20, holdR: 40, waveEvery: 8, wave: 1 },
+    waystone: { channel: 2.5, touch: 18, hold: 20, holdR: 40, waveEvery: 8, wave: 1, dim: [1.4, 0.45] },
     plant: 6,
     sun: { dark: -0.35, kindled: 1, edge: -0.6 },
   },
@@ -273,8 +275,8 @@ const T = {
     // a building coming down to its plot: how long (s), from how high (px)
     land: { time: 1.8, high: 150 },
   },
-  // Wick's upgrades (wick.js), fitted at the forge's WICK tab once the Drone
-  // Bay stands; each can be turned off and on at the locker, free.
+  // Wick's upgrades (wick.js), fitted at the Drone Bay once it stands; each
+  // can be turned off and on there, free.
   //   scan: every `every` s out in the land, a ping: veins within `reach`
   //     tiles glint for `show` s, and marks point to the pack and to
   //     modules on the ground.

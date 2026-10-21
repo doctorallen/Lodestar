@@ -551,9 +551,9 @@ async function phone(browser) {
   check(tools.lands, "phone: the beacon did not land a spire's light to bank at");
 
   // the outpost's buildings and Wick's upgrades: the Drone Bay built at the
-  // forge's BUILDINGS tab comes down to its plot once it's in view; Wick's
-  // Scanner fitted at the WICK tab, turned off and on again at the locker;
-  // out in the land it pings, and the veins near are marked
+  // forge's BUILDINGS tab comes down to its plot once it's in view; walked
+  // up to, Wick's Scanner is fitted there, turned off and on again; out in
+  // the land it pings, and the veins near are marked
   await page.evaluate(() => {
     const s = Save.data; window._starWas = s.star; s.star = T.star.levels[2] + 1;
     Object.assign(s.stash, { ferrite: 60, lumenite: 20, thread: 60, spore1: 4 });
@@ -579,18 +579,30 @@ async function phone(browser) {
   check(bay.built, 'phone: the Drone Bay was not built from the stash');
   check(bay.down && bay.stands && bay.drawn, `phone: the Drone Bay did not come down to its plot (${JSON.stringify(bay)})`);
   await shot(page, 'smoke-dronebay');
-  await page.evaluate(() => { UI.close(); openForge(false); });
+  const atBay = await page.evaluate(() => {
+    UI.close(); openForge(false);
+    const noTab = !document.querySelector('#forge-body [data-act=forgeTab][data-arg=wick]');
+    UI.close();
+    const d = Game.dive, p = d.floor.site.plots[0];
+    d.p.x = p.x * TILE; d.p.y = p.y * TILE + 14; Game.step(1 / 60);
+    const here = actionHere() === 'bay' && $('btn-act').textContent === 'DRONE BAY';
+    Input.actReq = true; Game.step(1 / 60);
+    return { noTab, here, open: Game.modal === 'screen-forge' && $('forge-title').textContent === 'THE DRONE BAY' };
+  });
+  check(atBay.noTab && atBay.here && atBay.open, `phone: Wick is not fitted at the Drone Bay (${JSON.stringify(atBay)})`);
   await run(page, 0.5);
-  await tap(page, '#forge-body [data-act=forgeTab][data-arg=wick]');
   await tap(page, '#forge-body [data-act=forgeBp][data-arg=wick_scan]');
   await tap(page, '#forge-body [data-act=craft]');
   check(await page.evaluate(() => wickOn('scan')), "phone: Wick's Scanner was not fitted");
-  await page.evaluate(() => { UI.close(); UI.useStation('locker'); });
-  await run(page, 0.5);
-  await tap(page, '#gear-body [data-act=wickToggle][data-arg=scan]');
+  await tap(page, '#forge-body [data-act=wickToggle][data-arg=scan]');
   const off = await page.evaluate(() => !wickOn('scan') && wickFitted('scan'));
-  await tap(page, '#gear-body [data-act=wickToggle][data-arg=scan]');
-  check(off && (await page.evaluate(() => wickOn('scan'))), "phone: Wick's Scanner did not turn off and on at the locker");
+  await tap(page, '#forge-body [data-act=wickToggle][data-arg=scan]');
+  check(off && (await page.evaluate(() => wickOn('scan'))), "phone: Wick's Scanner did not turn off and on at the Drone Bay");
+  // the locker, from the top bar anywhere at home
+  await page.evaluate(() => UI.close());
+  await run(page, 0.5);
+  await tap(page, '#btn-cargo');
+  check(await page.evaluate(() => Game.modal === 'screen-gear' && $('btn-cargo').textContent === 'LOCKER'), 'phone: the top bar did not open the locker at home');
   const ping = await page.evaluate(() => {
     UI.close(); startSortie({ terr: ring1(null), from: 0 }); sturdy();
     const d = Game.dive, f = d.floor;

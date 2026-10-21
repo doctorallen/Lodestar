@@ -24,7 +24,7 @@
 const STRUCTURES = {
   bay: {
     short: 'Drone Bay', label: 'DRONE BAY', line: 'bld_bay',
-    text: () => "Wick's own hangar. Once it stands, Wick can be fitted with upgrades at the forge's WICK tab: a scanner, a lamp, a shield and a spark.",
+    text: () => "Wick's own hangar. Once it stands, walk up to it to fit Wick with upgrades, and turn them off or on: a scanner, a lamp, a shield and a spark.",
   },
   refinery: {
     short: 'Refinery', label: 'REFINERY', line: 'bld_refinery',
@@ -86,6 +86,13 @@ function structureProps(d) {
     out.push({ structure: id, plot: p, landing, hubDraw: drawStructure, hidden: true, y: p.y * TILE + 3 });
   });
   return out;
+}
+
+// Whether the diver stands at the Drone Bay's door, it standing: its
+// screen, Wick's upgrades (gearui.js drawForge).
+function bayHere(d) {
+  const S = d.floor.site, p = S && S.plots && S.plots[STRUCTURE_IDS.indexOf('bay')];
+  return !!(p && structureStands('bay') && dist(d.p.x, d.p.y, p.x * TILE, p.y * TILE + 4) < 26);
 }
 
 // What can't be walked through (hub.js outpostSolids): each building
