@@ -293,6 +293,19 @@ function pntBoulder(I, J, seed, o) {
   return o;
 }
 const _pntBo = new Float32Array(6);
+// The same, noting which dome (its grid I, J into `top`): the form strokes'
+// planes are each boulder's crown.
+const _pntBoTop = new Int32Array(2);
+function pntBoulderTopAt(x, y, seed, top) {
+  const Bo = T.paint.wall.boulder, gx = Math.floor(x / Bo), gy = Math.floor(y / Bo), o = _pntBo;
+  let bv = 0;
+  for (let j = gy - 1; j <= gy + 1; j++) for (let i = gx - 1; i <= gx + 1; i++) {
+    pntBoulder(i, j, seed, o);
+    const dx = (x - o[0]) * o[2], dy = (y - o[1]) * o[3], e = 1 - dx * dx - dy * dy;
+    if (e > 0) { const v = Math.sqrt(e * o[5] < 1 ? e * o[5] : 1); if (v > bv) { bv = v; top[0] = i; top[1] = j; } }
+  }
+  return bv;
+}
 function pntBoulderAt(x, y, seed) {
   const Bo = T.paint.wall.boulder, gx = Math.floor(x / Bo), gy = Math.floor(y / Bo), o = _pntBo;
   let bv = 0;
@@ -415,9 +428,10 @@ function paintRockArea(f, x0, y0, x1, y1) {
 // The cell of a pixel: the nearest of the jittered points about it, their
 // borders wobbled by noise. Fills cell (rw × ch, rows from y0 - sp) for
 // the rock pixels only (-1 elsewhere).
-function pntSlabs(cell, x0, y0, rw, ch, sp, seed, mason) {
+function pntSlabs(cell, x0, y0, rw, ch, sp, seed, mason, form) {
   if (mason) { pntBlocks(cell, x0, y0, rw, ch, sp, seed); return; }
   const S = T.paint.slab, cw = S.w, chh = S.h, LF = View.rockLift, W = View.floorBuf.w, Hp = View.floorBuf.h;
+  const planeAt = T.paint.form.planeAt, fseed = _pntFormSeed, bt = _pntBoTop;
   const gx0 = Math.floor(x0 / cw) - 1, gx1 = Math.floor((x0 + rw) / cw) + 1, gy0 = Math.floor((y0 - sp) / chh) - 1, gy1 = Math.floor((y0 - sp + ch) / chh) + 1;
   const gw = gx1 - gx0 + 1, gh = gy1 - gy0 + 1, PX = new Float32Array(gw * gh), PY = new Float32Array(gw * gh);
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const I = gx0 + i, J = gy0 + j; PX[j * gw + i] = (I + artHash(I, J, seed) + (J & 1) * 0.5) * cw; PY[j * gw + i] = (J + artHash(I, J, seed + 1)) * chh; }
@@ -437,6 +451,8 @@ function pntSlabs(cell, x0, y0, rw, ch, sp, seed, mason) {
     for (let i = 0; i < rw; i++) {
       const x = x0 + i;
       if (!LF[row + x]) { cell[out + i] = -1; continue; }
+      // (the form strokes: a boulder's crown is one plane of its own)
+      if (form && pntBoulderTopAt(x, y + LF[row + x] - 1, fseed, bt) > planeAt) { cell[out + i] = PNT_FORMID + (bt[1] + 1024) * 4099 + bt[0] + 1024; continue; }
       if (big[i] > B.cut) {
         // (the coarse grid's nearest point, its own ids)
         const bgx = Math.floor(x * ibw), bgy = Math.floor(y * ibh);
@@ -483,8 +499,17 @@ function pntBlocks(cell, x0, y0, rw, ch, sp, seed) {
 }
 // A facet's site (pntSlabs' jittered point for cell id), in the view's px.
 const PNT_BIGID = 1 << 26;
+// (the form strokes' planes: a boulder's crown, its site the dome's middle;
+// the boulders' seed, set by pntPaintRock)
+const PNT_FORMID = 1 << 28;
+let _pntFormSeed = 0;
 function pntSlabSite(id, seed, mason) {
   const S = T.paint.slab;
+  if (id >= PNT_FORMID) {
+    const q = id - PNT_FORMID, J = Math.floor(q / 4099) - 1024, I = q - (J + 1024) * 4099 - 1024;
+    pntBoulder(I, J, _pntFormSeed, _pntBo);
+    return [_pntBo[0], _pntBo[1]];
+  }
   if (!mason && id >= PNT_BIGID - (1 << 24)) {
     const q = id - PNT_BIGID, j = Math.floor(q / 4099), k = q - j * 4099 - 1, bw = S.w * S.big.k[0], bh = S.h * S.big.k[1];
     return [(k + artHash(k, j, seed + 5) + (j & 1) * 0.5) * bw, (j + artHash(k, j, seed + 6)) * bh];
@@ -525,7 +550,11 @@ function pntPaintRock(f, x0, y0, x1, y1) {
   if (_pntCell.length < cw * ch) _pntCell = new Int32Array(cw * ch);
   const cell = _pntCell;
   const mason = !!b.paving, Ms = Sl.mason;
-  pntSlabs(cell, cx0, y0, cw, ch, sp, seed + 61, mason);
+  // the form strokes (the paint lab): runs down the faces, a plane on each
+  // boulder's crown, lit twins to the creases (T.paint.form)
+  const form = Lab.on('form') && !mason, Fm = T.paint.form;
+  _pntFormSeed = seed;
+  pntSlabs(cell, cx0, y0, cw, ch, sp, seed + 61, mason, form);
   // a rock pixel's tone before its stroke into tb, and how steep (0 a top,
   // 1 a face) into wb
   const s0 = Rk.steep[0], sk = 1 / (Rk.steep[1] - Rk.steep[0]), lamLo = Rk.lamLo, lamK = 1 / (1 - lamLo), topLo = Rk.topLo, topR = Rk.topHi - Rk.topLo, faceLo = Rk.faceLo, faceR = Rk.faceHi - Rk.faceLo;
@@ -566,6 +595,14 @@ function pntPaintRock(f, x0, y0, x1, y1) {
     facets.set(id, v);
     return v;
   };
+  // a face pixel's tone at (x, ym), for the form strokes' runs (NaN off the
+  // rock or the rows the facets are cut for)
+  const toneAt = (x, ym, i) => {
+    if (ym < y0 - sp || ym >= y1 + sp || !isRock(x, ym)) return NaN;
+    at(x, ym + LF[ym * W + x] - 1, 0, 0, tmp);
+    const fv = facetOf(cell[(ym - y0 + sp) * cw + i]), w = tmp[1], k = flat * (1 - w);
+    return (fv[0] * (1 - w) + tmp[0] * w) * k + tmp[0] * (1 - k);
+  };
   let lastId = NaN, lastF = null;
   const look = (x, y, tb, wb, i, r) => {
     at(x, y + LF[y * W + x] - 1, 0, 0, tmp);
@@ -594,7 +631,14 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       if (wb[i] < 0) continue;
       const sy = y + LF[y * W + x] - 1, face = wb[i] > 0.5, m = mid[i];
       // the stroke's tone, from its middle if that's rock too
-      let t = (wb[m] >= 0 ? tb[m] : tb[i]) + jit[i] * Rk.jitter * Bq.jitter;
+      let t;
+      if (form && face) {
+        // a run down the face: its tone read at the run's middle row
+        const ph = (artHash(x, 0, seed + 92) * Fm.run) | 0, blk = Math.floor((y + ph) / Fm.run), tm = toneAt(x, blk * Fm.run - ph + (Fm.run >> 1), i);
+        let j = artHash(x, blk, seed + 94) * 2 - 1; j = j * j * j;
+        t = (tm === tm ? tm : tb[i]) + j * Rk.jitter * Bq.jitter;
+      } else t = (wb[m] >= 0 ? tb[m] : tb[i]) + jit[i] * Rk.jitter * Bq.jitter;
+      let creased = false;
       // strata on the faces: long strokes a shade or two off
       if (face) {
         const sc = (x + off) >> 4;
@@ -620,7 +664,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       // a crease where the rock folds (where two boulders meet): hard soot
       if (!face && x >= cr && x < W - cr && sy >= cr && sy < Hp - cr) {
         const ks = sy * W + x, cav = (HF[ks] * 4 - HF[ks - cr] - HF[ks + cr] - HF[ks - crW] - HF[ks + crW]) * crK;
-        if (cav < -Rk.crease) t = Math.min(t, cav < -Rk.crease * 1.8 ? 0 : 1);
+        if (cav < -Rk.crease) { t = Math.min(t, cav < -Rk.crease * 1.8 ? 0 : 1); creased = true; }
       }
       // the silhouette's top edge, lit; the lip where a top turns down
       // into a face, lit; the face's foot on the ground, soot
@@ -636,6 +680,8 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       // (at the outpost, the rock of the land beyond where its meld reaches)
       if (ml) { const mk = hgrMeldAt(f, x, sy); if (mk >= 0) rp = ml[mk]; }
       C32[y * W + x] = rp[t < 0 ? 0 : t > nt - 1 ? nt - 1 : t];
+      // (the form strokes: a crease's lit twin, a pixel to its upper left)
+      if (form && creased && x > x0 && y > y0 && isRock(x - 1, y - 1) && cell[cj - cw - 1] === cell[cj]) C32[(y - 1) * W + x - 1] = rp[Math.min(nt - 1, Math.round(Fm.crackLit * tsc))];
     }
     let q = tbUp; tbUp = tb; tb = q; q = wbUp; wbUp = wb; wb = q;
   }

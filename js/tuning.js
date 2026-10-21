@@ -1028,6 +1028,13 @@ const T = {
       ink: { gTones: 5, rTones: 6, jitter: 0.5, hatch: true, hatchAt: [0.42, 0.22] },
       wash: { cell: 10, whole: 0.2, jitter: 0.4, gTones: 14, rTones: 20, dither: true },
     },
+    // The paint lab's FORM STROKES (pntPaintRock, pntSlabs): on a face the
+    // strokes run down, in runs `run` px tall (each column set off by its
+    // own phase), the tone read at the run's middle; on a top, each
+    // boulder's crown (where its dome stands over planeAt of its height) is
+    // one plane, lit as a facet is; a crease gets a lit twin a pixel to its
+    // upper left, tone crackLit (of 10).
+    form: { run: 5, planeAt: 0.72, crackLit: 7 },
     ground: { base: 0.45, swell: 70, swellAmt: 0.2, patch: [64, 11], patchCut: [0.52, 0.62], patchSky: 0.36, patchCave: 0.32, clump: 0.06, foot: 7, footHard: 1, footAmt: 0.3, side: 0.1, sunDir: [2, 3], sunSteps: 9, sunSlope: 3.2, sunDark: 0.32, jitter: 0.62 },
     wall: { face: 22, edge: 5, bump: 16, bumpScale: 34, ramp: 9, boulder: 76, boulderR: [0.5, 0.95], boulderFlat: 1.6, rough: 0.2 },
     rock: { light: [-0.55, -0.45, 0.7], steep: [0.8, 2.2], lamLo: 0.2, topLo: 1.5, topHi: 6.6, faceBase: 0.15, faceUp: 0.55, faceWest: 0.3, faceLo: 1.5, faceHi: 5.5, jitter: 1.1, strata: 0.5, strataAmt: 1.6, crease: 1.6, creaseR: 3, rim: 8, rimLit: 0.6, lip: 7, foot: 0 },
