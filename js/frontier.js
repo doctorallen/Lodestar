@@ -99,11 +99,11 @@ function enterTerritory(id, how = {}) {
   // the Deep's portal leads down to its first site
   d.ways = f.ways.length ? [deepZone(t, 1)] : [];
   d.wayClimes = d.ways.map((z) => deepClime(t, 1, z));
+  wayHoleSolids(d);
   placeTerritoryRift(d, t, ts);
   // veins mined stay mined; in dark land they grow back after a few sorties
   ts.mined = (ts.mined || []).filter(([, n]) => d.kindled || W.sorties - n < X.regrow);
   for (const [i] of ts.mined) if (f.tiles[i] === TILE_ORE) { f.tiles[i] = TILE_FLOOR; f.ore[i] = 0; }
-  d.mined = null;
   // where the diver comes in
   let at = { x: f.entry.x, y: f.entry.y + 0.5 };
   const ex = how.from !== undefined && f.exits.find((e) => e.to === how.from);
@@ -156,10 +156,12 @@ function placeTerritoryRift(d, t, ts) {
   d.rift = rift;
 }
 
-// A vein broken: remembered with the sortie it was broken in.
+// A vein broken: remembered with the sortie it was broken in (in a Deep,
+// with its site).
 function noteMined(d, i) {
-  if (d.sortie && !d.deep) terrState(d.terr).mined.push([i, worldState().sorties]);
-  else if (d.mined) d.mined.push(i);
+  if (!d.sortie) return;
+  if (d.deep) terrState(d.terr).deepMined.push([d.deep.site, i, worldState().sorties]);
+  else terrState(d.terr).mined.push([i, worldState().sorties]);
 }
 
 // Every step of a sortie: crossing an edge, holding a waystone, a landed
@@ -203,6 +205,7 @@ function warpArrive(d, w) {
   if (!d.deep) enterDeepSite(1);
   else if (d.deep.site < d.deep.of) enterDeepSite(d.deep.site + 1);
   else leaveDeep();
+  if (w.look && d.arrive) d.arrive.zone = w.look;
 }
 
 // --- banking, travel, home -----------------------------------------------------
@@ -343,8 +346,13 @@ function enterDeepSite(k) {
   const ways = zone === 'lair' ? 0 : 1;
   d.ways = ways ? [k >= n ? 'surface' : deepZone(t, k + 1)] : [];
   d.wayClimes = d.ways.map((z) => deepClime(t, k + 1, z));
-  d.floor = generateFloor(d.seed, d.depth, d.biome, lodelineOdds(k), zone, ways, clime);
+  const f = (d.floor = generateFloor(d.seed, d.depth, d.biome, lodelineOdds(k), zone, ways, clime));
   resetFloorState(d);
+  wayHoleSolids(d);
+  // veins mined stay mined, growing back after a few sorties, as in dark land
+  const ts = terrState(t.id), W = worldState();
+  ts.deepMined = (ts.deepMined || []).filter(([, , n]) => W.sorties - n < T.world.regrow);
+  for (const [s, i] of ts.deepMined) if (s === k && f.tiles[i] === TILE_ORE) { f.tiles[i] = TILE_FLOOR; f.ore[i] = 0; }
   p.x = (d.floor.entry.x + 0.5) * TILE; p.y = (d.floor.entry.y + 0.5) * TILE;
   placeRift(d);
   spawnEnemies(d);
@@ -357,7 +365,6 @@ function enterDeepSite(k) {
   d.padDark = zone === 'lair' && !!d.keeper;
   if (d.pull <= 0 && zone !== 'lair') { d.pull = 0; theDarkComes(d); }
   d.arrive = { t: 0, zone };
-  d.mined = [];
   if (k === 1) { const tl = d.tally || (d.tally = {}); tl.deeps = (tl.deeps || 0) + 1; }
   // the Deep's end, reached: its light, the first time (deeds.js)
   if (k >= n) deedDeepEnd(d, t);

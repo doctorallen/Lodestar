@@ -618,14 +618,20 @@ async function phone(browser) {
     Input.actReq = true;
     for (let i = 0; i < 60; i++) Game.step(1 / 60);
     const inDeep = !!d.deep && d.deep.site === 1 && d.zone !== 'surface';
+    // a vein broken down here stays broken when you come back down
+    const vi = d.floor.tiles.findIndex((x) => x === TILE_ORE);
+    if (vi >= 0) breakOre({ i: vi, tx: vi % d.floor.w, ty: Math.floor(vi / d.floor.w) }, T.ores[d.floor.ore[vi] - 1]);
+    leaveDeep(); enterDeepSite(1);
+    const kept = vi < 0 || d.floor.tiles[vi] !== TILE_ORE;
     const t = terrOf(id);
     while (d.deep.site < d.deep.of && d.ways.length) { enterDeepSite(d.deep.site + 1); }
     let up = true;
     if (d.zone !== 'lair') { sturdy(); const v = d.floor.ways[0]; d.p.x = (v.x + 0.5) * TILE; d.p.y = (v.y + 0.9) * TILE; Game.step(1 / 60); up = /BACK UP/.test($('btn-act').textContent); Input.actReq = true; for (let i = 0; i < 60; i++) Game.step(1 / 60); up = up && !d.deep && d.terr === id; }
     UI.close(); goHome('walk'); UI.close();
-    return { down, inDeep, up, sites: t.deep };
+    return { down, inDeep, up, kept, sites: t.deep };
   });
   check(deep === 'none' || (deep.down && deep.inDeep && deep.up), `phone: the Deep did not lead down and back up (${JSON.stringify(deep)})`);
+  check(deep === 'none' || deep.kept, 'phone: a vein mined in a Deep grew back on going down again');
   await shot(page, 'smoke-deep');
 
   // rifts: a tear can be sealed for riftglass, a gate carries the diver

@@ -108,7 +108,7 @@ function saveRun(d) {
   Save.data.run = {
     seed: d.sortieSeed, terr: d.terr, how: d.how, deep: d.deep ? d.deep.site : 0, tool: d.tool,
     cargo: d.cargo, items: d.items, blueprints: d.blueprints, banked: d.banked, far: d.far, maxRing: d.maxRing,
-    hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, pullTime: d.pullTime, kills: d.kills, time: d.time, mined: d.mined || [],
+    hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, pullTime: d.pullTime, kills: d.kills, time: d.time,
     gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b ? { x: b.x, y: b.y, t: b.t, landed: b.landed } : null,
     sealed: !!(d.deep && d.rift && !d.rift.open), storm: !!d.storm, tally: d.tally || {}, keeperDown: !!(d.zone === 'lair' && d.keeper && d.keeper.dead), lairT: d.lairT || 0,
     drops: d.deep ? d.drops.filter((x) => !x.mote && !x.gone).map((x) => Object.assign({}, x, { t: 0, cap: undefined, settleT: undefined })) : [],
@@ -126,7 +126,6 @@ function resumeRun() {
   const d = Game.dive;
   if (r.deep) { d.terr = r.terr; enterDeepSite(r.deep); } else enterTerritory(r.terr, r.how || {});
   const f = d.floor;
-  if (r.deep) { for (const i of r.mined || []) if (f.tiles[i] === TILE_ORE) { f.tiles[i] = TILE_FLOOR; f.ore[i] = 0; } d.mined = (r.mined || []).slice(); }
   Object.assign(d, { cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], kills: r.kills || 0, time: r.time || 0, gotShard: r.gotShard, echoes: r.echoes, beaconUsed: r.beaconUsed });
   d.p.hp = Math.min(d.stats.maxHp, r.hp || d.stats.maxHp);
   if (!d.kindled) d.pull = r.pull === undefined ? 1 : r.pull;

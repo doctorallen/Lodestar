@@ -92,7 +92,8 @@ const T = {
   //   gen: a territory's own overrides of the surface's generator (a cavern
   //     fewer than a site: its passages to the openings make up the ground);
   //     veins: more veins in each cavern (but the first) than a site has.
-  //   regrow: sorties before a mined vein in dark land grows back.
+  //   regrow: sorties before a mined vein in dark land, or in a Deep, grows
+  //     back.
   //   straggler: the chance one enemy is left in kindled land; clear: tiles
   //     round where the diver arrives that start clear of enemies.
   //   waystone: lighting one is a `channel` s channel within `touch` px;
@@ -205,8 +206,12 @@ const T = {
   // A portal (portals.js), each way on: stepping in takes `enter` seconds
   // (the world holds still), and the view opens over `arrive` on the other
   // side. reach: how near its threshold (px) the diver must stand. light:
-  // [radius in tiles, strength], times sunLight under the sky.
-  portal: { enter: 0.45, arrive: 0.7, reach: 11, light: [2.6, 1.0], sunLight: 0.55 },
+  // [radius in tiles, strength], times sunLight under the sky. A way down
+  // in the field is a hole instead: holeReach, how near its middle (px) the
+  // diver must stand (it's solid); holeLight, its glow from below, as
+  // light. The way up from a Deep's last site is a rope: ropeUp, tiles of
+  // it in view; daylight, the pool it hangs in, as light.
+  portal: { enter: 0.45, arrive: 0.7, reach: 11, light: [2.6, 1.0], sunLight: 0.55, holeReach: 20, holeLight: [1.6, 0.45], ropeUp: 2, daylight: [2, 2.4] },
   // A Lodestorm: the chance an expedition sets out under one; on the
   // surface a strike every `every` s (the first after `first`), within
   // `near` tiles of the diver, marked `warn` s ahead, hurting within

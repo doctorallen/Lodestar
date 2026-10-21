@@ -98,7 +98,7 @@ The world is rolled once for each save from its seed (world.js) and kept in the 
   - **Light the waystones:** three old pylons, each a 2.5 s channel whose light wakes everything near; the last must then be held, standing in its light for 20 s while the dark sends more.
   - **Seal the tear:** a rift sits on the territory's heart (a graft or an ore wake); seal it, early and safe or late and rich.
   Done, the heart is marked in gold: plant the spire there (a 6 s channel) and the territory is kindled for good: its spire, full light, daylight, and what the dark sent burns away. Kindled ground is never lost. A goal's progress stays when you leave.
-- **Deeps.** Some territories have a portal down into a Deep of 1–3 sites (caves and ruins, ending in a deep vein), built as the old expeditions were, at the territory's own level: each site has a lodeline by chance (100, 80, 60%, more as the star grows), and a portal on. Your light drains down there too, and when it's gone a Deep's lodeline goes dark. Its lodeline (to the player, a shaft of the star's light), or its last portal, takes you back up to the territory, by the Deep's portal. Under the furthest territory of each of the first three rings, the Deep ends in the region's Keeper's Lair while its heart-shard is missing (their own place in the world comes later).
+- **Deeps.** Some territories have a hole down into a Deep of 1–3 sites (caves and ruins, ending in a deep vein), built as the old expeditions were, at the territory's own level: each site has a lodeline by chance (100, 80, 60%, more as the star grows), and a hole down to the next, or in the last a rope up. Your light drains down there too, and when it's gone a Deep's lodeline goes dark. Its lodeline (to the player, a shaft of the star's light), or the rope, takes you back up to the territory, by the Deep's hole. A hole is cut into the ground, a rope tied to a stake over its lip, glowing faintly from below in the colour of where it leads; the rope hangs into a pool of daylight. Veins mined in a Deep stay mined, and grow back after a few sorties, as in dark land. Under the furthest territory of each of the first three rings, the Deep ends in the region's Keeper's Lair while its heart-shard is missing (their own place in the world comes later).
 - **Saved as you go.** A sortie is saved on arriving anywhere and whenever the page is hidden; reopening the game offers to carry on from where you came in.
 - **Health** comes back slowly once nothing has hurt you for 4 seconds. Healing motes drop from kills, and some affixes leech or regenerate.
 - **The warden** is an optional loot piñata that can turn up in a side room at depth 3 or more. It charges and fires rings of orbs. It drops three rare-or-better pieces and often a relic.
@@ -107,7 +107,7 @@ The world is rolled once for each save from its seed (world.js) and kept in the 
 
 ## Climes
 
-Every territory and every site of a Deep is also a **clime**: the kind of country it is. The region still sets the ore and how strong the enemies are; the clime sets how the place looks and feels. A territory's is fixed when the world is rolled; a Deep's sites roll theirs from the world's seed, so a portal's button names it (STEP THROUGH: FLOODED GROTTO). Each zone's first clime is the look it always had, without a hazard.
+Every territory and every site of a Deep is also a **clime**: the kind of country it is. The region still sets the ore and how strong the enemies are; the clime sets how the place looks and feels. A territory's is fixed when the world is rolled; a Deep's sites roll theirs from the world's seed, so a hole's button names it (CLIMB DOWN: FLOODED GROTTO). Each zone's first clime is the look it always had, without a hazard.
 
 | Clime | Zone | Look | Its quirk | Leans to |
 |---|---|---|---|---|
@@ -144,10 +144,10 @@ The diver carries one tool, chosen at the portal before setting out. Each change
 
 | Tool | From magnitude | What it does |
 |---|---|---|
-| Lodestone Compass | 1 | An arrow round the diver to the spire here, or in dark land to the opening towards the nearest kindled land; in a Deep, to its lit lodeline or the portal on. |
+| Lodestone Compass | 1 | An arrow round the diver to the spire here, or in dark land to the opening towards the nearest kindled land; in a Deep, to its lit lodeline or the way on. |
 | Ore Sense | 2 | Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the cutter can break. |
 | Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
-| Surveyor's Map | 3 | A map of each place, drawn as you walk it, in the view's corner, with its openings, portals, spire, waystones and ancient forge once seen. |
+| Surveyor's Map | 3 | A map of each place, drawn as you walk it, in the view's corner, with its openings, holes, spire, waystones and ancient forge once seen. |
 | Capture Lens | 2 | Modules half again as likely. Revealed by research once the first module comes home; made from Lumenite and threads. |
 | Lode Beacon | 2 | Once a sortie, from the pause menu: call a spire's light down where you stand, where no spire is: you can bank and travel from it, and standing in it brings your light back slowly. In a Deep it's a lodeline. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
 
@@ -475,7 +475,7 @@ A new Kindler isn't shown everything at once (`js/onboard.js`, `js/tutor.js`; DE
   - spell B;
   - DASH;
   - MINE, held to cut: the Kindler holds the cutter out at the rock, a blue-white beam bites it and throws molten sparks;
-  - the contextual SET OUT, STEP THROUGH or EXTRACT above them;
+  - the contextual SET OUT, CLIMB DOWN or EXTRACT above them;
   - MEND and LIGHT, the two supplies, side by side at the deck's top-left.
 - **Sideways:** the view stands in the middle with the controls either side, as in NEO.
 - Close Forms aim at the nearest enemy in reach, and the rest at the nearest in sight. Mining targets the ore you're facing.

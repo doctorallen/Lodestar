@@ -147,6 +147,8 @@ function pnrOccludeGround(ox, oy) {
   // a waystone's rings, the heart's
   if (f.stones && d.hold) { const st = f.stones[d.hold.k]; if (st) round((st.x + 0.5) * TILE, (st.y + 0.5) * TILE, T.world.waystone.holdR + 2); }
   if (f.heart) round((f.heart.x + 0.5) * TILE, (f.heart.y + 0.5) * TILE, 14);
+  // a way down's hole (portals.js)
+  for (const s of f.solids || []) if (!d.hub) round(s.x, s.y, 16);
   // cast marks, glyphs and swept rings, a caster's charging circle
   if (typeof CFX !== 'undefined' && CFX.dive === d) {
     for (const m of CFX.decals) { const c = m.pic.col; mark(m.x - c.cx / AP - 1, m.y - c.cy / AP - 1, m.x + (c.c.width - c.cx) / AP + 1, m.y + (c.c.height - c.cy) / AP + 1); }

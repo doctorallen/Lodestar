@@ -63,7 +63,7 @@ function updateTools(dt) {
 }
 
 // Where the compass points: the nearest lit lodeline on foot, else the
-// nearest portal on.
+// nearest way on.
 function compassTarget(d, tx, ty) {
   const f = d.floor, steps = floorDistances(f.tiles, f.w, f.h, tx, ty);
   if (d.sortie && !d.deep) return compassTargetWorld(d, steps);

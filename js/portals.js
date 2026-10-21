@@ -1,8 +1,8 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Portals: the way down into a territory's Deep and on through its sites,
-// and the one at the outpost every sortie sets out through. Each is a standing ring of lodestone on
-// a plinth, its face a slow swirl in the colour of where it leads (warm
+// Portals: the one at the outpost every sortie sets out through (in the
+// field the ways down are holes, and the way up a rope: below). A portal
+// is a standing ring of lodestone on a plinth, its face a slow swirl in the colour of where it leads (warm
 // daylight for the surface, cool blue for a cave, amber for a ruin, red for
 // a Keeper's Lair, green for a Deep Vein), and the keystone carries that
 // place's glyph. They're nothing like a rift's violet tears.
@@ -138,7 +138,7 @@ function portalFaceAt(t) {
 // standing at one is drawn in front of it).
 function portalProps(d) {
   if (d.hub) { const s = HUB_STATIONS.find((x) => x.id === 'setout'); return [{ portal: 'surface', at: s, y: (s.y + 0.5) * TILE - 1 }]; }
-  return (d.floor.ways || []).map((w, i) => ({ portal: d.ways[i], clime: d.wayClimes && d.wayClimes[i], at: w, y: (w.y + 0.5) * TILE - 1 }));
+  return (d.floor.ways || []).map((w, i) => wayKind(d, i) === 'portal' && { portal: d.ways[i], clime: d.wayClimes && d.wayClimes[i], at: w, y: (w.y + 0.5) * TILE - 1 }).filter(Boolean);
 }
 
 function drawPortal(d, a, ox, oy, lights) {
@@ -162,10 +162,11 @@ function drawPortal(d, a, ox, oy, lights) {
   lights.push({ x: cx, y: cy, r: TILE * P.light[0], i: P.light[1] * sun * pulse * (1 + warp), c: rgb01(L.face[2]) });
 }
 
-// Which portal the diver stands at, if any: within reach of its threshold.
+// Which way on the diver stands at, if any: within reach of its threshold
+// (a hole's rim).
 function wayHere(d) {
   const p = d.p;
-  return (d.floor.ways || []).findIndex((w) => dist(p.x, p.y, (w.x + 0.5) * TILE, (w.y + 0.5) * TILE) < T.portal.reach);
+  return (d.floor.ways || []).findIndex((w, i) => dist(p.x, p.y, (w.x + 0.5) * TILE, (w.y + 0.5) * TILE) < (wayKind(d, i) === 'hole' ? T.portal.holeReach : T.portal.reach));
 }
 
 // Stepping into the portal at i: the world holds still while the view
@@ -173,7 +174,9 @@ function wayHere(d) {
 function stepThrough(d, i) {
   if (d.warp || i < 0) return;
   const w = d.floor.ways[i];
-  d.warp = { t: 0, at: w, zone: d.ways[i], clime: d.wayClimes && d.wayClimes[i] };
+  // (climbing, the view closes and opens in the dusk's colour, not a swirl)
+  const kind = wayKind(d, i);
+  d.warp = { t: 0, at: w, zone: d.ways[i], clime: d.wayClimes && d.wayClimes[i], kind, look: kind === 'portal' ? null : 'dusk' };
   d.p.mine = null; d.channel = null;
   snd('portal');
   buzz(20);
@@ -197,8 +200,8 @@ const PortalIris = { img: null, canvas: null };
 function drawPortalIris(d, ox, oy) {
   let k, zone, cx, cy;
   if (d.warp) {
-    const f = d.warp.at ? portalFaceAt(d.warp.at) : { x: d.p.x, y: d.p.y - 10 };
-    k = 1 - easeInQuad(Math.min(1, d.warp.t / T.portal.enter)); zone = d.warp.zone; cx = f.x * AP + ox; cy = f.y * AP + oy;
+    const at = d.warp.at, f = !at ? { x: d.p.x, y: d.p.y - 10 } : d.warp.kind === 'hole' ? { x: (at.x + 0.5) * TILE, y: (at.y + 0.5) * TILE } : d.warp.kind === 'rope' ? { x: (at.x + 0.5) * TILE, y: (at.y + 0.5) * TILE - 10 } : portalFaceAt(at);
+    k = 1 - easeInQuad(Math.min(1, d.warp.t / T.portal.enter)); zone = d.warp.look || d.warp.zone; cx = f.x * AP + ox; cy = f.y * AP + oy;
   } else if (d.arrive && d.arrive.t < T.portal.arrive) {
     k = easeOutQuad(d.arrive.t / T.portal.arrive); zone = d.arrive.zone; cx = d.p.x * AP + ox; cy = (d.p.y - 10) * AP + oy;
   } else return;
@@ -249,3 +252,138 @@ function portalRevealArt(d, camX, camY) {
 }
 const easeInQuad = (t) => t * t;
 const easeOutQuad = (t) => 1 - (1 - t) * (1 - t);
+
+// ---------------------------------------------------------------------------
+// The ways in a territory and its Deep: a way down is a hole cut in the
+// ground, a rope tied to a stake over its lip, a faint glow of where it
+// leads rising out of the dark; the way up from a Deep's last site is a
+// rope hanging into a pool of daylight. (The outpost's way out stays a
+// portal.) A hole is solid, so the diver climbs down from its rim
+// (T.portal.holeReach).
+// ---------------------------------------------------------------------------
+const HOLE_R = [9.5, 6]; // its half-width and half-depth, world px
+
+// What way i on this floor is: 'portal' (at home), 'rope' or 'hole'.
+function wayKind(d, i) { return d.hub ? 'portal' : d.ways[i] === 'surface' ? 'rope' : 'hole'; }
+
+// The holes, as solid ground for bodies (game.js bodyHits).
+function wayHoleSolids(d) {
+  const f = d.floor;
+  f.solids = (f.ways || []).filter((w, i) => wayKind(d, i) === 'hole').map((w) => ({ x: (w.x + 0.5) * TILE, y: (w.y + 0.5) * TILE, rx: HOLE_R[0] - 1, ry: HOLE_R[1] - 1 }));
+}
+
+// The hole's picture, the same for every hole: what darkens the ground
+// (multiplied, so it's cut into any ground in its own colour), what's
+// laid over it (the lit near lip, rubble, the stake and rope), its
+// footprint (the glow layer is cleared there) and its dark, below the far
+// wall, drawn in the glow layer so no light lifts it. Its middle at (cx, cy).
+let _holePic = null;
+function holePicture() {
+  if (_holePic) return _holePic;
+  const rx = HOLE_R[0] * AP, ry = HOLE_R[1] * AP, cx = Math.ceil(rx) + 5, cy = Math.ceil(ry) + 9, W = cx * 2 + 1, H = cy + Math.ceil(ry) + 5;
+  const [mc, mx] = makeCanvas(W, H), [oc, ox] = makeCanvas(W, H), [cc, cxx] = makeCanvas(W, H), [dc, dx] = makeCanvas(W, H);
+  const M = mx.createImageData(W, H), O = ox.createImageData(W, H), C = cxx.createImageData(W, H), D = dx.createImageData(W, H);
+  const mul = (x, y, g) => { const n = (y * W + x) * 4; M.data[n] = M.data[n + 1] = M.data[n + 2] = Math.round(g * 255); M.data[n + 3] = 255; };
+  const over = (x, y, col, a = 1) => { if (x < 0 || y < 0 || x >= W || y >= H) return; const n = (y * W + x) * 4, c = rgbOf(col); O.data[n] = c[0]; O.data[n + 1] = c[1]; O.data[n + 2] = c[2]; O.data[n + 3] = Math.round(a * 255); };
+  // the far wall shows from the rim down by `wall` (of the half-depth),
+  // in a few tones laid in short strokes along each row; below it, the dark
+  const wall = 0.85, tones = [0.56, 0.42, 0.3, 0.2];
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const u = (x + 0.5 - cx) / rx, v = (y + 0.5 - cy) / ry, e = u * u + v * v;
+      const jit = artHash(Math.floor((x + artHash(y, 5, 0x51a) * 5) / 4), y, 0x51b) - 0.5;
+      if (e <= 1) {
+        const top = -Math.sqrt(Math.max(0, 1 - u * u)), t = (v - top) / wall;
+        const n = (y * W + x) * 4; C.data[n + 3] = 255;
+        const ev = u * u + (v - wall) * (v - wall);
+        if (ev > 1 && t < 1) mul(x, y, tones[clamp(Math.round(t * 3 + jit * 1.2), 0, 3)]);
+        else { mul(x, y, 0.07); const c = rgbOf(ev > 0.7 + jit * 0.2 ? '#0e0c14' : '#07060a'); D.data[n] = c[0]; D.data[n + 1] = c[1]; D.data[n + 2] = c[2]; D.data[n + 3] = 255; }
+      } else if (e < 1.5) {
+        // the ground dipping to it, a little darker, broken in strokes
+        if (e < 1.18 + jit * 0.3) mul(x, y, 0.8);
+        // its near lip catching the light
+        if (v > 0.25 && e < 1.0 + 3 / ry) over(x, y, '#ffffff', 0.13);
+      }
+    }
+  // rubble round the rim
+  for (let k = 0; k < 6; k++) {
+    const a = 0.4 + k * 1.05 + artHash(k, 1, 0x51c) * 0.5, r = 1.2 + artHash(k, 2, 0x51c) * 0.2;
+    const sx = Math.round(cx + Math.cos(a) * rx * r), sy = Math.round(cy + Math.sin(a) * ry * r), sw = 2 + (k % 2);
+    for (let i = 0; i < sw; i++) { mul(sx + i, sy + 1, 0.5); over(sx + i, sy, '#ffffff', 0.2); }
+  }
+  // the stake, east of it, and its rope over the lip and down the wall
+  const kx = Math.round(cx + rx * 1.12), ky = Math.round(cy - ry * 0.15);
+  for (let y = ky - 7; y <= ky; y++) { over(kx, y, y === ky - 7 ? '#b08a54' : '#8e6a3e'); over(kx + 1, y, '#5e4126'); }
+  mul(kx - 1, ky + 1, 0.55); mul(kx, ky + 1, 0.5); mul(kx + 1, ky + 1, 0.5); mul(kx + 2, ky + 1, 0.6);
+  const lx = Math.round(cx + rx * Math.cos(-0.5)), ly = Math.round(cy + ry * Math.sin(-0.5));
+  const line = (x0, y0, x1, y1, f) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)); for (let s = 0; s <= n; s++) f(Math.round(x0 + ((x1 - x0) * s) / n), Math.round(y0 + ((y1 - y0) * s) / n), s / n); };
+  line(kx - 1, ky - 5, lx, ly, (x, y, s) => over(x, y + (s > 0.3 && s < 0.8 ? 1 : 0), (x + y) % 2 ? '#c8a878' : '#9a7c50'));
+  line(lx, ly + 1, lx - 1, ly + Math.round(ry * 1.1), (x, y, s) => over(x, y, (y % 2 ? '#a88a5c' : '#7a6040'), 1 - s * 0.85));
+  mx.putImageData(M, 0, 0); ox.putImageData(O, 0, 0); cxx.putImageData(C, 0, 0); dx.putImageData(D, 0, 0);
+  return (_holePic = { mul: mc, over: oc, cut: cc, dark: dc, cx, cy });
+}
+
+// The holes, drawn on the ground (before the rock in front is laid back
+// over it), each glowing faintly from below in the colour of where it
+// leads, with motes of it rising.
+function drawHolesUnder(d, ox, oy, lights) {
+  if (d.hub || !d.floor.ways) return;
+  const P = holePicture(), c = View.ctx, e = View.emCtx, T0 = T.portal;
+  d.floor.ways.forEach((w, i) => {
+    if (wayKind(d, i) !== 'hole') return;
+    const L = PORTAL_LOOKS[d.ways[i]] || PORTAL_LOOKS.cave, fx = Math.round((w.x + 0.5) * ATILE) + ox, fy = Math.round((w.y + 0.5) * ATILE) + oy;
+    if (fx < -40 || fy < -40 || fx > View.w + 40 || fy > View.h + 40) return;
+    const x = fx - P.cx, y = fy - P.cy;
+    c.globalCompositeOperation = 'multiply'; c.drawImage(P.mul, x, y); c.globalCompositeOperation = 'source-over';
+    e.globalCompositeOperation = 'destination-out'; e.drawImage(P.cut, x, y); e.globalCompositeOperation = 'source-over';
+    e.drawImage(P.dark, x, y);
+    c.drawImage(P.over, x, y);
+    const warp = d.warp && d.warp.at === w ? Math.min(1, d.warp.t / T0.enter) : 0, pulse = 0.75 + 0.25 * Math.sin(Game.realT * 1.7 + w.x);
+    // the glow far down, dithered
+    const gy = fy + Math.round(HOLE_R[1] * AP * 0.45);
+    for (let j = -1; j <= 1; j++) for (let k = -4 + Math.abs(j) * 2; k <= 4 - Math.abs(j) * 2; k++) if ((k + j) % 2 === 0 || Math.abs(k) < 2) dot(fx + k, gy + j, Math.abs(k) < 2 && !j ? L.face[2] : L.face[1], true, 0.55 * pulse + warp * 0.4);
+    const sign = (d.wayClimes && d.wayClimes[i] && CLIME_ART[d.wayClimes[i]] && CLIME_ART[d.wayClimes[i]].sign) || L.face[3];
+    for (let m = 0; m < 4; m++) {
+      const ph = (Game.realT * (0.22 + warp) + m / 4 + w.y * 0.17) % 1;
+      dot(fx + Math.round(Math.sin(m * 2.3 + ph * 3) * 5), gy - Math.round(ph * 16 * AP * 0.6), m % 2 ? sign : L.face[2], true, Math.sin(ph * Math.PI) * 0.7);
+    }
+    const sun = d.zone === 'surface' ? T0.sunLight : 1;
+    lights.push({ x: fx, y: gy, r: TILE * T0.holeLight[0], i: T0.holeLight[1] * sun * pulse * (1 + warp), c: rgb01(L.face[2]) });
+  });
+}
+
+// The rope up, standing among the actors: its foot coiled on the ground in
+// a pool of daylight, the rope up out of view, swaying a little, dust
+// drifting down through the light.
+function ropeProps(d) {
+  if (d.hub || !d.floor.ways) return [];
+  return d.floor.ways.filter((w, i) => wayKind(d, i) === 'rope').map((w) => ({ rope: true, at: w, y: (w.y + 0.5) * TILE }));
+}
+function drawRope(d, a, ox, oy, lights) {
+  const w = a.at, fx = Math.round((w.x + 0.5) * ATILE) + ox, fy = Math.round((w.y + 0.5) * ATILE) + oy, T0 = T.portal;
+  const warp = d.warp && d.warp.at === w ? Math.min(1, d.warp.t / T0.enter) : 0;
+  // the coil
+  for (let k = 0; k < 28; k++) {
+    const t = (k / 28) * Math.PI * 2, x = fx + Math.round(Math.cos(t) * 5), y = fy + Math.round(Math.sin(t) * 2.5);
+    dot(x, y, Math.sin(t) > 0 ? '#6a5640' : '#3c3022');
+  }
+  dot(fx - 1, fy, '#5e4630'); dot(fx, fy, '#5e4630'); dot(fx + 1, fy, '#5e4630');
+  // the rope, knotted, faded out up in the dark
+  const h = Math.round(T0.ropeUp * ATILE);
+  for (let s = 0; s < h; s++) {
+    const t = s / h, x = fx + Math.round(Math.sin(Game.realT * 1.3 + t * 2) * t * 1.5), y = fy - 2 - s, a0 = t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4;
+    const knot = s % 10 === 5;
+    // (three px across, twisted: its lit and dark strands swap every two rows)
+    const tw = (s >> 1) % 2;
+    dot(x - 1, y, knot ? '#6e5a44' : tw ? '#6a5640' : '#54442f', false, a0);
+    dot(x, y, knot ? '#8a7458' : tw ? '#54442f' : '#6a5640', false, a0);
+    dot(x + 1, y, knot ? '#54442f' : '#3c3022', false, a0);
+    if (knot) { dot(x - 2, y, '#54442f', false, a0); dot(x + 2, y, '#3c3022', false, a0); }
+  }
+  // dust in the light
+  for (let m = 0; m < 6; m++) {
+    const ph = (Game.realT * 0.08 + m / 6) % 1;
+    dot(fx + Math.round(Math.sin(m * 2.7 + Game.realT * 0.5) * 9), fy - h + Math.round(ph * h), '#fff4dc', true, Math.sin(ph * Math.PI) * 0.45);
+  }
+  lights.push({ x: fx, y: fy - 2, r: TILE * T0.daylight[0], i: T0.daylight[1] * (1 + warp), c: [0.92, 0.96, 1] });
+}

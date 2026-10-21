@@ -15,7 +15,7 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Spell B, from the left wrist | The blue button | K |
 | Dash | DASH, or flick the move thumb | Shift / U |
 | Mine | MINE, held | Space / L |
-| Set out / step through / bank / light / plant | The button that appears at a portal, a spire, a waystone or a heart | E / Enter |
+| Set out / climb down / bank / light / plant | The button that appears at the portal, a hole, a spire, a waystone or a heart | E / Enter |
 | Travel | TRAVEL, over BANK at a spire | |
 | Cargo (and MAKE: supplies from the ore carried) | CARGO in the top bar | I |
 | Use a Mending Injector / a Lightcell | MEND / LIGHT, the two small buttons at the right deck's top | Q / R |
@@ -29,7 +29,7 @@ The loop:
 4. Light a territory's waystones or seal the tear at its heart, then plant a spire there, and it's kindled for good, and its heartlight is yours for the star. A spire holds only where the star's light reaches: ring 2 from magnitude 3, ring 3 from 5, the Edge from 7.
 5. Carry as much as you like. At a spire, BANK your cargo, or TRAVEL to another spire or home. An emergency recall works anywhere and loses nothing, but you stand still for a few seconds.
 6. If you fall, you wake at the last spire you touched. What you wear and your supplies are safe; all the cargo waits where you fell, in your pack, to go back for once. Fall again first and it's lost.
-7. Some territories have a portal down into a Deep: a short dungeon of richer ore. Its end, the first time, gives deeplight for the star, as do ancient forges and echoes.
+7. Some territories have a hole down into a Deep: a short dungeon of richer ore. Its end, the first time, gives deeplight for the star, as do ancient forges and echoes.
 
 A new game starts with the essentials: after the opening, Wick offers to walk you through your first landing, and the rest of the outpost wakes as its moment comes (a station not yet awake stands dark, OFFLINE). Each screen's ? replays its tutorial and a short reference; the ? in the top bar walks the HUD.
 
@@ -80,7 +80,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/foes.js` | Each clime's own creature: where it's placed, what it does, its tells and signs |
 | `js/combat.js` | The hands' buttons, the dash, damage, kills and drops, pickups, cargo |
 | `js/rifts.js` | Rifts: grafts, ore wakes, gates, inversions; sealing for riftglass |
-| `js/portals.js` | The portals: a Deep's, its ways on and the outpost's, drawn in their destination's colour; stepping through, and the same moment crossing an edge or travelling |
+| `js/portals.js` | The outpost's portal, and the ways in the field: a hole down into a Deep and on through its sites, the rope up from its last; going through, and the same moment crossing an edge or travelling |
 | `js/frontier.js` | Playing the world: sorties, entering territories, your light, spires (banking and travel), waystones and kindling, the Deeps, a fall waking at a spire; the spire and waystones drawn |
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
 | `js/deeds.js` | The star grows from deeds: heartlight and deeplight, what each deed gives, the star's reach over the rings, the pack a fall leaves and recovering it, what's next from home, and rescaling an older save's star |

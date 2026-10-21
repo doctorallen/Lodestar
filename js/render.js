@@ -943,6 +943,7 @@ function renderFrame() {
   // back over it all (paintrock.js)
   if (!d.hub) { drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights); }
   drawWorldUnder(d, ox, oy, lights);
+  drawHolesUnder(d, ox, oy, lights);
   drawCastGround(d, ox, oy, tick, lights);
   pnrOccludeGround(ox, oy);
 
@@ -986,7 +987,7 @@ function renderFrame() {
 
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) { drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8, Math.round(dr.y * AP) + oy - 16, 16, 18, Math.round(dr.y * AP) + oy, ox, oy); }
-  const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d), fieldForgeProps(d))).concat(portalProps(d), deedProps(d));
+  const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d), fieldForgeProps(d))).concat(portalProps(d), ropeProps(d), deedProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   for (const a of actors) {
@@ -997,6 +998,7 @@ function renderFrame() {
     else if (a.settler) drawSettler(d, a, ox, oy, lights);
     else if (a.tear) drawRift(d, a, ox, oy, lights);
     else if (a.portal) drawPortal(d, a, ox, oy, lights);
+    else if (a.rope) drawRope(d, a, ox, oy, lights);
     else if (a.wprop) drawWorldProp(d, a, ox, oy, lights);
     else if (a.piece || a.strip) drawFlora(d, a, ox, oy, lights);
     else if (a.crit) drawCritter(d, a, ox, oy);

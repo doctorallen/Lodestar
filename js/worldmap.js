@@ -189,7 +189,7 @@ function drawMapCard() {
       const prog = s.done ? 'Done: plant the spire.' : t.goal === 'waystones' ? `${(s.lit || []).length}/3 lit` : '';
       h += `<div class="goal"><b>To kindle: ${esc(g[0])}</b>${prog ? ` · <span class="r-legendary">${prog}</span>` : ''}</div>` + row('THEN', `plant the spire (${T.world.plant} s)`);
     }
-    if (s.visits && t.deep) h += row('A DEEP', `a portal down, ${t.deep} site${t.deep > 1 ? 's' : ''}${deepZone(t, t.deep) === 'lair' ? ", the Keeper's Lair at the bottom" : ''}`);
+    if (s.visits && t.deep) h += row('A DEEP', `a hole down, ${t.deep} site${t.deep > 1 ? 's' : ''}${deepZone(t, t.deep) === 'lair' ? ", the Keeper's Lair at the bottom" : ''}`);
     // what its deeds would give the star (deeds.js)
     if (word !== 'kindled' && !s.starter) h += row('KINDLING IT', `+${heartLightFor(t)} heartlight${starHoldsSpire(t.id) ? '' : ` · its spire needs magnitude ${spireMagFor(t.id)}`}`);
     if (s.visits && t.deep) h += row('ITS DEEP\'S END', deepReached(t.id) ? 'reached' : `+${deepLightFor(t)} deeplight, the first time`);
