@@ -1210,6 +1210,16 @@ const T = {
     ambient: 0.45, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: true,
+    // The warm light (the paint lab's WARM LIGHT; render.js lightScene):
+    // each of the light's bands tinted by its share of the lamp's light
+    // (0 at the ambient, 1 at max): lit, the tint at the top; dark, at the
+    // foot, in a dark place only (darkAt: the ambient brightness it starts
+    // at and is full by, as T.paint.rampEven.darkAt). lift: how far up the
+    // lit bands are painted towards paper (added, not multiplied). thread:
+    // a broken warmer line along the lit side of each band's edge, from the
+    // band whose share is `from`, mixing `amount` of `col`, on `gate` of
+    // the pixels.
+    warm: { lit: [1.0, 0.92, 0.66], dark: [0.72, 0.64, 1.0], darkAt: [0.95, 0.42], lift: 0.22, paper: [255, 238, 200], thread: { from: 0.3, amount: 0.18, gate: 0.4, col: [255, 196, 120] } },
     // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
     // baked: and the floor's fixed lights (lava, vents, glowing plants).
     // eye: the brow lamp's height over the feet (world px; the painted

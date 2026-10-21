@@ -540,15 +540,34 @@ function lightScene(cx, cy) {
   const px = cx - LC * L.x0, py = cy - LC * L.y0, bt = new Int32Array(4), lo = 0.5 + (0.5 / 16 - 0.5) * dz;
   // A cell's light lands on one of two steps, by the threshold at each
   // pixel: so each cell's two (and the threshold between) are worked out
-  // once for the pixels that share it. CF: per cell, the threshold, then
-  // the r, g, b factors of the lower step and of the higher.
+  // once for the pixels that share it. CF: per cell (CS a cell), the
+  // threshold, then the r, g, b factors of the lower step and of the
+  // higher, then what each step adds (the warm light, below; else 0), and
+  // the higher step's share of the lamp.
   // (factors in 256ths, so a pixel is lit in whole numbers, all three of
   // its channels in one 32-bit read and write)
-  if (!View.lightCF || View.lightCF.length < L.w * 7) View.lightCF = new Int32Array(L.w * 7);
+  const CS = 14;
+  if (!View.lightCF || View.lightCF.length < L.w * CS) View.lightCF = new Int32Array(L.w * CS);
   const CF = View.lightCF, m256 = Math.round(mx * 256), d32 = new Uint32Array(d.buffer);
+  // The warm light (the paint lab, T.light.warm): each band has a tint of
+  // its own, the lamp's amber at the top and, in a dark place, violet at
+  // the foot, and the lit bands are painted a step up towards the paper
+  // (added, not only multiplied), so lit ground is lighter, not bleached.
+  // Per step q: TF, the tint times what's left to multiply; TA, what's
+  // added (in 255ths of the light's colour).
+  const warm = Lab.on('warm'), Wm = Lt.warm, ambI = View.lightAmbI || 0, TF = new Float32Array((top + 2) * 3), TA = new Float32Array((top + 2) * 3);
+  const dark = warm ? clamp((Wm.darkAt[0] - ambI) / (Wm.darkAt[0] - Wm.darkAt[1]), 0, 1) : 0, lpK = 1 / Math.max(0.05, mx - ambI), LP = new Float32Array(top + 2);
+  for (let q = 0; q <= top + 1; q++) {
+    const level = q * inv, lp = warm ? clamp((level - ambI) * lpK, 0, 1) : 0, k = Wm.lift * lp;
+    LP[q] = lp;
+    for (let c = 0; c < 3; c++) {
+      const t = warm ? 1 + (Wm.lit[c] - 1) * lp + (Wm.dark[c] - 1) * (1 - lp) * dark : 1;
+      TF[q * 3 + c] = t * (1 - k); TA[q * 3 + c] = Wm.paper[c] * k * level * t;
+    }
+  }
   // each column's cell
   const col = View.lightCol;
-  for (let x = 0; x < w; x++) col[x] = Math.floor((x + px) / LC) * 7;
+  for (let x = 0; x < w; x++) col[x] = Math.floor((x + px) / LC) * CS;
   let lastBase = -1;
   // With T.art.lampPerPixel the light is still worked out a cell at a
   // time, but each pixel's is read off a slope through its cell (from the
@@ -559,11 +578,18 @@ function lightScene(cx, cy) {
   // (both at the cell's place in CF); GXO: for each column, its cell's
   // slope across times its place in the cell (-1, 0, 1).
   const fit = !!A.lampPerPixel, nc = L.w * L.h;
-  if (fit && (!View.lightLB || View.lightLB.length < nc || View.lightGXO.length < w)) {
-    View.lightLB = new Float32Array(nc); View.lightGX = new Int32Array(L.w * 7); View.lightGY = new Float32Array(L.w * 7); View.lightCFr = new Int32Array(L.w * 7); View.lightGXO = new Int32Array(w);
+  if (fit && (!View.lightLB || View.lightLB.length < nc || View.lightGXO.length < w || View.lightGX.length < L.w * CS)) {
+    View.lightLB = new Float32Array(nc); View.lightGX = new Int32Array(L.w * CS); View.lightGY = new Float32Array(L.w * CS); View.lightCFr = new Int32Array(L.w * CS); View.lightGXO = new Int32Array(w);
   }
   const LB = View.lightLB, GX = View.lightGX, GY = View.lightGY, CFr = View.lightCFr, GXO = View.lightGXO;
   if (fit) for (let n = 0, o = 0; n < nc; n++, o += 3) { const r = a[o], g = a[o + 1], b = a[o + 2]; LB[n] = r > g ? (r > b ? r : b) : g > b ? g : b; }
+  // the warm light's thread: a broken warmer line along the lit side of
+  // each bright band's edge (where a pixel on the higher step meets one on
+  // the lower, above or beside it). HI: the row above's steps.
+  const thread = warm && fit, Th = Wm.thread, thFrom = Th.from * 256, thGate = Math.round(Th.gate * 8), thA = Th.amount, thC = Th.col;
+  if (thread && (!View.lightHi || View.lightHi.length < w)) View.lightHi = new Uint8Array(w);
+  const HI = View.lightHi;
+  if (thread) HI.fill(1, 0, w);
   for (let y = 0; y < h; y++) {
     const row = ((y + cy) & 3) * 4, base = Math.floor((y + py) / LC) * lw;
     // the threshold: a half (a hard step), give or take a little dither
@@ -574,32 +600,52 @@ function lightScene(cx, cy) {
         // the slopes, from the cells either side (the grid's own edge
         // keeps its cell's)
         const c0 = base / 3, up = c0 >= L.w ? c0 - L.w : c0, dn = c0 + L.w < nc ? c0 + L.w : c0, k = 65536 / (2 * LC);
-        for (let n = 0, j = 0; n < L.w; n++, j += 7) {
+        for (let n = 0, j = 0; n < L.w; n++, j += CS) {
           GX[j] = ((LB[c0 + (n < L.w - 1 ? n + 1 : n)] - LB[c0 + (n > 0 ? n - 1 : n)]) * k) | 0;
           GY[j] = (LB[dn + n] - LB[up + n]) * k;
         }
       }
-      for (let n = 0, o = base, j = 0; n < L.w; n++, o += 3, j += 7) {
+      for (let n = 0, o = base, j = 0; n < L.w; n++, o += 3, j += CS) {
         const r = a[o], g = a[o + 1], b = a[o + 2], I = r > g ? (r > b ? r : b) : g > b ? g : b;
-        if (I <= 0) { CF[j] = 1 << 20; CF[j + 1] = CF[j + 2] = CF[j + 3] = 0; continue; }
+        if (I <= 0) { CF[j] = 1 << 20; for (let c = 1; c < CS; c++) CF[j + c] = 0; continue; }
         // (on a slope, the lower step is the one its lowest pixel can reach)
         let q0 = (I + lo - (fit ? (Math.abs(GX[j]) + Math.abs(GY[j])) / 65536 : 0)) | 0, q1 = q0 + 1;
         CF[j] = Math.ceil((q1 - I) * 65536);
         if (q0 > top) q0 = top;
         if (q1 > top) q1 = top;
-        const k0 = (q0 * inv * 256) / I, k1 = (q1 * inv * 256) / I;
-        let v = r * k0; CF[j + 1] = v > m256 ? m256 : v + 0.5; v = g * k0; CF[j + 2] = v > m256 ? m256 : v + 0.5; v = b * k0; CF[j + 3] = v > m256 ? m256 : v + 0.5;
-        v = r * k1; CF[j + 4] = v > m256 ? m256 : v + 0.5; v = g * k1; CF[j + 5] = v > m256 ? m256 : v + 0.5; v = b * k1; CF[j + 6] = v > m256 ? m256 : v + 0.5;
+        const k0 = (q0 * inv * 256) / I, k1 = (q1 * inv * 256) / I, t0 = q0 * 3, t1 = q1 * 3, iI = 1 / I;
+        let v = r * k0 * TF[t0]; CF[j + 1] = v > m256 ? m256 : v + 0.5; v = g * k0 * TF[t0 + 1]; CF[j + 2] = v > m256 ? m256 : v + 0.5; v = b * k0 * TF[t0 + 2]; CF[j + 3] = v > m256 ? m256 : v + 0.5;
+        v = r * k1 * TF[t1]; CF[j + 4] = v > m256 ? m256 : v + 0.5; v = g * k1 * TF[t1 + 1]; CF[j + 5] = v > m256 ? m256 : v + 0.5; v = b * k1 * TF[t1 + 2]; CF[j + 6] = v > m256 ? m256 : v + 0.5;
+        // what the warm light adds on each step (0 with it off)
+        CF[j + 7] = TA[t0] * r * iI + 0.5; CF[j + 8] = TA[t0 + 1] * g * iI + 0.5; CF[j + 9] = TA[t0 + 2] * b * iI + 0.5;
+        CF[j + 10] = TA[t1] * r * iI + 0.5; CF[j + 11] = TA[t1 + 1] * g * iI + 0.5; CF[j + 12] = TA[t1 + 2] * b * iI + 0.5;
+        CF[j + 13] = LP[q1] * 256;
       }
     }
     if (fit) {
       // this row's place in its cells, and so each cell's threshold here
       const oy = ((y + py) % LC) - (LC >> 1);
       if ((y + py) % LC === 0 || y === 0) for (let x = 0; x < w; x++) GXO[x] = GX[col[x]] * (((x + px) % LC) - (LC >> 1));
-      for (let j = 0; j < L.w * 7; j += 7) CFr[j] = CF[j] - ((GY[j] * oy) | 0);
+      for (let j = 0; j < L.w * CS; j += CS) CFr[j] = CF[j] - ((GY[j] * oy) | 0);
+      let leftHi = 1;
       for (let x = 0, k = y * w; x < w; x++, k++) {
-        const j = col[x], sel = bt[(x + cx) & 3] + GXO[x] >= CFr[j] ? j + 4 : j + 1, p = d32[k];
-        let r = ((p & 255) * CF[sel] + 128) >> 8, g = (((p >> 8) & 255) * CF[sel + 1] + 128) >> 8, b = (((p >> 16) & 255) * CF[sel + 2] + 128) >> 8;
+        const j = col[x], hi = bt[(x + cx) & 3] + GXO[x] >= CFr[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, p = d32[k];
+        let r = (((p & 255) * CF[sel] + 128) >> 8) + CF[sel + 6], g = ((((p >> 8) & 255) * CF[sel + 1] + 128) >> 8) + CF[sel + 7], b = ((((p >> 16) & 255) * CF[sel + 2] + 128) >> 8) + CF[sel + 8];
+        if (thread) {
+          // on the lit side of a band's edge: this pixel, high over a low
+          // one above or to its left; or the one to its left, high before
+          // this low one (written again)
+          const aboveHi = HI[x];
+          HI[x] = hi;
+          if (CF[j + 13] >= thFrom && ((((x + cx) * 0x9e37 + (y + cy) * 0x85eb) >>> 0) & 7) < thGate) {
+            if (hi && (!aboveHi || !leftHi)) { r += (thC[0] - r) * thA; g += (thC[1] - g) * thA; b += (thC[2] - b) * thA; }
+            else if (!hi && leftHi && x > 0) {
+              const q = d32[k - 1], qr = q & 255, qg = (q >> 8) & 255, qb = (q >> 16) & 255;
+              d32[k - 1] = 0xff000000 | ((qb + (thC[2] - qb) * thA) << 16) | ((qg + (thC[1] - qg) * thA) << 8) | (qr + (thC[0] - qr) * thA);
+            }
+          }
+          leftHi = hi;
+        }
         if (r > 255) r = 255;
         if (g > 255) g = 255;
         if (b > 255) b = 255;
@@ -611,7 +657,7 @@ function lightScene(cx, cy) {
       // the pixel, lit by its cell's factors, on the higher step if its
       // threshold reaches it: its r, g, b in one 32-bit word
       const j = col[x], sel = bt[(x + cx) & 3] >= CF[j] ? j + 4 : j + 1, p = d32[k];
-      let r = ((p & 255) * CF[sel] + 128) >> 8, g = (((p >> 8) & 255) * CF[sel + 1] + 128) >> 8, b = (((p >> 16) & 255) * CF[sel + 2] + 128) >> 8;
+      let r = (((p & 255) * CF[sel] + 128) >> 8) + CF[sel + 6], g = ((((p >> 8) & 255) * CF[sel + 1] + 128) >> 8) + CF[sel + 7], b = ((((p >> 16) & 255) * CF[sel + 2] + 128) >> 8) + CF[sel + 8];
       if (r > 255) r = 255;
       if (g > 255) g = 255;
       if (b > 255) b = 255;
@@ -905,6 +951,8 @@ function renderFrame() {
   // floor isn't painted again for it)
   const ambLevel = lv.amb * (d.hub && Intro.hub ? Intro.hub.amb : 1), tint = lv.tint;
   const L = View.light;
+  // (the ambient's brightness, for the warm light's bands: lightScene)
+  View.lightAmbI = ambLevel * Math.max(tint[0], tint[1], tint[2]);
   if (View.bakedFrom !== View.lights) bakeFloorLights(f);
   startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
   // a channel home: a ring filling round the diver, the light swelling
