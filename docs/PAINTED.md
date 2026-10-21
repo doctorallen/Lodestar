@@ -230,7 +230,7 @@ A new kind of thing standing on the ground: add it to `pshMovers` (moves, or may
 
 ## The paint lab (branch `lab`)
 
-Every option still in question is a setting to flip in play, so each can be judged in the Fen with the beam rather than in a mock (`js/lab.js`, defaults in `T.lab`, the sheet `screen-lab`). PAUSE → PAINT LAB opens a sheet over the deck with the room still showing above it; the simulation is paused as under any modal, and every row applies at once: the floor painted again round you (as a kindling paints it again), sprites rebuilt, or nothing when the option is read every frame. BACK and RESET stay at the top. It's kept in the save with the sound (`settings.paint`), survives START OVER, and every default is today's look, so with the lab untouched nothing changes. `?lab=calm,form,brush:broad,finish:wash` in the address sets it before the game loads (screenshots, the smoke test). LAMP (beam or glow) moved into the sheet.
+Every option still in question is a setting to flip in play, so each can be judged in the Fen with the beam rather than in a mock (`js/lab.js`, defaults in `T.lab`, the sheet `screen-lab`). PAUSE → PAINT LAB opens a sheet over the deck with the room still showing above it; the simulation is paused as under any modal, and every row applies at once: the floor painted again round you (as a kindling paints it again) or nothing when the option is read every frame. BACK and RESET stay at the top. It's kept in the save with the sound (`settings.paint`), survives START OVER, and the defaults are the look chosen so far (CALM FIELDS, FORM STROKES, WARM LIGHT and the WASH finish), which RESET goes back to. `?lab=calm,form,brush:broad,finish:wash` in the address sets it before the game loads (screenshots, the smoke test). LAMP (beam or glow) moved into the sheet.
 
 The painters and the light read `Lab.get(key)` at the one point each option branches, so a rejected option goes by deleting its branch and its row:
 
@@ -239,8 +239,14 @@ The painters and the light read `Lab.get(key)` at the one point each option bran
 | CALM FIELDS | `pntGroundTones`, `pntStrokeRow` (a calm row) | `T.paint.calm` | the floor repaints |
 | FORM STROKES | `pntPaintRock` (runs down the faces, lit crease twins), `pntSlabs` (a plane on each boulder's crown, `PNT_FORMID`) | `T.paint.form` | the floor repaints |
 | WARM LIGHT | `lightScene` (a tint and an addition per band, a thread on the bands' edges) | `T.light.warm` | nothing; per frame |
-| LOST EDGES | `fpLoseEdges`, called from `fpReadable`, `kdGet` (after the mirroring, on a copy) and `pflFloraSprite` | `T.paint.foes.lose` | sprite caches cleared (`fpClearSprites`, `kdClearFrames`, `pflClearSprites`) |
 | AIR | `air.js` (`airHaze` before the actors, `airMotes` among them, `airVignette` after the light) | `T.air` | nothing; per frame |
-| BRUSH, FINISH | `pntBrush` (today's numbers, the brush's over them, the finish's over those): the stroke cutter's cell, shares and rows; the ramps' tone counts in `pntLook`; the rock's tones (given for ten) scaled; hard patches, a hatch, dithered bands | `T.paint.brush`, `T.paint.finish` | the floor repaints, the ramp cache cleared |
+| IMPASTO | `pntGroundTones` (a long stroke's left end up, its right end down), `pntPaintRock` (a top's long strokes' left ends up); `pntStrokeLens` | `T.paint.impasto` | the floor repaints |
+| BROKEN COLOUR | `pntLook` (warm and cool ramps of the same lightness, `pntHueAt`), `pntGroundTones` (each stroke's hue into `View.groundHue`, `pntHueOf`), `paintCaveTile`, `pntPaintRock` | `T.paint.broken` | the floor repaints, the ramp cache cleared |
+| NOCTURNE | `lightScene` (each step's share of the colour that goes, `CF[j + 14]` and `[j + 15]`) | `T.light.nocturne` | nothing; per frame |
+| BOUNCE | `pntPaintRock` (the ground's light tone mixed up a face's foot) | `T.paint.bounce` | the floor repaints |
+| LIVING PAINT | `livePaint` (render.js), from `drawProspector` and `drawEnemy`: a few pictures of each sprite, kept with it | `T.paint.live` | nothing; per frame |
+| SOFT BEAM EDGE | `lightScene` (the threshold from strokes along the row, not the dither) | `T.light.soft` | nothing; per frame |
+| CANVAS | `labCanvasWeave`, at the end of `lightScene` | `T.light.canvas` | nothing; per frame |
+| BRUSH, FINISH | `pntBrush` (today's numbers, the brush's over them, the finish's over those): the stroke cutter's cell, shares and rows; the ramps' tone counts in `pntLook`; the rock's tones (given for ten) scaled; hard patches, a hatch. CONTOUR: `pntGroundTones` works out the rows' values round the area, then each pixel's tone along the way the land runs (`pntContourField`, `pntContourDir`); the rock keeps its strokes | `T.paint.brush`, `T.paint.finish`, `T.paint.contour` | the floor repaints, the ramp cache cleared |
 
 With the brush at today and the finish at paint, the cutter and the ramps are exactly as before the lab.

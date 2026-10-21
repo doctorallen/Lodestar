@@ -88,8 +88,9 @@ function pntLookClear() { _pntLooks = new WeakMap(); }
 function pntLook(b, lift = View.pntLift || 0) {
   let M = _pntLooks.get(b);
   if (!M) _pntLooks.set(b, (M = new Map()));
-  // (the brush sets how many tones: the paint lab)
-  const Bq = pntBrush(), key = Math.round(lift * 20) + '/' + Bq.gTones + '/' + Bq.rTones;
+  // (the brush sets how many tones, and BROKEN COLOUR adds the hued
+  // ramps: the paint lab)
+  const Bq = pntBrush(), brk = Lab.on('broken'), key = Math.round(lift * 20) + '/' + Bq.gTones + '/' + Bq.rTones + (brk ? '/b' : '');
   let L = M.get(key);
   if (L) return L;
   lift = Math.round(lift * 20) / 20;
@@ -99,8 +100,24 @@ function pntLook(b, lift = View.pntLift || 0) {
   const ground = pntLiftRamp(pntRampEven(g, Bq.gTones, R.ground), lift, R.liftGround);
   const rr = pntRockUnder(pntLiftRamp(pntRampEven(rock, Bq.rTones, R.rock, rk[3]), lift, R.liftRock), ground);
   L = { ground: Uint32Array.from(ground.map(pntU32)), rock: Uint32Array.from(rr.map(pntU32)), groundRgb: ground, rockRgb: rr };
+  if (brk) {
+    const K = T.paint.broken, hue = (a, tint) => Uint32Array.from(a.map((c) => pntU32(pntHueAt(c, tint, K.amt))));
+    L.groundW = hue(ground, K.warm); L.groundC = hue(ground, K.cool); L.rockW = hue(rr, K.warm); L.rockC = hue(rr, K.cool);
+  }
   M.set(key, L);
   return L;
+}
+// A tone tinted a share a of the way to tint (a multiplier for each
+// channel), its lightness kept (the paint lab's BROKEN COLOUR).
+function pntHueAt(c, tint, a) {
+  const m = c.map((v, k) => v * (1 + (tint[k] - 1) * a)), k = pntLum(c) / Math.max(1, pntLum(m));
+  return m.map((v) => Math.min(255, v * k));
+}
+// Which hue a stroke takes (BROKEN COLOUR): 0 its own, 1 warm, 2 cool, by
+// the stroke's middle sx on row y.
+function pntHueOf(sx, y, seed) {
+  const h = artHash(sx, y, seed + 77), s = T.paint.broken.share;
+  return h < s * 0.5 ? 1 : h < s ? 2 : 0;
 }
 // Walls read as walls: a rock's tops (its middle tone) are kept to at most
 // T.paint.rampEven.under[0] of the ground's middle tone, its tones darkened
@@ -165,7 +182,7 @@ const PNT_CELL = 8;
 // how many rows a stroke is tall; gTones, rTones: the ground's and rock's
 // ramps' tones; hard: the ground's lit patches cut hard; hatch: soot
 // hatched over the shadows (hatchAt: the values it starts under, crossed
-// under the second); dither: the light's bands dithered.
+// under the second).
 let _pntBrushKey = '', _pntBrush = null;
 // The widest a stroke's cell can be (the margins a repaint reads across).
 function pntCellMax() { return Math.max(PNT_CELL, pntBrush().cell, T.paint.calm.cell); }
@@ -209,6 +226,17 @@ function pntStrokeRow(mid, jit, x0, n, y, seed, calm) {
   }
 }
 
+// How long each pixel's stroke is (its run of the same middle), into len
+// (IMPASTO raises only the longer ones).
+function pntStrokeLens(mid, n, len) {
+  for (let i = 0; i < n; ) {
+    let e = i + 1;
+    while (e < n && mid[e] === mid[i]) e++;
+    len.fill(Math.min(255, e - i), i, e);
+    i = e;
+  }
+}
+
 // ---- the ground ------------------------------------------------------------
 // The ground's tones (indices into its 7-tone ramp) for floor pixels x0..x1,
 // y0..y1, into View.groundTone, worked out a whole row at a time: its light
@@ -233,9 +261,19 @@ function pntGroundTones(f, x0, y0, x1, y1) {
   // baked shadows, which lie where plants and stands are
   const Cm = T.paint.calm, calm = Lab.on('calm') ? new Float32Array(n) : null;
   const hard = !!Bq.hard, hatch = !!Bq.hatch, hA = hatch ? Math.round((nt - 1) * Bq.hatchAt[0]) : 0, hB = hatch ? Math.round((nt - 1) * Bq.hatchAt[1]) : 0;
+  // IMPASTO: a stroke's ends raised and sunk; BROKEN COLOUR: each pixel's
+  // stroke's hue, into View.groundHue (the paint lab)
+  const Im = T.paint.impasto, imp = Lab.on('impasto'), iHi = Math.round((Im.hi * (nt - 1)) / 6), iLo = Math.round((Im.lo * (nt - 1)) / 6);
+  const slen = imp ? new Uint8Array(n) : null, brk = Lab.on('broken');
+  if (brk && (!View.groundHue || View.groundHue.length !== out.length)) View.groundHue = new Uint8Array(out.length);
+  const HUE = brk ? View.groundHue : null;
+  // the CONTOUR brush works out the values of the rows round the area
+  // first, then reads them along the land (below)
+  const cont = !!Bq.contour, yS = cont ? Math.max(0, y0 - pad) : y0, yE = cont ? Math.min(Hp, y1 + pad) : y1;
+  const VV = cont ? new Float32Array(n * (yE - yS)) : null;
   const rk = (x, y) => x < 0 || y < 0 || x >= W || y >= Hp || R[y * W + x] === 1;
-  for (let i = 0; i < n; i++) { let k = F + 1; for (let j = 1; j <= F; j++) if (rk(ax + i, y0 - j)) { k = j - 1; break; } since[i] = k; }
-  for (let y = y0; y < y1; y++) {
+  for (let i = 0; i < n; i++) { let k = F + 1; for (let j = 1; j <= F; j++) if (rk(ax + i, yS - j)) { k = j - 1; break; } since[i] = k; }
+  for (let y = yS; y < yE; y++) {
     pntNoiseRow(n1, ax, n, y, G.swell, G.swell, seedH + 21);
     pntNoiseRow(n2, ax, n, y, G.patch[0], G.patch[1], seedH + 22);
     pntNoiseRow(n3, ax, n, y, G.patch[0] * 0.45, G.patch[1] * 0.6, seedH + 23);
@@ -265,15 +303,89 @@ function pntGroundTones(f, x0, y0, x1, y1) {
       if (calm) calm[i] += Cm.bias - busy;
       v[i] = val;
     }
+    if (cont) { VV.set(v, (y - yS) * n); continue; }
     pntStrokeRow(mid, jit, ax, n, y, seedH + 31, calm);
+    if (imp) pntStrokeLens(mid, n, slen);
     for (let x = x0; x < x1; x++) {
       const i = x - ax, jf = calm ? (calm[i] > Cm.cut ? Cm.jitter : Cm.busyJitter) : 1;
       let t = Math.round(v[mid[i]] * (nt - 1) + jit[i] * J * jf);
+      // impasto: the stroke's left end stands up into the light, its right
+      // end sinks
+      if (imp && slen[i] >= Im.min && artHash(ax + mid[i], y, seedH + 33) < Im.share) { if (mid[i - 1] !== mid[i]) t += iHi; else if (mid[i + 1] !== mid[i]) t -= iLo; }
       // ink: soot hatched over the shadows, crossed in the deepest
       if (hatch && ((t <= hA && (x + y) % 3 === 0) || (t <= hB && (x - y + 3 * W) % 3 === 0))) t = 0;
       out[row + x] = t < 0 ? 0 : t > nt - 1 ? nt - 1 : t;
+      if (HUE) HUE[row + x] = pntHueOf(ax + mid[i], y, seedH);
     }
   }
+  if (!cont) return;
+  // The contour brush: each pixel's tone is the average, along a line
+  // through it the way the land runs, of the value and of a grain (a line
+  // integral), so the strokes are streaks that follow the land. A warm
+  // streak is one whose grain runs high, a cool one low.
+  const C = T.paint.contour, fl = pntContourField(f, ax, yS, ax + n, yE), rows = yE - yS, cs = C.cell, NG = new Float32Array(n * rows), hueAt = C.hueAt;
+  for (let r = 0; r < rows; r++) for (let i = 0; i < n; i++) NG[r * n + i] = artHash(Math.floor((ax + i) / cs), Math.floor((yS + r) / cs), seedH + 35);
+  const dv = [0, 0];
+  for (let y = y0; y < y1; y++) {
+    const row = y * W;
+    for (let x = x0; x < x1; x++) {
+      pntContourDir(fl, x, y, dv);
+      let sv = 0, sg = 0, k = 0;
+      for (let s = -C.reach; s <= C.reach; s++) {
+        const px = Math.round(x + dv[0] * s) - ax, py = Math.round(y + dv[1] * s) - yS;
+        if (px < 0 || py < 0 || px >= n || py >= rows) continue;
+        sv += VV[py * n + px]; sg += NG[py * n + px]; k++;
+      }
+      const g = sg / k - 0.5;
+      let t = Math.round((sv / k) * (nt - 1) + (g * C.gain * (nt - 1)) / 6);
+      if (hatch && ((t <= hA && (x + y) % 3 === 0) || (t <= hB && (x - y + 3 * W) % 3 === 0))) t = 0;
+      out[row + x] = t < 0 ? 0 : t > nt - 1 ? nt - 1 : t;
+      if (HUE) HUE[row + x] = g > hueAt ? 1 : g < -hueAt ? 2 : 0;
+    }
+  }
+}
+// The way the land runs over floor px x0..x1, y0..y1, for the CONTOUR
+// brush (T.paint.contour): on a grid of blocks fixed to the floor, how
+// much rock each holds, blurred, its edge's tangent weighted by how
+// steeply that changes; plus a slow drift off level. Kept as each block's
+// doubled angle (so a way and its reverse agree when blended).
+function pntContourField(f, x0, y0, x1, y1) {
+  const C = T.paint.contour, B = C.block, M = C.margin, W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx, seed = (f.seed ^ f.depth) | 0;
+  const bx0 = Math.floor((x0 - M) / B), by0 = Math.floor((y0 - M) / B), bw = Math.floor((x1 + M) / B) - bx0 + 1, bh = Math.floor((y1 + M) / B) - by0 + 1;
+  const A = new Float32Array(bw * bh), Tm = new Float32Array(bw * bh), q0 = B >> 2, q1 = (3 * B) >> 2;
+  // (four samples a block; off the floor is rock)
+  for (let j = 0; j < bh; j++) for (let i = 0; i < bw; i++) {
+    let s = 0;
+    for (let v = 0; v < 2; v++) for (let u = 0; u < 2; u++) {
+      const x = (bx0 + i) * B + (u ? q1 : q0), y = (by0 + j) * B + (v ? q1 : q0);
+      s += x < 0 || y < 0 || x >= W || y >= Hp || R[y * W + x] === 1 ? 1 : 0;
+    }
+    A[j * bw + i] = s * 0.25;
+  }
+  const r = C.blur, k = 1 / (2 * r + 1);
+  for (let p = 0; p < 2; p++) {
+    for (let j = 0; j < bh; j++) for (let i = 0; i < bw; i++) { let s = 0; for (let d = -r; d <= r; d++) s += A[j * bw + Math.min(bw - 1, Math.max(0, i + d))]; Tm[j * bw + i] = s * k; }
+    for (let j = 0; j < bh; j++) for (let i = 0; i < bw; i++) { let s = 0; for (let d = -r; d <= r; d++) s += Tm[Math.min(bh - 1, Math.max(0, j + d)) * bw + i]; A[j * bw + i] = s * k; }
+  }
+  const C2 = new Float32Array(bw * bh), S2 = new Float32Array(bw * bh);
+  for (let j = 0; j < bh; j++) for (let i = 0; i < bw; i++) {
+    const o = j * bw + i, gx = (A[j * bw + Math.min(bw - 1, i + 1)] - A[j * bw + Math.max(0, i - 1)]) * 0.5, gy = (A[Math.min(bh - 1, j + 1) * bw + i] - A[Math.max(0, j - 1) * bw + i]) * 0.5;
+    const g = Math.hypot(gx, gy), ph = (pntNoise((bx0 + i) * B, (by0 + j) * B, C.wander, C.wander, seed + 37) - 0.5) * 2 * C.turn;
+    // (the tangent (-gy, gx), its angle doubled, as long as the slope)
+    C2[o] = Math.cos(2 * ph) + (g > 0 ? ((gy * gy - gx * gx) / g) * C.pull : 0);
+    S2[o] = Math.sin(2 * ph) + (g > 0 ? ((-2 * gx * gy) / g) * C.pull : 0);
+  }
+  return { B, bx0, by0, bw, bh, C2, S2 };
+}
+// The way the land runs at floor px x, y (a unit [dx, dy] into o), read
+// between the blocks' middles.
+function pntContourDir(fl, x, y, o) {
+  const gx = Math.min(fl.bw - 1.001, Math.max(0, x / fl.B - fl.bx0 - 0.5)), gy = Math.min(fl.bh - 1.001, Math.max(0, y / fl.B - fl.by0 - 0.5));
+  const i = gx | 0, j = gy | 0, u = gx - i, v = gy - j, a = j * fl.bw + i, b = a + fl.bw;
+  const c = (fl.C2[a] * (1 - u) + fl.C2[a + 1] * u) * (1 - v) + (fl.C2[b] * (1 - u) + fl.C2[b + 1] * u) * v;
+  const s = (fl.S2[a] * (1 - u) + fl.S2[a + 1] * u) * (1 - v) + (fl.S2[b] * (1 - u) + fl.S2[b + 1] * u) * v;
+  const th = Math.atan2(s, c) * 0.5;
+  o[0] = Math.cos(th); o[1] = Math.sin(th);
 }
 
 // ---- the rock --------------------------------------------------------------
@@ -553,6 +665,11 @@ function pntPaintRock(f, x0, y0, x1, y1) {
   // the form strokes (the paint lab): runs down the faces, a plane on each
   // boulder's crown, lit twins to the creases (T.paint.form)
   const form = Lab.on('form') && !mason, Fm = T.paint.form;
+  // IMPASTO, BROKEN COLOUR and BOUNCE (the paint lab): a stroke's ends
+  // raised and sunk, its hue warm or cool, and the lit ground's colour
+  // thrown up a face's foot
+  const Im = T.paint.impasto, imp = Lab.on('impasto'), LK = pntLook(b), brk = !!LK.rockW;
+  const Bo = T.paint.bounce, bnc = Lab.on('bounce'), gRgb = LK.groundRgb, BC = bnc ? gRgb[Math.round(Bo.tone * (gRgb.length - 1))] : null;
   _pntFormSeed = seed;
   pntSlabs(cell, cx0, y0, cw, ch, sp, seed + 61, mason, form);
   // a rock pixel's tone before its stroke into tb, and how steep (0 a top,
@@ -615,7 +732,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
     tb[i] = t; wb[i] = w; lt[i] = vt;
   };
   const gate = new Float32Array(rw);
-  const n = cw, mid = new Int16Array(n), jit = new Float32Array(n), lt = new Float32Array(n);
+  const n = cw, mid = new Int16Array(n), jit = new Float32Array(n), lt = new Float32Array(n), slen = new Uint8Array(n);
   let tb = new Float32Array(n), wb = new Float32Array(n), tbUp = new Float32Array(n), wbUp = new Float32Array(n);
   for (let i = 0; i < n; i++) { const x = cx0 + i; if (isRock(x, y0 - 1)) look(x, y0 - 1, tbUp, wbUp, i, sp - 1); else wbUp[i] = 0; }
   const cr = Rk.creaseR, crW = cr * W, crK = 0.0625 * 0.25;
@@ -623,6 +740,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
     const r = y - y0 + sp;
     for (let i = 0; i < n; i++) { const x = cx0 + i; if (isRock(x, y)) look(x, y, tb, wb, i, r); else wb[i] = -1; }
     pntStrokeRow(mid, jit, cx0, n, y, seed + 71);
+    if (imp) pntStrokeLens(mid, n, slen);
     pntNoiseRow(gate, x0, rw, y, Sl.gateS[0], Sl.gateS[1], seed + 85);
     const off = (artHash(y, 3, seed) * 16) | 0;
     let stS = -1e9, stX = 0, stL = 0, stA = 0, slId = -2, slT = 0;
@@ -631,13 +749,17 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       if (wb[i] < 0) continue;
       const sy = y + LF[y * W + x] - 1, face = wb[i] > 0.5, m = mid[i];
       // the stroke's tone, from its middle if that's rock too
-      let t;
+      let t, runAt = -1, runId = 0;
       if (form && face) {
         // a run down the face: its tone read at the run's middle row
         const ph = (artHash(x, 0, seed + 92) * Fm.run) | 0, blk = Math.floor((y + ph) / Fm.run), tm = toneAt(x, blk * Fm.run - ph + (Fm.run >> 1), i);
         let j = artHash(x, blk, seed + 94) * 2 - 1; j = j * j * j;
         t = (tm === tm ? tm : tb[i]) + j * Rk.jitter * Bq.jitter;
+        runAt = (y + ph) - blk * Fm.run; runId = blk;
       } else t = (wb[m] >= 0 ? tb[m] : tb[i]) + jit[i] * Rk.jitter * Bq.jitter;
+      // impasto: on a top, a long stroke's left end stands up into the light
+      // (on the faces, and sunk ends, it only speckled the rock)
+      if (imp && !face && slen[i] >= Im.min && mid[i - 1] !== m && artHash(cx0 + m, y, seed + 73) < Im.share) t += Im.hi;
       let creased = false;
       // strata on the faces: long strokes a shade or two off
       if (face) {
@@ -679,7 +801,20 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       let rp = gRamp && Math.abs(x - gcx) < gR && Math.abs(sy - gcy) < gR && graftAt(f, (x + 0.5) / AP - 0.5, (sy + 0.5) / AP - 0.5) ? gRamp : ramp;
       // (at the outpost, the rock of the land beyond where its meld reaches)
       if (ml) { const mk = hgrMeldAt(f, x, sy); if (mk >= 0) rp = ml[mk]; }
+      // broken colour: the stroke (the run) warm or cool
+      if (brk && rp === ramp) { const hu = runAt >= 0 ? pntHueOf(x, runId, seed + 9) : pntHueOf(cx0 + m, y, seed); if (hu) rp = hu === 1 ? LK.rockW : LK.rockC; }
       C32[y * W + x] = rp[t < 0 ? 0 : t > nt - 1 ? nt - 1 : t];
+      // bounce: at a face's foot, the lit ground's colour (a little on the
+      // soot, the most a few px up), fading up the face
+      if (bnc && face) {
+        let dd = 1;
+        while (dd <= Bo.reach && isRock(x, y + dd)) dd++;
+        if (dd <= Bo.reach) {
+          const u = dd <= Bo.peak ? Bo.foot + ((1 - Bo.foot) * (dd - 1)) / Math.max(1, Bo.peak - 1) : 1 - (dd - Bo.peak) / Math.max(1, Bo.reach - Bo.peak);
+          const a = Bo.amt * u, c = C32[y * W + x], cr = c & 255, cg = (c >> 8) & 255, cb = (c >> 16) & 255;
+          C32[y * W + x] = pntU32([cr + (BC[0] - cr) * a, cg + (BC[1] - cg) * a, cb + (BC[2] - cb) * a]);
+        }
+      }
       // (the form strokes: a crease's lit twin, a pixel to its upper left)
       if (form && creased && x > x0 && y > y0 && isRock(x - 1, y - 1) && cell[cj - cw - 1] === cell[cj]) C32[(y - 1) * W + x - 1] = rp[Math.min(nt - 1, Math.round(Fm.crackLit * tsc))];
     }

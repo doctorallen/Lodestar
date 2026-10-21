@@ -1343,9 +1343,9 @@ async function guidedLanding(browser) {
 // still showing; every row flips once and the frame still draws; RESET
 // puts every row back; the address sets it before the game loads.
 async function paintLab(browser) {
-  const { page, errors } = await openGame(browser, Object.assign({}, PHONE, { query: '?lab=warm,brush:broad' }));
+  const { page, errors } = await openGame(browser, Object.assign({}, PHONE, { query: '?lab=warm:off,brush:broad' }));
   await page.evaluate(`window.ring1 = ${ring1}; window.sturdy = ${sturdy};`);
-  check(await page.evaluate(() => Lab.get('warm') === true && Lab.get('brush') === 'broad' && Lab.get('calm') === false), 'lab: ?lab= did not set the lab before the game loaded');
+  check(await page.evaluate(() => Lab.get('warm') === false && Lab.get('brush') === 'broad' && Lab.get('calm') === true), 'lab: ?lab= did not set the lab before the game loaded');
   await tap(page, '#intro-skip');
   await page.evaluate(() => { if (Game.modal === 'screen-onboard') UI.close(); });
   await page.evaluate((id) => UI.acts.setOutWalk(String(id)), await page.evaluate(() => ring1('waystones')));
@@ -1366,7 +1366,7 @@ async function paintLab(browser) {
     check(after !== before, `lab: ${r} did not flip (${before} → ${after})`);
     await run(page, 0.2);
   }
-  check(await page.evaluate(() => Lab.get('warm') === false && Lab.get('brush') === 'fine' && Lab.get('finish') === 'flat' && Lab.get('calm') && Lab.get('form') && Lab.get('lose') && Lab.get('air') && Save.data.settings.paint.calm === true), 'lab: the rows did not land in the save');
+  check(await page.evaluate(() => Lab.get('warm') === true && Lab.get('brush') === 'fine' && Lab.get('finish') === 'paint' && !Lab.get('calm') && !Lab.get('form') && Lab.get('air') && Lab.get('impasto') && Lab.get('nocturne') && Lab.get('live') && Lab.get('canvas') && Save.data.settings.paint.calm === false), 'lab: the rows did not land in the save');
   check(await page.evaluate(() => !lampIsBeam()), 'lab: the LAMP row did not switch to the glow');
   await tap(page, '#lab-lamp');
   await page.evaluate(() => $('lab-reset').scrollIntoView({ block: 'center' }));

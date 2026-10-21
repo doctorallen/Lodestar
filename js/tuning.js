@@ -1015,18 +1015,51 @@ const T = {
     // rTones: the ground's and the rock's ramps (the rock's numbers above
     // are given for 10 and scaled). flat: hard, the lit patches cut hard.
     // ink: hatch, soot hatched over the shadows under hatchAt[0] of the
-    // ramp, crossed under hatchAt[1]. wash: dither, the light's bands
-    // dithered.
+    // ramp, crossed under hatchAt[1]. wash: many tones, the light's bands
+    // left as they are. dab: short dabs, as tall as they're wide. contour:
+    // the ground's strokes follow the land (T.paint.contour).
     brush: {
       today: { cell: 8, jitter: 1, rows: 1, gTones: 7, rTones: 10 },
       broad: { cell: 14, whole: 0.4, one: 0.4, jitter: 0.8, rows: 2, gTones: 5, rTones: 7 },
       fine: { cell: 5, whole: 0.05, one: 0.45, jitter: 1.3, rows: 1, gTones: 9, rTones: 13 },
+      dab: { cell: 4, whole: 1, one: 0, jitter: 1.4, rows: 3 },
+      contour: { contour: true },
     },
+    // The CONTOUR brush (pntContourTones): the ground's strokes run along
+    // the land, round the foot of rock and along the open ground's slow
+    // drift. The rock's pull: how much of it is in each block (block px),
+    // blurred over blur blocks either side (twice), its edge's tangent
+    // weighted by pull; elsewhere a drift (noise wander px across, turning
+    // up to turn radians off level). Each pixel's tone is the average along
+    // a line `reach` px either way through it, of the value and of a grain
+    // in cells of `cell` px (times gain, in tones of a ground of 7). With BROKEN
+    // COLOUR, a streak whose grain is over hueAt from the middle is warm
+    // (under, cool).
+    contour: { block: 6, blur: 3, margin: 48, pull: 12, wander: 70, turn: 0.7, reach: 5, cell: 2, gain: 9, hueAt: 0.06 },
+    // The paint lab's IMPASTO (pntGroundTones, pntPaintRock): a stroke's
+    // left end stands up hi tones and (on the ground) its right end sinks
+    // lo, on `share` of the strokes at least `min` px long; on the rock only
+    // the tops. Given for a ground of 7 tones (the rock's for 10), scaled.
+    impasto: { hi: 1, lo: 1, share: 0.7, min: 4 },
+    // The paint lab's BROKEN COLOUR (pntLook): `share` of the strokes take
+    // a warm or a cool hue of the same lightness, `amt` of the way to each
+    // tint.
+    broken: { share: 0.6, amt: 0.5, warm: [1.3, 1.0, 0.62], cool: [0.7, 0.95, 1.35] },
+    // The paint lab's BOUNCE (pntPaintRock): the lit ground's colour thrown
+    // up a face's foot, `amt` of the ground's tone `tone` (its share of the
+    // ramp) mixed in, `foot` of that on the soot row and the most `peak` px
+    // up, fading out `reach` px up.
+    bounce: { amt: 0.42, tone: 0.75, reach: 9, foot: 0.45, peak: 3 },
+    // The paint lab's LIVING PAINT (render.js livePaint): a figure's strokes
+    // shift a pixel now and then, `fps` times a second through `frames`
+    // pictures (the first as drawn), `share` of its pixels taking a
+    // neighbour's colour in each.
+    live: { fps: 5, frames: 3, share: 0.16 },
     finish: {
       paint: {},
       flat: { cell: 16, whole: 0.85, one: 0.1, jitter: 0, gTones: 4, rTones: 5, hard: true },
       ink: { gTones: 5, rTones: 6, jitter: 0.5, hatch: true, hatchAt: [0.42, 0.22] },
-      wash: { cell: 10, whole: 0.2, jitter: 0.4, gTones: 14, rTones: 20, dither: true },
+      wash: { cell: 10, whole: 0.2, jitter: 0.4, gTones: 14, rTones: 20 },
     },
     // The paint lab's FORM STROKES (pntPaintRock, pntSlabs): on a face the
     // strokes run down, in runs `run` px tall (each column set off by its
@@ -1132,13 +1165,6 @@ const T = {
     foes: {
       base: 0.47, light: 0.9, shade: 0.8, depth: 3, fall: 0.16, crease: 0.14, run: [2, 4], jitter: 0.32, rim: 0.85, rimHi: 0.35, under: 1, elite: 0.7,
       read: { top: 0.9, left: 0.6, lit: 0.28, glowLit: 0.6, pale: [255, 236, 200], shade: 0.85, dark: 0.55, glow: 0.7, shadow: [0.4, 0.62] },
-      // The paint lab's LOST EDGES (fpLoseEdges): on the shadow side, drop
-      // of a mass's edge pixels are dropped and the rest sunk `deep` towards
-      // the violet black; the lit side's rim goes `rim` towards pale on the
-      // Kindler, rimUp on creatures (whose rims were too close to find);
-      // tones under desatBelow of the brightest lose `desat` of their
-      // saturation; glint: the brow lamp's warm pixels on the helm.
-      lose: { drop: 0.5, deep: 0.6, rim: 0.3, rimUp: 0.5, desat: 0.35, desatBelow: 0.45, glint: [255, 224, 138] },
     },
     // The Kindler's animation (diver.js kindlerPick): cycle, art px walked
     // a walk cycle seen from the side (two steps), shortened seen from in
@@ -1261,6 +1287,19 @@ const T = {
     // band whose share is `from`, mixing `amount` of `col`, on `gate` of
     // the pixels.
     warm: { lit: [1.0, 0.92, 0.66], dark: [0.72, 0.64, 1.0], darkAt: [0.95, 0.42], lift: 0.22, paper: [255, 238, 200], thread: { from: 0.3, amount: 0.18, gate: 0.4, col: [255, 196, 120] } },
+    // The paint lab's NOCTURNE (lightScene): outside the light the colour
+    // goes, `amount` of the way to its lightness tinted `tint`, by the
+    // band's share of the light (as the warm light's) and how dark the
+    // place is (darkAt as warm's). The glow layer keeps its colour.
+    nocturne: { amount: 0.85, tint: [0.86, 0.9, 1.18], darkAt: [0.95, 0.42] },
+    // The paint lab's SOFT BEAM EDGE (lightScene): a band's edge broken in
+    // strokes `len` px long along each row, the threshold moved up to
+    // `amt` of a band either way.
+    soft: { len: 5, amt: 0.9 },
+    // The paint lab's CANVAS (lightScene): a weave pinned to the world,
+    // threads `thread` px wide, lit ±amt across each thread and grain
+    // more by thread.
+    canvas: { thread: 2, amt: 0.045, grain: 0.03 },
     // Shadows (shadow.js; cosmetic). walls: the rock stops the lamp;
     // baked: and the floor's fixed lights (lava, vents, glowing plants).
     // eye: the brow lamp's height over the feet (world px; the painted
@@ -1362,16 +1401,17 @@ const T = {
 
 
   // The paint lab (lab.js, docs/PAINTED.md): the painted look's options as
-  // settings to flip in play, each default today's look. calm: the ground
-  // in calm fields with the detail gathered (T.paint.calm); form: strokes
+  // settings to flip in play, each default the look chosen so far. calm:
+  // the ground in calm fields with the detail gathered (T.paint.calm); form: strokes
   // down the rock's faces, one big plane an outcrop, lit cracks
   // (T.paint.form); warm: the light's bands tinted, amber in the lamp and
-  // violet in the dark (T.light.warm); lose: figures' and caps' edges lost on
-  // the shadow side (T.paint.foes.lose); air: the clime's motes and a haze
-  // beyond the beam (T.air). brush: the strokes' size (today, broad, fine;
-  // T.paint.brush); finish: how much the paint shows (paint, flat, ink,
-  // wash; T.paint.finish).
-  lab: { calm: false, form: false, warm: false, lose: false, air: false, brush: 'today', finish: 'paint' },
+  // violet in the dark (T.light.warm); air: the clime's motes and a haze
+  // beyond the beam (T.air). impasto, broken, bounce (T.paint's), nocturne,
+  // soft, canvas (T.light's), live (T.paint.live). brush: the strokes'
+  // size and way (today, broad, fine, dab, contour; T.paint.brush);
+  // finish: how much the paint shows (paint, flat, ink, wash;
+  // T.paint.finish).
+  lab: { calm: true, form: true, warm: true, air: false, impasto: false, broken: false, nocturne: false, bounce: false, live: false, soft: false, canvas: false, brush: 'today', finish: 'wash' },
   // Air beyond the beam (air.js; the paint lab's AIR; cosmetic). motes:
   // per, how many a 100 × 100 art px of the floor, in the clime's glow
   // colour (the star's gold at home), at alpha, lit by the light where they

@@ -732,6 +732,19 @@ The painted look's next moves were written up as options (five ways to push the 
 - **CALM FIELDS:** a broad slow noise says where the ground is quiet: long whole strokes of two tones, cut back to busy at a wall's foot and under the baked shadows, where plants and stands are.
 - **FORM STROKES:** on a face the strokes run down the rock, the tone read at each run's middle; on a top each boulder's crown is one lit plane with the facets kept round its edges; a crease gets a lit twin to its upper left.
 - **WARM LIGHT:** each of the light's bands tinted by its share of the lamp's light (amber at the top, violet at the foot in a dark place), the lit bands painted a step up towards paper rather than only multiplied, and a broken warmer thread along the lit side of each bright band's edge.
-- **LOST EDGES:** figures' and caps' shadow-side edge pixels sink to the violet black and every other one is dropped; the lit side takes a paler rim; shadow tones lose some saturation; the brow lamp glints on the helm. The Kindler's pass runs after the mirroring, on a copy, so the lost side is always the shadow's.
+- **LOST EDGES** (tried and taken out: the designer didn't like it): figures' and caps' shadow-side edge pixels sink to the violet black and every other one is dropped; the lit side takes a paler rim; shadow tones lose some saturation; the brow lamp glints on the helm. The Kindler's pass runs after the mirroring, on a copy, so the lost side is always the shadow's.
 - **AIR:** the clime's motes drifting everywhere, fixed to the world and lit where they are (bright in the beam, nearly gone outside it); a haze in the ground's lightest tone over dark land; a vignette to the violet black.
-- **BRUSH** (today, broad, fine) and **FINISH** (paint, flat, ink, wash): the stroke cutter's cell, shares and rows, the ramps' tone counts, hard patches, a hatch over the shadows, dithered bands.
+- **BRUSH** (today, broad, fine) and **FINISH** (paint, flat, ink, wash): the stroke cutter's cell, shares and rows, the ramps' tone counts, hard patches, a hatch over the shadows. WASH no longer dithers the light's bands: the lights stay as they were.
+
+The designer's first picks are now the defaults (`T.lab`): CALM FIELDS, FORM STROKES and WARM LIGHT on, AIR off, BRUSH today, FINISH wash, LAMP beam. The rest stay in the sheet to try.
+
+A second round, each its own switch (so it can go with WASH) or a brush, all off by default:
+
+- **IMPASTO:** thick paint: a long stroke's left end a tone or two up, its right end down, so it catches the lamp; on the rock only the tops' left ends (on the faces, and with sunk ends, it speckled).
+- **BROKEN COLOUR:** strokes swap to a warm or a cool hue of the same lightness, so the colour mixes in the eye.
+- **NOCTURNE:** in a dark place, outside the light the colour goes to a cool grey of its lightness; the beam and what glows keep theirs.
+- **BOUNCE:** the lit ground's colour thrown up the foot of each face, a little on the soot (all on it would outline the rock) and most a few px up.
+- **LIVING PAINT:** the Kindler and the creatures drawn through three pictures of themselves five times a second, a sixth of the pixels taking a neighbour's colour in each.
+- **SOFT BEAM EDGE:** a band's edge broken into short strokes along each row instead of a clean line.
+- **CANVAS:** a faint weave pinned to the world under everything.
+- **DAB** brush: short dabs as tall as they're wide. **CONTOUR** brush: the ground's strokes are streaks along the way the land runs (round the rock, a slow drift in the open), a line integral of the value and a grain; the rock keeps its own strokes.

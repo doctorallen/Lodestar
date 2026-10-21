@@ -257,13 +257,8 @@ function pflSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS, opts
 function pflFloraSprite(set, piece, frame, kit) {
   const hand = PFL_HAND[piece.name];
   const s = hand ? hand(piece, frame, kit, set) : pflSprite(piece.frames[frame], kit.pal, kit.letters, kit.glows);
-  // (the paint lab's LOST EDGES: a cap's shadow side melts into the ground;
-  // strands keep their pixels, foespaint.js)
-  if (Lab.on('lose') && s && s.c && s.w) fpLoseEdges(s, { rim: 0, desat: false });
   return s;
 }
-// The pieces built again (the paint lab: lab.js).
-function pflClearSprites() { for (const k of Object.keys(_floraSprites)) delete _floraSprites[k]; }
 
 // A clump of grass, by hand, at the size its grid was (so it stands where
 // it did): a field of one-pixel blades, uneven, leaning out and bending,

@@ -335,6 +335,36 @@ function drawArtSprite(spr, x, y) {
   ex.drawImage(spr.ec, x, y);
 }
 
+// LIVING PAINT (the paint lab, T.paint.live): a figure drawn through a few
+// pictures of itself, a few a second (the first as drawn), in each a share
+// of its pixels taking a neighbour's colour, so its strokes shift as if
+// painted again. What glows stays as drawn. Each kept with its sprite.
+const _livePics = new WeakMap();
+function livePaint(spr) {
+  if (!Lab.on('live') || !spr || !spr.c) return spr;
+  const Lv = T.paint.live, fr = Math.floor(Game.realT * Lv.fps) % Lv.frames;
+  if (!fr) return spr;
+  let L = _livePics.get(spr);
+  if (!L) _livePics.set(spr, (L = []));
+  if (!L[fr]) {
+    const w = spr.c.width, h = spr.c.height, [c, x] = makeCanvas(w, h);
+    x.drawImage(spr.c, 0, 0);
+    const img = x.getImageData(0, 0, w, h), D = img.data, S = D.slice(), E = spr.ec ? spr.ec.getContext('2d').getImageData(0, 0, w, h).data : null;
+    const solid = (i, j) => i >= 0 && j >= 0 && i < w && j < h && S[(j * w + i) * 4 + 3] > 0 && !(E && E[(j * w + i) * 4 + 3] > 0);
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      if (!solid(i, j) || artHash(i, j, fr * 977 + w) >= Lv.share) continue;
+      // (a neighbour across, mostly, as the strokes run)
+      const hh = artHash(i, j, fr * 977 + h + 1), di = hh < 0.4 ? -1 : hh < 0.8 ? 1 : 0, dj = di ? 0 : hh < 0.9 ? -1 : 1;
+      if (!solid(i + di, j + dj)) continue;
+      const k = (j * w + i) * 4, q = ((j + dj) * w + i + di) * 4;
+      D[k] = S[q]; D[k + 1] = S[q + 1]; D[k + 2] = S[q + 2];
+    }
+    x.putImageData(img, 0, 0);
+    L[fr] = Object.assign({}, spr, { c });
+  }
+  return L[fr];
+}
+
 // The lodeline's beam, painted: runs of the star's gold down a strip 2 ×
 // half wide at x, a tone a run, its middle the hottest, its edges a broken
 // deeper gold; the runs slide down a little each tick. One of each kind
@@ -532,8 +562,7 @@ function startLight(cx, cy, r, g, b) {
 // its own colour. cx, cy: the camera in the world, which the dither is
 // fixed to.
 function lightScene(cx, cy) {
-  // (the wash finish dithers the bands: the paint lab)
-  const w = View.w, h = View.h, Lt = T.light, A = T.art, L = View.light, a = L.a, lw = L.w * 3, dz = pntBrush().dither ? 1 : A.lightDither;
+  const w = View.w, h = View.h, Lt = T.light, A = T.art, L = View.light, a = L.a, lw = L.w * 3, dz = A.lightDither;
   const img = View.ctx.getImageData(0, 0, w, h), d = img.data;
   LateDots.on = false;
   lateDotsColour(d, w, h);
@@ -546,8 +575,9 @@ function lightScene(cx, cy) {
   // higher, then what each step adds (the warm light, below; else 0), and
   // the higher step's share of the lamp.
   // (factors in 256ths, so a pixel is lit in whole numbers, all three of
-  // its channels in one 32-bit read and write)
-  const CS = 14;
+  // its channels in one 32-bit read and write) Then how much of each
+  // step's colour goes (NOCTURNE, below; else 0).
+  const CS = 16;
   if (!View.lightCF || View.lightCF.length < L.w * CS) View.lightCF = new Int32Array(L.w * CS);
   const CF = View.lightCF, m256 = Math.round(mx * 256), d32 = new Uint32Array(d.buffer);
   // The warm light (the paint lab, T.light.warm): each band has a tint of
@@ -558,9 +588,16 @@ function lightScene(cx, cy) {
   // added (in 255ths of the light's colour).
   const warm = Lab.on('warm'), Wm = Lt.warm, ambI = View.lightAmbI || 0, TF = new Float32Array((top + 2) * 3), TA = new Float32Array((top + 2) * 3);
   const dark = warm ? clamp((Wm.darkAt[0] - ambI) / (Wm.darkAt[0] - Wm.darkAt[1]), 0, 1) : 0, lpK = 1 / Math.max(0.05, mx - ambI), LP = new Float32Array(top + 2);
+  // NOCTURNE (the paint lab, T.light.nocturne): outside the light the
+  // colour goes, towards its lightness tinted cool, by how little of the
+  // step is the light's and how dark the place is. ND: per step, how much
+  // goes (256ths); NT: the tint (256ths).
+  const noct = Lab.on('nocturne'), Nc = Lt.nocturne, ND = new Int32Array(top + 2), NT = Nc.tint.map((v) => Math.round(v * 256));
+  const nDark = noct ? clamp((Nc.darkAt[0] - ambI) / (Nc.darkAt[0] - Nc.darkAt[1]), 0, 1) : 0;
   for (let q = 0; q <= top + 1; q++) {
     const level = q * inv, lp = warm ? clamp((level - ambI) * lpK, 0, 1) : 0, k = Wm.lift * lp;
     LP[q] = lp;
+    ND[q] = nDark > 0 ? Math.round(Nc.amount * nDark * (1 - clamp((level - ambI) * lpK, 0, 1)) * 256) : 0;
     for (let c = 0; c < 3; c++) {
       const t = warm ? 1 + (Wm.lit[c] - 1) * lp + (Wm.dark[c] - 1) * (1 - lp) * dark : 1;
       TF[q * 3 + c] = t * (1 - k); TA[q * 3 + c] = Wm.paper[c] * k * level * t;
@@ -588,6 +625,10 @@ function lightScene(cx, cy) {
   // each bright band's edge (where a pixel on the higher step meets one on
   // the lower, above or beside it). HI: the row above's steps.
   const thread = warm && fit, Th = Wm.thread, thFrom = Th.from * 256, thGate = Math.round(Th.gate * 8), thA = Th.amount, thC = Th.col;
+  // SOFT BEAM EDGE (the paint lab, T.light.soft): the threshold set by
+  // strokes along each row (fixed to the world), not the dither, so a
+  // band's edge breaks into strokes
+  const soft = Lab.on('soft'), Sf = Lt.soft, sfLen = Sf.len, sfK = (Sf.amt * 65536) / 255;
   if (thread && (!View.lightHi || View.lightHi.length < w)) View.lightHi = new Uint8Array(w);
   const HI = View.lightHi;
   if (thread) HI.fill(1, 0, w);
@@ -608,7 +649,7 @@ function lightScene(cx, cy) {
       }
       for (let n = 0, o = base, j = 0; n < L.w; n++, o += 3, j += CS) {
         const r = a[o], g = a[o + 1], b = a[o + 2], I = r > g ? (r > b ? r : b) : g > b ? g : b;
-        if (I <= 0) { CF[j] = 1 << 20; for (let c = 1; c < CS; c++) CF[j + c] = 0; continue; }
+        if (I <= 0) { CF[j] = 1 << 20; for (let c = 1; c < CS; c++) CF[j + c] = 0; CF[j + 14] = ND[0]; continue; }
         // (on a slope, the lower step is the one its lowest pixel can reach)
         let q0 = (I + lo - (fit ? (Math.abs(GX[j]) + Math.abs(GY[j])) / 65536 : 0)) | 0, q1 = q0 + 1;
         CF[j] = Math.ceil((q1 - I) * 65536);
@@ -621,6 +662,7 @@ function lightScene(cx, cy) {
         CF[j + 7] = TA[t0] * r * iI + 0.5; CF[j + 8] = TA[t0 + 1] * g * iI + 0.5; CF[j + 9] = TA[t0 + 2] * b * iI + 0.5;
         CF[j + 10] = TA[t1] * r * iI + 0.5; CF[j + 11] = TA[t1 + 1] * g * iI + 0.5; CF[j + 12] = TA[t1 + 2] * b * iI + 0.5;
         CF[j + 13] = LP[q1] * 256;
+        CF[j + 14] = ND[q0]; CF[j + 15] = ND[q1];
       }
     }
     if (fit) {
@@ -629,9 +671,14 @@ function lightScene(cx, cy) {
       if ((y + py) % LC === 0 || y === 0) for (let x = 0; x < w; x++) GXO[x] = GX[col[x]] * (((x + px) % LC) - (LC >> 1));
       for (let j = 0; j < L.w * CS; j += CS) CFr[j] = CF[j] - ((GY[j] * oy) | 0);
       let leftHi = 1;
+      const wy = y + cy, sfPh = soft ? (Math.imul(wy, 0x9e3779b1) >>> 27) : 0;
       for (let x = 0, k = y * w; x < w; x++, k++) {
-        const j = col[x], hi = bt[(x + cx) & 3] + GXO[x] >= CFr[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, p = d32[k];
+        const j = col[x], th = soft ? 32768 + (((Math.imul(Math.floor((x + cx + sfPh) / sfLen), 0x85ebca6b) ^ Math.imul(wy, 0xc2b2ae35)) >>> 24) - 127.5) * sfK : bt[(x + cx) & 3];
+        const hi = th + GXO[x] >= CFr[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, p = d32[k];
         let r = (((p & 255) * CF[sel] + 128) >> 8) + CF[sel + 6], g = ((((p >> 8) & 255) * CF[sel + 1] + 128) >> 8) + CF[sel + 7], b = ((((p >> 16) & 255) * CF[sel + 2] + 128) >> 8) + CF[sel + 8];
+        // nocturne: the colour going, towards a cool grey of its lightness
+        const nd = CF[j + 14 + hi];
+        if (nd) { const l = (r * 77 + g * 151 + b * 28) >> 8; r += (((l * NT[0]) >> 8) - r) * nd >> 8; g += (((l * NT[1]) >> 8) - g) * nd >> 8; b += (((l * NT[2]) >> 8) - b) * nd >> 8; }
         if (thread) {
           // on the lit side of a band's edge: this pixel, high over a low
           // one above or to its left; or the one to its left, high before
@@ -657,17 +704,50 @@ function lightScene(cx, cy) {
     for (let x = 0, k = y * w; x < w; x++, k++) {
       // the pixel, lit by its cell's factors, on the higher step if its
       // threshold reaches it: its r, g, b in one 32-bit word
-      const j = col[x], sel = bt[(x + cx) & 3] >= CF[j] ? j + 4 : j + 1, p = d32[k];
+      const j = col[x], hi = bt[(x + cx) & 3] >= CF[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, p = d32[k];
       let r = (((p & 255) * CF[sel] + 128) >> 8) + CF[sel + 6], g = ((((p >> 8) & 255) * CF[sel + 1] + 128) >> 8) + CF[sel + 7], b = ((((p >> 16) & 255) * CF[sel + 2] + 128) >> 8) + CF[sel + 8];
+      const nd = CF[j + 14 + hi];
+      if (nd) { const l = (r * 77 + g * 151 + b * 28) >> 8; r += (((l * NT[0]) >> 8) - r) * nd >> 8; g += (((l * NT[1]) >> 8) - g) * nd >> 8; b += (((l * NT[2]) >> 8) - b) * nd >> 8; }
       if (r > 255) r = 255;
       if (g > 255) g = 255;
       if (b > 255) b = 255;
       d32[k] = 0xff000000 | (b << 16) | (g << 8) | r;
     }
   }
+  if (Lab.on('canvas')) labCanvasWeave(d32, w, h, cx, cy);
   View.ctx.putImageData(img, 0, 0);
   lateDotsGlow(w, h);
   LateDots.q.length = 0;
+}
+
+// CANVAS (the paint lab, T.light.canvas): a weave under the paint, pinned
+// to the world: threads `thread` px wide, over and under in a check, each
+// lit along one edge and dark along the other, and a grain by thread. Its
+// factors (256ths) worked out once for a tile of four threads.
+let _labWeave = null;
+function labCanvasWeave(d32, w, h, cx, cy) {
+  const Cv = T.light.canvas, tw = Cv.thread, n = tw * 4;
+  if (!_labWeave || _labWeave.n !== n) {
+    const F = new Int32Array(n * n);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const over = ((Math.floor(x / tw) + Math.floor(y / tw)) & 1) === 0, u = over ? x % tw : y % tw;
+      const edge = tw > 1 ? (u / (tw - 1)) * 2 - 1 : 0, grain = artHash(Math.floor(x / tw), Math.floor(y / tw), 0x5eed) * 2 - 1;
+      F[y * n + x] = Math.round((1 - edge * Cv.amt + grain * Cv.grain) * 256);
+    }
+    _labWeave = { n, F };
+  }
+  const F = _labWeave.F;
+  for (let y = 0; y < h; y++) {
+    const fr = ((((y + cy) % n) + n) % n) * n;
+    for (let x = 0, k = y * w; x < w; x++, k++) {
+      const f = F[fr + ((((x + cx) % n) + n) % n)], p = d32[k];
+      let r = ((p & 255) * f) >> 8, g = (((p >> 8) & 255) * f) >> 8, b = (((p >> 16) & 255) * f) >> 8;
+      if (r > 255) r = 255;
+      if (g > 255) g = 255;
+      if (b > 255) b = 255;
+      d32[k] = 0xff000000 | (b << 16) | (g << 8) | r;
+    }
+  }
 }
 
 // Bloom from the emissive layer, soft at low resolution so it still reads
@@ -1119,7 +1199,7 @@ function drawProspector(d, ox, oy, tick, lights) {
   const behind = (slot) => (cast ? slot !== cast.slot && spr.restBehind : away || (side && slot === 'off'));
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => behind(slot), face);
   // blink while hurt; fall still while dying
-  if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(spr, sx, sy);
+  if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(livePaint(spr), sx, sy);
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot), face);
   if (p.ward > 0) cfxDrawWard(p, fx, fy, lights);
   // a charging wrist gathers light, and flashes when it's full (its circle
@@ -1300,7 +1380,7 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   if (fx < -60 || fy < -15 || fx > View.w + 60 || fy > View.h + 75) return;
   if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r), lift > 2 ? lift : 0);
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
-  drawArtSprite(spr, sx, sy);
+  drawArtSprite(livePaint(spr), sx, sy);
   // in a dark place its lit rim holds over the light (foespaint.js fpReadable)
   if (spr.rimEc && View.pntLift > 0.05) { const e = View.emCtx; e.globalAlpha = T.paint.foes.read.glow * View.pntLift; e.drawImage(spr.rimEc, sx, sy); e.globalAlpha = 1; }
   // struck: a rim a pixel wide round it, white or in the hit's element, on

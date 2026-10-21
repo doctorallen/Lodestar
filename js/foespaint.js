@@ -248,65 +248,10 @@ function fpReadable(spr, o = {}) {
   x.putImageData(img, 0, 0);
   rcx.putImageData(rim, 0, 0);
   spr.rimEc = lit ? rc : null;
-  // (the paint lab's LOST EDGES: after the reading, so a mirrored creature
-  // loses its right side too)
-  if (Lab.on('lose')) fpLoseEdges(spr, { rim: T.paint.foes.lose.rimUp });
   spr.flash = tinted(spr.c, '#ffffff');
   return spr;
 }
 
-// ---------------------------------------------------------------------------
-// Lost and found edges (the paint lab's LOST EDGES, T.paint.foes.lose). A
-// figure in a painting is found where the light hits it and lost where it
-// turns away: on its shadow side (right and below) the outermost pixels
-// sink to the violet black and every other one is dropped, so the edge
-// dissolves into the floor; on the lit side (top and left) the edge stays
-// crisp and takes a rim a step paler (o.rim, how far towards pale); its
-// shadow tones lose some of their saturation. o.glint: a point (the brow
-// lamp) to set two warm pixels by. Thin parts (strands, limbs a pixel
-// wide) keep their pixels. Mutates the sprite and makes its flash again.
-// ---------------------------------------------------------------------------
-function fpLoseEdges(spr, o = {}) {
-  const Lz = T.paint.foes.lose, w = spr.w, h = spr.h, x = spr.c.getContext('2d'), img = x.getImageData(0, 0, w, h), D = img.data;
-  const E = spr.ec ? spr.ec.getContext('2d').getImageData(0, 0, w, h).data : null;
-  const A = new Uint8Array(w * h);
-  let maxL = 0;
-  for (let i = 0; i < w * h; i++) {
-    A[i] = D[i * 4 + 3] > 0 ? (E && E[i * 4 + 3] > 0 ? 2 : 1) : 0;
-    if (A[i] === 1) { const l = D[i * 4] * 0.3 + D[i * 4 + 1] * 0.59 + D[i * 4 + 2] * 0.11; if (l > maxL) maxL = l; }
-  }
-  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : A[y * w + x]);
-  const seed = w * 17 + h * 131 + 7, deep = PNT_DEEP, pale = T.paint.foes.read.pale, rim = o.rim || 0;
-  for (let y = 0; y < h; y++) for (let xx = 0; xx < w; xx++) {
-    const i = y * w + xx;
-    if (A[i] !== 1) continue;
-    const k = i * 4, up = !at(xx, y - 1), lf = !at(xx - 1, y), dn = !at(xx, y + 1), rt = !at(xx + 1, y);
-    const r = D[k], g = D[k + 1], b = D[k + 2], l = r * 0.3 + g * 0.59 + b * 0.11;
-    // the shadow tones lose some of their saturation
-    if (o.desat !== false && l < maxL * Lz.desatBelow) { D[k] = r + (l - r) * Lz.desat; D[k + 1] = g + (l - g) * Lz.desat; D[k + 2] = b + (l - b) * Lz.desat; }
-    const lit = up || (lf && !rt), shade = (dn || rt) && !up && !lf;
-    if (shade) {
-      // a mass's edge (not a strand's): dropped, or sunk to the violet black
-      const mass = at(xx - 1, y) && at(xx, y - 1);
-      if (mass && artHash(xx, y, seed) < Lz.drop) { D[k + 3] = 0; continue; }
-      D[k] += (deep[0] - D[k]) * Lz.deep; D[k + 1] += (deep[1] - D[k + 1]) * Lz.deep; D[k + 2] += (deep[2] - D[k + 2]) * Lz.deep;
-    } else if (lit && rim) { D[k] += (pale[0] - D[k]) * rim; D[k + 1] += (pale[1] - D[k + 1]) * rim; D[k + 2] += (pale[2] - D[k + 2]) * rim; }
-  }
-  x.putImageData(img, 0, 0);
-  if (o.glint) {
-    // the brow lamp's warm glint on the helm, to its upper right
-    const gx = Math.round(o.glint.x), gy = Math.round(o.glint.y), G = Lz.glint;
-    x.fillStyle = `rgb(${G[0]},${G[1]},${G[2]})`;
-    for (const [dx, dy] of [[1, -1], [2, -2]]) if (at(gx + dx, gy + dy) === 1) x.fillRect(gx + dx, gy + dy, 1, 1);
-  }
-  spr.flash = tinted(spr.c, '#ffffff');
-  return spr;
-}
-// The creatures built again (the paint lab: lab.js).
-function fpClearSprites() {
-  _foeSprites.clear();
-  for (const k of Object.keys(_enemySprites)) delete _enemySprites[k];
-}
 // A mirrored creature, read again from its unread picture (so its lit rim
 // stays on its left).
 function fpReadableFlip(base) {

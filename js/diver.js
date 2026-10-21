@@ -577,23 +577,12 @@ function kdGet(fi, key) {
   const k = fi + key;
   let s = KD.spr.get(k);
   if (!s) {
-    const b = kdBase(KD.faces[fi], key), lose = Lab.on('lose');
-    s = KD.mirror[fi] ? kdFlip(b) : lose ? kdCopy(b) : b;
-    // (the paint lab's LOST EDGES, after the mirroring so the lost side is
-    // always the shadow's; the base frames stay as drawn)
-    if (lose) fpLoseEdges(s, { rim: T.paint.foes.lose.rim, glint: s.lamp });
+    const b = kdBase(KD.faces[fi], key);
+    s = KD.mirror[fi] ? kdFlip(b) : b;
     KD.spr.set(k, s);
   }
   return s;
 }
-function kdCopy(s) {
-  const f = Object.assign({}, s), [c, x] = makeCanvas(s.w, s.h);
-  x.drawImage(s.c, 0, 0); f.c = c;
-  if (s.ec) { const [ec, ex] = makeCanvas(s.w, s.h); ex.drawImage(s.ec, 0, 0); f.ec = ec; }
-  return f;
-}
-// The finished frames let go (the paint lab: lab.js); the base frames stay.
-function kdClearFrames() { KD.spr.clear(); }
 // A cast's key: from the front and the back, the casting hand's own arm;
 // from the side and three-quarters, the arm on the aim's side.
 function kdCastKey(face, slot, ph, legs) {

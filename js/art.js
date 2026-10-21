@@ -558,7 +558,8 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
   }
   // the ground in strokes (paint.js); the rock under the rock layer is left
   // a flat dark, as the rock layer covers it
-  const GR = pntLook(b).ground, tone = View.groundTone;
+  // (BROKEN COLOUR: each stroke's hue, View.groundHue; the paint lab)
+  const LK = pntLook(b), GR = LK.ground, tone = View.groundTone, HUE = LK.groundW && View.groundHue, GW = LK.groundW, GC = LK.groundC;
   for (let y = oy; y < oy + ATILE; y++) {
     let rocks = 0;
     for (let i = base + y * W + ox, e = i + ATILE; i < e; i++) rocks += M[i];
@@ -577,7 +578,8 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
           else if (gy === 1 || gx === 1) t = Math.min(6, t + 1);
           else t = clamp(t + Math.round((artHash((sx / FLAG_W) | 0, row, seedH) - 0.5) * 2.4), 0, 6);
         }
-        c = GR[t];
+        const hu = HUE ? HUE[y * P.w + x] : 0;
+        c = hu === 1 ? GW[t] : hu === 2 ? GC[t] : GR[t];
       } else c = r[0];
       const k = y * P.w + x;
       C32[k] = c; E[k * 4 + 3] = 0;
