@@ -41,7 +41,7 @@ At home, walk the outpost's stations:
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
 - the portal: what's next (one goal, also shown over the view at home), the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
 
-Where there's WebGL2 the whole frame is drawn by the GPU (`docs/RENDERING.md`): one canvas, nothing read back. `?nogpu` in the address keeps the 2D canvases and the JavaScript lighting, as a browser without WebGL2 gets.
+Where there's WebGL2 the whole frame is drawn by the GPU (`docs/RENDERING.md`): one canvas, nothing read back. `?nogpu` in the address keeps the 2D canvases and the JavaScript lighting, as a browser without WebGL2 gets; `?perf` shows a readout over the frame (which path draws, what a frame costs, how the frames are spaced, the first error) for seeing what a phone sees.
 
 FINE GRAIN, on the pause screen at home, draws the world at twice the art's pixels (3 to a world pixel, so the painted ground, the rock and the Kindler come out sharper, and the other sprites keep their look at the same size). It needs WebGL2, costs about twice the frame, and reloads the game; it's meant for a desktop or a strong phone. `?fine` or `?coarse` in the address overrides it.
 
@@ -96,6 +96,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/pshadow.js` | Cast shadows of what stands on the ground: silhouettes from the lamp, the sun and the outpost's lanterns, and contact shadows |
 | `js/gpu.js` | The frame on the GPU: the view as one WebGL2 canvas, a batcher standing in for the 2D contexts (every sprite, dot and rectangle a quad; sprites in atlas pages, the floor's painted buffers as textures, the rock put back over an actor in the shader), the bloom and the last pass that shows it; the 2D canvases stand in without WebGL2 |
 | `js/gllight.js` | The light pass of the GPU's frame: the lighting as a WebGL2 shader over the scene's framebuffer, the light's cells as a texture; the JavaScript lighting stands in without WebGL2 |
+| `js/perf.js` | The `?perf` readout over the frame: the path, the frame's cost, the frames' spacing, the ground painted in-frame, the draws, the first error |
 | `js/render.js` | The pixel view (art px, 1.5 to a world px), the frame drawn in order, the JavaScript lighting and bloom for the 2D path, sparks |
 | `js/castfx.js` | How a cast looks (cosmetic): the Charter's technology: the muzzle at the wrist, the circuit sigil, lock-ons, motes, swept rings, an Arc's crescent, a Glaive's blades, an Orb, slugs and beams, a lance's scar, a Well, a Ward, impacts and marks on the ground |
 | `js/hardlight.js` | The hard-light shapes the spells are built from: crisp lines, diamonds, hexagons, lock-on brackets, sigils, pressure waves, lattices, the seed-star; `castfxWarm()` paints them before a fight |

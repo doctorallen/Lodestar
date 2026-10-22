@@ -892,8 +892,10 @@ function lampLevels(d) {
 function renderFrame() {
   if (!View.ctx || !View.w) return;
   // (on the GPU the frame is composed and shown as it ends, whatever was drawn: gpu.js)
+  const t0 = performance.now();
   gpuFrameBegin();
-  try { renderFrameDraw(); } finally { gpuFrameEnd(); }
+  try { renderFrameDraw(); perfDraw(); } finally { gpuFrameEnd(); }
+  perfNote(Perf.ms, performance.now() - t0);
 }
 function renderFrameDraw() {
   const x = View.ctx;
@@ -940,7 +942,9 @@ function renderFrameDraw() {
   // (opening on arrival, only what shows; walking, out ahead of the diver
   // first)
   const lead = d.hub ? null : { x: Input.move.x * ap(T.paint.lazy.lead), y: Input.move.y * ap(T.paint.lazy.lead) };
+  const tp = performance.now();
   pntFrame(f, camX, camY, portalRevealArt(d, camX, camY), lead);
+  perfNote(Perf.pnt, performance.now() - tp);
   const sh = View.shake > 0.3 ? View.shake * AP : 0;
   // a world point x, y is drawn at Math.round(x * AP) + ox, Math.round(y * AP) + oy
   const ox = -camX + Math.round(FX_R.f(-sh, sh)), oy = -camY + Math.round(FX_R.f(-sh, sh)), ex = View.emCtx;

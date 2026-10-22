@@ -29,6 +29,7 @@ function step(dtReal) {
 }
 
 function frame(now) {
+  perfGap(now);
   const dt = Math.min(0.1, (now - _last) / 1000 || 0);
   _last = now;
   try {

@@ -6,7 +6,9 @@
 // EDGE and CANVAS on as well as off, and again after the atlas's pages are
 // rebuilt. Runs with WebGL in software (SwiftShader), at both grains, and
 // measures what each way costs.
-const { launch, openGame, finish } = require('./lib');
+const fs = require('fs');
+const path = require('path');
+const { launch, openGame, finish, outDir } = require('./lib');
 
 (async () => {
   const failures = [];
@@ -49,7 +51,19 @@ function compare(label) {
     for (let c = 0; c < 3; c++) { const d = Math.abs(cpu[i + c] - gpu[i + c]); sum += d; if (d > worst) worst = d; if (d > 2) over++; }
     n += 3;
   }
-  return { label, w, h, worst, over, mean: +(sum / n).toFixed(3), lit: cpu.some((v, i) => i % 4 !== 3 && v > 8), branch, err };
+  // (where they differ beyond the allowance, the two pictures and the
+  // difference, side by side, for test/out)
+  let side = null;
+  if (over > w * h * 0.004) {
+    const [sc, sx] = mk(); sc.width = w * 3;
+    sx.putImageData(new ImageData(new Uint8ClampedArray(gpu.buffer), w, h), 0, 0);
+    sx.putImageData(new ImageData(new Uint8ClampedArray(cpu.buffer.slice(0)), w, h), w, 0);
+    const pic = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < cpu.length; i += 4) { const d = Math.max(Math.abs(cpu[i] - gpu[i]), Math.abs(cpu[i + 1] - gpu[i + 1]), Math.abs(cpu[i + 2] - gpu[i + 2])), g = (cpu[i] + cpu[i + 1] + cpu[i + 2]) / 6 + 40; pic[i] = d > 2 ? 255 : g; pic[i + 1] = d > 2 ? 0 : g; pic[i + 2] = d > 2 ? 0 : g; pic[i + 3] = 255; }
+    sx.putImageData(new ImageData(pic, w, h), w * 2, 0);
+    side = sc.toDataURL();
+  }
+  return { label, w, h, worst, over, mean: +(sum / n).toFixed(3), lit: cpu.some((v, i) => i % 4 !== 3 && v > 8), branch, err, side };
 }
 
 async function runAt(browser, grain, failures) {
@@ -66,7 +80,10 @@ async function runAt(browser, grain, failures) {
     if (!r.lit) failures.push(`${r.label}: the view is dark`);
     // (a tone either way from rounding; a few pixels more where a band's
     // edge rounds the other way, or an effect draws from Math.random)
-    if (r.over > r.w * r.h * 0.004) failures.push(`${r.label}: ${r.over} channels differ by more than 2 (worst ${r.worst}, mean ${r.mean})`);
+    if (r.over > r.w * r.h * 0.004) {
+      failures.push(`${r.label}: ${r.over} channels differ by more than 2 (worst ${r.worst}, mean ${r.mean})`);
+      if (r.side) { const f = path.join(outDir(), 'gllight-' + r.label.replace(/[^a-z0-9]+/gi, '-') + '.png'); fs.writeFileSync(f, Buffer.from(r.side.split(',')[1], 'base64')); console.log('  (see ' + f + ')'); }
+    }
     if (r.mean > 0.2) failures.push(`${r.label}: mean difference ${r.mean}`);
     console.log(`  ${r.label}: worst ${r.worst}, over 2: ${r.over}, mean ${r.mean}`);
   };

@@ -25,14 +25,16 @@ const Gpu = {
   // covers it), else the feet's view row (rock standing south of it covers it)
   ox: 0, oy: 0, feet: -2,
   // the batch: quads of GPU_Q floats each, their state, where they go
-  q: null, n: 0, cap: 0, target: 'scene', blend: 0, clip: null, dyn: null, litDone: false,
+  q: null, n: 0, cap: 0, runs: [], cur: null, target: 'scene', blend: 0, clip: null, dyn: null, litDone: false,
   oq: null, on_: 0, ocap: 0,
   frame: 0, stats: { quads: 0, draws: 0, uploads: 0 },
 };
 const GPU_Q = 15;
 const GPU_F = { EM: 1, COL: 2, SOLID: 4, SMOOTH: 8, FLOOR: 16, FLOOREM: 32, DYN: 64 };
 const GPU_BLEND = { 'source-over': 0, lighter: 1, 'destination-out': 2, multiply: 3, copy: 0, 'source-in': 0 };
-const GPU_ATLAS = 2048, GPU_PAGES = 2, GPU_PAGES_MAX = 6, GPU_KEEP = 600, GPU_WARM_FRAMES = 240;
+const GPU_ATLAS = 2048, GPU_PAGES = 2, GPU_PAGES_MAX = 6, GPU_KEEP = 600, GPU_WARM_FRAMES = 240, GPU_RING = 24;
+
+const GPU_ZERO = new Float32Array([0, 0, 0, 0]), GPU_BLACK = new Float32Array([0, 0, 0, 1]);
 
 const GPU_QUAD_VS = `#version 300 es
 in vec4 aRect; in vec4 aUV; in float aPage; in vec4 aTint; in float aFeet; in float aFlags;
@@ -170,17 +172,18 @@ function gpuInit(canvas) {
     G.bloomP = gpuProgram(gl, GPU_TRI_VS, GPU_BLOOM_FS, ['uEm', 'uView', 'uOut', 'uS', 'uOrg']);
     G.outP = gpuProgram(gl, GPU_TRI_VS, GPU_OUT_FS, ['uLit', 'uP0', 'uP1', 'uP2', 'uP3', 'uView', 'uN', 'uPass', 'uPassSize']);
     // the quad's attributes, one set an instance
+    // (a ring of buffers, each filled afresh for one draw: a buffer the GPU
+    // may still be drawing from is never written, which stalls a phone)
     G.vao = gl.createVertexArray(); gl.bindVertexArray(G.vao);
-    G.buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, G.buf);
+    G.bufs = []; for (let i = 0; i < GPU_RING; i++) G.bufs.push(gl.createBuffer());
+    G.bi = 0;
     G.cap = 4096; G.q = new Float32Array(G.cap * GPU_Q); G.n = 0;
     G.ocap = 1024; G.oq = new Float32Array(G.ocap * GPU_Q); G.on_ = 0;
-    gl.bufferData(gl.ARRAY_BUFFER, G.q.byteLength, gl.DYNAMIC_DRAW); G.bufBytes = G.q.byteLength;
-    const stride = GPU_Q * 4;
-    [['aRect', 4, 0], ['aUV', 4, 4], ['aPage', 1, 8], ['aTint', 4, 9], ['aFeet', 1, 13], ['aFlags', 1, 14]].forEach(([n, size, off]) => {
-      const a = gl.getAttribLocation(G.quad.p, n);
-      gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, size, gl.FLOAT, false, stride, off * 4); gl.vertexAttribDivisor(a, 1);
-    });
+    G.attribs = [['aRect', 4, 0], ['aUV', 4, 4], ['aPage', 1, 8], ['aTint', 4, 9], ['aFeet', 1, 13], ['aFlags', 1, 14]].map(([n, size, off]) => [gl.getAttribLocation(G.quad.p, n), size, off]);
+    gl.bindBuffer(gl.ARRAY_BUFFER, G.bufs[0]);
+    for (const [a, size, off] of G.attribs) { gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, size, gl.FLOAT, false, GPU_Q * 4, off * 4); gl.vertexAttribDivisor(a, 1); }
     gl.bindVertexArray(null);
+    G.boundFb = undefined;
     G.triVao = gl.createVertexArray();
     // the texture units: 0 the atlas, 1-3 the floor, 4 a dynamic picture;
     // the light pass and the last pass bind their own from 5
@@ -212,7 +215,7 @@ function gpuResize(w, h) {
   G.w = w; G.h = h;
   const target = (names) => {
     const fb = gl.createFramebuffer(), texs = [];
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb); G.boundFb = fb;
     names.forEach((t, i) => { gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, t, 0); texs.push(t); });
     gl.drawBuffers(names.map((_, i) => gl.COLOR_ATTACHMENT0 + i));
     return { fb, texs };
@@ -229,10 +232,10 @@ function gpuResize(w, h) {
     const tex = gpuTex(gl, 5, gl.TEXTURE_2D, gl.LINEAR);
     gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, pw, ph);
     const fb = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb); G.boundFb = fb; gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
     return { s, a: a * T.light.glow, pw, ph, tex, fb, ox: 0, oy: 0 };
   });
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gpuBind(null);
   gpuBlank();
 }
 
@@ -297,7 +300,9 @@ function gpuPic(src) {
   const w = src.width, h = src.height;
   if (!(w > 0 && h > 0)) return null;
   let at = gpuAtlasPlace(w, h);
-  if (!at) { gpuAtlasRebuild(w * h); at = gpuAtlasPlace(w, h); }
+  // (the pages full: what's queued is drawn from them as they are first,
+  // then they're built again)
+  if (!at) { gpuFlush(); gpuAtlasRebuild(w * h); at = gpuAtlasPlace(w, h); }
   if (!at) return null;
   // (the canvas is held weakly: the pages are rebuilt from those still about)
   e = { x: at.x, y: at.y, w, h, page: at.page, ref: new WeakRef(src), used: G.frame, dead: false };
@@ -322,18 +327,23 @@ function gpuOwnTex(src, img, y0, y1) {
   let t = G.dynTexs.get(src);
   gl.activeTexture(gl.TEXTURE4);
   if (!t || t.w !== w || t.h !== h) {
-    if (t) gl.deleteTexture(t.tex);
-    t = { tex: gpuTex(gl, 4), w, h }; gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, w, h); G.dynTexs.set(src, t);
+    if (t) for (const x of t.texs) gl.deleteTexture(x);
+    // (a ring: the one the GPU may still be drawing from isn't written)
+    t = { texs: [], i: 0, tex: null, w, h };
+    for (let i = 0; i < 3; i++) { t.texs.push(gpuTex(gl, 4)); gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, w, h); }
+    G.dynTexs.set(src, t);
     y0 = 0; y1 = h;
-  } else gl.bindTexture(gl.TEXTURE_2D, t.tex);
+  }
   if (img) {
+    t.i = (t.i + 1) % t.texs.length; t.tex = t.texs[t.i];
+    gl.bindTexture(gl.TEXTURE_2D, t.tex);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
     gl.pixelStorei(gl.UNPACK_ROW_LENGTH, w); gl.pixelStorei(gl.UNPACK_SKIP_ROWS, y0);
     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, y0, w, y1 - y0, gl.RGBA, gl.UNSIGNED_BYTE, img.data);
     gl.pixelStorei(gl.UNPACK_ROW_LENGTH, 0); gl.pixelStorei(gl.UNPACK_SKIP_ROWS, 0);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     G.stats.uploads++;
-  }
+  } else if (!t.tex) { t.tex = t.texs[0]; gl.bindTexture(gl.TEXTURE_2D, t.tex); }
   return t;
 }
 
@@ -386,7 +396,27 @@ function gpuFloorSync() {
 }
 
 // ---- the batch -------------------------------------------------------------
-// A quad into the batch (the overlay's into its own queue, drawn last).
+// The quads of a phase (the scene, or what's drawn over the lit picture)
+// gather in one array, in order, as runs sharing a blend mode, a clip and
+// a dynamic picture; a whole-layer clear is a run of its own. The phase
+// is drawn at once (gpuFlush): the array goes up in one upload, to the
+// next of a ring of buffers so none the GPU may still read is written,
+// and each run is an instanced draw from its offset. The overlay's quads
+// queue apart, drawn last onto the canvas.
+// (binding the framebuffer that's bound already can end a render pass)
+function gpuBind(fb) {
+  const G = Gpu;
+  if (G.boundFb === fb) return;
+  G.gl.bindFramebuffer(G.gl.FRAMEBUFFER, fb);
+  G.boundFb = fb;
+}
+function gpuRun() {
+  const G = Gpu, c = G.cur;
+  if (c && !c.clear && c.blend === G.blend && c.clip === G.clip && c.dyn === G.dyn) return c;
+  G.cur = { start: G.n, n: 0, blend: G.blend, clip: G.clip, dyn: G.dyn };
+  G.runs.push(G.cur);
+  return G.cur;
+}
 function gpuPush(over, x, y, w, h, u0, v0, u1, v1, page, r, g, b, a, flags) {
   const G = Gpu;
   if (over) {
@@ -395,78 +425,91 @@ function gpuPush(over, x, y, w, h, u0, v0, u1, v1, page, r, g, b, a, flags) {
     q[k] = x; q[k + 1] = y; q[k + 2] = w; q[k + 3] = h; q[k + 4] = u0; q[k + 5] = v0; q[k + 6] = u1; q[k + 7] = v1; q[k + 8] = page; q[k + 9] = r; q[k + 10] = g; q[k + 11] = b; q[k + 12] = a; q[k + 13] = -2; q[k + 14] = flags;
     return;
   }
-  if (G.n >= G.cap) gpuFlush();
+  if (G.n >= G.cap) { G.cap *= 2; const q = new Float32Array(G.cap * GPU_Q); q.set(G.q); G.q = q; }
+  G.drawn = true;
+  gpuRun().n++;
   const q = G.q, k = G.n++ * GPU_Q;
   q[k] = x; q[k + 1] = y; q[k + 2] = w; q[k + 3] = h; q[k + 4] = u0; q[k + 5] = v0; q[k + 6] = u1; q[k + 7] = v1; q[k + 8] = page; q[k + 9] = r; q[k + 10] = g; q[k + 11] = b; q[k + 12] = a; q[k + 13] = G.feet; q[k + 14] = flags;
 }
-// The batch's state about to change: what's queued is drawn first.
-function gpuState(blend, clip, dyn, target) {
-  const G = Gpu;
-  if (blend !== G.blend || clip !== G.clip || dyn !== G.dyn || target !== G.target) { gpuFlush(); G.blend = blend; G.clip = clip; G.dyn = dyn; G.target = target; }
-}
+// The state the quads pushed next are drawn with.
+function gpuState(blend, clip, dyn) { const G = Gpu; G.blend = blend; G.clip = clip; G.dyn = dyn; }
+// A whole-layer clear (clearRect over the view), in its place in the order.
+function gpuClear(em, x, y, w, h) { const G = Gpu; G.runs.push({ clear: true, em, x, y, w, h }); G.cur = null; }
 function gpuBlendSet(gl, blend) {
   if (blend === 1) gl.blendFunc(gl.ONE, gl.ONE);
   else if (blend === 2) gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
   else if (blend === 3) gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 }
-function gpuDrawQuads(q, n, target, blend, clip, dyn) {
+function gpuScissor(gl, clip) {
+  const G = Gpu;
+  if (!clip) { gl.disable(gl.SCISSOR_TEST); return; }
+  const x0 = Math.max(0, clip[0]), y0 = Math.max(0, clip[1]), x1 = Math.min(G.w, clip[2]), y1 = Math.min(G.h, clip[3]);
+  gl.enable(gl.SCISSOR_TEST); gl.scissor(x0, Math.max(0, G.h - y1), Math.max(0, x1 - x0), Math.max(0, y1 - y0));
+}
+// The quad program and its textures, for the target, and the array q
+// (n quads) uploaded to the ring's next buffer.
+function gpuQuadsReady(q, n, target) {
   const G = Gpu, gl = G.gl;
-  const fb = target === 'scene' ? G.scene.fb : target === 'lit' ? G.lit.fb : null;
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gpuBind(target === 'scene' ? G.scene.fb : target === 'lit' ? G.lit.fb : null);
   gl.viewport(0, 0, G.w, G.h);
   gl.useProgram(G.quad.p);
-  gl.uniform2f(G.quad.u.uViewF, G.w, G.h); gl.uniform2i(G.quad.u.uView, G.w, G.h); gl.uniform2i(G.quad.u.uCam, G.ox, G.oy); gl.uniform2i(G.quad.u.uFloorSize, G.floorW, G.floorH); gl.uniform1i(G.quad.u.uBlend, blend);
+  gl.uniform2f(G.quad.u.uViewF, G.w, G.h); gl.uniform2i(G.quad.u.uView, G.w, G.h); gl.uniform2i(G.quad.u.uCam, G.ox, G.oy); gl.uniform2i(G.quad.u.uFloorSize, G.floorW, G.floorH);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D_ARRAY, G.atlasTex);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, G.floorCol);
   gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, G.floorEm);
   gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, G.rockLift);
+  gl.bindVertexArray(G.vao);
+  G.bi = (G.bi + 1) % GPU_RING;
+  gl.bindBuffer(gl.ARRAY_BUFFER, G.bufs[G.bi]);
+  gl.bufferData(gl.ARRAY_BUFFER, q.subarray(0, n * GPU_Q), gl.STREAM_DRAW);
+  G.stats.uploads++;
+}
+// One run: its state, its quads from their offset.
+function gpuDrawRun(start, n, blend, clip, dyn) {
+  const G = Gpu, gl = G.gl;
+  gl.uniform1i(G.quad.u.uBlend, blend);
   gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, dyn ? dyn.tex : G.dynTex);
   gpuBlendSet(gl, blend);
-  if (clip) { gl.enable(gl.SCISSOR_TEST); gl.scissor(Math.max(0, clip[0]), Math.max(0, G.h - clip[3]), Math.max(0, Math.min(G.w, clip[2]) - Math.max(0, clip[0])), Math.max(0, Math.min(G.h, clip[3]) - Math.max(0, clip[1]))); }
-  gl.bindVertexArray(G.vao);
-  gl.bindBuffer(gl.ARRAY_BUFFER, G.buf);
-  if (q.byteLength > G.bufBytes) { gl.bufferData(gl.ARRAY_BUFFER, q.byteLength, gl.DYNAMIC_DRAW); G.bufBytes = q.byteLength; }
-  gl.bufferSubData(gl.ARRAY_BUFFER, 0, q, 0, n * GPU_Q);
+  gpuScissor(gl, clip);
+  for (const [a, size, off] of G.attribs) gl.vertexAttribPointer(a, size, gl.FLOAT, false, GPU_Q * 4, (start * GPU_Q + off) * 4);
   gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
-  gl.bindVertexArray(null);
-  if (clip) gl.disable(gl.SCISSOR_TEST);
   G.stats.draws++; G.stats.quads += n;
 }
+// The phase drawn: its runs in order, into the target.
 function gpuFlush() {
-  const G = Gpu;
-  if (!G.n) return;
-  gpuDrawQuads(G.q, G.n, G.target, G.blend, G.clip, G.dyn);
-  G.n = 0;
-}
-// A whole-layer clear (clearRect over the view): one attachment of the
-// target, under the clip.
-function gpuClear(target, em, x, y, w, h) {
   const G = Gpu, gl = G.gl;
-  gpuFlush();
-  gl.bindFramebuffer(gl.FRAMEBUFFER, target === 'scene' ? G.scene.fb : G.lit.fb);
-  gl.drawBuffers(em ? [gl.NONE, gl.COLOR_ATTACHMENT1] : [gl.COLOR_ATTACHMENT0, gl.NONE]);
-  gl.enable(gl.SCISSOR_TEST); gl.scissor(x, G.h - y - h, w, h);
-  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  if (!G.runs.length) return;
+  if (G.n) gpuQuadsReady(G.q, G.n, G.target); else gpuBind(G.target === 'scene' ? G.scene.fb : G.lit.fb);
+  for (const r of G.runs) {
+    if (r.clear) { gpuScissor(gl, [r.x, r.y, r.x + r.w, r.y + r.h]); gl.clearBufferfv(gl.COLOR, r.em ? 1 : 0, GPU_ZERO); continue; }
+    if (r.n) gpuDrawRun(r.start, r.n, r.blend, r.clip, r.dyn);
+  }
   gl.disable(gl.SCISSOR_TEST);
-  gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+  gl.bindVertexArray(null);
+  G.n = 0; G.runs = []; G.cur = null;
 }
+function gpuDrop() { const G = Gpu; G.n = 0; G.runs = []; G.cur = null; }
 
 // ---- a frame ---------------------------------------------------------------
 function gpuFrameBegin() {
   const G = Gpu;
   if (!G.on) return;
-  G.frame++; G.n = 0; G.on_ = 0; G.target = 'scene'; G.litDone = false; G.feet = -2; G.ox = 0; G.oy = 0;
+  G.frame++; gpuDrop(); G.on_ = 0; G.target = 'scene'; G.litDone = false; G.feet = -2; G.ox = 0; G.oy = 0; G.drawn = false;
   G.stats.quads = 0; G.stats.draws = 0; G.stats.uploads = 0;
+  // (both of the scene's layers cleared at once, as the pass opens)
+  const gl = G.gl;
+  gpuBind(G.scene.fb);
+  gl.clearBufferfv(gl.COLOR, 0, GPU_BLACK); gl.clearBufferfv(gl.COLOR, 1, GPU_ZERO);
   for (const c of [View.ctx, View.emCtx, View.overCtx]) if (c && c.gpu) c.reset();
 }
 // Nothing to show: the lit picture and the glow black.
 function gpuBlank() {
   const G = Gpu, gl = G.gl;
-  G.n = 0;
-  gl.bindFramebuffer(gl.FRAMEBUFFER, G.lit.fb); gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
-  gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
-  for (const p of G.passes) { gl.bindFramebuffer(gl.FRAMEBUFFER, p.fb); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
+  gpuDrop();
+  gpuBind(G.lit.fb);
+  gl.clearBufferfv(gl.COLOR, 0, GPU_BLACK); gl.clearBufferfv(gl.COLOR, 1, GPU_ZERO);
+  for (const p of G.passes) { gpuBind(p.fb); gl.clearBufferfv(gl.COLOR, 0, GPU_ZERO); }
   G.litDone = true;
 }
 // The scene is drawn: the light pass runs from it into the lit picture
@@ -474,7 +517,7 @@ function gpuBlank() {
 function gpuLightBegin() {
   const G = Gpu, gl = G.gl;
   gpuFlush();
-  gl.bindFramebuffer(gl.FRAMEBUFFER, G.lit.fb);
+  gpuBind(G.lit.fb);
   gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.NONE]);
   gl.viewport(0, 0, G.w, G.h);
   gl.disable(gl.BLEND);
@@ -499,7 +542,7 @@ function gpuBloom(cx, cy) {
   for (const p of G.passes) {
     const gx = Math.floor(cx / p.s) * p.s, gy = Math.floor(cy / p.s) * p.s;
     p.ox = gx - cx; p.oy = gy - cy;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, p.fb);
+    gpuBind(p.fb);
     gl.viewport(0, 0, p.pw, p.ph);
     gl.uniform2i(G.bloomP.u.uOut, p.pw, p.ph); gl.uniform1f(G.bloomP.u.uS, p.s); gl.uniform2f(G.bloomP.u.uOrg, p.ox, p.oy);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -514,8 +557,8 @@ function gpuFrameEnd() {
   if (!G.on || !G.w) return;
   // (a frame that didn't get as far as the light keeps the last lit
   // picture, as the 2D canvas kept it: what it queued isn't drawn)
-  if (G.litDone) { gpuFlush(); gpuBloom(-G.ox, -G.oy); } else G.n = 0;
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if (G.litDone) { gpuFlush(); gpuBloom(-G.ox, -G.oy); } else gpuDrop();
+  gpuBind(null);
   gl.viewport(0, 0, G.w, G.h);
   gl.disable(gl.BLEND);
   gl.useProgram(G.outP.p);
@@ -527,7 +570,7 @@ function gpuFrameEnd() {
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   gl.bindVertexArray(null);
   gl.enable(gl.BLEND);
-  if (G.on_) { gpuDrawQuads(G.oq, G.on_, 'canvas', 0, null, G.odyn); G.on_ = 0; G.odyn = null; }
+  if (G.on_) { gpuQuadsReady(G.oq, G.on_, 'canvas'); gpuDrawRun(0, G.on_, 0, null, G.odyn); gl.disable(gl.SCISSOR_TEST); gl.bindVertexArray(null); G.on_ = 0; G.odyn = null; }
 }
 
 // ---- a 2D context stood in for -------------------------------------------
@@ -551,21 +594,29 @@ class GpuCtx {
   rect(x, y, w, h) { this.path = [x + this.tx, y + this.ty, x + w + this.tx, y + h + this.ty]; }
   closePath() {}
   clip() { if (this.path) { const p = this.path, c = this.clip; this.clip = c ? [Math.max(c[0], p[0]), Math.max(c[1], p[1]), Math.min(c[2], p[2]), Math.min(c[3], p[3])] : p; } }
-  _state(dyn) { if (!this.over) gpuState(this._blend, this.clip, dyn || null, Gpu.target); }
+  _state(dyn) { if (!this.over) gpuState(this._blend, this.clip, dyn || null); }
   fillRect(x, y, w, h) {
     const a = this.globalAlpha;
     if (a <= 0 || !(w > 0 && h > 0)) return;
-    const c = this._rgba, ca = c[3] * a;
+    const c = this._rgba, ca = c[3] * a, G = Gpu;
+    // (the frame's first fill of the whole view: the layer's clear colour instead)
+    if (!this.over && !G.drawn && G.target === 'scene' && ca >= 1 && !this.clip && this._blend === 0 && x + this.tx <= 0 && y + this.ty <= 0 && w >= G.w && h >= G.h) {
+      if (c[0] || c[1] || c[2]) { gpuBind(G.scene.fb); if (this.layers & GPU_F.COL) G.gl.clearBufferfv(G.gl.COLOR, 0, new Float32Array([c[0], c[1], c[2], 1])); if (this.layers & GPU_F.EM) G.gl.clearBufferfv(G.gl.COLOR, 1, new Float32Array([c[0], c[1], c[2], 1])); }
+      return;
+    }
     this._state(null);
     gpuPush(this.over, x + this.tx, y + this.ty, w, h, 0, 0, 1, 1, 0, c[0] * ca, c[1] * ca, c[2] * ca, ca, this.layers | GPU_F.SOLID);
   }
   clearRect(x, y, w, h) {
     if (this.over) return;
     const G = Gpu;
-    if (x <= 0 && y <= 0 && w >= G.w && h >= G.h && !this.clip) { if (this.layers & GPU_F.EM) gpuClear(G.target, true, 0, 0, G.w, G.h); if (this.layers & GPU_F.COL) gpuClear(G.target, false, 0, 0, G.w, G.h); return; }
-    gpuState(2, this.clip, null, G.target);
+    if (x <= 0 && y <= 0 && w >= G.w && h >= G.h && !this.clip) {
+      if (!G.drawn && G.target === 'scene') return;
+      if (this.layers & GPU_F.EM) gpuClear(true, 0, 0, G.w, G.h); if (this.layers & GPU_F.COL) gpuClear(false, 0, 0, G.w, G.h);
+      return;
+    }
+    gpuState(2, this.clip, null);
     gpuPush(false, x + this.tx, y + this.ty, w, h, 0, 0, 1, 1, 0, 0, 0, 0, 1, this.layers | GPU_F.SOLID);
-    gpuFlush();
   }
   // drawImage(img, dx, dy), (img, dx, dy, dw, dh), (img, sx, sy, sw, sh, dx, dy, dw, dh)
   drawImage(img, a1, a2, a3, a4, a5, a6, a7, a8) {

@@ -1,6 +1,6 @@
 # Rendering plan
 
-**Status (2026-10-22):** step 1, the frame on the GPU, is built (`js/gpu.js`; DECISIONS.md, "the frame on the GPU"), with 0b, 0c and 0d of step 0 folded in. Measured after: Chrome 1.3 ms a frame coarse and 2.0 fine (from 4.3 and 7.6), WebKit 2 ms (from 20), no frame over 20 ms in Chrome at either grain. Still to do: 0a (the `?perf` readout), 0e (chunk painting off the frame), 0f (interpolation), step 2 and step 3.
+**Status (2026-10-22):** step 1, the frame on the GPU, is built (`js/gpu.js`; DECISIONS.md, "the frame on the GPU"), with 0b, 0c and 0d of step 0 folded in. Measured after: Chrome 1.3 ms a frame coarse and 2.0 fine (from 4.3 and 7.6), WebKit 2 ms (from 20), no frame over 20 ms in Chrome at either grain. Later the same day: 0a (the `?perf` readout) and the batcher made safe for tile-based GPUs (one upload a phase into a ring of buffers; DECISIONS.md, "the GPU's frame on a phone"). Still to do: 0e (chunk painting off the frame), 0f (interpolation), step 2 and step 3.
 
 Where the frame goes today, what was measured on 2026-10-22, what other browser games do, and the plan: the whole frame drawn by one GPU context, with nothing read back and nothing copied between the 2D canvas and WebGL. Numbers from the measurements are in the tables; the scripts that took them are described under Measuring.
 
