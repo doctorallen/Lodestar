@@ -26,6 +26,10 @@ const { launch, openGame, finish, outDir } = require('./lib');
 // lighting. Both before the bloom and the overlay.
 function compare(label) {
   const w = View.w, h = View.h, gl = Gpu.gl;
+  // (the cosmetic randomness, Math.random, seeded the same for both renders)
+  const R0 = Math.random;
+  let seed = 7;
+  Math.random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   renderFrame();
   const up = new Uint8Array(w * h * 4);
   gl.bindFramebuffer(gl.FRAMEBUFFER, Gpu.lit.fb); gl.readBuffer(gl.COLOR_ATTACHMENT0);
@@ -42,7 +46,9 @@ function compare(label) {
   window.lightScene = function (a, b) { branch = Gpu.on ? 'gpu' : 'js'; return L0(a, b); };
   Gpu.on = false; View.ctx = vx; View.em = ec; View.emCtx = ex; View.over = oc; View.overCtx = ox; View.bloomCtx = { clearRect() {} };
   window.bloomScene = () => {};
+  seed = 7;
   try { renderFrame(); } catch (e) { err = String(e.stack || e); }
+  Math.random = R0;
   window.lightScene = L0;
   Gpu.on = true; View.ctx = keep.ctx; View.em = keep.em; View.emCtx = keep.emCtx; View.over = keep.over; View.overCtx = keep.overCtx; View.bloomCtx = keep.bloomCtx; window.bloomScene = keep.bloom;
   const cpu = vx.getImageData(0, 0, w, h).data;
@@ -106,6 +112,8 @@ async function runAt(browser, grain, failures) {
   await whole();
   check(await page.evaluate(compare, 'floor broken'));
   await page.evaluate(() => Lab.set('broken', false, { save: false }));
+  // (the floor painted whole again, as the option's change set it repainting lazily)
+  await whole();
   // a cast, with its hard light and sparks
   await page.evaluate(() => { Input.bot = { x: 1, y: 0, main: true }; for (let i = 0; i < 40; i++) Game.step(1 / 60); Input.bot = { x: 0, y: 0, main: false }; });
   check(await page.evaluate(compare, 'cast'));
