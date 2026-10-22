@@ -656,7 +656,9 @@ body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s;
 .ld-head { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .ld-body { display: flex; flex-direction: column; gap: 8px; }
 .ld-mark { position: relative; width: 132px; height: 132px; display: grid; place-items: center; --wake: 0; }
-.ld-star { position: relative; width: 75px; height: 75px; opacity: calc(0.45 + 0.55 * var(--wake)); }
+.ld-star-cv { position: relative; image-rendering: pixelated; opacity: calc(0.45 + 0.55 * var(--wake)); animation: ld-bob 5.2s ease-in-out infinite; }
+.ld-star-cv[hidden] { display: none; }
+@keyframes ld-bob { 50% { transform: translateY(3px); } }
 .ld-halo {
   position: absolute; inset: 0; border-radius: 50%; opacity: 0.15;
   background: radial-gradient(circle, rgba(255, 244, 208, 0.65) 0%, rgba(240, 192, 80, 0.28) 26%, rgba(240, 192, 80, 0.06) 52%, rgba(240, 192, 80, 0) 70%);
@@ -694,7 +696,7 @@ body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s;
 .ld-go { margin: 10px 0 0; text-align: center; font-size: 15px; letter-spacing: 0.42em; padding-left: 0.42em; color: var(--ld-hi); text-shadow: 0 0 10px rgba(240, 192, 80, 0.6); animation: ld-pulse 1.8s ease-in-out infinite; }
 .ld-go[hidden] { display: block; visibility: hidden; }
 @keyframes ld-pulse { 50% { opacity: 0.45; } }
-.loader.ready .ld-star { opacity: 1; }
+.loader.ready .ld-star-cv { opacity: 1; }
 /* sideways: the mark on the left, the log beside it */
 @media (orientation: landscape) and (max-height: 560px) {
   .ld-in { width: min(700px, 100%); flex-direction: row; align-items: center; gap: 36px; }
@@ -703,7 +705,7 @@ body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s;
   .ld-body { flex: 1; min-width: 0; }
   .ld-mark { width: 116px; height: 116px; }
 }
-@media (prefers-reduced-motion: reduce) { .ld-halo, .ld-ring, .ld-ring::after, .ld-go { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ld-halo, .ld-ring, .ld-ring::after, .ld-go, .ld-star-cv { animation: none; } }
 .tile.t-empty small { letter-spacing: 0; font-size: 8px; }
 
 /* ---------------------------------------------------------------------------

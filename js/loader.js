@@ -347,11 +347,46 @@ function loaderUIStart() {
   U.segs = [];
   for (let i = 0; i < 24; i++) { const s = document.createElement('i'); segs.appendChild(s); U.segs.push(s); }
   U.rows = new Map();
+  loaderStarMark(el);
   const tick = () => { loaderUIDraw(); U.raf = requestAnimationFrame(tick); };
   U.raf = requestAnimationFrame(tick);
   loaderUIDraw();
 }
 function loaderUIStop() { cancelAnimationFrame(LoaderUI.raf); }
+
+// The mark: the Lodestar as the game draws it over its cradle (hubart.js
+// hartStar, at its first size) in its halo, its light spread round it the
+// way the scene's bloom does; the halo's two frames alternate as in play.
+// Drawn once into a canvas shown at whole device pixels an art pixel.
+function loaderStarMark(el) {
+  const cv = el.querySelector('.ld-star-cv');
+  if (!cv || typeof hartStar !== 'function') return;
+  try {
+    const N = 100, cx = 50, cy = 50, st = hartStar(2);
+    const frames = [0, 1].map((f) => {
+      const c = document.createElement('canvas');
+      c.width = c.height = N;
+      const x = c.getContext('2d'), halo = hartHalo(2, f);
+      x.globalAlpha = 0.8;
+      x.drawImage(halo.c, cx - halo.ax, cy - halo.ay - 4);
+      x.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2, r = i % 2 ? 2 : 4;
+        x.globalAlpha = 0.07;
+        x.drawImage(st.ec, cx - st.ax + Math.cos(a) * r, cy - st.ay + Math.sin(a) * r);
+      }
+      x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+      x.drawImage(st.c, cx - st.ax, cy - st.ay);
+      return c;
+    });
+    const dpr = window.devicePixelRatio || 1, k = Math.max(1, Math.round(1.2 * dpr));
+    cv.width = cv.height = N;
+    cv.style.width = cv.style.height = (N * k / dpr) + 'px';
+    cv.getContext('2d').drawImage(frames[0], 0, 0);
+    cv.hidden = false;
+    LoaderUI.star = { cv, frames, shown: 0, still: window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches };
+  } catch (e) { noteError(e); }
+}
 
 // Once a frame: only what changed is touched.
 function loaderUIDraw() {
@@ -365,6 +400,12 @@ function loaderUIDraw() {
     // the star wakes as the systems do
     U.halo.style.opacity = (0.15 + 0.85 * k).toFixed(3);
     U.mark.style.setProperty('--wake', k.toFixed(3));
+  }
+  // the halo's loose amber, two frames at three a second, as in play
+  const S = U.star;
+  if (S && !S.still) {
+    const f = Math.floor(performance.now() / 333) % 2;
+    if (f !== S.shown) { S.shown = f; const x = S.cv.getContext('2d'); x.clearRect(0, 0, S.cv.width, S.cv.height); x.drawImage(S.frames[f], 0, 0); }
   }
   // the log: a line for each task begun, its count or OK
   for (const j of Loader.jobs) {
