@@ -112,7 +112,13 @@ const KD_WALK = { A: 8.5, lift: 3.4, support: 0.47, toeOff: 0.33, bob: 1.0, swin
 // walk played faster): the stride longer, the knees higher, a moment with
 // both feet off the ground, the body leant into it, the elbows bent and
 // pumping, the hips and shoulders turning further.
-const KD_RUN = { A: 10.5, lift: 5.2, support: 0.38, toeOff: 0.22, bob: 1.4, swing: 0.85, bendBase: 0.9, bend: 0.3, hipYaw: 0.3, hipRoll: 0.09, chestYaw: -0.25, chestRoll: -0.04, pitch: 0.21, drop: 2.7, headBob: -0.55, pack: 1.25, sway: 0.4, abd: 0.16 };
+// The arms swing from the shoulder, the elbows bent about square, so the
+// hands pump between the hip and the chest rather than pointing ahead.
+const KD_RUN = { A: 10.5, lift: 5.0, support: 0.34, toeOff: 0.2, bob: 1.4, swing: 1.05, bendBase: 0.6, bend: 0.3, hipYaw: 0.3, hipRoll: 0.09, chestYaw: -0.25, chestRoll: -0.04, pitch: 0.13, drop: 2.4, headBob: -0.55, pack: 1.25, sway: 0.4, abd: 0.16 };
+// A gait's cycle (two steps) in authored px: what the ground covers while
+// a foot is down is the foot's travel, 2A over `support` of the cycle, so
+// the feet neither skate nor slip. The walk's is 36, the run's 62.
+function kdCycle(G) { return (2 * G.A) / G.support; }
 function kdGait(s, a, lean, G) {
   const A = G.A * a, lift = G.lift * a, S = G.support, feet = [], toe = [];
   for (let i = 0; i < 2; i++) {
@@ -707,7 +713,8 @@ function kindlerPick(d, cast) {
   if (!A || A.p !== p) A = d.kAnim = { p, t: now, x: p.x, y: p.y, ang: Math.atan2(p.fy, p.fx), ph: 0, walk: 0, stop: 9, idle: 0, lead: 'R', k: 1, run: false };
   const dt = clamp(now - A.t, 0, 0.1);
   A.t = now;
-  let dist = Math.hypot(p.x - A.x, p.y - A.y) * AP;
+  // (in authored px, as the cycles are: the grain doesn't change his pace)
+  let dist = Math.hypot(p.x - A.x, p.y - A.y) * AP_ART;
   A.x = p.x; A.y = p.y;
   if (dist > 30) dist = 0; // (a jump: a way through, a new floor)
   const dashing = p.dashT > 0;
@@ -728,16 +735,17 @@ function kindlerPick(d, cast) {
     key = p.dashT > T.dash.time * 0.5 ? 'd0' : 'd1';
     A.walk = 0; A.stop = 0; A.lead = 'R';
   } else if (walking) {
-    if (A.walk === 0) { A.ph = K.startAt; A.k = 1; A.run = false; }
+    // his pace against the base speed, smoothed (the first step's as it
+    // is); past K.run[0] of it he runs (a gait of its own, KD_RUN), until
+    // it falls under K.run[1]
+    const pace = dt > 0 ? dist / dt / (T.player.speed * AP_ART) : A.k;
+    if (A.walk === 0) { A.ph = K.startAt; A.k = pace; A.run = false; }
     A.walk += dt;
-    // his pace against the base speed, smoothed; past K.run[0] of it he
-    // runs (a gait of its own, KD_RUN), until it falls under K.run[1]
-    if (dt > 0) A.k = lerp(A.k, dist / dt / (T.player.speed * AP), Math.min(1, dt * 10));
+    A.k = lerp(A.k, pace, Math.min(1, dt * 10));
     A.run = A.k > (A.run ? K.run[1] : K.run[0]);
-    // a stride's length on the screen: shorter seen from in front or
-    // behind; running, longer the faster he goes (so the cadence rises
-    // only a little with the speed, as a runner's does)
-    const L = K.cycle * (A.run ? Math.pow(Math.max(1, A.k), K.runStride) : 1) * lerp(1, Math.hypot(Math.cos(A.ang), KD_K * Math.sin(A.ang)), K.depthCycle);
+    // the gait's cycle (kdCycle: the feet hold the ground), shorter seen
+    // from in front or behind
+    const L = kdCycle(A.run ? KD_RUN : KD_WALK) * lerp(1, Math.hypot(Math.cos(A.ang), KD_K * Math.sin(A.ang)), K.depthCycle);
     A.ph = (A.ph + Math.max(dist, K.tread * dt) / L) % 1;
     const n = Math.floor(A.ph * 8) % 8;
     key = legs = (A.walk < K.start ? 'g' : A.run ? 'r' : 'w') + n;
