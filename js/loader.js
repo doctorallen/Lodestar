@@ -362,21 +362,24 @@ function loaderStarMark(el) {
   const cv = el.querySelector('.ld-star-cv');
   if (!cv || typeof hartStar !== 'function') return;
   try {
-    const N = 100, cx = 50, cy = 50, st = hartStar(2);
+    // (at fine grain the sprites are AF times the size: drawn back at the
+    // art's own size here)
+    const N = 100, cx = 50, cy = 50, st = hartStar(2), q = st.f || 1;
     const frames = [0, 1].map((f) => {
       const c = document.createElement('canvas');
       c.width = c.height = N;
-      const x = c.getContext('2d'), halo = hartHalo(2, f);
+      const x = c.getContext('2d'), halo = hartHalo(2, f), hq = halo.f || 1;
+      x.imageSmoothingEnabled = false;
       x.globalAlpha = 0.8;
-      x.drawImage(halo.c, cx - halo.ax, cy - halo.ay - 4);
+      x.drawImage(halo.c, cx - halo.ax / hq, cy - halo.ay / hq - 4, halo.w / hq, halo.h / hq);
       x.globalCompositeOperation = 'lighter';
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * Math.PI * 2, r = i % 2 ? 2 : 4;
         x.globalAlpha = 0.07;
-        x.drawImage(st.ec, cx - st.ax + Math.cos(a) * r, cy - st.ay + Math.sin(a) * r);
+        x.drawImage(st.ec, cx - st.ax / q + Math.cos(a) * r, cy - st.ay / q + Math.sin(a) * r, st.w / q, st.h / q);
       }
       x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
-      x.drawImage(st.c, cx - st.ax, cy - st.ay);
+      x.drawImage(st.c, cx - st.ax / q, cy - st.ay / q, st.w / q, st.h / q);
       return c;
     });
     const dpr = window.devicePixelRatio || 1, k = Math.max(1, Math.round(1.2 * dpr));

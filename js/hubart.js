@@ -63,7 +63,7 @@ function hartStrokes(s, x0, y0, x1, y1, val, ramp, seed, o = {}) {
 const _hartKept = new Map();
 function hartKeep(key, make) {
   let s = _hartKept.get(key);
-  if (!s) { s = make(); _hartKept.set(key, s); }
+  if (!s) { s = artFine(make()); _hartKept.set(key, s); }
   return s;
 }
 function hartDone(s, ax, ay, extra) {

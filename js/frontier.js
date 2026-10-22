@@ -437,7 +437,7 @@ function spireSprite() {
   pflRepaintProp(P, solid, S, 0x5b1e);
   const s = spriteFromBuf(P);
   s.ax = cx; s.ay = H - 2;
-  return (_worldSprites.spire = s);
+  return (_worldSprites.spire = artFine(s));
 }
 
 // A waystone: a squat stele of lodestone, its band of runes glowing dimly
@@ -457,7 +457,7 @@ function waystoneSprite(lit) {
   pflRepaintProp(P, solid, S, 0x5b1f);
   const s = spriteFromBuf(P);
   s.ax = cx; s.ay = H - 2;
-  return (_worldSprites[key] = s);
+  return (_worldSprites[key] = artFine(s));
 }
 
 // The spire and the waystones, sorted with the actors.
@@ -578,11 +578,11 @@ function exitLabel(text, col) {
   const key = text + col;
   if (_exitLabels.has(key)) return _exitLabels.get(key);
   const glyphs = [...text].map((ch) => (LABEL_FONT[ch] || LABEL_FONT[' ']).split('/')), w = glyphs.reduce((n, g) => n + g[0].length + 1, -1);
-  const [c, x] = makeCanvas(w + 1, 6);
+  const [c, x] = makeCanvas((w + 1) * AF, 6 * AF);
   for (const [ink, o] of [['#000000', 1], [col, 0]]) {
     x.fillStyle = ink;
     let gx = 0;
-    for (const g of glyphs) { for (let j = 0; j < 5; j++) for (let i = 0; i < g[j].length; i++) if (g[j][i] === '1') x.fillRect(gx + i + o, j + o, 1, 1); gx += g[0].length + 1; }
+    for (const g of glyphs) { for (let j = 0; j < 5; j++) for (let i = 0; i < g[j].length; i++) if (g[j][i] === '1') x.fillRect((gx + i + o) * AF, (j + o) * AF, AF, AF); gx += g[0].length + 1; }
   }
   _exitLabels.set(key, c);
   return c;

@@ -57,7 +57,7 @@ function pflSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS, opts
   const PF = T.paint.flora;
   pal = pal ? Object.assign({}, ART.pal, pal) : ART.pal;
   const G = glows instanceof Set ? glows : new Set(glows || []);
-  const k = (opts.scale !== undefined ? opts.scale : T.art.px) / (ART_NATIVE.get(rows) || 1);
+  const k = (opts.scale !== undefined ? opts.scale : AP_ART) / (ART_NATIVE.get(rows) || 1);
   // (enlarged by the grid's own rules, scale3x's rounded corners, glows as
   // exact blocks)
   const glowCh = new Set(Object.keys(letters).filter((ch) => letters[ch] && G.has(letters[ch][0])));
@@ -248,8 +248,8 @@ function pflSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS, opts
     C32[i] = C32[i + 1] = (0xff000000 | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0;
   }
   const out = spriteFromBuf(P);
-  out.k = opts.scale !== undefined ? opts.scale : T.art.px;
-  return out;
+  out.k = opts.scale !== undefined ? opts.scale : AP_ART;
+  return artFine(out);
 }
 
 // A piece of a flora set, painted (render.js floraSprite caches it): by
@@ -505,7 +505,7 @@ function pflDropSprite(kind, col, ore) {
       S.px(5 + i, 5 + j, c, c !== r[0]);
     }
   }
-  s = S.done();
+  s = artFine(S.done());
   _pflDrops.set(key, s);
   return s;
 }

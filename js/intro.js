@@ -241,7 +241,9 @@ function introCaption() {
 // composed round the view's place on the screen (the stage).
 // ---------------------------------------------------------------------------
 function introSize() {
-  const I = Intro, dpr = window.devicePixelRatio || 1, k = View.scale || 1;
+  // (the opening's pictures are drawn in the art's own pixels: at fine
+  // grain, AF device pixels more to each, so it looks as it did)
+  const I = Intro, dpr = window.devicePixelRatio || 1, k = (View.scale || 1) * AF;
   const r = I.el.getBoundingClientRect(), s = $('stage').getBoundingClientRect();
   const key = `${r.width}x${r.height}@${dpr}/${k}/${s.left},${s.top},${s.width},${s.height}`;
   if (key === I.sizeKey) return;

@@ -87,14 +87,14 @@ function critSprite(kind, L, frame, dir) {
   }
   // at the art's size (AP; drawn at it, or enlarged to it), a pixel of
   // clear all round
-  if (native !== AP) rows = artScaleRows(rows, AP / native);
+  if (native !== AP_ART) rows = artScaleRows(rows, AP_ART / native);
   const pad = (src) => { const [p, x] = makeCanvas(src.width + 2, src.height + 2); x.drawImage(src, 1, 1); return p; };
   // painted, with no outline (foespaint.js)
   let c = fpCritterCanvas(rows, lifePal(kind, L), kind);
   if (dir === 'w') c = flipped(c);
   let ec = kind === 'scurrier' ? pad(spriteFrom(rows.map((r) => r.replace(/[^E]/g, '.')), { E: LIFE_EYESHINE })) : makeCanvas(c.width, c.height)[0];
   if (dir === 'w') ec = flipped(ec);
-  const s = { c, ec, w: c.width, h: c.height };
+  const s = artFine({ c, ec, w: c.width, h: c.height });
   return (_critSprites[key] = s);
 }
 
@@ -486,12 +486,12 @@ function drawCritter(d, c, ox, oy) {
     if (c.z > 3) { x.fillRect(fx - 2 + Math.round(c.z * 0.15 * AP), fy, ap(3), 1); return; }
     x.fillRect(fx - ap(2), fy, ap(4), 1);
     const s = critSprite('bird', d.life, c.peck > 0 ? 1 : 0, c.dir);
-    drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + Math.round(footOff(2)) - Math.round(c.z * AP));
+    drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + Math.round(footOff(2) * AF) - Math.round(c.z * AP));
     return;
   }
   const moving = c.state === 'flee' || c.state === 'dart' || c.state === 'run';
   const s = critSprite(c.crit, d.life, moving ? Math.floor(Game.realT * 14) % 2 : 0, c.dir);
-  const sx = fx - Math.round(s.w / 2), sy = fy - s.h + Math.round(footOff(3));
+  const sx = fx - Math.round(s.w / 2), sy = fy - s.h + Math.round(footOff(3) * AF);
   if (c.state === 'hiding') {
     // into a crack: sinking into the wall's foot, cut off at the ground
     const k = 1 - c.hide, hk = Math.max(1, Math.round(s.h * k)), y0 = Math.round(ap(4) * c.hide);

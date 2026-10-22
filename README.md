@@ -19,7 +19,7 @@ A top-down pixel-art mining and looting game for the phone browser, upright or s
 | Travel | TRAVEL, over BANK at a spire | |
 | Cargo (and MAKE: supplies from the ore carried) | CARGO in the top bar | I |
 | Use a Mending Injector / a Lightcell | MEND / LIGHT, the two small buttons at the right deck's top | Q / R |
-| Pause (the MUSIC, SOUNDS and LAMP settings, and START OVER) | II | Esc / P |
+| Pause (the MUSIC, SOUNDS and LAMP settings, FINE GRAIN, and START OVER) | II | Esc / P |
 | How it works (the HUD; a screen's own ? in its header) | ? in the top bar | |
 
 The loop:
@@ -40,6 +40,8 @@ At home, walk the outpost's stations:
 - the star's altar: hold FEED THE STAR and the light your deeds earned (heartlight, deeplight) rises into it, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements;
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
 - the portal: what's next (one goal, also shown over the view at home), the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
+
+FINE GRAIN, on the pause screen at home, draws the world at twice the art's pixels (3 to a world pixel, so the painted ground, the rock and the Kindler come out sharper, and the other sprites keep their look at the same size). It needs WebGL2 for the light, costs about three times the frame, and reloads the game; it's meant for a desktop or a strong phone. `?fine` or `?coarse` in the address overrides it.
 
 ## Files
 

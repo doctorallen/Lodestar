@@ -261,7 +261,7 @@ function glLightScene(cx, cy) {
   gl.uniform3f(u.uViolet, Vi.dark[0], Vi.dark[1], Vi.dark[2]); gl.uniform1f(u.uDark, dark);
   gl.uniform1i(u.uNoct, nDark > 0 ? 1 : 0); gl.uniform3f(u.uNT, Nc.tint[0], Nc.tint[1], Nc.tint[2]); gl.uniform1f(u.uNAmt, Nc.amount); gl.uniform1f(u.uNDark, nDark);
   const soft = Lab.on('soft'), Sf = Lt.soft;
-  gl.uniform1i(u.uSoft, soft ? 1 : 0); gl.uniform1f(u.uSfLen, Sf.len); gl.uniform1f(u.uSfK, Sf.amt / 255);
+  gl.uniform1i(u.uSoft, soft ? 1 : 0); gl.uniform1f(u.uSfLen, Sf.len * AF); gl.uniform1f(u.uSfK, Sf.amt / 255);
   if (unl) {
     const GL = pntLook(gLook), GU = pntLook(gLook, 0), gW = gf.w * ATILE, gH = gf.h * ATILE, HUE = GL.groundW ? View.groundHue : null;
     glLightGround(gl, G, GT, HUE, gW, gH);

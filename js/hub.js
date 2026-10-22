@@ -493,18 +493,18 @@ const LABEL_FONT = {
   'U': '101/101/101/101/111', 'V': '101/101/101/101/010', 'W': '10001/10001/10101/11011/10001', 'X': '101/101/010/101/101', 'Y': '101/101/010/010/010',
   'Z': '111/001/010/100/111', ' ': '00/00/00/00/00', '?': '111/001/010/000/010', '·': '0/0/1/0/0',
 };
-// (on View.ctx, or the canvas c)
+// (on View.ctx, or the canvas c; its pixels AF wide, at fine grain)
 function drawLabel(text, cx, y, col, alpha, c = View.ctx) {
   const glyphs = [...text].map((ch) => (LABEL_FONT[ch] || LABEL_FONT[' ']).split('/'));
-  const w = glyphs.reduce((n, g) => n + g[0].length + 1, -1);
+  const w = glyphs.reduce((n, g) => n + g[0].length + 1, -1) * AF;
   const x0 = clamp(Math.round(cx - w / 2), 1, View.w - w - 2);
   c.globalAlpha = alpha;
   for (const [ink, o] of [['#000000', 1], [col, 0]]) {
     c.fillStyle = ink;
     let x = x0;
     for (const g of glyphs) {
-      for (let j = 0; j < 5; j++) for (let i = 0; i < g[j].length; i++) if (g[j][i] === '1') c.fillRect(x + i + o, y + j + o, 1, 1);
-      x += g[0].length + 1;
+      for (let j = 0; j < 5; j++) for (let i = 0; i < g[j].length; i++) if (g[j][i] === '1') c.fillRect(x + (i + o) * AF, y + (j + o) * AF, AF, AF);
+      x += (g[0].length + 1) * AF;
     }
   }
   c.globalAlpha = 1;
@@ -521,7 +521,7 @@ function drawStationLabels(d, ox, oy) {
     // (one not yet awake, dim, and OFFLINE)
     const awake = stationAwake(s.id), lx = Math.round(x * AP) + ox, ly = Math.round((y + STATION_LABEL_Y[s.id]) * AP) + oy;
     drawLabel(STATION_LABELS[s.id], lx, ly, !awake ? '#6a6660' : m < 2 ? '#fff2c8' : '#c8bca0', awake ? a : 0.7);
-    if (!awake) drawLabel('OFFLINE', lx, ly + 7, '#8a5a4a', 0.75);
+    if (!awake) drawLabel('OFFLINE', lx, ly + 7 * AF, '#8a5a4a', 0.75);
   }
   drawStructureLabels(d, ox, oy);
 }

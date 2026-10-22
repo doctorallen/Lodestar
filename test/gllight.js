@@ -9,11 +9,21 @@ const { launch, openGame, finish } = require('./lib');
 (async () => {
   const failures = [];
   const browser = await launch({ gl: true });
-  const { page, errors } = await openGame(browser, { query: '?noload', onboard: 'all' });
+  await runAt(browser, '', failures);
+  // and at FINE GRAIN (art.js artFinePx), where the view has four times
+  // the pixels and the dither and the soft beam's strokes are finer
+  await runAt(browser, '&fine', failures);
+  await browser.close();
+  finish('gllight', failures);
+})();
+
+async function runAt(browser, grain, failures) {
+  const { page, errors } = await openGame(browser, { query: '?noload' + grain, onboard: 'all' });
   const ok = await page.evaluate(() => glLightInit());
-  if (!ok) { failures.push('no WebGL2 in the test browser'); finish('gllight', failures); return; }
+  if (!ok) { failures.push('no WebGL2 in the test browser'); return; }
   await page.evaluate(() => { if (Intro.on) Intro.skip(); });
   await new Promise((r) => setTimeout(r, 300));
+  const tag = grain ? ' (fine)' : '';
   // Lights the frame as it stands both ways, from the same unlit view:
   // renderFrame with the GPU, the unlit view and the light kept on the
   // way; then the JavaScript lighting on a copy of that view.
@@ -41,6 +51,7 @@ const { launch, openGame, finish } = require('./lib');
     return { label, w, h, worst, over, mean: +(sum / n).toFixed(3), lit: cpu.some((v, i) => i % 4 !== 3 && v > 8) };
   }, label);
   const check = (r) => {
+    r.label += tag;
     if (!r.lit) failures.push(`${r.label}: the view is dark`);
     // (a tone either way from rounding; a few pixels more where a band's edge rounds the other way)
     if (r.over > r.w * r.h * 0.004) failures.push(`${r.label}: ${r.over} channels differ by more than 2 (worst ${r.worst}, mean ${r.mean})`);
@@ -48,7 +59,7 @@ const { launch, openGame, finish } = require('./lib');
     console.log(`  ${r.label}: worst ${r.worst}, over 2: ${r.over}, mean ${r.mean}`);
   };
   check(await compare('home'));
-  for (const lab of ['nocturne', 'soft', 'canvas']) {
+  for (const lab of grain ? ['soft'] : ['nocturne', 'soft', 'canvas']) {
     await page.evaluate((k) => Lab.set(k, true, { save: false }), lab);
     check(await compare('home ' + lab));
     await page.evaluate((k) => Lab.set(k, false, { save: false }), lab);
@@ -63,7 +74,8 @@ const { launch, openGame, finish } = require('./lib');
   await new Promise((r) => setTimeout(r, 1500));
   check(await compare('floor broken'));
   await page.evaluate(() => Lab.set('broken', false, { save: false }));
-  // what each costs
+  // what each costs (not at fine grain: SwiftShader takes seconds a frame there)
+  if (grain) { for (const e of errors) failures.push(e); await page.close(); return; }
   const cost = await page.evaluate(async () => {
     const med = (a) => { a = a.slice().sort((x, y) => x - y); return a[a.length >> 1]; };
     const run = async (soft) => {
@@ -75,8 +87,7 @@ const { launch, openGame, finish } = require('./lib');
     };
     return { gpu: await run(false), cpu: await run(true) };
   });
-  console.log(`  a frame: GPU ${cost.gpu} ms, JavaScript ${cost.cpu} ms (SwiftShader, so the GPU's share is in software here too)`);
+  console.log(`  a frame${tag}: GPU ${cost.gpu} ms, JavaScript ${cost.cpu} ms (SwiftShader, so the GPU's share is in software here too)`);
   for (const e of errors) failures.push(e);
-  await browser.close();
-  finish('gllight', failures);
-})();
+  await page.close();
+}

@@ -428,7 +428,7 @@ function moduleDropSprite(col) {
     }
   }
   S.px(3, 3, W, true); S.px(3, 4, r[3], true);
-  s = S.done();
+  s = artFine(S.done());
   _modDrops.set(col, s);
   return s;
 }

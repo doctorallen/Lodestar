@@ -19,12 +19,81 @@
 
 // World px to art px: AP art px to each, ATILE to a tile. ap(v): a world
 // distance as whole art px.
-const AP = T.art.px, ATILE = Math.round(TILE * AP);
+//
+// The art is authored at AP_ART (1.5) art px to a world px: the sprites'
+// letter grids are enlarged to it, the painted sprites (PntSpr), the
+// Kindler's figure, the labels and the dots and lines of the effects are
+// drawn in its pixels. With FINE GRAIN (the pause screen; artFinePx) the
+// view is drawn at twice that, AP 3, and AF (2) is how many of the view's
+// pixels each authored pixel is. What's painted from world sizes (the
+// floor, the rock, the portals, the grass) comes out at the finer size of
+// itself; the Kindler is rendered finer outright (diver.js); and every
+// other sprite is enlarged by AF as it's finished (artFine), its pixels
+// as blocks, so it keeps its look and its size in the world.
+const AP_ART = 1.5;
+const AP = (T.art.px = artFinePx()), ATILE = Math.round(TILE * AP), AF = Math.round(AP / AP_ART);
 const ap = (v) => Math.round(v * AP);
 // A sprite's anchor, given as px up from its bottom edge in its 1× letter
 // grid (a pixel of outline, then letters), at its art size: the outline
-// stays a pixel and the letters' share is enlarged by k.
-const footOff = (old, k = AP) => 1 + (old - 1) * k;
+// stays a pixel and the letters' share is enlarged by k. In authored
+// pixels: a sprite's anchors are enlarged with it (artFine).
+const footOff = (old, k = AP_ART) => 1 + (old - 1) * k;
+
+// FINE GRAIN: the view at twice the art's pixels. Set on the pause screen
+// and kept in the save's settings (settings.fine), read here before the
+// save loads, since the art is built at this size from the start; it
+// takes a reload. Only where there's WebGL2, since the light is per pixel
+// (gllight.js) and four times the pixels in JavaScript would cost the
+// frame. ?fine or ?coarse in the address overrides both.
+function artFinePx() {
+  let fine = false;
+  try {
+    const q = typeof location !== 'undefined' ? location.search : '';
+    if (/[?&]fine\b/.test(q)) return AP_ART * 2;
+    if (/[?&]coarse\b/.test(q)) return AP_ART;
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    fine = !!(s && s.settings && s.settings.fine);
+    if (fine && !document.createElement('canvas').getContext('webgl2')) fine = false;
+  } catch (e) { fine = false; }
+  return fine ? AP_ART * 2 : AP_ART;
+}
+
+// A sprite drawn in authored pixels, enlarged to the view's (AF a pixel):
+// its pictures (canvases) by nearest neighbour, its size, anchors and
+// every point among its fields ({ x, y }, with w, h and r if it has them;
+// [x, y] or [x, y, side] pairs; arrays of either; a frame that's a sprite
+// itself) by AF. k, how far its letters were enlarged, stays. Marked f, so
+// it's enlarged once. Returns the sprite itself.
+const ART_FINE_NUM = new Set(['w', 'h', 'ax', 'ay', 'cx', 'cy', 'textW']);
+function artFine(s) {
+  if (AF === 1 || !s || typeof s !== 'object' || s.f) return s;
+  if (s instanceof HTMLCanvasElement) return artFineCanvas(s);
+  for (const key of Object.keys(s)) {
+    const v = s[key];
+    if (v instanceof HTMLCanvasElement) s[key] = artFineCanvas(v);
+    else if (ART_FINE_NUM.has(key)) { if (typeof v === 'number') s[key] = v * AF; }
+    else if (v && typeof v === 'object') artFinePts(v);
+  }
+  s.f = AF;
+  return s;
+}
+function artFinePts(v) {
+  if (Array.isArray(v)) {
+    if (v.length >= 2 && v.length <= 3 && typeof v[0] === 'number' && typeof v[1] === 'number') { v[0] *= AF; v[1] *= AF; return; }
+    for (const e of v) if (e && typeof e === 'object') artFinePts(e);
+    return;
+  }
+  if (v instanceof HTMLCanvasElement) return;
+  if (v.c instanceof HTMLCanvasElement) { artFine(v); return; }
+  if (typeof v.x === 'number' && typeof v.y === 'number') for (const k of ['x', 'y', 'w', 'h', 'r', 'rx', 'ry']) if (typeof v[k] === 'number') v[k] *= AF;
+}
+// A canvas enlarged k times, each pixel a block.
+function artFineCanvas(c, k = AF) {
+  const [o, x] = makeCanvas(c.width * k, c.height * k);
+  x.imageSmoothingEnabled = false;
+  x.drawImage(c, 0, 0, c.width * k, c.height * k);
+  return o;
+}
 // Letter grids redrawn by hand at the art's size (A+ step 3), marked with
 // the scale they're drawn at: buildArtSprite enlarges them only by what's
 // left (nothing, for a sprite drawn at AP), never by scale15Rows. Drawn to
@@ -350,7 +419,9 @@ function buildArtSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS,
   const shift = opts.hueShift === false ? null : opts.hueShift || A.hueShift;
   const tones = opts.tones || A.tones, dither = opts.dither !== undefined ? opts.dither : A.dither;
   pal = pal ? Object.assign({}, ART.pal, pal) : ART.pal;
-  const G = glows instanceof Set ? glows : new Set(glows), scale = opts.scale !== undefined ? opts.scale : A.px;
+  // (built in authored pixels, then enlarged to the view's: artFine; fine:
+  // false for a picture that isn't for the view, an icon)
+  const G = glows instanceof Set ? glows : new Set(glows), scale = opts.scale !== undefined ? opts.scale : AP_ART, fine = opts.fine !== false;
   // (what glows is enlarged as exact blocks: artScaleRows; a grid drawn by
   // hand at the art's size isn't enlarged at all: artNative)
   const drawn = ART_NATIVE.get(rows) || 1;
@@ -442,12 +513,13 @@ function buildArtSprite(rows, pal, letters = SPRITE_CHARS, glows = SPRITE_GLOWS,
   outlineBuf(P, solid, outline, opts.openFoot ? (x, y) => y > y1 - opts.openFoot : null);
   const out = spriteFromBuf(P);
   out.k = scale;
-  return out;
+  return fine ? artFine(out) : out;
 }
 
 // Where a pixel of a sprite's letter grid (x, y at 1×) lands in the sprite
-// as drawn: past its outline, the middle of the pixel's enlarged block.
-const spritePt = (s, v) => 1 + Math.floor((v + 0.5) * (s.k || 1));
+// as drawn: past its outline, the middle of the pixel's enlarged block
+// (and the whole of it enlarged again by f, at fine grain).
+const spritePt = (s, v) => (1 + Math.floor((v + 0.5) * (s.k || 1))) * (s.f || 1);
 
 function spriteFromBuf(P) {
   const [c, x] = makeCanvas(P.w, P.h), [ec, ex] = makeCanvas(P.w, P.h);
@@ -805,13 +877,13 @@ function buildEnemySprites(biomeId) {
   // painted (foespaint.js)
   if (T.paint.foes) return fpEnemySprites(biomeId);
   const pal = ENEMY_PAL[biomeId], out = {};
-  const mk = (rows, p, big) => buildArtSprite(rows, p, undefined, undefined, big ? { kind: 'creature', scale: 2 * AP } : ART_CREATURE);
+  const mk = (rows, p, big) => buildArtSprite(rows, p, undefined, undefined, big ? { kind: 'creature', scale: 2 * AP_ART } : ART_CREATURE);
   for (const type of Object.keys(ENEMY_ROWS)) out[type] = mk(ENEMY_ROWS[type], pal);
   out.dummy = mk(ENEMY_ROWS.construct, Object.assign({}, pal, { plate: ['#1c1810', '#3a3020', '#5e4c30', '#8a7048'], rune: [ART.pal.star[2]] }));
   // the Hollow and the warden: twice the size
   out.hollow = mk(ENEMY_ROWS.wisp, { shell: ['#000000', '#030205', '#07050c', '#0e0a16'], crystal: ['#2a0838'], coreglow: ['#ff2a6a'] }, true);
   out.warden = mk(ENEMY_ROWS.construct, Object.assign({}, pal, { plate: ['#0c0a0e', '#1e1a22', '#34303c', '#565064'] }), true);
-  for (const type in out) { const s = out[type]; s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - footOff(1.5); }
+  for (const type in out) { const s = out[type]; s.flash = tinted(s.c, '#ffffff'); s.ax = s.w / 2; s.ay = s.h - footOff(1.5) * (s.f || 1); }
   return out;
 }
 
@@ -884,7 +956,7 @@ function itemIconUrl(item) {
     pal.steel = r; pal.plate = r; pal.tool = r;
   }
   if (item.kind === 'relic') pal.arcane = [ART.rarity.relic];
-  const s = own ? art2Sprite(rows, pal) : buildArtSprite(rows, pal);
+  const s = own ? art2Sprite(rows, pal, { fine: false }) : buildArtSprite(rows, pal, undefined, undefined, { fine: false });
   url = s.c.toDataURL();
   _iconCache.set(key, url);
   return url;
@@ -894,7 +966,7 @@ function itemIconUrl(item) {
 function art2IconUrl(name, pal) {
   const key = 'art2/' + name + '/' + JSON.stringify(pal || {});
   let url = _iconCache.get(key);
-  if (!url) { url = art2Sprite(ICON_ROWS2[name], pal).c.toDataURL(); _iconCache.set(key, url); }
+  if (!url) { url = art2Sprite(ICON_ROWS2[name], pal, { fine: false }).c.toDataURL(); _iconCache.set(key, url); }
   return url;
 }
 
@@ -916,12 +988,12 @@ function stuffIconUrl(id) {
   if (typeof isLight === 'function' && isLight(id)) return lightIconUrl(id);
   const part = parsePart(id);
   if (part) {
-    url = art2Sprite(PART_ROWS[part.kind], PART_PAL[part.kind][part.grade - 1]).c.toDataURL();
+    url = art2Sprite(PART_ROWS[part.kind], PART_PAL[part.kind][part.grade - 1], { fine: false }).c.toDataURL();
     _iconCache.set(key, url);
     return url;
   }
   const r = ART.ores[id], col = r ? r[2] : ART.exotics[id];
-  url = buildArtSprite(STUFF_ROWS, { crystal: [col], coreglow: [r ? r[3] : mix(col, '#ffffff', 0.6)] }).c.toDataURL();
+  url = buildArtSprite(STUFF_ROWS, { crystal: [col], coreglow: [r ? r[3] : mix(col, '#ffffff', 0.6)] }, undefined, undefined, { fine: false }).c.toDataURL();
   _iconCache.set(key, url);
   return url;
 }

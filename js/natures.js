@@ -217,12 +217,12 @@ function drawVerdictNumber(o, n, nx, ny) {
   const a = Math.min(1, n.t * 3);
   if (n.verdict === 'W') {
     drawBigNumber(o, n.v, nx, ny - 2, n.crit ? '#ffd34d' : NATURE_WEAK, a);
-    if (!n.quiet) drawPixelText(o, 'WEAK', nx, ny + 7, NATURE_WEAK, a);
+    if (!n.quiet) drawPixelText(o, 'WEAK', nx, ny + 7 * AF, NATURE_WEAK, a);
     return true;
   }
   if (n.verdict === 'R' || n.verdict === 'I') {
     drawNumber(n.v, nx, ny, NATURE_RESIST, a);
-    if (!n.quiet) drawPixelText(o, 'RESIST', nx, ny + 6, NATURE_RESIST, a);
+    if (!n.quiet) drawPixelText(o, 'RESIST', nx, ny + 6 * AF, NATURE_RESIST, a);
     return true;
   }
   return false;
@@ -237,13 +237,13 @@ function pixelTextPic(text, col) {
   if (c) return c;
   if (_pixelWords.size > 400) _pixelWords.clear();
   const glyphs = [...text].map((ch) => (LABEL_FONT[ch] || LABEL_FONT[' ']).split('/')), w = glyphs.reduce((n, g) => n + g[0].length + 1, -1);
-  const [cv, o] = makeCanvas(w + 1, 6);
+  const [cv, o] = makeCanvas((w + 1) * AF, 6 * AF);
   for (const [ink, off] of [['#000000', 1], [col, 0]]) {
     o.fillStyle = ink;
     let x = 0;
-    for (const g of glyphs) { for (let j = 0; j < 5; j++) for (let i = 0; i < g[j].length; i++) if (g[j][i] === '1') o.fillRect(x + i + off, j + off, 1, 1); x += g[0].length + 1; }
+    for (const g of glyphs) { for (let j = 0; j < 5; j++) for (let i = 0; i < g[j].length; i++) if (g[j][i] === '1') o.fillRect((x + i + off) * AF, (j + off) * AF, AF, AF); x += g[0].length + 1; }
   }
-  cv.textW = w;
+  cv.textW = w * AF;
   _pixelWords.set(key, cv);
   return cv;
 }

@@ -608,7 +608,7 @@ function stoneIconUrl(stone) {
   let url = _iconCache.get(key);
   if (!url) {
     const k = stoneKind(stone), S = ART.stones[k === 'element' ? stone : k] || ART.stones.form;
-    url = buildArtSprite(stoneRows(stone), { steel: S.body, rune: [S.rune], metal: ART.stones.housing }, undefined, undefined, { scale: 1 }).c.toDataURL();
+    url = buildArtSprite(stoneRows(stone), { steel: S.body, rune: [S.rune], metal: ART.stones.housing }, undefined, undefined, { scale: 1, fine: false }).c.toDataURL();
     _iconCache.set(key, url);
   }
   return url;

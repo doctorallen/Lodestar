@@ -256,7 +256,7 @@ function riftProps(d) {
 
 function drawRift(d, a, ox, oy, lights) {
   const r = a.tear, t = a.at, k = Math.floor(Game.realT * 6 + r.phase) % RIFT_ROWS.length, spr = riftSprite(k);
-  const x = Math.round((t.x + 0.5) * ATILE + ox - spr.w / 2), y = Math.round((t.y + 0.5) * ATILE + oy - spr.h + footOff(4) + Math.sin(Game.realT * 2 + r.phase) * 1.5 * AP);
+  const x = Math.round((t.x + 0.5) * ATILE + ox - spr.w / 2), y = Math.round((t.y + 0.5) * ATILE + oy - spr.h + footOff(4) * (spr.f || 1) + Math.sin(Game.realT * 2 + r.phase) * 1.5 * AP);
   drawArtSprite(spr, x, y);
   const cx = x + spr.w / 2, cy = y + spr.h / 2, pulse = 0.8 + 0.2 * Math.sin(Game.realT * 3 + r.phase);
   // motes drifting out of it

@@ -63,7 +63,11 @@ const KR = {
 };
 // Depth (towards the camera) shows this much down the screen; the light,
 // from the upper left and a little in front, as (x, up, towards us).
-const KD_K = 0.7, KD_HELM_TILT = -0.1, KD_L = (() => { const v = [-0.55, 0.78, 0.4], m = Math.hypot(...v); return v.map((c) => c / m); })();
+// KD_F: the view's pixels to each of the figure's (AF; art.js). He is
+// rendered at the finer size outright, not enlarged, so the finer view
+// shows more of him.
+const KD_F = AF;
+const KD_K = 0.7, KD_HELM_TILT = -0.1, KD_L =(() => { const v = [-0.55, 0.78, 0.4], m = Math.hypot(...v); return v.map((c) => c / m); })();
 // The drawn facings' angles (x right, y down the screen).
 const KD_FACE = { E: 0, SE: Math.PI / 4, S: Math.PI / 2, NE: -Math.PI / 4, N: -Math.PI / 2 }, KD_CHEAT = { E: -0.75, SE: -0.25, S: 0, NE: -0.5, N: 0 };
 
@@ -279,14 +283,16 @@ function kdRender(face, key) {
   // towards us, so the visor and the chest's circuits show)
   const o = kdPose(key), cheat = KD_CHEAT[face];
   o.chestYaw += cheat * 0.35; o.headYaw = (o.headYaw || 0) + cheat * 0.65;
-  const J = kdRig(o), W = KINDLER_W, H = KINDLER_H, ox = W / 2, by = KINDLER_FEET + 0.5;
+  // (at fine grain, KD_F pixels to each of the figure's: the picture that
+  // much bigger, the surface sampled that much closer)
+  const F = KD_F, J = kdRig(o), W = KINDLER_W * F, H = KINDLER_H * F, ox = W / 2, by = (KINDLER_FEET + 0.5) * F;
   const ang = KD_FACE[face], fx = Math.cos(ang), fy = Math.sin(ang), rx = -fy, ry = fx, st = o.stretch || 1;
   const N = W * H, zb = new Float32Array(N).fill(-1e9), mat = new Uint8Array(N), val = new Float32Array(N), part = new Uint8Array(N);
   const seed = hashInts(77, face.charCodeAt(0), face.length);
   // body px to the screen: [x, y, depth]
   const proj = (p) => {
     const z = p[2] * st, gx = p[0] * rx + z * fx, gw = p[0] * ry + z * fy, h = p[1] / Math.pow(st, 0.3);
-    return [ox + gx, by - h + KD_K * gw, gw + KD_K * h];
+    return [ox + gx * F, by + (KD_K * gw - h) * F, gw + KD_K * h];
   };
   const shade = (n) => {
     const gx = n[0] * rx + n[2] * fx, gw = n[0] * ry + n[2] * fy;
@@ -302,7 +308,7 @@ function kdRender(face, key) {
     const ngx = nx * rx + nz * fx, ngw = nx * ry + nz * fy;
     if (KD_K * ny + ngw < -0.25) return -1;
     const z = pz * st, gw = px * ry + z * fy, h = py * sh0;
-    const x = Math.floor(ox + px * rx + z * fx), y = Math.floor(by - h + KD_K * gw);
+    const x = Math.floor(ox + (px * rx + z * fx) * F), y = Math.floor(by + (KD_K * gw - h) * F);
     if (x < 0 || y < 0 || x >= W || y >= H) return -1;
     const i = y * W + x, dep = gw + KD_K * h;
     if (dep <= zb[i]) return -1;
@@ -311,10 +317,10 @@ function kdRender(face, key) {
     // ramp and faces turned away its foot; further back is darker
     const sv = 0.22 + 0.8 * (ngx * Lx + ny * Ly + ngw * Lz) - (pelD - dep > 1.5 ? (pelD - dep - 1.5) * 0.06 : 0);
     val[i] = sv < 0 ? 0 : sv > 1 ? 1 : sv;
-    cellA[i] = Math.floor(a); cellB[i] = Math.floor(b + artHash(Math.floor(a), pt, 5) * 3);
+    cellA[i] = Math.floor(a * F); cellB[i] = Math.floor(b * F + artHash(Math.floor(a * F), pt, 5) * 3);
     return i;
   };
-  const step = 0.5;
+  const step = 0.5 / F;
   let partN = 0;
   // a rounded volume: c, radii [side, up, forward] turned by yaw; pw > 2
   // squares it off; tilt pitches it; matFn(nx, ny, nz, lx, ly, lz) (its
@@ -598,7 +604,7 @@ const KD = { faces: null, mirror: null, base: new Map(), spr: new Map(), queue: 
 
 function kdMake(r) {
   const sp = r.spr.done();
-  sp.ax = KINDLER_W / 2; sp.ay = KINDLER_FEET;
+  sp.ax = (KINDLER_W / 2) * KD_F; sp.ay = KINDLER_FEET * KD_F;
   sp.hand = r.hand; sp.offHand = r.offHand; sp.lamp = r.lamp;
   if (r.castHand) { sp.castHand = r.castHand; sp.restHand = r.restHand; sp.restBehind = r.restBehind; }
   sp.flash = tinted(sp.c, '#ffffff');
@@ -769,5 +775,5 @@ function wickSprite() {
   s.px(cx, cy + 5, '#c9a2ff', true); s.px(cx + 1, cy + 5, '#c9a2ff', true); s.px(cx - 1, cy + 5, '#6a4a9a'); s.px(cx + 2, cy + 5, '#6a4a9a');
   const o = s.done();
   o.cx = cx; o.cy = cy;
-  return o;
+  return artFine(o);
 }

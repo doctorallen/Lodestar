@@ -21,7 +21,7 @@ const TOOL_IDS = ['compass', 'oresense', 'radar', 'beacon', 'map', 'lens'];
 
 const _toolIcons = {};
 function toolIconUrl(id) {
-  if (!_toolIcons[id]) _toolIcons[id] = art2Sprite(TOOL_ROWS[TOOLS[id].icon]).c.toDataURL();
+  if (!_toolIcons[id]) _toolIcons[id] = art2Sprite(TOOL_ROWS[TOOLS[id].icon], undefined, { fine: false }).c.toDataURL();
   return _toolIcons[id];
 }
 
@@ -198,25 +198,26 @@ function drawToolHud(d, ox, oy) {
 // about as big on the screen as it was).
 const MAP_Q = AP > 1 ? 1 : 2;
 function drawSiteMap(d) {
-  const f = d.floor, c = View.ctx, s = d.seen, q = MAP_Q, mw = Math.ceil(f.w / q), mh = Math.ceil(f.h / q), x0 = View.w - mw - 4, y0 = 4;
-  c.globalAlpha = 0.8; c.fillStyle = '#000'; c.fillRect(x0 - 1, y0 - 1, mw + 2, mh + 2); c.globalAlpha = 1;
-  c.fillStyle = '#3a3630'; c.fillRect(x0 - 1, y0 - 1, mw + 2, 1); c.fillRect(x0 - 1, y0 + mh, mw + 2, 1);
+  // (a tile is a pixel of the map, AF of the view's at fine grain)
+  const f = d.floor, c = View.ctx, s = d.seen, q = MAP_Q, P = AF, mw = Math.ceil(f.w / q) * P, mh = Math.ceil(f.h / q) * P, x0 = View.w - mw - 4 * P, y0 = 4 * P;
+  c.globalAlpha = 0.8; c.fillStyle = '#000'; c.fillRect(x0 - P, y0 - P, mw + 2 * P, mh + 2 * P); c.globalAlpha = 1;
+  c.fillStyle = '#3a3630'; c.fillRect(x0 - P, y0 - P, mw + 2 * P, P); c.fillRect(x0 - P, y0 + mh, mw + 2 * P, P);
   c.fillStyle = '#8a8478';
-  for (let y = 0; y < mh; y++)
-    for (let x = 0; x < mw; x++) {
+  for (let y = 0; y < mh / P; y++)
+    for (let x = 0; x < mw / P; x++) {
       let open = false;
       for (let j = 0; j < q && !open; j++) for (let i = 0; i < q && !open; i++) {
         const tx = x * q + i, ty = y * q + j, k = ty * f.w + tx;
         if (tx < f.w && ty < f.h && s[k] && !TILE_SOLID[f.tiles[k]]) open = true;
       }
-      if (open) c.fillRect(x0 + x, y0 + y, 1, 1);
+      if (open) c.fillRect(x0 + x * P, y0 + y * P, P, P);
     }
-  const m = 4 - q, mark = (t, col) => { if (t && s[t.y * f.w + t.x]) { c.fillStyle = col; c.fillRect(x0 + Math.floor(t.x / q) - 1, y0 + Math.floor(t.y / q) - 1, m, m); } };
+  const m = (4 - q) * P, mark = (t, col) => { if (t && s[t.y * f.w + t.x]) { c.fillStyle = col; c.fillRect(x0 + (Math.floor(t.x / q) - 1) * P, y0 + (Math.floor(t.y / q) - 1) * P, m, m); } };
   (f.ways || []).forEach((w, i) => mark(w, ZONE_SIGNS[d.ways[i]] || '#fff'));
   if (f.pad && !d.padDark) mark(f.pad, ART.pal.star[3]);
   for (const s of f.stones || []) mark(s, '#c8c0a0');
   for (const e of f.exits || []) mark(e, isKindled(e.to) ? ART.pal.star[2] : '#8a84a0');
   if (d.fieldForge) mark(d.fieldForge, '#ff8a3a');
   if (d.rift && d.rift.open) { mark(d.rift, RIFT_PAL.riftedge[0]); if (d.rift.pair) mark(d.rift.pair, RIFT_PAL.riftedge[0]); }
-  if (Math.sin(Game.realT * 8) > -0.3) { const px = x0 + Math.floor(d.p.x / TILE / q), py = y0 + Math.floor(d.p.y / TILE / q); c.fillStyle = '#ffffff'; c.fillRect(px, py, q > 1 ? 1 : 2, q > 1 ? 1 : 2); }
+  if (Math.sin(Game.realT * 8) > -0.3) { const px = x0 + Math.floor(d.p.x / TILE / q) * P, py = y0 + Math.floor(d.p.y / TILE / q) * P; c.fillStyle = '#ffffff'; c.fillRect(px, py, (q > 1 ? 1 : 2) * P, (q > 1 ? 1 : 2) * P); }
 }

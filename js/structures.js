@@ -199,7 +199,7 @@ function drawStructureLabels(d, ox, oy) {
     const spr = structureSprite(id), at = plotAt(p, ox, oy);
     if (at.x < 0 || at.x > View.w) return;
     const m = dist(p.x * TILE, p.y * TILE, d.p.x, d.p.y) / TILE, al = clamp(1.1 - (m - 2) / 4, 0.45, 1);
-    drawLabel(STRUCTURES[id].label, at.x, at.y - spr.ay - 9, m < 2.5 ? '#fff2c8' : '#c8bca0', al);
+    drawLabel(STRUCTURES[id].label, at.x, at.y - spr.ay - 9 * AF, m < 2.5 ? '#fff2c8' : '#c8bca0', al);
   });
 }
 

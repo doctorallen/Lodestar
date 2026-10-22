@@ -656,7 +656,7 @@ function lightScene(cx, cy) {
   // SOFT BEAM EDGE (the paint lab, T.light.soft): the threshold set by
   // strokes along each row (fixed to the world), not the dither, so a
   // band's edge breaks into strokes
-  const soft = Lab.on('soft'), Sf = Lt.soft, sfLen = Sf.len, sfK = (Sf.amt * 65536) / 255;
+  const soft = Lab.on('soft'), Sf = Lt.soft, sfLen = Sf.len * AF, sfK = (Sf.amt * 65536) / 255;
   for (let y = 0; y < h; y++) {
     const row = ((y + cy) & 3) * 4, base = Math.floor((y + py) / LC) * lw;
     // the threshold: a half (a hard step), give or take a little dither
@@ -987,7 +987,7 @@ function renderFrame() {
   }
 
   // loot on the floor, then everyone in order of their feet, then what flies
-  for (const dr of d.drops) { drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8, Math.round(dr.y * AP) + oy - 16, 16, 18, Math.round(dr.y * AP) + oy, ox, oy); }
+  for (const dr of d.drops) { drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8 * AF, Math.round(dr.y * AP) + oy - 16 * AF, 16 * AF, 18 * AF, Math.round(dr.y * AP) + oy, ox, oy); }
   const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d), fieldForgeProps(d))).concat(portalProps(d), ropeProps(d), deedProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
@@ -1104,14 +1104,14 @@ function renderFrame() {
     if (e.aggro && e.type !== 'dummy') { const ex = vx(e.x); if (ex > -20 && ex < View.w + 20 && head > -10 && head < View.h + 10) drawNaturePips(o, e, ex, head - 5); }
     if (e.boss || (e.hp >= e.maxHp && !e.elite)) continue;
     const w = ap(e.r * 2 + 4), bx = Math.round(vx(e.x) - w / 2), by = head;
-    o.fillStyle = '#000'; o.fillRect(bx - 1, by - 1, w + 2, 4);
-    o.fillStyle = e.elite ? eliteCol(e) : '#d04848'; o.fillRect(bx, by, Math.max(1, Math.round((w * e.hp) / e.maxHp)), 2);
+    o.fillStyle = '#000'; o.fillRect(bx - AF, by - AF, w + 2 * AF, 4 * AF);
+    o.fillStyle = e.elite ? eliteCol(e) : '#d04848'; o.fillRect(bx, by, Math.max(1, Math.round((w * e.hp) / e.maxHp)), 2 * AF);
   }
   const boss = d.enemies.find((e) => e.boss && !e.dead && e.aggro);
   if (boss) {
-    const w = Math.min(View.w - 36, ap(140)), bx = Math.round((View.w - w) / 2);
-    o.fillStyle = '#000'; o.fillRect(bx - 1, 7, w + 2, 5);
-    o.fillStyle = '#c04040'; o.fillRect(bx, 8, Math.round((w * boss.hp) / boss.maxHp), 3);
+    const w = Math.min(View.w - 36 * AF, ap(140)), bx = Math.round((View.w - w) / 2);
+    o.fillStyle = '#000'; o.fillRect(bx - AF, 7 * AF, w + 2 * AF, 5 * AF);
+    o.fillStyle = '#c04040'; o.fillRect(bx, 8 * AF, Math.round((w * boss.hp) / boss.maxHp), 3 * AF);
   }
   // a foe's reaction names stand over it, the newest lowest, above where its
   // numbers rise to
@@ -1120,16 +1120,16 @@ function renderFrame() {
   for (const n of d.nums) {
     const col = n.col || (n.hurt ? '#ff6a5a' : n.elem ? ELEMENT_COLS[n.elem] : n.crit ? '#ffd34d' : '#f4ecd8'), nx = vx(n.x), ny = vy(n.y);
     // a reaction's name, or a resonance's, in the pixel hand
-    if (n.word && n.foe) { drawPixelText(o, n.word, vx(n.foe.x), vy(n.foe.y) - ap(T.circuits.react.wordAbove) - 6 - n.stack * 7, n.col, Math.min(1, n.t * 3)); continue; }
+    if (n.word && n.foe) { drawPixelText(o, n.word, vx(n.foe.x), vy(n.foe.y) - ap(T.circuits.react.wordAbove) - (6 + n.stack * 7) * AF, n.col, Math.min(1, n.t * 3)); continue; }
     if (n.word) { drawPixelText(o, n.word, nx, ny, n.col, Math.min(1, n.t * 3)); continue; }
     // a weak hit's number, or a resisted one's (natures.js)
     if (n.verdict && drawVerdictNumber(o, n, nx, ny)) continue;
-    drawNumber(n.v, nx + (n.plus ? 2 : 0), ny, col, Math.min(1, n.t * 3));
+    drawNumber(n.v, nx + (n.plus ? 2 * AF : 0), ny, col, Math.min(1, n.t * 3));
     // a pickup: a + before it
     if (n.plus) {
-      const px = nx + 2 - Math.floor((String(n.v).length * 4 - 1) / 2) - 4;
+      const px = nx + (2 - Math.floor((String(n.v).length * 4 - 1) / 2) - 4) * AF;
       o.globalAlpha = Math.min(1, n.t * 3);
-      for (const [c, k] of [['#000000', 1], [col, 0]]) { o.fillStyle = c; o.fillRect(px + k, ny + 2 + k, 3, 1); o.fillRect(px + 1 + k, ny + 1 + k, 1, 3); }
+      for (const [c, k] of [['#000000', 1], [col, 0]]) { o.fillStyle = c; o.fillRect(px + k * AF, ny + (2 + k) * AF, 3 * AF, AF); o.fillRect(px + (1 + k) * AF, ny + (1 + k) * AF, AF, 3 * AF); }
       o.globalAlpha = 1;
     }
   }
@@ -1137,10 +1137,10 @@ function renderFrame() {
     // (round the rock's top, where it stands)
     const tx = d.target.tx * ATILE + ox, ty = d.target.ty * ATILE + oy - pntLiftAt((d.target.tx + 0.5) * ATILE, (d.target.ty + 0.5) * ATILE), c = ap(3);
     o.fillStyle = Input.mining() ? '#fff2c8' : 'rgba(255,242,200,0.5)';
-    for (const [cx, cy] of [[0, 0], [ATILE - c, 0], [0, ATILE - c], [ATILE - c, ATILE - c]]) { o.fillRect(tx + cx, ty + cy + (cy ? c - 1 : 0), c, 1); o.fillRect(tx + cx + (cx ? c - 1 : 0), ty + cy, 1, c); }
+    for (const [cx, cy] of [[0, 0], [ATILE - c, 0], [0, ATILE - c], [ATILE - c, ATILE - c]]) { o.fillRect(tx + cx, ty + cy + (cy ? c - AF : 0), c, AF); o.fillRect(tx + cx + (cx ? c - AF : 0), ty + cy, AF, c); }
     if (p.mine && !p.mine.refused) {
-      o.fillStyle = '#000'; o.fillRect(tx + 1, ty - 5, ATILE - 2, 4);
-      o.fillStyle = star[2]; o.fillRect(tx + 2, ty - 4, Math.round((ATILE - 4) * Math.min(1, p.mine.prog)), 2);
+      o.fillStyle = '#000'; o.fillRect(tx + AF, ty - 5 * AF, ATILE - 2 * AF, 4 * AF);
+      o.fillStyle = star[2]; o.fillRect(tx + 2 * AF, ty - 4 * AF, Math.round((ATILE - 4 * AF) * Math.min(1, p.mine.prog)), 2 * AF);
     }
   }
   // the tools' marks and the outpost's labels too
@@ -1408,7 +1408,7 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   // struck: jolted an art px or two the way the hit pushes it while it holds
   const jx = e.hitT > 0 ? Math.sign(Math.round(e.kvx / 20)) * (e.hitT > T.impact.targetStop ? 2 : 1) : 0, jy = e.hitT > 0 ? Math.sign(Math.round(e.kvy / 20)) : 0;
   const fx = Math.round(e.x * AP) + ox + jx, fy = Math.round(e.y * AP) + oy + jy;
-  if (fx < -60 || fy < -15 || fx > View.w + 60 || fy > View.h + 75) return;
+  if (fx < -60 * AF || fy < -15 * AF || fx > View.w + 60 * AF || fy > View.h + 75 * AF) return;
   if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r), lift > 2 ? lift : 0);
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
   drawArtSprite(livePaint(spr), sx, sy);
@@ -1560,13 +1560,13 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
 const DIGITS = ['111101101101111', '010110010010111', '111001111100111', '111001111001111', '101101111001001', '111100111001111', '111100111101111', '111001001010010', '111101111101111', '111101111001111'];
 function drawNumber(v, cx, cy, col, alpha) {
   if (!Number.isFinite(v) || v >= 1e7) return;
-  const s = String(v), x0 = cx - Math.floor((s.length * 4 - 1) / 2), x = View.overCtx;
+  const s = String(v), x0 = cx - Math.floor((s.length * 4 - 1) / 2) * AF, x = View.overCtx;
   x.globalAlpha = alpha;
   for (const [ink, off] of [['#000000', 1], [col, 0]])
     for (let k = 0; k < s.length; k++) {
       const g = DIGITS[s.charCodeAt(k) - 48];
       x.fillStyle = ink;
-      for (let j = 0; j < 5; j++) for (let i = 0; i < 3; i++) if (g[j * 3 + i] === '1') x.fillRect(x0 + k * 4 + i + off, cy + j + off, 1, 1);
+      for (let j = 0; j < 5; j++) for (let i = 0; i < 3; i++) if (g[j * 3 + i] === '1') x.fillRect(x0 + (k * 4 + i + off) * AF, cy + (j + off) * AF, AF, AF);
     }
   x.globalAlpha = 1;
 }

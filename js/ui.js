@@ -653,6 +653,15 @@ UI.acts = {
     Save.saveField('settings');
     if (UI.screen === 'screen-lab') drawLab();
   },
+  // the pause screen's FINE GRAIN (art.js artFinePx): the view at twice
+  // the art's pixels. The art is built at its size as the game loads, so
+  // the page is loaded again; only at home, where everything is banked.
+  fineSet: () => {
+    const s = Save.data.settings || (Save.data.settings = {});
+    s.fine = !s.fine;
+    Save.saveField('settings');
+    try { location.reload(); } catch (e) { noteError(e); }
+  },
   // the paint lab's rows (lab.js): a row's next value, every row back to
   // today's look, and the sheet closed back into play
   labSet: (key) => { Lab.cycle(key); drawLab(); },
@@ -672,6 +681,11 @@ function drawSoundButtons() {
   const word = (k) => { const v = Snd.level(k); return v >= 1 ? 'ON' : v > 0 ? 'SOFT' : 'OFF'; };
   setTextIfChanged('pause-music', `MUSIC: ${word('music')}`);
   setTextIfChanged('pause-sfx', `SOUNDS: ${word('sfx')}`);
+  // FINE GRAIN: where there's WebGL2 for the light, and at home (it
+  // reloads the page; a sortie's cargo isn't banked till you're back)
+  const fine = $('pause-fine'), s = Save.data.settings || {};
+  fine.hidden = !(typeof GLight !== 'undefined' && GLight.ok && Game.dive && Game.dive.hub);
+  setTextIfChanged('pause-fine', `FINE GRAIN: ${s.fine ? 'ON' : 'OFF'}`);
 }
 
 // A frame's cores moved into another, part for part; a Mod the new one has

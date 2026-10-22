@@ -53,7 +53,7 @@ const FP_FACETS = new Set(['crystal', 'shardglow', 'shardwarm']);
 function fpPaintGrid(rows, pal, letters, glows, o = {}) {
   const F = T.paint.foes, G = glows instanceof Set ? glows : new Set(glows);
   pal = Object.assign({}, ART.pal, pal);
-  const scale = o.scale !== undefined ? o.scale : AP, drawn = ART_NATIVE.get(rows) || 1;
+  const scale = o.scale !== undefined ? o.scale : AP_ART, drawn = ART_NATIVE.get(rows) || 1;
   if (scale !== drawn) rows = artScaleRows(rows, scale / drawn, new Set(Object.keys(letters).filter((ch) => letters[ch] && G.has(letters[ch][0]))));
   const h = rows.length, w = Math.max(...rows.map((r) => r.length)), W = w + 2, H = h + 2, N = W * H;
   const L = new Array(N).fill(null);
@@ -176,7 +176,7 @@ function fpPaintGrid(rows, pal, letters, glows, o = {}) {
   out.k = scale;
   out.ax = out.w / 2; out.ay = out.h - footOff(o.foot !== undefined ? o.foot : 1.5);
   out.flash = tinted(out.c, '#ffffff');
-  return out;
+  return artFine(out);
 }
 
 // ---------------------------------------------------------------------------
@@ -397,7 +397,7 @@ const FP_KEEPER = {
 function fpPlantSprite(set, piece, kit, kind) {
   const f = piece.frames.length - 1, hand = PFL_HAND[piece.name];
   const out = Object.assign({}, hand ? hand(piece, f, kit, set + '/' + kind) : pflSprite(piece.frames[f], kit.pal, kit.letters, kit.glows));
-  out.ax = out.w / 2; out.ay = out.h - footOff(1.5);
+  out.ax = out.w / 2; out.ay = out.h - footOff(1.5) * (out.f || 1);
   out.flash = tinted(out.c, '#ffffff');
   return out;
 }
@@ -495,7 +495,7 @@ function fpDone(s, foot = 1.5, ax) {
   const out = s.done();
   out.ax = ax !== undefined ? ax : out.w / 2; out.ay = out.h - footOff(foot);
   out.flash = tinted(out.c, '#ffffff');
-  return out;
+  return artFine(out);
 }
 
 // A shell ramp, painted: fpRamp's seven tones of a region's four.

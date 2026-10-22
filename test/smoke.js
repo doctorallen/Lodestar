@@ -1397,6 +1397,30 @@ async function paintLab(browser) {
   await page.close();
 }
 
+// FINE GRAIN (art.js artFinePx): with ?fine the view is drawn at twice the
+// art's pixels (AP 3, a tile 48 px): the sprites enlarged to it with their
+// anchors, the Kindler rendered at the finer size, the labels' pixels
+// wider; the frame renders with no errors, and a screenshot shows it.
+async function fineGrain(browser) {
+  const { page, errors } = await openGame(browser, Object.assign({}, PHONE, { query: '?noload&fine' }));
+  await tap(page, '#intro-skip');
+  await page.evaluate(() => { if (Game.modal === 'screen-onboard') UI.close(); });
+  await run(page, 0.5);
+  const r = await page.evaluate(() => {
+    const k = Sprites.diver[2][0], forge = hartForge(), pack = packSprite(), lab = exitLabel('HOME', '#fff');
+    return { AP, AF, ATILE, w: View.w, h: View.h, kindler: [k.w, k.h, k.ax, k.ay], forge: [forge.w, forge.h, forge.ax, forge.ay, forge.f], pack: [pack.w, pack.ax, pack.tip.x, pack.f], lab: lab.height, map: Math.round(View.w / AP) };
+  });
+  check(r.AP === 3 && r.AF === 2 && r.ATILE === 48, 'fine: the art scale is not 3 art px a world px: ' + JSON.stringify(r));
+  check(r.kindler[0] === 96 && r.kindler[1] === 94 && r.kindler[2] === 48 && r.kindler[3] === 88, 'fine: the Kindler is not rendered at twice the size: ' + r.kindler);
+  check(r.forge[4] === 2 && r.forge[0] === 136 && r.forge[2] === 84 && r.forge[3] === 122, 'fine: the forge was not enlarged with its anchors: ' + r.forge);
+  check(r.pack[3] === 2 && r.pack[0] === 34 && r.pack[1] === 16 && r.pack[2] === 24, 'fine: the pack was not enlarged with its points: ' + r.pack);
+  check(r.lab === 12, 'fine: a label picture is not twice as tall: ' + r.lab);
+  check(r.map === 195, 'fine: the view does not show the same world width: ' + r.map);
+  await shot(page, 'fine.png');
+  check(!errors.length, 'fine: errors: ' + errors.slice(0, 3).join(' | '));
+  await page.close();
+}
+
 (async () => {
   require('fs').mkdirSync(require('path').join(__dirname, 'out', 'lean'), { recursive: true });
   require('fs').mkdirSync(require('path').join(__dirname, 'out', 'onboard'), { recursive: true });
@@ -1417,6 +1441,7 @@ async function paintLab(browser) {
     await reopenPack(browser);
     await migration(browser);
     await paintLab(browser);
+    await fineGrain(browser);
   } catch (e) {
     failures.push(String(e.stack || e));
   } finally {

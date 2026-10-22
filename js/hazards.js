@@ -149,7 +149,7 @@ function paintClimeTile(P, f, tx, ty, ox, oy, b) {
 // lies phlDepth px below the floor (painthole.js): each pixel shows the
 // surface point that far north of it, and under the far rim, its bank;
 // the near rim catches the light.
-const HAZ_IN = ap(2), HAZ_DEEP = ap(4), HAZ_STREAK = ap(13), HAZ_RIPPLE = ap(6), HAZ_UP = HAZ_DEEP + 18, _hazMask = new Uint8Array((ATILE + 2 * HAZ_DEEP) * (ATILE + HAZ_DEEP + HAZ_UP));
+const HAZ_IN = ap(2), HAZ_DEEP = ap(4), HAZ_STREAK = ap(13), HAZ_RIPPLE = ap(6), HAZ_UP = HAZ_DEEP + ap(12), _hazMask = new Uint8Array((ATILE + 2 * HAZ_DEEP) * (ATILE + HAZ_DEEP + HAZ_UP));
 function paintHazardPixels(P, f, ox, oy, b, shaded) {
   const R = View.rockPx, W = P.w, kind = f.hazKind, r = b.haz || HAZ_RAMPS[kind], lava = kind === 'burn', ice = kind === 'slick';
   const D = Math.min(HAZ_UP - HAZ_DEEP, phlDepth(kind)), Ho = T.paint.hole, GR = pntLook(b).ground, seed = (f.seed ^ f.depth) | 0;

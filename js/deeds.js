@@ -229,7 +229,7 @@ function packSprite() {
   if (typeof pflRepaintProp === 'function') pflRepaintProp(P, solid, B, 0x9ac7);
   const s = spriteFromBuf(P);
   s.ax = 8; s.ay = H - 1; s.tip = { x: 12, y: 0 };
-  return (_packSprite = s);
+  return (_packSprite = artFine(s));
 }
 function drawCachePack(d, a, ox, oy, lights) {
   const at = a.at, fx = Math.round(at.x * AP) + ox, fy = Math.round(at.y * AP) + oy, spr = packSprite(), x = fx - spr.ax, y = fy - spr.ay, B = T.deeds.cache.beacon;
