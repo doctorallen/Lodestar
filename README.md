@@ -67,7 +67,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/hubground.js` | The outpost's ground: packed earth, the starstone spreading from the cradle as the star grows, its edges melding into each neighbour's land (ground, plants, rock), the landing pads and the buildings' plots, faint trodden tracks; `outpostGroundAt` (what's underfoot) |
 | `js/anvil.js` | The forging minigame (its quality only adds), and the reveal of what arrives |
 | `js/intro.js` | The opening: five painted scenes that play on their own (the crossing, the survey, the landing, the Meridian, the outpost), their captions, SKIP and tap to hurry, and the last shot drawn by the game itself as the modules wake, the camera comes down and the Kindler steps out of their pod and is handed over |
-| `js/diver.js` | The player's sprite, painted: the Kindler's five facings, walk frames, cast poses, the rig's bracers and lenses, hand points and brow lamp; Wick |
+| `js/diver.js` | The player's sprite, painted: the Kindler posed and rendered in five facings (idle, walk, dash and cast), the bubble helm, the rig's sleeves and lenses, gloved hands, the amber trim, hand points and brow lamp; Wick |
 | `js/circuits.js` | Spells: the Forms, Elements and Mods in words, the rig's two spells (a Form, an Element, one or two Mods), their charge, name and line, the resonances they wake, ore affinity; casting each Form, echoes, fields; what's in flight and what lingers |
 | `js/blueprints.js` | What can be made: the recipes (bases, rig frames, cores, tools) and their costs, research (what reveals each), creature parts |
 | `js/art2.js` | Art for crafting and the story: new item icons (the rig frame), parts, cores, the uplink, a tent, the Shard Keepers |

@@ -5,11 +5,16 @@
 // no outline, a dark mass with a few lit accents. Small close-fitting
 // plates of royal blue catch the light (a helm, shoulder caps, the upper
 // chest, kneecaps and shins); the forearms are the rig, the suit's wrist
-// projectors: a bracer of blue plate flaring to the wrist with an amber
-// lens on its back, that the spells leave from. The helm has a dark visor
-// pane with one glint and the warm-white brow lamp over it (the lamp you
-// see by); amber circuits run in a V down the chest to the seed-star,
-// round the cuffs and down the shins; a small pack rides on his back.
+// projectors: a sleeve of blue plate to the wrist with an amber lens on
+// its back, that the spells leave from; the arms are slim, and end in
+// gloves with a palm, fingers and a thumb. The helm is a space-suit
+// bubble, its glass over most of the front and down past the chin with a
+// reflection arcing down its upper left, on a lit neck ring, with the
+// warm-white brow lamp over the glass (the lamp you see by); amber trim
+// runs over the crown to the nape, in a V down the chest to the
+// seed-star and on down to the buckle, across each shoulder cap, round
+// the cuffs and down the outer thigh and shin; a small pack rides on his
+// back.
 //
 // He is posed, not drawn frame by frame: a skeleton (pelvis, a spine that
 // leans and twists, legs and arms of two bones each, the head) is set by a
@@ -54,11 +59,11 @@ const KR = {
   upper: 6.7, fore: 6.0, shoulder: 30.8, shoulderW: 4.3,
   crotch: 19.2, neck: 33.4,
   prof: [[0, 3.3, 2.3], [0.13, 4.1, 2.5], [0.3, 3.8, 2.3], [0.45, 3.1, 2.0], [0.62, 3.7, 2.4], [0.78, 4.4, 2.5], [0.9, 4.1, 2.1], [1, 1.7, 1.5]],
-  head: [3.4, 3.8, 3.6],
+  head: [4.1, 4.0, 4.1],
 };
 // Depth (towards the camera) shows this much down the screen; the light,
 // from the upper left and a little in front, as (x, up, towards us).
-const KD_K = 0.7, KD_L = (() => { const v = [-0.55, 0.78, 0.4], m = Math.hypot(...v); return v.map((c) => c / m); })();
+const KD_K = 0.7, KD_HELM_TILT = -0.1, KD_L = (() => { const v = [-0.55, 0.78, 0.4], m = Math.hypot(...v); return v.map((c) => c / m); })();
 // The drawn facings' angles (x right, y down the screen).
 const KD_FACE = { E: 0, SE: Math.PI / 4, S: Math.PI / 2, NE: -Math.PI / 4, N: -Math.PI / 2 }, KD_CHEAT = { E: -0.75, SE: -0.25, S: 0, NE: -0.5, N: 0 };
 
@@ -223,7 +228,8 @@ function kdRig(o) {
       el = kdAdd(s0, d1, R.upper); wr = kdAdd(el, d2, R.fore);
     }
     J.elbow.push(el); J.wrist.push(wr);
-    J.hand.push(kdAdd(wr, kdNorm([wr[0] - el[0], wr[1] - el[1], wr[2] - el[2]]), 1.1));
+    // (the hand's point, where a spell leaves: in the fingers)
+    J.hand.push(kdAdd(wr, kdNorm([wr[0] - el[0], wr[1] - el[1], wr[2] - el[2]]), 1.6));
   }
   // the head: over the neck, turned half as far as the shoulders, kept
   // fairly level as he leans
@@ -252,8 +258,7 @@ const KD_MAT = [null,
   [KP.suit, 0, 3, 1.2], // 7 pack
   [KP.plate, 0, 2, 1.2], // 8 belt, the visor's rim
   [KP.plate, 1, 3, 1.3], // 9 the plates on the legs
-  [KP.plate, 2, 4, 1.1], // 10 the visor's rim
-  [KP.plate, 2, 3, 1.5], // 11 the chin
+  [KP.plate, 2, 4, 1.1], // 10 the glass's rim, the neck ring
 ];
 
 // One frame: face, a drawn facing; key, a pose's key. Returns the sprite's
@@ -293,8 +298,9 @@ function kdRender(face, key) {
     const i = y * W + x, dep = gw + KD_K * h;
     if (dep <= zb[i]) return -1;
     zb[i] = dep; part[i] = pt;
-    // lit from the upper left; further back is darker
-    const sv = 0.36 + 0.56 * (ngx * Lx + ny * Ly + ngw * Lz) - (pelD - dep > 1.5 ? (pelD - dep - 1.5) * 0.06 : 0);
+    // lit from the upper left, faces turned to it reaching the top of the
+    // ramp and faces turned away its foot; further back is darker
+    const sv = 0.22 + 0.8 * (ngx * Lx + ny * Ly + ngw * Lz) - (pelD - dep > 1.5 ? (pelD - dep - 1.5) * 0.06 : 0);
     val[i] = sv < 0 ? 0 : sv > 1 ? 1 : sv;
     cellA[i] = Math.floor(a); cellB[i] = Math.floor(b + artHash(Math.floor(a), pt, 5) * 3);
     return i;
@@ -401,33 +407,40 @@ function kdRender(face, key) {
     const F = J.foot[i];
     ball(kdAdd(J.ankle[i], kdYaw([0, -0.35, 0.95], F.yaw)), [1.5, 1.3, 2.5], F.yaw, () => 3, 0, 2, F.toe * 0.6);
   };
-  // arms: a cap of plate on the shoulder, the rig's bracer flaring to the
-  // wrist, the glove
+  // arms, slim: a cap of plate on the shoulder, the rig's sleeve of plate
+  // to the wrist; the glove, a palm from the wrist, fingers tapering past
+  // it, a thumb from the palm's inner side (the fingers' lines: below)
   const armMat = (s, t, nx, ny) => {
     if (s === 0 && t < 0.2 && ny > 0.1) return 2;
     if (s === 1 && t > 0.3) return 2;
     return 1;
   };
   const arm = (i) => {
-    tube([J.shoulder[i], J.elbow[i], J.wrist[i]], [1.5, 1.2, 1.32], armMat, true);
-    ball(J.hand[i], [1.15, 1.2, 1.2], 0, () => 6);
+    tube([J.shoulder[i], J.elbow[i], J.wrist[i]], [1.2, 0.92, 0.98], armMat, true);
+    const wr = J.wrist[i], hd = J.hand[i], dv = kdNorm([hd[0] - wr[0], hd[1] - wr[1], hd[2] - wr[2]]), sd = i ? -1 : 1;
+    const in0 = [-sd, 0, 0.35], d0 = in0[0] * dv[0] + in0[1] * dv[1] + in0[2] * dv[2], inw = kdNorm([in0[0] - dv[0] * d0, in0[1] - dv[1] * d0, in0[2] - dv[2] * d0]);
+    tube([kdAdd(wr, dv, 0.15), kdAdd(wr, dv, 1.15), kdAdd(wr, dv, 2.0)], [0.72, 0.85, 0.5], () => 6, true);
+    tube([kdAdd(kdAdd(wr, dv, 0.5), inw, 0.4), kdAdd(kdAdd(wr, dv, 1.0), inw, 0.95)], [0.34, 0.27], () => 6, true);
+    J.glove[i] = { dv, inw };
   };
+  J.glove = [];
   // the pack, a rounded block between the shoulder blades, lidded in plate
   const pack = () => {
     const S = J.spine(0.68), [, dp] = kdProf(0.68, 0);
     J.packC = kdAdd(S.c, kdYaw([0, -0.4 + (o.pack || 0), -(dp + 1.05)], S.yaw)); J.packYaw = S.yaw;
     ball(J.packC, [2.9, 4.0, 1.25], S.yaw, (nx, ny, nz, lx, ly) => (ly > 2.9 ? 2 : 7), 0, 4);
   };
-  // the helm: a rounded shell, squarer at the jaw, the visor across its
-  // front; a neck under it
+  // the helm: a bubble, its glass over most of the front and down past
+  // the chin in a lit rim, on a lit neck ring; a neck under it
   const helm = () => {
     const Hd = J.head, r = KR.head;
     tube([J.neck, kdAdd(Hd.c, [0, -2.6, 0])], [1.45, 1.35], () => 1, false);
+    ball(kdAdd(Hd.c, [0, -3.3, 0.15]), [2.7, 0.75, 2.4], Hd.yaw, () => 10, 0, 4);
     ball(Hd.c, r, Hd.yaw, (nx, ny, nz, lx, ly, lz) => {
       const fz = lz / r[2], up = ly / r[1], sd = Math.abs(lx / r[0]);
-      if (fz > 0.3 && up > -0.22 && up < 0.62 && sd < 0.92) return fz > 0.42 && up > -0.12 && up < 0.52 && sd < 0.84 ? 4 : 10;
-      return up < -0.3 && fz > 0.3 ? 11 : 5; // (the chin)
-    }, 0, 2, -0.28);
+      if (fz > 0.08 && up > -0.56 && up < 0.6 && sd < 0.97) return fz > 0.2 && up > -0.46 && up < 0.5 && sd < 0.9 ? 4 : 10;
+      return 5;
+    }, 0, 2, KD_HELM_TILT);
   };
 
   // (the depth sorts what's in front)
@@ -456,7 +469,7 @@ function kdRender(face, key) {
       const xx = x + (k === 0 ? 1 : k === 1 ? -1 : 0), yy = y + (k === 2 ? -1 : k === 3 ? 1 : 0);
       if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
       const j = yy * W + xx;
-      if (mat[j] && part[j] !== part[i] && zb[j] > zb[i] + 0.9) { val[i] = Math.max(0, val[i] - 0.4); break; }
+      if (mat[j] && part[j] !== part[i] && zb[j] > zb[i] + 0.9) { val[i] = Math.max(0, val[i] - 0.55); break; }
     }
   }
   // laid in strokes: each pixel the tone of its material at its light,
@@ -465,7 +478,7 @@ function kdRender(face, key) {
   for (let i = 0; i < N; i++) {
     if (!mat[i]) continue;
     const ia = cellA[i], ib = cellB[i], pt = part[i], jit = artHash(ia * 31 + pt, ib, seed) + artHash(ib, ia * 7 + pt, seed + 1) - 1;
-    const [ramp, lo, hi, g] = KD_MAT[mat[i]], t = lo + (hi - lo) * Math.pow(val[i], g) + jit * 0.55;
+    const [ramp, lo, hi, g] = KD_MAT[mat[i]], t = lo + (hi - lo) * Math.pow(val[i], g) + jit * 0.3;
     sp.px(i % W, (i / W) | 0, ramp[clamp(Math.round(t), lo, hi)]);
   }
   // features, by hand: a point on the body is drawn if nothing's nearer
@@ -487,25 +500,42 @@ function kdRender(face, key) {
     const [x, y] = sc;
     for (const [dx, dy, c] of [[-1, 0, DIVER_PAL.star[0]], [1, 0, DIVER_PAL.star[0]], [0, -1, DIVER_PAL.star[0]], [0, 1, DIVER_PAL.star[0]], [0, 0, DIVER_PAL.starHeart[0]]]) sp.px(x + dx, y + dy, c, true);
   }
-  // the buckle
+  // a stripe on down from the star to the buckle; the buckle; a clip at
+  // each hip
+  for (let k = 2; k <= 14; k++) { const T0 = torsoPt(lerp(starU, 0.42, k / 14), front); dot(kdAdd(T0.p, T0.n, 0.2), A[shade(T0.n).s > 0.05 ? 2 : 1], true); }
   const bk = torsoPt(0.39, front);
-  dot(kdAdd(bk.p, bk.n, 0.3), A[1], true);
-  // the cuffs: a ring of amber round each wrist; the shins: a line down
-  // the outer front
+  dot(kdAdd(bk.p, bk.n, 0.3), A[2], true);
+  for (const s of [-1, 1]) { const T0 = torsoPt(0.39, front + s * 0.85); dot(kdAdd(T0.p, T0.n, 0.25), A[1], true); }
+  // the cuffs: a ring of amber round each wrist; the gloves' fingers; an
+  // arc across each shoulder cap; the thighs and shins: a line down the
+  // outer front
   for (let i = 0; i < 2; i++) {
-    const el = J.elbow[i], wr = J.wrist[i], dv = [wr[0] - el[0], wr[1] - el[1], wr[2] - el[2]], cuff = kdAdd(el, dv, 0.84), u = kdNorm(dv);
+    const el = J.elbow[i], wr = J.wrist[i], dv = [wr[0] - el[0], wr[1] - el[1], wr[2] - el[2]], cuff = kdAdd(el, dv, 0.84), u = kdNorm(dv), sd = i ? -1 : 1;
     const e1 = kdNorm(Math.abs(u[1]) < 0.9 ? [u[2], 0, -u[0]] : [1, 0, 0]), e2 = [u[1] * e1[2] - u[2] * e1[1], u[2] * e1[0] - u[0] * e1[2], u[0] * e1[1] - u[1] * e1[0]];
     let top = null, best = -9;
     for (let k = 0; k < 16; k++) {
       const th = (k / 16) * kdTau, n = kdAdd(kdAdd([0, 0, 0], e1, Math.cos(th)), e2, Math.sin(th));
-      dot(kdAdd(cuff, n, 1.4), A[shade(n).s > 0 ? 2 : 1], true, 0.6);
+      dot(kdAdd(cuff, n, 1.05), A[shade(n).s > 0 ? 2 : 1], true, 0.6);
       if (n[2] + n[1] * 0.6 > best) { best = n[2] + n[1] * 0.6; top = n; }
     }
-    // the projector's lens, on the back of the bracer just short of the
+    // the projector's lens, on the back of the sleeve just short of the
     // cuff: a bright amber eye, a dimmer one behind it
-    dot(kdAdd(kdAdd(el, dv, 0.68), top, 1.35), A[3], true, 0.8);
-    dot(kdAdd(kdAdd(el, dv, 0.56), top, 1.3), A[2], true, 0.8);
-    const kn = J.knee[i], an = J.ankle[i], sd = i ? -1 : 1, out = kdNorm(kdYaw([sd * 0.75, 0, 0.66], o.hipYaw));
+    dot(kdAdd(kdAdd(el, dv, 0.68), top, 1.02), A[3], true, 0.8);
+    dot(kdAdd(kdAdd(el, dv, 0.56), top, 1.0), A[2], true, 0.8);
+    // the fingers: two dark lines along the back and the palm of the
+    // glove, and the gaps at the tips
+    const gv = J.glove[i], ac = kdNorm([gv.dv[1] * gv.inw[2] - gv.dv[2] * gv.inw[1], gv.dv[2] * gv.inw[0] - gv.dv[0] * gv.inw[2], gv.dv[0] * gv.inw[1] - gv.dv[1] * gv.inw[0]]);
+    for (const off of [-0.32, 0.32]) {
+      for (let k = 0; k <= 5; k++) { const c = kdAdd(kdAdd(wr, gv.dv, 1.2 + 0.7 * k / 5), ac, off); dot(kdAdd(c, gv.inw, -0.8), KP.suit[1], false, 0.5); dot(kdAdd(c, gv.inw, 0.8), KP.suit[1], false, 0.5); }
+      dot(kdAdd(kdAdd(wr, gv.dv, 2.1), ac, off), KP.suit[1], false, 0.6);
+    }
+    const sh = J.shoulder[i], sc = kdAdd(sh, [el[0] - sh[0], el[1] - sh[1], el[2] - sh[2]], 0.14);
+    for (let k = 0; k <= 8; k++) { const a = lerp(-1, 1, k / 8); dot(kdAdd(sc, kdYaw([sd * Math.sin(a), Math.cos(a), 0], o.chestYaw), 1.22), A[1], true, 0.6); }
+    const hp = J.hip[i], kn = J.knee[i], an = J.ankle[i], out = kdNorm(kdYaw([sd * 0.75, 0, 0.66], o.hipYaw));
+    for (let k = 0; k <= 10; k++) {
+      const t = lerp(0.3, 0.92, k / 10), c = kdAdd(hp, [kn[0] - hp[0], kn[1] - hp[1], kn[2] - hp[2]], t);
+      dot(kdAdd(c, out, lerp(2.0, 1.55, t) + 0.1), A[1], true, 0.7);
+    }
     for (let k = 0; k <= 12; k++) {
       const t = lerp(0.22, 0.84, k / 12), c = kdAdd(kn, [an[0] - kn[0], an[1] - kn[1], an[2] - kn[2]], t);
       dot(kdAdd(c, out, lerp(1.6, 1.25, t) + 0.1), A[k === 0 ? 2 : 1], true, 0.7);
@@ -514,13 +544,14 @@ function kdRender(face, key) {
   // the pack's air port, from behind: a lit ring and a light
   const pp = seen(kdAdd(J.packC, kdYaw([0, 0.6, -1.3], J.packYaw)), 0.6);
   if (pp) { sp.px(pp[0], pp[1], A[2], true); sp.px(pp[0] + 1, pp[1], A[1], true); sp.px(pp[0], pp[1] - 1, KP.plate[2]); sp.px(pp[0] + 1, pp[1] + 1, KP.plate[1]); }
-  // the helm: a lit ridge down its back; the visor's glint, upper left;
-  // the brow lamp over the visor
-  const Hd = J.head, r = KR.head, tl = (l) => { const c2 = Math.cos(-0.28), s2 = Math.sin(-0.28); return [l[0], l[1] * c2 - l[2] * s2, l[1] * s2 + l[2] * c2]; };
-  for (let k = 0; k <= 12; k++) {
-    const th = lerp(0.15, 0.62, k / 12) * Math.PI, l = [0, r[1] * Math.cos(th) * 1.02, -r[2] * Math.sin(th) * 1.02];
-    const q = dot(kdAdd(Hd.c, kdYaw(tl(l), Hd.yaw)), KP.plate[k < 6 ? 4 : 3], false, 0.7);
-    if (q && fy < 0 && mat[q[1] * W + q[0] + 1] === 5) sp.px(q[0] + 1, q[1], KP.plate[1]);
+  // the helm: the crown stripe, amber over it from above the lamp to the
+  // nape; the glass's glint, upper left, and its reflection, an arc down
+  // its upper left; the brow lamp over the glass
+  const Hd = J.head, r = KR.head, tl = (l) => { const c2 = Math.cos(KD_HELM_TILT), s2 = Math.sin(KD_HELM_TILT); return [l[0], l[1] * c2 - l[2] * s2, l[1] * s2 + l[2] * c2]; };
+  for (let k = 0; k <= 24; k++) {
+    const th = lerp(-0.22, 0.7, k / 24) * Math.PI, l = [0, r[1] * Math.cos(th) * 1.02, -r[2] * Math.sin(th) * 1.02];
+    const q = seen(kdAdd(Hd.c, kdYaw(tl(l), Hd.yaw)), 0.7);
+    if (q && mat[q[1] * W + q[0]] === 5) sp.px(q[0], q[1], A[th < 0.25 * Math.PI ? 2 : 1], true);
   }
   let gl = null;
   for (let k = 0; k < W + H && !gl; k++) for (let y = Math.max(0, k - W + 2); y <= Math.min(H - 2, k); y++) {
@@ -528,6 +559,11 @@ function kdRender(face, key) {
     if (x < W - 1 && mat[i] === 4 && mat[i + 1] === 4 && mat[i + W] === 4 && mat[i + W + 1] === 4) { gl = [x, y]; break; }
   }
   if (gl) { sp.px(gl[0], gl[1], KP.glint); sp.px(gl[0] + 1, gl[1], '#5f8cf0'); }
+  for (let k = 0; k <= 10; k++) {
+    const u = k / 10, ux = -0.6 + 0.22 * u, uy = 0.34 - 0.78 * u, uz = Math.sqrt(Math.max(0, 1 - ux * ux - uy * uy));
+    const q = seen(kdAdd(Hd.c, kdYaw(tl([r[0] * ux, r[1] * uy, r[2] * uz]), Hd.yaw)), 0.9);
+    if (q && mat[q[1] * W + q[0]] === 4) sp.px(q[0], q[1], k < 4 ? '#3d64c0' : KP.pane[2]);
+  }
   const lampP = kdAdd(Hd.c, kdYaw(tl([0, r[1] * 0.62, r[2] * 0.85]), Hd.yaw)), lq = proj(lampP), ls = seen(lampP, 0.8);
   if (ls) {
     const [x, y] = ls;

@@ -771,3 +771,12 @@ The designer, after playing: the goal over the view "gets in the way ... it's to
 - **The Drone Bay is where Wick is fitted.** Walk up to it once it stands (DRONE BAY): Wick's upgrades, each to fit, and those fitted turned off or on. The forge's WICK tab and the locker's Wick rows are gone.
 - **The locker is anywhere at home**: the top bar's button is LOCKER at home (CARGO out on a sortie), and I opens it too. Its station stays.
 
+
+## 2026-10-21: the Kindler's helm, hands and trim
+
+Six pixel-art alternatives to the prospector were drawn and turned down; the posed figure stays, sharpened. The designer chose a space-suit helm, slim gloved arms and more amber, from re-renders of the game's own figure.
+
+- **A bubble helm, not a visored shell.** A near-sphere of glass over most of the front and down past the chin, a reflection arcing down its upper left, standing on a lit neck ring, the brow lamp over the glass. No visor band and no chin bar.
+- **Slim arms, and hands.** The arm tubes are thinner (1.2, 0.92, 0.98 for 1.5, 1.2, 1.32), the bracer a sleeve rather than a flare, and the hand a glove with a palm, fingers past it with dark lines between, and a thumb; spells leave from the fingers.
+- **Amber trim.** A crown stripe over the helm to the nape, the chest's V carried on from the star down to the buckle, clips at the hips, an arc across each shoulder cap, and the shin line carried up the outer thigh.
+- **Sharper shading at the same resolution.** The shading runs the whole ramp (0.22 to 1.02 of it), a limb in front of the body casts a deeper seam (0.55), and the strokes' jitter is about half. A render at two pixels to the art pixel was liked best, but showing it needs a view canvas with four times the pixels, and the lighting is per pixel in software: a frame measured 7.6 ms to 27.6 ms on a desktop (the lighting 3.7 ms to 17.2 ms), far over a phone's budget. The figure stays at one art pixel to the canvas pixel until the lighting moves off the CPU.
