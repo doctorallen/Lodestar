@@ -1416,7 +1416,7 @@ async function fineGrain(browser) {
   check(r.pack[3] === 2 && r.pack[0] === 34 && r.pack[1] === 16 && r.pack[2] === 24, 'fine: the pack was not enlarged with its points: ' + r.pack);
   check(r.lab === 12, 'fine: a label picture is not twice as tall: ' + r.lab);
   check(r.map === 195, 'fine: the view does not show the same world width: ' + r.map);
-  await shot(page, 'fine.png');
+  await shot(page, 'fine');
   check(!errors.length, 'fine: errors: ' + errors.slice(0, 3).join(' | '));
   await page.close();
 }
