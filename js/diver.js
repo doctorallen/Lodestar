@@ -87,6 +87,14 @@ function kdIdle(n) {
   };
 }
 
+// Standing a while, he looks about: the head turned to one side, held,
+// and round to the other, the shoulders following a little.
+function kdGlance(n) {
+  const a = [0.3, 0.55, 0.55, 0.4, -0.2, -0.5, -0.5, -0.3][n], o = kdIdle(n);
+  o.headYaw = a; o.chestYaw += a * 0.12; o.headY += -0.15 * Math.abs(a);
+  return o;
+}
+
 // s: where in the cycle (0: his right heel down in front; 0.5 his left);
 // a: how big the stride; lean: more lean, starting off.
 function kdWalk(s, a, lean) {
@@ -155,9 +163,9 @@ function kdCast(o, side, ph) {
   return o;
 }
 
-// The pose for a key: 'i0'-'i7' idle, 'w0'-'w7' walk, 'g0'-'g7' walk
-// starting off, 's'+'R'|'L'+'0'|'1' settling, 'd0' 'd1' the dash, and
-// 'c'+('m'|'o')+phase+'|'+legs a cast over legs.
+// The pose for a key: 'i0'-'i7' idle, 'k0'-'k7' looking about, 'w0'-'w7'
+// walk, 'g0'-'g7' walk starting off, 's'+'R'|'L'+'0'|'1' settling, 'd0'
+// 'd1' the dash, and 'c'+('m'|'o')+phase+'|'+legs a cast over legs.
 function kdPose(key) {
   if (key[0] === 'c') {
     const [up, legs] = key.split('|');
@@ -165,6 +173,7 @@ function kdPose(key) {
   }
   const n = +key.slice(-1);
   if (key[0] === 'i') return kdIdle(n);
+  if (key[0] === 'k') return kdGlance(n);
   if (key[0] === 'w') return kdWalk(n / 8, 1, 0);
   if (key[0] === 'g') return kdWalk(n / 8, 0.8, 0.1);
   if (key[0] === 's') return kdSettle(n, key[1] === 'L' ? 1 : 0);
@@ -639,7 +648,7 @@ function kindlerEveryFrame() {
   const add = (fi, k) => { if (!seen.has(fi + k)) { seen.add(fi + k); out.push([fi, k]); } };
   const each = (fn) => { for (let fi = 0; fi < KD.faces.length; fi++) fn(fi, KD.faces[fi]); };
   each((fi) => { for (const k of n8) add(fi, 'i' + k); for (const k of n8) add(fi, 'w' + k); });
-  each((fi) => { for (const k of n8) add(fi, 'g' + k); for (const k of ['sR0', 'sR1', 'sL0', 'sL1', 'd0', 'd1']) add(fi, k); });
+  each((fi) => { for (const k of n8) add(fi, 'g' + k); for (const k of ['sR0', 'sR1', 'sL0', 'sL1', 'd0', 'd1']) add(fi, k); for (const k of n8) add(fi, 'k' + k); });
   for (const legs of ['i0'].concat(n8.map((k) => 'w' + k))) each((fi, f) => { for (const sl of ['main', 'off']) for (const ph of 'wsfr') add(fi, kdCastKey(f, sl, ph, legs)); });
   return out;
 }
@@ -657,6 +666,7 @@ function buildKindlerSprites(facings, mirrored) {
   for (const f of faces) for (const k of n8) q.push([f, 'w' + k]);
   for (const f of faces) for (const k of n8) q.push([f, 'g' + k], [f, 'i' + k]);
   for (const f of faces) q.push([f, 'sR0'], [f, 'sR1'], [f, 'sL0'], [f, 'sL1'], [f, 'd0'], [f, 'd1']);
+  for (const f of faces) for (const k of n8) q.push([f, 'k' + k]);
   const slots = (f) => (f === 'S' || f === 'N' ? ['main', 'off'] : ['main']);
   for (const f of faces) for (const sl of slots(f)) for (const ph of 'sfrw') q.push([f, kdCastKey(f, sl, ph, 'i0')]);
   // (a cast over walking legs is built when it's first wanted)
@@ -710,7 +720,13 @@ function kindlerPick(d, cast) {
     A.stop += dt;
     if (A.stop < K.settle[0]) key = 's' + A.lead + '0';
     else if (A.stop < K.settle[1]) key = 's' + A.lead + '1';
-    else { A.idle += dt; key = 'i' + (Math.floor((A.idle / K.idle) * 8) % 8); }
+    else {
+      A.idle += dt;
+      key = 'i' + (Math.floor((A.idle / K.idle) * 8) % 8);
+      // standing a while, now and then he looks about
+      const G = K.glance, g = G && A.idle > G.after ? (A.idle - G.after) % G.every : -1;
+      if (g >= 0 && g < G.len) key = 'k' + Math.min(7, Math.floor((g / G.len) * 8));
+    }
   }
   if (cast) {
     // (a tap shows the wind-back for a moment as it snaps forward: the

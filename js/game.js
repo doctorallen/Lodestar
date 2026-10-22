@@ -209,6 +209,8 @@ function updateDive(dtReal, dt) {
       vx = (mv.x / m) * sp; vy = (mv.y / m) * sp;
       if (!(p.strikeT > 0)) { p.fx = mv.x / m; p.fy = mv.y / m; }
       p.walkT += dtReal;
+      // each step out on the ground kicks up a little dust behind the heel
+      if (!d.hub && Math.floor(p.walkT / T.player.dustEvery) !== Math.floor((p.walkT - dtReal) / T.player.dustEvery)) d.fx.push({ kind: 'dust', x: p.x - p.fx * 3, y: p.y + 1, dx: -p.fx, t: 0.5, max: 0.5, seed: d.fx.length + p.walkT });
     } else p.walkT = 0;
     // pools slow the step and ice carries it on (hazards.js)
     stepDiver(d, p, vx, vy, dtReal);

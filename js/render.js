@@ -34,7 +34,8 @@ const Sparks = [];
 
 function setupView() {
   View.canvas = $('view');
-  View.ctx = View.canvas.getContext('2d', { willReadFrequently: true });
+  // (lit on the GPU, the view is never read back: gllight.js)
+  View.ctx = View.canvas.getContext('2d', glLightInit() ? {} : { willReadFrequently: true });
   View.em = $('view-glow');
   View.emCtx = View.em.getContext('2d', { willReadFrequently: true });
   View.bloom = $('bloom');
@@ -431,6 +432,31 @@ function lateDotsColour(d, w, h) {
   }
 }
 
+// The queued dots onto a canvas (the view, before the GPU lights it): the
+// coloured ones composited into a picture of their box, drawn on in one go.
+function lateDotsOnto(ctx, w, h) {
+  const q = LateDots.q;
+  if (!q.length) return;
+  if (!LateDots.cimg || LateDots.cimg.width !== w || LateDots.cimg.height !== h) {
+    LateDots.cimg = new ImageData(w, h);
+    LateDots.ccanvas = document.createElement('canvas'); LateDots.ccanvas.width = w; LateDots.ccanvas.height = h;
+  }
+  const d = LateDots.cimg.data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let n = 0; n < q.length; n += 5) {
+    const x = q[n], y = q[n + 1], a = q[n + 4];
+    if (x < 0 || y < 0 || x >= w || y >= h || a <= 0) continue;
+    const k = (y * w + x) * 4, c = q[n + 2], ea = d[k + 3] / 255, oa = a + ea * (1 - a), m = ea * (1 - a);
+    d[k] = ((c >> 16) * a + d[k] * m) / oa; d[k + 1] = (((c >> 8) & 255) * a + d[k + 1] * m) / oa; d[k + 2] = ((c & 255) * a + d[k + 2] * m) / oa; d[k + 3] = oa * 255;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (x1 < 0) return;
+  const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+  LateDots.ccanvas.getContext('2d').putImageData(LateDots.cimg, 0, 0, x0, y0, bw, bh);
+  ctx.drawImage(LateDots.ccanvas, x0, y0, bw, bh, x0, y0, bw, bh);
+  for (let y = y0; y <= y1; y++) d.fill(0, (y * w + x0) * 4, (y * w + x1 + 1) * 4);
+}
+
 // The glowing ones over the emissive layer.
 function lateDotsGlow(w, h) {
   const q = LateDots.q;
@@ -562,6 +588,8 @@ function startLight(cx, cy, r, g, b) {
 // its own colour. cx, cy: the camera in the world, which the dither is
 // fixed to.
 function lightScene(cx, cy) {
+  // (on the GPU where there's WebGL2: gllight.js; else here)
+  if (!View.lightSoftware && glLightScene(cx, cy)) return;
   const w = View.w, h = View.h, Lt = T.light, A = T.art, L = View.light, a = L.a, lw = L.w * 3, dz = A.lightDither;
   const img = View.ctx.getImageData(0, 0, w, h), d = img.data;
   LateDots.on = false;
@@ -572,23 +600,21 @@ function lightScene(cx, cy) {
   // pixel: so each cell's two (and the threshold between) are worked out
   // once for the pixels that share it. CF: per cell (CS a cell), the
   // threshold, then the r, g, b factors of the lower step and of the
-  // higher, then what each step adds (the warm light, below; else 0), and
-  // the higher step's share of the lamp.
+  // higher.
   // (factors in 256ths, so a pixel is lit in whole numbers, all three of
   // its channels in one 32-bit read and write) Then how much of each
   // step's colour goes (NOCTURNE, below; else 0), and how much of each
   // step's ground is taken back to its tones unlifted (below).
-  const CS = 18;
+  const CS = 12;
   if (!View.lightCF || View.lightCF.length < L.w * CS) View.lightCF = new Int32Array(L.w * CS);
   const CF = View.lightCF, m256 = Math.round(mx * 256), d32 = new Uint32Array(d.buffer);
-  // The warm light (the paint lab, T.light.warm): each band has a tint of
-  // its own, the lamp's amber at the top and, in a dark place, violet at
-  // the foot, and the lit bands are painted a step up towards the paper
-  // (added, not only multiplied), so lit ground is lighter, not bleached.
-  // Per step q: TF, the tint times what's left to multiply; TA, what's
-  // added (in 255ths of the light's colour).
-  const warm = Lab.on('warm'), Wm = Lt.warm, ambI = View.lightAmbI || 0, TF = new Float32Array((top + 2) * 3), TA = new Float32Array((top + 2) * 3);
-  const dark = warm ? clamp((Wm.darkAt[0] - ambI) / (Wm.darkAt[0] - Wm.darkAt[1]), 0, 1) : 0, lpK = 1 / Math.max(0.05, mx - ambI), LP = new Float32Array(top + 2);
+  // In a dark place the light's lowest bands tint towards violet
+  // (T.light.violet): each by how little of it is the lamp's (0 at the
+  // ambient, 1 at the top), and by how dark the place is (darkAt: the
+  // ambient brightness it starts at and is full by). Per step q: TF, the
+  // tint.
+  const Vi = Lt.violet, ambI = View.lightAmbI || 0, TF = new Float32Array((top + 2) * 3);
+  const dark = clamp((Vi.darkAt[0] - ambI) / (Vi.darkAt[0] - Vi.darkAt[1]), 0, 1), lpK = 1 / Math.max(0.05, mx - ambI);
   // NOCTURNE (the paint lab, T.light.nocturne): outside the light the
   // colour goes, towards its lightness tinted cool, by how little of the
   // step is the light's and how dark the place is. ND: per step, how much
@@ -604,14 +630,10 @@ function lightScene(cx, cy) {
   const fCap = Math.max(1, ambI), gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone, unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === gf.w * ATILE * gf.h * ATILE);
   const GL = unl ? pntLook(gLook) : null, GU = unl ? pntLook(gLook, 0) : null, gHue = unl && GL.groundW ? View.groundHue : null, gW = unl ? gf.w * ATILE : 0, gH = unl ? gf.h * ATILE : 0, UL = new Int32Array(top + 2);
   for (let q = 0; q <= top + 1; q++) {
-    const level = q * inv, lp = warm ? clamp((level - ambI) * lpK, 0, 1) : 0, k = Wm.lift * lp;
-    LP[q] = lp;
+    const level = q * inv, lp = clamp((level - ambI) * lpK, 0, 1);
     UL[q] = unl ? Math.round(clamp((level - ambI) / Math.max(0.05, fCap - ambI), 0, 1) * 256) : 0;
-    ND[q] = nDark > 0 ? Math.round(Nc.amount * nDark * (1 - clamp((level - ambI) * lpK, 0, 1)) * 256) : 0;
-    for (let c = 0; c < 3; c++) {
-      const t = warm ? 1 + (Wm.lit[c] - 1) * lp + (Wm.dark[c] - 1) * (1 - lp) * dark : 1;
-      TF[q * 3 + c] = t * (1 - k); TA[q * 3 + c] = Wm.paper[c] * k * level * t;
-    }
+    ND[q] = nDark > 0 ? Math.round(Nc.amount * nDark * (1 - lp) * 256) : 0;
+    for (let c = 0; c < 3; c++) TF[q * 3 + c] = 1 + (Vi.dark[c] - 1) * (1 - lp) * dark;
   }
   // each column's cell
   const col = View.lightCol;
@@ -631,17 +653,10 @@ function lightScene(cx, cy) {
   }
   const LB = View.lightLB, GX = View.lightGX, GY = View.lightGY, CFr = View.lightCFr, GXO = View.lightGXO;
   if (fit) for (let n = 0, o = 0; n < nc; n++, o += 3) { const r = a[o], g = a[o + 1], b = a[o + 2]; LB[n] = r > g ? (r > b ? r : b) : g > b ? g : b; }
-  // the warm light's thread: a broken warmer line along the lit side of
-  // each bright band's edge (where a pixel on the higher step meets one on
-  // the lower, above or beside it). HI: the row above's steps.
-  const Th = Wm.thread, thread = warm && fit && Th.amount > 0, thFrom = Th.from * 256, thGate = Math.round(Th.gate * 8), thA = Th.amount, thC = Th.col;
   // SOFT BEAM EDGE (the paint lab, T.light.soft): the threshold set by
   // strokes along each row (fixed to the world), not the dither, so a
   // band's edge breaks into strokes
   const soft = Lab.on('soft'), Sf = Lt.soft, sfLen = Sf.len, sfK = (Sf.amt * 65536) / 255;
-  if (thread && (!View.lightHi || View.lightHi.length < w)) View.lightHi = new Uint8Array(w);
-  const HI = View.lightHi;
-  if (thread) HI.fill(1, 0, w);
   for (let y = 0; y < h; y++) {
     const row = ((y + cy) & 3) * 4, base = Math.floor((y + py) / LC) * lw;
     // the threshold: a half (a hard step), give or take a little dither
@@ -659,7 +674,7 @@ function lightScene(cx, cy) {
       }
       for (let n = 0, o = base, j = 0; n < L.w; n++, o += 3, j += CS) {
         const r = a[o], g = a[o + 1], b = a[o + 2], I = r > g ? (r > b ? r : b) : g > b ? g : b;
-        if (I <= 0) { CF[j] = 1 << 20; for (let c = 1; c < CS; c++) CF[j + c] = 0; CF[j + 14] = ND[0]; CF[j + 16] = UL[0]; continue; }
+        if (I <= 0) { CF[j] = 1 << 20; for (let c = 1; c < CS; c++) CF[j + c] = 0; CF[j + 7] = ND[0]; CF[j + 9] = UL[0]; continue; }
         // (on a slope, the lower step is the one its lowest pixel can reach)
         let q0 = (I + lo - (fit ? (Math.abs(GX[j]) + Math.abs(GY[j])) / 65536 : 0)) | 0, q1 = q0 + 1;
         CF[j] = Math.ceil((q1 - I) * 65536);
@@ -668,12 +683,8 @@ function lightScene(cx, cy) {
         const k0 = (q0 * inv * 256) / I, k1 = (q1 * inv * 256) / I, t0 = q0 * 3, t1 = q1 * 3, iI = 1 / I;
         let v = r * k0 * TF[t0]; CF[j + 1] = v > m256 ? m256 : v + 0.5; v = g * k0 * TF[t0 + 1]; CF[j + 2] = v > m256 ? m256 : v + 0.5; v = b * k0 * TF[t0 + 2]; CF[j + 3] = v > m256 ? m256 : v + 0.5;
         v = r * k1 * TF[t1]; CF[j + 4] = v > m256 ? m256 : v + 0.5; v = g * k1 * TF[t1 + 1]; CF[j + 5] = v > m256 ? m256 : v + 0.5; v = b * k1 * TF[t1 + 2]; CF[j + 6] = v > m256 ? m256 : v + 0.5;
-        // what the warm light adds on each step (0 with it off)
-        CF[j + 7] = TA[t0] * r * iI + 0.5; CF[j + 8] = TA[t0 + 1] * g * iI + 0.5; CF[j + 9] = TA[t0 + 2] * b * iI + 0.5;
-        CF[j + 10] = TA[t1] * r * iI + 0.5; CF[j + 11] = TA[t1 + 1] * g * iI + 0.5; CF[j + 12] = TA[t1 + 2] * b * iI + 0.5;
-        CF[j + 13] = LP[q1] * 256;
-        CF[j + 14] = ND[q0]; CF[j + 15] = ND[q1];
-        CF[j + 16] = UL[q0]; CF[j + 17] = UL[q1];
+        CF[j + 7] = ND[q0]; CF[j + 8] = ND[q1];
+        CF[j + 9] = UL[q0]; CF[j + 10] = UL[q1];
       }
     }
     if (fit) {
@@ -681,32 +692,16 @@ function lightScene(cx, cy) {
       const oy = ((y + py) % LC) - (LC >> 1);
       if ((y + py) % LC === 0 || y === 0) for (let x = 0; x < w; x++) GXO[x] = GX[col[x]] * (((x + px) % LC) - (LC >> 1));
       for (let j = 0; j < L.w * CS; j += CS) CFr[j] = CF[j] - ((GY[j] * oy) | 0);
-      let leftHi = 1;
       const wy = y + cy, sfPh = soft ? (Math.imul(wy, 0x9e3779b1) >>> 27) : 0;
       for (let x = 0, k = y * w; x < w; x++, k++) {
         const j = col[x], th = soft ? 32768 + (((Math.imul(Math.floor((x + cx + sfPh) / sfLen), 0x85ebca6b) ^ Math.imul(wy, 0xc2b2ae35)) >>> 24) - 127.5) * sfK : bt[(x + cx) & 3];
-        const hi = th + GXO[x] >= CFr[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, ul = CF[j + 16 + hi];
+        const hi = th + GXO[x] >= CFr[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, ul = CF[j + 9 + hi];
         let p = d32[k];
         if (ul) p = lightUnlift(p, ul, x + cx, wy, gW, gH, GT, gHue, GL, GU);
-        let r = (((p & 255) * CF[sel] + 128) >> 8) + CF[sel + 6], g = ((((p >> 8) & 255) * CF[sel + 1] + 128) >> 8) + CF[sel + 7], b = ((((p >> 16) & 255) * CF[sel + 2] + 128) >> 8) + CF[sel + 8];
+        let r = ((p & 255) * CF[sel] + 128) >> 8, g = (((p >> 8) & 255) * CF[sel + 1] + 128) >> 8, b = (((p >> 16) & 255) * CF[sel + 2] + 128) >> 8;
         // nocturne: the colour going, towards a cool grey of its lightness
-        const nd = CF[j + 14 + hi];
+        const nd = CF[j + 7 + hi];
         if (nd) { const l = (r * 77 + g * 151 + b * 28) >> 8; r += (((l * NT[0]) >> 8) - r) * nd >> 8; g += (((l * NT[1]) >> 8) - g) * nd >> 8; b += (((l * NT[2]) >> 8) - b) * nd >> 8; }
-        if (thread) {
-          // on the lit side of a band's edge: this pixel, high over a low
-          // one above or to its left; or the one to its left, high before
-          // this low one (written again)
-          const aboveHi = HI[x];
-          HI[x] = hi;
-          if (CF[j + 13] >= thFrom && ((((x + cx) * 0x9e37 + (y + cy) * 0x85eb) >>> 0) & 7) < thGate) {
-            if (hi && (!aboveHi || !leftHi)) { r += (thC[0] - r) * thA; g += (thC[1] - g) * thA; b += (thC[2] - b) * thA; }
-            else if (!hi && leftHi && x > 0) {
-              const q = d32[k - 1], qr = q & 255, qg = (q >> 8) & 255, qb = (q >> 16) & 255;
-              d32[k - 1] = 0xff000000 | ((qb + (thC[2] - qb) * thA) << 16) | ((qg + (thC[1] - qg) * thA) << 8) | (qr + (thC[0] - qr) * thA);
-            }
-          }
-          leftHi = hi;
-        }
         if (r > 255) r = 255;
         if (g > 255) g = 255;
         if (b > 255) b = 255;
@@ -717,11 +712,11 @@ function lightScene(cx, cy) {
     for (let x = 0, k = y * w; x < w; x++, k++) {
       // the pixel, lit by its cell's factors, on the higher step if its
       // threshold reaches it: its r, g, b in one 32-bit word
-      const j = col[x], hi = bt[(x + cx) & 3] >= CF[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, ul = CF[j + 16 + hi];
+      const j = col[x], hi = bt[(x + cx) & 3] >= CF[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, ul = CF[j + 9 + hi];
       let p = d32[k];
       if (ul) p = lightUnlift(p, ul, x + cx, y + cy, gW, gH, GT, gHue, GL, GU);
-      let r = (((p & 255) * CF[sel] + 128) >> 8) + CF[sel + 6], g = ((((p >> 8) & 255) * CF[sel + 1] + 128) >> 8) + CF[sel + 7], b = ((((p >> 16) & 255) * CF[sel + 2] + 128) >> 8) + CF[sel + 8];
-      const nd = CF[j + 14 + hi];
+      let r = ((p & 255) * CF[sel] + 128) >> 8, g = (((p >> 8) & 255) * CF[sel + 1] + 128) >> 8, b = (((p >> 16) & 255) * CF[sel + 2] + 128) >> 8;
+      const nd = CF[j + 7 + hi];
       if (nd) { const l = (r * 77 + g * 151 + b * 28) >> 8; r += (((l * NT[0]) >> 8) - r) * nd >> 8; g += (((l * NT[1]) >> 8) - g) * nd >> 8; b += (((l * NT[2]) >> 8) - b) * nd >> 8; }
       if (r > 255) r = 255;
       if (g > 255) g = 255;
@@ -865,9 +860,12 @@ function lampLevels(d) {
   const sun = sunOf(d);
   const amb = zl ? Math.max(0.2, lerp(zl.dusk, zl.day, Math.min(1, sun))) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
   const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(sun * 1.5, 0, 1))) : (cl && cl.tint) || Lt.tint;
-  // the lamp gutters out as the diver dies, and dims as your light fades
+  // the lamp gutters out as the diver dies, and dims as your light fades;
+  // hurt badly, it flickers, a beat with his heart, the worse the faster
   let lamp = d.dying > 0 ? Math.max(0.15, d.dying / 1.4) : 1;
   if (!d.hub && d.pull < T.pull.dimAt) lamp *= lerp(T.pull.lampMin, 1, d.pull / T.pull.dimAt);
+  const low = d.stats && d.p.hp / d.stats.maxHp;
+  if (low < Lt.gutterAt && !(d.dying > 0)) { const k = 1 - low / Lt.gutterAt, beat = (Game.realT * (1.4 + k * 1.2)) % 1; lamp *= 1 - k * Lt.gutter * (beat < 0.12 ? beat / 0.12 : beat < 0.3 ? 1 - (beat - 0.12) / 0.18 : 0); }
   // in daylight the lamp isn't needed; it comes on at dusk
   if (zl && sun > zl.lampAt) lamp *= 0.15;
   // (in the opening's last shot, off while he's in his pod, coming on as he
@@ -947,16 +945,19 @@ function renderFrame() {
   drawCastGround(d, ox, oy, tick, lights);
   pnrOccludeGround(ox, oy);
 
-  // ore twinkles, so it's the one thing in the rock that catches the eye
-  const tx0 = Math.max(0, Math.floor(camX / ATILE)), ty0 = Math.max(0, Math.floor(camY / ATILE));
+  // ore twinkles, so it's the one thing in the rock that catches the eye:
+  // what the cutter can break, bright and often; what it can't, a slow
+  // cold glint in its own colour, so the eye learns which is which
+  const tx0 = Math.max(0, Math.floor(camX / ATILE)), ty0 = Math.max(0, Math.floor(camY / ATILE)), pickPow = Save.data.equip.pick ? Save.data.equip.pick.base.power : 0;
   for (let ty = ty0; ty <= Math.min(f.h - 1, ty0 + Math.ceil(View.h / ATILE) + 1); ty++)
     for (let tx = tx0; tx <= Math.min(f.w - 1, tx0 + Math.ceil(View.w / ATILE) + 1); tx++) {
       if (f.tiles[ty * f.w + tx] !== TILE_ORE) continue;
-      const h = hashInts(tx, ty, 0x7a1), ph = (Game.realT * 1.6 + (h & 255) / 255) % 1;
+      const o = T.ores[f.ore[ty * f.w + tx] - 1], can = o.tier <= pickPow, h = hashInts(tx, ty, 0x7a1), ph = (Game.realT * (can ? 1.6 : 0.5) + (h & 255) / 255) % 1;
       if (ph > 0.22) continue;
       const k = ph < 0.11 ? ph / 0.11 : (0.22 - ph) / 0.11, cx = tx * ATILE + ox + ap(3) + (h >> 8) % ap(10), cy0 = ty * ATILE + ap(3) + (h >> 12) % ap(6), cy = cy0 + oy - pntLiftAt(cx - ox, cy0);
+      if (!can) { dot(cx, cy, ART.ores[o.id][3], true, k * 0.55); continue; }
       dot(cx, cy, '#ffffff', true, k);
-      if (k > 0.5) for (const [i, j] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) dot(cx + i, cy + j, ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][3], true, k * 0.7);
+      if (k > 0.5) for (const [i, j] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) dot(cx + i, cy + j, ART.ores[o.id][3], true, k * 0.7);
     }
 
   // the lodeline: a shimmering beam from the anchor straight up
@@ -1066,7 +1067,7 @@ function renderFrame() {
   // floor isn't painted again for it)
   const ambLevel = lv.amb * (d.hub && Intro.hub ? Intro.hub.amb : 1), tint = lv.tint;
   const L = View.light;
-  // (the ambient's brightness, for the warm light's bands: lightScene)
+  // (the ambient's brightness, for the violet in the dark: lightScene)
   View.lightAmbI = ambLevel * Math.max(tint[0], tint[1], tint[2]);
   if (View.bakedFrom !== View.lights) bakeFloorLights(f);
   startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
@@ -1528,6 +1529,14 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     drawModuleFx(fx, cx, cy, k, lights, ox, oy);
   } else if (fx.kind === 'iceBurst' || fx.kind === 'steam' || fx.kind === 'flare' || fx.kind === 'overload' || fx.kind === 'wardBreak') {
     drawReactFx(fx, cx, cy, k, tick, lights);
+  } else if (fx.kind === 'dust') {
+    // a step's dust: three grains drifting back and up off the heel, gone
+    // in half a second
+    const t = 1 - k;
+    for (let i = 0; i < 3; i++) {
+      const h = artHash(i, Math.floor(fx.seed * 97), 0xd5), s = (h - 0.5) * 6;
+      dot(Math.round(cx + fx.dx * t * (4 + i * 3) * AP + s * (1 - t)), Math.round(cy - t * (3 + i * 2 + h * 3) * AP), '#8a8298', false, 0.65 * k);
+    }
   } else if (fx.kind === 'mote') {
     // a shard set in the star, its light rising from the altar into it
     const t = 1 - k, sx = STAR_AT.x * ATILE + ox, sy = STAR_AT.y * ATILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * AP * (1 - t);

@@ -19,7 +19,6 @@
 const LAB_ROWS = [
   { key: 'calm', name: 'CALM FIELDS', sub: 'long strokes in quiet ground; detail at feet and beds', paint: true },
   { key: 'form', name: 'FORM STROKES', sub: 'strokes down the faces, one big plane, lit cracks', paint: true },
-  { key: 'warm', name: 'WARM LIGHT', sub: 'amber in the beam, violet in the dark' },
   { key: 'air', name: 'AIR', sub: 'motes and haze beyond the beam' },
   { key: 'impasto', name: 'IMPASTO', sub: 'thick paint: each stroke\'s end catches the light', paint: true },
   { key: 'broken', name: 'BROKEN COLOUR', sub: 'warm and cool strokes of the same lightness', paint: true },

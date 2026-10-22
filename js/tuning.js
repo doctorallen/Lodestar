@@ -13,6 +13,7 @@ const T = {
   player: {
     hp: 100, speed: 56, radius: 4, hurtInvuln: 0.5, restAfter: 4, restRegen: 3,
     charge: 30, chargeRegen: 4.5, magnet: 14,
+    dustEvery: 0.24, // s walked between the puffs of dust off his heels (game.js, render.js)
   },
 
   // Mining: the ore tile's nearest edge must be within `reach` of the feet
@@ -398,7 +399,7 @@ const T = {
   //     parts) or an exotic. A fine forge or better makes it a tier higher.
   circuits: {
     chargedMult: 1.8, chargedCost: 1.5, chargedPierce: 3, aimRange: 140,
-    stoneGrowth: 0.25, otherGrowth: 0.05,
+    stoneGrowth: 0.15, otherGrowth: 0.05,
     spark: { cost: 3, mult: 0.6, cd: 0.3, speed: 170, life: 1.2 },
     rig: { cd: 0.9, area: 1, aim: 140, mods: 1, mod2Tier: 3 },
     forms: {
@@ -755,9 +756,9 @@ const T = {
   // affixGrowth a tier). Each kind's crafting cost is in ore of its tier
   // (a pick is made from the ore it's named for, and breaks the next one).
   items: {
-    tierGrowth: 1.45, affixGrowth: 0.3, gradeBoost: 0.2, // a part's grade over 1 strengthens what it binds
+    tierGrowth: 1.28, affixGrowth: 0.3, gradeBoost: 0.2, // a part's grade over 1 strengthens what it binds
     caster: { power: 6 },
-    armor: { armor: 4, armorGrowth: 0.75, hp: 16, hpGrowth: 1.5, cost: 10 },
+    armor: { armor: 4, armorGrowth: 0.75, hp: 16, hpGrowth: 1.35, cost: 10 },
     charm: { cost: 6 }, pick: { speedGrowth: 0.12, cost: 12 },
     affixes: { common: 1, magic: 2, rare: 3, legendary: 3, set: 2 },
     armorK: 50, // damage taken × armorK / (armorK + armor)
@@ -1183,8 +1184,9 @@ const T = {
     // stopping frame; idle, s an idle cycle (a weight shift, two breaths);
     // turn, rad/s turning between facings; cast, where (of the pose) the
     // wind-back, the strike and the follow-through end; warm, how many of the frames not
-    // yet wanted are built a draw (none, the draw one was wanted).
-    kindler: { cycle: 27, depthCycle: 0.5, tread: 30, startAt: 0.3, start: 0.2, settle: [0.08, 0.17], idle: 3.6, turn: 16, cast: [0.08, 0.32, 0.64], warm: 1 },
+    // yet wanted are built a draw (none, the draw one was wanted); glance,
+    // standing still: after s he looks about, for len s, every `every` s.
+    kindler: { cycle: 27, depthCycle: 0.5, tread: 30, startAt: 0.3, start: 0.2, settle: [0.08, 0.17], idle: 3.6, turn: 16, cast: [0.08, 0.32, 0.64], warm: 1, glance: { after: 3, every: 8.5, len: 2.4 } },
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the
@@ -1285,17 +1287,17 @@ const T = {
   light: {
     ambient: 0.45, tint: [0.72, 0.76, 0.95], max: 1.9,
     lamp: [5, 1.35], ore: [1.7, 0.75], flora: 0.3,
+    // hurt to under gutterAt of his health, the lamp flickers with his
+    // heart, by up to `gutter` of its light at death's door (render.js
+    // lampLevels)
+    gutterAt: 0.3, gutter: 0.45,
     glow: 0.75, bloom: [[3, 0.7], [7, 0.6]], bloomWorld: true,
-    // The warm light (the paint lab's WARM LIGHT; render.js lightScene):
-    // each of the light's bands tinted by its share of the lamp's light
-    // (0 at the ambient, 1 at max): lit, the tint at the top; dark, at the
-    // foot, in a dark place only (darkAt: the ambient brightness it starts
-    // at and is full by, as T.paint.rampEven.darkAt). lift: how far up the
-    // lit bands are painted towards paper (added, not multiplied). thread:
-    // a broken warmer line along the lit side of each band's edge, from the
-    // band whose share is `from`, mixing `amount` of `col`, on `gate` of
-    // the pixels (off: with the light's bands fine, it ringed every one).
-    warm: { lit: [1.0, 0.92, 0.66], dark: [0.72, 0.64, 1.0], darkAt: [0.95, 0.42], lift: 0.22, paper: [255, 238, 200], thread: { from: 0.3, amount: 0, gate: 0.4, col: [255, 196, 120] } },
+    // Violet in the dark (render.js lightScene, gllight.js): in a dark
+    // place each of the light's bands is tinted towards `dark` by how
+    // little of it is the lamp's (0 at the ambient, 1 at the top), and by
+    // how dark the place is (darkAt: the ambient brightness it starts at
+    // and is full by, as T.paint.rampEven.darkAt).
+    violet: { dark: [0.72, 0.64, 1.0], darkAt: [0.95, 0.42] },
     // The paint lab's NOCTURNE (lightScene): outside the light the colour
     // goes, `amount` of the way to its lightness tinted `tint`, by the
     // band's share of the light (as the warm light's) and how dark the
@@ -1423,7 +1425,7 @@ const T = {
   // size and way (today, broad, fine, dab, contour; T.paint.brush);
   // finish: how much the paint shows (paint, flat, ink, wash;
   // T.paint.finish).
-  lab: { calm: true, form: true, warm: true, air: false, impasto: false, broken: false, nocturne: false, bounce: false, live: false, soft: false, canvas: false, brush: 'today', finish: 'wash' },
+  lab: { calm: true, form: true, air: false, impasto: false, broken: false, nocturne: false, bounce: false, live: false, soft: false, canvas: false, brush: 'today', finish: 'wash' },
   // Air beyond the beam (air.js; the paint lab's AIR; cosmetic). motes:
   // per, how many a 100 × 100 art px of the floor, in the clime's glow
   // colour (the star's gold at home), at alpha, lit by the light where they

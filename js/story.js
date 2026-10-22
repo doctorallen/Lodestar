@@ -38,6 +38,7 @@
 //                  leaves, and supplies (deeds.js, supplies.js)
 //   bld_<id>       each of the outpost's buildings, as it comes down
 //                  (structures.js)
+//   tier<n>        the first piece forged of tier n past the first (anvil.js)
 //   wick_<id>      each of Wick's upgrades, the first time it does its
 //                  thing (wick.js)
 //   wake_<key>     a system waking for a new Kindler (onboard.js)
@@ -83,6 +84,12 @@ const WICK = {
   firstParts: 'Parts. A lot of teeth, for a dead world. The forge wants them.',
   firstBlueprint: "A blueprint. Charter make, older than ours. Get it home and we'll learn it.",
   firstForge: 'Strike when the marker crosses the glow. The recipe is the recipe; good strikes only add to it.',
+  // the first piece forged of each tier past the first (anvil.js)
+  tier2: 'Lumenite. It holds a charge better than iron. You will feel it.',
+  tier3: 'Resonite rings when it is struck. Listen for it in the rock.',
+  tier4: "Aetherglass. Charter ships were skinned in it. Don't drop it.",
+  tier5: 'Sigilite. The Keepers wrote in this. I would rather not know what.',
+  tier6: 'Starmetal. Nothing cuts deeper. Nothing should need to.',
   // modules (modules.js, gearui.js)
   module: "The suit caught its pattern. A module. Socket it at home.",
   research: "The forge studied what we brought in. New recipes.",

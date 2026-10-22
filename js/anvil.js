@@ -90,6 +90,8 @@ const Anvil = {
   finish(q = this.quality()) {
     const j = this.job;
     const item = forgeItem(j.bp, j.ore, j.exotic, q);
+    // the first piece of a tier past any before: Wick marks it
+    if (item.tier > (Save.data.topTier || 1)) { Save.data.topTier = item.tier; Story.say('tier' + item.tier); }
     this.job = null;
     // a frame forged with an elemental exotic: its Element's core with it
     const extra = item.withStone;

@@ -249,6 +249,7 @@ function pntGroundTones(f, x0, y0, x1, y1) {
   const G = T.paint.ground, Bq = pntBrush(), W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx, H = View.rockH, out = View.groundTone, nt = Bq.gTones;
   x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(Hp, y1);
   if (x1 <= x0 || y1 <= y0) return;
+  glGroundDirty(y0, y1);
   const sun = !!artBiome(f).sun, seedH = (f.seed ^ f.depth) | 0, pad = Math.max(PNT_CELL, Bq.cell, T.paint.calm.cell), ax = x0 - pad, n = x1 - x0 + 2 * pad;
   const v = new Float32Array(n), n1 = new Float32Array(n), n2 = new Float32Array(n), n3 = new Float32Array(n), cl = new Float32Array(n), mid = new Int16Array(n), jit = new Float32Array(n);
   // for each column, how many rows since rock above it (up to G.foot + 1)

@@ -90,6 +90,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/undergrowth.js` | How flora grows into a place (cosmetic): habitat, drifts, stands of tall grass, beds and ground cover painted into the floor, moss and roots on the walls, wind and stir |
 | `js/shadow.js` | Shadows from the light: the rock stops the diver's lamp (and the floor's fixed lights) |
 | `js/pshadow.js` | Cast shadows of what stands on the ground: silhouettes from the lamp, the sun and the outpost's lanterns, and contact shadows |
+| `js/gllight.js` | The light on the GPU: the lighting as a WebGL2 shader, the view and the light's cells as textures, the lit view drawn back; the JavaScript lighting stands in without WebGL2 |
 | `js/render.js` | The pixel view (art px, 1.5 to a world px), the floor canvas, lighting and bloom, sparks |
 | `js/castfx.js` | How a cast looks (cosmetic): the Charter's technology: the muzzle at the wrist, the circuit sigil, lock-ons, motes, swept rings, an Arc's crescent, a Glaive's blades, an Orb, slugs and beams, a lance's scar, a Well, a Ward, impacts and marks on the ground |
 | `js/hardlight.js` | The hard-light shapes the spells are built from: crisp lines, diamonds, hexagons, lock-on brackets, sigils, pressure waves, lattices, the seed-star; `castfxWarm()` paints them before a fight |
@@ -114,4 +115,5 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 npm ci       # test tools only
 npm test     # everything CI runs
 node test/bot.js --careers 4 --dives 40   # longer balance runs; results in test/out/balance.json
+node test/gllight.js                      # the GPU lighting against the JavaScript lighting, with WebGL in software
 ```

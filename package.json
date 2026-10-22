@@ -4,7 +4,8 @@
   "private": true,
   "description": "Lodestar, a top-down pixel-art mining and looting game for the phone browser, in plain JavaScript. The game itself needs nothing installed: these are the test tools only.",
   "scripts": {
-    "test": "sh test/check.sh && node test/gen.js && node test/loot.js && node test/smoke.js && node test/bot.js",
+    "test": "sh test/check.sh && node test/gen.js && node test/loot.js && node test/gllight.js && node test/smoke.js && node test/bot.js",
+    "gllight": "node test/gllight.js",
     "check": "sh test/check.sh",
     "gen": "node test/gen.js",
     "gen:update": "node test/gen.js --update",
