@@ -1182,11 +1182,14 @@ const T = {
     // the legs keep moving against a wall; startAt, the walk's first phase;
     // start, s leant into the first steps; settle, s to the end of each
     // stopping frame; idle, s an idle cycle (a weight shift, two breaths);
+    // run, his pace against the base speed past which he runs (a gait of
+    // its own) and under which he walks again; runStride, how the run's
+    // stride grows with the pace (cycle × pace^runStride);
     // turn, rad/s turning between facings; cast, where (of the pose) the
     // wind-back, the strike and the follow-through end; warm, how many of the frames not
     // yet wanted are built a draw (none, the draw one was wanted); glance,
     // standing still: after s he looks about, for len s, every `every` s.
-    kindler: { cycle: 27, depthCycle: 0.5, tread: 30, startAt: 0.3, start: 0.2, settle: [0.08, 0.17], idle: 3.6, turn: 16, cast: [0.08, 0.32, 0.64], warm: 1, glance: { after: 3, every: 8.5, len: 2.4 } },
+    kindler: { cycle: 27, depthCycle: 0.5, tread: 30, startAt: 0.3, start: 0.2, run: [1.12, 1.04], runStride: 0.7, settle: [0.08, 0.17], idle: 3.6, turn: 16, cast: [0.08, 0.32, 0.64], warm: 1, glance: { after: 3, every: 8.5, len: 2.4 } },
   },
 
   // How flora grows into a place (undergrowth.js; cosmetic, placed from the

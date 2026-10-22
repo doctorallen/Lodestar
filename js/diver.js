@@ -99,29 +99,43 @@ function kdGlance(n) {
   return o;
 }
 
-// s: where in the cycle (0: his right heel down in front; 0.5 his left);
-// a: how big the stride; lean: more lean, starting off.
-function kdWalk(s, a, lean) {
-  const A = 6 * a, lift = 2.9 * a, feet = [], toe = [];
+// A gait: s where in the cycle (0: his right heel down in front; 0.5 his
+// left); a how big the stride; lean more lean, starting off; G its
+// numbers (KD_WALK, KD_RUN): A the stride's half length, lift the foot's
+// rise, support the share of the cycle a foot is down (under a half, both
+// are up at once: a run's flight), toeOff where the heel lifts, bob the
+// body's rise and fall, swing and bend the arms, yaw and roll the hips
+// and the chest turning against each other, pitch the lean, drop how far
+// the hips sink, sway the pelvis side to side.
+const KD_WALK = { A: 6, lift: 2.9, support: 0.5, toeOff: 0.36, bob: 0.9, swing: 0.55, bendBase: 0.5, bend: 0.55, hipYaw: 0.24, hipRoll: 0.07, chestYaw: -0.17, chestRoll: -0.03, pitch: 0.065, drop: 1.3, headBob: -0.45, pack: 0.9, sway: 0.55, abd: 0.12 };
+// Running (Diablo's answer to a faster figure: a different gait, not the
+// walk played faster): the stride longer, the knees higher, a moment with
+// both feet off the ground, the body leant into it, the elbows bent and
+// pumping, the hips and shoulders turning further.
+const KD_RUN = { A: 7.8, lift: 4.6, support: 0.4, toeOff: 0.24, bob: 1.35, swing: 0.85, bendBase: 0.9, bend: 0.3, hipYaw: 0.3, hipRoll: 0.09, chestYaw: -0.25, chestRoll: -0.04, pitch: 0.21, drop: 1.9, headBob: -0.55, pack: 1.25, sway: 0.4, abd: 0.16 };
+function kdGait(s, a, lean, G) {
+  const A = G.A * a, lift = G.lift * a, S = G.support, feet = [], toe = [];
   for (let i = 0; i < 2; i++) {
     const u = (s + 0.5 * i) % 1, side = i ? -2.5 : 2.5;
-    if (u < 0.5) {
-      const off = Math.max(0, u - 0.36);
-      feet.push([side, off * 3.5, A * (1 - 4 * u)]); toe.push(off * 3);
+    if (u < S) {
+      const off = Math.max(0, u - G.toeOff);
+      feet.push([side, off * 3.5, A * (1 - (2 * u) / S)]); toe.push(off * 3);
     } else {
-      const q = (u - 0.5) / 0.5, e = q * q * (3 - 2 * q);
+      const q = (u - S) / (1 - S), e = q * q * (3 - 2 * q);
       feet.push([side * 0.95, lift * Math.pow(Math.sin(Math.PI * Math.min(1, q * 1.1)), 0.8), -A + 2 * A * e]); toe.push(q < 0.4 ? 0.5 - q : -0.25 * Math.sin(Math.PI * (q - 0.4) / 0.6));
     }
   }
-  const bob = 0.9 * a * kdBob(s), bobLag = 0.9 * a * kdBob(s - 0.125);
-  const swing = (k) => k * 0.55 * a * Math.cos(kdTau * (s - 0.09)), bend = (k) => 0.5 + 0.55 * a * Math.max(0, k * Math.cos(kdTau * (s - 0.2)));
+  const bob = G.bob * a * kdBob(s), bobLag = G.bob * a * kdBob(s - 0.125);
+  const swing = (k) => k * G.swing * a * Math.cos(kdTau * (s - 0.09)), bend = (k) => G.bendBase + G.bend * a * Math.max(0, k * Math.cos(kdTau * (s - 0.2)));
   return {
-    pel: [0.55 * a * Math.sin(kdTau * s), KR.hip - 1.3 * a - 0.4 * (1 - a) + bob, 0.4 * lean], hipYaw: 0.24 * a * Math.cos(kdTau * s), hipRoll: 0.07 * a * Math.sin(kdTau * s),
-    chestYaw: -0.17 * a * Math.cos(kdTau * (s - 0.06)), chestRoll: -0.03 * a * Math.sin(kdTau * s), pitch: 0.065 * a + lean, breath: 0, headY: -0.45 * bob, pack: (bobLag - bob) * 0.9,
+    pel: [G.sway * a * Math.sin(kdTau * s), KR.hip - G.drop * a - 0.4 * (1 - a) + bob, 0.4 * lean], hipYaw: G.hipYaw * a * Math.cos(kdTau * s), hipRoll: G.hipRoll * a * Math.sin(kdTau * s),
+    chestYaw: G.chestYaw * a * Math.cos(kdTau * (s - 0.06)), chestRoll: G.chestRoll * a * Math.sin(kdTau * s), pitch: G.pitch * a + lean, breath: 0, headY: G.headBob * bob, pack: (bobLag - bob) * G.pack,
     feet, toe,
-    arms: [{ swing: swing(-1), abd: 0.12, bend: bend(-1) }, { swing: swing(1), abd: 0.12, bend: bend(1) }],
+    arms: [{ swing: swing(-1), abd: G.abd, bend: bend(-1) }, { swing: swing(1), abd: G.abd, bend: bend(1) }],
   };
 }
+function kdWalk(s, a, lean) { return kdGait(s, a, lean, KD_WALK); }
+function kdRun(s, a, lean) { return kdGait(s, a, lean, KD_RUN); }
 
 // Stopping: k 0, the last step caught, the body dipping; 1, the feet
 // drawn together, the arms swinging on a little past. lead: the foot in
@@ -179,6 +193,7 @@ function kdPose(key) {
   if (key[0] === 'i') return kdIdle(n);
   if (key[0] === 'k') return kdGlance(n);
   if (key[0] === 'w') return kdWalk(n / 8, 1, 0);
+  if (key[0] === 'r') return kdRun(n / 8, 1, 0.04);
   if (key[0] === 'g') return kdWalk(n / 8, 0.8, 0.1);
   if (key[0] === 's') return kdSettle(n, key[1] === 'L' ? 1 : 0);
   return kdDash(n);
@@ -653,7 +668,7 @@ function kindlerEveryFrame() {
   const out = [], seen = new Set(), n8 = [0, 1, 2, 3, 4, 5, 6, 7];
   const add = (fi, k) => { if (!seen.has(fi + k)) { seen.add(fi + k); out.push([fi, k]); } };
   const each = (fn) => { for (let fi = 0; fi < KD.faces.length; fi++) fn(fi, KD.faces[fi]); };
-  each((fi) => { for (const k of n8) add(fi, 'i' + k); for (const k of n8) add(fi, 'w' + k); });
+  each((fi) => { for (const k of n8) add(fi, 'i' + k); for (const k of n8) add(fi, 'w' + k); for (const k of n8) add(fi, 'r' + k); });
   each((fi) => { for (const k of n8) add(fi, 'g' + k); for (const k of ['sR0', 'sR1', 'sL0', 'sL1', 'd0', 'd1']) add(fi, k); for (const k of n8) add(fi, 'k' + k); });
   for (const legs of ['i0'].concat(n8.map((k) => 'w' + k))) each((fi, f) => { for (const sl of ['main', 'off']) for (const ph of 'wsfr') add(fi, kdCastKey(f, sl, ph, legs)); });
   return out;
@@ -670,6 +685,7 @@ function buildKindlerSprites(facings, mirrored) {
   // the rest, in the order they're likely wanted
   const q = [], faces = ['S', 'E', 'SE', 'N', 'NE'], n8 = [0, 1, 2, 3, 4, 5, 6, 7];
   for (const f of faces) for (const k of n8) q.push([f, 'w' + k]);
+  for (const f of faces) for (const k of n8) q.push([f, 'r' + k]);
   for (const f of faces) for (const k of n8) q.push([f, 'g' + k], [f, 'i' + k]);
   for (const f of faces) q.push([f, 'sR0'], [f, 'sR1'], [f, 'sL0'], [f, 'sL1'], [f, 'd0'], [f, 'd1']);
   for (const f of faces) for (const k of n8) q.push([f, 'k' + k]);
@@ -688,7 +704,7 @@ function buildKindlerSprites(facings, mirrored) {
 function kindlerPick(d, cast) {
   const p = d.p, K = T.paint.kindler, now = Game.realT;
   let A = d.kAnim;
-  if (!A || A.p !== p) A = d.kAnim = { p, t: now, x: p.x, y: p.y, ang: Math.atan2(p.fy, p.fx), ph: 0, walk: 0, stop: 9, idle: 0, lead: 'R' };
+  if (!A || A.p !== p) A = d.kAnim = { p, t: now, x: p.x, y: p.y, ang: Math.atan2(p.fy, p.fx), ph: 0, walk: 0, stop: 9, idle: 0, lead: 'R', k: 1, run: false };
   const dt = clamp(now - A.t, 0, 0.1);
   A.t = now;
   let dist = Math.hypot(p.x - A.x, p.y - A.y) * AP;
@@ -712,13 +728,19 @@ function kindlerPick(d, cast) {
     key = p.dashT > T.dash.time * 0.5 ? 'd0' : 'd1';
     A.walk = 0; A.stop = 0; A.lead = 'R';
   } else if (walking) {
-    if (A.walk === 0) A.ph = K.startAt;
+    if (A.walk === 0) { A.ph = K.startAt; A.k = 1; A.run = false; }
     A.walk += dt;
-    // a stride's length on the screen: shorter seen from in front or behind
-    const L = K.cycle * lerp(1, Math.hypot(Math.cos(A.ang), KD_K * Math.sin(A.ang)), K.depthCycle);
+    // his pace against the base speed, smoothed; past K.run[0] of it he
+    // runs (a gait of its own, KD_RUN), until it falls under K.run[1]
+    if (dt > 0) A.k = lerp(A.k, dist / dt / (T.player.speed * AP), Math.min(1, dt * 10));
+    A.run = A.k > (A.run ? K.run[1] : K.run[0]);
+    // a stride's length on the screen: shorter seen from in front or
+    // behind; running, longer the faster he goes (so the cadence rises
+    // only a little with the speed, as a runner's does)
+    const L = K.cycle * (A.run ? Math.pow(Math.max(1, A.k), K.runStride) : 1) * lerp(1, Math.hypot(Math.cos(A.ang), KD_K * Math.sin(A.ang)), K.depthCycle);
     A.ph = (A.ph + Math.max(dist, K.tread * dt) / L) % 1;
     const n = Math.floor(A.ph * 8) % 8;
-    key = legs = (A.walk < K.start ? 'g' : 'w') + n;
+    key = legs = (A.walk < K.start ? 'g' : A.run ? 'r' : 'w') + n;
     A.stop = 0; A.idle = 0;
     A.lead = A.ph < 0.25 || A.ph >= 0.75 ? 'R' : 'L';
   } else {
@@ -738,7 +760,8 @@ function kindlerPick(d, cast) {
     // (a tap shows the wind-back for a moment as it snaps forward: the
     // spell has already left the hand; cutting, held: render.js)
     const k = 1 - cast.t / cast.max, ph = cast.hold ? cast.hold : cast.charging || k < K.cast[0] ? 'w' : k < K.cast[1] ? 's' : k < K.cast[2] ? 'f' : 'r';
-    key = kdCastKey(face, cast.slot, ph, legs[0] === 'g' ? 'w' + legs[1] : legs);
+    // (a cast over walking legs, whatever the gait: those frames are built at the loading)
+    key = kdCastKey(face, cast.slot, ph, legs[0] === 'g' || legs[0] === 'r' ? 'w' + legs[1] : legs);
   }
   const spr = A.spr = kdGet(fi, key);
   kdWarm(K.warm);
