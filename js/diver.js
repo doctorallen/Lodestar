@@ -107,12 +107,12 @@ function kdGlance(n) {
 // body's rise and fall, swing and bend the arms, yaw and roll the hips
 // and the chest turning against each other, pitch the lean, drop how far
 // the hips sink, sway the pelvis side to side.
-const KD_WALK = { A: 6, lift: 2.9, support: 0.5, toeOff: 0.36, bob: 0.9, swing: 0.55, bendBase: 0.5, bend: 0.55, hipYaw: 0.24, hipRoll: 0.07, chestYaw: -0.17, chestRoll: -0.03, pitch: 0.065, drop: 1.3, headBob: -0.45, pack: 0.9, sway: 0.55, abd: 0.12 };
+const KD_WALK = { A: 8.5, lift: 3.4, support: 0.47, toeOff: 0.33, bob: 1.0, swing: 0.6, bendBase: 0.5, bend: 0.55, hipYaw: 0.26, hipRoll: 0.07, chestYaw: -0.18, chestRoll: -0.03, pitch: 0.07, drop: 2.0, headBob: -0.45, pack: 0.9, sway: 0.55, abd: 0.12 };
 // Running (Diablo's answer to a faster figure: a different gait, not the
 // walk played faster): the stride longer, the knees higher, a moment with
 // both feet off the ground, the body leant into it, the elbows bent and
 // pumping, the hips and shoulders turning further.
-const KD_RUN = { A: 7.8, lift: 4.6, support: 0.4, toeOff: 0.24, bob: 1.35, swing: 0.85, bendBase: 0.9, bend: 0.3, hipYaw: 0.3, hipRoll: 0.09, chestYaw: -0.25, chestRoll: -0.04, pitch: 0.21, drop: 1.9, headBob: -0.55, pack: 1.25, sway: 0.4, abd: 0.16 };
+const KD_RUN = { A: 10.5, lift: 5.2, support: 0.38, toeOff: 0.22, bob: 1.4, swing: 0.85, bendBase: 0.9, bend: 0.3, hipYaw: 0.3, hipRoll: 0.09, chestYaw: -0.25, chestRoll: -0.04, pitch: 0.21, drop: 2.7, headBob: -0.55, pack: 1.25, sway: 0.4, abd: 0.16 };
 function kdGait(s, a, lean, G) {
   const A = G.A * a, lift = G.lift * a, S = G.support, feet = [], toe = [];
   for (let i = 0; i < 2; i++) {
