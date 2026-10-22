@@ -317,12 +317,19 @@ async function phone(browser) {
   await run(page, 0.1);
   check(await page.evaluate(() => !Game.dive.channel && !Game.dive.hub), 'phone: moving did not break the channel');
   const far = await page.evaluate(() => Game.dive.far);
+  // (the first BANK's light woke whatever was in earshot; a hit landing
+  // holds the world still, which a fixed wait doesn't allow for: this part
+  // isn't about fighting, so the floor is cleared and the channel stepped
+  // until it ends)
+  await page.evaluate(() => { sturdy(); Game.hitstop = 0; });
   await page.evaluate(standOn, 'pad');
   await run(page, 0.1);
   await tap(page, '#btn-act');
-  await run(page, 1.8);
+  await page.evaluate(() => { let i = 0; for (; i < 240; i++) { Game.step(1 / 60); if (i > 0 && !Game.dive.channel) break; } window._bankSteps = i; Game.render(); });
   const banked = await page.evaluate(() => [Object.entries(Save.data.stash).filter(([k]) => !isLight(k)).reduce((a, [, b]) => a + b, 0) + Save.data.items.length, JSON.parse(localStorage.getItem('lodestar.save.v4')), Save.data.star, cargoCount(Game.dive), Game.dive.hub]);
-  check(banked[0] === carriedNow && banked[3] === 0 && !banked[4], `phone: banked ${banked[0]} of ${carriedNow}, ${banked[3]} left, still out: ${!banked[4]}`);
+  // (when it fails: what the page was doing instead)
+  const why = await page.evaluate(() => { const d = Game.dive, t = d.floor.pad; return JSON.stringify({ steps: window._bankSteps, modal: Game.modal, channel: d.channel, act: $('btn-act').textContent, off: t && [d.p.x - (t.x + 0.5) * TILE, d.p.y - (t.y + 0.5) * TILE].map((v) => +v.toFixed(1)), hp: d.p.hp, dying: d.dying, foes: d.enemies.filter((e) => !e.dead).length, toasts: $('toasts').textContent.slice(-120) }); });
+  check(banked[0] === carriedNow && banked[3] === 0 && !banked[4], `phone: banked ${banked[0]} of ${carriedNow}, ${banked[3]} left, still out: ${!banked[4]} ${why}`);
   check(banked[1].items.length === 5, `phone: the found gear was not banked and saved (${banked[1].items.length})`);
   check(banked[2] === 0 && far >= 1, `phone: banking fed the star ${banked[2]} before coming home`);
   // TRAVEL: the map, a spire or home; home banks and reports
