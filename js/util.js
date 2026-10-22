@@ -111,7 +111,10 @@ function mix(h1, h2, t) {
 function makeCanvas(w, h) {
   const c = document.createElement('canvas');
   c.width = Math.max(1, w); c.height = Math.max(1, h);
-  const x = c.getContext('2d');
+  // (kept in memory: a picture is built once, then copied to the GPU's
+  // atlas or drawn, and a canvas the GPU rasterises costs a wait each time
+  // it's read)
+  const x = c.getContext('2d', { willReadFrequently: true });
   x.imageSmoothingEnabled = false;
   return [c, x];
 }

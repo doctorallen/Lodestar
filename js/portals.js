@@ -238,8 +238,8 @@ function drawPortalIris(d, ox, oy) {
           px[n] = c[0]; px[n + 1] = c[1]; px[n + 2] = c[2]; px[n + 3] = 255;
         }
     }
-  PortalIris.canvas.getContext('2d').putImageData(PortalIris.img, 0, 0);
-  View.overCtx.drawImage(PortalIris.canvas, 0, 0);
+  if (Gpu.on) View.overCtx.drawPixels(PortalIris.img, 0, 0, w, h, 0, 0);
+  else { PortalIris.canvas.getContext('2d').putImageData(PortalIris.img, 0, 0); View.overCtx.drawImage(PortalIris.canvas, 0, 0); }
 }
 // While the view opens on arrival, how much of the place shows: a circle
 // round the diver in the floor's art px { x, y, r }, or null when it's all

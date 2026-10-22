@@ -338,8 +338,8 @@ function pshMaskEnd() {
   const M = PshMask;
   if (M.bx1 <= M.bx0 || M.by1 <= M.by0) return;
   const bw = M.bx1 - M.bx0, bh = M.by1 - M.by0;
-  M.x.putImageData(M.img, 0, 0, M.bx0, M.by0, bw, bh);
-  View.ctx.drawImage(M.c, M.bx0, M.by0, bw, bh, M.bx0, M.by0, bw, bh);
+  if (Gpu.on) View.ctx.drawPixels(M.img, M.bx0, M.by0, bw, bh, M.bx0, M.by0);
+  else { M.x.putImageData(M.img, 0, 0, M.bx0, M.by0, bw, bh); View.ctx.drawImage(M.c, M.bx0, M.by0, bw, bh, M.bx0, M.by0, bw, bh); }
   for (let y = M.by0; y < M.by1; y++) M.d32.fill(0, y * M.w + M.bx0, y * M.w + M.bx1);
 }
 // (a box written to, for pshMaskEnd)

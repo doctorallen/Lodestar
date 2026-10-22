@@ -125,7 +125,7 @@ function pnrTintRock(f, x0, y0, x1, y1) {
 function pnrOccludeGround(ox, oy) {
   // (not at home, where nothing is drawn flat on the ground)
   const d = Game.dive, f = d && d.floor;
-  if (!f || d.hub || View.floorFor !== f || !View.rockLift || T.paint.occlude === false) return;
+  if (Gpu.on || !f || d.hub || View.floorFor !== f || !View.rockLift || T.paint.occlude === false) return;
   const tw = f.w, th = f.h, vx0 = Math.floor(-ox / ATILE) - 1, vy0 = Math.floor(-oy / ATILE) - 1, vx1 = Math.floor((View.w - ox) / ATILE) + 1, vy1 = Math.floor((View.h - oy) / ATILE) + 1;
   const M = View.pnrMarks && View.pnrMarks.length === tw * th ? View.pnrMarks : (View.pnrMarks = new Uint8Array(tw * th)), list = [];
   // a box in world px: its tiles marked

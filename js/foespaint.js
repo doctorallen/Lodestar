@@ -1346,7 +1346,7 @@ function fpWarm(d) {
   for (const e of d.enemies || []) {
     if (seen.has(e.type)) continue;
     seen.add(e.type);
-    if (FOE_ROWS[e.type]) for (const f of Object.keys(FOE_ROWS[e.type])) foeSprite(e.type, f);
-    else enemySprite(d, e.type);
+    if (FOE_ROWS[e.type]) for (const f of Object.keys(FOE_ROWS[e.type])) gpuWarm(foeSprite(e.type, f));
+    else gpuWarm(enemySprite(d, e.type));
   }
 }

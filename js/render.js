@@ -34,8 +34,16 @@ const Sparks = [];
 
 function setupView() {
   View.canvas = $('view');
-  // (lit on the GPU, the view is never read back: gllight.js)
-  View.ctx = View.canvas.getContext('2d', glLightInit() ? {} : { willReadFrequently: true });
+  // the GPU draws the frame where there's WebGL2 (gpu.js): the view is one
+  // WebGL canvas and the contexts are its batcher's; else the 2D canvases
+  if (gpuInit(View.canvas)) {
+    View.ctx = new GpuCtx(GPU_F.COL); View.emCtx = new GpuCtx(GPU_F.EM); View.overCtx = new GpuCtx(GPU_F.COL, true);
+    for (const id of ['view-glow', 'bloom', 'view-over']) $(id).hidden = true;
+    return;
+  }
+  // (a canvas WebGL2 was tried on and failed can't be a 2D one: a fresh one)
+  if (Gpu.gl) { const c = View.canvas.cloneNode(); View.canvas.replaceWith(c); View.canvas = c; }
+  View.ctx = View.canvas.getContext('2d', { willReadFrequently: true });
   View.em = $('view-glow');
   View.emCtx = View.em.getContext('2d', { willReadFrequently: true });
   View.bloom = $('bloom');
@@ -58,6 +66,7 @@ function resizeView() {
   View.canvas.style.width = (w * k) / dpr + 'px';
   View.canvas.style.height = (h * k) / dpr + 'px';
   View.ctx.imageSmoothingEnabled = false;
+  if (Gpu.on) { gpuResize(w, h); View.lightCol = new Int32Array(w + 1); } else
   for (const c of [View.em, View.bloom, View.over]) { c.width = w; c.height = h; c.style.width = View.canvas.style.width; c.style.height = View.canvas.style.height; }
   // the bloom's passes are drawn from the emissive layer in software
   const layer = (cw, ch) => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; return [c, c.getContext('2d', { willReadFrequently: true })]; };
@@ -65,6 +74,7 @@ function resizeView() {
   // for the grid's offset
   const lw = Math.floor(w / LC) + 2, lh = Math.floor(h / LC) + 2;
   View.light = { a: new Float32Array(lw * lh * 3), w: lw, h: lh, x0: 0, y0: 0 };
+  if (Gpu.on) return;
   View.lightCol = new Int32Array(w + 1);
   // (the bloom's passes are shrunk in world px, so a glow spreads as far)
   const size = (div) => [Math.max(1, Math.round(w / (div * AP))), Math.max(1, Math.round(h / (div * AP)))];
@@ -589,7 +599,7 @@ function startLight(cx, cy, r, g, b) {
 // fixed to.
 function lightScene(cx, cy) {
   // (on the GPU where there's WebGL2: gllight.js; else here)
-  if (!View.lightSoftware && glLightScene(cx, cy)) return;
+  if (Gpu.on) { glLightScene(cx, cy); return; }
   const w = View.w, h = View.h, Lt = T.light, A = T.art, L = View.light, a = L.a, lw = L.w * 3, dz = A.lightDither;
   const img = View.ctx.getImageData(0, 0, w, h), d = img.data;
   LateDots.on = false;
@@ -778,6 +788,8 @@ function labCanvasWeave(d32, w, h, cx, cy) {
 // drawn into the overlay, which the browser adds over the view. cx, cy:
 // the camera in the world (art px), for T.light.bloomWorld.
 function bloomScene(cx, cy) {
+  // (on the GPU, from the emissive layer as the frame ends: gpu.js gpuFrameEnd)
+  if (Gpu.on) return;
   if (T.light.bloomWorld) { bloomSceneWorld(cx, cy); return; }
   const sum = View.bloomSum, sx = sum.getContext('2d');
   sx.globalCompositeOperation = 'copy';
@@ -878,15 +890,20 @@ function lampLevels(d) {
 // A frame
 // ---------------------------------------------------------------------------
 function renderFrame() {
+  if (!View.ctx || !View.w) return;
+  // (on the GPU the frame is composed and shown as it ends, whatever was drawn: gpu.js)
+  gpuFrameBegin();
+  try { renderFrameDraw(); } finally { gpuFrameEnd(); }
+}
+function renderFrameDraw() {
   const x = View.ctx;
-  if (!x || !View.w) return;
   x.fillStyle = '#000';
   x.fillRect(0, 0, View.w, View.h);
   View.overCtx.clearRect(0, 0, View.w, View.h);
   View.rimN = 0;
   LateDots.on = false; LateDots.q.length = 0;
   const d = Game.dive;
-  if (!d) { View.emCtx.clearRect(0, 0, View.w, View.h); View.bloomCtx.clearRect(0, 0, View.w, View.h); return; }
+  if (!d) { if (Gpu.on) { gpuBlank(); return; } View.emCtx.clearRect(0, 0, View.w, View.h); View.bloomCtx.clearRect(0, 0, View.w, View.h); return; }
   const f = d.floor, p = d.p, Lt = T.light, star = ART.pal.star;
   // (and the creatures it holds are painted now, not mid-fight). Just
   // arrived through a portal, behind its shut iris: a step a frame, the
@@ -927,6 +944,7 @@ function renderFrame() {
   const sh = View.shake > 0.3 ? View.shake * AP : 0;
   // a world point x, y is drawn at Math.round(x * AP) + ox, Math.round(y * AP) + oy
   const ox = -camX + Math.round(FX_R.f(-sh, sh)), oy = -camY + Math.round(FX_R.f(-sh, sh)), ex = View.emCtx;
+  Gpu.ox = ox; Gpu.oy = oy;
   const tick = Math.floor(Game.realT * 8);
   ex.clearRect(0, 0, View.w, View.h);
   x.drawImage(View.floorCol, ox, oy);
@@ -938,12 +956,14 @@ function renderFrame() {
   // lights: x, y on the view (art px), r in world px
   const lights = [];
   // what's drawn flat on the ground, then the rock in front of it laid
-  // back over it all (paintrock.js)
+  // back over it all (paintrock.js; on the GPU, in the shader as it's drawn)
+  Gpu.feet = d.hub ? -2 : -1;
   if (!d.hub) { drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights); }
   drawWorldUnder(d, ox, oy, lights);
   drawHolesUnder(d, ox, oy, lights);
   drawCastGround(d, ox, oy, tick, lights);
   pnrOccludeGround(ox, oy);
+  Gpu.feet = -2;
 
   // ore twinkles, so it's the one thing in the rock that catches the eye:
   // what the cutter can break, bright and often; what it can't, a slow
@@ -987,11 +1007,14 @@ function renderFrame() {
   }
 
   // loot on the floor, then everyone in order of their feet, then what flies
-  for (const dr of d.drops) { drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8 * AF, Math.round(dr.y * AP) + oy - 16 * AF, 16 * AF, 18 * AF, Math.round(dr.y * AP) + oy, ox, oy); }
+  for (const dr of d.drops) { Gpu.feet = Math.round(dr.y * AP) + oy; drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8 * AF, Math.round(dr.y * AP) + oy - 16 * AF, 16 * AF, 18 * AF, Math.round(dr.y * AP) + oy, ox, oy); }
   const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d), fieldForgeProps(d))).concat(portalProps(d), ropeProps(d), deedProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
+  Gpu.feet = -2;
   for (const a of actors) {
+    // (the rock in front of it goes back over it: here by its feet, or on the GPU as it's drawn)
+    Gpu.feet = a.top || a.hidden || !View.rockLift ? -2 : Math.round(a.y * AP) + oy;
     // (a walker in a pool stands down in it: painthole.js)
     const wade = phlWadeStart(d, a, ox, oy);
     if (a === p) drawProspector(d, ox, oy, tick, lights);
@@ -1008,8 +1031,10 @@ function renderFrame() {
     // the rock in front of it, drawn back over it (paint.js)
     paintOccludeActor(a, ox, oy);
   }
+  Gpu.feet = -2;
   // from here on (but at home, where the star goes over them) dots are queued
-  LateDots.on = !d.hub;
+  // (on the GPU a dot is a quad like any other)
+  LateDots.on = !d.hub && !Gpu.on;
   // where a world point is on the view
   const vx = (wx) => Math.round(wx * AP) + ox, vy = (wy) => Math.round(wy * AP) + oy;
   // the diver's bolts: trails, flicker, a frost lance's glint (castfx.js)

@@ -684,7 +684,7 @@ function drawSoundButtons() {
   // FINE GRAIN: where there's WebGL2 for the light, and at home (it
   // reloads the page; a sortie's cargo isn't banked till you're back)
   const fine = $('pause-fine'), s = Save.data.settings || {};
-  fine.hidden = !(typeof GLight !== 'undefined' && GLight.ok && Game.dive && Game.dive.hub);
+  fine.hidden = !(typeof Gpu !== 'undefined' && Gpu.on && Game.dive && Game.dive.hub);
   setTextIfChanged('pause-fine', `FINE GRAIN: ${s.fine ? 'ON' : 'OFF'}`);
 }
 

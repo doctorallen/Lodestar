@@ -17,9 +17,9 @@ function chromePath() {
   throw new Error('No Chrome found: set CHROME to the browser executable');
 }
 
-// gl: with WebGL (in software, SwiftShader), so the GPU lighting runs
-// (gllight.js); without, the game lights in JavaScript as it does where
-// there's no WebGL2.
+// gl: with WebGL (in software, SwiftShader), so the GPU draws the frame
+// (gpu.js); without, the 2D canvases and the JavaScript lighting run, as
+// they do where there's no WebGL2.
 async function launch({ gl = false } = {}) {
   return puppeteer.launch({
     executablePath: chromePath(),

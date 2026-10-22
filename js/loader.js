@@ -184,6 +184,8 @@ function loaderCoreJobs() {
       fn: (job) => loaderEach(job, kindlerEveryFrame(), ([fi, key]) => {
         const s = kdGet(fi, key);
         if (typeof pshSil === 'function') pshSil(s);
+        // (the likeliest frames onto the GPU's atlas now; the rest as they come)
+        if (job.k < GPU_WARM_FRAMES) gpuWarm(s);
       }),
     },
     // the ground and the rock where you land, every chunk, nearest first

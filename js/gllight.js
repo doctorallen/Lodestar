@@ -1,14 +1,12 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// The light on the GPU. lightScene (render.js) lit the view a pixel at a
-// time in JavaScript: the view read back, every pixel worked, and written
-// again, which was most of a frame. Here the same sum runs as a fragment
-// shader in WebGL2: the view and the light's cells go up as textures, one
-// quad lights every pixel, and the result is drawn back over the view
-// (the view's canvas stays the picture everything else draws on, and
-// nothing after the lighting changes). Without WebGL2 the JavaScript
-// lighting runs as before: both must agree (test/gllight.js checks they
-// do, pixel for pixel within a tone).
+// The light on the GPU. lightScene (render.js) lights the view a pixel at a
+// time in JavaScript where there's no WebGL2. Here the same sum runs as a
+// fragment shader over the scene framebuffer (gpu.js: the frame drawn by
+// the GPU, nothing read back): the light's cells go up as a small texture,
+// one triangle lights every pixel into the lit picture, and what's drawn
+// after goes over that. Both must agree (test/gllight.js checks they do,
+// pixel for pixel within a tone).
 //
 // What the shader does, as lightScene does: a cell's light is quantized
 // to the step below and above it, the threshold between the two is the
@@ -20,11 +18,7 @@
 // reaches daylight (lightUnlift); CANVAS lays its weave under the paint.
 // ---------------------------------------------------------------------------
 
-const GLight = { gl: null, ok: false, tried: false, w: 0, h: 0, prog: null, u: {}, tex: {}, gt: null, gtW: 0, gtH: 0, gtDirty: null, hue: null, pal: null, palKey: '', weave: null, weaveN: 0 };
-
-const GLIGHT_VS = `#version 300 es
-in vec2 aP;
-void main() { gl_Position = vec4(aP, 0.0, 1.0); }`;
+const GLight = { ok: false, tried: false, prog: null, u: {}, tex: {}, gt: null, gtW: 0, gtH: 0, gtDirty: null, hue: null, pal: null, palKey: '', weave: null, weaveN: 0 };
 
 const GLIGHT_FS = `#version 300 es
 precision highp float;
@@ -64,7 +58,8 @@ float share(float level) { return clamp((level - uAmbI) * uLpK, 0.0, 1.0); }
 
 void main() {
   int x = int(gl_FragCoord.x), y = uSize.y - 1 - int(gl_FragCoord.y);
-  vec3 p = texelFetch(uScene, ivec2(x, y), 0).rgb;
+  // (the scene's rows run up the framebuffer; its row for this pixel is the fragment's own)
+  vec3 p = texelFetch(uScene, ivec2(x, int(gl_FragCoord.y)), 0).rgb;
   int gx = x + uP.x, gy = y + uP.y;
   ivec2 c = ivec2(gx / uLC, gy / uLC);
   vec3 l = texelFetch(uCells, clamp(c, ivec2(0), uCellsSize - 1), 0).rgb;
@@ -132,47 +127,34 @@ void main() {
   o = vec4(clamp(t, 0.0, 255.0) / 255.0, 1.0);
 }`;
 
-// Sets up WebGL2 once; false if the browser hasn't it.
+// Sets the light pass up once on the GPU's context (gpu.js); false if
+// there's no WebGL2.
 function glLightInit() {
   const G = GLight;
   if (G.tried) return G.ok;
   G.tried = true;
+  if (!Gpu.on) return false;
   try {
-    const c = document.createElement('canvas');
-    const gl = c.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
-    if (!gl) return false;
-    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(s)); return s; };
-    const prog = gl.createProgram();
-    gl.attachShader(prog, sh(gl.VERTEX_SHADER, GLIGHT_VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, GLIGHT_FS));
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(prog));
-    gl.useProgram(prog);
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    const aP = gl.getAttribLocation(prog, 'aP');
-    gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 2, gl.FLOAT, false, 0, 0);
-    const names = ['uScene', 'uCells', 'uGT', 'uHue', 'uPal', 'uWeave', 'uSize', 'uCellsSize', 'uLC', 'uP', 'uCam', 'uTop', 'uInv', 'uMx', 'uLo', 'uDz', 'uAmbI', 'uLpK', 'uFit', 'uSoft', 'uNoct', 'uUnl', 'uHueOn', 'uWeaveOn', 'uWeaveN', 'uTones', 'uViolet', 'uDark', 'uNT', 'uNAmt', 'uNDark', 'uUlK', 'uFloor', 'uSfLen', 'uSfK'];
-    for (const n of names) G.u[n] = gl.getUniformLocation(prog, n);
-    // the textures, each on its own unit
-    const tex = (unit, name) => { const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.uniform1i(G.u[name], unit); G.tex[name] = t; };
-    tex(0, 'uScene'); tex(1, 'uCells'); tex(2, 'uGT'); tex(3, 'uHue'); tex(4, 'uPal'); tex(5, 'uWeave');
+    const gl = Gpu.gl;
+    const { p, u } = gpuProgram(gl, GPU_TRI_VS, GLIGHT_FS, ['uScene', 'uCells', 'uGT', 'uHue', 'uPal', 'uWeave', 'uSize', 'uCellsSize', 'uLC', 'uP', 'uCam', 'uTop', 'uInv', 'uMx', 'uLo', 'uDz', 'uAmbI', 'uLpK', 'uFit', 'uSoft', 'uNoct', 'uUnl', 'uHueOn', 'uWeaveOn', 'uWeaveN', 'uTones', 'uViolet', 'uDark', 'uNT', 'uNAmt', 'uNDark', 'uUlK', 'uFloor', 'uSfLen', 'uSfK']);
+    G.prog = p; G.u = u;
+    gl.useProgram(p);
+    // the textures, each on its own unit from 5 (0-4 are the quads')
+    GLIGHT_UNITS.forEach(([unit, name]) => { gl.uniform1i(u[name], unit); if (name !== 'uScene') G.tex[name] = gpuTex(gl, unit); });
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     // (a texel of each, so every unit is complete even when unused)
     for (const n of ['uGT', 'uHue', 'uWeave']) { gl.bindTexture(gl.TEXTURE_2D, G.tex[n]); gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 1, 1, 0, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array([0])); }
     gl.bindTexture(gl.TEXTURE_2D, G.tex.uPal); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
-    gl.disable(gl.BLEND); gl.disable(gl.DEPTH_TEST);
-    G.gl = gl; G.canvas = c; G.prog = prog; G.ok = true;
-    c.addEventListener('webglcontextlost', (e) => { e.preventDefault(); G.ok = false; }, false);
-    c.addEventListener('webglcontextrestored', () => { G.tried = false; G.ok = false; glLightInit(); }, false);
+    gl.bindTexture(gl.TEXTURE_2D, G.tex.uCells); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, new Float32Array(4));
+    G.ok = true;
   } catch (e) {
     noteError(e);
     G.ok = false;
   }
   return G.ok;
 }
+const GLIGHT_UNITS = [[5, 'uScene'], [6, 'uCells'], [7, 'uGT'], [8, 'uHue'], [9, 'uPal'], [10, 'uWeave']];
+const glUnit = (name) => Gpu.gl.TEXTURE0 + GLIGHT_UNITS.find((u) => u[1] === name)[0];
 
 // Rows y0..y1 of the ground's tones changed (paint.js pntGroundTones).
 function glGroundDirty(y0, y1) {
@@ -185,13 +167,14 @@ function glGroundDirty(y0, y1) {
 // new one, else the rows that changed).
 function glLightGround(gl, G, GT, HUE, gW, gH) {
   const whole = G.gt !== GT || G.gtW !== gW || G.gtH !== gH;
-  if (whole) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, G.tex.uGT); gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, gW, gH, 0, gl.RED, gl.UNSIGNED_BYTE, GT); G.gt = GT; G.gtW = gW; G.gtH = gH; G.hue = null; }
+  gl.activeTexture(glUnit('uGT')); gl.bindTexture(gl.TEXTURE_2D, G.tex.uGT);
+  if (whole) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, gW, gH, 0, gl.RED, gl.UNSIGNED_BYTE, GT); G.gt = GT; G.gtW = gW; G.gtH = gH; G.hue = null; }
   else if (G.gtDirty) {
     const y0 = Math.max(0, G.gtDirty[0]), y1 = Math.min(gH, G.gtDirty[1]);
-    if (y1 > y0) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, G.tex.uGT); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, y0, gW, y1 - y0, gl.RED, gl.UNSIGNED_BYTE, GT.subarray(y0 * gW, y1 * gW)); }
+    if (y1 > y0) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, y0, gW, y1 - y0, gl.RED, gl.UNSIGNED_BYTE, GT.subarray(y0 * gW, y1 * gW));
   }
+  gl.activeTexture(glUnit('uHue')); gl.bindTexture(gl.TEXTURE_2D, G.tex.uHue);
   if (HUE && (whole || G.hue !== HUE || G.gtDirty)) {
-    gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, G.tex.uHue);
     if (G.hue !== HUE) gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, gW, gH, 0, gl.RED, gl.UNSIGNED_BYTE, HUE);
     else if (G.gtDirty) { const y0 = Math.max(0, G.gtDirty[0]), y1 = Math.min(gH, G.gtDirty[1]); if (y1 > y0) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, y0, gW, y1 - y0, gl.RED, gl.UNSIGNED_BYTE, HUE.subarray(y0 * gW, y1 * gW)); }
     G.hue = HUE;
@@ -203,10 +186,10 @@ function glLightGround(gl, G, GT, HUE, gW, gH) {
 // the unlifted.
 function glLightPal(gl, G, GL, GU, nt) {
   const key = GL.ground.length + '/' + nt + '/' + (GL.groundW ? 1 : 0) + '/' + GL.ground[0] + '/' + GU.ground[0] + '/' + GL.ground[nt - 1];
+  gl.activeTexture(glUnit('uPal')); gl.bindTexture(gl.TEXTURE_2D, G.tex.uPal);
   if (G.pal === GL && G.palKey === key) return;
   const b = new Uint8Array(nt * 6 * 4), rows = [GL.ground, GL.groundW || GL.ground, GL.groundC || GL.ground, GU.ground, GU.groundW || GU.ground, GU.groundC || GU.ground];
   rows.forEach((row, r) => { const src = new Uint8Array(row.buffer, row.byteOffset, Math.min(nt, row.length) * 4); b.set(src, r * nt * 4); });
-  gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, G.tex.uPal);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, nt, 6, 0, gl.RGBA, gl.UNSIGNED_BYTE, b);
   G.pal = GL; G.palKey = key;
 }
@@ -214,6 +197,7 @@ function glLightPal(gl, G, GL, GU, nt) {
 // The weave's factors for a tile of four threads (render.js labCanvasWeave).
 function glLightWeave(gl, G) {
   const Cv = T.light.canvas, tw = Cv.thread, n = tw * 4;
+  gl.activeTexture(glUnit('uWeave')); gl.bindTexture(gl.TEXTURE_2D, G.tex.uWeave);
   if (G.weaveN === n) return n;
   const b = new Uint8Array(n * n);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
@@ -222,29 +206,27 @@ function glLightWeave(gl, G) {
     // (the factor in 256ths, less 128, so a byte holds it exactly)
     b[y * n + x] = clamp(Math.round((1 - edge * Cv.amt + grain * Cv.grain) * 256) - 128, 0, 255);
   }
-  gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, G.tex.uWeave);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, n, n, 0, gl.RED, gl.UNSIGNED_BYTE, b);
   G.weaveN = n;
   return n;
 }
 
-// Lights the view (View.canvas) in place: the same as lightScene's
-// JavaScript, on the GPU. cx, cy: the camera in the world. Returns false
-// if it couldn't, and the JavaScript lighting runs instead.
+// Lights the scene the GPU has drawn (gpu.js) into the lit picture: the
+// same as lightScene's JavaScript. cx, cy: the camera in the world.
+// Returns false if it couldn't.
 function glLightScene(cx, cy) {
   const G = GLight;
   if (!G.ok && !glLightInit()) return false;
-  const gl = G.gl, w = View.w, h = View.h, Lt = T.light, A = T.art, L = View.light;
-  if (G.w !== w || G.h !== h) { G.canvas.width = w; G.canvas.height = h; gl.viewport(0, 0, w, h); G.w = w; G.h = h; }
-  // the view, with the late dots written in, and the light's cells
-  lateDotsOnto(View.ctx, w, h);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, G.tex.uScene);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, View.canvas);
+  const gl = Gpu.gl, w = View.w, h = View.h, Lt = T.light, A = T.art, L = View.light;
+  gpuLightBegin();
+  gl.useProgram(G.prog);
+  gl.activeTexture(glUnit('uScene')); gl.bindTexture(gl.TEXTURE_2D, Gpu.sceneCol);
+  // the light's cells
   const nc = L.w * L.h;
   if (!G.cells || G.cells.length < nc * 4) G.cells = new Float32Array(nc * 4);
   const cells = G.cells, a = L.a;
   for (let n = 0, o = 0, k = 0; n < nc; n++, o += 3, k += 4) { cells[k] = a[o]; cells[k + 1] = a[o + 1]; cells[k + 2] = a[o + 2]; }
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, G.tex.uCells);
+  gl.activeTexture(glUnit('uCells')); gl.bindTexture(gl.TEXTURE_2D, G.tex.uCells);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, L.w, L.h, 0, gl.RGBA, gl.FLOAT, cells.subarray(0, nc * 4));
   // the numbers lightScene works from
   const top = Math.ceil(Lt.max * A.lightSteps), mx = Lt.max, inv = 1 / A.lightSteps, dz = A.lightDither, lo = 0.5 + (0.5 / 16 - 0.5) * dz;
@@ -270,13 +252,6 @@ function glLightScene(cx, cy) {
   } else gl.uniform1i(u.uUnl, 0);
   if (Lab.on('canvas')) { gl.uniform1i(u.uWeaveOn, 1); gl.uniform1i(u.uWeaveN, glLightWeave(gl, G)); } else gl.uniform1i(u.uWeaveOn, 0);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
-  // back onto the view
-  const x = View.ctx;
-  x.globalCompositeOperation = 'copy';
-  x.drawImage(G.canvas, 0, 0);
-  x.globalCompositeOperation = 'source-over';
-  lateDotsGlow(w, h);
-  LateDots.q.length = 0;
+  gpuLightEnd();
   return true;
 }
-

@@ -906,6 +906,7 @@ function pntFloorStart(f) {
   const P = View.floorBuf;
   View.floorImgs = [new ImageData(P.col, W, Hp), new ImageData(P.em, W, Hp)];
   [View.floorCol] = makeCanvas(W, Hp); [View.floorEm] = makeCanvas(W, Hp);
+  gpuFloorStart(f, W, Hp);
 }
 // The rock laid over the ground in the floor's own buffers, and those
 // handed to its canvases, over floor px x0..x1, y0..y1: the floor is drawn
@@ -937,6 +938,7 @@ function pntComposite(f, x0, y0, x1, y1) {
   for (let y = y0; y < y1; y++) for (let k = y * W + x0, e = y * W + x1; k < e; k++) if (LF[k] && QC[k]) { PC[k] = QC[k]; PE[k] = QE[k]; }
   View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, x0, y0, x1 - x0, y1 - y0);
   View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, x0, y0, x1 - x0, y1 - y0);
+  gpuFloorDirty(x0, y0, x1, y1);
 }
 // The heights over floor px x0..x1, y0..y1, worked out where they aren't.
 function pntEnsureHeights(f, x0, y0, x1, y1) {
@@ -1043,7 +1045,9 @@ function pntRepaintRock(f, x0, y0, x1, y1, hb) {
 // hasn't moved.
 function paintOcclude(x, y, w, h, fy, ox, oy) {
   const f = View.floorFor;
-  if (!View.rockLift || !f || T.paint.occlude === false) return;
+  // (on the GPU the rock goes over an actor's pixels in the shader, by the
+  // same rule, from Gpu.feet: gpu.js)
+  if (Gpu.on || !View.rockLift || !f || T.paint.occlude === false) return;
   const W = f.w * ATILE, Hp = f.h * ATILE, F = fy - oy;
   let fx0 = x - ox, fy0 = y - oy, fx1 = fx0 + w, fy1 = fy0 + h;
   fx0 = Math.max(0, fx0); fy0 = Math.max(0, fy0); fx1 = Math.min(W, fx1); fy1 = Math.min(Hp, fy1);
