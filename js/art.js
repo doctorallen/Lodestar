@@ -99,8 +99,11 @@ function artFineCanvas(c, k = AF) {
 // left (nothing, for a sprite drawn at AP), never by scale15Rows. Drawn to
 // the size the old grid was enlarged to (a w-wide grid: ceil(1.5w)), with its
 // feet in the same place, so anchors and hand points don't move.
+// (k is the authored scale, AP_ART, not AP: the builders take a grid to
+// AP_ART and artFine takes the sprite on to the view's grain; marked at AP
+// under FINE GRAIN, a grid came out half its size)
 const ART_NATIVE = new WeakMap();
-function artNative(rows, k = AP) { ART_NATIVE.set(rows, k); return rows; }
+function artNative(rows, k = AP_ART) { ART_NATIVE.set(rows, k); return rows; }
 
 const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 // The ordered-dither threshold at x, y, in (0, 1). Anchored to the world, so
