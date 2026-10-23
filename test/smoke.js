@@ -4,11 +4,11 @@
 // it with the joystick, an Arc at an enemy, mining with MINE held, a vein
 // the pick is too weak for, crossing an edge into the neighbour, pausing,
 // the cargo screen, lighting the waystones and planting a spire, banking
-// at it and travelling home with the haul in the stash; a module caught
+// at it and travelling home with the haul in the stash; a core caught
 // and tethered in; the forge's research and recipes, equipping the rig
-// frame it makes (the cores move across), socketing a module, an upgrade
+// frame it makes (the cores move across), setting a found core, an upgrade
 // at the tuning bench, cores set in the rig's spells; an old save's gear
-// turned into bases, modules and the rig; feeding the star the
+// turned into bases, cores and the rig; feeding the star the
 // light of deeds (held at the altar), supplies made at the fabricator and
 // from the cargo, and used from their two buttons on the deck, the Refinery
 // upgraded; the star's reach; your light running out, a recall that loses
@@ -230,34 +230,34 @@ async function phone(browser) {
   check(await page.evaluate((t0) => Game.dive.time === t0, t0), 'phone: the dive ran on while paused');
   await tap(page, '#pause-resume');
   check(!(await page.evaluate(() => Game.modal)), 'phone: RESUME did not close the pause');
-  await page.evaluate(() => { Game.dive.items.push(makeModule(new Rng(5), 'caster', 2, { rarity: 'rare', src: { foe: 'wisp', clime: 'badlands' } })); Game.dive.items.push(makeBase('plate', 1)); Game.dive.items.push(makeModule(new Rng(7), 'charm', 1, { rarity: 'magic' })); });
+  await page.evaluate(() => { Game.dive.items.push(rollCore(new Rng(5), 6, 2, 'rare', 1, { foe: 'wisp', clime: 'badlands' })); Game.dive.items.push(makeBase('plate', 1)); Game.dive.items.push(rollCore(new Rng(7), 3, 1, 'magic', 1, { foe: 'crawler', clime: 'badlands' })); });
   await tap(page, '#btn-cargo');
   check(await visible(page, '#screen-cargo'), 'phone: CARGO did not open');
   check(await page.evaluate(() => document.querySelectorAll('#cargo-body [data-act=cardCargo]').length === 3), 'phone: the found gear is not in the cargo');
-  const charmMod = await page.evaluate(() => Game.dive.items.find((i) => i.kind === 'module' && i.fits === 'charm').uid);
+  const charmMod = await page.evaluate(() => Game.dive.items.find((i) => i.kind === 'stone').uid);
   await tap(page, `#cargo-body [data-act=cardCargo][data-arg="${charmMod}"]`);
-  check(/Caught from|charm/.test(await page.evaluate(() => $('card-body').textContent)), 'phone: a module card does not say what it is');
-  check(await page.evaluate(() => !document.querySelector('#card [data-act=salvage]') && !document.querySelector('#card [data-act=pocket]')), 'phone: a module in the cargo can still be salvaged or pocketed');
+  check(/Caught from/.test(await page.evaluate(() => $('card-body').textContent)), 'phone: a core card does not say where it was caught');
+  check(await page.evaluate(() => !document.querySelector('#card [data-act=salvage]') && !document.querySelector('#card [data-act=pocket]')), 'phone: a core in the cargo can still be salvaged or pocketed');
   await tap(page, '#card [data-act=closeCard]');
   check(await page.evaluate(() => /CARRYING \d+/.test($('cargo-body').textContent) && !/POCKET|CONTRACT|LOSE \d|weighs/.test($('cargo-body').textContent)), 'phone: the cargo screen still speaks of the pocket, contracts, weight or loss');
   await page.evaluate(() => document.querySelector('#cargo-body .mag').scrollIntoView({ block: 'end' }));
   await shot(page, 'lean/cargo');
   await tap(page, '#screen-cargo [data-act=resume]');
-  // a kill that leaves a module: its pattern caught in a crystal where it
+  // a kill that leaves a core: its pattern caught in a crystal where it
   // fell, and taken, tethered in
   const caught = await page.evaluate(() => {
     UI.close();
-    const d = Game.dive, was = T.modules.drop.foe, n0 = d.items.length;
-    T.modules.drop.foe = 1;
+    const d = Game.dive, was = T.cores.drop.foe, n0 = d.items.length;
+    T.cores.drop.foe = 1;
     const e = makeEnemy('crawler', d.p.x + 30, d.p.y, 1); e.dead = false; d.enemies.push(e); killEnemy(e);
-    T.modules.drop.foe = was;
-    const dr = d.drops.find((x) => x.item && x.item.kind === 'module'), fx = d.fx.some((x) => x.kind === 'capture');
+    T.cores.drop.foe = was;
+    const dr = d.drops.find((x) => x.item && x.item.kind === 'stone'), fx = d.fx.some((x) => x.kind === 'capture');
     if (!dr) return { dr: false };
     dr.x = d.p.x; dr.y = d.p.y;
     for (let i = 0; i < 40; i++) Game.step(1 / 60);
-    return { dr: true, fx, got: d.items.length === n0 + 1 && d.items[d.items.length - 1].kind === 'module', src: d.items[d.items.length - 1].src && d.items[d.items.length - 1].src.foe };
+    return { dr: true, fx, got: d.items.length === n0 + 1 && d.items[d.items.length - 1].kind === 'stone' && !!d.items[d.items.length - 1].bonus, src: d.items[d.items.length - 1].src && d.items[d.items.length - 1].src.foe };
   });
-  check(caught.dr && caught.fx && caught.got && caught.src === 'crawler', `phone: a module was not caught and taken (${JSON.stringify(caught)})`);
+  check(caught.dr && caught.fx && caught.got && caught.src === 'crawler', `phone: a core was not caught and taken (${JSON.stringify(caught)})`);
 
   // an ancient forge forges from the cargo, and what it makes goes in it
   await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 20; d.cargo.fiber1 = 3; d.fieldForge = { x: Math.floor(d.p.x / TILE), y: Math.floor(d.p.y / TILE) }; });
@@ -366,7 +366,7 @@ async function phone(browser) {
   await tap(page, '#forge-body [data-act=forgeBp][data-arg=rig]');
   await tap(page, '#forge-body [data-act=forgeOre][data-arg=ferrite]');
   await shot(page, 'smoke-forge');
-  check(await page.evaluate(() => new RegExp(BLUEPRINTS.rig.ore + ' Ferrite').test($('forge-body').textContent) && /2 creature parts/.test($('forge-body').textContent) && /1 socket/.test($('forge-body').textContent) && /1 Mod slot/.test($('forge-body').textContent) && /FRAMES/.test($('forge-body').textContent) && !/CASTERS|Wand|Staff|Gauntlet/.test($('forge-body').textContent)), 'phone: the rig frame\'s recipe does not say what it costs and makes');
+  check(await page.evaluate(() => new RegExp(BLUEPRINTS.rig.ore + ' Ferrite').test($('forge-body').textContent) && /2 creature parts/.test($('forge-body').textContent) && /Form, Element and Mod a spell/.test($('forge-body').textContent) && /FRAMES/.test($('forge-body').textContent) && !/CASTERS|Wand|Staff|Gauntlet/.test($('forge-body').textContent)), 'phone: the rig frame\'s recipe does not say what it costs and makes');
   const parts0 = await page.evaluate(() => partsHave(Save.data.stash, 'any'));
   await tap(page, '#forge-body [data-act=craft]');
   check(await page.evaluate((p0) => Save.data.stash.ferrite === 40 - BLUEPRINTS.rig.ore && partsHave(Save.data.stash, 'any') === p0 - 2, parts0), 'phone: forging a rig frame did not cost its Ferrite and 2 creature parts');
@@ -381,24 +381,24 @@ async function phone(browser) {
   await shot(page, 'smoke-forged');
   await tap(page, '#card [data-act=equip][data-arg=main]');
   check(await page.evaluate(() => Save.data.equip.main.name !== 'Scrap Rig' && Save.data.items.some((i) => i.name === 'Scrap Rig')), 'phone: the forged frame is not the rig worn');
-  check(await page.evaluate(() => { const g = Save.data.equip.main, want = recipePreview('rig', 1, g.q); return !g.affixes.length && g.sockets.length === want.sockets.length && g.base.power === want.base.power && rigMods(g) === rigMods(want); }), 'phone: the forged frame is not what its recipe said');
+  check(await page.evaluate(() => { const g = Save.data.equip.main, want = recipePreview('rig', 1, g.q); return !g.affixes.length && g.extra === want.extra && !g.sockets && g.base.power === want.base.power && rigMods(g) === rigMods(want); }), 'phone: the forged frame is not what its recipe said');
   check(await page.evaluate(() => spellName(Save.data.equip.main.spells[0]) === 'ARC' && spellName(Save.data.equip.main.spells[1]) === 'BOLT'), 'phone: the empty frame did not take the old one\'s cores');
   await tap(page, '#screen-forge [data-act=back]');
 
-  // the locker: a module socketed into what's worn, free, and its traits
-  // in the stats; the modules move across when the base is replaced
-  const mod = await page.evaluate(() => { const m = makeModule(new Rng(11), 'caster', 1, { rarity: 'rare', src: { foe: 'construct', clime: 'badlands' } }); Save.data.items.push(m); Save.data.stash.thread = 30; Save.data.stash.lumenite = 20; return m.uid; });
+  // the locker: a found core set in the rig's spell, free, and its bonus
+  // in the stats; the cores move across when the frame is replaced
+  const mod = await page.evaluate(() => { const c = makeStone('arc', 1, { rarity: 'rare', bonus: { id: 'crit', v: 5 }, src: { foe: 'construct', clime: 'badlands' } }); Save.data.items.push(c); Save.data.stash.thread = 30; Save.data.stash.lumenite = 20; return c.uid; });
   await page.evaluate(atStation, 'locker');
   await run(page, 0.05);
   await tap(page, '#btn-act');
   await run(page, 0.05);
   await tap(page, '#gear-body [data-act=cardEquip][data-arg=main]');
-  await tap(page, '#card [data-act=sockPick][data-arg="0"]');
-  await shot(page, 'smoke-sockets');
+  await tap(page, '#card [data-act=partPick][data-arg="0:form"]');
+  await shot(page, 'smoke-cores');
   const feSock = await page.evaluate(() => Save.data.stash.ferrite);
-  await tap(page, `#card [data-act=sockPut][data-arg="${mod}"]`);
-  check(await page.evaluate(([uid, fe]) => Save.data.equip.main.sockets[0] && String(Save.data.equip.main.sockets[0].uid) === String(uid) && Save.data.stash.ferrite === fe && Save.data.stash.thread === 30, [mod, feSock]), 'phone: socketing a module was not free, or it is not in the socket');
-  check(await page.evaluate(() => { const m = Save.data.equip.main.sockets[0], st = computeStats(Save.data.equip, Save.data.attune); return m.affixes.every((a) => st[a.id] >= a.v); }), 'phone: a socketed module\'s traits are not in the stats');
+  await tap(page, `#card [data-act=partPut][data-arg="${mod}"]`);
+  check(await page.evaluate(([uid, fe]) => Save.data.equip.main.spells[0].form && String(Save.data.equip.main.spells[0].form.uid) === String(uid) && Save.data.stash.ferrite === fe && Save.data.stash.thread === 30, [mod, feSock]), 'phone: setting a found core was not free, or it did not go in');
+  check(await page.evaluate(() => { const c = Save.data.equip.main.spells[0].form, st = computeStats(Save.data.equip, Save.data.attune); return st.crit >= c.bonus.v; }), 'phone: a set core\'s bonus is not in the stats');
   await tap(page, '#card [data-act=closeCard]');
   await shot(page, 'smoke-gear');
   await tap(page, '#screen-gear [data-act=back]');
@@ -411,18 +411,18 @@ async function phone(browser) {
   await tap(page, '#btn-act');
   await run(page, 0.05);
   check(await visible(page, '#screen-bench'), 'phone: the tuning bench did not open');
-  await tap(page, `#bench-body [data-act=benchMod][data-arg="${mod}"]`);
+  await tap(page, `#bench-body [data-act=benchCore][data-arg="${mod}"]`);
   await shot(page, 'smoke-bench');
-  check(await page.evaluate(() => !document.querySelector('#card [data-act=modReroll], #card [data-act=modFuse], #card [data-act=modImprint], #card [data-act=modEnrich]') && /UPGRADE · TIER 2/.test($('card-body').textContent) && /Threads \+ 10 Lumenite/.test($('card-body').textContent)), 'phone: the bench offers more than UPGRADE, or its cost does not name its resources');
-  const tier0 = await page.evaluate(() => Save.data.equip.main.sockets[0].tier);
-  await tap(page, '#card [data-act=modUpgrade]');
-  check(await page.evaluate((t) => Save.data.equip.main.sockets[0].tier === t + 1 && Save.data.stash.lumenite === 20 - T.modules.upgrade.ore && Save.data.stash.thread === 30 - T.modules.upgrade.threads[1], tier0), 'phone: the upgrade did not raise the tier for threads and Lumenite');
+  check(await page.evaluate(() => !document.querySelector('#card [data-act=modReroll], #card [data-act=modFuse], #card [data-act=modImprint], #card [data-act=modEnrich]') && /UPGRADE · TIER 2/.test($('card-body').textContent) && /Threads \+ 10 Lumenite/.test($('card-body').textContent)), 'phone: the bench\'s card has no UPGRADE for threads and ore, or still rerolls, fuses or imprints');
+  const tier0 = await page.evaluate(() => Save.data.equip.main.spells[0].form.tier);
+  await tap(page, '#card [data-act=coreUpgrade]');
+  check(await page.evaluate((t) => Save.data.equip.main.spells[0].form.tier === t + 1 && Save.data.stash.lumenite === 20 - T.cores.upgrade.ore && Save.data.stash.thread === 30 - T.cores.upgrade.threads[1], tier0), 'phone: the upgrade did not raise the tier for threads and ore');
   await tap(page, '#card [data-act=closeCard]');
   await tap(page, '#screen-bench [data-act=back]');
 
   // the locker: cores set in spell B's parts from the drawer, free, and
   // its name and cost follow them
-  const fe0 = await page.evaluate(() => { Save.data.items.push(makeStone('shock', 1), makeStone('split', 1)); return Save.data.stash.ferrite; });
+  const fe0 = await page.evaluate(() => { const a = makeStone('shock', 1), b = makeStone('split', 1); Save.data.items.push(a, b); window._coreIds = [a.uid, b.uid]; return Save.data.stash.ferrite; });
   await page.evaluate(atStation, 'locker');
   await run(page, 0.05);
   await tap(page, '#btn-act');
@@ -430,10 +430,10 @@ async function phone(browser) {
   await tap(page, '#gear-body [data-act=cardEquip][data-arg=main]');
   check(await visible(page, '#card .spell'), 'phone: the rig\'s card shows no spells');
   await tap(page, '#card [data-act=partPick][data-arg="1:el"]');
-  check(await page.evaluate(() => !document.querySelector('#card [data-act=partPut][data-arg^="split:"]')), 'phone: the drawer for an Element offers a Mod');
-  await tap(page, '#card [data-act=partPut][data-arg="shock:1"]');
+  check(await page.evaluate(() => ![...document.querySelectorAll('#card [data-act=partPut]')].some((b) => (findStash(b.dataset.arg) || {}).stone === 'split')), 'phone: the drawer for an Element offers a Mod');
+  await page.evaluate(() => UI.acts.partPut(window._coreIds[0]));
   await tap(page, '#card [data-act=partPick][data-arg="1:m0"]');
-  await tap(page, '#card [data-act=partPut][data-arg="split:1"]');
+  await page.evaluate(() => UI.acts.partPut(window._coreIds[1]));
   const circ = await page.evaluate(() => [spellName(Save.data.equip.main.spells[1]), spellCost(Save.data.equip.main.spells[1]), $('card-body').textContent, Save.data.stash.ferrite, Math.round(T.circuits.forms.bolt.cost * T.circuits.glyphs.split.cost * 10) / 10]);
   check(circ[0] === 'BOLT · SHOCK · SPLIT', `phone: setting cores gave spell B ${circ[0]}`);
   check(circ[1] === circ[4] && circ[2].includes(`BOLT · SHOCK · SPLIT`) && circ[2].includes(`${circ[4]} charge`), 'phone: the spell\'s name or cost did not follow its cores');
@@ -688,11 +688,11 @@ async function phone(browser) {
   const warden = await page.evaluate(() => {
     UI.close(); startSortie({ terr: ring1(null), from: 0 });
     const d = Game.dive, e = makeEnemy('warden', d.p.x, d.p.y, 3); e.boss = true;
-    const got = moduleDrops(d, e);
+    const got = coreDrops(d, e);
     UI.close(); goHome('walk'); UI.close();
-    return got.length === T.modules.drop.boss && got.every((m) => ['rare', 'legendary', 'set'].includes(m.rarity) && m.src.foe === 'warden');
+    return got.length === T.cores.drop.boss && got.every((m) => ['rare', 'legendary'].includes(m.rarity) && m.src.foe === 'warden');
   });
-  check(warden, 'phone: a warden did not leave its modules');
+  check(warden, 'phone: a warden did not leave its cores');
 
   // what's next: one goal, at the portal and over the view at home; and
   // the Settlers' Quarters bring threads each time home
@@ -1069,10 +1069,10 @@ async function spellcraft(browser) {
     // a resonance at the locker fills the Codex
     UI.close(); enterHub(); UI.close();
     const it = makeBase('rig', 2, 0); it.spells[0].form = makeStone('lance', 2); it.spells[0].el = makeStone('frost', 2);
-    Save.data.items.push(it, makeStone('echo', 2));
+    Save.data.items.push(it);
     out.codex0 = codexWhole(resonanceById('kindling')) && !codexWhole(resonanceById('shatterglass'));
     out.stirs = !!(resonanceNear(it.spells[0]) || {}).stir;
-    UI.show('screen-gear'); UI.openCard(it, 'stash', it.uid); UI.card.focus = 'spells'; UI.card.part = '0:m0'; UI.acts.partPut('echo:2');
+    const echo = makeStone('echo', 2); Save.data.items.push(echo); UI.show('screen-gear'); UI.openCard(it, 'stash', it.uid); UI.card.focus = 'spells'; UI.card.part = '0:m0'; UI.acts.partPut(echo.uid);
     out.live = !!document.querySelector('.spell.res') && /Shatterglass/.test($('card-body').textContent) && codexWhole(resonanceById('shatterglass'));
     out.RS = T.circuits.resist; return out;
   });
@@ -1090,31 +1090,32 @@ async function spellcraft(browser) {
 }
 
 // Saves made before modules (test/fixtures: on main's code, and on the
-// preview's just before modules) and before the rig (v6): it loads, its
-// gear is bases with modules in their sockets and one rig frame worn, its
-// stats are what they were, and the locker, the bench and a card all open.
+// preview's just before modules), before the rig (v6) and with modules
+// (v7): it loads, its gear is bases with no sockets and one rig frame worn,
+// its modules are threads and legendary cores, and the locker, the bench
+// and a card all open.
 async function oldSave(browser) {
   const fs = require('fs'), path = require('path');
   for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json', 'save-v6-home.json']) {
     const save = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
     const { page, errors } = await openFresh(browser, Object.assign({ save }, PHONE));
     const r = await page.evaluate(() => {
-      const s = Save.data, mods = SLOTS.flatMap((k) => baseModules(s.equip[k])).concat(s.items.filter((x) => x.kind === 'module'));
-      const out = { v: s.v, bases: SLOTS.every((k) => !s.equip[k] || Array.isArray(s.equip[k].sockets)), rig: !!s.equip.main && s.equip.main.bp === 'rig' && s.equip.main.spells.length === 2 && !('off' in s.equip) && s.items.every((x) => x.kind !== 'caster' || x.spells), mods: mods.length, lode: mods.some((m) => m.power === 'lodeheart'), armor: computeStats(s.equip, s.attune).armor, run: !!s.run };
-      if (s.run) { UI.close(); resumeRun(); out.resumed = !!Game.dive && Game.dive.items.every((it) => it.kind === 'module' || it.kind === 'relic' || Array.isArray(it.sockets)); UI.close(); goHome('walk'); UI.close(); }
-      out.powers = mods.filter((x) => x.power).map((x) => x.power);
-      UI.close(); UI.useStation('locker'); const m = mods.find((x) => x.power) || mods[0]; UI.openCard(m, 'stash', m.uid); UI.closeCard();
-      UI.close(); UI.useStation('runes'); UI.acts.benchMod(mods[0].uid);
-      out.bench = /UPGRADE/.test($('card-body').textContent) && !/REROLL|FUSE|IMPRINT/.test($('card-body').textContent);
+      const s = Save.data, cores = rigCores(s.equip.main).concat(s.items.filter((x) => x.kind === 'stone'));
+      const out = { v: s.v, bases: SLOTS.every((k) => !s.equip[k] || !('sockets' in s.equip[k])) && s.items.every((x) => x.kind !== 'module' && !('sockets' in x)), rig: !!s.equip.main && s.equip.main.bp === 'rig' && s.equip.main.spells.length === 2 && s.equip.main.extra !== undefined && !('off' in s.equip) && s.items.every((x) => x.kind !== 'caster' || x.spells), cores: cores.length, lode: cores.some((c) => c.power === 'lodeheart'), armor: computeStats(s.equip, s.attune).armor, run: !!s.run, threads: s.stash.thread || 0 };
+      if (s.run) { UI.close(); resumeRun(); out.resumed = !!Game.dive && Game.dive.items.every((it) => it.kind !== 'module' && !('sockets' in it)); UI.close(); goHome('walk'); UI.close(); }
+      out.powers = cores.filter((x) => x.power).map((x) => x.power);
+      UI.close(); UI.useStation('locker'); const m = cores.find((x) => x.power) || cores[0]; if (m) { UI.openCard(m, s.items.includes(m) ? 'stash' : 'rig', m.uid); UI.closeCard(); }
+      UI.close(); UI.useStation('runes'); if (cores[0]) UI.acts.benchCore(cores[0].uid);
+      out.bench = !cores[0] || (/UPGRADE/.test($('card-body').textContent) && !/REROLL|FUSE|IMPRINT|SOCKET/.test($('card-body').textContent));
       UI.closeCard(); UI.close(); UI.useStation('locker'); UI.acts.cardEquip('main');
-      out.rigCard = /SPELLS/.test($('card-body').textContent) && !!document.querySelector('#card .spell');
+      out.rigCard = /SPELLS/.test($('card-body').textContent) && !!document.querySelector('#card .spell') && !/MODULE|SOCKET/.test($('card-body').textContent);
       UI.closeCard(); UI.close(); UI.useStation('forge');
       out.forge = UI.screen === 'screen-forge' || UI.screen === 'screen-research';
       return out;
     });
-    // the worn plate's 7 armor, its own +5 and the pick's +4, as before
-    check(r.v === 7 && r.bases && r.rig && r.rigCard && r.mods >= 5 && r.lode && r.bench && r.forge && (f !== 'save-v5-home.json' || r.armor === 16), `old save ${f}: ${JSON.stringify(r)}`);
-    if (f === 'save-v5-run.json') check(r.run && r.resumed, `old save ${f}: the sortie under way did not come back as bases and modules (${JSON.stringify(r)})`);
+    // the worn plate's own 7 armor (its old modules' armor went with them, into threads)
+    check(r.v === 8 && r.bases && r.rig && r.rigCard && r.cores >= 1 && r.lode && r.bench && r.forge && r.threads > 0 && (f !== 'save-v5-home.json' || r.armor === 7), `old save ${f}: ${JSON.stringify(r)}`);
+    if (f === 'save-v5-run.json') check(r.run && r.resumed, `old save ${f}: the sortie under way did not come back as bases and cores (${JSON.stringify(r)})`);
     await page.evaluate(() => { UI.close(); UI.useStation('locker'); });
     await new Promise((res) => setTimeout(res, 450));
     if (f === 'save-v5-home.json') await shot(page, 'smoke-oldsave-locker');
@@ -1253,13 +1254,13 @@ async function onboarding(browser) {
   await tap(page, '#tutor .tut-skip');
   await tap(page, '#tutor .tut-ok');
   check(await page.evaluate(() => !Tutor.run && !Game.modal), 'onboarding: the HUD\'s tour did not end and let the world go on');
-  // a module caught wakes the bench; a deed's light, the altar
+  // a core caught wakes the bench; a deed's light, the altar
   const woke = await page.evaluate(() => {
-    Save.data.modsFound = 1; Save.data.stash.heartlight = 12;
+    Save.data.coresFound = 1; Save.data.stash.heartlight = 12;
     for (let i = 0; i < 40; i++) Game.step(1 / 60);
     return { modules: onboardHas('modules'), altar: onboardHas('altar'), said: !!(Save.data.said || {}).wake_modules };
   });
-  check(woke.modules && woke.altar && woke.said, `onboarding: a module and light did not wake the bench and altar (${JSON.stringify(woke)})`);
+  check(woke.modules && woke.altar && woke.said, `onboarding: a core and light did not wake the bench and altar (${JSON.stringify(woke)})`);
   check(!errors.length, 'onboarding: ' + errors.join(' | '));
   check(!(await page.evaluate(() => Errors.length)), 'onboarding: ' + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
   await page.close();
@@ -1422,7 +1423,7 @@ async function fineGrain(browser) {
   });
   check(r.AP === 3 && r.AF === 2 && r.ATILE === 48, 'fine: the art scale is not 3 art px a world px: ' + JSON.stringify(r));
   check(r.kindler[0] === 96 && r.kindler[1] === 94 && r.kindler[2] === 48 && r.kindler[3] === 88, 'fine: the Kindler is not rendered at twice the size: ' + r.kindler);
-  check(r.forge[4] === 2 && r.forge[0] === 136 && r.forge[2] === 84 && r.forge[3] === 122, 'fine: the forge was not enlarged with its anchors: ' + r.forge);
+  check(r.forge[4] === 2 && r.forge[0] === 136 && r.forge[2] === 80 && r.forge[3] === 122, 'fine: the forge was not enlarged with its anchors (its middle at HART_MOUTH.x, twice): ' + r.forge);
   check(r.pack[3] === 2 && r.pack[0] === 34 && r.pack[1] === 16 && r.pack[2] === 24, 'fine: the pack was not enlarged with its points: ' + r.pack);
   check(r.lab === 12, 'fine: a label picture is not twice as tall: ' + r.lab);
   check(r.map === 195, 'fine: the view does not show the same world width: ' + r.map);

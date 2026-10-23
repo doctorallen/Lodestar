@@ -946,7 +946,6 @@ function art2Sprite(rows, pal, opts) {
 
 function itemIconUrl(item) {
   if (item.kind === 'stone') return stoneIconUrl(item.stone);
-  if (item.kind === 'module') return moduleIconUrl(item);
   const style = item.kind === 'relic' ? item.kind : item.kind === 'caster' ? 'rig' : ((typeof bpOf === 'function' && bpOf(item)) || {}).style;
   const own = ICON_ROWS2[style] && !ICON_ROWS[style];
   const rows = own ? ICON_ROWS2[style] : ICON_ROWS[item.kind];

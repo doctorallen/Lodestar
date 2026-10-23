@@ -18,8 +18,8 @@
 //   furthest behind first, in the best ore it can pay for, striking the
 //   anvil fairly), forges the cores its spells want and sets them (spell A
 //   an Arc, B a Bolt or Lance, each with an element and Mods as it finds
-//   them), socketing the best modules, upgrading those behind its gear
-//   from ore to spare, salvages the rest (modules into threads),
+//   them), setting the best cores, upgrading those behind its gear from
+//   ore to spare, salvages the rest (spare cores into threads),
 //   unseals relics, sets any shard and feeds the light its deeds earned to
 //   the star (held at the altar), makes supplies from old ore at the
 //   fabricator, builds the outpost's buildings and fits Wick's upgrades
@@ -121,9 +121,9 @@ function installBot() {
     window.recoverCache = function (d, c) { const n = rec(d, c); if (!Save.data.cache) Bot.packs.recovered++; return n; };
     window.leaveCache = function (d) { const r = leave(d); if (r.cache) Bot.packs.left++; if (r.old) Bot.packs.lost++; return r; };
     window.useSupply = function (k) { const ok = use(k); if (ok) Bot.packs.used[k] = (Bot.packs.used[k] || 0) + 1; return ok; };
-    // the modules rolled, by where they came from and their rarity
-    const drops = window.moduleDrops, unseal = window.unsealRelic, tally = (from, m) => { const t = Bot.rolled[from] || (Bot.rolled[from] = {}); t[m.rarity] = (t[m.rarity] || 0) + 1; };
-    window.moduleDrops = function (d, e) { const out = drops(d, e); for (const m of out) tally(e.type === 'keeper' ? 'keeper' : e.boss ? 'warden' : e.elite ? 'elite' : 'foe', m); return out; };
+    // the cores rolled, by where they came from and their rarity
+    const drops = window.coreDrops, unseal = window.unsealRelic, tally = (from, m) => { const t = Bot.rolled[from] || (Bot.rolled[from] = {}); t[m.rarity] = (t[m.rarity] || 0) + 1; };
+    window.coreDrops = function (d, e) { const out = drops(d, e); for (const m of out) tally(e.type === 'keeper' ? 'keeper' : e.boss ? 'warden' : e.elite ? 'elite' : 'foe', m); return out; };
     window.unsealRelic = function (rng, r) { const m = unseal(rng, r); tally('relic', m); return m; };
   }
 
@@ -369,8 +369,7 @@ function installBot() {
     // unseal relics
     for (const r of s.items.filter((i) => i.kind === 'relic')) { UI.openCard(r, 'stash', r.uid); acts.unseal(); Reveal.done(); UI.closeCard(); log.push('unsealed'); }
     const best = () => {
-      // equip any base better than what's worn (frames: below); its
-      // modules move across
+      // equip any base better than what's worn (frames: below)
       for (const it of s.items.slice()) {
         const slot = compareSlot(s.equip, it);
         if (!slot || it.kind === 'caster') continue;
@@ -383,7 +382,7 @@ function installBot() {
       if (!s.blueprints.includes(bpId) || recipeShort(recipeCost(bpId, oreId), s.stash).length) return false;
       Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, exotic: null, codex: false });
       acts.craft();
-      if (Anvil.job) { Anvil.finish(1); Reveal.done(); }
+      if (Anvil.job) { const it = Anvil.finish(1); if (it && it.temperChoice) { it.bonus = it.temperChoice[0]; delete it.temperChoice; } Reveal.done(); }
       return true;
     };
     UI.forge.field = false;
@@ -400,10 +399,10 @@ function installBot() {
     log.push(...forgeGear(forge, pickOre));
     UI.closeCard();
     log.push(...circuits(forge));
-    log.push(...modules());
-    // salvage what's left: bases into ore, modules into threads (a
-    // module's upgrade is paid in them)
-    for (const it of s.items.filter((i) => i.kind !== 'stone' && i.kind !== 'relic' && !i.fav)) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
+    log.push(...cores());
+    // salvage what's left: bases into ore, spare cores into threads (a
+    // core's upgrade is paid in them)
+    for (const it of s.items.filter((i) => i.kind !== 'relic' && !i.fav)) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
     UI.closeCard();
     // the outpost's buildings and Wick's upgrades from what the gear left
     // (the ore for the next pick kept back), before supplies take the old ore
@@ -418,8 +417,7 @@ function installBot() {
     return log;
   }
 
-  // Puts a base on (its cores and modules move across, as the locker does
-  // it).
+  // Puts a base on (a frame's cores move across, as the locker does it).
   function wear(it, slot) {
     if (!it || !Save.data.items.includes(it)) return;
     UI.openCard(it, 'stash', it.uid);
@@ -467,42 +465,42 @@ function installBot() {
     return log;
   }
 
-  // Modules as a player might work them: every module back out, then each
-  // worn base's sockets filled with the best of its kind (the main hand
-  // first); then, with threads and ore to spare, a tier up for the best
-  // socketed module that's behind its base. Keeps one spare of each kind
-  // in the stash; the rest go to salvage.
-  function modules() {
-    const s = Save.data, log = [];
-    for (const k of SLOTS) { const b = s.equip[k]; if (b && b.sockets) b.sockets.forEach((m, i) => { if (m) { s.items.push(m); b.sockets[i] = null; } }); }
-    const pool = s.items.filter((x) => x.kind === 'module').sort((a, b) => moduleWorth(b) - moduleWorth(a));
+  // Cores as a player might work them: every part of the rig filled with
+  // the best core of its kind for it (the ones the circuits routine chose
+  // by stone; a found one with a bonus over a plain one), the extra part
+  // too; then, with threads and ore to spare, a tier up for the set core
+  // furthest behind the best worn base. Keeps one spare of each kind in
+  // the stash; the rest go to salvage.
+  function cores() {
+    const s = Save.data, log = [], rig = s.equip.main;
+    if (!isCaster(rig)) return log;
     let n = 0;
-    for (const k of ['main', 'armor', 'charm', 'pick']) {
-      const b = s.equip[k];
-      if (!b || !b.sockets) continue;
-      for (let i = 0; i < b.sockets.length; i++) {
-        const m = pool.find((x) => x.fits === b.kind && s.items.includes(x));
-        if (!m) break;
-        s.items.splice(s.items.indexOf(m), 1);
-        b.sockets[i] = m; n++;
+    for (const sp of rig.spells) {
+      for (const [key, cur] of spellParts(sp)) {
+        const kind = spellPartKind(key), pool = s.items.filter((x) => x.kind === 'stone' && stoneKind(x.stone) === kind && (!cur || x.stone === cur.stone)).sort((a, b) => coreWorth(b) - coreWorth(a));
+        const best = pool[0];
+        if (!best || (cur && coreWorth(best) <= coreWorth(cur) * 1.05)) continue;
+        s.items.splice(s.items.indexOf(best), 1);
+        if (cur) s.items.push(cur);
+        spellSet(sp, key, best); n++;
       }
     }
-    if (n) log.push(`socketed ${n}`);
-    const socketed = SLOTS.flatMap((k) => (s.equip[k] && s.equip[k].sockets ? s.equip[k].sockets.filter(Boolean).map((m) => [m, s.equip[k]]) : []));
-    // tiers up for what's socketed, the furthest behind the best worn base
+    if (n) log.push(`set ${n} cores`);
+    const set = rigCores(rig);
+    // tiers up for what's set, the furthest behind the best worn base
     // first, from ore to spare (the forge has had its pick, and the next
     // pick's ore is kept back)
     const pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
     const top = Math.max(1, ...SLOTS.map((k) => (s.equip[k] ? s.equip[k].tier : 0)));
     for (let ups = 0; ups < 4; ups++) {
-      const next = socketed.map(([m]) => m).filter((m) => m.tier < top).sort((a, b) => a.tier - b.tier || moduleWorth(b) - moduleWorth(a))
-        .find((m) => { const cost = upgradeCost(m); return cost && !benchShort(cost, s.stash).length && (s.stash[cost.ore.id] || 0) - cost.ore.n >= 6 + (pickOre && cost.ore.id === pickOre.id ? BLUEPRINTS.pick.ore : 0); });
+      const next = set.filter((c) => c.tier < top).sort((a, b) => a.tier - b.tier || coreWorth(b) - coreWorth(a))
+        .find((c) => { const cost = coreUpgradeCost(c); return cost && !benchShort(cost, s.stash).length && (s.stash[cost.ore.id] || 0) - cost.ore.n >= 6 + (pickOre && cost.ore.id === pickOre.id ? BLUEPRINTS.pick.ore : 0); });
       if (!next) break;
-      benchPay(upgradeCost(next), s.stash); moduleUpgrade(next); s.botUps = (s.botUps || 0) + 1;
+      benchPay(coreUpgradeCost(next), s.stash); coreUpgrade(next); s.botUps = (s.botUps || 0) + 1;
       log.push(`upgraded ${next.name} to ${next.tier}`);
     }
     // one spare of each kind, kept
-    for (const f of MOD_FITS) { const spare = s.items.filter((x) => x.kind === 'module' && x.fits === f).sort((a, b) => moduleWorth(b) - moduleWorth(a)); spare.forEach((m, i) => { m.fav = i === 0; }); }
+    for (const k of ['form', 'element', 'glyph']) { const spare = s.items.filter((x) => x.kind === 'stone' && stoneKind(x.stone) === k).sort((a, b) => coreWorth(b) - coreWorth(a)); spare.forEach((c, i) => { c.fav = i === 0; }); }
     return log;
   }
 
@@ -608,12 +606,14 @@ function installBot() {
       make(form);
       for (const id of mods.slice(0, n)) make(id);
     }
+    // (a frame with a second Element slot: a second element core)
+    if (rig.extra === 'element' && elements.filter((e) => have(e).length).length < 3) { const e = elements.find((x) => !have(x).length && s.stash[STONE_ELEMENTS[x]] && s.blueprints.includes('el_' + x)); if (e) make(e); }
     // an element for each spell, from an exotic it has
     if (elements.filter((e) => have(e).length).length < 2) { const e = elements.find((x) => !have(x).length && s.stash[STONE_ELEMENTS[x]] && s.blueprints.includes('el_' + x)); if (e) make(e); }
     // set them: every core back to the stash, then each spell's best
     for (const sp of rig.spells) for (const c of spellCores(sp)) s.items.push(c);
-    rig.spells = rig.spells.map(() => emptySpell(n));
-    const take = (id) => { const st = s.items.filter((x) => x.kind === 'stone' && x.stone === id).sort((a, b) => b.tier - a.tier)[0]; if (st) s.items.splice(s.items.indexOf(st), 1); return st || null; };
+    rig.spells = rig.spells.map(() => emptySpell(rig.extra));
+    const take = (id) => { const st = s.items.filter((x) => x.kind === 'stone' && x.stone === id).sort((a, b) => coreWorth(b) - coreWorth(a))[0]; if (st) s.items.splice(s.items.indexOf(st), 1); return st || null; };
     const used = [];
     want.forEach(([form, mods], i) => {
       const sp = rig.spells[i];
@@ -622,6 +622,9 @@ function installBot() {
       if (e) { sp.el = take(e); used.push(e); }
       let k = 0;
       for (const id of mods) { if (k >= n) break; const st = take(id); if (st) sp.mods[k++] = st; }
+      // the extra part: a second element (another the foes fear), or a second form
+      if ('el2' in sp) { const e2 = elements.find((x) => x !== (sp.el && sp.el.stone) && s.items.some((y) => y.kind === 'stone' && y.stone === x)); if (e2) sp.el2 = take(e2); }
+      if ('form2' in sp) { const f2 = ['bolt', 'lance', 'orb', 'arc'].find((x) => x !== form && s.items.some((y) => y.kind === 'stone' && y.stone === x)); if (f2) sp.form2 = take(f2); }
     });
     Save.save();
     return log;
@@ -630,20 +633,20 @@ function installBot() {
   function career({ sorties = 20 } = {}) {
     const out = [];
     for (let n = 0; n < sorties; n++) {
-      const s = Save.data, f0 = s.modsFound || 0;
+      const s = Save.data, f0 = s.coresFound || 0;
       Bot.n = n + 1;
       const r = sortie();
-      r.mods = (s.modsFound || 0) - f0;
+      r.mods = (s.coresFound || 0) - f0;
       r.home = home();
       r.mag = magnitudeOf(s.star);
       r.pick = s.equip.pick ? s.equip.pick.base.power : 0;
       r.hands = s.equip.main ? `${s.equip.main.name} t${s.equip.main.tier} [${s.equip.main.spells.map(spellName).join(' / ')}]` : 'fist';
       r.maxHp = computeStats(s.equip, s.attune).maxHp;
       r.gearTier = ['main', 'armor', 'charm', 'pick'].map((k) => (s.equip[k] ? s.equip[k].tier : 0));
-      const mods = SLOTS.flatMap((k) => (s.equip[k] && s.equip[k].sockets ? s.equip[k].sockets.filter(Boolean) : []));
-      r.socketed = mods.length; r.sockets = SLOTS.reduce((a, k) => a + (s.equip[k] && s.equip[k].sockets ? s.equip[k].sockets.length : 0), 0);
-      r.modTiers = mods.map((m) => m.tier); r.modRarities = mods.map((m) => m.rarity[0]).join('');
-      r.found = s.modsFound || 0; r.ups = s.botUps || 0; r.threads = s.stash.thread || 0;
+      const mods = rigCores(s.equip.main).filter((c) => c.bonus || c.power);
+      r.socketed = rigCores(s.equip.main).length; r.sockets = isCaster(s.equip.main) ? s.equip.main.spells.reduce((a, sp) => a + spellParts(sp).length, 0) : 0;
+      r.modTiers = rigCores(s.equip.main).map((m) => m.tier); r.modRarities = mods.map((m) => m.rarity[0]).join('');
+      r.found = s.coresFound || 0; r.ups = s.botUps || 0; r.threads = s.stash.thread || 0;
       r.kindledAll = kindledCount();
       r.star = s.star;
       r.packs = JSON.parse(JSON.stringify(Bot.packs));

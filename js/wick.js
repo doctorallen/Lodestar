@@ -5,7 +5,7 @@
 // Each can be turned off and on there, free
 // (Save.data.wickUps: id → on). Out in the land, each shows what it does:
 //   scan    a ping now and then: a ring out from Wick, veins near glinting
-//           for a moment, marks on the pack and on modules on the ground
+//           for a moment, marks on the pack and on cores on the ground
 //   lamp    a second, dimmer beam from behind you (render.js)
 //   shield  a hex shield of hard light stops the hit that would leave you
 //           low, once a fight (combat.js hurtPlayer)
@@ -88,7 +88,7 @@ function wickPing(d) {
       const i = y * f.w + x;
       if (f.tiles[i] === TILE_ORE && (x - tx) * (x - tx) + (y - ty) * (y - ty) <= R * R) { const o = T.ores[f.ore[i] - 1]; veins.push({ x, y, ore: o ? o.id : 'ferrite', far: Math.hypot(x - tx, y - ty) }); }
     }
-  const mods = d.drops.filter((x) => x.item && x.item.kind === 'module' && !x.gone).map((x) => ({ x: x.x, y: x.y }));
+  const mods = d.drops.filter((x) => x.item && x.item.kind === 'stone' && !x.gone).map((x) => ({ x: x.x, y: x.y }));
   const pack = d.cacheAt && d.cacheAt.floor === f ? { x: d.cacheAt.x, y: d.cacheAt.y } : null;
   const at = wickAt(d);
   W.scan = { t: U.show, max: U.show, veins, mods, pack, x: at.x, y: at.y };
@@ -162,7 +162,7 @@ function drawWickAir(d, ox, oy, lights) {
 
 // Over the lit scene, so they read in any dark (render.js, with the tools'
 // marks): the veins the ping found glinting, and marks on the pack and on
-// modules on the ground (an arrow at the view's edge if they're beyond it).
+// cores on the ground (an arrow at the view's edge if they're beyond it).
 function drawWickHud(d, ox, oy) {
   if (d.hub || !d.wk || !d.wk.scan) return;
   const S = d.wk.scan, k = S.t / S.max, c = View.ctx, p = d.p, px = Math.round(p.x * AP) + ox, py = Math.round(p.y * AP) + oy - ap(8);

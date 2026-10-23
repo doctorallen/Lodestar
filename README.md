@@ -35,8 +35,8 @@ A new game starts with the essentials: after the opening, Wick offers to walk yo
 
 At home, walk the outpost's stations:
 - the forge: recipes, each saying exactly what it makes and costs, and the BUILDINGS tab, where the outpost's buildings are built (each comes down to its plot; once the Drone Bay stands, walk up to it to fit Wick with upgrades); it studies anything new you bring home and reveals what it can make from it; strike the anvil well and it adds to the piece; its Codex shows the resonances found so far; SUPPLIES beside it makes Mending Injectors and Lightcells from your plainest ore, upgrades the Refinery (each level makes both stronger) and refines ore up a grade once it stands;
-- the locker (LOCKER in the top bar, anywhere at home, or at its station): your gear (crafted bases), the modules you've caught socketed into them, and the rig's two spells, each a Form, an Element and a Mod core (two Mods from a better frame); changing them is free; a module's card upgrades it (threads and ore) or salvages it (threads); and Wick's upgrades, each turned off or on, free;
-- the tuning bench: every module in one list, to upgrade or salvage;
+- the locker (LOCKER in the top bar, anywhere at home, or at its station): your gear (crafted bases), the rig's two spells with the cores set in them, and the rig's two spells, each a Form, an Element and a Mod core (two Mods from a better frame); changing them is free; a module's card upgrades it (threads and ore) or salvages it (threads); and Wick's upgrades, each turned off or on, free;
+- the tuning bench: every core in one list, to upgrade or salvage;
 - the star's altar: hold FEED THE STAR and the light your deeds earned (heartlight, deeplight) rises into it, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements;
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
 - the portal: what's next (one goal, also shown over the view at home), the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
@@ -77,8 +77,8 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/art2.js` | Art for crafting and the story: new item icons (the rig frame), parts, cores, the uplink, a tent, the Shard Keepers |
 | `js/art3.js` | The sunlit surface's palette and plants, the rift, tool icons |
 | `js/foesart.js` | Each clime's own creature: its frames drawn by hand at 24 px, and its colours |
-| `js/items.js` | Affixes, rarities, legendaries, the set; crafted bases (their stats, sockets and a frame's Mod slots), cores, relics; forging, salvage; stats |
-| `js/modules.js` | Modules: rolling them, what a kill leaves, sockets, a module's upgrade and salvage, research, an old save's gear turned into bases and modules, and how a module looks (its icon, the crystal on the ground, its capture and tether) |
+| `js/items.js` | Affixes (the cores' bonuses), rarities, legendaries; crafted bases (their stats, a frame's slots), cores (plain or tempered), relics; forging, salvage, the stats an outfit adds up to, comparing two pieces |
+| `js/modules.js` | Cores as found power: what a kill leaves (a Form, Element or Mod core with one bonus), relics, research, old saves' gear turned into bases and cores, and how a core looks on the ground and as it's caught |
 | `js/game.js` | Game state, a sortie's play: walking, mining, your light, channels, and how it ends |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
 | `js/affixes.js` | Elite affixes (Fast, Warded, Frosted, Mortar, Chained, Bulwark, Broodmother, Hulking, Splitter, Leech, Blinker, Thorned…): what each does, how it's rolled and shown |
@@ -106,7 +106,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/resonance.js` | The six resonances as spells (Thunderhead, Shatterglass, Kindling Arc, Wildfire, Stormglaive, Starfall) and how they look; the Codex and resonance traces |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
 | `js/ui.js` | The Lodestar, star, cargo and pause screens, the report, the screens' plumbing, the rig's spells on its card (and the drawer of cores), the top bar |
-| `js/gearui.js` | The gear screens: the forge (recipes by tab, close to making, research's reveal), the locker, the tuning bench, and the cards for bases and modules |
+| `js/gearui.js` | The gear screens: the forge (recipes by tab, close to making, research's reveal), the locker, the tuning bench, and the cards for a base (a rig's spells and the drawer of cores) and a core (its bonus, its power, UPGRADE and SALVAGE) |
 | `js/structures.js` | The outpost's buildings (the Drone Bay, the Refinery, the Forward Relay, the Settlers' Quarters): built once at the forge, coming down to their plots, drawn there, and what each does |
 | `js/wick.js` | Wick's upgrades (the Scanner, the Lamp, the Hex Shield, the Spark): fitted and turned off and on at the Drone Bay, and at work out in the land |
 | `js/supplies.js` | The two supplies (Mending Injector, Lightcell): their cost in ore, making them at home and in the field, their two deck buttons, using them, the SUPPLIES screen, and an older save's supplies converted |
@@ -114,7 +114,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/onboard.js` | Bringing a new Kindler in: what's awake yet (each unlock worked out from progress, everything for an old save), Wick's offer after the opening, the guided first landing (its line over the view, the button it pulses, the marker on the world), the dark stations |
 | `js/tutor.js` | The tutorials, as data a screen each: the dim with its holes, Wick's line, the step done when it's done; SKIP, the ? in each header and the top bar, and each screen's short reference |
 | `js/main.js` | Boot, then the loading (`bootEnter` after its tap), the fixed-step loop, the upright and sideways layouts |
-| `test/` | Static checks, floor and world generation with golden hashes, the gear tables (bases, modules, the bench, the migration of `fixtures/`, saves made before modules), a headless smoke run, and the autopilot (`botlib.js`) playing careers |
+| `test/` | Static checks, floor and world generation with golden hashes, the gear tables (bases, cores, the bench, the migration of `fixtures/`, saves made before modules), a headless smoke run, and the autopilot (`botlib.js`) playing careers |
 
 ## Tests
 

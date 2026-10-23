@@ -90,11 +90,11 @@ const WICK = {
   tier4: "Aetherglass. Charter ships were skinned in it. Don't drop it.",
   tier5: 'Sigilite. The Keepers wrote in this. I would rather not know what.',
   tier6: 'Starmetal. Nothing cuts deeper. Nothing should need to.',
-  // modules (modules.js, gearui.js)
-  module: "The suit caught its pattern. A module. Socket it at home.",
+  // cores (modules.js, gearui.js)
+  core: "The suit caught its pattern and set it in a core. Set that in the rig at home.",
   research: "The forge studied what we brought in. New recipes.",
-  moduleUp: 'Denser ore, a bigger lattice. It holds more of what it caught now.',
-  unravel: "Unravelled. The threads keep, though. They'll grow or mend another lattice.",
+  coreUp: 'Denser ore, a bigger lattice. It holds more of what it caught now.',
+  unravel: "Unravelled. The threads keep, though. They'll grow another core.",
   rift: 'A tear in the world. Things leak through. Seal it, and something solid is left behind.',
   rift_graft: "That ground isn't from here. Neither is the ore in it.",
   rift_bloom: 'The rock round the tear has woken. It is all ore now.',
@@ -151,7 +151,7 @@ const WICK = {
   wick_spark: "Sorry. Reflex. They gave me teeth, small ones.",
   // a system waking for a new Kindler (onboard.js), once each
   wake_spells: 'A new core. The rig\'s spells can be rebuilt now, at the locker.',
-  wake_modules: 'The tuning bench is awake. Caught modules go there.',
+  wake_modules: 'The tuning bench is awake. Cores grow denser there, or unravel.',
   wake_altar: 'Light from a deed. The star\'s altar is awake: feed it.',
   wake_supplies: 'The fabricator\'s on. SUPPLIES, beside the forge.',
   wake_gear: 'The forge has armour and charms for us now.',

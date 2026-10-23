@@ -9,7 +9,7 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 ## Pillars
 
 1. **Always another upgrade.** A new ore leads to a new cutter, which opens new depths, which leads to new gear.
-2. **Crafted bases, found power.** What you forge is exactly what its recipe says; what you find (modules) is rolled, and gives it its identity. The anvil only adds.
+2. **Crafted bases, found power.** What you forge is exactly what its recipe says; what you find (cores with a bonus on them) is rolled, and gives the rig its identity. The anvil only adds.
 3. **Push your luck.** The further out you go, the better the loot and the higher the risk of losing it.
 4. **Built for a thumb.** It plays well upright with one or two thumbs, in short or long sessions.
 
@@ -67,7 +67,7 @@ The Lodestar is the seed-star the Charter sent down with you, planted in the mid
 
 1. **At the Lodestar:**
    - forge bases (rig frames, plate, charms, cutters), tools and the cores spells are built from; the forge studies what's new and reveals recipes;
-   - socket modules and build the rig's two spells at the locker; upgrade modules (at the locker or the tuning bench), and salvage what you don't need;
+   - build the rig's two spells at the locker from the cores you forged and found; upgrade cores (at the locker or the tuning bench), and salvage what you don't need;
    - unseal relics, make supplies from old ore, feed the star the light your deeds earned, and spend attunements.
 2. **Set out:** walk out of any of the outpost's openings into the land next to it, or take its portal: the world map, to set out to any spire, and the tool to carry (walking out carries the last one chosen).
 3. **Push into the dark:** cross from territory to territory. In dark land your light drains, the enemies are out, and the ore is worth taking.
@@ -148,7 +148,7 @@ The diver carries one tool, chosen at the portal before setting out. Each change
 | Ore Sense | 2 | Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the cutter can break. |
 | Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
 | Surveyor's Map | 3 | A map of each place, drawn as you walk it, in the view's corner, with its openings, holes, spire, waystones and ancient forge once seen. |
-| Capture Lens | 2 | Modules half again as likely. Revealed by research once the first module comes home; made from Lumenite and threads. |
+| Capture Lens | 2 | Cores half again as likely. Revealed by research once the first core comes home; made from Lumenite and threads. |
 | Lode Beacon | 2 | Once a sortie, from the pause menu: call a spire's light down where you stand, where no spire is: you can bank and travel from it, and standing in it brings your light back slowly. In a Deep it's a lodeline. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
 
 ## Rifts
@@ -184,7 +184,7 @@ All of them glow brighter while winding up, so you can see the attack coming. En
 
 **Hits land.** A hit holds the foe still a moment (0.07 s, a heavy one 0.13 s) and jolts it the way it's knocked; a hit worth 15% of its health breaks off its wind-up and staggers it (not a boss or the Hollow, and not again within 1.2 s). Heavy hits stagger anything but the warden out of an attack.
 
-**Elites carry affixes**, as Diablo's do: one, two from level 6, three from level 11 (`affixes.js`, `T.enemies.eliteAffixAt`), rolled so none clash (a Bulwark isn't Warded, a Blinker isn't Hulking). An elite has 1.8× the health and hits 1.2× as hard, and from level 3 one room in four holds one for sure, with a module for sure (magic or better). Every affix is shown three ways, a pip of its colour on the foe (one for each), its names in the pixel hand over its badges, and a tell of its own, and every one has an answer in the gear or the hands. Wick says a word on each the first time.
+**Elites carry affixes**, as Diablo's do: one, two from level 6, three from level 11 (`affixes.js`, `T.enemies.eliteAffixAt`), rolled so none clash (a Bulwark isn't Warded, a Blinker isn't Hulking). An elite has 1.8× the health and hits 1.2× as hard, and from level 3 one room in four holds one for sure, with a core for sure (magic or better). Every affix is shown three ways, a pip of its colour on the foe (one for each), its names in the pixel hand over its badges, and a tell of its own, and every one has an answer in the gear or the hands. Wick says a word on each the first time.
 
 | Affix | What it does | The answer |
 |---|---|---|
@@ -258,17 +258,17 @@ While a skink is under the sand, an eel under the water or a dropper on the roof
 
 ## Crafting (the heart of the game)
 
-Gear is two halves: a **base you craft**, exactly what its recipe says, and **modules you find**, rolled loot that slots into it and gives it its identity. Joy comes in layers: a find each fight (a module), a craft each trip home (a base, an upgrade), an unlock every few sessions (the star).
+Gear is two halves: a **base you craft**, exactly what its recipe says, and **cores you find**, rolled loot that goes into the rig's spells and gives them their identity. Joy comes in layers: a find each fight or two (a core), a craft each trip home (a base, an upgrade), an unlock every few sessions (the star).
 
-- **Each half has its own currency:** bases are made from ore and creature parts; modules come from what you kill; their upgrades are paid in **threads** (from salvaging modules) and ore.
+- **Each half has its own currency:** bases are made from ore and creature parts; cores come from what you kill, or from the forge; their upgrades are paid in **threads** (from salvaging cores) and ore.
 
 ### Bases, at the forge
 
-- **A recipe is known and exact.** The forge shows, for the ore you choose, the base's tier (the ore's), its stats, a rig frame's Mod slots and its **module sockets**, and the cost of every resource by name, with how many you have. There are no random affixes on a crafted base.
-- **The anvil only adds.** Three strikes set the temper: rough as the recipe says, fair +5% on its numbers, fine +10%, a masterwork +15%, a module socket more and, on a rig frame, a second Mod slot. A fine forge or better makes a core a tier higher.
-- **Sockets** by tier: 1 at tiers 1–2, 2 at 3–5, 3 at Starmetal; a cutter 1 (2 at 5–6), the worn cutter none.
+- **A recipe is known and exact.** The forge shows, for the ore you choose, the base's tier (the ore's), its stats, a rig frame's slots (and the extra one its ore gives), and the cost of every resource by name, with how many you have. There are no random affixes on a crafted base.
+- **The anvil only adds.** Three strikes set the temper: rough as the recipe says, fair +5% on its numbers, fine +10%, a masterwork +15% and, on a rig frame, the extra slot. A core is tempered by it: a rough forge leaves it plain, a fair one gives it a lesser bonus, a fine one a tier up and a full bonus, a masterwork a tier up and your choice of three bonuses, made on its card after the reveal.
+- **The extra slot.** A frame of Resonite or denser, a masterwork, or one forged with a Lodestone shard has a fourth part in each spell, of the kind its ore chooses: Ferrite, Lumenite and Resonite a second Mod; Aetherglass a second Form; Sigilite and Starmetal a second Element.
 - **What it takes:** the recipe's ore (any ore: it sets the tier; a rig frame 14, plate 21, a weave 16, a shell 26, a charm or lantern 13, a cutter 15, a drill 23) and parts. The plain recipes known from the start (the rig frame, plate, charm, cutter) take any creature's parts; the rest name their creature: weave 3 fibre, shell 3 chitin, lantern 2 spores, drill 2 cogs.
-- **Optional exotics:** riftglass forges a base a tier above its ore; an elemental exotic worked into a rig frame brings its Element's core out with it; a Lodestone shard worked into a frame gives its spells a second Mod slot.
+- **Optional exotics:** riftglass forges a base a tier above its ore; an elemental exotic worked into a rig frame brings its Element's core out with it; a Lodestone shard worked into a frame gives it its extra slot.
 - **The forge's tabs:** FRAMES, CUTTERS (the cutter and the drill), CORES, ARMOR, CHARMS, TOOLS (the carried tools), BUILDINGS (the outpost's buildings), WICK (Wick's upgrades) and the CODEX (the resonances); a new game shows only FRAMES and CUTTERS, and the rest appear as they wake (Onboarding, below). A dot marks what can be made now, a tick what's built or fitted. At the top, **CLOSE TO MAKING** names up to two recipes better than what's worn that are short by a little, and what they're missing.
 - **Cores** for spells (Combat and builds) are recipes too: a Form's 6 ore and 2 ether (a Ward's, a warden's heart); an Element's 4 ore and its exotic (Force needs none); a Mod's 5 ore and 3 of its creature's parts (chitin Pierce and Split, ether Echo, cogs Quicken, fibre Linger, spores Chain, any Amplify).
 - **Tools** are made once at the forge, from the stash, when the star has grown enough (Tools).
@@ -290,36 +290,34 @@ Recipes are revealed by research, instantly, at the forge. When you bring home s
 | Spore | Chain core |
 | A warden's heart | Ward core |
 | An elemental exotic | its Element's core |
-| The first module | the Capture Lens |
-| A module from a snapjaw, a wisp, a stalker | Weave, Orb core, Glaive core |
+| The first core caught | the Capture Lens |
+| A core caught from a snapjaw, a wisp, a stalker | Weave, Orb core, Glaive core |
 
 Known from the start: the rig frame, plate, charm and cutter, the Arc and Bolt, Force and Amplify, and the tools. Blueprints are gone as drops; an old save's blueprints are known recipes.
 
 ## Loot
 
-- **Drops are materials, and modules.** Each creature leaves its own part, graded by the biome; elites and wardens more, and now and then an exotic or a sealed relic.
-- **Modules** are the Diablo layer. The dark's creatures are made of the world's own living energy; when one dies, its pattern unravels, and the Charter suit's capture field catches the strongest thread of it and sets it in a blank lattice crystal. Rarity is how much of the pattern was caught.
-  - **Few but meaningful:** a kill leaves one 6% of the time, an elite half the time (magic or better; the elite a room holds for sure always leaves one), a warden two and a Keeper three (rare or better, a tier up, a Keeper's legendaries five times likelier). A Deep's chances are 1.4 times, the Capture Lens 1.5 times, and the first eight modules ever come 2.6 times as often. About three or four a sortie.
+- **Drops are materials, and cores.** Each creature leaves its own part, graded by the biome; elites and wardens more, and now and then an exotic or a sealed relic.
+- **Cores carry the found power.** The dark's creatures are made of the world's own living energy; when one dies, its pattern unravels, and the Charter suit's capture field catches the strongest thread of it and sets it in a core: a Form, an Element or a Mod for the rig, with one bonus on it. Rarity is how much of the pattern was caught.
+  - **Few but meaningful:** a kill leaves one 3% of the time, an elite half the time (magic or better; the elite a room holds for sure always leaves one), a warden two and a Keeper three (rare or better, a tier up, a Keeper's legendaries five times likelier). A Deep's chances are 1.4 times, the Capture Lens 1.5 times, and the first four cores ever come 2.5 times as often. About one or two a sortie, more from elites.
   - **In the field:** the creature's energy draws in and collapses into a small faceted crystal in its rarity's colour, which glints now and then (rare and better stand in a beam). Walked over, the capture field's tether pulls a few motes to the Kindler.
-  - **Rolled:** for the rig, armor, a charm or a cutter (a creature's family leans it: a crawler's to defense, a wisp's to spell, a stalker's to close, a snapjaw's to utility, a spitter's to mining, each clime creature its own). Traits by rarity: common 1, magic 2, rare 3, legendary 2 and a power, set 1 and the set bonus, each a whole old item affix's worth (was 60%: there are fewer modules now, and each should be worth having). Besides the flat traits, some read the fight and so form builds: +damage to the chilled, +damage to the burning, +damage to a foe that's open (dazed, staggered, stranded, spent), Arc hits give more charge, +armor in light. Their tier is where they were caught, so deeper modules roll higher.
-  - **The card** says where it was caught ("Caught from an elite Wisp, Bloomfen"), its traits with how well each rolled, and UPGRADE or DOWNGRADE against what's in the socket it would take.
-- **Socketing is free** at home, at the locker: tap a base, tap a socket, tap a module from the drawer, each line saying what it would change. A better base takes the old one's modules (and a frame its cores) when equipped.
-- **Working a module is UPGRADE and SALVAGE, nothing else.** Both are buttons on its card at home, at the locker or the **tuning bench** (the outpost station that lists every module, socketed first):
-  - **Upgrade** a tier (its lattice regrown in denser ore): 10 ore of the new tier and 4, 8, 14, 20 or 28 threads; every trait that grows with the tier grows.
-  - **Salvage** a module into threads (common 1, magic 2, rare 4, legendary or set 7, +1 a tier above 1); a base into 40% of its ore (its modules and cores come out whole), now and then an exotic. SALVAGE ALL ▼ breaks down every base and module marked ▼ that isn't kept (★).
+  - **Rolled:** any Form, Element or Mod (so a core can be found before its recipe is known), with one bonus of its kind: a Form's to the casting (close or spell damage, cast speed, crit, charge, damage to a foe that's open, Arc hits giving charge), an Element's to the hit (chill, shock, leech, damage to the chilled or the burning), a Mod's to the suit (health, armor, regeneration, speed, reach, mining, armor in light). A legendary carries a power too. Its tier is where it was caught, so deeper cores roll higher.
+  - **The card** says what the core does, its tier, its bonus with how well it rolled, its power, and where it was caught ("Caught from an elite Wisp, Bloomfen").
+- **Setting cores is free** at home, at the locker: tap the rig, tap a part of a spell, tap a core from the drawer (each ▲ or ▼ against what's there). A core's bonus and power count while it's set in a spell. A better frame takes the old one's cores when equipped.
+- **Working a core is UPGRADE and SALVAGE, nothing else.** Both are buttons on its card at home, at the locker or the **tuning bench** (the outpost station that lists every core, set in the rig first):
+  - **Upgrade** a tier (its lattice regrown in denser ore): 10 ore of the new tier and 4, 8, 14, 20 or 28 threads; its bonus grows with it, and its spell hits harder.
+  - **Salvage** a core into threads (common 1, magic 2, rare 4, legendary 7, +1 a tier above 1); a base into 40% of its ore (its cores come out whole), now and then an exotic. SALVAGE ALL ▼ breaks down every base worse than what's worn and every plain spare core a better one is set over, that isn't kept (★).
   - Legendaries are found, never made: there's no reroll, fusing, adding a trait or imprinting.
-- **Sealed relics** open at home into a rare module or better.
-- **Legendary powers** change how you play; a module carries one:
+- **Sealed relics** open at home into a rare core or better.
+- **Legendary powers** change how you play; a legendary core carries one, and it works while the core is set:
 
-| Name | Kind | Power |
-|---|---|---|
-| Faultline | cutter | Breaking a vein sends out a shockwave |
-| Twice-Told | rig | Every spell fires twice |
-| Redwake | rig | Critical hits heal |
-| Lodeheart | armour or charm | Kills heal and pull in nearby loot |
-| Stormcaller | rig | Bolts chain to two more enemies |
-
-- **Sets.** Prospector's Regalia: three set modules (Edge for a cutter, Seam for armor, Token for a charm). 2 socketed give +20% mining speed and +6 cargo; 3 heal you when you break a vein and give +20% chance of double ore.
+| Name | Power |
+|---|---|
+| Faultline | Breaking a vein sends out a shockwave |
+| Twice-Told | Every spell fires twice |
+| Redwake | Critical hits heal |
+| Lodeheart | Kills heal and pull in nearby loot |
+| Stormcaller | Bolts chain to two more enemies |
 
 ## Combat and builds
 
@@ -328,7 +326,7 @@ Known from the start: the rig frame, plate, charm and cutter, the Arc and Bolt, 
   - **A press casts the spell**, for charge. A press during a cooldown is held over until the cooldown ends, so taps never get lost.
   - **Holding charges it:** 1.8× the damage for 1.5× the charge; charged bolts and lances are bigger and pass through more. A held Arc bursts into a Nova of its element instead.
   - With no rig worn, spell A is a free Arc.
-- **A spell is three cores, in no order:** one **Form** (its shape and range), one **Element** (its damage and status; with none, Force) and one **Mod** (what changes it). A better frame has **two Mod slots**: Resonite or denser, a masterwork, or a Lodestone shard worked in at the forge. No Form: a weak spark.
+- **A spell is three cores, in no order:** one **Form** (its shape and range), one **Element** (its damage and status; with none, Force) and one **Mod** (what changes it). A frame of Resonite or denser, a masterwork, or one with a Lodestone shard worked in has an **extra part** of the kind its ore chooses (Crafting, The extra slot). No Form: a weak spark.
 - **A core's tier** (its ore's) makes its spell hit harder, and does nothing else: 25% a tier past the first for the Form, 5% for each other core. A core's card and its forge recipe say so.
 - **Charge** is the mana. It refills on its own. A cast costs its Form's charge times its Mods'. **Close Forms give charge back** for each foe they hit (2 a foe, 3 foes at most), so fighting close keeps the casting going.
 - **Setting cores is free** at the locker: tap the rig, tap a part of a spell, tap a core from the drawer (it shows only the kind that part takes). Each spell reads as its name, `BOLT · SHOCK · CHAIN`, and one short line: its charge, and a resonance it wakes, or a Mod that does nothing for its Form.
@@ -355,7 +353,7 @@ Known from the start: the rig frame, plate, charm and cutter, the Arc and Bolt, 
 | Pierce | 1.1 | Passes through 3 more (bolts and lances) |
 | Linger | 1.2 | Leaves a field of its element where it ends, for 3 s |
 
-- With two Mod slots, two of a Mod stack: two Splits fire five, two Echoes cast twice more.
+- **The extra part.** A second Mod (Ferrite, Lumenite, Resonite): two of a Mod stack, two Splits fire five, two Echoes cast twice more. A second Element (Sigilite, Starmetal): both on one spell, each on half the hit, and they react with each other on the foe. A second Form (Aetherglass): the spell casts both, the second at 70%.
 - **Reactions** (reactions.js). Every element leaves its status on a foe for 3 s. A second element hitting a foe that still carries another's reacts, in either order: so spell A's element and spell B's play off each other. Each reaction's name flashes over its target in the pixel hand, and Wick explains it the first time.
 
   | Reaction | Elements | What it does |
@@ -415,17 +413,17 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
 |---|---|
 | The portal (SET OUT) | In a Charter gate. The world map: a territory next to the outpost to walk out into, or a spire to set out to, and the tool to carry |
 | The forge (FORGE, SUPPLIES) | The Charter's fabricator. Recipes by tab, each exact: rig frames, Form, Element and Mod cores, plate, charms, picks and tools, from banked ore, parts and exotics. Studies what's new (research). Every forge is played on the anvil. SUPPLIES, beside FORGE, makes supplies from ore |
-| The tuning bench (TUNE) | Every module, socketed first: tap one to UPGRADE it (threads and the new tier's ore) or SALVAGE it (threads) |
-| The locker (OPEN LOCKER, or LOCKER in the top bar anywhere at home) | What's worn, the rig's two spells and every module socket, the stash's modules, frames, bases and cores, stats; equip, socket modules and set cores (free), upgrade and salvage, unseal relics, KEEP |
+| The tuning bench (TUNE) | Every core, set in the rig first: tap one to UPGRADE it (threads and the new tier's ore) or SALVAGE it (threads) |
+| The locker (OPEN LOCKER, or LOCKER in the top bar anywhere at home) | What's worn, the rig's two spells, the stash's frames, bases and spare cores, stats; equip, set cores (free), upgrade and salvage, unseal relics, KEEP |
 | The star's altar (THE STAR) | Hold FEED THE STAR and the light your deeds earned rises into the star, mote by mote, faster the longer you hold, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements. A shard carried home is set here instead (SET THE SHARD) |
 | The practice target | A construct that takes every hit and never falls, for trying combos |
 | The uplink (THE UPLINK) | A relay mast to the *Meridian* in orbit: the landers it can send, the shards set, the echoes, and calling the colony down |
 
 - **The anvil.** Each forge is three hammer strikes: a marker sweeps a bar, faster each time and dragging as it crosses the glowing zone, and you tap while it's in the zone.
   - A strike in the zone is good, and one in its marked middle is perfect.
-  - The strikes add up to a quality from rough to masterwork, which only adds to the recipe (Crafting): +5%, +10% or +15% on its numbers, and a masterwork a module socket more and a frame's second Mod slot.
+  - The strikes add up to a quality from rough to masterwork, which only adds to the recipe (Crafting): +5%, +10% or +15% on its numbers, and a masterwork frame its extra slot; a core it tempers (a bonus, a tier, a masterwork's choice of three).
   - A fine forge raises a core's tier.
-- **The reveal.** A forged piece rises in a beam of its quality's colour (an unsealed module, its rarity's), then its card opens.
+- **The reveal.** A forged piece rises in a beam of its quality's colour (an unsealed core, its rarity's), then its card opens.
 - **After a sortie,** a report says what came home or what was lost (and where you wake, after a fall), then you're back on the plaza or at that spire.
 
 | Attunement | Each rank (up to 5) |
@@ -450,7 +448,7 @@ Fitted once at the Drone Bay (walk up to it), once it stands; each can be turned
 
 | Upgrade | Magnitude | Costs | What it does |
 |---|---|---|---|
-| Scanner | 2 | 5 Lumenite, 15 threads, 3 spore | Every 7 s out in the land a ring goes out from Wick: veins within 8 tiles glint, arrows mark the pack and modules on the ground |
+| Scanner | 2 | 5 Lumenite, 15 threads, 3 spore | Every 7 s out in the land a ring goes out from Wick: veins within 8 tiles glint, arrows mark the pack and cores on the ground |
 | Lamp | 3 | 6 Resonite, 25 threads, 3 fibre | A second, dimmer beam behind you (with the lamp as a beam) |
 | Hex Shield | 3 | 8 Resonite, 50 threads, 3 chitin | Once a fight, a hex shield stops the hit that would leave you under 35% health; ready again after 20 s unhurt |
 | Spark | 4 | 8 Aetherglass, 65 threads, 3 cogs | Every 2.6 s, a shock at the nearest awake foe within 4 tiles: 7% of its health |
@@ -478,7 +476,7 @@ Once the star isn't fed ore, old ore needs a use: it makes supplies, carried on 
 ## Onboarding: a little at a time
 
 A new Kindler isn't shown everything at once (`js/onboard.js`, `js/tutor.js`; DECISIONS.md, 2026-10-20).
-- **Systems wake when their moment comes.** A new game has walking, mining, both spells (the Scrap Rig comes with ARC and BOLT), the dash, the portal and the openings, the forge's FRAMES and CUTTERS tabs and the locker's worn gear. The rest wakes, and stays awake: changing the rig's cores (the locker's drawer, CORES, CODEX) with the first core beyond the starting ones, researched or forged; module sockets, the locker's modules and the tuning bench with the first module caught; the star's altar and ATTUNE with the first light of a deed; SUPPLIES, MEND and LIGHT and the cargo's MAKE with the first ore brought home (after the walkthrough's cutter, if it's running); ARMOR and CHARMS after the first thing forged; TOOLS, BUILDINGS and the uplink at magnitude 2 (the uplink also with an echo or a shard); WICK with the Drone Bay. A station not yet awake stands dark and unlit at the outpost, its name dim with OFFLINE under it, and has no button. Each unlock is worked out from progress, so no save ever finds anything locked that it has used; a save from before onboarding opens with everything awake and every tutorial seen. Wick says a line as each wakes.
+- **Systems wake when their moment comes.** A new game has walking, mining, both spells (the Scrap Rig comes with ARC and BOLT), the dash, the portal and the openings, the forge's FRAMES and CUTTERS tabs and the locker's worn gear. The rest wakes, and stays awake: changing the rig's cores (the locker's drawer, CORES, CODEX) with the first core beyond the starting ones, researched or forged; the tuning bench with the first core caught; the star's altar and ATTUNE with the first light of a deed; SUPPLIES, MEND and LIGHT and the cargo's MAKE with the first ore brought home (after the walkthrough's cutter, if it's running); ARMOR and CHARMS after the first thing forged; TOOLS, BUILDINGS and the uplink at magnitude 2 (the uplink also with an echo or a shard); WICK with the Drone Bay. A station not yet awake stands dark and unlit at the outpost, its name dim with OFFLINE under it, and has no button. Each unlock is worked out from progress, so no save ever finds anything locked that it has used; a save from before onboarding opens with everything awake and every tutorial seen. Wick says a line as each wakes.
 - **The first landing.** After the opening, Wick offers to walk you through it: WALK ME THROUGH IT or I KNOW THE DRILL. Walked through, one line of Wick's sits at the top of the view, the button that matters pulses, and a gold ring and chevron mark the spot on the world (an arrow at the view's edge when it's off it): out of the lit opening into the gentle land, a vein mined, a foe Wick calls up (ARC, then BOLT, then DASH, then finish it), a cutter's 15 Ferrite and a part, home (walk back, or RECALL), and a Ferrite cutter at the forge, whose tutorial takes over; then NEXT. It's eased: Ferrite gives two a vein while it runs, and the foes it calls always leave a part. ✕ on its line stops it. Either choice still wakes the systems a little at a time.
 - **Tutorials: Wick points, you do.** The forge, the locker, the tuning bench, the star's screen, SUPPLIES, the portal's map and the uplink each run a tutorial of three to five steps the first time they open: the screen dims but for the one thing that matters and the way out (✕, which ends it), Wick says one short line by his portrait, and the step is done when you do it (tap what's lit, or NEXT for something only shown). A small SKIP is always there; a tap anywhere else does nothing. Each screen's header has a ? that plays its tutorial again, then a short reference: the explanations that used to sit on the screens. The ? in the top bar pauses the world and walks the HUD.
 - **Plain screens.** Labels of a word or two, numbers with icons, at most one short line on a card; no notes paragraphs. Costs always name their resource; a screen's way out is always in sight.

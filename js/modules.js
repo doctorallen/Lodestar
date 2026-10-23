@@ -1,123 +1,44 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Modules: the found half of gear. The dark's creatures are made of the
+// Cores carry the found power. The dark's creatures are made of the
 // world's own living energy, and when one dies its pattern unravels. The
 // Charter suit's capture field catches the strongest thread of it and sets
-// it in a blank lattice crystal: a module, a captured imprint of what the
-// creature could do. How much of the pattern was caught is its rarity
-// (elites and Keepers carry richer patterns); how dense a lattice holds it,
-// its tier. Modules socket into crafted bases (items.js), free to swap at
-// home, and carry the affixes, the legendary powers and the set.
+// it in a core: a Form, an Element or a Mod for the rig's spells, with one
+// bonus on it (a Form's a bonus to the casting, an Element's to the hit's
+// statuses, a Mod's to the suit). How much of the pattern was caught is its
+// rarity (elites and Keepers carry richer patterns; a legendary carries a
+// power too); how dense a lattice holds it, its tier. A core is set in a
+// spell at the locker, free to swap; nothing else takes it.
 //
-// A module can be grown a tier (its lattice regrown in denser ore, every
-// trait stronger), for threads and the new tier's ore: UPGRADE, on its card
-// at the locker or the tuning bench. Salvaged, it unravels into threads.
-// That's all the work there is: legendaries are found, never made.
+// A core can be grown a tier (its lattice regrown in denser ore, its bonus
+// stronger), for threads and the new tier's ore: UPGRADE, on its card at
+// the locker or the tuning bench. Salvaged, it unravels into threads.
+// Legendaries are found, never made; a forged core's bonus is the anvil's
+// (items.js forgeItem).
 //
-// Also here: what a kill leaves (moduleDrops), research (what the forge
-// studies, and the recipes it reveals), an old save's gear turned into
-// bases and modules (migrateGearSave), and how a module looks: its icon,
-// the crystal on the ground, its capture and the tether as it's taken.
+// Also here: what a kill leaves (coreDrops), research (what the forge
+// studies, and the recipes it reveals), old saves (gear from before modules
+// turned into bases and modules, then modules into threads and legendary
+// cores: migrateGearSave, migrateCoreSave), and how a core on the ground
+// looks: the crystal, its capture and the tether as it's taken.
 // Never say outright that the dark is alive.
 // ---------------------------------------------------------------------------
 
-// Each kind of creature's pattern leans to a family of affix: its modules
-// roll one of that family first, where the base can take it.
-const FOE_PATTERN = {
-  crawler: 'defense', wisp: 'spell', construct: 'close', snapjaw: 'utility', spitter: 'mining',
-  skink: 'utility', tusker: 'close', wraith: 'spell', lurker: 'leech', dropper: 'close', eel: 'shock',
-  crab: 'defense', weaver: 'chill', sentinel: 'spell', idol: 'defense', hound: 'shock',
-};
 const FOE_WORDS = { crawler: 'Crawler', wisp: 'Wisp', construct: 'Stalker', snapjaw: 'Snapjaw', spitter: 'Spitter', warden: 'Warden', keeper: 'Keeper', hollow: 'Hollow' };
 const foeWord = (type) => FOE_WORDS[type] || (typeof FOE_NAMES !== 'undefined' && FOE_NAMES[type] ? FOE_NAMES[type][0] : 'creature');
 
-// Names. A common module is named for the creature it was caught from; a
-// magic one by its first trait's family; a rare one in two words; a
-// legendary for its power, a set piece for its set.
-const MOD_PREFIX = { close: 'Keen', spell: 'Humming', defense: 'Sturdy', utility: 'Light', mining: "Delver's", shock: 'Voltaic', leech: 'Thirsting', chill: 'Rimed' };
-const MOD_FIRST = ['Grim', 'Hollow', 'Ember', 'Ashen', 'Star', 'Dusk', 'Iron', 'Pale', 'Flux', 'Vein', 'Night', 'Storm', 'Thorn', 'Deep'];
-const MOD_SECOND = {
-  caster: ['Eye', 'Whisper', 'Spark', 'Choir', 'Coil', 'Lens'], armor: ['Ward', 'Mantle', 'Hide', 'Bulwark', 'Husk', 'Scale'],
-  charm: ['Sigil', 'Knot', 'Mark', 'Seal', 'Token', 'Glim'], pick: ['Flare', 'Auger', 'Kerf', 'Delve', 'Beam', 'Vein'],
-};
-const MOD_FITS = ['caster', 'armor', 'charm', 'pick'];
-
-// A module's trait at a tier: T.modules.value of an old item's affix.
-const modValue = (id, tier, roll) => affixValue(id, tier, roll, T.modules.value);
-// A trait this module hasn't got, from one of `families`.
-function rollModuleAffix(rng, m, families) {
-  const have = new Set(m.affixes.map((a) => a.id));
-  const pool = AFFIX_IDS.filter((id) => families.includes(AFFIXES[id].family) && !have.has(id));
-  if (!pool.length) return null;
-  const id = rng.pick(pool);
-  return { id, v: modValue(id, m.tier, rng.f()) };
-}
-// The powers a module for a kind of base can carry.
-const powersFor = (fits) => Object.keys(LEGENDARIES).filter((k) => LEGENDARIES[k].kinds.includes(fits));
-
-// A module for a kind of base (fits), of a tier. opts: { rarity, power,
-// set, lean (a family to roll first, if the base can take it), src (where
-// it was caught: { foe, clime, elite, deep }), affixes (how many, else the
-// rarity's) }.
-function makeModule(rng, fits, tier, opts = {}) {
-  let rarity = opts.rarity || 'common';
-  if (rarity === 'set' && !SETS.regalia.pieces[fits]) rarity = 'rare';
-  const m = { uid: newItemUid(), kind: 'module', fits, tier: clamp(tier, 1, T.ores.length), rarity, affixes: [] };
-  if (rarity === 'legendary') m.power = opts.power || rng.pick(powersFor(fits));
-  if (rarity === 'set') m.set = opts.set || 'regalia';
-  const fams = KIND_FAMILIES[fits], n = opts.affixes !== undefined ? opts.affixes : T.modules.affixes[rarity];
-  if (opts.lean && fams.includes(opts.lean) && n > 0) { const a = rollModuleAffix(rng, m, [opts.lean]); if (a) m.affixes.push(a); }
-  while (m.affixes.length < n) { const a = rollModuleAffix(rng, m, fams); if (!a) break; m.affixes.push(a); }
-  if (opts.src) m.src = opts.src;
-  m.name = moduleName(rng, m);
-  return m;
-}
-
-function moduleName(rng, m) {
-  if (m.set) return SETS[m.set].pieces[m.fits];
-  if (m.power) return LEGENDARIES[m.power].name;
-  if (m.woven) return `Woven ${rng.pick(MOD_SECOND[m.fits])}`;
-  if (m.rarity === 'rare') return `${rng.pick(MOD_FIRST)} ${rng.pick(MOD_SECOND[m.fits])}`;
-  const who = m.src && m.src.foe ? foeWord(m.src.foe) : 'Lattice';
-  if (m.rarity === 'magic' && m.affixes[0]) return `${MOD_PREFIX[AFFIXES[m.affixes[0].id].family]} ${who}${who === 'Lattice' ? '' : ' lattice'}`;
-  return who === 'Lattice' ? 'Plain lattice' : `${who} lattice`;
-}
-
-// Where it was caught, in words: "Caught from an elite Crawler, Bloomfen".
-function moduleSource(m) {
-  const s = m.src;
+// Where a core was caught, in words: "Caught from an elite Crawler, Bloomfen".
+function coreSource(c) {
+  const s = c.src;
   if (!s) return '';
-  if (s.was) return `Reset from ${s.was}, made before modules`;
+  if (s.was) return `From ${s.was}, made before cores carried power`;
   if (s.relic) return 'Opened from a sealed relic';
   if (s.forge) return 'Found by an ancient forge';
+  if (s.anvil) return 'Tempered at the anvil';
   if (!s.foe) return '';
   const who = foeWord(s.foe), where = [s.clime ? climeName(s.clime) : '', s.deep ? 'a Deep' : ''].filter(Boolean).join(', ');
   const what = s.foe === 'keeper' ? 'the Keeper' : s.foe === 'warden' ? 'a Warden' : `${s.elite ? 'an elite' : /^[AEIOU]/.test(who) ? 'an' : 'a'} ${who}`;
   return `Caught from ${what}${where ? ', ' + where : ''}`;
-}
-// A module's base line on its card.
-function moduleLine(m) {
-  const n = moduleTraits(m).length;
-  return `${n} trait${n === 1 ? '' : 's'} · socket it into ${KIND_PHRASE[m.fits]}`;
-}
-
-// A module's traits: its affixes, then its power or its set bonus.
-// { key: 'a0' | 'power' | 'set', text, aff (the affix) }
-function moduleTraits(m) {
-  const out = m.affixes.map((a, i) => ({ key: 'a' + i, text: fmtAffix(a), aff: a }));
-  if (m.power) out.push({ key: 'power', text: LEGENDARIES[m.power].text });
-  if (m.set) out.push({ key: 'set', text: `${SETS[m.set].name}: 2 worn, ${SETS[m.set].bonus2.text.toLowerCase()}; 3, ${SETS[m.set].bonus3.text.toLowerCase()}` });
-  return out;
-}
-
-// A rough worth, for UPGRADE / DOWNGRADE against what's socketed.
-function moduleWorth(m) {
-  if (!m) return 0;
-  let w = 0;
-  for (const a of m.affixes) w += a.v * (AFFIX_WORTH[a.id] || 0.3);
-  if (m.power) w += 8;
-  if (m.set) w += 6;
-  return w;
 }
 
 // ---------------------------------------------------------------------------
@@ -125,41 +46,41 @@ function moduleWorth(m) {
 // ---------------------------------------------------------------------------
 // The chances, times: richer in a Deep, generous at first, and with the
 // Capture Lens carried.
-function moduleDropMult(d) {
-  const D = T.modules.drop, found = (Save.data && Save.data.modsFound) || 0;
+function coreDropMult(d) {
+  const D = T.cores.drop, found = (Save.data && Save.data.coresFound) || 0;
   return (d.deep ? D.deep : 1) * (found < D.early.found ? D.early.mult : 1) * (d.tool === 'lens' ? D.lens : 1);
 }
-// Which kind of base a module is for: by the odds, but only where the
-// creature's family can go (a set piece, never a caster).
-function moduleFits(rng, lean, notCaster) {
-  const F = T.modules.fits;
-  const ok = MOD_FITS.filter((k) => (!lean || KIND_FAMILIES[k].includes(lean)) && !(notCaster && k === 'caster'));
-  return rng.weighted((ok.length ? ok : MOD_FITS).map((k) => [F[k], k]));
+// A core rolled for a kill or a find: rarity by the enemy level, at least
+// `min` (boost: the legendary weight times); a Form, an Element or a Mod by
+// the odds (T.cores.kinds), any of its kind; its bonus; a legendary's
+// power.
+function rollCore(rng, level, tier, min, boost, src) {
+  const rarity = rollRarity(rng, level, min, boost), K = T.cores.kinds;
+  const kind = rng.weighted([[K.form, 'form'], [K.element, 'element'], [K.glyph, 'glyph']]);
+  const stone = rng.pick(kind === 'form' ? STONE_FORMS : kind === 'element' ? Object.keys(STONE_ELEMENTS) : Object.keys(STONE_GLYPHS));
+  const c = makeStone(stone, tier, { rarity, src });
+  c.bonus = coreBonusRoll(rng, stone, c.tier, rarity);
+  if (rarity === 'legendary') c.power = rng.pick(Object.keys(LEGENDARIES));
+  return c;
 }
-// A module rolled for a kill or a find: rarity by the enemy level, at
-// least `min`; boost: the legendary and set weights times.
-function rollModule(rng, level, tier, min, boost, src) {
-  const rarity = rollRarity(rng, level, min, boost), lean = src && src.foe ? FOE_PATTERN[src.foe] : null;
-  const fits = moduleFits(rng, rarity === 'set' ? null : lean, rarity === 'set');
-  return makeModule(rng, fits, tier, { rarity, lean, src });
-}
-// What a kill leaves in modules: a Keeper several, a warden two, an elite
-// likely one, anything else now and then. Rolled with the dive's rng.
-function moduleDrops(d, e) {
-  const D = T.modules.drop, rng = d.rng, k = moduleDropMult(d), level = floorLevel(d);
+// What a kill leaves in cores: a Keeper several, a warden two, an elite
+// half the time (the room's sure elite always), anything else seldom.
+// Rolled with the dive's rng.
+function coreDrops(d, e) {
+  const D = T.cores.drop, rng = d.rng, k = coreDropMult(d), level = floorLevel(d);
   const src = { foe: e.type, clime: d.clime || null, elite: !!e.elite, deep: !!d.deep };
   let n = 0, min = 'common', boost = 1, tier = dropTier(d);
-  if (e.type === 'keeper') { n = D.keeper; min = 'rare'; boost = T.modules.keeperLegend; tier++; }
+  if (e.type === 'keeper') { n = D.keeper; min = 'rare'; boost = T.cores.keeperLegend; tier++; }
   else if (e.boss) { n = D.boss; min = 'rare'; tier++; }
   else if (e.elite) { n = e.sure || rng.chance(Math.min(1, D.elite * k)) ? 1 : 0; min = 'magic'; }
   else n = rng.chance(D.foe * k) ? 1 : 0;
   const out = [];
-  for (let i = 0; i < n; i++) out.push(rollModule(rng, level, Math.min(T.ores.length, tier), min, boost, src));
+  for (let i = 0; i < n; i++) out.push(rollCore(rng, level, Math.min(T.ores.length, tier), min, boost, src));
   return out;
 }
 
-// A module lies by each ancient forge once ever (a forge's floor is
-// rebuilt each time it's entered): true the first time for this floor.
+// A core lies by each ancient forge once ever (a forge's floor is rebuilt
+// each time it's entered): true the first time for this floor.
 function forgeFindOnce(d) {
   const s = Save.data, key = `${d.seed}:${d.depth}`;
   s.forgeFinds = s.forgeFinds || [];
@@ -168,70 +89,17 @@ function forgeFindOnce(d) {
   return true;
 }
 
-// A sealed relic opens at the Lodestar into a rare module or better.
+// A sealed relic opens at the Lodestar into a rare core or better.
 function unsealRelic(rng, relic) {
-  const W = T.loot.relicOpens, rarity = rng.weighted([[W.rare, 'rare'], [W.legendary, 'legendary'], [W.set, 'set']]);
-  return makeModule(rng, moduleFits(rng, null, rarity === 'set'), relic.tier, { rarity, src: { relic: true } });
+  const W = T.loot.relicOpens, rarity = rng.weighted([[W.rare, 'rare'], [W.legendary, 'legendary']]);
+  // (rolled at least that rarity: a rare may still come out legendary)
+  return rollCore(rng, 1, relic.tier, rarity, 1, { relic: true });
 }
 
-// ---------------------------------------------------------------------------
-// Sockets: free at home, as often as you like
-// ---------------------------------------------------------------------------
-// Where a module would go: the worn base of its kind, its empty socket,
-// else the socket whose module is weakest. { slot, i (the socket), cur
-// (what's there, or null) }, or null if no worn base of its kind has a
-// socket.
-function moduleTarget(equip, m) {
-  let best = null;
-  for (const slot of [KIND_SLOT[m.fits]]) {
-    const b = equip[slot];
-    if (!b || !b.sockets || !b.sockets.length) continue;
-    const empty = b.sockets.indexOf(null);
-    if (empty >= 0) return { slot, i: empty, cur: null };
-    b.sockets.forEach((cur, i) => { if (!best || moduleWorth(cur) < moduleWorth(best.cur)) best = { slot, i, cur }; });
-  }
-  return best;
-}
-// ▲ or ▼ for a module against what it would replace.
-function moduleUpDown(equip, m) {
-  const t = moduleTarget(equip, m);
-  if (!t) return '';
-  if (!t.cur) return 'up';
-  const a = moduleWorth(m), b = moduleWorth(t.cur);
-  return a > b * 1.05 ? 'up' : a < b * 0.95 ? 'down' : '';
-}
-// Sets a module into a base's socket; what was there goes to `list`.
-function socketModule(base, i, m, list) {
-  if (!base.sockets || i < 0 || i >= base.sockets.length || m.fits !== base.kind) return false;
-  if (base.sockets[i]) list.push(base.sockets[i]);
-  base.sockets[i] = m;
-  return true;
-}
-function unsocketModule(base, i, list) {
-  const m = base.sockets && base.sockets[i];
-  if (!m) return null;
-  base.sockets[i] = null;
-  list.push(m);
-  return m;
-}
-// A base's modules moved into another, socket for socket; what doesn't fit
-// goes to `list`.
-function moveModules(from, to, list) {
-  if (!from || !from.sockets) return;
-  for (let i = 0; i < from.sockets.length; i++) {
-    const m = from.sockets[i];
-    if (!m) continue;
-    from.sockets[i] = null;
-    const j = to.sockets ? to.sockets.indexOf(null) : -1;
-    if (j >= 0 && m.fits === to.kind) to.sockets[j] = m; else list.push(m);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Working a module: a tier up, or unravelled
 // ---------------------------------------------------------------------------
 // A cost: { threads, ore: { id, n } | null, stuff: [{ id, n }] }. What's
 // short of it in `src`, and paying it.
+// ---------------------------------------------------------------------------
 function benchShort(cost, src) {
   const out = [];
   if ((src.thread || 0) < cost.threads) out.push({ id: 'thread', n: cost.threads - (src.thread || 0) });
@@ -248,42 +116,18 @@ function benchPay(cost, src) {
   return true;
 }
 
-// An affix carried to another tier: its value grows (or not, if flat) as
-// the tier's range does, times k.
-function rescaleAffix(a, from, to, k = 1) {
-  const A = AFFIXES[a.id], g = (t) => (A.flat ? 1 : 1 + T.items.affixGrowth * (Math.max(1, t) - 1)), p = Math.pow(10, A.dp || 0);
-  const v = Math.round(a.v * (g(to) / g(from)) * k * p) / p;
-  return { id: a.id, v: to > from || k > 1 ? Math.max(v, a.v + (A.flat && k === 1 ? 0 : 1 / p)) : v };
-}
-
-// A tier up: its lattice regrown in the next ore, every trait stronger.
-function upgradeCost(m) {
-  if (m.tier >= T.ores.length) return null;
-  const U = T.modules.upgrade;
-  return { threads: U.threads[m.tier], ore: { id: T.ores[m.tier].id, n: U.ore } };
-}
-function moduleUpgrade(m) {
-  if (m.tier >= T.ores.length) return false;
-  m.affixes = m.affixes.map((a) => rescaleAffix(a, m.tier, m.tier + 1));
-  m.tier++;
-  return true;
-}
-
-// Unravelled into threads: more for a richer pattern and a denser lattice.
-function salvageThreads(m) { const S = T.modules.salvage; return S[m.rarity] + S.perTier * (m.tier - 1); }
-
 // ---------------------------------------------------------------------------
 // Research
 // ---------------------------------------------------------------------------
 // Whether a research's thing is at home: an ore, a part (any grade) or an
-// exotic in the stash, or a module caught from its kind of creature in the
-// stash or socketed.
+// exotic in the stash, or a core caught from its kind of creature in the
+// stash or set in the rig.
 function researchHas(s, r) {
   const k = r.id.split(':')[0];
   if (k === 'ore' || k === 'ex') return (s.stash[r.of] || 0) > 0;
   if (k === 'part') return [1, 2, 3].some((g) => (s.stash[partId(r.of, g)] || 0) > 0);
-  const mods = s.items.filter((x) => x.kind === 'module').concat(SLOTS.flatMap((k2) => baseModules(s.equip[k2])));
-  return mods.some((m) => r.of === 'any' || (m.src && m.src.foe === r.of));
+  const cores = s.items.filter((x) => x.kind === 'stone' && x.src).concat(rigCores(s.equip.main));
+  return cores.some((c) => c.src && (r.of === 'any' || c.src.foe === r.of));
 }
 // What the forge has yet to study, of what's at home.
 function researchDue(s = Save.data) {
@@ -309,12 +153,12 @@ function researchWhat(r) {
   const k = r.id.split(':')[0];
   if (k === 'ore' || k === 'ex') return stuffName(r.of);
   if (k === 'part') return PARTS[r.of].name.charAt(0).toUpperCase() + PARTS[r.of].name.slice(1);
-  return r.of === 'any' ? 'A module' : `A ${foeWord(r.of)}'s module`;
+  return r.of === 'any' ? 'A caught core' : `A core caught from a ${foeWord(r.of)}`;
 }
 function researchIconUrl(r) {
   const k = r.id.split(':')[0];
   if (k === 'part') return stuffIconUrl(partId(r.of, 1));
-  if (k === 'mod') return moduleIconUrl({ kind: 'module', fits: 'caster', rarity: 'magic' });
+  if (k === 'mod') return stoneIconUrl('bolt');
   return stuffIconUrl(r.of);
 }
 
@@ -329,18 +173,18 @@ function migrateOldPiece(it, spill, loose) {
   if (!it || !KIND_SLOT[it.kind] || Array.isArray(it.sockets)) return it;
   const bpId = it.bp && BLUEPRINTS[it.bp] && BLUEPRINTS[it.bp].kind === it.kind ? it.bp : KIND_BLUEPRINT[it.kind];
   const keepName = /^(Scrap Gauntlet|Cracked Wand|Rusty Pick)$/.test(it.name || '');
-  const base = { uid: it.uid, kind: it.kind, bp: bpId, tier: it.tier, q: 0, rarity: 'common', base: it.base || baseStats(it.kind, it.tier, BLUEPRINTS[bpId]), affixes: [], sockets: new Array(socketCount(it.kind, it.tier, 0)).fill(null) };
+  const base = { uid: it.uid, kind: it.kind, bp: bpId, tier: it.tier, q: 0, rarity: 'common', base: it.base || baseStats(it.kind, it.tier, BLUEPRINTS[bpId]), affixes: [], sockets: [null] };
   if (it.kind === 'caster') { base.slots = Array.isArray(it.slots) ? it.slots : [null, null, null]; if (it.links && it.links.length) base.links = it.links; }
   if (it.fav) base.fav = true;
   base.name = keepName ? it.name : baseName(base);
   const affixes = (it.affixes || []).filter((a) => a && AFFIXES[a.id]).map((a) => ({ id: a.id, v: a.v }));
-  const power = it.power && LEGENDARIES[it.power] ? it.power : null, set = it.set && SETS[it.set] && SETS[it.set].pieces[it.kind] ? it.set : null;
+  const power = it.power && LEGENDARIES[it.power] ? it.power : null, set = typeof it.set === 'string' ? it.set : null;
   if (affixes.length || power || set) {
     const rarity = power ? 'legendary' : set ? 'set' : RARITIES.includes(it.rarity) ? it.rarity : 'magic';
     const m = { uid: newItemUid(), kind: 'module', fits: it.kind, tier: Math.max(1, it.tier || 1), rarity, affixes, src: { was: it.name || 'an old piece' } };
     if (power) m.power = power;
     if (set) m.set = set;
-    m.name = rarity === 'rare' && it.name ? it.name : moduleName(new Rng(it.uid || 1), m);
+    m.name = it.name || 'Old pattern';
     if (base.sockets.length && !loose) base.sockets[0] = m; else spill.push(m);
   }
   return base;
@@ -370,32 +214,62 @@ function migrateGearSave(s) {
 }
 
 // ---------------------------------------------------------------------------
-// Looks: the icon, the crystal on the ground, the capture and the tether
+// An old save: modules into cores (version 8)
 // ---------------------------------------------------------------------------
-// The crystal by the kind of base it's for: a tall point for a caster, a
-// broad shield for armor, a round cut for a charm, a wedge for a pick. A
-// light face (b), a mid face (c), a shaded face (d), its edge (a), a glint.
-const MODULE_ICON_ROWS = {
-  caster: ['.......aa.......', '......abba......', '.....abbcca.....', '....abbbccda....', '....abbbccda....', '...abbwbccdda...', '...abbbbccdda...', '...abbbbccdda...', '...abbbbccdda...', '...abbbbccdda...', '....abbbccda....', '....abbbccda....', '.....abbcca.....', '......abca......', '.......aa.......', '................'],
-  armor: ['................', '....aaaaaaaa....', '...abbbbcccda...', '..abbwbbccccda..', '..abbbbbccccda..', '..abbbbbccccda..', '..abbbbbccccda..', '...abbbbcccda...', '...abbbbcccda...', '....abbbccda....', '....abbbccda....', '.....abbcda.....', '......abca......', '.......aa.......', '................', '................'],
-  charm: ['................', '................', '......aaaa......', '....aabbccaa....', '...abbwbcccda...', '...abbbbcccda...', '..abbbbbccccda..', '..abbbbbccccda..', '..abbbbbccccda..', '...abbbbcccda...', '...abbbbcccda...', '....aabbccaa....', '......aaaa......', '................', '................', '................'],
-  pick: ['................', '..aaa...........', '..abbaa.........', '..abwbbaa.......', '..abbbbbcaa.....', '...abbbbccca....', '...abbbbcccdaa..', '....abbbcccdda..', '....abbbccddda..', '.....abbccdda...', '.....abbcdda....', '......abcda.....', '......aaaa......', '................', '................', '................'],
-};
-const _modIcons = new Map();
-// A module's icon (a data URL): its crystal in its rarity's colour (a
-// woven one with a pale core).
-function moduleIconUrl(m) {
-  const col = (ART.rarity[m.rarity] || '#ffffff'), key = `${m.fits}/${col}/${m.woven ? 1 : 0}`;
-  let url = _modIcons.get(key);
-  if (url) return url;
-  const rows = MODULE_ICON_ROWS[m.fits] || MODULE_ICON_ROWS.caster, c = document.createElement('canvas');
-  c.width = 16; c.height = 16;
-  const x = c.getContext('2d'), pal = { a: mix(col, '#000000', 0.7), b: mix(col, '#ffffff', 0.35), c: col, d: mix(col, '#000000', 0.38), w: '#ffffff' };
-  rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) { const ch = r[i]; if (!pal[ch]) continue; x.fillStyle = m.woven && ch === 'c' && i % 2 === j % 2 ? '#f4f0ff' : pal[ch]; x.fillRect(i, j, 1, 1); } });
-  url = c.toDataURL();
-  _modIcons.set(key, url);
-  return url;
+// Modules and sockets are gone: each module unravels into the threads it
+// would have salvaged for, except a legendary, which becomes a legendary
+// core of a random kind with its power (nothing that changed how you play
+// is lost). Every base loses its sockets; a frame's spells gain the extra
+// part its ore gives (frameExtra), and a second Mod a frame no longer has
+// goes to the stash. True if anything changed.
+function migrateCoreSave(s) {
+  if ((s.v || 0) >= 8) return false;
+  const stash = s.stash = s.stash && typeof s.stash === 'object' ? s.stash : {};
+  const threadsOf = (m) => { const S = T.cores.salvage; return (S[m.rarity] || S.common) + S.perTier * (Math.max(1, m.tier || 1) - 1); };
+  const fromModule = (m, into) => {
+    if (m.power && LEGENDARIES[m.power]) {
+      const c = rollCore(new Rng(hashInts(m.uid || 1, 0x8c, 1)), 1, Math.max(1, m.tier || 1), 'legendary', 1, { was: m.name || 'a module' });
+      c.rarity = 'legendary'; c.power = m.power;
+      if (m.fav) c.fav = true;
+      into.push(c);
+    } else stash.thread = (stash.thread || 0) + threadsOf(m);
+  };
+  const fixBase = (it, into) => {
+    if (!it || typeof it !== 'object') return it;
+    if (it.kind === 'module') { fromModule(it, into); return null; }
+    if (Array.isArray(it.sockets)) { for (const m of it.sockets) if (m) fromModule(m, into); delete it.sockets; }
+    if (it.kind === 'caster' && Array.isArray(it.spells)) {
+      const extra = frameExtra(it.tier || 1, it.q || 0, !!it.shard, oreOfTier(it.tier || 1).id);
+      it.extra = extra;
+      for (const sp of it.spells) {
+        if (!sp || !Array.isArray(sp.mods)) continue;
+        const want = extra === 'glyph' ? 2 : 1;
+        while (sp.mods.length > want) { const m = sp.mods.pop(); if (m) into.push(m); }
+        while (sp.mods.length < want) sp.mods.push(null);
+        if (extra === 'element' && !('el2' in sp)) sp.el2 = null;
+        if (extra === 'form' && !('form2' in sp)) sp.form2 = null;
+        if (extra !== 'element' && 'el2' in sp) { if (sp.el2) into.push(sp.el2); delete sp.el2; }
+        if (extra !== 'form' && 'form2' in sp) { if (sp.form2) into.push(sp.form2); delete sp.form2; }
+      }
+    }
+    return it;
+  };
+  const fixList = (list) => { const into = []; const out = (list || []).map((x) => fixBase(x, into)).filter(Boolean); return out.concat(into); };
+  const eq = s.equip = s.equip || {}, spill = [];
+  for (const k of Object.keys(eq)) eq[k] = fixBase(eq[k], spill);
+  s.items = fixList(s.items).concat(spill);
+  if (s.run) { s.run.items = fixList(s.run.items); if (s.run.cargo && s.run.cargo.thread === undefined) { /* threads stay where they are */ } }
+  // every core carries its bonus field now
+  for (const c of s.items) if (c && c.kind === 'stone') { if (!('bonus' in c)) c.bonus = null; if (!c.rarity || c.rarity === 'magic' && !c.bonus) c.rarity = 'common'; }
+  s.coresFound = s.coresFound || s.modsFound || 0;
+  delete s.modsFound;
+  s.v = 8;
+  return true;
 }
+
+// ---------------------------------------------------------------------------
+// Looks: the thread icon, the crystal on the ground, the capture and the tether
+// ---------------------------------------------------------------------------
 // Threads in the stash: a loose coil of light.
 const THREAD_ROWS = ['................', '.....aaaa.......', '...aa....aa.....', '..a..bbbb..a....', '..a.b....b.a....', '..a.b.cc.b.a....', '..a.b.c..b.a....', '...a.bb.b.a.....', '....a...a.......', '.....aaa..cc....', '..........c.c...', '...........c....', '................'];
 let _threadIcon = null;
@@ -410,9 +284,9 @@ function threadIconUrl() {
 
 // The crystal on the ground (painted, as the other drops): a lattice point
 // standing on a dark scatter, its faces in the rarity's tones.
-const _modDrops = new Map();
-function moduleDropSprite(col) {
-  let s = _modDrops.get(col);
+const _coreDrops = new Map();
+function coreDropSprite(col) {
+  let s = _coreDrops.get(col);
   if (s) return s;
   const r = [mix(col, '#000000', 0.62), mix(col, '#000000', 0.3), col, mix(col, '#ffffff', 0.5)], W = '#ffffff';
   const S = new PntSpr(9, 13, 0x1a77);
@@ -429,19 +303,19 @@ function moduleDropSprite(col) {
   }
   S.px(3, 3, W, true); S.px(3, 4, r[3], true);
   s = artFine(S.done());
-  _modDrops.set(col, s);
+  _coreDrops.set(col, s);
   return s;
 }
-// Drawn for a drop that's a module (render.js drawDrop): it settles out of
+// Drawn for a drop that's a core (render.js drawDrop): it settles out of
 // its capture, rings the ground in its colour a few times so it's seen
 // after the fight, then glints now and then.
 // (settled once its capture has collapsed: the capture runs on the world's
 // time, which a kill's hit-stop slows)
-const modSettled = (dr) => !dr.cap || dr.cap.t <= dr.cap.max * 0.22;
-function drawModuleDrop(dr, fx, fy, col) {
-  if (!modSettled(dr)) return;
+const coreSettled = (dr) => !dr.cap || dr.cap.t <= dr.cap.max * 0.22;
+function drawCoreDrop(dr, fx, fy, col) {
+  if (!coreSettled(dr)) return;
   if (dr.settleT === undefined) dr.settleT = dr.t;
-  const s = moduleDropSprite(col);
+  const s = coreDropSprite(col);
   drawShadow(fx, fy + ap(3), 2.5);
   const since = dr.t - dr.settleT;
   if (since < 2.4) {
@@ -460,16 +334,16 @@ function drawModuleDrop(dr, fx, fy, col) {
 }
 
 // Where a creature fell, its energy draws in and collapses into the
-// crystal; taken, the capture field's tether pulls a few motes to the
+// core; taken, the capture field's tether pulls a few motes to the
 // Kindler.
-function moduleCaptureFx(d, x, y, col) { const fx = { kind: 'capture', x, y, col, t: 0.7, max: 0.7, s: (x * 7 + y * 13) | 0 }; d.fx.push(fx); return fx; }
-function moduleTetherFx(d, x, y, col) { d.fx.push({ kind: 'tether', x, y, col, t: 0.32, max: 0.32 }); }
+function coreCaptureFx(d, x, y, col) { const fx = { kind: 'capture', x, y, col, t: 0.7, max: 0.7, s: (x * 7 + y * 13) | 0 }; d.fx.push(fx); return fx; }
+function coreTetherFx(d, x, y, col) { d.fx.push({ kind: 'tether', x, y, col, t: 0.32, max: 0.32 }); }
 // (render.js drawCombatFx) k runs 1 to 0 over the effect.
-function drawModuleFx(fx, cx, cy, k, lights, ox, oy) {
+function drawCoreFx(fx, cx, cy, k, lights, ox, oy) {
   if (fx.kind === 'capture') {
     // the pattern's energy spirals in (bold motes, each with a short tail,
     // so it reads over a death's burst), then collapses with a white flash
-    // and a ring thrown out in the rarity's colour as the crystal forms
+    // and a ring thrown out in the rarity's colour as the core forms
     const t = 1 - k, draw = Math.min(1, t / 0.78), n = 12, oy = cy - ap(5);
     if (draw < 1) {
       const e = draw * draw;

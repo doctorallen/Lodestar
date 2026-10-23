@@ -380,9 +380,9 @@ const T = {
   //   aimRange: how far a cast looks for something to aim at.
   //   spark: what a spell with no Form casts (a weak bolt).
   //   rig: the frame. cd, a share of every spell's wait; area, a share of
-  //     every reach; aim, its aimRange. mods: Mod slots a spell; one more
-  //     from a frame of mod2Tier or better, a masterwork, or one forged with
-  //     a Lodestone shard.
+  //     every reach; aim, its aimRange; extraTier, the tier from which a
+  //     frame has its ore's extra part a spell (a masterwork or a Lodestone
+  //     shard gives it sooner); form2Mult, what a second Form casts at.
   //   forms: cost, mult and cd (seconds the spell waits) for each, and:
   //     arc: combo [damage ×, cooldown, arc cos, knockback px/s]
   //       (the last is heavy and staggers); range px; heldMult, the damage
@@ -413,7 +413,11 @@ const T = {
     chargedMult: 1.8, chargedCost: 1.5, chargedPierce: 3, aimRange: 140,
     stoneGrowth: 0.15, otherGrowth: 0.05,
     spark: { cost: 3, mult: 0.6, cd: 0.3, speed: 170, life: 1.2 },
-    rig: { cd: 0.9, area: 1, aim: 140, mods: 1, mod2Tier: 3 },
+    // The rig: its wait and aim; a frame of extraTier or denser, a
+    // masterwork or one forged with a Lodestone shard has an extra slot a
+    // spell, of the kind its ore chooses (ores.extra below: a second Mod,
+    // a second Element, a second Form); a second Form casts at form2Mult.
+    rig: { cd: 0.9, area: 1, aim: 140, extraTier: 3, form2Mult: 0.7 },
     forms: {
       arc: { cost: 3, mult: 0.9, close: true, refund: 2, refundMost: 3, range: 22, heldMult: 2.2, field: 14, slow: 0.6,
         combo: [[1, 0.24, 0.3, 90], [1, 0.24, 0.3, 90], [1.7, 0.45, -0.1, 170]] },
@@ -499,12 +503,12 @@ const T = {
     // can be the better frame for a territory, and a second frame is a
     // craft worth making.
     ores: {
-      ferrite: { el: 'force', knock: 1.4, stagger: 1.35, line: 'Blunt: heavy hits knock and stagger harder' },
-      lumenite: { el: 'shock', cd: 0.82, charge: -0.2, line: 'Quick: spells wait less; the charge pool is a fifth smaller' },
-      resonite: { resonance: 0.25 },
-      aetherglass: { el: 'frost', reach: 1.35, line: 'Far: bolts, lances and orbs fly a third further' },
-      sigilite: { el: 'ember', heavy: 1.3, line: 'Heavy: the third Arc and charged casts hit a third harder' },
-      starmetal: { el: 'blight', status: 1.5, line: 'Lasting: every status holds half again as long' },
+      ferrite: { el: 'force', knock: 1.4, stagger: 1.35, extra: 'glyph', line: 'Blunt: heavy hits knock and stagger harder' },
+      lumenite: { el: 'shock', cd: 0.82, charge: -0.2, extra: 'glyph', line: 'Quick: spells wait less; the charge pool is a fifth smaller' },
+      resonite: { resonance: 0.25, extra: 'glyph', line: 'Resonant: a second Mod slot a spell' },
+      aetherglass: { el: 'frost', reach: 1.35, extra: 'form', line: 'Far: bolts, lances and orbs fly a third further; a second Form slot a spell' },
+      sigilite: { el: 'ember', heavy: 1.3, extra: 'element', line: 'Heavy: the third Arc and charged casts hit a third harder; a second Element slot a spell' },
+      starmetal: { el: 'blight', status: 1.5, extra: 'element', line: 'Lasting: every status holds half again as long; a second Element slot a spell' },
     },
     // Resonances (resonance.js): a spell whose cores hold all of one's
     // parts hits mult × as hard. Resonance traces, which show parts of them
@@ -808,18 +812,18 @@ const T = {
 
   // Drops. Enemies leave their own parts (part: the chance; partTwo: the
   // chance of a second), elites and the warden more, and now and then an
-  // exotic or a sealed relic (it opens into a rare or better module); and
-  // modules (T.modules.drop). Bases come from the forge. motes heal.
-  // rarity: [base, per enemy level] weights (for modules).
+  // exotic or a sealed relic (it opens into a rare or better core); and
+  // cores (T.cores.drop). Bases come from the forge. motes heal.
+  // rarity: [base, per enemy level] weights (for cores).
   // (with half the enemies, each kill pays about twice: part, partTwo,
   // exotic, relic and mote are set so a sortie's haul is what it was)
   loot: {
     part: 0.8, partTwo: 0.35, eliteParts: [2, 3], bossParts: 4,
     exotic: 0.05, eliteExotic: 0.5,
     relic: 0.014, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.4, moteHeal: 14, moteShare: 0.15, // a mote heals moteShare of the health, moteHeal at least
-    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.15, 0.05], set: [0.15, 0.04] },
+    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.2, 0.06] },
     // a sealed relic opens into a rare module, or now and then better
-    relicOpens: { rare: 80, legendary: 12, set: 8 },
+    relicOpens: { rare: 85, legendary: 15 },
   },
 
   // Gear. Base numbers at tier 1, times tierGrowth a tier (affixes grow by
@@ -830,7 +834,6 @@ const T = {
     caster: { power: 6 },
     armor: { armor: 4, armorGrowth: 0.75, hp: 16, hpGrowth: 1.35, cost: 10 },
     charm: { cost: 6 }, pick: { speedGrowth: 0.12, cost: 12 },
-    affixes: { common: 1, magic: 2, rare: 3, legendary: 3, set: 2 },
     armorK: 50, // damage taken × armorK / (armorK + armor)
   },
   // Caps on what affixes can add up to.
@@ -841,44 +844,36 @@ const T = {
   salvage: { back: 0.4, exotic: 0.15, exoticRare: 0.5 },
 
   // Crafted bases (blueprints.js, items.js). Exact: the recipe and its
-  // ore's tier set the stats and the module sockets (and a rig frame's Mod
-  // slots: T.circuits.rig), and the anvil only adds. stat: how much more of
-  // its base numbers, by the anvil's quality (rough, fair, fine,
-  // masterwork); a masterwork has masterSocket more module sockets (and a
-  // masterwork frame a second Mod slot). sockets: module sockets by tier
-  // (1–6); a pick's, pickSockets (the rusty pick has none).
-  gear: {
-    stat: [0, 0.05, 0.1, 0.15], masterSocket: 1,
-    sockets: [1, 1, 2, 2, 2, 3], pickSockets: [1, 1, 1, 1, 2, 2],
-  },
-  // Modules (modules.js): a dying creature's strongest thread, caught by
-  // the suit's capture field and set in a lattice crystal. Rolled loot,
-  // socketed into crafted bases.
-  //   drop: the chance a kill leaves one (foe, elite), or how many (boss:
-  //     a warden; keeper); deep: a Deep's chances, times; early: while
-  //     fewer than `found` have ever been caught, the chances times `mult`;
-  //     lens: carrying the Capture Lens, times.
+  // ore's tier set the stats (and a rig frame's slots: T.circuits.rig), and
+  // the anvil only adds. stat: how much more of its base numbers, by the
+  // anvil's quality (rough, fair, fine, masterwork); a masterwork frame has
+  // the extra slot.
+  gear: { stat: [0, 0.05, 0.1, 0.15] },
+  // Cores carry the found power (modules.js): a dying creature's strongest
+  // thread, caught by the suit's capture field and set in a core, a Form,
+  // an Element or a Mod with one bonus on it. Set in the rig's spells, free
+  // to swap at home; nothing else takes them.
+  //   drop: the chance a kill leaves one (foe, elite; an elite a room holds
+  //     for sure always does), or how many (boss: a warden; keeper); deep: a
+  //     Deep's chances, times; early: while fewer than `found` have ever been
+  //     caught, the chances times `mult`; lens: carrying the Capture Lens.
   //   rarity: weights as T.loot.rarity's ([base, per enemy level]); an
   //     elite's is at least magic, a warden's or a Keeper's rare, and a
   //     Keeper's legendary weight is keeperLegend times.
-  //   affixes: traits by rarity (a legendary's power and a set's bonus are
-  //     traits too, besides these); value: a trait's strength against the
-  //     old item affix's (there are more sockets than there were pieces).
-  //   fits: the odds a module is for a rig, armor, a charm or a pick
-  //     (a creature leans it to where its family can go).
+  //   kinds: the odds a found core is a Form, an Element or a Mod.
+  //   bonus: a found core's bonus against an old item affix's, by rarity (a
+  //     legendary carries a power too). temper: a forged core's bonus by the
+  //     anvil's quality (0: none); a masterwork chooses from `choices`.
   //   upgrade: a tier up (to 2–6): ore of the new tier, and threads by the
-  //     new tier. It's the only work done on a module: legendaries are
-  //     found, never made.
-  //   salvage: threads, by rarity, +perTier a tier above 1. weight: in the
-  //     cargo.
-  modules: {
-    drop: { foe: 0.06, elite: 0.5, boss: 2, keeper: 3, deep: 1.4, early: { found: 8, mult: 2.6 }, lens: 1.5 },
+  //     new tier. salvage: threads, by rarity, +perTier a tier above 1.
+  cores: {
+    drop: { foe: 0.03, elite: 0.4, boss: 2, keeper: 3, deep: 1.4, early: { found: 4, mult: 2.5 }, lens: 1.5 },
     keeperLegend: 5,
-    affixes: { common: 1, magic: 2, rare: 3, legendary: 2, set: 1 },
-    value: 1.0, // (was 0.6: fewer modules now, each worth having)
-    fits: { caster: 3, armor: 2.5, charm: 2, pick: 1.5 },
+    kinds: { form: 3, element: 3, glyph: 2 },
+    bonus: { common: 0.8, magic: 1.0, rare: 1.25, legendary: 1.25 }, // (one bonus a core where a module held two or three: each worth more)
+    temper: [0, 1.0, 1.25, 1.25], choices: 3,
     upgrade: { ore: 10, threads: [0, 4, 8, 14, 20, 28] },
-    salvage: { common: 1, magic: 2, rare: 4, legendary: 7, set: 7, perTier: 1 },
+    salvage: { common: 1, magic: 2, rare: 4, legendary: 7, perTier: 1 },
   },
 
   // The Lodestar grows from deeds, not ore (deeds.js): each deed gives
@@ -955,7 +950,7 @@ const T = {
   },
   // By an ancient forge, the chance a module lies, left by whoever worked
   // it (how often one stands is the zone's).
-  fieldForge: { module: 0.6 },
+  fieldForge: { core: 0.6 },
   // The anvil: three strikes, each a marker sweeping a bar at `speeds`
   // (sweeps a second), slowed to `drag` of that while it's over the zone.
   // A strike inside the zone (`zone` of the bar wide, narrowing by `shrink`

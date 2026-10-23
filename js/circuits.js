@@ -107,32 +107,47 @@ function stoneCol(id) {
 // ---------------------------------------------------------------------------
 // The rig's spells
 // ---------------------------------------------------------------------------
-// A spell: { form, el, mods: [core | null, ...] }, each core an item
-// { kind: 'stone', stone, tier } or null.
-function emptySpell(mods) { return { form: null, el: null, mods: new Array(mods).fill(null) }; }
-// How many Mod slots a spell of a frame has: one, and a second from a frame
-// of T.circuits.rig.mod2Tier or better, a masterwork, or a Lodestone shard.
-function rigModSlots(tier, q, shard) {
+// A spell: { form, el, mods: [core | null], and the frame's extra part if
+// it has one: a second Mod (mods[1]), el2 (a second Element) or form2 (a
+// second Form) }, each core an item { kind: 'stone', stone, tier, bonus }
+// or null. extra: the frame's extra kind (frameExtra), or null.
+function emptySpell(extra) {
+  const sp = { form: null, el: null, mods: new Array(extra === 'glyph' ? 2 : 1).fill(null) };
+  if (extra === 'element') sp.el2 = null;
+  if (extra === 'form') sp.form2 = null;
+  return sp;
+}
+// The extra part a frame's spells have: one on a frame of
+// T.circuits.rig.extraTier or denser, a masterwork, or one with a Lodestone
+// shard worked in; its kind is the ore's (T.circuits.ores[ore].extra: a
+// second Mod, Element or Form). Null for a plain frame.
+function frameExtra(tier, q, shard, oreId) {
   const R = T.circuits.rig;
-  return R.mods + (tier >= R.mod2Tier || q >= 3 || shard ? 1 : 0);
+  if (!(tier >= R.extraTier || q >= 3 || shard)) return null;
+  return (T.circuits.ores[oreId] || {}).extra || 'glyph';
 }
 // A rig's spell i (0 or 1), or null.
 const rigSpell = (it, i) => (it && it.spells && it.spells[i]) || null;
 // A spell's cores, in a list (no empty ones).
-const spellCores = (sp) => (sp ? [sp.form, sp.el].concat(sp.mods || []).filter(Boolean) : []);
-// Where a core goes in a spell: 'form', 'el' or 'm0', 'm1'.
+const spellCores = (sp) => (sp ? [sp.form, sp.form2, sp.el, sp.el2].concat(sp.mods || []).filter(Boolean) : []);
+// Where a core goes in a spell: 'form', 'el' or 'm0', 'm1' (or 'form2', 'el2').
 const spellPartOf = (id) => (stoneKind(id) === 'form' ? 'form' : stoneKind(id) === 'element' ? 'el' : 'm');
 function spellGet(sp, key) { return key[0] === 'm' ? sp.mods[Number(key.slice(1))] || null : sp[key] || null; }
 function spellSet(sp, key, core) { if (key[0] === 'm') sp.mods[Number(key.slice(1))] = core; else sp[key] = core; }
 // The kind of core a part of a spell takes.
-const spellPartKind = (key) => (key === 'form' ? 'form' : key === 'el' ? 'element' : 'glyph');
+const spellPartKind = (key) => (key === 'form' || key === 'form2' ? 'form' : key === 'el' || key === 'el2' ? 'element' : 'glyph');
+// A spell's parts in order: [key, core | null], the extra part among them.
+const spellParts = (sp) => [['form', sp.form]].concat('form2' in sp ? [['form2', sp.form2]] : [], [['el', sp.el]], 'el2' in sp ? [['el2', sp.el2]] : [], sp.mods.map((m, k) => ['m' + k, m]));
 
-// What a spell fires as: { form, tier, els, glyphs: { id: count }, stones },
-// or null with no Form.
+// What a spell fires as: { form, form2, tier, els, glyphs: { id: count },
+// stones }, or null with no Form. Two Elements: each on half the hit (a
+// hit of two elements, combat.js), and they react with each other.
 function spellGroup(sp) {
   if (!sp || !sp.form) return null;
-  const g = { form: sp.form.stone, tier: sp.form.tier, els: sp.el ? [sp.el.stone] : [], glyphs: {}, stones: [sp.form] };
+  const g = { form: sp.form.stone, form2: sp.form2 ? sp.form2.stone : null, tier: sp.form.tier, els: [sp.el, sp.el2].filter(Boolean).map((c) => c.stone), glyphs: {}, stones: [sp.form] };
+  if (sp.form2) g.stones.push(sp.form2);
   if (sp.el) g.stones.push(sp.el);
+  if (sp.el2) g.stones.push(sp.el2);
   for (const m of sp.mods || []) if (m) { g.glyphs[m.stone] = (g.glyphs[m.stone] || 0) + 1; g.stones.push(m); }
   return g;
 }
@@ -241,7 +256,7 @@ function spellLine(it, sp) {
 // ---------------------------------------------------------------------------
 
 // What casts with no rig worn: a free Arc at the fist's power (spell A).
-function fistCaster() { const sp = emptySpell(1); sp.form = { kind: 'stone', stone: 'arc', tier: 1 }; return { kind: 'caster', bp: 'rig', base: { power: T.hands.fist }, spells: [sp, emptySpell(1)], sockets: [], affixes: [], fist: true }; }
+function fistCaster() { const sp = emptySpell(null); sp.form = { kind: 'stone', stone: 'arc', tier: 1 }; return { kind: 'caster', bp: 'rig', base: { power: T.hands.fist }, spells: [sp, emptySpell(null)], affixes: [], fist: true }; }
 
 // A press (or a release, charged) of a spell's button: slot 'main' casts
 // spell A from the right wrist, 'off' spell B from the left.
@@ -267,9 +282,12 @@ function castHand(slot, item, h, charged) {
   const cx = { item: it, power: it.base.power, charged, step: h.step, from: null, aim: null, mult: res ? resonanceMult(it) : 1, spread: 0, echo: false, res: res ? res.id : null };
   if (res) resonanceCast(res, d);
   // the Twice-Told: everything again, fanned a little
-  for (let k = 0; k < (casterHasPower(it, 'echo') ? 2 : 1); k++) {
+  for (let k = 0; k < (d.stats.powers.echo ? 2 : 1); k++) {
     const c = k ? Object.assign({}, cx, { spread: 0.25 }) : cx;
     if (!g) fireSpark(c); else fireGroup(g, c);
+    // a second Form (an Aetherglass frame's extra part): cast as well, a
+    // little weaker
+    if (g && g.form2) fireGroup(Object.assign({}, g, { form: g.form2, form2: null }), Object.assign({}, c, { mult: c.mult * C.rig.form2Mult }));
   }
   return true;
 }

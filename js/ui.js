@@ -28,8 +28,14 @@ function costTag(id, n, have, name = stuffName(id)) {
 
 function iconImg(item, cls = 'icon') { return `<img class="${cls}" src="${itemIconUrl(item)}" alt="">`; }
 function itemRow(item, act, arg, tag = '') {
-  if (item.kind === 'module') return moduleRow(item, act, arg, tag);
-  return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name ${item.q ? 'q-' + item.q : 'r-' + item.rarity}">${item.fav ? '★ ' : ''}${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span><span class="row-gems">${isCaster(item) ? miniSpells(item) : ''}${item.sockets ? miniSockets(item) : ''}</span></span>${tag}</button>`;
+  if (item.kind === 'stone') return coreRow(item, act, arg, tag);
+  return `<button class="row" data-act="${act}" data-arg="${arg}">${iconImg(item)}<span class="row-text"><span class="row-name ${item.q ? 'q-' + item.q : 'r-' + item.rarity}">${item.fav ? '★ ' : ''}${esc(item.name)}</span><span class="row-sub">${esc(itemKindLine(item))}</span><span class="row-gems">${isCaster(item) ? miniSpells(item) : ''}</span></span>${tag}</button>`;
+}
+// A core's row: its icon, its name in its rarity's colour, its kind and
+// tier, and its bonus and power in short.
+function coreRow(c, act, arg, tag = '', sub = '') {
+  const traits = coreTraits(c).map((t) => t.text).join(' · ');
+  return `<button class="row mod-row" data-act="${act}" data-arg="${arg}"><img class="icon" src="${stoneIconUrl(c.stone)}" alt=""><span class="row-text"><span class="row-name r-${c.rarity || 'common'}">${c.fav ? '★ ' : ''}${esc(c.name)}</span><span class="row-sub">${esc(sub || itemKindLine(c))}</span>${traits ? `<span class="row-traits">${esc(traits)}</span>` : ''}</span>${tag}</button>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -46,13 +52,14 @@ function stoneTile(st, opts = {}) {
   const tag = opts.act ? 'button' : 'span', cls = `${opts.sel ? ' sel' : ''}${opts.mini ? ' mini' : ''}`;
   const attrs = opts.act ? ` data-act="${opts.act}" data-arg="${opts.arg}"` : '';
   if (!st) return `<${tag} class="tile t-empty${cls}"${attrs} aria-label="Empty ${opts.kind ? STONE_KIND_NAMES[opts.kind] : 'part'}"><b>·</b>${opts.mini ? '' : `<small>${opts.kind ? STONE_KIND_NAMES[opts.kind].toUpperCase() : 'EMPTY'}</small>`}</${tag}>`;
-  const W = stoneWords(st.stone), k = stoneKind(st.stone);
+  const W = stoneWords(st.stone), k = stoneKind(st.stone), rar = st.rarity && st.rarity !== 'common' ? st.rarity : null;
   const img = opts.mini ? '' : `<img src="${stoneIconUrl(st.stone)}" alt="">`;
   const sub = opts.mini ? '' : `<small>${opts.count ? '×' + opts.count + ' · ' : ''}T${st.tier}</small>`;
-  return `<${tag} class="tile t-${k}${cls}" style="--c:${stoneTint(st.stone)}"${attrs} aria-label="${esc(W.name)}, tier ${st.tier}">${img}<b>${W.abbr}</b>${sub}</${tag}>`;
+  // (a core with a bonus wears a pip of its rarity's colour)
+  const pip = rar ? `<i class="pip" style="background:${ART.rarity[rar]}"></i>` : '';
+  return `<${tag} class="tile t-${k}${cls}${rar ? ' r-' + rar : ''}" style="--c:${stoneTint(st.stone)}"${attrs} aria-label="${esc(W.name)}, tier ${st.tier}">${img}<b>${W.abbr}</b>${sub}${pip}</${tag}>`;
 }
 // A spell's parts, in order: [key, core].
-const spellParts = (sp) => [['form', sp.form], ['el', sp.el]].concat(sp.mods.map((m, k) => ['m' + k, m]));
 function miniSpells(it) { return (it.spells || []).map((sp) => `<span class="mini-circuit">${spellParts(sp).map(([key, c]) => stoneTile(c, { mini: true, kind: spellPartKind(key) })).join('')}</span>`).join(''); }
 // The cores in a list, one entry for each kind and tier: { stone, tier, n }.
 function groupStones(items) {
@@ -78,14 +85,16 @@ function spellPanel(it, edit, c) {
   if (!edit) return h;
   if (!c.part) return h;
   const [i, key] = c.part.split(':'), sp = it.spells[Number(i)], sel = spellGet(sp, key), kind = spellPartKind(key);
-  const list = groupStones(Save.data.items).filter((x) => stoneKind(x.stone) === kind);
-  h += `<div class="drawer"><div class="drawer-head"><span>${i === '1' ? 'B' : 'A'} · ${STONE_KIND_NAMES[kind].toUpperCase()}${sel ? ' · ' + esc(stoneWords(sel.stone).name.toUpperCase()) : ''}</span>${sel ? '<button class="mini" data-act="partOut">TAKE OUT</button>' : ''}</div>
-    <div class="drawer-row">${list.length ? list.map((x) => stoneTile(x, { act: 'partPut', arg: x.stone + ':' + x.tier, count: x.n })).join('') : '<span class="note">None spare.</span>'}</div></div>`;
+  // the spare cores of that kind, each its own row (its bonus differs)
+  const list = Save.data.items.filter((x) => x.kind === 'stone' && stoneKind(x.stone) === kind).sort((a, b) => STONE_ORDER.indexOf(a.stone) - STONE_ORDER.indexOf(b.stone) || coreWorth(b) - coreWorth(a));
+  const second = key === 'el2' || key === 'form2' || key === 'm1';
+  h += `<div class="drawer"><div class="drawer-head"><span>${i === '1' ? 'B' : 'A'} · ${second ? 'SECOND ' : ''}${STONE_KIND_NAMES[kind].toUpperCase()}${sel ? ' · ' + esc(stoneWords(sel.stone).name.toUpperCase()) : ''}</span>${sel ? `<span><button class="mini" data-act="cardStone" data-arg="${sel.uid}">LOOK</button><button class="mini" data-act="partOut">TAKE OUT</button></span>` : ''}</div>
+    ${list.length ? list.map((x) => coreRow(x, 'partPut', x.uid, sel ? (coreWorth(x) > coreWorth(sel) * 1.05 ? '<span class="tag up">▲</span>' : coreWorth(x) < coreWorth(sel) * 0.95 ? '<span class="tag down">▼</span>' : '') : '<span class="tag up">▲</span>')).join('') : '<p class="note">None spare.</p>'}</div>`;
   return h;
 }
 // ▲ or ▼ against what's worn in the slot it would go in
 function compareTag(item, equip) {
-  if (item.kind === 'module') return moduleTag(item, equip);
+  if (item.kind === 'stone') return '';
   const slot = compareSlot(equip, item);
   if (!slot) return '';
   const cur = equip[slot], a = itemWorth(item), b = itemWorth(cur);
@@ -97,7 +106,7 @@ function compareTag(item, equip) {
 const UI = {
   openedAt: 0,
   screen: null,
-  card: null, // { item, where, key, part (the chosen spell part, 'i:key'), sock (the chosen socket), focus ('spells' or 'modules'), bench }
+  card: null, // { item, where, key, part (the chosen spell part, 'i:key'), bench (opened at the tuning bench), back (the rig's card a core's was opened from) }
   forge: { bp: null, ore: null, exotic: null, field: false },
 
   init() {
@@ -457,8 +466,8 @@ function drawReport() {
   const where = r.where || '';
   const gear = (items) => {
     if (!items || !items.length) return '';
-    const m = items.filter && items.filter((it) => it.kind === 'module').length, g = items.length - (m || 0);
-    return [m ? `${m} module${m > 1 ? 's' : ''}` : '', g ? `${g} piece${g > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(', ');
+    const m = items.filter && items.filter((it) => it.kind === 'stone').length, g = items.length - (m || 0);
+    return [m ? `${m} core${m > 1 ? 's' : ''}` : '', g ? `${g} piece${g > 1 ? 's' : ''} of gear` : ''].filter(Boolean).join(', ');
   };
   const got = [stuffLines(r.banked || r.lost || {}), gear(r.items)].filter(Boolean).join(', ');
   const rows = [], row = (label, cls, text) => rows.push(`<div class="rep-row"><span class="rep-label ${cls}">${label}</span><span class="rep-text">${esc(text)}</span></div>`);
@@ -530,7 +539,7 @@ function drawStar() {
 function drawCargo() {
   const d = Game.dive;
   if (!d) return;
-  const mods = d.items.filter((it) => it.kind === 'module'), items = d.items.filter((it) => it.kind !== 'module').map((it) => itemRow(it, 'cardCargo', it.uid, compareTag(it, Save.data.equip))).join('');
+  const mods = d.items.filter((it) => it.kind === 'stone'), items = d.items.filter((it) => it.kind !== 'stone').map((it) => itemRow(it, 'cardCargo', it.uid, compareTag(it, Save.data.equip))).join('');
   const worn = SLOTS.filter((k) => Save.data.equip[k]).map((k) => itemRow(Save.data.equip[k], 'cardWorn', k, `<span class="slot">${SLOT_NAMES[k]}</span>`)).join('');
   const stuff = stuffIds().filter((id) => d.cargo[id]).map((id) => `<button class="row" data-act="cardStuff" data-arg="${id}"><img class="icon" src="${stuffIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(stuffName(id))} × ${d.cargo[id]}</span><span class="row-sub">${stuffKindWord(id)}</span></span></button>`).join('');
   const heart = (d.tally && d.tally.light && d.tally.light.heartlight) || 0, pack = Save.data.cache;
@@ -542,7 +551,7 @@ function drawCargo() {
     <h3>ORE AND MATERIALS</h3>${stuff || '<p class="note">None yet.</p>'}
     ${onboardHas('supplies') ? supplyMakeHtml() : ''}
     ${d.blueprints.length ? `<h3>BLUEPRINTS</h3>${d.blueprints.map((b) => `<div class="row static"><img class="icon" src="${recipeIconUrl(b.id)}" alt=""><span class="row-text"><span class="row-name r-legendary">${esc(BLUEPRINTS[b.id].name)}</span><span class="row-sub">Blueprint</span></span></div>`).join('')}` : ''}
-    ${mods.length ? `<h3>MODULES · ${mods.length}</h3>${mods.map((m) => moduleRow(m, 'cardCargo', m.uid, moduleTag(m, Save.data.equip))).join('')}` : ''}
+    ${mods.length ? `<h3>CORES · ${mods.length}</h3>${mods.map((m) => coreRow(m, 'cardCargo', m.uid)).join('')}` : ''}
     ${items ? `<h3>FOUND</h3>${items}` : ''}
     <h3>WORN · SAFE</h3>${worn}
     <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL</button></div>
@@ -564,8 +573,8 @@ function cardBar(where, extra = '') {
 // Ore or an exotic in the cargo: how much, and dropping some.
 function drawStuffCard(id) {
   const n = (Game.dive && Game.dive.cargo[id]) || 0, x = T.exotics.find((e) => e.id === id), pk = parsePart(id);
-  const what = id === 'thread' ? 'Pays to upgrade modules.'
-    : x ? (x.element ? `Forges a ${CIRCUIT_ELEMENTS[x.element].name} core.` : x.retired ? 'Old stock: unravelled into threads at home.' : x.tierUp ? 'Forge with it: a tier above its ore.' : x.modSlot ? 'Forge it into a rig frame: +1 Mod slot.' : '')
+  const what = id === 'thread' ? 'Pays to upgrade cores, and to build.'
+    : x ? (x.element ? `Forges a ${CIRCUIT_ELEMENTS[x.element].name} core.` : x.retired ? 'Old stock: unravelled into threads at home.' : x.tierUp ? 'Forge with it: a tier above its ore.' : x.modSlot ? "Forge it into a rig frame: the ore's extra slot." : '')
     : pk ? (PARTS[pk.kind].family ? 'For the forge: recipes name what they take.' : 'Forges a Ward core.')
     : isLight(id) ? LIGHT_KINDS[id].text
     : `Tier ${T.ores[ORE_INDEX[id]].tier} ore.`;
@@ -705,7 +714,7 @@ function moveSpells(from, to, list) {
     for (const [key, c] of spellParts(sp)) {
       if (!c) continue;
       spellSet(sp, key, null);
-      if (key[0] !== 'm' || Number(key.slice(1)) < dst.mods.length) spellSet(dst, key, c); else list.push(c);
+      if ((key[0] === 'm' && Number(key.slice(1)) < dst.mods.length) || (key[0] !== 'm' && key in dst)) spellSet(dst, key, c); else list.push(c);
     }
   });
 }

@@ -12,8 +12,7 @@
 // with no button. When one wakes, Wick says so once.
 //   spells     changing the rig's cores (the locker's drawer, CORES, CODEX):
 //              the first core beyond the first ones, researched or forged
-//   modules    sockets on the cards, the locker's modules, the tuning
-//              bench: the first module caught
+//   modules    the tuning bench: the first core caught (or tempered)
 //   altar      the star's altar and ATTUNE: the first light of a deed
 //   supplies   SUPPLIES, MEND and LIGHT, MAKE: the first ore brought home
 //              (after the first walkthrough's cutter, if it's running)
@@ -35,7 +34,7 @@
 const ONBOARD_KEYS = ['spells', 'modules', 'altar', 'supplies', 'gear', 'tools', 'buildings', 'wick', 'uplink'];
 const ONBOARD_WHEN = {
   spells: (s) => s.items.some((x) => x.kind === 'stone') || s.blueprints.some((id) => BLUEPRINTS[id] && BLUEPRINTS[id].kind === 'stone' && !BLUEPRINTS[id].start) || magnitudeOf(s.star) >= 2,
-  modules: (s) => (s.modsFound || 0) > 0 || s.items.some((x) => x.kind === 'module') || SLOTS.some((k) => s.equip[k] && (s.equip[k].sockets || []).some(Boolean)),
+  modules: (s) => (s.coresFound || 0) > 0 || s.items.some((x) => x.kind === 'stone' && (x.bonus || x.power)) || rigCores(s.equip.main).some((x) => x.bonus || x.power),
   altar: (s) => s.star > 0 || lightWaiting() > 0 || (s.shards || []).length > 0,
   supplies: (s) => (T.ores.some((o) => s.stash[o.id] > 0) && !Guide.on()) || Object.values(s.supplies || {}).some((n) => n > 0) || (s.built || []).length > 0 || magnitudeOf(s.star) >= 2,
   gear: (s) => (s.crafts || 0) > 0 || !!s.equip.armor || !!s.equip.charm || s.items.some((x) => x.kind === 'armor' || x.kind === 'charm') || magnitudeOf(s.star) >= 2,

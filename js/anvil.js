@@ -156,26 +156,26 @@ const Anvil = {
 };
 
 // What the anvil added, in words, by quality.
-const ANVIL_ADDS = ['as the recipe says', '+5%', '+10%', '+15%, a socket more'];
+const ANVIL_ADDS = ['as the recipe says', '+5%', '+10%', '+15%'];
 // A forged piece's light, by the anvil's quality: plain, pale, gold, the
 // orange of a legendary.
 const QUALITY_COLS = ['#b8b0a0', '#c8d2dc', '#ffd34d', '#ff8a3d'];
 const QUALITY_RARITY = ['common', 'magic', 'rare', 'legendary'];
 
 // The moment a piece arrives: it rises in a beam of its quality's colour
-// (a module's, its rarity's), then (on a tap, or by itself) its card opens
+// (a found core's, its rarity's), then (on a tap, or by itself) its card opens
 // over `back`.
 const Reveal = {
   item: null, where: null, back: null, shownAt: 0,
   show(item, where, back, q) {
     this.item = item; this.where = where; this.back = back;
     const forged = q !== undefined, col = forged ? QUALITY_COLS[q] : ART.rarity[item.rarity] || '#ffffff', rar = forged ? QUALITY_RARITY[q] : item.rarity;
-    const masterMod = forged && q >= 3 && item.spells ? ', 2 Mod slots' : '';
+    const masterMod = forged && q >= 3 && item.spells ? ', the extra slot' : '';
     $('reveal-body').innerHTML = `
       <div class="reveal-beam" style="--col:${col}"></div>
       <img class="reveal-icon" src="${itemIconUrl(item)}" alt="">
       <div class="reveal-name r-${forged ? rar : item.rarity}">${esc(item.name)}</div>
-      <div class="reveal-sub">${esc(itemKindLine(item))}${forged ? ` · ${['Rough', 'Fair', 'Fine', 'Masterwork'][q]}: ${item.kind === 'stone' ? (q >= 2 ? 'a tier up' : 'as the recipe says') : ANVIL_ADDS[q] + masterMod}` : ''}</div>`;
+      <div class="reveal-sub">${esc(itemKindLine(item))}${forged ? ` · ${['Rough', 'Fair', 'Fine', 'Masterwork'][q]}: ${item.kind === 'stone' ? ['as the recipe says', 'a lesser bonus', 'a tier up, a bonus', 'a tier up, your choice of bonus'][q] : ANVIL_ADDS[q] + masterMod}` : ''}</div>`;
     UI.show('screen-reveal');
     this.shownAt = Game.realT;
     snd('reveal', { rarity: item.kind === 'relic' ? 'relic' : rar });
@@ -188,6 +188,6 @@ const Reveal = {
     if (this.back) UI.show(this.back); else UI.close();
     UI.openCard(it, this.where, it.uid);
     // (from the tuning bench: its card stays the bench's)
-    if (this.back === 'screen-bench' && it.kind === 'module') { UI.card.bench = true; drawCard(); }
+    if (this.back === 'screen-bench' && it.kind === 'stone') { UI.card.bench = true; drawCard(); }
   },
 };

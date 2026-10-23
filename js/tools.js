@@ -3,7 +3,7 @@
 // Tools. The diver carries one, chosen at the portal before setting out, and
 // each changes what can be seen or done out there: where the light is,
 // where the ore is, what's coming, the lay of the land, a
-// spire's light called down where there's none, modules likelier. The
+// spire's light called down where there's none, cores likelier. The
 // Compass is carried from the start; the rest are made once, at the forge,
 // as the star grows (their recipes are in blueprints.js; T.tools: the
 // magnitude each needs, and what it costs).
@@ -14,7 +14,7 @@ const TOOLS = {
   oresense: { name: 'Ore Sense', icon: 'lens', text: 'Nearby veins glint through the dark.' },
   radar: { name: 'Threat Radar', icon: 'radar', text: "Marks what's out there at the view's edge." },
   map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each place as you walk it.' },
-  lens: { name: 'Capture Lens', icon: 'lure', text: 'Creatures leave modules half again as often.' },
+  lens: { name: 'Capture Lens', icon: 'lure', text: 'Creatures leave cores half again as often.' },
   beacon: { name: 'Lode Beacon', icon: 'beacon', text: "Once a sortie, call a spire's light down where you stand." },
 };
 const TOOL_IDS = ['compass', 'oresense', 'radar', 'beacon', 'map', 'lens'];

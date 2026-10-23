@@ -779,3 +779,10 @@ body.guiding:not(.modal) .toasts { top: calc(104px + env(safe-area-inset-top)); 
 
 /* out in the dark with a haul the dark has noticed (game.js, d.heat) */
 #btn-cargo.hot { color: #ff6a5a; border-color: #ff6a5a; text-shadow: 0 0 6px rgba(255, 106, 90, 0.6); }
+
+/* a core with a bonus wears a pip of its rarity's colour on its tile */
+.tile { position: relative; }
+.tile .pip { position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 4px currentColor; }
+/* a masterwork core's temper, chosen from three on its card */
+.temper { margin: 8px 0; padding: 6px 8px; border: 1px solid var(--legendary); background: #1a1410; }
+.temper .row-sub { margin-bottom: 4px; }

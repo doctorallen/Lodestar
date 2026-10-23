@@ -73,25 +73,26 @@ function hartDone(s, ax, ay, extra) {
 }
 
 // ---------------------------------------------------------------------------
-// The fabricator: the Charter's forge module, set down with the seed. A
-// clean block on a plinth, seen from above and in front: a gunmetal top
-// with a hatch, a vent stack at its back, and a face of three panels (the
-// Charter's blue either side, its seed-star on the left, the status lights
-// on the right), an amber trim light under its lip, and in the middle a
-// round glass port with the induction crucible glowing behind it (drawn
-// over each frame, hartForgeFire, its middle at HART_MOUTH). Coolant pipes
-// run out of its foot. To its left a hydraulic press on a C-frame over a
-// forging bed; its ram is drawn on its own (hartPressRam), the bed's face at
-// HART_ANVIL. Feet on row 61.
+// The fabricator: the Charter's replicator, set down with the seed. A
+// gunmetal plinth; on it, in the middle, a tall glass chamber between two
+// emitter rings, where a piece is built up from the pattern (the chamber's
+// field, its scan line and the forming piece are drawn over each frame,
+// hartForgeFire, the chamber's middle at HART_MOUTH); over it a gantry
+// whose scan head runs down the chamber as the forge works (hartPressRam,
+// the head drawn on its own, hanging from HART_RAM); to the left a console
+// at standing height (its face at HART_ANVIL: the smith works it) with the
+// status lights (HART_LEDS) and a readout; to the right the feed column
+// with the materials hopper and a pair of emitter spines (their motes rise
+// off HART_STACK). Coolant lines run out of the plinth. Feet on row 61.
 // ---------------------------------------------------------------------------
-const HART_MOUTH = { x: 42, y: 44, r: 7.3 }; // the port's middle, and the glass's radius
+const HART_MOUTH = { x: 40, y: 36, r: 8, w: 9, h: 13 }; // the chamber's middle, and its half width and half height inside the glass
 // (the hand points above are in authored px; a sprite enlarged for FINE
 // GRAIN (artFine, spr.f) has them this much further in)
 function hartPt(spr, pt) { const F = (spr && spr.f) || 1; return { x: pt.x * F, y: pt.y * F }; }
-const HART_ANVIL = { x: 9, y: 42 }; // the work on the bed, where the ram lands
-const HART_RAM = { x: 3, y: 28, travel: 9 }; // where the ram hangs, raised, and how far it comes down
-const HART_LEDS = [[55, 39, '#6cff9a'], [57, 39, '#ffb030'], [55, 41, '#62f0ff']]; // the status lights (the first blinks)
-const HART_STACK = { x: 34, y: 8 }; // the vent stack's mouth
+const HART_ANVIL = { x: 12, y: 40 }; // the console's readout, where the smith's hands work
+const HART_RAM = { x: 29, y: 20, travel: 22 }; // where the scan head hangs, raised, and how far it runs down
+const HART_LEDS = [[9, 45, '#6cff9a'], [11, 45, '#ffb030'], [9, 47, '#62f0ff']]; // the status lights (the first blinks)
+const HART_STACK = { x: 57, y: 12 }; // the emitter spines' tips, where their motes rise
 // A line of pixels from a to b.
 function hartLine(s, a, b, col, glow) {
   const n = Math.max(1, Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]))));
@@ -127,137 +128,115 @@ function hartBlock(s, x0, x1, y0, y1, y2, ramp, seed, back = 2) {
 }
 function hartForge() {
   return hartKeep('forge', () => {
-    const W = 68, H = 64, FY = 61, s = new PntSpr(W, H, 501), Hu = HART.hull, CB = HART.charter, M = HART_MOUTH, St = HART.steel, Am = HART.amber;
-    const xl = 24, xr = 62, top = 23, lip = 31, foot = 55;
-    // the press: a column at the back of the bed, an arm over it, the
-    // cylinder hanging from the arm's end (its ram is drawn over)
-    hartStrokes(s, 15, 12, 19, 44, (x, y) => 0.5 - (x - 15) * 0.09 - (y - 12) * 0.003, Hu, 502, { jit: 0.12 });
-    for (let y = 12; y <= 44; y++) s.px(15, y, Hu[y < 30 ? 6 : 5]);
-    s.poly([[15, 16], [15, 23], [10.5, 16]], (x, y) => Hu[x < 13 ? 3 : 2]);
-    hartStrokes(s, 2, 9, 19, 10, (x) => 0.82 - x * 0.012, Hu, 503);
-    hartStrokes(s, 2, 11, 19, 15, (x, y) => 0.4 - (x - 2) * 0.008 - (y - 11) * 0.03, CB, 504, { jit: 0.12 });
-    for (let x = 2; x <= 19; x++) { s.px(x, 9, x < 9 ? Hu[6] : Hu[5]); s.px(x, 16, Hu[1]); }
-    for (let x = 4; x <= 13; x += 3) s.px(x, 13, Am[1]);
-    hartStrokes(s, 4, 17, 13, 26, (x) => 0.85 - Math.abs(x - 6) * 0.1, St, 505, { jit: 0.1 });
-    for (let x = 4; x <= 13; x++) { s.px(x, 19, St[1]); s.px(x, 20, x < 8 ? St[5] : St[3]); s.px(x, 24, St[1]); }
-    hartStrokes(s, 6, 27, 11, 27, (x) => 0.6 - (x - 6) * 0.08, Hu, 506);
-    // its hydraulic line, looping up off the arm and down to the body
-    hartHose(s, [6, 8], [18, -6], [27, 27], 2, ['#0b0c10', '#14161c', '#2c313b']);
-    // the vent stack at the back: a square tower, louvred, a cap
-    hartStrokes(s, 30, 9, 37, 24, (x, y) => 0.7 - (x - 30) * 0.08, Hu, 508, { jit: 0.1 });
-    for (let y = 10; y <= 24; y++) { s.px(30, y, Hu[6]); s.px(37, y, Hu[1]); }
-    for (let y = 13; y <= 21; y += 2) for (let x = 31; x <= 36; x++) s.px(x, y, Hu[x < 33 ? 2 : 1]);
-    s.box(29, 7, 38, 9, Hu, { lo: 2, hi: 6 });
-    for (let x = 31; x <= 36; x++) s.px(x, 8, '#050506');
-    s.px(34, 8, HART.fire[1], true);
-    // the body: its top (a hatch, a fitting) and its face
-    hartBlock(s, xl, xr, top, lip, foot - 1, Hu, 507, 3);
-    s.box(45, 25, 55, 28, Hu, { lo: 1, hi: 5 });
-    for (let x = 46; x <= 54; x++) s.px(x, 25, Hu[6]);
-    s.px(50, 26, Am[2], true);
-    s.box(27, 25, 31, 28, Hu, { lo: 2, hi: 5 });
-    // the face's panels: the Charter's blue either side of the port's
-    // gunmetal, their seams dark, their tops lit
-    const panel = (x0, x1, ramp, sd) => {
-      hartStrokes(s, x0, lip + 2, x1, foot - 2, (x, y) => 0.62 - (x - xl) / (xr - xl) * 0.36 - (y - lip) * 0.006, ramp, sd, { jit: 0.12 });
-      for (let x = x0; x <= x1; x++) { s.px(x, lip + 2, ramp[ramp.length - 1]); s.px(x, foot - 2, ramp[1]); }
-      for (let y = lip + 2; y <= foot - 2; y++) { s.px(x0, y, ramp[ramp.length - 2]); s.px(x1, y, ramp[0]); }
-    };
-    panel(xl + 1, 31, CB, 511); panel(53, xr - 1, CB, 512);
-    for (let y = lip + 2; y <= foot - 2; y++) { s.px(32, y, Hu[0]); s.px(52, y, Hu[0]); }
-    // the trim light under the lip, in short lit lengths
-    for (let x = xl + 1; x <= xr - 1; x++) s.px(x, lip + 1, x % 7 < 5 ? Am[(x < 43 ? 3 : 2)] : Hu[1], x % 7 < 5);
-    // the seed-star on the left panel, a stencilled stripe under it
-    hartSeedStar(s, 28, 38, true);
-    for (let x = 26; x <= 30; x++) s.px(x, 46, HART.mark[0]);
-    for (let x = 26; x <= 30; x++) s.px(x, 48, HART.mark[0]);
-    // the port: a raised bezel lit on its upper left, round dark glass
-    for (let y = M.y - 10; y <= M.y + 10; y++) for (let x = M.x - 10; x <= M.x + 10; x++) {
-      const dx = x - M.x, dy = y - M.y, r = Math.hypot(dx, dy);
-      if (r <= M.r) s.px(x, y, '#0c0503');
-      else if (r <= 8.2) s.px(x, y, -(dx * 0.55 + dy * 0.8) / r > 0.2 ? Hu[0] : Hu[2]);
-      else if (r <= 9.9) { const l = -(dx * 0.55 + dy * 0.8) / r; s.px(x, y, Hu[clamp(Math.round(3.6 + l * 2.6 + (artHash(x, y, 512) - 0.5) * 0.6), 1, 6)]); }
-    }
-    for (let k = 0; k < 4; k++) { const a = (k + 0.5) / 4 * Math.PI * 2, bx = M.x + Math.cos(a) * 9, by = M.y + Math.sin(a) * 9; s.px(bx, by, Math.cos(a) * 0.55 + Math.sin(a) * 0.8 < 0 ? Hu[6] : Hu[4]); }
-    // the status panel on the right (its lights are drawn glowing)
-    for (let y = 37; y <= 45; y++) for (let x = 54; x <= 58; x++) s.px(x, y, y === 37 || x === 54 ? Hu[1] : '#07080b');
-    for (let x = 54; x <= 58; x++) s.px(x, 46, CB[5]);
-    for (const [x, y, c] of HART_LEDS) s.px(x, y, c, true);
-    s.px(57, 41, '#3a1010');
-    for (let x = 55; x <= 57; x++) s.px(x, 43, x < 57 ? '#1e6a70' : '#0e3a40', true);
+    const W = 68, H = 64, FY = 61, s = new PntSpr(W, H, 501), Hu = HART.hull, CB = HART.charter, M = HART_MOUTH, St = HART.steel, Am = HART.amber, Co = HART.cold;
+    const cx = M.x, gl = cx - M.w - 2, gr = cx + M.w + 2, gtop = M.y - M.h - 1, gbot = M.y + M.h + 1, foot = 55;
     // the plinth: a clean gunmetal step, an amber line along its top
-    hartStrokes(s, xl - 2, foot, xr + 2, FY, (x, y) => (y === foot ? 0.9 : 0.34 - (x - xl) * 0.004 - (y - foot) * 0.02), Hu, 514, { jit: 0.1 });
-    for (let x = xl - 2; x <= xr + 2; x++) { s.px(x, foot + 1, x % 4 ? Am[1] : Am[0]); s.px(x, FY, Hu[0]); }
-    for (let y = foot; y < FY; y++) { s.px(xl - 2, y, Hu[5]); s.px(xr + 2, y, Hu[1]); }
-    // coolant pipes out of the plinth on the right, along the ground
+    hartStrokes(s, 2, foot, 66, FY, (x, y) => (y === foot ? 0.9 : 0.34 - (x - 2) * 0.004 - (y - foot) * 0.02), Hu, 514, { jit: 0.1 });
+    for (let x = 2; x <= 66; x++) { s.px(x, foot + 1, x % 4 ? Am[1] : Am[0]); s.px(x, FY, Hu[0]); }
+    for (let y = foot; y < FY; y++) { s.px(2, y, Hu[5]); s.px(66, y, Hu[1]); }
+    // the chamber's pedestal: a drum under the glass, lit on its left
+    hartStrokes(s, gl - 2, gbot + 1, gr + 2, foot - 1, (x, y) => 0.55 - (x - gl) / (gr - gl) * 0.35 - (y - gbot) * 0.02, Hu, 515, { jit: 0.12 });
+    for (let x = gl - 2; x <= gr + 2; x++) { s.px(x, gbot + 1, Hu[6]); s.px(x, foot - 1, Hu[0]); }
+    // the lower emitter ring: a bright band, its lit lengths the cold light
+    for (let x = gl - 1; x <= gr + 1; x++) { s.px(x, gbot, x % 5 < 3 ? Co[4] : Hu[2], x % 5 < 3); s.px(x, gbot - 1, Hu[x < cx ? 5 : 3]); }
+    // the chamber: glass, dark inside (the field is drawn over), its rim
+    // catching the light on the left, a frame rib at each side
+    for (let y = gtop; y <= gbot - 2; y++) for (let x = gl; x <= gr; x++) s.px(x, y, '#05070c');
+    for (let y = gtop; y <= gbot - 2; y++) { s.px(gl, y, St[5]); s.px(gl + 1, y, Co[1]); s.px(gr, y, St[1]); s.px(gr - 1, y, '#0a1418'); }
+    for (let y = gtop + 2; y <= gbot - 4; y += 6) { s.px(gl, y, St[3]); s.px(gr, y, St[0]); }
+    // the upper emitter ring and the cap over it, the gantry's rail
+    for (let x = gl - 1; x <= gr + 1; x++) { s.px(x, gtop - 1, x % 5 < 3 ? Co[4] : Hu[2], x % 5 < 3); s.px(x, gtop - 2, Hu[x < cx ? 6 : 4]); }
+    hartStrokes(s, gl - 3, gtop - 7, gr + 3, gtop - 3, (x, y) => 0.7 - (x - gl) / (gr - gl) * 0.3 - (y - gtop + 7) * 0.04, Hu, 516, { jit: 0.1 });
+    for (let x = gl - 3; x <= gr + 3; x++) { s.px(x, gtop - 7, Hu[6]); s.px(x, gtop - 3, Hu[0]); }
+    for (let y = gtop - 7; y <= gtop - 3; y++) { s.px(gl - 3, y, Hu[5]); s.px(gr + 3, y, Hu[1]); }
+    // the gantry's rails down either side of the glass, the head runs them
+    for (let y = gtop - 2; y <= gbot - 2; y++) { s.px(gl - 3, y, y % 3 ? St[3] : St[5]); s.px(gr + 3, y, y % 3 ? St[1] : St[2]); }
+    // the console, left: a slanted desk at standing height on a column,
+    // the Charter's blue face with the seed-star, a readout and the lights
+    hartStrokes(s, 6, 44, 20, foot - 1, (x, y) => 0.42 - (x - 6) * 0.012 - (y - 44) * 0.01, Hu, 517, { jit: 0.12 });
+    for (let x = 6; x <= 20; x++) { s.px(x, 44, Hu[6]); s.px(x, foot - 1, Hu[0]); }
+    for (let y = 44; y < foot; y++) { s.px(6, y, Hu[5]); s.px(20, y, Hu[1]); }
+    hartStrokes(s, 4, 36, 22, 43, (x, y) => 0.62 - (x - 4) * 0.015 - (y - 36) * 0.02, CB, 518, { jit: 0.12 });
+    for (let x = 4; x <= 22; x++) { s.px(x, 36, CB[6]); s.px(x, 43, CB[0]); }
+    for (let y = 36; y <= 43; y++) { s.px(4, y, CB[5]); s.px(22, y, CB[1]); }
+    // its readout: a dark pane with a cold trace across it
+    for (let y = 38; y <= 41; y++) for (let x = 8; x <= 18; x++) s.px(x, y, '#060a10');
+    for (let x = 9; x <= 17; x++) s.px(x, 39 + ((x * 7) % 3 === 0 ? 1 : 0), x % 4 === 3 ? Co[5] : Co[3], true);
+    for (const [x, y, c] of HART_LEDS) s.px(x, y, c, true);
+    hartSeedStar(s, 16, 48, false);
+    // a cable from the console into the plinth
+    hartHose(s, [20, 50], [24, 52], [26, 56], 2, ['#0b0c10', '#14161c', '#2c313b']);
+    // the feed column, right: a tall gunmetal column with the materials
+    // hopper (a hatch, lit) and a window where the feed glows cold
+    hartStrokes(s, 54, 18, 63, foot - 1, (x, y) => 0.5 - (x - 54) * 0.03 - (y - 18) * 0.003, Hu, 519, { jit: 0.12 });
+    for (let y = 18; y < foot; y++) { s.px(54, y, Hu[6]); s.px(63, y, Hu[1]); }
+    for (let x = 54; x <= 63; x++) s.px(x, 18, Hu[6]);
+    s.box(56, 26, 61, 30, Hu, { lo: 1, hi: 5 });
+    for (let x = 57; x <= 60; x++) s.px(x, 26, Hu[6]);
+    s.px(58, 28, Am[2], true);
+    for (let y = 36; y <= 46; y++) for (let x = 56; x <= 61; x++) s.px(x, y, x === 56 || y === 36 ? Hu[1] : '#071012');
+    for (let y = 38; y <= 45; y += 2) for (let x = 57; x <= 60; x++) s.px(x, y, (x + y) % 3 ? Co[2] : Co[3], true);
+    // the emitter spines: two thin masts off its top, tipped with the cold light
+    for (let y = 8; y <= 18; y++) { s.px(56, y, Hu[y < 12 ? 6 : 5]); s.px(59, y + 2, Hu[y < 12 ? 6 : 5]); }
+    s.px(56, 7, Co[5], true); s.px(59, 9, Co[5], true); s.px(57, 7, Co[3], true);
+    // the feed line from the column into the chamber's pedestal
+    hartHose(s, [54, 48], [50, 50], [gr + 2, 52], 2, ['#0b0c10', '#14161c', '#2c313b']);
+    // coolant lines out of the plinth on the right, along the ground
     const CP = ['#090d12', '#142028', '#2c4250'];
     hartHose(s, [62, 57], [64, 59.5], [67, 59], 2, CP);
     hartHose(s, [60, 58], [61, 61], [67, 61], 2, CP);
-    // the bed, in front of the column: a block seen from above and in
-    // front, a die on its top, hazard chevrons along its foot
-    hartStrokes(s, 1, 41, 17, 45, (x, y) => 0.8 - x * 0.012 - (y - 41) * 0.03, Hu, 515, { jit: 0.12 });
-    for (let x = 4; x <= 14; x++) { s.px(x, 43, x < 8 ? Hu[3] : Hu[2]); s.px(x, 44, Hu[1]); }
-    hartStrokes(s, 1, 46, 17, 60, (x, y) => 0.36 - (x - 1) * 0.012 - (y - 46) * 0.008, Hu, 516, { jit: 0.12 });
-    for (let x = 1; x <= 17; x++) { s.px(x, 46, x < 8 ? Hu[6] : Hu[5]); s.px(x, 41, Hu[4]); s.px(x, 61, Hu[0]); }
-    for (let y = 46; y <= 60; y++) s.px(1, y, Hu[4]);
-    for (let y = 56; y <= 58; y++) for (let x = 2; x <= 16; x++) s.px(x, y, ((x + y) >> 1) % 2 ? (x < 8 ? Am[1] : Am[0]) : '#1c1408');
-    for (const x of [3, 15]) s.px(x, 50, Hu[5]);
-    return hartDone(s, M.x, FY, { stone: [[xl - 2, FY, -1], [xr + 3, FY, 1], [xr - 2, lip - 1, 1], [1, FY, -1], [xl + 6, lip - 1, -1]] });
+    // hazard chevrons along the plinth's foot under the chamber
+    for (let y = 58; y <= 59; y++) for (let x = gl - 4; x <= gr + 4; x++) s.px(x, y, ((x + y) >> 1) % 2 ? (x < cx ? Am[1] : Am[0]) : '#1c1408');
+    return hartDone(s, M.x, FY, { stone: [[2, FY, -1], [67, FY, 1], [63, 17, 1], [4, 35, -1], [gr + 3, gtop - 7, 1]] });
   });
 }
-// The press's ram, e px down (0, raised, to HART_RAM.travel, on the work):
-// a polished rod out of the cylinder, a die block at its foot.
+// The scan head on the gantry, e px down (0, raised under the cap, to
+// HART_RAM.travel, at the chamber's foot): a bar across the glass with a
+// lit edge, and the beam it throws down into the chamber.
 function hartPressRam(e) {
   return hartKeep('ram' + e, () => {
-    const s = new PntSpr(12, HART_RAM.travel + 6, 520), St = HART.steel;
-    for (let y = 0; y <= e; y++) { s.px(5, y, St[5]); s.px(6, y, St[2]); }
+    const Wd = HART_MOUTH.w * 2 + 8, s = new PntSpr(Wd, HART_RAM.travel + 6, 520), St = HART.steel, Co = HART.cold;
     const y0 = e + 1;
-    for (let x = 0; x <= 11; x++) s.px(x, y0, x < 6 ? St[5] : St[4]);
-    hartStrokes(s, 0, y0 + 1, 11, y0 + 3, (x, y) => 0.6 - x * 0.04 - (y - y0) * 0.06, St, 521, { jit: 0.1 });
-    for (let x = 0; x <= 11; x++) s.px(x, y0 + 4, St[0]);
-    for (let y = y0 + 1; y <= y0 + 3; y++) s.px(0, y, St[5]);
+    for (let x = 0; x < Wd; x++) { s.px(x, y0, x < Wd / 2 ? St[5] : St[4]); s.px(x, y0 + 1, St[2]); }
+    for (let x = 2; x < Wd - 2; x++) s.px(x, y0 + 2, x % 3 ? Co[4] : Co[5], true);
+    s.px(0, y0, St[5]); s.px(Wd - 1, y0 + 1, St[0]);
+    // the beam's spill, a row under the bar fading
+    for (let x = 4; x < Wd - 4; x++) if ((x + e) % 2 === 0) s.px(x, y0 + 3, Co[2], true);
     return hartDone(s, 0, 0);
   });
 }
-// The crucible behind the port, three frames: we look through the glass
-// into the chamber, its heat haze shimmering over the crucible, the melt
-// white-hot in its mouth, the coil's turns glowing round it, a glint on the
-// glass. All of it glows but the glint.
+// The chamber's inside, three frames: we look through the glass at the
+// field, a cold mist shimmering, the piece building up on the plate in
+// bright lattice lines (a little more of it each frame), motes rising, a
+// glint on the glass. All of it glows but the glint.
 function hartForgeFire(frame) {
   return hartKeep('fire' + frame, () => {
-    const R = HART_MOUTH.r, c = 7, W = 15, s = new PntSpr(W, W, 540 + frame), F = HART.fire;
-    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
-      const dx = x - c, dy = y - c;
-      if (dx * dx + dy * dy > R * R) continue;
-      const h = artHash(x >> 1, y, 541 + frame), half = 4.6 - (y - 6) * 0.18;
-      let col, glow = true;
-      if (y >= 6 && Math.abs(dx) <= half) {
-        // the crucible: its melt in the mouth, its walls glowing
-        if (y <= 7) col = Math.abs(dx) < 2.5 + (frame === 1 ? 0.6 : 0) || h < 0.3 ? F[5] : F[4];
-        else col = Math.abs(dx) > half - 1.2 ? F[2] : y > 11 ? F[2] : h < 0.5 ? F[3] : F[2];
-        if (y <= 7 && artHash(x, frame, 542) < 0.12) col = F[3];
-      } else if (y >= 6) {
-        // the coil's turns round it, and the dark between
-        col = (y + (dx < 0 ? 0 : 1)) % 3 === 0 ? (h < 0.5 ? F[2] : F[1]) : '#1a0805';
-        glow = col !== '#1a0805';
-      } else {
-        // heat haze over it, rising and shimmering
-        const v = (y / 6) * 0.9 + Math.sin(x * 1.4 + frame * 2.1 - y * 0.7) * 0.2 + (h - 0.5) * 0.25;
-        col = v < 0.25 ? '#2a0c06' : v < 0.55 ? F[0] : v < 0.85 ? F[1] : F[2];
-      }
-      s.px(x, y, col, glow);
+    const M = HART_MOUTH, Wd = M.w * 2 - 1, Hd = M.h * 2 - 1, cx = M.w - 1, s = new PntSpr(Wd, Hd, 540 + frame), Co = HART.cold;
+    for (let y = 0; y < Hd; y++) for (let x = 0; x < Wd; x++) {
+      const h = artHash(x >> 1, y, 541 + frame), dx = x - cx;
+      // the field: a cold mist, denser low down, shimmering
+      const v = (1 - y / Hd) * 0.55 + Math.sin(x * 1.1 + frame * 2.1 + y * 0.6) * 0.18 + (h - 0.5) * 0.3;
+      let col = v < 0.3 ? null : v < 0.5 ? Co[0] : v < 0.7 ? Co[1] : Co[2];
+      // the piece forming on the plate: lattice lines, lit, more each frame
+      const built = Hd - 4 - frame * 3;
+      if (y >= built && y < Hd - 1 && Math.abs(dx) <= 3 + (y - built) * 0.3 && ((x + y) % 2 === 0 || y === built)) col = y === built ? Co[5] : h < 0.6 ? Co[4] : Co[3];
+      // the plate, a bright line at the foot
+      if (y === Hd - 1 && Math.abs(dx) <= 5) col = Co[4];
+      if (col) s.px(x, y, col, true);
     }
-    // the glass: a glint on its upper left, its lower right edge darker
-    s.px(3, 3, '#fff6dc'); s.px(4, 2, '#d8e2ec'); s.px(2, 5, '#a8b4c0');
-    for (let a = 0.05; a < 0.45; a += 0.04) s.px(Math.round(c + Math.cos(a * Math.PI * 2) * (R - 0.6)), Math.round(c + Math.sin(a * Math.PI * 2) * (R - 0.6)), '#2a0c06');
-    return hartDone(s, c, c);
+    // motes rising off the piece
+    for (let i = 0; i < 4; i++) { const mx = cx - 3 + ((i * 5 + frame * 2) % 7), my = Hd - 6 - ((i * 7 + frame * 4) % (Hd - 8)); s.px(mx, my, i % 2 ? Co[5] : Co[3], true); }
+    // the glass: a glint on its upper left
+    s.px(1, 1, '#fff6dc'); s.px(2, 0, '#d8e2ec'); s.px(0, 3, '#a8b4c0');
+    return hartDone(s, cx, M.h - 1);
   });
 }
-// A forge's light on the ground in front: loose strokes of its colour,
-// thicker nearer the port, two frames (cool: the ancient forges' pale teal).
+// The chamber's light on the ground in front: loose strokes of its cold
+// colour, thicker nearer the chamber, two frames (cool: the ancient forges'
+// paler teal).
 function hartForgeSpill(frame, cool) {
   return hartKeep('spill' + frame + (cool ? 'c' : ''), () => {
-    const W = 70, H = 26, s = new PntSpr(W, H, 560 + frame), cols = cool ? ['#0c2628', '#123a3a', '#1c5452', '#2a706a'] : ['#5a1c0c', '#7a2c14', '#a8441c', '#c86428'];
+    const W = 70, H = 26, s = new PntSpr(W, H, 560 + frame), cols = cool ? ['#0c2628', '#123a3a', '#1c5452', '#2a706a'] : ['#08181e', '#0e3236', '#1a5a5c', '#2e8a86'];
     for (let n = 0; n < 170; n++) {
       const x = Math.floor(artHash(n, 1, 561 + frame) * (W - 5)), y = Math.floor(artHash(n, 2, 561 + frame) * H);
       const d = Math.hypot((x + 2 - 35) / 35, (y + 1) / H);

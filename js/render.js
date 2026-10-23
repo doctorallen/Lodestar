@@ -1514,10 +1514,10 @@ function drawDrop(dr, ox, oy, lights) {
   else if (dr.exotic) col = ART.exotics[dr.exotic];
   else col = ART.rarity[dr.item.rarity] || '#ffffff';
   if (dr.mote) { for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, fy + j, col, true); }
-  else if (dr.item && dr.item.kind === 'module') {
-    // a lattice crystal, settled out of its capture (modules.js)
-    drawModuleDrop(dr, fx, fy, col);
-    if (!modSettled(dr)) return;
+  else if (dr.item && dr.item.kind === 'stone') {
+    // a core's crystal, settled out of its capture (modules.js)
+    drawCoreDrop(dr, fx, fy, col);
+    if (!coreSettled(dr)) return;
     if (dr.item.rarity !== 'common' && dr.item.rarity !== 'magic') for (let k = ap(5), n = ap(20); k < n; k++) dot(fx, fy - k, col, true, 0.6 * (1 - k / n));
   }
   else if (dr.stuff) {
@@ -1576,7 +1576,7 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     const r = Math.round((1 - k) * 12 * AP) + 2;
     cfxShards(cx, cy, r, 4, cfxRamp(ELEMENT_COLS.frost), cfxBand(k), cfxSeed(fx), true);
   } else if (fx.kind === 'capture' || fx.kind === 'tether') {
-    drawModuleFx(fx, cx, cy, k, lights, ox, oy);
+    drawCoreFx(fx, cx, cy, k, lights, ox, oy);
   } else if (fx.kind === 'iceBurst' || fx.kind === 'steam' || fx.kind === 'flare' || fx.kind === 'overload' || fx.kind === 'wardBreak') {
     drawReactFx(fx, cx, cy, k, tick, lights);
   } else if (fx.kind === 'dust') {

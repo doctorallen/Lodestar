@@ -219,7 +219,7 @@ function killEnemy(e) {
   // a boss's hoard: ordinary parts of any creature (its own heart is apart)
   const hoard = (n) => { for (let k = 0; k < n; k++) drop({ stuff: partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), grade), n: 1 }); };
   const tier = dropTier(d);
-  for (const m of moduleDrops(d, e)) { drop({ item: m }); const dr = d.drops[d.drops.length - 1]; dr.cap = moduleCaptureFx(d, dr.x, dr.y, ART.rarity[m.rarity]); }
+  for (const m of coreDrops(d, e)) { drop({ item: m }); const dr = d.drops[d.drops.length - 1]; dr.cap = coreCaptureFx(d, dr.x, dr.y, ART.rarity[m.rarity]); }
   if (e.type === 'keeper') {
     // its lodeline lights, and the dark starts to come back: a short pull
     if (d.zone === 'lair') { d.padDark = false; d.pull = 1; d.pullTime = T.enemies.keeper.afterPull; UI.toast("The star's light reaches down. Go, before the dark comes back", 'legendary'); }
@@ -315,15 +315,15 @@ function updatePickups(dt) {
       dr.gone = true;
       continue;
     }
-    if (dr.item && dr.item.kind === 'module') {
+    if (dr.item && dr.item.kind === 'stone') {
       // the capture field's tether pulls it home
       d.items.push(dr.item);
-      Save.data.modsFound = (Save.data.modsFound || 0) + 1;
-      moduleTetherFx(d, dr.x, dr.y, ART.rarity[dr.item.rarity]);
-      UI.toast(`Module: ${dr.item.name}`, dr.item.rarity);
+      Save.data.coresFound = (Save.data.coresFound || 0) + 1;
+      coreTetherFx(d, dr.x, dr.y, ART.rarity[dr.item.rarity]);
+      UI.toast(`${dr.item.name}${dr.item.bonus ? ': ' + fmtAffix(dr.item.bonus) : ''}`, dr.item.rarity);
       snd('loot', { rarity: dr.item.rarity });
-      Story.say('module');
-      UI.tip('module', 'Socket modules at home. Free');
+      Story.say('core');
+      UI.tip('core', 'Set cores in the rig at home. Free');
     } else if (dr.item) { UI.tip('gear', 'Tap CARGO to look at what you found'); d.items.push(dr.item); UI.toast(dr.item.kind === 'relic' ? 'A sealed relic' : dr.item.name, dr.item.rarity); snd('loot', { rarity: dr.item.kind === 'relic' ? 'relic' : dr.item.rarity }); }
     else { d.cargo[dr.exotic] = (d.cargo[dr.exotic] || 0) + 1; UI.toast(T.exotics.find((x) => x.id === dr.exotic).name, 'exotic'); snd('loot', { rarity: 'exotic' }); }
     dr.gone = true;

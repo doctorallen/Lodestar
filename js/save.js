@@ -32,14 +32,17 @@ const SAVE_OLD = ['lodestar.save.v3', 'lodestar.save.v2'];
 
 // A core for a spell's part ('form', 'el', 'm…'), or null if it's not one.
 function cleanSpellCore(c, key) { return c && c.kind === 'stone' && stoneKind(c.stone) === spellPartKind(key) ? c : null; }
-// A frame's two spells, as they should be: each a Form, an Element and its
-// Mod slots.
+// A frame's two spells, as they should be: each a Form, an Element, a Mod
+// and the extra part its ore gives.
 function cleanSpells(it) {
-  const n = clamp(Array.isArray(it.spells) && it.spells[0] && Array.isArray(it.spells[0].mods) ? it.spells[0].mods.length : rigModSlots(it.tier || 1, it.q || 0, it.shard), 1, 2);
+  const extra = it.extra !== undefined ? it.extra : frameExtra(it.tier || 1, it.q || 0, !!it.shard, oreOfTier(it.tier || 1).id);
+  it.extra = extra;
   it.spells = [0, 1].map((i) => {
-    const sp = (Array.isArray(it.spells) && it.spells[i]) || {}, out = emptySpell(n);
+    const sp = (Array.isArray(it.spells) && it.spells[i]) || {}, out = emptySpell(extra);
     out.form = cleanSpellCore(sp.form, 'form'); out.el = cleanSpellCore(sp.el, 'el');
-    for (let k = 0; k < n; k++) out.mods[k] = cleanSpellCore((sp.mods || [])[k], 'm' + k);
+    if ('form2' in out) out.form2 = cleanSpellCore(sp.form2, 'form2');
+    if ('el2' in out) out.el2 = cleanSpellCore(sp.el2, 'el2');
+    for (let k = 0; k < out.mods.length; k++) out.mods[k] = cleanSpellCore((sp.mods || [])[k], 'm' + k);
     return out;
   });
 }
@@ -52,20 +55,20 @@ function cutterName(name) { return name.replace(/\bRusty Pick\b/, 'Worn Cutter')
 // cores, powers), so a save can't crash a screen.
 function cleanSaveItem(it) {
   if (!it || typeof it !== 'object') return null;
-  if (it.kind === 'stone') return stoneKind(it.stone) ? it : null;
-  if (it.kind === 'module') {
-    if (!KIND_SLOT[it.fits]) return null;
-    it.affixes = (Array.isArray(it.affixes) ? it.affixes : []).filter((a) => a && AFFIXES[a.id]);
+  if (it.kind === 'stone') {
+    if (!stoneKind(it.stone)) return null;
+    if (!('bonus' in it) || (it.bonus && !AFFIXES[it.bonus.id])) it.bonus = null;
+    if (!RARITIES.includes(it.rarity)) it.rarity = it.bonus ? 'magic' : 'common';
     if (it.power && !LEGENDARIES[it.power]) delete it.power;
-    if (it.set && !SETS[it.set]) delete it.set;
-    if (it.src && typeof it.src.was === 'string') it.src.was = cutterName(it.src.was);
     return it;
   }
+  // (modules are gone: migrateCoreSave turned them into threads and cores)
+  if (it.kind === 'module') return null;
   if (!KIND_SLOT[it.kind] && it.kind !== 'relic') return null;
   if (it.kind === 'pick' && typeof it.name === 'string') it.name = cutterName(it.name);
   if (it.bp && !BLUEPRINTS[it.bp]) delete it.bp;
   if (Array.isArray(it.affixes)) it.affixes = it.affixes.filter((a) => a && AFFIXES[a.id]);
-  if (it.kind !== 'relic') it.sockets = (Array.isArray(it.sockets) ? it.sockets : []).map((m) => (m && m.kind === 'module' && m.fits === it.kind ? cleanSaveItem(m) : null));
+  delete it.sockets;
   if (it.kind === 'caster') { delete it.slots; delete it.links; cleanSpells(it); }
   return it;
 }
@@ -79,7 +82,9 @@ function rigFromCaster(it, spill, stash) {
   const stones = (Array.isArray(it.slots) ? it.slots : []).filter((c) => c && c.kind === 'stone');
   it.bp = 'rig';
   delete it.slots; delete it.links;
-  const n = rigModSlots(it.tier || 1, it.q || 0);
+  // (its spells sized for the rig of version 7: a Mod slot, two from
+  // Resonite up; the extra part comes with version 8)
+  const n = (it.tier || 1) >= T.circuits.rig.extraTier || (it.q || 0) >= 3 ? 'glyph' : null;
   it.spells = [emptySpell(n), emptySpell(n)];
   if (/^Scrap Gauntlet$/.test(it.name || '')) it.name = 'Scrap Rig';
   else if (/^Cracked Wand$/.test(it.name || '')) it.name = 'Cracked Rig';
@@ -150,6 +155,8 @@ function cleanSave(s) {
   // casters from before the rig: frames, and their circuits its spells
   migrateGearSave(s);
   migrateRigSave(s);
+  // then modules into threads and legendary cores, frames with their extra part
+  migrateCoreSave(s);
   s.blueprints = (s.blueprints || []).filter((id) => BLUEPRINTS[id]);
   s.studied = (s.studied || []).filter((id) => RESEARCH.some((r) => r.id === id));
   // (a slot this version doesn't wear: what's in it goes to the stash)
@@ -200,12 +207,12 @@ const Save = {
   data: null,
   fresh() {
     return {
-      v: 7, uid: 100, crafts: 0, dives: 0, star: 0, magSeen: 1,
+      v: 8, uid: 100, crafts: 0, dives: 0, star: 0, magSeen: 1,
       stash: {}, items: [], equip: startingGear(),
       attune: {}, tips: {}, settings: { haptics: true }, world: null, lastSpire: 0,
       // the recipes known (by their old name), what the forge has studied,
-      // and how many modules have ever been caught
-      blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start), studied: [], modsFound: 0,
+      // and how many cores have ever been caught
+      blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start), studied: [], coresFound: 0,
       tools: ['compass'], tool: 'compass', natures: {}, resCodex: { kindling: [0, 1, 2] },
       // the star's points are light (deeds.js; an older save's are rescaled),
       // what's been found, the pack a fall left, and the supplies carried

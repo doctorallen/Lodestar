@@ -49,14 +49,14 @@ const LANTERNS = [67.5, 112.5, 22.5, 157.5, 337.5, 202.5, 292.5, 247.5].map((a) 
 function drawHubUnder(d, ox, oy, tick, lights) {
   const star = ART.pal.star;
   drawHubLodelines(d, ox, oy, lights);
-  // the forge's fire on the ground before it, flickering
+  // the chamber's light on the ground before the forge, flickering
   const fg = HUB_STATIONS.find((s) => s.id === 'forge'), fp = stationAt(fg, ox, oy), sp = hartForgeSpill(Math.floor(Game.realT * 7) % 2), fs = hartForge();
   const M0 = hartPt(fs, HART_MOUTH);
   drawArtSprite(sp, fp.x - fs.ax + M0.x - sp.ax, fp.y + 1);
   for (const s of HUB_STATIONS) {
     if (s.id === 'dummy' || s.id === 'wreck' || s.id === 'setout' || !stationAwake(s.id)) continue;
     const at = stationAt(s, ox, oy), spr = stationSprite(s.id);
-    const glow = { forge: [ART.pal.glass[0], 2.2, 1.0], runes: ['#ffb030', 1.2, 0.5], locker: [DIVER_PAL.circuit[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
+    const glow = { forge: [HART.cold[4], 2.2, 0.9], runes: ['#ffb030', 1.2, 0.5], locker: [DIVER_PAL.circuit[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
     const M = hartPt(spr, HART_MOUTH), gx = s.id === 'forge' ? at.x - spr.ax + M.x : at.x, gy = s.id === 'forge' ? at.y - spr.ay + M.y : at.y - (spr.ay >> 1);
     const fl = s.id === 'forge' ? 0.8 + 0.12 * Math.sin(Game.realT * 11) + 0.08 * Math.sin(Game.realT * 23) : 0.85 + 0.15 * Math.sin(Game.realT * 3);
     lights.push({ x: gx, y: gy, r: TILE * glow[1], i: glow[2] * fl * introWake(s.id), c: rgb01(glow[0]) });
@@ -126,17 +126,17 @@ function drawHubStation(d, a, ox, oy, lights) {
     const F = spr.f || 1, M = hartPt(spr, HART_MOUTH), RM = hartPt(spr, HART_RAM), AN = hartPt(spr, HART_ANVIL), SK = hartPt(spr, HART_STACK);
     const fire = hartForgeFire(Math.floor(Game.realT * 9) % 3);
     drawArtSprite(fire, x + M.x - fire.ax, y + M.y - fire.ay);
-    // the press's ram, keeping the smith's beat once there's a smith, and
-    // the work glowing on the bed under it
+    // the scan head, keeping the smith's beat once there's a smith, and the
+    // console's readout flashing as a pass completes
     const beat = settlementSize() >= 1 ? hubPressBeat(Game.realT) : null, ram = hartPressRam(beat ? Math.round(beat.ext * HART_RAM.travel) : 0);
     drawArtSprite(ram, x + RM.x, y + RM.y);
-    if (beat) for (let i = -2; i <= 2; i++) dot(x + AN.x + i * F, y + AN.y, beat.hit >= 0 && beat.hit < 0.4 ? '#fff6dc' : Math.abs(i) < 2 ? '#ffd27a' : '#d85c18', true);
+    if (beat) for (let i = -2; i <= 2; i++) dot(x + AN.x + i * F, y + AN.y, beat.hit >= 0 && beat.hit < 0.4 ? '#fff6dc' : Math.abs(i) < 2 ? HART.cold[5] : HART.cold[3], true);
     // the status lights, the first blinking
     if (Math.floor(Game.realT * 1.7) % 3 === 0) dot(x + HART_LEDS[0][0] * F, y + HART_LEDS[0][1] * F, '#0c2014');
-    // heat off the vent stack, a spark now and then
+    // motes off the emitter spines
     for (let i = 0; i < 4; i++) {
       const ph = (Game.realT * 0.6 + i / 4) % 1, cx = x + SK.x + Math.round(Math.sin(i * 2.7 + ph * 4) * 2 + ph * 3), cy = y + SK.y - Math.round(ph * 18);
-      dot(cx, cy, i % 2 ? '#5a5a62' : ph < 0.4 ? '#ffb347' : '#902a0a', i % 2 === 0, (1 - ph) * (i % 2 ? 0.5 : 1));
+      dot(cx, cy, i % 2 ? HART.cold[2] : ph < 0.4 ? HART.cold[5] : HART.cold[3], true, (1 - ph) * (i % 2 ? 0.5 : 1));
     }
   } else if (spr.dormant) {
     // (asleep: nothing lit, nothing turning)
