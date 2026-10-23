@@ -117,6 +117,22 @@ async function runAt(browser, grain, failures) {
   // a cast, with its hard light and sparks
   await page.evaluate(() => { Input.bot = { x: 1, y: 0, main: true }; for (let i = 0; i < 40; i++) Game.step(1 / 60); Input.bot = { x: 0, y: 0, main: false }; });
   check(await page.evaluate(compare, 'cast'));
+  // a wader in a pool, cut at the surface (painthole.js phlWadeStart clips
+  // the layers: the batcher's clip once threw here, and the frame froze)
+  await page.evaluate(() => {
+    const d = Game.dive; d.deep = { site: 1, of: 1 }; d.zone = 'cave'; d.clime = 'grotto'; d.kindled = false; d.sun = undefined;
+    d.floor = generateFloor(1234, 2, 1, 1, 'cave', 1, 'grotto'); resetFloorState(d); d.ways = ['surface']; d.wayClimes = [null]; wayHoleSolids(d); d.enemies = [];
+    paintFloor(d.floor);
+    const f = d.floor; let at = null;
+    for (let i = 0; i < f.haz.length && !at; i++) if (f.haz[i]) at = { x: ((i % f.w) + 0.5) * TILE, y: (Math.floor(i / f.w) + 0.5) * TILE };
+    d.p.x = at.x; d.p.y = at.y;
+    for (let i = 0; i < 30; i++) { Game.step(1 / 60); renderFrame(); }
+  });
+  await whole();
+  check(await page.evaluate(compare, 'wading'));
+  const wade = await page.evaluate(() => ({ wading: Game.dive.wading, err: (typeof Errors !== 'undefined' && Errors[0]) || null }));
+  if (!wade.wading) failures.push(`wading${tag}: the diver isn't standing in the pool`);
+  if (wade.err) failures.push(`wading${tag}: the frame threw: ${String(wade.err).split('\n')[0]}`);
   // the atlas's pages built again (gpu.js gpuAtlasRebuild): the same frame still
   const atlas = await page.evaluate(() => { const before = Gpu.entries.length; gpuAtlasRebuild(0); return { before, after: Gpu.entries.length, pages: Gpu.pages }; });
   check(await page.evaluate(compare, 'cast, atlas rebuilt'));

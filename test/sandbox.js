@@ -27,6 +27,7 @@ function sandbox(files) {
   const expose = '\n;globalThis.__game = { T, Rng, hashInts, generateFloor, floorHash, floorDistances, floorTile, ORE_INDEX, TILE_FLOOR, TILE_ROCK, TILE_ORE, TILE_EDGE, TILE_PAD, TILE_PORTAL, TILE_SOLID, TILE,'
     + (files.some((f) => f.endsWith('items.js')) ? ' AFFIXES, CORE_BONUSES, LEGENDARIES, RARITIES, makeBase, makeStone, makeRelic, rollRarity, unsealRelic, BLUEPRINTS, BP_IDS, RESEARCH, PARTS, PART_STACK_IDS, parsePart, partId, partsHave, recipeCost, recipeShort, recipePay, baseStats, emptySpell, frameExtra, rigMods, spellGroup, spellCost, spellLine, spellName, spellCores, spellParts, spellResonance, groupCost, affinityMult, stoneKind, RESONANCES, CIRCUIT_FORMS, CIRCUIT_ELEMENTS, CIRCUIT_GLYPHS, forgeItem, salvageYield, computeStats, startingGear, magnitudeOf, attunePointsLeft, fmtAffix, itemBaseLine, itemKindLine, itemWorth, compareLines, affixRoll, rollCore, coreBonusRoll, coreTraits, coreWorth, coreUpgradeCost, coreUpgrade, coreSalvageThreads, rescaleAffix, researchStudy, researchDue, migrateGearSave, migrateRigSave, migrateCoreSave, cleanSaveItem, rigCores, KIND_SLOT, SLOTS, T_CORES: T.cores,' : '')
     + (files.some((f) => f.endsWith('world.js')) ? ' worldLayout, generateTerritory, territoryHash, territorySeed, deepSeed,' : '')
+    + (files.some((f) => f.endsWith('lattice.js')) ? ' latticeLayout, generateGallery, galleryHash, latticeSeed,' : '')
     + ' };';
   vm.runInContext(src + expose, ctx, { filename: 'lodestar-sandbox.js' });
   return ctx.__game;

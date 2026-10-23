@@ -58,13 +58,24 @@ function hasSpire(id) { const s = terrPeek(id); return id === 0 || !!(s && s.sta
 function spireIds() { return worldMap().terrs.filter((t) => hasSpire(t.id)).map((t) => t.id); }
 function kindledCount() { return worldMap().terrs.filter((t) => !t.home && isKindled(t.id) && !terrPeek(t.id).starter).length; }
 function terrLevel(t) { return t.biome * T.levelPerBiome + t.depth; }
+// The dark grows as the star does: foes in dark land, and under it, are at
+// least the level of the highest territory kindled, less T.enemies.darkLag,
+// so the land behind you stays a fight (and its drops keep up).
+function darkLevelFloor() {
+  const lag = T.enemies.darkLag;
+  if (lag === undefined || !Save.data.world) return 0;
+  let m = 0;
+  for (const t of worldMap().terrs) if (!t.home && isKindled(t.id) && !(terrPeek(t.id) || {}).starter) m = Math.max(m, terrLevel(t));
+  return Math.max(0, m - lag);
+}
 function terrStateWord(id) { const s = terrPeek(id); return id === 0 ? 'home' : !s ? 'dark' : s.state; }
 // A region has been reached once any of its territories has been walked.
 function regionReached(i) { return i === 0 || worldMap().terrs.some((t) => t.region === i && (terrPeek(t.id) || {}).visits); }
 
 // --- a sortie --------------------------------------------------------------
 // at: { terr, from } walks in from a neighbour (0, the outpost); { terr,
-// spire: true } arrives at its spire.
+// spire: true } arrives at its spire; { lat, spire: true } at a relit cold
+// spire in the Lattice (lattice.js).
 function startSortie(at) {
   const W = worldState();
   W.sorties = (W.sorties || 0) + 1;
@@ -75,7 +86,8 @@ function startSortie(at) {
     far: 0, maxRing: 0, pullTime: T.world.light, banked: { stuff: {}, items: [], learned: [], fed: 0 }, tally: {},
   });
   Game.scene = 'dive';
-  enterTerritory(at.terr, at);
+  if (at.lat !== undefined) enterGallery(at.lat, { spire: true });
+  else enterTerritory(at.terr, at);
   Story.say('firstDive');
 }
 
@@ -88,7 +100,7 @@ function resetFloorState(d) {
 
 function enterTerritory(id, how = {}) {
   const d = Game.dive, W = worldState(), t = terrOf(id), ts = terrState(id), p = d.p, X = T.world;
-  d.terr = id; d.deep = null; d.how = { from: how.from, spire: how.spire, up: how.up };
+  d.terr = id; d.deep = null; d.lat = null; d.relight = null; d.how = { from: how.from, spire: how.spire, up: how.up };
   d.zone = 'surface'; d.clime = t.clime; d.biome = t.biome; d.depth = t.depth;
   d.seed = territorySeed(W.seed, id);
   const f = (d.floor = generateTerritory(W.seed, id));
@@ -157,10 +169,11 @@ function placeTerritoryRift(d, t, ts) {
 }
 
 // A vein broken: remembered with the sortie it was broken in (in a Deep,
-// with its site).
+// with its site; in the Lattice, with its gallery).
 function noteMined(d, i) {
   if (!d.sortie) return;
-  if (d.deep) terrState(d.terr).deepMined.push([d.deep.site, i, worldState().sorties]);
+  if (d.lat !== null && d.lat !== undefined) (latState(d.lat).mined = latState(d.lat).mined || []).push([i, worldState().sorties]);
+  else if (d.deep) terrState(d.terr).deepMined.push([d.deep.site, i, worldState().sorties]);
   else terrState(d.terr).mined.push([i, worldState().sorties]);
 }
 
@@ -168,6 +181,7 @@ function noteMined(d, i) {
 // beacon's light, touching a spire.
 function updateFrontier(d, dt) {
   const p = d.p, f = d.floor, X = T.world;
+  if (d.lat !== null && d.lat !== undefined) { updateLattice(d, dt); return; }
   if (d.deep || d.warp || d.dying) return;
   if (!d.channel) for (const e of f.exits) if (dist(p.x, p.y, (e.x + 0.5) * TILE, (e.y + 0.5) * TILE) < X.exits.reach) { crossTo(d, e.to); return; }
   if (f.pad && hasSpire(d.terr) && Math.floor(p.x / TILE) === f.pad.x && Math.floor(p.y / TILE) === f.pad.y) { Save.data.lastSpire = d.terr; Story.say('firstSpire'); }
@@ -202,7 +216,9 @@ function crossTo(d, to) {
 // What a step through a portal leads to: a Deep's next site, or back up.
 function warpArrive(d, w) {
   if (w.go) { w.go(); return; }
-  if (!d.deep) enterDeepSite(1);
+  if (d.lat !== null && d.lat !== undefined) leaveLattice();
+  else if (w.zone === 'lattice') enterGallery(galleryUnder(d.terr), { cleft: true });
+  else if (!d.deep) enterDeepSite(1);
   else if (d.deep.site < d.deep.of) enterDeepSite(d.deep.site + 1);
   else leaveDeep();
   if (w.look && d.arrive) d.arrive.zone = w.look;
@@ -223,7 +239,8 @@ function bankHaul(d) {
 
 function bankAtSpire(d, quiet) {
   const r = bankHaul(d);
-  if (hasSpire(d.terr) && d.floor.pad && !(d.beacon && d.beacon.landed)) Save.data.lastSpire = d.terr;
+  if (d.lat !== null && d.lat !== undefined) { if (d.floor.pad) Save.data.lastSpire = 'L' + d.lat; }
+  else if (hasSpire(d.terr) && d.floor.pad && !(d.beacon && d.beacon.landed)) Save.data.lastSpire = d.terr;
   Save.save();
   saveRun(d);
   if (quiet) return;
@@ -233,16 +250,20 @@ function bankAtSpire(d, quiet) {
 }
 
 // TRAVEL: the world map, from a spire. Choosing a spire (or home) is a
-// moment's channel, which banks the cargo first.
+// moment's channel, which banks the cargo first. to: 0 (home), a
+// territory's id, or 'L' and a gallery's (a relit cold spire, lattice.js).
 function travelFrom(d, to) {
-  if (!d || d.hub || d.channel || to === d.terr) return;
+  if (!d || d.hub || d.channel) return;
+  const here = d.lat !== null && d.lat !== undefined ? 'L' + d.lat : d.terr;
+  if (to === here) return;
   startChannel('travel');
   if (d.channel) d.channel.to = to;
 }
 function travelDone(d, to) {
   bankAtSpire(d, true);
   snd('travel');
-  d.warp = { t: 0, at: null, zone: 'surface', go: () => (to === 0 ? goHome('spire') : enterTerritory(to, { spire: true })) };
+  const lat = isLatSpire(to);
+  d.warp = { t: 0, at: null, zone: lat ? 'lattice' : 'surface', go: () => (to === 0 ? goHome('spire') : lat ? enterGallery(Number(to.slice(1)), { spire: true }) : enterTerritory(to, { spire: true })) };
 }
 
 // Home: everything carried is banked, the settlers' threads (the Settlers'
@@ -260,6 +281,7 @@ function goHome(how, from) {
 
 // Where a sortie got to, for the report.
 function sortieWhere(d) {
+  if (d.lat !== null && d.lat !== undefined) return `${latticeNode(d.lat).name} · the Lattice`;
   const t = d.terr ? terrOf(d.terr) : null;
   return t ? `${t.name} · ring ${t.ring}${d.deep ? ` · the Deep, site ${d.deep.site} of ${d.deep.of}` : ''}` : 'The Outpost';
 }
@@ -338,14 +360,20 @@ function deepClime(t, k, zone) {
   return rollClime(deepSeed(worldState().seed, t.id, k), t.biome, zone, k, 0);
 }
 
-function enterDeepSite(k) {
+// how.cleft: come up the cleft from the Lattice's gallery below (the last
+// site's second way, lattice.js), arriving by it.
+function enterDeepSite(k, how = {}) {
   const d = Game.dive, t = terrOf(d.terr), n = t.deep, zone = deepZone(t, k), clime = deepClime(t, k, zone), p = d.p;
-  d.deep = { site: k, of: n };
+  d.deep = { site: k, of: n }; d.lat = null; d.relight = null;
   d.zone = zone; d.clime = clime; d.depth = t.depth; d.biome = t.biome; d.kindled = false; d.sun = undefined;
   d.seed = deepSeed(worldState().seed, t.id, k);
-  const ways = zone === 'lair' ? 0 : 1;
+  // the last site's second way: a cleft down into the Lattice's gallery
+  // under this land
+  const gallery = k >= n && zone !== 'lair' ? galleryUnder(t.id) : -1;
+  const ways = zone === 'lair' ? 0 : gallery >= 0 ? 2 : 1;
   d.ways = ways ? [k >= n ? 'surface' : deepZone(t, k + 1)] : [];
   d.wayClimes = d.ways.map((z) => deepClime(t, k + 1, z));
+  if (gallery >= 0) { d.ways.push('lattice'); d.wayClimes.push(latticeNode(gallery).clime); }
   const f = (d.floor = generateFloor(d.seed, d.depth, d.biome, lodelineOdds(k), zone, ways, clime));
   resetFloorState(d);
   wayHoleSolids(d);
@@ -353,7 +381,9 @@ function enterDeepSite(k) {
   const ts = terrState(t.id), W = worldState();
   ts.deepMined = (ts.deepMined || []).filter(([, , n]) => W.sorties - n < T.world.regrow);
   for (const [s, i] of ts.deepMined) if (s === k && f.tiles[i] === TILE_ORE) { f.tiles[i] = TILE_FLOOR; f.ore[i] = 0; }
-  p.x = (d.floor.entry.x + 0.5) * TILE; p.y = (d.floor.entry.y + 0.5) * TILE;
+  const at = how.cleft && f.ways[1] ? { x: f.ways[1].x, y: f.ways[1].y + 1.3 } : f.entry;
+  p.x = (at.x + 0.5) * TILE; p.y = (at.y + 0.5) * TILE;
+  if (bodyHits(f, p.x, p.y, T.player.radius)) { p.x = (Math.floor(at.x) + 0.5) * TILE; p.y = (Math.floor(at.y) + 0.5) * TILE; }
   placeRift(d);
   spawnEnemies(d);
   placeFieldForge(d);
@@ -370,6 +400,7 @@ function enterDeepSite(k) {
   if (k >= n) deedDeepEnd(d, t);
   UI.toast(`The Deep · ${placeName(zone, clime)} · site ${k} of ${n}${d.floor.pad || zone === 'lair' ? '' : ': no light reaches down here'}`);
   Story.say('firstDeep');
+  if (gallery >= 0) { UI.tip('cleft', 'A cleft: it goes on down, into the Lattice'); Story.say('firstCleft'); }
   Story.say(T.biomes[t.biome].id);
   if (d.floor.pad && !d.padDark) UI.tip('lodeline', "The star's light reaches down here. Stand in it to rise");
   noticeRift(d);
@@ -409,11 +440,14 @@ function compassTargetWorld(d, steps) {
 // Drawn art pixel by art pixel in the lodestone's four tones, lit from
 // the top left, then laid in strokes (pflRepaintProp), with no outline.
 // Feet at the plinth's front.
+// A cold spire (the Lattice's, lattice.js) is the same shape, its runes
+// dark, its crystal dead and a crack across its shaft.
 const _worldSprites = {};
-function spireSprite() {
-  if (_worldSprites.spire) return _worldSprites.spire;
-  const W = 19, H = 66, P = pixBuf(W, H), S = LODESTONE, G = ART.pal.star, solid = new Uint8Array(W * H), cx = 9;
-  const put = (x, y, col, glow) => { if (x < 0 || y < 0 || x >= W || y >= H) return; putPx(P, x, y, col, glow); solid[y * W + x] = 1; };
+function spireSprite(cold) {
+  const key = cold ? 'cold' : 'spire';
+  if (_worldSprites[key]) return _worldSprites[key];
+  const W = 19, H = 66, P = pixBuf(W, H), S = LODESTONE, G = cold ? ['#1a1620', '#2a2434', '#3a3048', '#4a4060'] : ART.pal.star, solid = new Uint8Array(W * H), cx = 9;
+  const put = (x, y, col, glow) => { if (x < 0 || y < 0 || x >= W || y >= H) return; if (cold && y >= 30 && y <= 33 && ((x + y) % 7 === 0 || (x + y) % 7 === 1)) return; putPx(P, x, y, col, cold ? false : glow); solid[y * W + x] = 1; };
   // the plinth, two steps
   for (let y = 56; y < H; y++) {
     const half = y < 60 ? 7 : 9;
@@ -437,7 +471,7 @@ function spireSprite() {
   pflRepaintProp(P, solid, S, 0x5b1e);
   const s = spriteFromBuf(P);
   s.ax = cx; s.ay = H - 2;
-  return (_worldSprites.spire = artFine(s));
+  return (_worldSprites[key] = artFine(s));
 }
 
 // A waystone: a squat stele of lodestone, its band of runes glowing dimly
@@ -471,6 +505,7 @@ function worldProps(d) {
 }
 
 function drawWorldProp(d, a, ox, oy, lights) {
+  if (a.wprop === 'cold') { drawColdSpire(d, a, ox, oy, lights); return; }
   const fx = Math.round((a.at.x + 0.5) * ATILE) + ox, fy = Math.round(((a.at.y + 0.5) * TILE + 1) * AP) + oy, G = ART.pal.star;
   if (a.wprop === 'spire') {
     const spr = spireSprite();
@@ -548,13 +583,14 @@ function drawWorldUnder(d, ox, oy, lights) {
 
 // Over the lit scene: where each opening leads, and its way out.
 function drawExitMarks(d, ox, oy) {
-  if (!(d.sortie || d.hub) || d.deep || !d.floor.exits) return;
+  const lat = d.lat !== null && d.lat !== undefined;
+  if (!(d.sortie || d.hub) || (d.deep && !lat) || !d.floor.exits) return;
   const p = d.p, blink = Math.floor(Game.realT * 3) % 2;
   for (const e of d.floor.exits) {
     const wx = (e.x + 0.5 + e.nx * 0.5) * TILE, wy = (e.y + 0.5 + e.ny * 0.5) * TILE, m = dist(wx, wy, p.x, p.y) / TILE;
     if (m > 10) continue;
-    const lit = isKindled(e.to), col = lit ? '#ffe7a0' : '#c8c0dc', x = Math.round(wx * AP) + ox, y = Math.round(wy * AP) + oy;
-    const name = e.to === 0 ? 'HOME' : terrOf(e.to).name.toUpperCase();
+    const lit = lat ? latLit(e.to) : isKindled(e.to), col = lit ? '#ffe7a0' : lat ? '#b4a4ff' : '#c8c0dc', x = Math.round(wx * AP) + ox, y = Math.round(wy * AP) + oy;
+    const name = lat ? latticeNode(e.to).name.toUpperCase() : e.to === 0 ? 'HOME' : terrOf(e.to).name.toUpperCase();
     // the name beside the opening, on the side away from where it's walked
     // from (drawn once into a picture, as the hub's labels are drawn)
     const lab = exitLabel(name, col), lx = clamp(Math.round(x + (e.nx ? e.nx * ap(6) : 0) - lab.width / 2), 1, View.w - lab.width - 1);
@@ -590,6 +626,7 @@ function exitLabel(text, col) {
 
 // The goal, in a few words, at the top of the view (#hud-goal).
 function goalLines(d) {
+  if (d && d.sortie && d.lat !== null && d.lat !== undefined) return latticeGoalLines(d);
   if (!d || !d.sortie || d.deep || d.kindled || !d.terr) return null;
   const t = terrOf(d.terr), ts = terrPeek(d.terr) || {}, out = [];
   // (the star's reach: a spire holds only where its light does)

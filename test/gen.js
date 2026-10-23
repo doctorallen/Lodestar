@@ -22,7 +22,7 @@ const path = require('path');
 const { sandbox } = require('./sandbox');
 const { finish } = require('./lib-node');
 
-const G = sandbox(['js/util.js', 'js/tuning.js', 'js/floor.js', 'js/world.js']);
+const G = sandbox(['js/util.js', 'js/tuning.js', 'js/floor.js', 'js/world.js', 'js/lattice.js']);
 const failures = [];
 const fail = (msg) => { if (failures.length < 200) failures.push(msg); };
 const GOLDEN = path.join(__dirname, 'golden.json');
@@ -120,6 +120,39 @@ for (let seed = 1; seed <= 10; seed++) {
   }
 }
 
+// the Lattice under it: a shaft gallery under every territory with a Deep,
+// the junctions, one connected web; every gallery's openings, cleft and
+// spire spot walkable from each other, and the same map every time
+for (let seed = 1; seed <= 10; seed++) {
+  const L = G.worldLayout(seed), K = G.latticeLayout(seed), N = K.nodes, at = `lattice ${seed}`;
+  const deeps = L.terrs.filter((t) => t.deep).length;
+  if (N.filter((n) => n.under >= 0).length !== deeps) fail(`${at}: ${N.filter((n) => n.under >= 0).length} shafts for ${deeps} Deeps`);
+  if (N.length - deeps !== G.T.lattice.extra) fail(`${at}: ${N.length - deeps} junctions, not ${G.T.lattice.extra}`);
+  for (const n of N) {
+    if (!n.nb.length) fail(`${at}: ${n.name} joins nothing`);
+    for (const k of n.nb) if (!N[k].nb.includes(n.id)) fail(`${at}: ${n.name} and ${N[k].name} aren't joined both ways`);
+    if (n.under < 0 && !n.spire) fail(`${at}: the junction ${n.name} has no cold spire`);
+    if (n.under >= 0 && K.byTerr[n.under] !== n.id) fail(`${at}: ${n.name} isn't found under its land`);
+  }
+  const seen = new Set([0]), q = [0];
+  for (let i = 0; i < q.length; i++) for (const k of N[q[i]].nb) if (!seen.has(k)) { seen.add(k); q.push(k); }
+  if (seen.size !== N.length) fail(`${at}: only ${seen.size} of ${N.length} galleries can be walked to`);
+  if (seed > 3) continue;
+  for (const n of N) {
+    const f = G.generateGallery(seed, n.id), w = f.w, gat = `${at} ${n.name}`;
+    if (f.exits.length !== n.nb.length) fail(`${gat}: ${f.exits.length} openings for ${n.nb.length} tunnels`);
+    const steps = G.floorDistances(f.tiles, w, f.h, f.entry.x, f.entry.y);
+    for (const e of f.exits) if (steps[e.y * w + e.x] < 0 || f.tiles[e.ay * w + e.ax] !== G.TILE_FLOOR) fail(`${gat}: the opening to ${e.to} can't be reached`);
+    if (!f.heart) fail(`${gat}: no place for a spire`);
+    else if (steps[f.heart.y * w + f.heart.x] < 0) fail(`${gat}: the spire's place can't be reached`);
+    if ((n.under >= 0) !== (f.ways.length === 1)) fail(`${gat}: its cleft is missing or unasked for`);
+    if (f.ways[0] && f.tiles[f.ways[0].y * w + f.ways[0].x] !== G.TILE_PORTAL) fail(`${gat}: the cleft isn't on its tile`);
+    const allowed = new Set(G.T.biomes[n.biome].ores.map((id) => G.ORE_INDEX[id] + 1));
+    for (let i = 0; i < f.ore.length; i++) if (f.ore[i] && !allowed.has(f.ore[i])) { fail(`${gat}: ore from another region`); break; }
+    if (G.galleryHash(G.generateGallery(seed, n.id)) !== G.galleryHash(f)) fail(`${gat}: its map doesn't repeat`);
+  }
+}
+
 const golden = {};
 for (const seed of [1, 7, 1234])
   for (let biome = 0; biome < G.T.biomes.length; biome++)
@@ -129,6 +162,8 @@ for (const seed of [1, 7])
   for (const clime of CLIMES) { const zone = G.T.climes[clime].zones[0]; golden[`${seed}/0/2/${zone}/${clime}`] = G.floorHash(G.generateFloor(seed, 2, 0, 0.5, zone, 2, clime)); }
 // and the world's territories
 for (const seed of [1, 7]) for (const id of [1, 9, 20, 33]) golden[`world ${seed}/${id}`] = G.territoryHash(G.generateTerritory(seed, id));
+// and the Lattice's galleries
+for (const seed of [1, 7]) for (const id of [0, 3, 8]) golden[`lattice ${seed}/${id}`] = G.galleryHash(G.generateGallery(seed, id));
 if (update || !fs.existsSync(GOLDEN)) {
   fs.writeFileSync(GOLDEN, JSON.stringify(golden, null, 2) + '\n');
   console.log('gen: golden hashes recorded');

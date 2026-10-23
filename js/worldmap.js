@@ -93,6 +93,8 @@ function sizeWorldMap() {
     cv.addEventListener('click', (e) => {
       if (Game.realT - UI.openedAt < T.ui.tapGuard) return;
       const r = cv.getBoundingClientRect(), x = Math.floor(((e.clientX - r.left) * M) / r.width), y = Math.floor(((e.clientY - r.top) * M) / r.height);
+      // (on the Lattice's layer, the nearest known gallery: lattice.js)
+      if (UI.mapLayer === 'lattice') { const g = latticeNodeAt(x + 0.5, y + 0.5); if (g >= 0) { UI.mapSelLat = g; drawLatticeCard(); drawWorldMap(); } return; }
       const id = x >= 0 && y >= 0 && x < M && y < M ? worldMap().idMap[y * M + x] : -1;
       if (id >= 0) {
         UI.mapSel = id; drawMapCard(); drawWorldMap();
@@ -110,6 +112,8 @@ function drawWorldMap() {
   x.putImageData(mapBase(L), 0, 0);
   const px = (a, b, col) => { x.fillStyle = col; x.fillRect(Math.round(a), Math.round(b), 1, 1); };
   const at = (t) => [Math.round(t.cx), Math.round(t.cy)];
+  // the Lattice's layer: the tunnels under the darkened land (lattice.js)
+  if (UI.mapLayer === 'lattice') { drawLatticeMap(x, M, px, fr, Math.floor(fr / 3) % 2 === 0); return; }
   // lodelines from the star to each spire, a few pixels marching outwards
   for (const t of L.terrs) {
     if (t.home || !hasSpire(t.id)) continue;
@@ -196,7 +200,9 @@ function drawMapCard() {
   else if (!seen) h += `<div class="goal">Unknown until walked.</div>` + row('ENEMIES', `level ${terrLevel(t)}+`);
   else {
     const ores = T.biomes[t.biome].ores.map((id) => T.ores[ORE_INDEX[id]].name).join(', ');
-    h += row('ENEMIES', `level ${terrLevel(t)}`) + mapFaunaRows(t) + row('ORE', ores + (t.edge ? ' (rich)' : ''));
+    // (in dark land the dark has grown with the star: frontier.js darkLevelFloor)
+    const grown = word !== 'kindled' && darkLevelFloor() > terrLevel(t);
+    h += row('ENEMIES', `level ${grown ? darkLevelFloor() : terrLevel(t)}${grown ? ' · the dark has grown' : ''}`) + mapFaunaRows(t) + row('ORE', ores + (t.edge ? ' (rich)' : ''));
     const g = MAP_GOAL_TEXT[t.goal];
     if (s.starter) h += `<div class="goal"><b>Kindled</b> by the outpost's own spire.</div>`;
     else if (word === 'kindled') h += `<div class="goal"><b>Kindled.</b> Its spire banks and travels.</div>`;
@@ -205,17 +211,17 @@ function drawMapCard() {
       const prog = s.done ? 'Done: plant the spire.' : t.goal === 'waystones' ? `${(s.lit || []).length}/3 lit` : '';
       h += `<div class="goal"><b>To kindle: ${esc(g[0])}</b>${prog ? ` · <span class="r-legendary">${prog}</span>` : ''}</div>` + row('THEN', `plant the spire (${T.world.plant} s)`);
     }
-    if (s.visits && t.deep) h += row('A DEEP', `a hole down, ${t.deep} site${t.deep > 1 ? 's' : ''}${deepZone(t, t.deep) === 'lair' ? ", the Keeper's Lair at the bottom" : ''}`);
+    if (s.visits && t.deep) h += row('A DEEP', `a hole down, ${t.deep} site${t.deep > 1 ? 's' : ''}${deepZone(t, t.deep) === 'lair' ? ", the Keeper's Lair at the bottom" : deepReached(t.id) && galleryUnder(t.id) >= 0 ? ', a cleft into the Lattice at the bottom' : ''}`);
     // what its deeds would give the star (deeds.js)
     if (word !== 'kindled' && !s.starter) h += row('KINDLING IT', `+${heartLightFor(t)} heartlight${starHoldsSpire(t.id) ? '' : ` · its spire needs magnitude ${spireMagFor(t.id)}`}`);
     if (s.visits && t.deep) h += row('ITS DEEP\'S END', deepReached(t.id) ? 'reached' : `+${deepLightFor(t)} deeplight, the first time`);
   }
   // the pack a fall left here
   const pack = Save.data.cache;
-  if (pack && pack.terr === t.id) h += `<div class="goal"><b class="r-legendary">YOUR PACK</b> is here${pack.site ? `, in its Deep (site ${pack.site})` : ''}.</div>`;
+  if (pack && pack.terr === t.id) h += `<div class="goal"><b class="r-legendary">YOUR PACK</b> is here${pack.lat >= 0 ? ', in the Lattice beneath' : pack.site ? `, in its Deep (site ${pack.site})` : ''}.</div>`;
   const btns = [];
   if (mode === 'travel') {
-    if (d && d.terr === t.id) btns.push('<p class="note">You are here.</p>');
+    if (d && d.terr === t.id && !(d.lat !== null && d.lat !== undefined)) btns.push('<p class="note">You are here.</p>');
     else if (t.home) btns.push('<button class="btn primary" data-act="travelTo" data-arg="0">TRAVEL HOME</button>');
     else if (hasSpire(t.id)) btns.push(`<button class="btn primary" data-act="travelTo" data-arg="${t.id}">TRAVEL TO ITS SPIRE</button>`);
   } else {
@@ -233,9 +239,16 @@ function drawMapCard() {
 function drawSetOut() {
   const s = Save.data, travel = UI.mapMode === 'travel';
   $('setout-title').textContent = travel ? 'TRAVEL' : 'SET OUT';
+  // the Lattice's layer, once a gallery has been walked (lattice.js); the
+  // map opens on it from down there
+  const lay = $('map-layers'), known = latticeKnown(), d = Game.dive, inLat = d && d.sortie && d.lat !== null && d.lat !== undefined;
+  if (!known) UI.mapLayer = 'surface';
+  else if (UI.mapLayer === undefined || UI.openedLayer !== UI.openedAt) { UI.mapLayer = inLat ? 'lattice' : 'surface'; UI.openedLayer = UI.openedAt; if (inLat) UI.mapSelLat = d.lat; }
+  lay.hidden = !known;
+  if (known) lay.innerHTML = [['surface', 'THE SURFACE'], ['lattice', 'THE LATTICE']].map(([k, w]) => `<button class="chip ${UI.mapLayer === k ? 'on' : ''}" data-act="mapLayer" data-arg="${k}">${w}</button>`).join('');
   sizeWorldMap();
   drawWorldMap();
-  drawMapCard();
+  if (UI.mapLayer === 'lattice') drawLatticeCard(); else drawMapCard();
   animateWorldMap();
   if (travel) { $('setout-body').innerHTML = `<p class="note">Tap a spire, or the star for home. Your cargo banks first.</p>`; return; }
   // (the tools wake at magnitude 2: onboard.js)
@@ -263,7 +276,7 @@ function drawGoalHud(d) {
   const lines = goalLines(d);
   if (!lines) return false;
   const marks = lines.filter((l) => '◆◇◈'.includes(l[0])), done = marks.filter((l) => l[0] === '◆').length;
-  const html = `<b>TO KINDLE${marks.length ? `<span class="sum">${done}/${marks.length}</span>` : ''}</b>` + lines.map((l) => `<div class="${l[0] === '◆' ? 'done' : l[0] === '◇' || l[0] === '◈' ? '' : 'dim'}">${esc(l)}</div>`).join('');
+  const html = `<b>${d.lat !== null && d.lat !== undefined ? 'THE LATTICE' : 'TO KINDLE'}${marks.length ? `<span class="sum">${done}/${marks.length}</span>` : ''}</b>` + lines.map((l) => `<div class="${l[0] === '◆' ? 'done' : l[0] === '◇' || l[0] === '◈' ? '' : 'dim'}">${esc(l)}</div>`).join('');
   const el = $('hud-goal');
   el.dataset.next = '';
   if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }
@@ -273,5 +286,8 @@ function drawGoalHud(d) {
 Object.assign(UI.acts, {
   setOutSpire: (id) => { UI.close(); startSortie({ terr: Number(id), spire: true }); },
   setOutWalk: (id) => { UI.close(); startSortie({ terr: Number(id), from: 0 }); },
-  travelTo: (id) => { UI.close(); travelFrom(Game.dive, Number(id)); },
+  // (a relit cold spire in the Lattice is 'L' and its gallery: lattice.js)
+  travelTo: (id) => { UI.close(); travelFrom(Game.dive, isLatSpire(id) ? id : Number(id)); },
+  setOutLat: (id) => { UI.close(); startSortie({ lat: Number(id), spire: true }); },
+  mapLayer: (layer) => { UI.mapLayer = layer; drawSetOut(); },
 });

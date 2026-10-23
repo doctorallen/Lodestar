@@ -28,6 +28,8 @@
 //   firstKindled   the first territory kindled
 //   firstTide      the first dark tide
 //   firstDeep      the first Deep entered
+//   firstCleft, firstLattice, firstColdSpire, firstRelit
+//                  the Lattice under the world (lattice.js)
 //   ring2, ring3   first entering ring 2, ring 3
 //   theEdge        first reaching the Edge
 //   firstSettlers  the first settlers at the outpost (said here, on coming
@@ -135,6 +137,12 @@ const WICK = {
   firstKindled: "Kindled. The ground's warming already. Funny how quiet it went.",
   firstTide: "The dark's coming back in, like a tide. Hold the spire and it'll go out again. It always has.",
   firstDeep: "A Deep. Down here the star can't see us at all. Quick in, quicker out.",
+  // the Lattice (lattice.js): the cleft seen, the first gallery, a cold
+  // spire found, and one relit
+  firstCleft: "That cleft goes on down. The survey never mapped anything under here.",
+  firstLattice: 'Tunnels. Not ours, and not new. Someone cut these a long time ago, and they go on.',
+  firstColdSpire: "A spire. Charter make, an old pattern. Whoever planted it isn't here to say what happened.",
+  firstRelit: 'It took the light. That makes it ours: bank here, and the star can find us again.',
   ring2: "The second ring. Nobody's mapped this far. Nobody but whoever left those logs.",
   ring3: "The third ring. The dark's thick enough to lean on out here. Stay close.",
   theEdge: "The Edge. Whatever this world has at its heart, it's out there. I don't think it's sleeping.",

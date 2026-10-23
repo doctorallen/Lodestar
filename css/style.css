@@ -517,6 +517,7 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .map-wrap { width: 100%; max-width: 420px; display: flex; justify-content: center; flex: none; }
 .world-map { display: block; image-rendering: pixelated; image-rendering: crisp-edges; border: 1px solid #0c0a14; touch-action: manipulation; }
 .map-card { margin-top: 8px; }
+.map-layers { margin-top: 8px; justify-content: center; }
 .tcard { background: #0f0d17; border: 2px solid #2c2840; padding: 10px 12px; }
 .tcard .nm { color: var(--gold); font-size: 15px; letter-spacing: 0.08em; }
 .tcard .sub { color: var(--dim); font-size: 12px; margin: 2px 0 6px; }

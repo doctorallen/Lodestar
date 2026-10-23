@@ -653,6 +653,73 @@ async function phone(browser) {
   check(deep === 'none' || deep.kept, 'phone: a vein mined in a Deep grew back on going down again');
   await shot(page, 'smoke-deep');
 
+  // the Lattice (lattice.js): a cleft in a Deep's last site leads down into
+  // the gallery under it, whose tunnels lead to its neighbours; a cold
+  // spire relit is a spire of your own (bank, travel, a fall wakes there),
+  // and the map gets its second layer
+  const lat = await page.evaluate(() => {
+    const t = worldMap().terrs.find((x) => x.deep && x.ring && deepZone(x, x.deep) !== 'lair');
+    if (!t) return 'none';
+    UI.close(); startSortie({ terr: t.id, from: t.nb[0] }); enterDeepSite(t.deep); sturdy();
+    const d = Game.dive, out = { ways: d.ways.slice(), g: galleryUnder(t.id) };
+    out.cleftWay = d.ways[1] === 'lattice' && d.floor.ways.length === 2;
+    const v = d.floor.ways[1]; d.p.x = (v.x + 0.5) * TILE; d.p.y = (v.y + 0.9) * TILE; Game.step(1 / 60);
+    out.label = $('btn-act').textContent;
+    Input.actReq = true; for (let i = 0; i < 60; i++) Game.step(1 / 60);
+    const n = latticeNode(out.g);
+    out.inLat = d.lat === out.g && d.zone === 'lattice' && !!d.deep && d.terr === t.id && n.under === t.id;
+    out.exits = d.floor.exits.length === n.nb.length;
+    out.known = latticeKnown();
+    // a vein mined down here stays mined
+    const vi = d.floor.tiles.findIndex((x) => x === TILE_ORE);
+    if (vi >= 0) breakOre({ i: vi, tx: vi % d.floor.w, ty: Math.floor(vi / d.floor.w) }, T.ores[d.floor.ore[vi] - 1]);
+    // the cold spire, if one stands here, relit by the hold; else walk to a
+    // gallery that has one
+    let gid = out.g;
+    if (!n.spire) { gid = n.nb.find((k) => latticeNode(k).spire); enterGallery(gid, { from: out.g }); out.crossed = d.lat === gid && d.terr === latticeNode(gid).terr; }
+    sturdy();
+    const h = d.floor.heart; d.p.x = (h.x + 0.5) * TILE; d.p.y = (h.y + 1) * TILE; Game.step(1 / 60);
+    out.relightBtn = $('btn-act').textContent;
+    Input.actReq = true; Game.step(1 / 60);
+    out.holding = !!d.relight;
+    for (let i = 0; i < (T.lattice.relight.hold + 1) * 60; i++) { d.p.hp = d.stats.maxHp; Game.step(1 / 60); }
+    out.lit = latLit(gid) && !!d.floor.pad && Save.data.lastSpire === 'L' + gid && d.pull > 0.9 && (d.cargo.deeplight || 0) >= T.deeds.coldSpire;
+    out.litWhy = [latLit(gid), !!d.floor.pad, Save.data.lastSpire, d.pull.toFixed(2), d.cargo.deeplight, !!d.relight].join('/');
+    // bank there, and TRAVEL is offered
+    d.p.x = (d.floor.pad.x + 0.5) * TILE; d.p.y = (d.floor.pad.y + 0.5) * TILE; d.cargo.ferrite = 3; Game.step(1 / 60); UI.frame && UI.frame();
+    out.bankBtn = $('btn-act').textContent; out.travel = !$('btn-act2').hidden;
+    startChannel('extract'); for (let i = 0; i < 60 * 6; i++) Game.step(1 / 60);
+    out.banked = !d.cargo.ferrite && (Save.data.stash.ferrite || 0) >= 3;
+    // a fall wakes at the relit spire
+    d.p.invuln = 0; hurtPlayer(1e9, null); for (let i = 0; i < 60 * 4; i++) Game.step(1 / 60);
+    out.woke = Game.dive.lat === gid && !!Game.dive.floor.pad;
+    // back up its cleft (from the shaft gallery), into the Deep's last site
+    UI.close(); if (gid !== out.g) enterGallery(out.g, { from: gid });
+    out.kept = vi < 0 || Game.dive.floor.tiles[vi] !== TILE_ORE;
+    const c = Game.dive.floor.ways[0]; Game.dive.p.x = (c.x + 0.5) * TILE; Game.dive.p.y = (c.y + 0.9) * TILE; Game.step(1 / 60);
+    out.upLabel = $('btn-act').textContent;
+    Input.actReq = true; for (let i = 0; i < 60; i++) Game.step(1 / 60);
+    out.up = !Game.dive.lat && Game.dive.deep && Game.dive.deep.site === t.deep && Game.dive.terr === t.id;
+    // the map's second layer, and the gallery's card
+    UI.close(); goHome('walk'); UI.close(); UI.openMap('setout');
+    out.layer = !$('map-layers').hidden;
+    UI.acts.mapLayer('lattice'); UI.mapSelLat = gid; drawLatticeCard();
+    out.card = $('map-card').textContent;
+    UI.close();
+    return out;
+  });
+  check(lat === 'none' || lat.cleftWay, `phone: the Deep's last site has no cleft into the Lattice (${JSON.stringify(lat && lat.ways)})`);
+  check(lat === 'none' || (lat.label === 'DOWN INTO THE LATTICE' && lat.inLat && lat.exits && lat.known), `phone: the cleft did not lead down into the gallery under it (${JSON.stringify(lat)})`);
+  check(lat === 'none' || lat.crossed !== false, 'phone: a tunnel did not lead to the next gallery');
+  check(lat === 'none' || (lat.relightBtn === 'RELIGHT THE SPIRE' && lat.holding && lat.lit), `phone: the cold spire was not relit by the hold (${lat && lat.relightBtn}, ${lat && lat.holding}, ${lat && lat.lit})`);
+  check(lat === 'none' || (lat.bankBtn === 'BANK' && lat.travel && lat.banked), `phone: a relit spire did not bank or offer travel (${lat && lat.bankBtn}, ${lat && lat.travel}, ${lat && lat.banked})`);
+  check(lat === 'none' || lat.woke, 'phone: a fall in the Lattice did not wake at the relit spire');
+  check(lat === 'none' || (lat.kept && lat.upLabel === 'UP INTO THE DEEP' && lat.up), `phone: the cleft did not lead back up into the Deep (${lat && lat.upLabel}, ${lat && lat.up}, kept ${lat && lat.kept})`);
+  check(lat === 'none' || (lat.layer && /YOUR SPIRE/.test(lat.card) && /TRAVEL|SET OUT/.test(lat.card)), `phone: the map has no Lattice layer or the gallery's card is wrong (${lat && lat.layer}; ${lat && String(lat.card).slice(0, 120)})`);
+  await page.evaluate(() => { UI.openMap('setout'); UI.acts.mapLayer('lattice'); });
+  await shot(page, 'smoke-lattice-map');
+  await page.evaluate(() => UI.close());
+
   // rifts: a tear can be sealed for riftglass, a gate carries the diver
   // through, and riftglass forges a tier higher
   const rifts = await page.evaluate(() => {

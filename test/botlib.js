@@ -230,12 +230,18 @@ function installBot() {
       if (d.channel) { mine = false; /* hold still */ }
       // stranded: hurt with no light, or in a Deep with no lit way up
       else if (!d.kindled && ((hurt && d.pull <= 0) || (d.deep && (d.pull <= 0.08 || d.zone === 'lair' || (back && hurt)) && !(f.pad && !d.padDark && steps[at(f.pad.x, f.pad.y)] >= 0 && steps[at(f.pad.x, f.pad.y)] < 15))) && (!foe || d.pull <= 0.08 || hurt)) UI.acts.recall();
-      else if (d.deep) {
+      else if (d.lat !== null && d.lat !== undefined) {
+        // the Lattice: not played yet; back up its cleft (lattice.js)
+        mine = false;
+        if (action === 'way') act = true;
+        else if (f.ways && f.ways[0]) goal = f.ways[0];
+        else UI.acts.recall();
+      } else if (d.deep) {
         // a Deep, as the old expeditions: on through its portal, or up its
-        // lodeline when it's time
+        // lodeline when it's time (never down the cleft into the Lattice)
         const up = f.pad && !d.padDark ? f.pad : null;
         if ((back || d.deep.site >= d.deep.of) && up) { if (action === 'extract') act = true; else goal = up; mine = false; }
-        else if (action === 'way' && (back || !full)) act = true;
+        else if (action === 'way' && (back || !full) && d.ways[wayHere(d)] !== 'lattice') act = true;
         else if (f.ways && f.ways[0] && (back || !full)) { goal = f.ways[0]; if (back) mine = false; }
         else if (up) goal = up;
       } else if (d.kindled) {

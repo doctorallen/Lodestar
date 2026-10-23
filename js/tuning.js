@@ -79,6 +79,27 @@ const T = {
     ruin: { name: 'Ruin', gen: { rooms: [7, 9], roomW: [5, 9], roomH: [4, 7], veinChance: 0.5, veinLen: [2, 3] }, enemies: { construct: 2, crawler: 0.7 }, forge: 0.6 },
     lair: { name: "Keeper's Lair", gen: { rooms: [3, 4], veins: [1, 2] }, forge: 0 },
     deep: { name: 'Deep Vein', gen: { veins: [2, 3], veinLen: [3, 5] }, forge: 0.1, warden: 0.6 },
+    lattice: { name: 'The Lattice', gen: { rooms: [6, 8], veins: [1, 2], veinLen: [3, 5], meander: 0.45 }, enemies: { construct: 1.5, crawler: 1.2 }, forge: 0.3, warden: 0.25 },
+  },
+  // The Lattice (lattice.js): the tunnels under the world, laid out once a
+  // save on the world map. A shaft gallery lies under every territory with
+  // a Deep (a cleft in the Deep's last site leads down), `jitter` px off
+  // its middle, and `extra` junction galleries in the gaps, at least `apart`
+  // px from any other and `inner` px out from the star; the tunnels are the
+  // Gabriel graph of them. depthUp: a gallery stands this many depths past
+  // the land over it. light: the light lasts this much of the surface's
+  // time down there (no sky: it always drains). veins: more veins in each
+  // cavern; oreDeep: the chance one is the region's deeper ore. spire.shaft:
+  // the chance a shaft gallery holds a cold spire (every junction does).
+  // relight: a cold spire takes the light over `hold` s standing within
+  // holdR px of it, the dark sending `wave` more every waveEvery s. refill:
+  // of your light a second, standing in a relit spire's light.
+  lattice: {
+    extra: 6, apart: 16, inner: 14, jitter: 5, depthUp: 1, light: 0.85,
+    veins: [1, 2], oreDeep: 0.5,
+    spire: { shaft: 0.35 },
+    relight: { hold: 15, holdR: 40, waveEvery: 5, wave: 1 },
+    refill: 0.06,
   },
   // The world (world.js, frontier.js): rolled once a save from its seed, in
   // rings round the outpost. Its layout lives on the world map, `map` px
@@ -808,6 +829,9 @@ const T = {
     hollowLight: 40,
     // the warden appears from bossDepth, in a side room, by chance
     bossDepth: 3, bossChance: 0.25,
+    // the dark grows as the star does: in dark land (and under it) foes
+    // are at least the level of the highest territory kindled, less this
+    darkLag: 3,
   },
 
   // Drops. Enemies leave their own parts (part: the chance; partTwo: the
@@ -909,7 +933,7 @@ const T = {
   // cache: a fall leaves the whole cargo where it fell, the Kindler's pack; walking
   // within `reach` px of it picks it up. beacon: its light (tiles, strength).
   deeds: {
-    heart: [0, 12, 16, 24, 32], deepEnd: [0, 8, 12, 16, 20], deepSite: 4, forge: 4, echo: 8,
+    heart: [0, 12, 16, 24, 32], deepEnd: [0, 8, 12, 16, 20], deepSite: 4, forge: 4, echo: 8, coldSpire: 10,
     cache: { reach: 14, beacon: [1.6, 0.6] },
   },
   // Supplies (supplies.js): two kinds, made from ore at home (SUPPLIES at

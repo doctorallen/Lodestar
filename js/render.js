@@ -964,6 +964,7 @@ function renderFrameDraw() {
   Gpu.feet = d.hub ? -2 : -1;
   if (!d.hub) { drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights); }
   drawWorldUnder(d, ox, oy, lights);
+  drawLatticeUnder(d, ox, oy, lights);
   drawHolesUnder(d, ox, oy, lights);
   drawCastGround(d, ox, oy, tick, lights);
   pnrOccludeGround(ox, oy);
@@ -1012,7 +1013,7 @@ function renderFrameDraw() {
 
   // loot on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) { Gpu.feet = Math.round(dr.y * AP) + oy; drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8 * AF, Math.round(dr.y * AP) + oy - 16 * AF, 16 * AF, 18 * AF, Math.round(dr.y * AP) + oy, ox, oy); }
-  const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d), fieldForgeProps(d))).concat(portalProps(d), ropeProps(d), deedProps(d));
+  const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d), latticeProps(d), fieldForgeProps(d))).concat(portalProps(d), ropeProps(d), deedProps(d));
   if (!d.hub) graftLight(d, ox, oy, lights);
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   Gpu.feet = -2;

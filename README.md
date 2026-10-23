@@ -89,6 +89,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/frontier.js` | Playing the world: sorties, entering territories, your light, spires (banking and travel), waystones and kindling, the Deeps, a fall waking at a spire; the spire and waystones drawn |
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
 | `js/deeds.js` | The star grows from deeds: heartlight and deeplight, what each deed gives, the star's reach over the rings, the pack a fall leaves and recovering it, what's next from home, and rescaling an older save's star |
+| `js/lattice.js` | The Lattice, the world under the world: the Deeps joined by tunnels into one web of galleries laid out from the save's seed (a shaft gallery under every Deep, junctions between), each built as a territory is, with no sky and the light always draining; the cold spires of Kindlers before, relit by a hold into spires of your own (bank, travel, your light back); the map's second layer |
 | `js/tools.js` | The carried tools: compass, ore sense, radar, map, beacon, lens |
 | `js/hazards.js` | Each clime's hazard at play (pools, ice, lava, vents, spores), and painting a clime's ground |
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |

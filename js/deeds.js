@@ -114,6 +114,7 @@ function cacheCount(c) {
 }
 // Where the diver is, as a cache would name it.
 function cacheWhere(d) {
+  if (d.lat !== null && d.lat !== undefined) return `${latticeNode(d.lat).name}, in the Lattice`;
   const t = terrOf(d.terr);
   return t ? (d.deep ? `the Deep under ${t.name}, site ${d.deep.site}` : t.name) : 'out in the world';
 }
@@ -124,7 +125,7 @@ function leaveCache(d) {
   s.cache = null;
   const cargo = {};
   for (const k in d.cargo) if (d.cargo[k] > 0) cargo[k] = d.cargo[k];
-  const c = { terr: d.terr, site: d.deep ? d.deep.site : 0, x: d.p.x, y: d.p.y, cargo, items: d.items.slice(), blueprints: d.blueprints.map((b) => b.id), where: cacheWhere(d) };
+  const c = { terr: d.terr, site: d.deep ? d.deep.site : 0, lat: d.lat !== null && d.lat !== undefined ? d.lat : -1, x: d.p.x, y: d.p.y, cargo, items: d.items.slice(), blueprints: d.blueprints.map((b) => b.id), where: cacheWhere(d) };
   d.cargo = {}; d.items = []; d.blueprints = [];
   if (cacheCount(c)) s.cache = c;
   return { cache: s.cache, old };
@@ -133,6 +134,9 @@ function leaveCache(d) {
 function cacheHere(d) {
   const c = Save.data.cache;
   if (!c || !d || !d.sortie || d.terr !== c.terr || (d.deep ? d.deep.site : 0) !== c.site) return null;
+  // (a pack in the Lattice lies in its gallery, not in the land over it)
+  const lat = d.lat !== null && d.lat !== undefined ? d.lat : -1, cl = c.lat === undefined ? -1 : c.lat;
+  if (lat !== cl) return null;
   return c;
 }
 // Where the pack stands on this floor: where it fell, or the nearest open
@@ -315,6 +319,9 @@ function nextGoal() {
   const keep = L.terrs.find((t) => t.gate && regionReached(t.biome) && !(s.shards || []).includes(t.biome));
   if (open) return `Kindle ${open.name}: +${heartLightFor(open)} heartlight.`;
   if (deep) return `Reach the Deep's end under ${deep.name}: +${deepLightFor(deep)} deeplight.`;
+  // a cold spire seen in the Lattice and not yet relit (lattice.js)
+  const cold = typeof latticeMap === 'function' && latticeKnown() ? latticeMap().nodes.find((n) => n.spire && !latLit(n.id) && (latPeek(n.id) || {}).visits) : null;
+  if (cold) return `Relight the cold spire in ${cold.name}: +${T.deeds.coldSpire} deeplight.`;
   if (keep) return `Take the Keeper's shard, under ${keep.name}.`;
   if (shut.length) { const r = Math.min(...shut.map((t) => t.ring)), m = T.star.ringMag[r]; return `Ring ${r} needs magnitude ${m}: ${lightToMag(m)} more light.`; }
   return 'Kindle the land, all the way to the Edge.';

@@ -66,6 +66,7 @@ function updateTools(dt) {
 // nearest way on.
 function compassTarget(d, tx, ty) {
   const f = d.floor, steps = floorDistances(f.tiles, f.w, f.h, tx, ty);
+  if (d.sortie && d.lat !== null && d.lat !== undefined) return compassTargetLattice(d, steps);
   if (d.sortie && !d.deep) return compassTargetWorld(d, steps);
   const far = (t) => { const s = steps[t.y * f.w + t.x]; return s < 0 ? 1e9 : s; };
   if (f.pad && !d.padDark) return { x: f.pad.x, y: f.pad.y, col: ART.pal.star[3], home: true };

@@ -288,7 +288,7 @@ const UI = {
   // place clears what it said from view, and a hint is never shown twice in
   // a sortie.
   hintQ: [], hintsSeen: new Set(), hintsFor: null, toastsAt: '',
-  placeKey() { const d = Game.dive; return !d ? '' : d.hub ? 'home' : `${d.terr}/${d.deep ? d.deep.site : 0}`; },
+  placeKey() { const d = Game.dive; return !d ? '' : d.hub ? 'home' : d.lat !== null && d.lat !== undefined ? `L${d.lat}` : `${d.terr}/${d.deep ? d.deep.site : 0}`; },
   toast(msg, kind) {
     if (kind !== 'tip') { UI.showToast(msg, kind, UI.placeKey()); return; }
     if (UI.hintsFor !== Game.dive) { UI.hintsFor = Game.dive; UI.hintsSeen.clear(); }
@@ -365,7 +365,8 @@ const UI = {
     $('hud-hp').classList.toggle('warded', p.ward > 0);
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
     $('hud-ch').classList.toggle('low', p.lowCharge > 0);
-    if (!d.hub) setTextIfChanged('hud-depth', d.deep ? `THE DEEP ${d.deep.site}/${d.deep.of}` : d.terr ? terrOf(d.terr).name.toUpperCase() : '');
+    const inLat = d.lat !== null && d.lat !== undefined;
+    if (!d.hub) setTextIfChanged('hud-depth', inLat ? latticeNode(d.lat).name.toUpperCase() : d.deep ? `THE DEEP ${d.deep.site}/${d.deep.of}` : d.terr ? terrOf(d.terr).name.toUpperCase() : '');
     setTextIfChanged('btn-cargo', d.hub ? 'LOCKER' : `CARGO ${cargoCount(d)}`);
     // (the dark has noticed the haul: game.js updatePull)
     $('btn-cargo').classList.toggle('hot', !d.hub && !d.kindled && (d.heat || 0) >= T.pull.heat.said[0]);
@@ -395,9 +396,9 @@ const UI = {
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     const rh = a === 'rift' && riftHere(d);
     let way = '';
-    if (a === 'way') way = !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'CLIMB DOWN: ' + wayPlaceName(d, wayHere(d)).toUpperCase();
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep ? 'RISE TO THE SURFACE' : 'BANK', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'TUNE', locker: 'OPEN LOCKER', bay: 'DRONE BAY', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `HOLD TO FEED · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
-    if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
+    if (a === 'way') { const wi = wayHere(d); way = inLat ? 'UP INTO THE DEEP' : d.ways[wi] === 'lattice' ? 'DOWN INTO THE LATTICE' : !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'CLIMB DOWN: ' + wayPlaceName(d, wi).toUpperCase(); }
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep && !inLat ? 'RISE TO THE SURFACE' : 'BANK', relight: 'RELIGHT THE SPIRE', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'TUNE', locker: 'OPEN LOCKER', bay: 'DRONE BAY', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `HOLD TO FEED · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
+    if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep && !inLat ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
     // feeding the star is a hold, not a tap: the button says so, pulses to
     // be pressed, and fills as the flow speeds up while it's held
@@ -406,7 +407,7 @@ const UI = {
     if (hold) { const k = d.feed ? Math.min(1, d.feed.t / T.star.feed.ramp) : 0, v = Math.round(k * 100) + '%'; if (btn.style.getPropertyValue('--fill') !== v) btn.style.setProperty('--fill', v); }
     // at a spire (or a beacon's light), TRAVEL too; at the altar, ATTUNE; at
     // the fabricator, SUPPLIES (supplies.js)
-    const travel = a === 'extract' && d.sortie && !d.deep, attune = a === 'altar', sup = a === 'forge' && d.hub && onboardHas('supplies'), b2 = $('btn-act2');
+    const travel = a === 'extract' && d.sortie && (!d.deep || inLat), attune = a === 'altar', sup = a === 'forge' && d.hub && onboardHas('supplies'), b2 = $('btn-act2');
     if (b2.hidden !== !(travel || attune || sup)) { b2.hidden = !(travel || attune || sup); document.body.classList.toggle('act2', !b2.hidden); }
     if (travel || attune || sup) { const pts = attune ? attunePointsLeft(Save.data) : 0; setTextIfChanged('btn-act2', travel ? 'TRAVEL' : sup ? 'SUPPLIES' : pts > 0 ? `ATTUNE · ${pts}` : 'ATTUNE'); }
   },

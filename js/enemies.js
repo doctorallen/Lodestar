@@ -27,7 +27,11 @@
 // (the affixes themselves: affixes.js, ELITE_AFFIX and rollEliteAffix)
 const ELITE_NAMES = Object.fromEntries(Object.keys(ELITE_AFFIX).map((id) => [id, ELITE_AFFIX[id].name]));
 
-function floorLevel(d) { return d.biome * T.levelPerBiome + d.depth + (d.zone === 'lair' ? 1 : 0); }
+// (in dark land, and under it, the dark has grown with the star: frontier.js)
+function floorLevel(d) {
+  const own = d.biome * T.levelPerBiome + d.depth + (d.zone === 'lair' ? 1 : 0);
+  return d.sortie && !d.kindled && typeof darkLevelFloor === 'function' ? Math.max(own, darkLevelFloor()) : own;
+}
 
 // The first levels' share of an enemy's health (T.enemies.hpEarly): the
 // Rim is for learning.
@@ -75,7 +79,8 @@ function spawnEnemies(d) {
   const sig = foeOfClime(d.clime);
   // the warden takes a side room: not the entry, a portal's or the lodeline's
   let bossRoom = null;
-  const wardenChance = d.zone === 'deep' ? T.zones.deep.warden : d.depth >= E.bossDepth && d.zone !== 'lair' ? E.bossChance : 0;
+  const zoneDef = T.zones[d.zone] || {};
+  const wardenChance = zoneDef.warden !== undefined ? zoneDef.warden : d.depth >= E.bossDepth && d.zone !== 'lair' ? E.bossChance : 0;
   if (rng.chance(wardenChance)) {
     const side = f.rooms.slice(1).filter((r) => !r.arena && !(f.ways || []).some((w) => roomHas(r, w)) && !(f.pad && roomHas(r, f.pad)) && r.w >= 5 && r.h >= 5);
     if (side.length) bossRoom = rng.pick(side);

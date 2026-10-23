@@ -584,25 +584,25 @@ class GpuCtx {
     this.canvas = Gpu.canvas;
     this.reset();
   }
-  reset() { this.fillStyle = '#000000'; this.globalAlpha = 1; this.globalCompositeOperation = 'source-over'; this.imageSmoothingEnabled = false; this.tx = 0; this.ty = 0; this.clip = null; this.stack = []; this.path = null; }
+  reset() { this.fillStyle = '#000000'; this.globalAlpha = 1; this.globalCompositeOperation = 'source-over'; this.imageSmoothingEnabled = false; this.tx = 0; this.ty = 0; this.clipBox = null; this.stack = []; this.path = null; }
   get fillStyle() { return this._fs; }
   set fillStyle(v) { if (v !== this._fs) { this._fs = v; this._rgba = gpuColour(v); } }
   get globalCompositeOperation() { return this._op; }
   set globalCompositeOperation(v) { this._op = v; this._blend = GPU_BLEND[v] || 0; }
-  save() { this.stack.push([this.tx, this.ty, this.clip, this.globalAlpha, this._fs, this._op, this.imageSmoothingEnabled]); }
-  restore() { const s = this.stack.pop(); if (s) { this.tx = s[0]; this.ty = s[1]; this.clip = s[2]; this.globalAlpha = s[3]; this.fillStyle = s[4]; this.globalCompositeOperation = s[5]; this.imageSmoothingEnabled = s[6]; } }
+  save() { this.stack.push([this.tx, this.ty, this.clipBox, this.globalAlpha, this._fs, this._op, this.imageSmoothingEnabled]); }
+  restore() { const s = this.stack.pop(); if (s) { this.tx = s[0]; this.ty = s[1]; this.clipBox = s[2]; this.globalAlpha = s[3]; this.fillStyle = s[4]; this.globalCompositeOperation = s[5]; this.imageSmoothingEnabled = s[6]; } }
   translate(x, y) { this.tx += x; this.ty += y; }
   beginPath() { this.path = null; }
   rect(x, y, w, h) { this.path = [x + this.tx, y + this.ty, x + w + this.tx, y + h + this.ty]; }
   closePath() {}
-  clip() { if (this.path) { const p = this.path, c = this.clip; this.clip = c ? [Math.max(c[0], p[0]), Math.max(c[1], p[1]), Math.min(c[2], p[2]), Math.min(c[3], p[3])] : p; } }
-  _state(dyn) { if (!this.over) gpuState(this._blend, this.clip, dyn || null); }
+  clip() { if (this.path) { const p = this.path, c = this.clipBox; this.clipBox = c ? [Math.max(c[0], p[0]), Math.max(c[1], p[1]), Math.min(c[2], p[2]), Math.min(c[3], p[3])] : p; } }
+  _state(dyn) { if (!this.over) gpuState(this._blend, this.clipBox, dyn || null); }
   fillRect(x, y, w, h) {
     const a = this.globalAlpha;
     if (a <= 0 || !(w > 0 && h > 0)) return;
     const c = this._rgba, ca = c[3] * a, G = Gpu;
     // (the frame's first fill of the whole view: the layer's clear colour instead)
-    if (!this.over && !G.drawn && G.target === 'scene' && ca >= 1 && !this.clip && this._blend === 0 && x + this.tx <= 0 && y + this.ty <= 0 && w >= G.w && h >= G.h) {
+    if (!this.over && !G.drawn && G.target === 'scene' && ca >= 1 && !this.clipBox && this._blend === 0 && x + this.tx <= 0 && y + this.ty <= 0 && w >= G.w && h >= G.h) {
       if (c[0] || c[1] || c[2]) { gpuBind(G.scene.fb); if (this.layers & GPU_F.COL) G.gl.clearBufferfv(G.gl.COLOR, 0, new Float32Array([c[0], c[1], c[2], 1])); if (this.layers & GPU_F.EM) G.gl.clearBufferfv(G.gl.COLOR, 1, new Float32Array([c[0], c[1], c[2], 1])); }
       return;
     }
@@ -612,12 +612,12 @@ class GpuCtx {
   clearRect(x, y, w, h) {
     if (this.over) return;
     const G = Gpu;
-    if (x <= 0 && y <= 0 && w >= G.w && h >= G.h && !this.clip) {
+    if (x <= 0 && y <= 0 && w >= G.w && h >= G.h && !this.clipBox) {
       if (!G.drawn && G.target === 'scene') return;
       if (this.layers & GPU_F.EM) gpuClear(true, 0, 0, G.w, G.h); if (this.layers & GPU_F.COL) gpuClear(false, 0, 0, G.w, G.h);
       return;
     }
-    gpuState(2, this.clip, null);
+    gpuState(2, this.clipBox, null);
     gpuPush(false, x + this.tx, y + this.ty, w, h, 0, 0, 1, 1, 0, 0, 0, 0, 1, this.layers | GPU_F.SOLID);
   }
   // drawImage(img, dx, dy), (img, dx, dy, dw, dh), (img, sx, sy, sw, sh, dx, dy, dw, dh)

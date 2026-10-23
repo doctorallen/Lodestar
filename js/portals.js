@@ -27,6 +27,8 @@ const PORTAL_LOOKS = {
   ruin: { face: ['#341604', '#7c3a08', '#cc7616', '#ffc45e'], glyph: [[-1, -1], [-1, 0], [-1, 1], [1, -1], [1, 0], [1, 1]] },
   lair: { face: ['#2a0606', '#6a1010', '#c22a1c', '#ff7a5a'], glyph: [[-1, 0], [1, 0], [0, 1]] },
   deep: { face: ['#061e18', '#0e4832', '#1e8858', '#7ce0a0'], glyph: [[0, -1], [-1, 0], [1, 0], [0, 1]] },
+  // the Lattice, the tunnels under the world (lattice.js): a cold indigo
+  lattice: { face: ['#0e0a24', '#2a1e60', '#5a48b8', '#b4a4ff'], glyph: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]] },
   // (no portal has it: crossing into dark land)
   dusk: { face: ['#0c0e18', '#1c2236', '#3a4462', '#8a96b8'], glyph: [] },
 };
@@ -263,8 +265,10 @@ const easeOutQuad = (t) => 1 - (1 - t) * (1 - t);
 // ---------------------------------------------------------------------------
 const HOLE_R = [9.5, 6]; // its half-width and half-depth, world px
 
-// What way i on this floor is: 'portal' (at home), 'rope' or 'hole'.
-function wayKind(d, i) { return d.hub ? 'portal' : d.ways[i] === 'surface' ? 'rope' : 'hole'; }
+// What way i on this floor is: 'portal' (at home), 'rope' (up: to the
+// surface, or from a gallery of the Lattice up into the Deep) or 'hole'
+// (down: into a Deep, or by a cleft into the Lattice).
+function wayKind(d, i) { return d.hub ? 'portal' : d.ways[i] === 'surface' || d.lat ? 'rope' : 'hole'; }
 
 // The holes, as solid ground for bodies (game.js bodyHits).
 function wayHoleSolids(d) {
@@ -357,11 +361,13 @@ function drawHolesUnder(d, ox, oy, lights) {
 // drifting down through the light.
 function ropeProps(d) {
   if (d.hub || !d.floor.ways) return [];
-  return d.floor.ways.filter((w, i) => wayKind(d, i) === 'rope').map((w) => ({ rope: true, at: w, y: (w.y + 0.5) * TILE }));
+  return d.floor.ways.map((w, i) => wayKind(d, i) === 'rope' && { rope: true, at: w, zone: d.ways[i], y: (w.y + 0.5) * TILE }).filter(Boolean);
 }
 function drawRope(d, a, ox, oy, lights) {
   const w = a.at, fx = Math.round((w.x + 0.5) * ATILE) + ox, fy = Math.round((w.y + 0.5) * ATILE) + oy, T0 = T.portal;
   const warp = d.warp && d.warp.at === w ? Math.min(1, d.warp.t / T0.enter) : 0;
+  // (up into a Deep from the Lattice, the pool is that place's light, not day)
+  const day = a.zone === 'surface', pool = day ? '#fff4dc' : (PORTAL_LOOKS[a.zone] || PORTAL_LOOKS.cave).face[3];
   // the coil
   for (let k = 0; k < 28; k++) {
     const t = (k / 28) * Math.PI * 2, x = fx + Math.round(Math.cos(t) * 5), y = fy + Math.round(Math.sin(t) * 2.5);
@@ -383,7 +389,7 @@ function drawRope(d, a, ox, oy, lights) {
   // dust in the light
   for (let m = 0; m < 6; m++) {
     const ph = (Game.realT * 0.08 + m / 6) % 1;
-    dot(fx + Math.round(Math.sin(m * 2.7 + Game.realT * 0.5) * 9), fy - h + Math.round(ph * h), '#fff4dc', true, Math.sin(ph * Math.PI) * 0.45);
+    dot(fx + Math.round(Math.sin(m * 2.7 + Game.realT * 0.5) * 9), fy - h + Math.round(ph * h), pool, true, Math.sin(ph * Math.PI) * 0.45);
   }
-  lights.push({ x: fx, y: fy - 2, r: TILE * T0.daylight[0], i: T0.daylight[1] * (1 + warp), c: [0.92, 0.96, 1] });
+  lights.push({ x: fx, y: fy - 2, r: TILE * T0.daylight[0], i: T0.daylight[1] * (day ? 1 : 0.6) * (1 + warp), c: day ? [0.92, 0.96, 1] : rgb01(pool) });
 }

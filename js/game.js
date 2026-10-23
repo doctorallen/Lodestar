@@ -106,7 +106,7 @@ function saveRun(d) {
   if (!d || d.hub || d.dying || !d.sortie) return;
   const b = d.beacon;
   Save.data.run = {
-    seed: d.sortieSeed, terr: d.terr, how: d.how, deep: d.deep ? d.deep.site : 0, tool: d.tool,
+    seed: d.sortieSeed, terr: d.terr, how: d.how, deep: d.deep ? d.deep.site : 0, lat: d.lat !== null && d.lat !== undefined ? d.lat : -1, tool: d.tool,
     cargo: d.cargo, items: d.items, blueprints: d.blueprints, banked: d.banked, far: d.far, maxRing: d.maxRing,
     hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, pullTime: d.pullTime, kills: d.kills, time: d.time,
     gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b ? { x: b.x, y: b.y, t: b.t, landed: b.landed } : null,
@@ -124,7 +124,8 @@ function resumeRun() {
     far: r.far || 0, maxRing: r.maxRing || 0, banked: r.banked || { stuff: {}, items: [], learned: [], fed: 0 }, tally: r.tally || {}, pull: r.pull === undefined ? 1 : r.pull, pullTime: r.pullTime || T.world.light });
   Game.scene = 'dive';
   const d = Game.dive;
-  if (r.deep) { d.terr = r.terr; enterDeepSite(r.deep); } else enterTerritory(r.terr, r.how || {});
+  if (r.lat >= 0 && typeof enterGallery === 'function') enterGallery(r.lat, { spire: !!(r.how && r.how.spire) });
+  else if (r.deep) { d.terr = r.terr; enterDeepSite(r.deep); } else enterTerritory(r.terr, r.how || {});
   const f = d.floor;
   Object.assign(d, { cargo: r.cargo || {}, items: r.items || [], blueprints: r.blueprints || [], kills: r.kills || 0, time: r.time || 0, gotShard: r.gotShard, echoes: r.echoes, beaconUsed: r.beaconUsed });
   d.p.hp = Math.min(d.stats.maxHp, r.hp || d.stats.maxHp);
@@ -234,6 +235,7 @@ function updateDive(dtReal, dt) {
     else if (a === 'way') stepThrough(d, wayHere(d));
     else if (a === 'extract') startChannel('extract');
     else if (a === 'stone') startChannel('stone');
+    else if (a === 'relight') startRelight(d);
     else if (a === 'plant') {
       // a spire holds only where the star's light reaches (deeds.js)
       if (starHoldsSpire(d.terr)) startChannel('plant');
@@ -268,6 +270,7 @@ function actionHere() {
   if (t === TILE_PAD && !d.padDark && !d.channel) return 'extract';
   if (d.sortie && !d.channel && stoneHere(d) >= 0) return 'stone';
   if (d.sortie && !d.channel && heartReady(d)) return 'plant';
+  if (d.sortie && !d.channel && coldSpireHere(d)) return 'relight';
   if (d.fieldForge && near(d.fieldForge.x, d.fieldForge.y, 20)) return 'forge';
   if (wayHere(d) >= 0) return 'way';
   if (!d.channel && riftHere(d)) return 'rift';
@@ -316,11 +319,13 @@ function updatePull(dt) {
 
 // Your light is out: a Deep's lodeline goes dark, and the Hollow comes.
 function theDarkComes(d) {
-  if (d.deep) {
+  // (a relit spire in the Lattice is a spire of your own: it stays lit)
+  const shaft = d.deep && !(d.lat !== null && d.lat !== undefined);
+  if (shaft) {
     d.padDark = true;
     if (d.channel && d.channel.kind === 'extract') breakChannel('The light went out');
   }
-  UI.toast(d.deep ? 'Your light is out, and the shaft with it. Something is coming.' : 'Your light is out. Something is coming.', 'legendary');
+  UI.toast(shaft ? 'Your light is out, and the shaft with it. Something is coming.' : 'Your light is out. Something is coming.', 'legendary');
   snd('lightOut');
   const at = darkSpot(d);
   if (at) { const h = makeEnemy('hollow', at.x, at.y, floorLevel(d), null); h.aggro = true; d.enemies.push(h); }
@@ -519,7 +524,8 @@ function bankBlueprints(d) {
 // lodeline lifts the diver back to its territory's surface.
 function extractDive() {
   const d = Game.dive;
-  if (d.deep) leaveDeep();
+  if (d.lat !== null && d.lat !== undefined) bankAtSpire(d);
+  else if (d.deep) leaveDeep();
   else bankAtSpire(d);
 }
 
@@ -533,9 +539,9 @@ function loseDive(died) {
   Save.data.run = null;
   const at = died ? Save.data.lastSpire || 0 : 0;
   const left = leaveCache(d);
-  const report = { died, gaveUp: !died, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), earlier: b, wake: at ? terrOf(at).name : '', cache: left && left.cache, oldCache: left && left.old, light: (d.tally && d.tally.light) || {} };
+  const report = { died, gaveUp: !died, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), earlier: b, wake: at ? spireNameOf(at) : '', cache: left && left.cache, oldCache: left && left.old, light: (d.tally && d.tally.light) || {} };
   Save.save();
-  if (at && hasSpire(at)) { startSortie({ terr: at, spire: true }); UI.openReport(report); }
+  if (at && spireStands(at)) { startSortie(isLatSpire(at) ? { lat: Number(at.slice(1)), spire: true } : { terr: at, spire: true }); UI.openReport(report); }
   else enterHub(report);
   // (said where the Kindler wakes, as a line belongs to the place it's said in)
   if (left && left.cache) Story.say('firstCache');

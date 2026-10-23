@@ -250,7 +250,7 @@ function loaderPaint(job) {
   if (!d) return;
   const f = d.floor;
   const t = !d.hub && !d.deep && terrOf(d.terr);
-  job.say(d.hub ? 'PAINTING THE OUTPOST' : t ? 'PAINTING ' + t.name.toUpperCase() : 'PAINTING THE DEEP');
+  job.say(d.hub ? 'PAINTING THE OUTPOST' : t ? 'PAINTING ' + t.name.toUpperCase() : d.lat !== null && d.lat !== undefined ? 'PAINTING THE LATTICE' : 'PAINTING THE DEEP');
   paintFloor(f);
   const S = View.pnt, cx = d.p.x * AP, cy = d.p.y * AP, reach = d.hub ? Infinity : 3.2 * Math.max(View.w, View.h);
   const todo = [];
