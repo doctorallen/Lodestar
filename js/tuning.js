@@ -831,7 +831,7 @@ const T = {
     bossDepth: 3, bossChance: 0.25,
     // the dark grows as the star does: in dark land (and under it) foes
     // are at least the level of the highest territory kindled, less this
-    darkLag: 3,
+    darkLag: 4,
   },
 
   // Drops. Enemies leave their own parts (part: the chance; partTwo: the
@@ -892,7 +892,7 @@ const T = {
   // bonus's range a printed pattern stands (0–1); master: times this from a
   // masterwork forge. threadOre: an older save's threads become one Lumenite
   // each this many.
-  patterns: { scans: 6, elite: 3, lens: 1.5, parts: 3, roll: 0.7, master: 1.25, threadOre: 3 },
+  patterns: { scans: 6, elite: 3, lens: 1.5, parts: 3, roll: 0.8, master: 1.25, threadOre: 3 },
 
   // The Lodestar grows from deeds, not ore (deeds.js): each deed gives
   // light, motes of it, carried home and fed to the star at its altar, a

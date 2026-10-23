@@ -247,8 +247,10 @@ async function phone(browser) {
   // fell, and taken, tethered in; the suit reads the kind as it falls
   const caught = await page.evaluate(() => {
     UI.close();
-    const d = Game.dive, n0 = d.items.length, s0 = (Save.data.scans || {}).crawler || 0;
+    const d = Game.dive, n0 = d.items.length, s0 = (Save.data.scans || {}).crawler || 0, was = T.cores.elite;
+    T.cores.elite = 1;
     const e = makeEnemy('crawler', d.p.x + 30, d.p.y, 1); e.dead = false; e.elite = 'frosted'; e.affixes = ['frosted']; d.enemies.push(e); killEnemy(e);
+    T.cores.elite = was;
     const dr = d.drops.find((x) => x.item && x.item.kind === 'stone'), fx = d.fx.some((x) => x.kind === 'capture');
     if (!dr) return { dr: false };
     dr.x = d.p.x; dr.y = d.p.y;
