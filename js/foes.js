@@ -82,7 +82,7 @@ function graftFoes(d, rng, level, eliteChance) {
   for (let k = rng.i(E.graftFoes[0], E.graftFoes[1]); k > 0 && cells.length; k--) {
     const i = rng.pick(cells), x = ((i % f.w) + 0.5) * TILE, y = (Math.floor(i / f.w) + 0.5) * TILE;
     if (bodyHits(f, x, y, E[type].radius)) continue;
-    d.enemies.push(makeEnemy(type, x, y, level, rng.chance(eliteChance) ? rollEliteAffix(rng) : null));
+    d.enemies.push(makeEnemy(type, x, y, level, rng.chance(eliteChance) ? rollEliteAffix(rng, type) : null));
   }
 }
 

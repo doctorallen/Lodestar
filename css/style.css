@@ -776,3 +776,6 @@ body.guiding:not(.modal) .toasts { top: calc(104px + env(safe-area-inset-top)); 
 .reach-chip { font-size: 11px; letter-spacing: 0.06em; padding: 4px 7px; border: 1px solid var(--line); color: var(--dim); }
 .reach-chip.ok { color: var(--gold); border-color: #5a4a20; }
 .light-chips { margin: 4px 0; }
+
+/* out in the dark with a haul the dark has noticed (game.js, d.heat) */
+#btn-cargo.hot { color: #ff6a5a; border-color: #ff6a5a; text-shadow: 0 0 6px rgba(255, 106, 90, 0.6); }

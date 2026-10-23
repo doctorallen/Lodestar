@@ -39,7 +39,12 @@ const T = {
   // ring is a place to learn); when it's gone the Hollow comes (and a Deep's
   // lodeline goes dark). (With three minutes of light the lamp dims later,
   // at 40%, and the waves come as often as they did with 75 s.)
-  pull: { dimAt: 0.4, lampMin: 0.6, waveEvery: [26, 18, 14], wave: [1, 2, 2] },
+  pull: { dimAt: 0.4, lampMin: 0.6, waveEvery: [26, 18, 14], wave: [1, 2, 2],
+    // The dark notices what you carry (game.js, d.heat: the cargo over
+    // `cargo` things, to 1): its waves bring `wave` more at full heat and
+    // come `quicker` sooner, and what they bring is an elite `elite` of the
+    // time. Banking puts it out. said: the heat Wick remarks at.
+    heat: { cargo: 60, wave: 2, quicker: 0.4, elite: 0.35, said: [0.5, 1] } },
 
   // Leaving takes a moment: standing in a lodeline, EXTRACT takes `extract`
   // seconds; an emergency recall works anywhere, loses nothing, but takes
@@ -485,13 +490,21 @@ const T = {
     // status attuned.status × as long. Resonite favours none: its
     // resonances are `resonance` stronger.
     attuned: { dmg: 0.25, status: 1.5 },
+    // Each ore a frame is forged in has a way of its own beside its
+    // element (2026-10-22): knock and stagger, heavy hits knock and
+    // stagger harder; cd and charge, spells wait less and the pool is
+    // smaller; reach, bolts, lances and orbs fly further (and the aim
+    // reaches further); heavy, the third Arc and charged casts hit harder;
+    // status, every status holds longer. So a lower tier in the right ore
+    // can be the better frame for a territory, and a second frame is a
+    // craft worth making.
     ores: {
-      ferrite: { el: 'force' },
-      lumenite: { el: 'shock' },
+      ferrite: { el: 'force', knock: 1.4, stagger: 1.35, line: 'Blunt: heavy hits knock and stagger harder' },
+      lumenite: { el: 'shock', cd: 0.82, charge: -0.2, line: 'Quick: spells wait less; the charge pool is a fifth smaller' },
       resonite: { resonance: 0.25 },
-      aetherglass: { el: 'frost' },
-      sigilite: { el: 'ember' },
-      starmetal: { el: 'blight' },
+      aetherglass: { el: 'frost', reach: 1.35, line: 'Far: bolts, lances and orbs fly a third further' },
+      sigilite: { el: 'ember', heavy: 1.3, line: 'Heavy: the third Arc and charged casts hit a third harder' },
+      starmetal: { el: 'blight', status: 1.5, line: 'Lasting: every status holds half again as long' },
     },
     // Resonances (resonance.js): a spell whose cores hold all of one's
     // parts hits mult × as hard. Resonance traces, which show parts of them
@@ -624,7 +637,7 @@ const T = {
     // (hpEarly: the Rim's share of a foe's health and damage at level 1,
     // rising to all of it at hpFullAt; shotScale: what a shot, a glob or a
     // beam does against a bite, since it's harder to step out of)
-    hpGrowth: 1.14, dmgGrowth: 1.12, hpScale: 1.7, dmgScale: 1.6, shotScale: 0.75, hpEarly: 0.7, hpFullAt: 4, aggro: 96, hurtFlash: 0.12, staggerTime: 0.35,
+    hpGrowth: 1.15, dmgGrowth: 1.14, hpScale: 1.7, dmgScale: 1.6, shotScale: 0.75, hpEarly: 0.6, hpFullAt: 4, aggro: 96, hurtFlash: 0.12, staggerTime: 0.35,
     attackers: 1, attackersPerDepth: 0.34, attackersPerBiome: 0.75, press: 2, pressPerBiome: 1, holdBack: 72, wakeStagger: [0.5, 1.6],
     // crawlers close to `circle` px, circle for a moment, wind up, lunge,
     // then recover (open to a counter)
@@ -717,6 +730,14 @@ const T = {
     // the Shard Keepers: a great charger that rings the room with orbs,
     // calls its brood (the Rim's), and leaves magma where it charges (the
     // Underforge's)
+    // Each Keeper is a gear check (phase; enemies.js keeperPhaseHit): the
+    // Rim's wards itself every `every` s (the Warded shell: Force cracks
+    // it, `ward` hits); the Choir's crystal turns all but `shell` of a hit
+    // unless it's chilled, when Force shatters it for `shatter`; the
+    // Underforge's is wreathed in fire, turning all but `wreath`, until
+    // Frost quenches it for `quench` s, when it's open (T.enemies.exposed)
+    // and leaves no magma.
+    phase: { rim: { every: 16, ward: 3 }, choir: { shell: 0.25, shatter: 2 }, underforge: { wreath: 0.3, quench: 6 } },
     keeper: { hp: 455, enrageAt: 90, enrageSpeed: 1.3, afterPull: 30, dmg: 18, speed: 22, radius: 12, range: 100, windup: 0.75, cooldown: 1.8, chargeSpeed: 130, chargeTime: 0.6, dazed: 1.5, shotSpeed: 70, shots: 12, summonEvery: 7, broodMax: 4, magma: 0.35, magmaR: 18, magmaTime: 4, summon: 2 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },
     // a room's enemies: perRoom + perDepth × depth + perBiome × region,
@@ -726,8 +747,29 @@ const T = {
     // how often each affix comes up
     // (an elite on a foe already 1.7× as tough: 1.8× its health and 1.2×
     // its damage, the room's boss rather than a wall; were 2.5 and 1.3)
-    eliteBase: 0.08, eliteDepth: 0.05, eliteMax: 0.4, eliteHp: 1.8, eliteDmg: 1.2,
-    elites: { fast: 3, tough: 3, volatile: 3, insulated: 2, fireproof: 2, warded: 1.5, shifting: 1.5 },
+    eliteBase: 0.05, eliteDepth: 0.04, eliteMax: 0.4, eliteHp: 1.8, eliteDmg: 1.2,
+    elites: { fast: 3, tough: 3, volatile: 3, insulated: 2, fireproof: 2, warded: 1.5, shifting: 1.5, frosted: 2, mortar: 2, chained: 2, bulwark: 2, brood: 1.5, hulking: 2, splitter: 2, leech: 2, blink: 1.5, thorns: 2 },
+    // how many affixes an elite carries (affixes.js): one, and one more at
+    // each level in eliteAffixAt (so two from level 6, three from 11: the
+    // second comes once ring 2's gear is in hand, not at its door);
+    // eliteEvery: one room in this many holds an elite for sure, with a
+    // module for sure
+    eliteAffixAt: [6, 11], eliteEvery: 4, eliteSureFrom: 3, // (no sure elite room below this level: the Rim's first steps)
+    // each affix's numbers (affixes.js): frosted ground every `every` s, r
+    // px, for `time` s, the step at `slow`; a mortar every `every` s within
+    // `range`, landing after `wind` s, `r` px round, `dmg` of a bite;
+    // bulwark: a shell up for `up` s of `every`; brood: `n` of its kind
+    // every `every` s, `most` alive, at `hp` of theirs; hulking: speed and
+    // knock; splitter: `n` halves at `hp`; leech: heals `heal` of the hit;
+    // blink: every `every` s from `from` px, landing after `wind` s, `dmg`
+    // of a bite within `reach`; thorns: `back` of its bite for a close hit;
+    // chained: links within `reach` px, `share` of the hit passed on
+    affix: {
+      frosted: { every: 0.3, r: 9, time: 3.2, slow: 0.5 }, mortar: { every: 4.5, range: 150, wind: 1.1, r: 15, dmg: 0.9 },
+      bulwark: { every: 8, up: 3 }, brood: { every: 10, n: 2, most: 4, hp: 0.4 }, hulking: { speed: 0.7, knock: 0.2 },
+      splitter: { n: 2, hp: 0.45 }, leech: { heal: 0.6 }, blink: { every: 6, from: 44, wind: 0.35, reach: 12, dmg: 0.6 },
+      thorns: { back: 0.3 }, chained: { reach: 90, share: 0.5 },
+    },
     fast: 1.5, tough: 1.6, volatileRadius: 26, volatileDmg: 1.5, volatileFuse: 0.6,
     // a warded elite resists everything until wardHits Force hits (a heavy
     // one counts two) break its shell; a shifting one's weakness moves to
@@ -830,10 +872,10 @@ const T = {
   //   salvage: threads, by rarity, +perTier a tier above 1. weight: in the
   //     cargo.
   modules: {
-    drop: { foe: 0.12, elite: 0.65, boss: 2, keeper: 3, deep: 1.4, early: { found: 8, mult: 2.6 }, lens: 1.5 },
+    drop: { foe: 0.06, elite: 0.5, boss: 2, keeper: 3, deep: 1.4, early: { found: 8, mult: 2.6 }, lens: 1.5 },
     keeperLegend: 5,
     affixes: { common: 1, magic: 2, rare: 3, legendary: 2, set: 1 },
-    value: 0.6,
+    value: 1.0, // (was 0.6: fewer modules now, each worth having)
     fits: { caster: 3, armor: 2.5, charm: 2, pick: 1.5 },
     upgrade: { ore: 10, threads: [0, 4, 8, 14, 20, 28] },
     salvage: { common: 1, magic: 2, rare: 4, legendary: 7, set: 7, perTier: 1 },

@@ -24,9 +24,8 @@
 // Elites' affixes (T.enemies.elites: how often each). Insulated and
 // Fireproof shrug off Shock and Ember, a Warded one resists everything until
 // Force cracks its shell, a Shifting one's weakness moves on (natures.js).
-const ELITE_AFFIXES = Object.keys(T.enemies.elites);
-const ELITE_NAMES = { fast: 'Fast', tough: 'Tough', volatile: 'Volatile', insulated: 'Insulated', fireproof: 'Fireproof', warded: 'Warded', shifting: 'Shifting' };
-function rollEliteAffix(rng) { return rng.weighted(ELITE_AFFIXES.map((id) => [T.enemies.elites[id], id])); }
+// (the affixes themselves: affixes.js, ELITE_AFFIX and rollEliteAffix)
+const ELITE_NAMES = Object.fromEntries(Object.keys(ELITE_AFFIX).map((id) => [id, ELITE_AFFIX[id].name]));
 
 function floorLevel(d) { return d.biome * T.levelPerBiome + d.depth + (d.zone === 'lair' ? 1 : 0); }
 
@@ -38,23 +37,28 @@ function enemyEarlyHp(type, level) {
   return Math.min(1, E.hpEarly + ((1 - E.hpEarly) * Math.max(0, level - 1)) / (E.hpFullAt - 1));
 }
 
+// elite: its affixes (affixes.js), a list, or one, or none; e.elite is the
+// first (its pip's colour), e.affixes all of them.
 function makeEnemy(type, x, y, level, elite) {
   const E = T.enemies, def = E[type], boss = type === 'warden' || type === 'keeper', plain = type !== 'dummy' && type !== 'hollow';
+  const affixes = Array.isArray(elite) ? elite.slice() : elite ? [elite] : [];
+  elite = affixes[0] || null;
   // (fewer and tougher: a regular kind's health and every kind's damage
   // are scaled up, T.enemies.hpScale and dmgScale; bosses keep their own
   // health, the practice dummy its own everything)
   const early = enemyEarlyHp(type, level);
-  const hpMul = Math.pow(E.hpGrowth, level - 1) * early * (elite ? E.eliteHp * (elite === 'tough' ? E.tough : 1) : 1) * (plain && !boss ? E.hpScale : 1);
+  const hpMul = Math.pow(E.hpGrowth, level - 1) * early * (elite ? E.eliteHp * (affixes.includes('tough') ? E.tough : 1) : 1) * (plain && !boss ? E.hpScale : 1);
   const hp = Math.round(def.hp * hpMul);
   const e = {
-    type, x, y, hp, maxHp: hp, r: def.radius, level, elite, boss,
+    type, x, y, hp, maxHp: hp, r: def.radius, level, elite, affixes, boss,
     // (the Rim's handicap, `early`, eases a regular foe's damage too)
     dmg: def.dmg * Math.pow(E.dmgGrowth, level - 1) * (elite ? E.eliteDmg : 1) * (type !== 'dummy' ? E.dmgScale : 1) * (plain && !boss ? early : 1),
-    speed: def.speed * (elite === 'fast' ? E.fast : 1),
+    speed: def.speed,
     state: 'idle', t: 0, cd: 0, aggro: false, flash: 0, slowT: 0, stunT: 0, kx: 0, ky: 0, kvx: 0, kvy: 0, hitDone: false, bob: 0,
     burst: false, dead: false, orbit: (Math.floor(x + y) & 1) * 2 - 1,
   };
   natureAffixStart(e);
+  affixStart(e);
   if (FOE_NAMES[type]) foeInit(e);
   return e;
 }
@@ -86,6 +90,14 @@ function spawnEnemies(d) {
     d.enemies.push(k);
     d.keeper = k;
   }
+  // a room's foes are composed, not rolled one by one: the first closes in
+  // (a crawler or stalker, or the clime's own creature), the second keeps
+  // off (a wisp or spitter), any more as they come, so a pair covers each
+  // other. One room in eliteEvery is an elite's for sure (its module too)
+  const melee = types.filter((t) => t === 'crawler' || t === 'construct'), ranged = types.filter((t) => t === 'wisp' || t === 'spitter');
+  const pick = (list) => rng.weighted(list.map((t) => [E[t].weight * (zoneWeight[t] || 1), t]));
+  const rooms = f.rooms.slice(1).filter((r) => !r.arena && r !== bossRoom), eliteRoom = rooms.length ? rooms[rng.i(0, rooms.length - 1)] : null, eliteStep = Math.max(1, E.eliteEvery || 3);
+  let ri = 0;
   for (const r of f.rooms.slice(1)) {
     if (r.arena) continue;
     if (r === bossRoom) {
@@ -93,14 +105,16 @@ function spawnEnemies(d) {
       d.enemies.push(b);
       continue;
     }
-    const n = clamp(Math.round(E.perRoom + E.perDepth * d.depth + E.perBiome * d.biome) + rng.i(-1, 1), 0, E.maxPerRoom);
+    const sure = level >= (E.eliteSureFrom || 1) && (r === eliteRoom || (ri++ % eliteStep === eliteStep - 1));
+    const n = Math.max(sure ? 1 : 0, clamp(Math.round(E.perRoom + E.perDepth * d.depth + E.perBiome * d.biome) + rng.i(-1, 1), 0, E.maxPerRoom));
     for (let k = 0; k < n; k++) {
       // (a signature that needs what the room hasn't got, its water, is
       // one of the common kind instead)
       const at = sig && rng.chance(E.signatureShare) ? foeSpot(d, sig, r, rng) : null;
-      const type = at ? sig : rng.weighted(types.map((t) => [E[t].weight * (zoneWeight[t] || 1), t]));
-      const elite = rng.chance(eliteChance) ? rollEliteAffix(rng) : null;
+      const type = at ? sig : k === 0 && melee.length ? pick(melee) : k === 1 && ranged.length ? pick(ranged) : pick(types);
+      const elite = (k === 0 && sure) || rng.chance(eliteChance) ? rollEliteAffix(rng, type) : null;
       const e = makeEnemy(type, 0, 0, level, elite);
+      if (k === 0 && sure) e.sure = true;
       if (at) { e.x = at.x; e.y = at.y; }
       // on clear ground, not half in a wall
       else for (let tries = 0; tries < 8; tries++) { const at = inRoom(r); e.x = at.x; e.y = at.y; if (!bodyHits(f, e.x, e.y, e.r) && !hazardNear(f, Math.floor(at.x / TILE), Math.floor(at.y / TILE), 0)) break; }
@@ -192,6 +206,7 @@ function updateEnemies(dt) {
     // statuses wearing off (reactions.js), a shifting weakness (natures.js)
     reactTick(e, dt);
     natureAffixTick(e, dt);
+    affixTick(d, e, dt);
     // burning and blight eat at them, a number now and then
     for (const k of ['burn', 'blight']) {
       const dot = e[k];
@@ -266,7 +281,8 @@ function updateEnemies(dt) {
 function wake(d, e, heard) {
   if (e.aggro) return;
   e.aggro = true;
-  if (e.elite === 'warded' || e.elite === 'shifting') Story.say(e.elite);
+  // (Wick's word on each affix, the first time: story.js)
+  for (const id of e.affixes || []) Story.say('affix_' + id);
   e.cd = Math.max(e.cd, 0.3);
   const W = T.enemies.wakeStagger, late = () => d.rng.f(W[0], W[1]);
   if (heard) e.wakeT = late();
@@ -384,6 +400,27 @@ function updateCharger(d, e, pd, sp, dt, free) {
   if (pd > e.r + 6) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
 }
 
+// A hit on a Keeper (combat.js hurtEnemy): its phase. The Choir's crystal
+// turns all but a share unless it's chilled, when Force shatters it; the
+// Underforge's fire turns all but a share until Frost quenches it, when
+// it's open. (The Rim's ward is the Warded shell: natures.js.)
+function keeperPhaseHit(e, dmg, els, opts) {
+  const P = T.enemies.phase, d = Game.dive;
+  if (e.home === 'choir') {
+    const chilled = e.slowT > 0 || e.frozenT > 0;
+    if (!chilled) { if (Game.realT - (e.phaseWordAt || -9) > 1.2) { e.phaseWordAt = Game.realT; reactWord(e, 'CRYSTAL', ELEMENT_COLS.frost); } return dmg * P.choir.shell; }
+    if (els && els.includes('force')) { reactWord(e, 'SHATTER', ELEMENT_COLS.force); return dmg * P.choir.shatter; }
+    return dmg;
+  }
+  if (e.home === 'underforge') {
+    if (els && els.includes('frost') && !(e.quenchT > 0)) { e.quenchT = P.underforge.quench; reactWord(e, 'QUENCHED', ELEMENT_COLS.frost); d.fx.push({ kind: 'steam', x: e.x, y: e.y - 8, r: 20, t: 0.8, max: 0.8 }); return dmg; }
+    if (e.quenchT > 0) return dmg * T.enemies.exposed;
+    if (Game.realT - (e.phaseWordAt || -9) > 1.2) { e.phaseWordAt = Game.realT; reactWord(e, 'WREATHED', ELEMENT_COLS.ember); }
+    return dmg * P.underforge.wreath;
+  }
+  return dmg;
+}
+
 // A Keeper: charges and rings of orbs like the warden; the Rim's calls its
 // brood, the Underforge's leaves magma where it charges.
 function updateKeeper(d, e, pd, sp, dt, free) {
@@ -398,9 +435,20 @@ function updateKeeper(d, e, pd, sp, dt, free) {
       c.aggro = true; c.brood = true; d.enemies.push(c);
     }
   }
+  // its phase (T.enemies.phase): the Rim's wards itself now and then; the
+  // Underforge's fire goes out for a while when Frost quenches it
+  const P = T.enemies.phase;
+  if (e.home === 'rim' && !(e.ward > 0) && (e.wardT = (e.wardT === undefined ? P.rim.every * 0.4 : e.wardT) - dt) <= 0) {
+    e.wardT = P.rim.every; e.ward = P.rim.ward; e.wardMax = e.ward;
+    d.fx.push({ kind: 'mark', x: e.x, y: e.y, r: 20, t: 0.4, max: 0.4, col: ELEMENT_COLS.force, burst: true });
+    Story.say('keeperWard');
+  }
+  if (e.home === 'choir' && !e.saidPhase && e.aggro) { e.saidPhase = true; Story.say('keeperCrystal'); }
+  if (e.home === 'underforge' && !e.saidPhase && e.aggro) { e.saidPhase = true; Story.say('keeperFire'); }
+  if (e.quenchT > 0) e.quenchT -= dt;
   const was = e.state;
   updateCharger(d, e, pd, sp * (e.enraged ? def.enrageSpeed : 1), dt, true);
-  if (e.home === 'underforge' && was === 'charge' && e.state !== 'charge')
+  if (e.home === 'underforge' && was === 'charge' && e.state !== 'charge' && !(e.quenchT > 0))
     d.puddles.push({ x: e.x, y: e.y, r: def.magmaR, t: def.magmaTime, max: def.magmaTime, dps: e.dmg * def.magma });
 }
 
@@ -443,11 +491,20 @@ function updateGlobs(dt) {
     g.t += dt;
     const k = Math.min(1, g.t / g.max);
     g.x = lerp(g.x0, g.x1, k); g.y = lerp(g.y0, g.y1, k) - Math.sin(k * Math.PI) * 18;
-    if (k >= 1) { g.done = true; d.puddles.push({ x: g.x1, y: g.y1, r: def.puddle / 2, t: def.puddleTime, max: def.puddleTime, dps: def.puddleDps * (g.dmg / def.dmg) }); }
+    if (k >= 1) {
+      g.done = true;
+      // a mortar's burst (affixes.js): a blow where it lands, no spores
+      if (g.burst) { d.fx.push({ kind: 'mark', x: g.x1, y: g.y1, r: g.burst, t: 0.3, max: 0.3, col: g.col, burst: true }); if (!d.dying && dist(g.x1, g.y1, p.x, p.y) < g.burst + T.player.radius) hurtPlayer(g.dmg, g); shakeView(T.impact.heavyShake); }
+      else d.puddles.push({ x: g.x1, y: g.y1, r: def.puddle / 2, t: def.puddleTime, max: def.puddleTime, dps: def.puddleDps * (g.dmg / def.dmg) });
+    }
   }
   d.globs = d.globs.filter((g) => !g.done);
+  p.frostSlow = 1;
   for (const pu of d.puddles) {
     pu.t -= dt;
+    // chilling ground (a frosted elite's): it slows the step, nothing more;
+    // a dash crosses it
+    if (pu.slow) { if (!d.dying && p.dashT <= 0 && dist(pu.x, pu.y, p.x, p.y) < pu.r + T.player.radius) p.frostSlow = Math.min(p.frostSlow, pu.slow); continue; }
     if (pu.mine) {
       // a Linger's field the diver left: its element eats at enemies, not
       // the diver

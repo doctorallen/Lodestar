@@ -208,7 +208,7 @@ function circuitStatuses(e, els, dmg, o) {
   const d = Game.dive, R = T.circuits.react, El = T.elements, O = T.onHit, share = dmg / els.length;
   const st = e.st || (e.st = {});
   for (const el of els) {
-    const k = o.att && o.att.includes(el) ? T.circuits.attuned.status : 1, had = carries(e, el);
+    const k = (o.att && o.att.includes(el) ? T.circuits.attuned.status : 1) * (o.statusK || 1), had = carries(e, el);
     st[el] = Math.max(st[el] || 0, R.status * k);
     if (el === 'shock') {
       if (d.rng.chance(El.shockChance)) {

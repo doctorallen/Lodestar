@@ -205,7 +205,7 @@ function updateDive(dtReal, dt) {
     let vx = 0, vy = 0;
     if (m > 0.05) {
       // slower mid-strike, so an Arc commits
-      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.strikeT > 0 ? 0.45 : 1);
+      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.strikeT > 0 ? 0.45 : 1) * (p.frostSlow || 1);
       vx = (mv.x / m) * sp; vy = (mv.y / m) * sp;
       if (!(p.strikeT > 0)) { p.fx = mv.x / m; p.fy = mv.y / m; }
       p.walkT += dtReal;
@@ -305,7 +305,12 @@ function updatePull(dt) {
   const was = d.pull;
   d.pull = Math.max(0, d.pull - (dt / (d.pullTime || T.world.light)) * (1 - d.stats.pullSlow / 100));
   if (was > P.dimAt && d.pull <= P.dimAt) { UI.toast('Your light is fading', 'legendary'); Story.say('pullFading'); snd('lightLow'); }
-  if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { const r = Math.min(d.biome || 0, P.wave.length - 1); d.waveT = P.waveEvery[r]; stirTheDark(d, P.wave[r]); }
+  // the dark notices what you carry: the more, the more it sends, and the
+  // sooner (banking puts it out)
+  const H = P.heat, heat = (d.heat = H ? clamp(cargoCount(d) / H.cargo, 0, 1) : 0);
+  if (H && heat >= H.said[1] && !d.heatSaid2) { d.heatSaid2 = true; Story.say('heat2'); }
+  else if (H && heat >= H.said[0] && !d.heatSaid) { d.heatSaid = true; Story.say('heat1'); }
+  if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { const r = Math.min(d.biome || 0, P.wave.length - 1); d.waveT = P.waveEvery[r] * (1 - (H ? H.quicker : 0) * heat); stirTheDark(d, P.wave[r] + Math.round((H ? H.wave : 0) * heat)); }
   if (d.pull <= 0) theDarkComes(d);
 }
 
@@ -332,11 +337,12 @@ function darkSpot(d) {
 }
 
 function stirTheDark(d, n) {
-  const types = ['crawler', 'wisp', 'construct'];
+  const types = ['crawler', 'wisp', 'construct'], H = T.pull.heat;
   for (let k = 0; k < n; k++) {
     const at = darkSpot(d);
     if (!at) return;
-    const e = makeEnemy(d.rng.pick(types), at.x, at.y, floorLevel(d), null);
+    const type = d.rng.pick(types), elite = H && d.rng.chance(H.elite * (d.heat || 0)) ? rollEliteAffix(d.rng, type) : null;
+    const e = makeEnemy(type, at.x, at.y, floorLevel(d), elite);
     e.aggro = true;
     d.enemies.push(e);
   }

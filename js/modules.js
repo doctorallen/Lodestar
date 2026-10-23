@@ -151,7 +151,7 @@ function moduleDrops(d, e) {
   let n = 0, min = 'common', boost = 1, tier = dropTier(d);
   if (e.type === 'keeper') { n = D.keeper; min = 'rare'; boost = T.modules.keeperLegend; tier++; }
   else if (e.boss) { n = D.boss; min = 'rare'; tier++; }
-  else if (e.elite) { n = rng.chance(Math.min(1, D.elite * k)) ? 1 : 0; min = 'magic'; }
+  else if (e.elite) { n = e.sure || rng.chance(Math.min(1, D.elite * k)) ? 1 : 0; min = 'magic'; }
   else n = rng.chance(D.foe * k) ? 1 : 0;
   const out = [];
   for (let i = 0; i < n; i++) out.push(rollModule(rng, level, Math.min(T.ores.length, tier), min, boost, src));

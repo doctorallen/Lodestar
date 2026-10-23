@@ -27,10 +27,10 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 | Ring 3 | Each Keeper holds a shard of its dead star. Set the shards in yours and your light reaches further. |
 | The Edge | The heart of the dark. You choose: **kindle it** (the world becomes a garden and the Hollow is gone) or **leave it** (the world keeps a night, the colony lives in the light, and the Hollow keeps to the dark). The game goes on after either. |
 
-- **The shards:** a Keeper waits at the end of an expedition in each biome:
-  - the Rim's, a fungal crawler-queen that calls its brood;
-  - the Choir's, a towering tube-worm;
-  - the Underforge's, a slag colossus that leaves magma where it charges.
+- **The shards:** a Keeper waits at the end of an expedition in each biome, and each is a gear check: what you forged and socketed is what gets you through, not a damage race (`T.enemies.phase`; a line under its health bar says what answers it, and Wick says it the first time):
+  - the Rim's, a fungal crawler-queen that calls its brood, and every 16 s shells itself in a ward that only Force cracks (three hits, a heavy one counting two);
+  - the Choir's, a towering tube-worm of crystal that turns all but a quarter of any hit until it's chilled, when Force shatters it for double: bring Frost and Force;
+  - the Underforge's, a slag colossus wreathed in fire that turns all but 30% of a hit and leaves magma where it charges, until Frost quenches it for 6 s, when it's open (2.5×) and leaves none: bring Frost, and make the moment count.
 - **Bringing them back:** a taken shard is bound to you and safe from any fall. Set it in the star at the altar, which feeds the star 40 light, a big jump (a ring-1 kindling is 12).
 - **Calling the colony down:** at the Meridian uplink, once all three shards are set and there's ground for 5 landers (15 territories kindled). Until the world map exists, the shards alone will do, and calling plays the "kindle" ending, as lighting the old beacon did.
 
@@ -178,20 +178,33 @@ All of them glow brighter while winding up, so you can see the attack coming. En
 
 **They take turns.** In the Rim only one enemy winds up at a time (two from depth 3); each region out adds most of one more, and every three depths one more. Of the kinds that close in to fight (crawlers, droppers, crabs, stalkers), only the nearest two press the attack in the Rim (three in the Choir, four beyond); the rest hold off about four tiles out, circling, until one falls.
 
-**Fewer, and each one a fight.** A room holds one to three (about 0.6 + 0.2 × depth + 0.4 × region, give or take one, so some rooms hold none and a fight is an event). Each takes six to eight hits at gear parity and each of its bites costs about a fifth to a quarter of your health (a shot, a glob or a beam three quarters of that), so every tell has to be read: dodge the lunge, then punish the opening, which takes 2.5× damage (a dazed stalker, a recovering crawler, a stranded eel, a spent wraith or hound). Fights are long enough for a second element to react with the first. Each kill pays about twice what it did and a vein gives one or two ore, so a sortie's haul holds up though sorties run shorter. The crawler, wisp and stalker are drawn a third bigger than they were, with bodies to match.
+**Fewer, and each one a fight.** A room holds one to three (about 0.6 + 0.2 × depth + 0.4 × region, give or take one, so some rooms hold none and a fight is an event), composed rather than rolled one by one: the first closes in (a crawler or stalker, or the clime's own creature), the second keeps off (a wisp or spitter), so a pair covers each other. **The dark notices what you carry:** out in dark land, the more you hold (to about 60 things), the more each wave brings (up to two more), the sooner they come (up to 40% sooner), and the likelier what comes is an elite (to 35%); CARGO goes red when it has noticed, and banking puts it out. That is push-your-luck with teeth. Each takes six to eight hits at gear parity and each of its bites costs about a fifth to a quarter of your health (a shot, a glob or a beam three quarters of that), so every tell has to be read: dodge the lunge, then punish the opening, which takes 2.5× damage (a dazed stalker, a recovering crawler, a stranded eel, a spent wraith or hound). Fights are long enough for a second element to react with the first. Each kill pays about twice what it did and a vein gives one or two ore, so a sortie's haul holds up though sorties run shorter. The crawler, wisp and stalker are drawn a third bigger than they were, with bodies to match.
 
-**The Rim is for learning.** Enemies there have 70% of their health at level 1, rising to all of it at level 4 (the Rim's furthest): a crawler at level 1 falls to five hits of the starting Arc or Bolt.
+**The Rim is for learning.** Enemies there have 60% of their health and damage at level 1, rising to all of it at level 4 (the Rim's furthest): a crawler at level 1 falls to five hits of the starting Arc or Bolt. No room holds an elite for sure below level 3.
 
 **Hits land.** A hit holds the foe still a moment (0.07 s, a heavy one 0.13 s) and jolts it the way it's knocked; a hit worth 15% of its health breaks off its wind-up and staggers it (not a boss or the Hollow, and not again within 1.2 s). Heavy hits stagger anything but the warden out of an attack.
 
-**Elites** have more health, hit harder and often leave a magic-or-better module. They wear a coloured pip for their affix:
-- **Fast:** moves half again as fast.
-- **Tough:** extra health.
-- **Volatile:** bursts a moment after it dies.
-- **Insulated:** all but shrugs off Shock (×0.25).
-- **Fireproof:** all but shrugs off Ember (×0.25).
-- **Warded:** resists everything inside a shell of pale light, until three Force hits (a heavy one counts two) crack it open. Something blunt is always worth carrying.
-- **Shifting:** its weakness moves to the next element every 6 s, and its pip and mark change colour with it.
+**Elites carry affixes**, as Diablo's do: one, two from level 6, three from level 11 (`affixes.js`, `T.enemies.eliteAffixAt`), rolled so none clash (a Bulwark isn't Warded, a Blinker isn't Hulking). An elite has 1.8× the health and hits 1.2× as hard, and from level 3 one room in four holds one for sure, with a module for sure (magic or better). Every affix is shown three ways, a pip of its colour on the foe (one for each), its names in the pixel hand over its badges, and a tell of its own, and every one has an answer in the gear or the hands. Wick says a word on each the first time.
+
+| Affix | What it does | The answer |
+|---|---|---|
+| Fast | moves half again as fast | don't let it round you |
+| Tough | extra health | time |
+| Volatile | bursts a moment after it dies | step back |
+| Insulated | all but shrugs off Shock | the other spell |
+| Fireproof | all but shrugs off Ember | the other spell |
+| Warded | resists everything inside a shell of pale light until three Force hits (a heavy one counts two) crack it | something blunt |
+| Shifting | its weakness moves to the next element every 6 s; its pip and badge change colour with it | watch the badge |
+| Frosted | leaves chilling ground where it steps, which halves your step for a while | a dash crosses it; Ember on it melts the trail |
+| Mortar | lobs a burst at where you stand every few seconds, the spot ringed for a second first | don't stand there |
+| Chained | linked by a chain of light to the nearest foe: half of every hit on it passes to its partner | hit the weaker, or a Chain or Split hits both |
+| Bulwark | every 8 s raises a shell for 3 s that stops bolts, lances and orbs (BLOCKED) | close spells pass; or wait it out |
+| Broodmother | calls two of its kind every 10 s, four at most, at 40% health | a Nova, a Split, a Chain |
+| Hulking | slow, and nothing staggers, stuns or knocks it | its openings are the way in |
+| Splitter | splits into two of its kind at 45% health when it falls | have something ready |
+| Leech | its hits heal it 60% of what they did | Blight on it stops that |
+| Blinker | every 6 s blinks to your side, a ringed flash where it will land a third of a second first; landing on you hurts | dash on the flash |
+| Thorned | a close hit on it cuts you back 30% of its bite | fight it at range |
 
 **Weak and resistant** (natures.js). Every kind is weak to some elements and resists others, by what it's made of: weak takes ×1.5, resistant ×0.5, very resistant ×0.25. Nothing is ever immune.
 
@@ -286,9 +299,9 @@ Known from the start: the rig frame, plate, charm and cutter, the Arc and Bolt, 
 
 - **Drops are materials, and modules.** Each creature leaves its own part, graded by the biome; elites and wardens more, and now and then an exotic or a sealed relic.
 - **Modules** are the Diablo layer. The dark's creatures are made of the world's own living energy; when one dies, its pattern unravels, and the Charter suit's capture field catches the strongest thread of it and sets it in a blank lattice crystal. Rarity is how much of the pattern was caught.
-  - **Few but meaningful:** a kill leaves one 7% of the time, an elite 65% (magic or better), a warden two and a Keeper three (rare or better, a tier up, a Keeper's legendaries three times likelier). A Deep's chances are 1.4 times, the Capture Lens 1.5 times, and the first eight modules ever come 2.6 times as often. About three or four a sortie.
+  - **Few but meaningful:** a kill leaves one 6% of the time, an elite half the time (magic or better; the elite a room holds for sure always leaves one), a warden two and a Keeper three (rare or better, a tier up, a Keeper's legendaries five times likelier). A Deep's chances are 1.4 times, the Capture Lens 1.5 times, and the first eight modules ever come 2.6 times as often. About three or four a sortie.
   - **In the field:** the creature's energy draws in and collapses into a small faceted crystal in its rarity's colour, which glints now and then (rare and better stand in a beam). Walked over, the capture field's tether pulls a few motes to the Kindler.
-  - **Rolled:** for the rig, armor, a charm or a cutter (a creature's family leans it: a crawler's to defense, a wisp's to spell, a stalker's to close, a snapjaw's to utility, a spitter's to mining, each clime creature its own). Traits by rarity: common 1, magic 2, rare 3, legendary 2 and a power, set 1 and the set bonus; each at 60% of an old item affix (there are more sockets than there were pieces). Their tier is where they were caught, so deeper modules roll higher.
+  - **Rolled:** for the rig, armor, a charm or a cutter (a creature's family leans it: a crawler's to defense, a wisp's to spell, a stalker's to close, a snapjaw's to utility, a spitter's to mining, each clime creature its own). Traits by rarity: common 1, magic 2, rare 3, legendary 2 and a power, set 1 and the set bonus, each a whole old item affix's worth (was 60%: there are fewer modules now, and each should be worth having). Besides the flat traits, some read the fight and so form builds: +damage to the chilled, +damage to the burning, +damage to a foe that's open (dazed, staggered, stranded, spent), Arc hits give more charge, +armor in light. Their tier is where they were caught, so deeper modules roll higher.
   - **The card** says where it was caught ("Caught from an elite Wisp, Bloomfen"), its traits with how well each rolled, and UPGRADE or DOWNGRADE against what's in the socket it would take.
 - **Socketing is free** at home, at the locker: tap a base, tap a socket, tap a module from the drawer, each line saying what it would change. A better base takes the old one's modules (and a frame its cores) when equipped.
 - **Working a module is UPGRADE and SALVAGE, nothing else.** Both are buttons on its card at home, at the locker or the **tuning bench** (the outpost station that lists every module, socketed first):
@@ -362,7 +375,7 @@ Known from the start: the rig frame, plate, charm and cutter, the Arc and Bolt, 
   | Stun | a second heavy Force hit | stunned for 1 s |
 
   A boss takes a third of a stun, freeze, blinding or loss; the Hollow none.
-- **Ore affinity.** A frame's ore (the one it's named for) favours an element: a spell of it is attuned, 25% harder and its status half again as long. One line on its card: Ferrite Force, Lumenite Shock, Aetherglass Frost, Sigilite Ember, Starmetal Blight; Resonite none, but its resonances are 25% stronger.
+- **Ore identity.** A frame's ore (the one it's named for) favours an element: a spell of it is attuned, 25% harder and its status half again as long (Ferrite Force, Lumenite Shock, Aetherglass Frost, Sigilite Ember, Starmetal Blight; Resonite none, but its resonances are 25% stronger). And each ore has a way of its own, said on the card: Ferrite is blunt (heavy hits knock 40% and stagger 35% harder); Lumenite quick (spells wait 18% less, the charge pool a fifth smaller); Aetherglass far (bolts, lances and orbs fly a third further, and the aim reaches a third further); Sigilite heavy (the third Arc and charged casts hit a third harder); Starmetal lasting (every status holds half again as long). So a lower tier in the right ore can be the better frame for a territory, and a second frame is a craft worth making.
 - **Resonances** (resonance.js): named spells, found by trying. A spell whose cores hold all of a resonance's parts, in any order, wakes it (a Mod over doesn't matter); the four-part ones need two Mod slots. A resonant spell hits 50% harder (a Resonite frame more), and does something its parts alone don't:
 
   | Resonance | Cores | What it does |

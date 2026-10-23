@@ -88,7 +88,8 @@ function shakeView(n) { View.shake = Math.max(View.shake || 0, n); }
 function hurtPlayer(dmg, from) {
   const d = Game.dive, p = d.p, st = d.stats;
   if (p.invuln > 0 || d.dying) return;
-  dmg *= T.items.armorK / (T.items.armorK + st.armor);
+  const armor = st.armor + (st.litArmor && restingLight(d) ? st.litArmor : 0);
+  dmg *= T.items.armorK / (T.items.armorK + armor);
   if (p.ward > 0) {
     // what strikes a ward is struck back, with its element
     if (from && from.hp !== undefined && !from.dead && p.wardS) circuitHit(p.wardS, from, p.wardHit, { noChain: true });
@@ -103,6 +104,7 @@ function hurtPlayer(dmg, from) {
   p.invuln = T.player.hurtInvuln;
   p.hurtT = 0.25;
   p.restT = 0;
+  if (from && from.affixes) affixOnPlayerHit(from, dmg);
   if (d.channel) breakChannel('Hit: it broke off');
   snd('hurt');
   buzz(30);
@@ -141,9 +143,15 @@ function hurtEnemy(e, dmg, opts = {}) {
   if (e.type === 'crab') { const sh = crabShell(e, opts); if (sh < 1) m = sh * Math.max(1, m); }
   dmg *= m;
   if (e.brittleT > 0) dmg *= T.circuits.react.brittle.mult;
+  // its affixes: a shell that turns bolts, a chain that shares the hit,
+  // thorns that cut back (affixes.js)
+  if (e.affixes && e.affixes.length) { dmg = affixOnHit(e, dmg, opts); if (dmg <= 0) { e.flash = T.enemies.hurtFlash; e.flashCol = null; return; } }
+  if (els && els.includes('ember')) affixMelt(d, e);
+  // a Keeper's phase: a gear check (enemies.js)
+  if (e.type === 'keeper') dmg = keeperPhaseHit(e, dmg, els, opts);
   // what it sets off with the statuses it carries (reactions.js), then its own
   if (els && !opts.noProc) {
-    const o = { dmg, heavy: !!opts.heavy, knock: opts.knock, att: opts.att, extra: 0 };
+    const o = { dmg, heavy: !!opts.heavy, knock: opts.knock, att: opts.att, statusK: opts.statusK || 1, extra: 0 };
     dmg = dmg * circuitReact(e, els, o) + o.extra;
     if (e.dead) return;
     circuitStatuses(e, els, dmg, o);
@@ -160,9 +168,10 @@ function hurtEnemy(e, dmg, opts = {}) {
   const quiet = !verdict || e.reactWordAt === Game.realT || Game.realT - (e.verdictAt || -9) < T.circuits.react.verdictEvery;
   if (!quiet) e.verdictAt = Game.realT;
   d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit, verdict, foe: e, quiet });
-  if (opts.knock) { const kd = T.enemies[e.type].knock, k = e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : kd !== undefined ? kd : 1; e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
-  if (opts.heavy && !e.boss && e.type !== 'hollow' && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime; }
-  else if (e.state === 'windup' && !e.boss && e.type !== 'hollow' && dmg >= e.maxHp * I.flinch && Game.t - (e.flinchAt || -9) > I.flinchGap) {
+  const steady = affixSteady(e);
+  if (opts.knock) { const kd = T.enemies[e.type].knock, k = (e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : kd !== undefined ? kd : 1) * affixKnock(e); e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
+  if (opts.heavy && !e.boss && e.type !== 'hollow' && !steady && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime * (opts.staggerK || 1); }
+  else if (e.state === 'windup' && !e.boss && e.type !== 'hollow' && !steady && dmg >= e.maxHp * I.flinch && Game.t - (e.flinchAt || -9) > I.flinchGap) {
     // a solid hit breaks off its wind-up
     e.state = 'stagger'; e.t = I.flinchTime; e.flinchAt = Game.t;
   }
@@ -190,7 +199,7 @@ function killEnemy(e) {
   if (e.blight) for (const o of d.enemies) if (!o.dead && o !== e && dist(o.x, o.y, e.x, e.y) < T.elements.blightSpread) o.blight = { t: T.elements.blightTime, dps: e.blight.dps };
   castFxDeath(e.x, e.y - 5, ENEMY_PAL[T.biomes[d.biome].id].crystal[0], !!e.boss);
   snd('kill', { x: e.x, y: e.y, big: !!e.boss });
-  if (e.elite === 'volatile') d.fx.push({ kind: 'volatile', x: e.x, y: e.y, t: T.enemies.volatileFuse, max: T.enemies.volatileFuse, dmg: e.dmg * T.enemies.volatileDmg });
+  if (hasAffix(e, 'volatile')) d.fx.push({ kind: 'volatile', x: e.x, y: e.y, t: T.enemies.volatileFuse, max: T.enemies.volatileFuse, dmg: e.dmg * T.enemies.volatileDmg });
   if (st.powers.lodeheart) {
     healPlayer(3);
     for (const dr of d.drops) if (dist(dr.x, dr.y, d.p.x, d.p.y) < 6 * TILE) dr.home = true;
@@ -243,6 +252,7 @@ function killEnemy(e) {
     if (rng.chance(L.relic)) drop({ item: makeRelic(tier) });
   }
   if (rng.chance(L.mote)) drop({ mote: Math.max(L.moteHeal, Math.round(st.maxHp * L.moteShare)) });
+  affixOnDeath(e);
 }
 
 // Any exotic but the rifts' own.

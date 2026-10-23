@@ -358,6 +358,8 @@ const UI = {
     $('hud-ch').classList.toggle('low', p.lowCharge > 0);
     if (!d.hub) setTextIfChanged('hud-depth', d.deep ? `THE DEEP ${d.deep.site}/${d.deep.of}` : d.terr ? terrOf(d.terr).name.toUpperCase() : '');
     setTextIfChanged('btn-cargo', d.hub ? 'LOCKER' : `CARGO ${cargoCount(d)}`);
+    // (the dark has noticed the haul: game.js updatePull)
+    $('btn-cargo').classList.toggle('hot', !d.hub && !d.kindled && (d.heat || 0) >= T.pull.heat.said[0]);
     drawSupplyDeck(d);
     const eq = Save.data.equip;
     const rig = isCaster(eq.main) ? eq.main : null;

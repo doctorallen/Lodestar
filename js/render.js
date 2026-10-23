@@ -1130,7 +1130,15 @@ function renderFrameDraw() {
     // over each foe in sight: what it fears and shrugs off (natures.js),
     // over its health (none over one still hidden)
     const head = e.boss ? vy(e.y) - Math.round(enemySprite(d, e.type).ay) - 4 : vy(e.y) - ap(T.enemies[e.type].barY || (e.type === 'wisp' ? 22 : e.type === 'construct' ? 20 : 16));
-    if (e.type !== 'dummy') { const ex = vx(e.x); if (ex > -20 && ex < View.w + 20 && head > -10 && head < View.h + 10) drawNaturePips(o, e, ex, head - 2 * AF); }
+    if (e.type !== 'dummy') {
+      const ex = vx(e.x);
+      if (ex > -20 && ex < View.w + 20 && head > -10 && head < View.h + 10) {
+        drawNaturePips(o, e, ex, head - 2 * AF);
+        // an elite's affixes, named over its badges in its colour
+        const names = affixNames(e);
+        if (names) drawPixelText(o, names, ex, head - 2 * AF - 14 * AF - 7 * AF, eliteCol(e), 1);
+      }
+    }
     if (e.boss || (e.hp >= e.maxHp && !e.elite)) continue;
     const w = ap(e.r * 2 + 4), bx = Math.round(vx(e.x) - w / 2), by = head;
     o.fillStyle = '#000'; o.fillRect(bx - AF, by - AF, w + 2 * AF, 4 * AF);
@@ -1141,6 +1149,12 @@ function renderFrameDraw() {
     const w = Math.min(View.w - 36 * AF, ap(140)), bx = Math.round((View.w - w) / 2);
     o.fillStyle = '#000'; o.fillRect(bx - AF, 7 * AF, w + 2 * AF, 5 * AF);
     o.fillStyle = '#c04040'; o.fillRect(bx, 8 * AF, Math.round((w * boss.hp) / boss.maxHp), 3 * AF);
+    // a Keeper's phase, said under its bar: what answers it
+    if (boss.type === 'keeper') {
+      const chilled = boss.slowT > 0 || boss.frozenT > 0;
+      const line = boss.home === 'rim' ? (boss.ward > 0 ? 'WARDED · FORCE CRACKS IT' : '') : boss.home === 'choir' ? (chilled ? 'CHILLED · FORCE SHATTERS IT' : 'CRYSTAL · CHILL IT FIRST') : boss.home === 'underforge' ? (boss.quenchT > 0 ? 'QUENCHED · STRIKE IT' : 'WREATHED IN FIRE · FROST QUENCHES IT') : '';
+      if (line) drawPixelText(o, line, Math.round(View.w / 2), 14 * AF, boss.home === 'choir' ? (chilled ? NATURE_COLS.force : NATURE_COLS.frost) : boss.home === 'underforge' ? (boss.quenchT > 0 ? NATURE_COLS.frost : NATURE_COLS.ember) : NATURE_COLS.force, 1);
+    }
   }
   // a foe's reaction names stand over it, the newest lowest, above where its
   // numbers rise to
@@ -1182,7 +1196,7 @@ function renderFrameDraw() {
 // ---------------------------------------------------------------------------
 // The people in it
 // ---------------------------------------------------------------------------
-const ELITE_COLS = { fast: '#7fe8ff', tough: '#ffd34d', volatile: '#ff5a3a', insulated: '#8f9ac4', fireproof: '#c8402a', warded: '#e4dcf4', shifting: '#ff7ad8' };
+const ELITE_COLS = Object.fromEntries(Object.keys(ELITE_AFFIX).map((id) => [id, ELITE_AFFIX[id].col]));
 // (Shock is the yellow of its stone, never cyan: cyan is the Glyphs' teal
 // and the diver's circuits)
 const ELEMENT_COLS = { force: '#e4dcf4', shock: '#ffe45c', frost: '#c8f0ff', ember: '#ff8a3a', blight: '#9ad04a' };
@@ -1469,13 +1483,20 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   // an elite wears a pip of its affix's colour, and its lit rim glows in
   // it (foespaint.js)
   if (e.elite) {
-    for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(fx + i - 1, sy - ap(3) + j - 1, eliteCol(e), true);
+    // (a pip for each affix, in a row)
+    const n = e.affixes.length, x0 = fx - Math.round(((n - 1) * 5 * AF) / 2);
+    e.affixes.forEach((id, q) => { for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(x0 + q * 5 * AF + i - 1, sy - ap(3) + j - 1, q === 0 ? eliteCol(e) : ELITE_COLS[id], true); });
     View.emCtx.drawImage(fpEliteRim(spr, eliteCol(e)), sx, sy);
+    drawAffixes(d, e, spr, sx, sy, fx, fy, tick, lights);
   }
   // through a tear: violet and cyan motes drift off it
   if (e.riftTouched) for (let k = 0; k < 3; k++) { const ph = (Game.realT * 0.8 + k / 3) % 1; dot(Math.round(fx + Math.sin(k * 2.1 + Game.realT * 2) * 6 * AP), Math.round(fy - (4 + ph * 14) * AP), k % 2 ? RIFT_PAL.riftcyan[0] : RIFT_PAL.riftedge[0], true, 1 - ph); }
   // a raging Keeper burns
   if (e.enraged) { for (let k = 0; k < 4; k++) dot(fx + ap(FX_R.i(-10, 10)), fy - ap(FX_R.i(4, 26)), k % 2 ? '#ff4a2a' : '#ffb04a', true, 0.8); lights.push({ x: fx, y: fy - ap(12), r: TILE * 2, i: 0.6, c: [1, 0.35, 0.2] }); }
+  // a Keeper's phase: the Choir's crystal rim until it's chilled; the
+  // Underforge's fire until it's quenched
+  if (e.type === 'keeper' && e.home === 'choir' && !(e.slowT > 0 || e.frozenT > 0) && tick % 2) View.ctx.drawImage(spriteRim(spr, '#dff4ff'), sx - 1, sy - 1);
+  if (e.type === 'keeper' && e.home === 'underforge' && !(e.quenchT > 0)) { for (let k = 0; k < 5; k++) dot(fx + ap(FX_R.i(-14, 14)), fy - ap(FX_R.i(2, 30)), k % 2 ? '#ff6a2a' : '#ffd060', true, 0.9); lights.push({ x: fx, y: fy - ap(14), r: TILE * 2.5, i: 0.7, c: [1, 0.45, 0.15] }); }
   if (e.slowT > 0) dot(fx + ap(3), sy - ap(2), '#c8f0ff', true);
   if (e.burn && tick % 2) dot(fx + ap(FX_R.i(-4, 4)), fy - ap(FX_R.i(2, 12)), ELEMENT_COLS.ember, true);
   if (e.blight && tick % 3 === 0) dot(fx + ap(FX_R.i(-4, 4)), fy - ap(FX_R.i(0, 8)), ELEMENT_COLS.blight, true);
@@ -1579,6 +1600,11 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     cfxRays(cx, cy, r * 0.3, r, 10, R, cfxBand(k), cfxSeed(fx));
     cfxStrokeRing(cx, cy, r, Math.round(r * 0.75), R, cfxBand(k), cfxSeed(fx), true, 0.25);
     lights.push({ x: cx, y: cy, r: fx.r * 1.5, i: 1.2 * k, c: [1, 0.5, 0.25] });
+  } else if (fx.kind === 'mark') {
+    // an affix's mark on the ground (a mortar's spot, where a blinker will
+    // land), ringed and blinking; burst: a flash thrown out
+    if (fx.burst) hlRingHard(cx, cy, Math.round(ap(3) + (1 - k) * fx.r * AP), fx.col, 0.6, k);
+    else { ringDots(cx, cy, fx.r * AP, fx.col, tick % 2 ? 0.85 : 0.45, true); if (k < 0.3) ringDots(cx, cy, fx.r * AP * k / 0.3, fx.col, 0.5, true); }
   } else if (fx.kind === 'verdict') {
     // the hit's verdict, on the foe: resisted, a dull grey ring closing on
     // it like a shell turning the blow; weak, a crisp ring of the element's

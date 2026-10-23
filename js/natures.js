@@ -76,10 +76,11 @@ function kindNatures(type, clime, region) {
 // What its affix makes of it, if anything: 'W', 'R', 'I', or undefined.
 function natureAffix(e, el) {
   if (!e.elite) return undefined;
-  const A = T.enemies.eliteResist && T.enemies.eliteResist[e.elite];
-  if (e.elite === 'shifting' && e.shiftEl === el) return 'W';
+  if (hasAffix(e, 'shifting') && e.shiftEl === el) return 'W';
   if (e.ward > 0) return el === 'force' || natureStep(natureBase(e, el)) < 2 ? 'R' : natureBase(e, el);
-  return A && A[el] ? A[el] : undefined;
+  const ER = T.enemies.eliteResist || {};
+  for (const id of e.affixes) if (ER[id] && ER[id][el]) return ER[id][el];
+  return undefined;
 }
 function natureVerdict(e, el) {
   const a = natureAffix(e, el);
@@ -136,12 +137,12 @@ function natureMarks(e) {
 // ---------------------------------------------------------------------------
 // A new elite's affix state (makeEnemy).
 function natureAffixStart(e) {
-  if (e.elite === 'warded') { e.ward = T.enemies.wardHits; e.wardMax = e.ward; }
-  if (e.elite === 'shifting') { e.shiftI = Math.floor(Math.abs(e.x + e.y)) % CORE_ELEMENTS.length; e.shiftEl = CORE_ELEMENTS[e.shiftI]; e.shiftT = T.enemies.shiftEvery; }
+  if (hasAffix(e, 'warded')) { e.ward = T.enemies.wardHits; e.wardMax = e.ward; }
+  if (hasAffix(e, 'shifting')) { e.shiftI = Math.floor(Math.abs(e.x + e.y)) % CORE_ELEMENTS.length; e.shiftEl = CORE_ELEMENTS[e.shiftI]; e.shiftT = T.enemies.shiftEvery; }
 }
 // Each step (world time).
 function natureAffixTick(e, dt) {
-  if (e.elite !== 'shifting') return;
+  if (!hasAffix(e, 'shifting')) return;
   if ((e.shiftT -= dt) <= 0) {
     e.shiftT += T.enemies.shiftEvery;
     e.shiftI = (e.shiftI + 1) % CORE_ELEMENTS.length;

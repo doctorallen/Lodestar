@@ -34,6 +34,13 @@ const AFFIXES = {
   shock: { family: 'shock', text: '{v}% chance to arc lightning on hit', lo: 5, hi: 10 },
   leech: { family: 'leech', text: '{v}% of damage dealt heals you', lo: 2, hi: 4, dp: 1 },
   chill: { family: 'chill', text: '{v}% chance to chill on hit', lo: 8, hi: 15 },
+  // traits that read the fight (2026-10-22): they form builds, where a
+  // flat number is only ever good
+  chilledDmg: { family: 'spell', text: '+{v}% damage to the chilled', lo: 20, hi: 35 },
+  burnDmg: { family: 'spell', text: '+{v}% damage to the burning', lo: 20, hi: 35 },
+  openDmg: { family: 'close', text: "+{v}% damage to a foe that's open", lo: 25, hi: 45 },
+  arcCharge: { family: 'close', text: 'Arc hits give {v} more charge', lo: 1, hi: 2, flat: true },
+  litArmor: { family: 'defense', text: '+{v} armor in light', lo: 6, hi: 12 },
 };
 const AFFIX_IDS = Object.keys(AFFIXES);
 
@@ -239,7 +246,7 @@ function freshStats() {
     maxHp: T.player.hp, armor: 0, regen: 0, closeDmg: 0, castSpeed: 0, crit: 0,
     spellDmg: 0, chargeRegen: 0, maxCharge: T.player.charge, moveSpeed: 0,
     magnet: T.player.magnet, mineSpeed: 0, oreLuck: 0,
-    shock: 0, leech: 0, chill: 0, powers: {}, sets: {}, regalia3: false,
+    shock: 0, leech: 0, chill: 0, chilledDmg: 0, burnDmg: 0, openDmg: 0, arcCharge: 0, litArmor: 0, powers: {}, sets: {}, regalia3: false,
     // from recipes' implicits
     dashCd: 0, lamp: 0, pullSlow: 0, noisy: 0,
   };
@@ -276,6 +283,9 @@ function computeStats(equip, attune) {
     const rank = (attune && attune[id]) || 0, A = T.attune[id];
     for (const k of ['maxHp', 'closeDmg', 'spellDmg', 'moveSpeed']) if (A[k]) s[k] += A[k] * rank;
   }
+  // the frame's ore: a quick frame's pool is smaller (T.circuits.ores)
+  const rig = equip.main;
+  if (rig && rig.kind === 'caster') { const way = casterOreWay(rig); if (way.charge) s.maxCharge = Math.round(s.maxCharge * (1 + way.charge)); }
   for (const k in T.caps) s[k] = Math.min(s[k], T.caps[k]);
   s.maxHp = Math.round(s.maxHp);
   return s;
@@ -284,7 +294,7 @@ function computeStats(equip, attune) {
 // A rough worth, for UPGRADE / DOWNGRADE at a glance. A base's is its own
 // (its stats, its Mod slots and sockets), as its modules and cores move
 // with it.
-const AFFIX_WORTH = { closeDmg: 0.4, castSpeed: 0.5, crit: 0.6, spellDmg: 0.4, chargeRegen: 0.2, maxCharge: 0.6, maxHp: 0.3, armor: 0.8, regen: 6, moveSpeed: 0.6, magnet: 0.2, mineSpeed: 0.2, oreLuck: 0.3, shock: 0.5, leech: 1.5, chill: 0.3 };
+const AFFIX_WORTH = { closeDmg: 0.4, castSpeed: 0.5, crit: 0.6, spellDmg: 0.4, chargeRegen: 0.2, maxCharge: 0.6, maxHp: 0.3, armor: 0.8, regen: 6, moveSpeed: 0.6, magnet: 0.2, mineSpeed: 0.2, oreLuck: 0.3, shock: 0.5, leech: 1.5, chill: 0.3, chilledDmg: 0.25, burnDmg: 0.25, openDmg: 0.2, arcCharge: 4, litArmor: 0.5 };
 function itemWorth(it) {
   if (!it) return 0;
   if (it.kind === 'module') return moduleWorth(it);

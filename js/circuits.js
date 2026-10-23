@@ -159,7 +159,13 @@ function spellName(sp) {
   return w.length ? w.join(' · ') : 'EMPTY';
 }
 
-const rigBase = () => T.circuits.rig;
+// The worn frame's numbers: the rig's, with its ore's way (T.circuits.ores:
+// a quicker wait, a further aim).
+function rigBase() {
+  const B = T.circuits.rig, it = Save.data && Save.data.equip && Save.data.equip.main, way = it && it.kind === 'caster' ? casterOreWay(it) : {};
+  if (!way.cd && !way.reach) return B;
+  return Object.assign({}, B, { cd: B.cd * (way.cd || 1), aim: B.aim * (way.reach || 1) });
+}
 
 // ---------------------------------------------------------------------------
 // Ore affinity
@@ -177,9 +183,11 @@ function affinityMult(it, els) { return 1 + (T.circuits.attuned.dmg * attunedEls
 // A frame's ore, in a short line ("Attuned: Shock"), or ''.
 function rigOreLine(it) {
   const way = casterOreWay(it);
-  if (way.el) return `Attuned: ${CIRCUIT_ELEMENTS[way.el].name}`;
-  if (way.resonance) return `Resonances +${Math.round(way.resonance * 100)}%`;
-  return '';
+  const bits = [];
+  if (way.el) bits.push(`Attuned: ${CIRCUIT_ELEMENTS[way.el].name}`);
+  if (way.resonance) bits.push(`Resonances +${Math.round(way.resonance * 100)}%`);
+  if (way.line) bits.push(way.line);
+  return bits.join(' · ');
 }
 
 // A spell's charge: its Form's cost times each of its Mods', at least 1.
@@ -335,8 +343,19 @@ function lingerField(s, x, y, mult) {
 function circuitHit(s, e, dmg, opts = {}) {
   const d = Game.dive, st = d.stats, p = d.p;
   if (e.dead || e.hid) return;
-  const crit = d.rng.f(100) < st.crit, kf = s.els.includes('force') ? T.circuits.force.knock : 1;
-  hurtEnemy(e, dmg * (crit ? 2 : 1), { spell: true, crit, els: s.els, att: s.att, heavy: !!opts.heavy, knock: opts.knock ? { x: opts.knock.x * kf, y: opts.knock.y * kf } : null });
+  const way = casterOreWay(s.cx.item), heavy = !!opts.heavy || !!s.cx.charged;
+  // the frame's ore: heavy hits harder, knocks and staggers harder
+  if (heavy && way.heavy) dmg *= way.heavy;
+  // the modules' traits that read the foe: the chilled, the burning, one
+  // that's open to a counter
+  let k = 1;
+  if (st.chilledDmg && (e.slowT > 0 || e.frozenT > 0)) k += st.chilledDmg / 100;
+  if (st.burnDmg && e.burn) k += st.burnDmg / 100;
+  if (st.openDmg && (e.state === 'dazed' || e.state === 'stagger' || FOE_EXPOSED.has(e.state))) k += st.openDmg / 100;
+  dmg *= k;
+  if (s.form === 'arc' && st.arcCharge) p.charge = Math.min(st.maxCharge, p.charge + st.arcCharge);
+  const crit = d.rng.f(100) < st.crit, kf = (s.els.includes('force') ? T.circuits.force.knock : 1) * (way.knock || 1);
+  hurtEnemy(e, dmg * (crit ? 2 : 1), { spell: true, crit, els: s.els, att: s.att, heavy: !!opts.heavy, close: !!s.close, proj: !!opts.proj, staggerK: way.stagger || 1, statusK: way.status || 1, knock: opts.knock ? { x: opts.knock.x * kf, y: opts.knock.y * kf } : null });
   snd('hit', { el: s.els[0], crit, heavy: !!opts.heavy, verdict: e.lastVerdict, x: e.x, y: e.y });
   if (crit && st.powers.bloodedge) healPlayer(st.maxHp * 0.04);
   if (s.refundLeft > 0) { s.refundLeft--; p.charge = Math.min(st.maxCharge, p.charge + s.refund); }
@@ -471,7 +490,7 @@ function castShot(s, off, mult, inst) {
   const o = cx.from || d.p, big = cx.charged && form !== 'orb';
   const n = (id) => s.g.glyphs[id] || 0;
   d.bolts.push({
-    x: o.x, y: o.y - (cx.from ? 6 : 8), vx: Math.cos(a) * F.speed, vy: Math.sin(a) * F.speed, dmg: s.dmg * mult, kind: form, t: F.life,
+    x: o.x, y: o.y - (cx.from ? 6 : 8), vx: Math.cos(a) * F.speed, vy: Math.sin(a) * F.speed, dmg: s.dmg * mult, kind: form, t: F.life * (casterOreWay(cx.item).reach || 1),
     // resonances: Wildfire's burning trail, Shatterglass's echo lance
     wild: cx.res === 'wildfire' && form === 'orb', trailD: 0, shatter: cx.res === 'shatterglass' && form === 'lance' && cx.echo,
     chain: form === 'bolt' ? (d.stats.powers.stormcaller ? 2 : 0) + n('chain') * C.glyphs.chain.jumps : 0,
@@ -501,7 +520,7 @@ function updateBolts(dt) {
       // an orb drifts through, pulsing
       if ((b.orb.tick -= dt) <= 0) {
         b.orb.tick = b.orb.every; b.orb.pulse = Game.realT;
-        for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, b.x, b.y + 6) < b.orb.r + e.r) circuitHit(b.s, e, b.dmg, { knock: norm(e.x - b.x, e.y - b.y - 6) });
+        for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, b.x, b.y + 6) < b.orb.r + e.r) circuitHit(b.s, e, b.dmg, { knock: norm(e.x - b.x, e.y - b.y - 6), proj: true });
       }
       continue;
     }
@@ -510,7 +529,7 @@ function updateBolts(dt) {
       const sp0 = Math.hypot(b.vx, b.vy) || 1, kb = T.impact.shotKnock[b.big ? 1 : 0];
       // Shatterglass: the echo's lance shatters the chilled
       const shatter = b.shatter && carries(e, 'frost');
-      circuitHit(b.s, e, b.dmg * (shatter ? T.circuits.resonance.shatterglass.mult : 1), { knock: { x: (b.vx / sp0) * kb, y: (b.vy / sp0) * kb }, heavy: b.big, noChain: b.kind === 'bolt' || b.kind === 'shard' });
+      circuitHit(b.s, e, b.dmg * (shatter ? T.circuits.resonance.shatterglass.mult : 1), { knock: { x: (b.vx / sp0) * kb, y: (b.vy / sp0) * kb }, heavy: b.big, proj: true, noChain: b.kind === 'bolt' || b.kind === 'shard' });
       if (shatter) shatterglassShards(b, e);
       if (b.big) freezeFrame(T.impact.hitstop * 0.6, false);
       castFxImpact(b, 'hit');

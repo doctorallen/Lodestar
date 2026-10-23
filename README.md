@@ -81,6 +81,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/modules.js` | Modules: rolling them, what a kill leaves, sockets, a module's upgrade and salvage, research, an old save's gear turned into bases and modules, and how a module looks (its icon, the crystal on the ground, its capture and tether) |
 | `js/game.js` | Game state, a sortie's play: walking, mining, your light, channels, and how it ends |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
+| `js/affixes.js` | Elite affixes (Fast, Warded, Frosted, Mortar, Chained, Bulwark, Broodmother, Hulking, Splitter, Leech, Blinker, Thorned…): what each does, how it's rolled and shown |
 | `js/foes.js` | Each clime's own creature: where it's placed, what it does, its tells and signs |
 | `js/combat.js` | The hands' buttons, the dash, damage, kills and drops, pickups, cargo |
 | `js/rifts.js` | Rifts: grafts, ore wakes, gates, inversions; sealing for riftglass |
@@ -100,7 +101,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/render.js` | The pixel view (art px, 1.5 to a world px), the frame drawn in order, the JavaScript lighting and bloom for the 2D path, sparks |
 | `js/castfx.js` | How a cast looks (cosmetic): the Charter's technology: the muzzle at the wrist, the circuit sigil, lock-ons, motes, swept rings, an Arc's crescent, a Glaive's blades, an Orb, slugs and beams, a lance's scar, a Well, a Ward, impacts and marks on the ground |
 | `js/hardlight.js` | The hard-light shapes the spells are built from: crisp lines, diamonds, hexagons, lock-on brackets, sigils, pressure waves, lattices, the seed-star; `castfxWarm()` paints them before a fight |
-| `js/natures.js` | What each enemy is weak to and resists (`elementMultFor`), by kind, clime and elite affix; what Wick has learned; the marks over a foe and the WEAK and RESIST numbers |
+| `js/natures.js` | What each enemy is weak to and resists (`elementMultFor`), by kind, clime and elite affix; the badges over a foe, the WEAK and RESIST numbers and the hit's ring |
 | `js/reactions.js` | Elements' statuses on enemies and the reactions between them (Shatter, Conduct, Steam…), the self stacks (Overload, Freeze…), and how they look |
 | `js/resonance.js` | The six resonances as spells (Thunderhead, Shatterglass, Kindling Arc, Wildfire, Stormglaive, Starfall) and how they look; the Codex and resonance traces |
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
