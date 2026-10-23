@@ -232,7 +232,8 @@ function drawForge() {
 // The Codex: every resonance, its parts shown so far (resonance traces show
 // them; building one shows it whole) and, whole, what it does.
 function drawCodex() {
-  const tabs = `<div class="chips forge-tabs">${forgeCats().map(([label, c]) => `<button class="chip" data-act="forgeTab" data-arg="${c}">${label}</button>`).join('')}<button class="chip on" data-act="forgeTab" data-arg="codex">CODEX</button></div>`;
+  // (the same tabs as the recipes' view: Wick's belong to the Drone Bay)
+  const tabs = `<div class="chips forge-tabs">${forgeCats().filter(([, c]) => c !== 'wick').map(([label, c]) => `<button class="chip" data-act="forgeTab" data-arg="${c}">${label}</button>`).join('')}<button class="chip on" data-act="forgeTab" data-arg="codex">CODEX</button></div>`;
   // (what resonances are, and how they wake, is behind the ?)
   const whole = RESONANCES.filter(codexWhole).length;
   const cards = RESONANCES.map((r) => {

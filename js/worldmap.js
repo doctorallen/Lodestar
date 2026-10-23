@@ -274,7 +274,7 @@ function drawGoalHud(d) {
   const lines = goalLines(d);
   if (!lines) return false;
   const marks = lines.filter((l) => '◆◇◈'.includes(l[0])), done = marks.filter((l) => l[0] === '◆').length;
-  const html = `<b>${d.lat !== null && d.lat !== undefined ? 'THE LATTICE' : 'TO KINDLE'}${marks.length ? `<span class="sum">${done}/${marks.length}</span>` : ''}</b>` + lines.map((l) => `<div class="${l[0] === '◆' ? 'done' : l[0] === '◇' || l[0] === '◈' ? '' : 'dim'}">${esc(l)}</div>`).join('');
+  const html = `<b>${d.lat !== null && d.lat !== undefined ? 'THE LATTICE' : d.deep ? 'THE DEEP' : 'TO KINDLE'}${marks.length ? `<span class="sum">${done}/${marks.length}</span>` : ''}</b>` + lines.map((l) => `<div class="${l[0] === '◆' ? 'done' : l[0] === '◇' || l[0] === '◈' ? '' : 'dim'}">${esc(l)}</div>`).join('');
   const el = $('hud-goal');
   el.dataset.next = '';
   if (el.dataset.html !== html) { el.dataset.html = html; el.innerHTML = html; }

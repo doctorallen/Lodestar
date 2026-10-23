@@ -1145,6 +1145,10 @@ async function spellcraft(browser) {
     out.stirs = !!(resonanceNear(it.spells[0]) || {}).stir;
     const echo = makeStone('echo', 2); Save.data.items.push(echo); UI.show('screen-gear'); UI.openCard(it, 'stash', it.uid); UI.card.focus = 'spells'; UI.card.part = '0:m0'; UI.acts.partPut(echo.uid);
     out.live = !!document.querySelector('.spell.res') && /Shatterglass/.test($('card-body').textContent) && codexWhole(resonanceById('shatterglass'));
+    // the Codex's tabs are the forge's: no WICK (the Drone Bay's)
+    UI.closeCard(); UI.close(); openForge(false); if (UI.screen === 'screen-research') UI.acts.researchDone(); UI.acts.forgeTab('codex');
+    out.codexTabs = !!document.querySelector('#forge-body .forge-tabs [data-arg=codex].on') && !document.querySelector('#forge-body .forge-tabs [data-arg=wick]') && !!document.querySelector('#forge-body .forge-tabs [data-arg=caster]');
+    UI.close();
     out.RS = T.circuits.resist; return out;
   });
   const RS = r.RS;
@@ -1154,7 +1158,7 @@ async function spellcraft(browser) {
   check(r.warded === RS.R && r.unwarded === 1, `natures: a ward isn't ${r.warded} until Force breaks it (${r.unwarded})`);
   check(r.known0 && r.known1, 'natures: the crawler\'s weakness did not show before the hit, or the hit did not say WEAK');
   check(r.shatter, 'reactions: Force on the chilled did not shatter');
-  check(r.codex0 && r.stirs && r.live, `resonances: the Codex or the locker is wrong ${JSON.stringify(r)}`);
+  check(r.codex0 && r.stirs && r.live && r.codexTabs, `resonances: the Codex or the locker is wrong ${JSON.stringify(r)}`);
   check(!errors.length, 'spellcraft: ' + errors.join(' | '));
   check(!(await page.evaluate(() => Errors.length)), 'spellcraft: ' + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
   await page.close();

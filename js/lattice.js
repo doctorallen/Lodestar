@@ -306,6 +306,9 @@ function deedColdSpire(d, id, n) {
 // The Lattice's lines over the view (#hud-goal): the hold, or the cold
 // spire to relight.
 function latticeGoalLines(d) {
+  // (on a Deep's last site with a cleft: it's said over the view, so the
+  // way down isn't a thing to notice)
+  if (d.deep && (d.lat === null || d.lat === undefined)) return d.ways && d.ways.includes('lattice') ? ['◇ A cleft here goes on down, into the Lattice'] : null;
   if (!d.lat || !d.floor.heart) return null;
   const n = latticeNode(d.lat);
   if (d.relight) return [`◈ Stay in its light: ${Math.max(0, Math.ceil(T.lattice.relight.hold - d.relight.t))} s`];

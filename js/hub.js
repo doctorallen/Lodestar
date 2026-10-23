@@ -106,8 +106,10 @@ function outpostSolids(f) {
   // of the door starts clear of it)
   if (f && f.site) {
     const pods = [f.site.home].concat(f.site.pads.slice(0, typeof settlementSize === 'function' ? settlementSize() : 0).map((p) => p.pod));
-    // (deep enough that nothing walks up into a pod's front face)
-    pods.forEach((p, k) => out.push({ id: 'pod' + k, x: p.x * TILE, y: p.y * TILE - 2 - 12, rx: 31, ry: 12 }));
+    // (its footprint is the whole face, from the lip at the back of the
+    // roof to the foot of the front wall, so nothing walks into the face
+    // from behind either: hartPod's lip and foot, in world px)
+    pods.forEach((p, k) => out.push({ id: 'pod' + k, x: p.x * TILE, y: p.y * TILE - 5 - 17, rx: 32, ry: 17 }));
     // the landers on their pads (their feet a little south of the pad's middle: drawLander)
     f.site.pads.slice(0, typeof settlementSize === 'function' ? settlementSize() : 0).forEach((p, k) => out.push({ id: 'lander' + k, x: p.x * TILE, y: p.y * TILE + 4 - 2 - 9, rx: 26, ry: 9 }));
   }

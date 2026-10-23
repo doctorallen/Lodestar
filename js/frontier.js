@@ -626,7 +626,7 @@ function exitLabel(text, col) {
 
 // The goal, in a few words, at the top of the view (#hud-goal).
 function goalLines(d) {
-  if (d && d.sortie && d.lat !== null && d.lat !== undefined) return latticeGoalLines(d);
+  if (d && d.sortie && ((d.lat !== null && d.lat !== undefined) || d.deep)) return latticeGoalLines(d);
   if (!d || !d.sortie || d.deep || d.kindled || !d.terr) return null;
   const t = terrOf(d.terr), ts = terrPeek(d.terr) || {}, out = [];
   // (the star's reach: a spire holds only where its light does)
