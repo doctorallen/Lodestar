@@ -85,6 +85,9 @@ function hartDone(s, ax, ay, extra) {
 // HART_ANVIL. Feet on row 61.
 // ---------------------------------------------------------------------------
 const HART_MOUTH = { x: 42, y: 44, r: 7.3 }; // the port's middle, and the glass's radius
+// (the hand points above are in authored px; a sprite enlarged for FINE
+// GRAIN (artFine, spr.f) has them this much further in)
+function hartPt(spr, pt) { const F = (spr && spr.f) || 1; return { x: pt.x * F, y: pt.y * F }; }
 const HART_ANVIL = { x: 9, y: 42 }; // the work on the bed, where the ram lands
 const HART_RAM = { x: 3, y: 28, travel: 9 }; // where the ram hangs, raised, and how far it comes down
 const HART_LEDS = [[55, 39, '#6cff9a'], [57, 39, '#ffb030'], [55, 41, '#62f0ff']]; // the status lights (the first blinks)
@@ -762,29 +765,32 @@ function hartPod(v = 0) {
 // ---------------------------------------------------------------------------
 function hartLander() {
   return hartKeep('lander', () => {
-    const W = 50, H = 50, FY = 47, cx = 25, s = new PntSpr(W, H, 2001), Hu = HART.hull, CB = HART.charter, St = HART.steel, lamps = [];
+    // (k: its size against the first drawing, 50 × 50, which stood no
+    // taller than the Kindler; every place below is in those units)
+    const k = 2, K = (v) => Math.round(v * k), W = K(50), H = K(50), FY = K(47), cx = K(25), s = new PntSpr(W, H, 2001), Hu = HART.hull, CB = HART.charter, St = HART.steel, lamps = [];
+    const thick = (a, b, col) => { for (let j = 0; j < k; j++) hartLine(s, [a[0] + j, a[1]], [b[0] + j, b[1]], col); };
     // the back legs, behind
-    for (const sd of [-1, 1]) { hartLine(s, [cx + sd * 10, 32], [cx + sd * 15, FY - 5], Hu[2]); s.box(cx + sd * 15 - 2, FY - 6, cx + sd * 15 + 2, FY - 4, Hu, { lo: 1, hi: 3 }); }
+    for (const sd of [-1, 1]) { thick([cx + sd * K(10), K(32)], [cx + sd * K(15), FY - K(5)], Hu[2]); s.box(cx + sd * K(15) - K(2), FY - K(6), cx + sd * K(15) + K(2), FY - K(4), Hu, { lo: 1, hi: 3 }); }
     // the hull: a rounded cone, lit on its left
-    s.poly([[cx - 18, 36], [cx - 13, 14], [cx + 13, 14], [cx + 18, 36]], (x, y) => Hu[clamp(Math.round(5 - (x - cx + 18) / 36 * 3.6 + (artHash(x >> 1, y, 2002) - 0.5) * 0.7), 1, 6)]);
-    s.ell(cx, 14, 13, 4, St, { lo: 1, hi: 5, bias: 0.15 });
-    s.ell(cx - 1, 13, 6, 2, St, { lo: 2, hi: 5, bias: 0.25 });
-    for (let x = cx - 12; x <= cx + 12; x++) s.px(x, 17, Hu[1]);
+    s.poly([[cx - K(18), K(36)], [cx - K(13), K(14)], [cx + K(13), K(14)], [cx + K(18), K(36)]], (x, y) => Hu[clamp(Math.round(5 - (x - cx + K(18)) / K(36) * 3.6 + (artHash(x >> 1, y, 2002) - 0.5) * 0.7), 1, 6)]);
+    s.ell(cx, K(14), K(13), K(4), St, { lo: 1, hi: 5, bias: 0.15 });
+    s.ell(cx - 1, K(13), K(6), K(2), St, { lo: 2, hi: 5, bias: 0.25 });
+    for (let x = cx - K(12); x <= cx + K(12); x++) for (let j = 0; j < k; j++) s.px(x, K(17) + j, Hu[1]);
     // the blue band, a row of ports, the seed-star
-    for (let y = 24; y <= 29; y++) {
-      const half = 13 + (y - 14) * 5 / 22;
-      for (let x = Math.round(cx - half); x <= Math.round(cx + half); x++) s.px(x, y, CB[clamp(Math.round(5 - (x - cx + half) / (2 * half) * 3.5 - (y === 29 ? 1 : 0)), 0, 6)]);
+    for (let y = K(24); y <= K(29); y++) {
+      const half = K(13) + (y - K(14)) * K(5) / K(22);
+      for (let x = Math.round(cx - half); x <= Math.round(cx + half); x++) s.px(x, y, CB[clamp(Math.round(5 - (x - cx + half) / (2 * half) * 3.5 - (y > K(29) - k ? 1 : 0)), 0, 6)]);
     }
-    for (let k = -2; k <= 2; k++) { s.px(cx + k * 4, 20, '#0a0e14'); s.px(cx + k * 4 + 1, 20, k < 0 ? '#3a4a5c' : '#141c26'); }
-    hartSeedStar(s, cx, 26, false);
+    for (let q = -2; q <= 2; q++) for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) { s.px(cx + q * K(4) + i, K(20) + j, '#0a0e14'); s.px(cx + q * K(4) + k + i, K(20) + j, q < 0 ? '#3a4a5c' : '#141c26'); }
+    hartSeedStar(s, cx, K(26), k > 1);
     // its skirt, and the front legs
-    for (let x = cx - 18; x <= cx + 18; x++) { s.px(x, 36, Hu[0]); s.px(x, 35, Hu[x < cx ? 4 : 2]); }
+    for (let x = cx - K(18); x <= cx + K(18); x++) { for (let j = 0; j < k; j++) s.px(x, K(36) + j, Hu[0]); for (let j = 1; j <= k; j++) s.px(x, K(36) - j, Hu[x < cx ? 4 : 2]); }
     for (const sd of [-1, 1]) {
-      hartLine(s, [cx + sd * 15, 31], [cx + sd * 22, FY - 1], Hu[sd < 0 ? 5 : 3]); hartLine(s, [cx + sd * 15 + 1, 31], [cx + sd * 22 + 1, FY - 1], Hu[1]);
-      s.box(cx + sd * 22 - 3, FY - 2, cx + sd * 22 + 3, FY, Hu, { lo: 1, hi: 4 });
-      lamps.push([cx + sd * 17, 34]);
+      thick([cx + sd * K(15), K(31)], [cx + sd * K(22), FY - 1], Hu[sd < 0 ? 5 : 3]); thick([cx + sd * K(15) + k, K(31)], [cx + sd * K(22) + k, FY - 1], Hu[1]);
+      s.box(cx + sd * K(22) - K(3), FY - K(2), cx + sd * K(22) + K(3), FY, Hu, { lo: 1, hi: 4 });
+      lamps.push([cx + sd * K(17), K(34)]);
     }
-    lamps.push([cx, 10]);
+    lamps.push([cx, K(10)]);
     return hartDone(s, cx, FY - 1, { lamps });
   });
 }
@@ -1143,52 +1149,55 @@ function hartRelay() {
 // settlers' beans (they came up purple). Points: lamps.
 function hartQuarters() {
   return hartKeep('quarters', () => {
-    const W = 72, H = 62, FY = 59, s = new PntSpr(W, H, 2401), Hu = HART.hull, CB = HART.charter, St = HART.steel, Am = HART.amber, lamps = [];
+    // (k: its size against the first drawing, 72 × 62, whose door came to
+    // the Kindler's knee; every place below is in those units)
+    const k = 1.6, K = (v) => Math.round(v * k), W = K(72), H = K(62), FY = K(59), s = new PntSpr(W, H, 2401), Hu = HART.hull, CB = HART.charter, St = HART.steel, Am = HART.amber, lamps = [];
     const win = (x0, y0, w, h) => {
       for (let y = y0; y <= y0 + h; y++) for (let x = x0; x <= x0 + w; x++) {
         const edge = y === y0 || x === x0 || x === x0 + w || y === y0 + h;
-        s.px(x, y, edge ? Hu[1] : y > y0 + h - 2 ? '#d8862c' : (x + y) % 5 === 0 ? '#ffe0a0' : '#ffc060', !edge);
+        s.px(x, y, edge ? Hu[1] : y > y0 + h - K(2) ? '#d8862c' : (x + y) % 5 === 0 ? '#ffe0a0' : '#ffc060', !edge);
       }
       lamps.push([x0 + (w >> 1), y0 + (h >> 1)]);
     };
     // a habitat box: a pale top rounded at its ends, a blue face
     const hab = (x0, x1, top, lip, foot, seed) => {
-      hartStrokes(s, x0, top, x1, lip - 1, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < 3 - (y - top) * 0.6 ? null : 0.78 - (x - x0) / (x1 - x0) * 0.2 - (lip - y) * 0.015; }, St, seed, { jit: 0.1 });
-      for (let x = x0 + 4; x <= x1 - 4; x += 12) for (let y = top + 1; y < lip; y++) s.px(x, y, St[2]);
-      hartStrokes(s, x0, lip, x1, foot, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < 2 - Math.min(2, (y - lip) * 0.5) ? null : 0.55 - (x - x0) / (x1 - x0) * 0.32 - (y - lip) * 0.005; }, CB, seed + 1, { jit: 0.12 });
-      for (let x = x0 + 1; x <= x1 - 1; x++) { s.px(x, lip, St[4]); s.px(x, foot, CB[0]); s.px(x, lip + 3, CB[1]); }
+      hartStrokes(s, x0, top, x1, lip - 1, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < K(3) - (y - top) * 0.6 / k ? null : 0.78 - (x - x0) / (x1 - x0) * 0.2 - (lip - y) * 0.015 / k; }, St, seed, { jit: 0.1 });
+      for (let x = x0 + K(4); x <= x1 - K(4); x += K(12)) for (let y = top + 1; y < lip; y++) s.px(x, y, St[2]);
+      hartStrokes(s, x0, lip, x1, foot, (x, y) => { const e = Math.min(x - x0, x1 - x); return e < K(2) - Math.min(K(2), (y - lip) * 0.5) ? null : 0.55 - (x - x0) / (x1 - x0) * 0.32 - (y - lip) * 0.005 / k; }, CB, seed + 1, { jit: 0.12 });
+      for (let x = x0 + 1; x <= x1 - 1; x++) { s.px(x, lip, St[4]); s.px(x, foot, CB[0]); s.px(x, lip + K(3), CB[1]); }
       for (let y = lip + 1; y < foot; y++) { s.px(x0 + 1, y, CB[5]); s.px(x1 - 1, y, CB[1]); }
     };
     // the upper module, set back on the lower's roof; its pennant
-    for (let y = 1; y <= 18; y++) { s.px(56, y, Hu[y < 6 ? 6 : 5]); s.px(57, y, Hu[2]); }
-    s.px(56, 0, Am[2], true);
-    hartStrokes(s, 58, 2, 66, 9, (x, y) => (y > 7 && Math.abs(x - 62) < (y - 7) * 1.5 ? null : 0.62 - (x - 58) * 0.04), CB, 2402);
-    s.px(61, 5, HART.mark[2]); s.px(62, 5, HART.mark[3]);
-    hab(16, 58, 10, 18, 33, 2403);
-    win(22, 22, 10, 6); win(36, 22, 10, 6);
-    for (let y = 22; y < 33; y++) for (let x = 50; x <= 55; x++) s.px(x, y, x === 50 || y === 22 ? Hu[5] : x === 55 ? Hu[1] : Hu[2 + ((y >> 2) & 1)]);
-    s.px(54, 28, Am[2], true);
+    for (let y = 1; y <= K(18); y++) { s.px(K(56), y, Hu[y < K(6) ? 6 : 5]); s.px(K(56) + 1, y, Hu[2]); }
+    s.px(K(56), 0, Am[2], true);
+    hartStrokes(s, K(58), K(2), K(66), K(9), (x, y) => (y > K(7) && Math.abs(x - K(62)) < (y - K(7)) * 1.5 ? null : 0.62 - (x - K(58)) * 0.04 / k), CB, 2402);
+    s.px(K(61), K(5), HART.mark[2]); s.px(K(61) + 1, K(5), HART.mark[3]);
+    hab(K(16), K(58), K(10), K(18), K(33), 2403);
+    win(K(22), K(22), K(10), K(6)); win(K(36), K(22), K(10), K(6));
+    for (let y = K(22); y < K(33); y++) for (let x = K(50); x <= K(55); x++) s.px(x, y, x === K(50) || y === K(22) ? Hu[5] : x === K(55) ? Hu[1] : Hu[2 + ((y >> 2) & 1)]);
+    s.px(K(54), K(28), Am[2], true);
     // the lower module, longer, in front
-    hab(3, 63, 31, 38, FY - 3, 2405);
-    win(26, 42, 9, 6); win(40, 42, 9, 6);
+    hab(K(3), K(63), K(31), K(38), FY - K(3), 2405);
+    win(K(26), K(42), K(9), K(6)); win(K(40), K(42), K(9), K(6));
     // its door, and the awning over it
-    for (let y = 42; y < FY - 3; y++) for (let x = 11; x <= 19; x++) s.px(x, y, x === 11 || y === 42 ? Hu[5] : x === 19 ? Hu[1] : Hu[2 + ((y >> 2) & 1)]);
-    s.px(18, 49, Am[2], true);
+    for (let y = K(42); y < FY - K(3); y++) for (let x = K(11); x <= K(19); x++) s.px(x, y, x === K(11) || y === K(42) ? Hu[5] : x === K(19) ? Hu[1] : Hu[2 + ((y >> 2) & 1)]);
+    s.px(K(18), K(49), Am[2], true);
     const C = HART.canvas;
-    hartStrokes(s, 8, 38, 22, 41, (x, y) => 0.72 - (y - 38) * 0.12 - (x - 8) * 0.01, C, 2406);
-    for (let x = 8; x <= 22; x++) s.px(x, 41, x % 3 ? C[1] : C[0]);
-    hartSeedStar(s, 56, 46, false);
+    hartStrokes(s, K(8), K(38), K(22), K(41), (x, y) => 0.72 - (y - K(38)) * 0.12 / k - (x - K(8)) * 0.01 / k, C, 2406);
+    for (let x = K(8); x <= K(22); x++) s.px(x, K(41), x % 3 ? C[1] : C[0]);
+    hartSeedStar(s, K(56), K(46), k > 1.3);
     // the stair up the right end to the upper door, its rail
-    for (let k = 0; k <= 9; k++) { const x = 66 - k * 1.2, y = FY - 2 - k * 2.6; for (let i = 0; i < 4; i++) s.px(x + i - 2, y, i < 2 ? Hu[5] : Hu[3]); s.px(x - 2, y + 1, Hu[1]); }
-    hartLine(s, [68, FY - 8], [57, 24], Hu[4]); hartLine(s, [68, FY - 2], [68, FY - 8], Hu[3]);
+    const steps = Math.round(9 * k);
+    for (let q = 0; q <= steps; q++) { const x = K(66) - q * 1.2, y = FY - 2 - q * 2.6; for (let i = 0; i < K(4); i++) s.px(x + i - K(2), y, i < K(2) ? Hu[5] : Hu[3]); s.px(x - K(2), y + 1, Hu[1]); }
+    hartLine(s, [K(68), FY - K(8)], [K(57), K(24)], Hu[4]); hartLine(s, [K(68), FY - 2], [K(68), FY - K(8)], Hu[3]);
     // the skids under it
-    for (let x = 4; x <= 62; x++) s.px(x, FY - 2, x < 30 ? Hu[3] : Hu[2]);
-    for (let x = 4; x <= 66; x++) s.px(x, FY - 1, Hu[0]);
+    for (let x = K(4); x <= K(62); x++) s.px(x, FY - 2, x < K(30) ? Hu[3] : Hu[2]);
+    for (let x = K(4); x <= K(66); x++) s.px(x, FY - 1, Hu[0]);
     // the planter of beans, by the door
-    hartStrokes(s, 1, FY - 5, 9, FY - 1, (x, y) => (y === FY - 5 ? 0.85 : 0.4 - (x - 1) * 0.02), HART.wood, 2407);
+    hartStrokes(s, 1, FY - K(5), K(9), FY - 1, (x, y) => (y === FY - K(5) ? 0.85 : 0.4 - (x - 1) * 0.02 / k), HART.wood, 2407);
     const BE = ['#2a1438', '#4a2266', '#7a3ca0', '#b070d8'];
-    for (const [x, h] of [[2, 4], [4, 6], [6, 5], [8, 3]]) for (let j = 1; j <= h; j++) { s.px(x + ((j & 1) ? 0 : 1), FY - 5 - j, j === h ? BE[3] : BE[1 + (j % 2)]); if (j === h - 1) s.px(x - 1, FY - 5 - j, '#3e6a2c'); }
-    return hartDone(s, 34, FY, { lamps, stone: [[1, FY, -1], [69, FY, 1], [63, 37, 1], [16, 17, -1]] });
+    for (const [x, h] of [[2, 4], [4, 6], [6, 5], [8, 3], [10, 5], [12, 4]]) { if (x >= K(9)) continue; for (let j = 1; j <= K(h); j++) { s.px(x + ((j & 1) ? 0 : 1), FY - K(5) - j, j === K(h) ? BE[3] : BE[1 + (j % 2)]); if (j === K(h) - 1) s.px(x - 1, FY - K(5) - j, '#3e6a2c'); } }
+    return hartDone(s, K(34), FY, { lamps, stone: [[1, FY, -1], [K(69), FY, 1], [K(63), K(37), 1], [K(16), K(17), -1]] });
   });
 }
 // Each building's sprite by its id.

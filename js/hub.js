@@ -51,12 +51,13 @@ function drawHubUnder(d, ox, oy, tick, lights) {
   drawHubLodelines(d, ox, oy, lights);
   // the forge's fire on the ground before it, flickering
   const fg = HUB_STATIONS.find((s) => s.id === 'forge'), fp = stationAt(fg, ox, oy), sp = hartForgeSpill(Math.floor(Game.realT * 7) % 2), fs = hartForge();
-  drawArtSprite(sp, fp.x - fs.ax + HART_MOUTH.x - sp.ax, fp.y + 1);
+  const M0 = hartPt(fs, HART_MOUTH);
+  drawArtSprite(sp, fp.x - fs.ax + M0.x - sp.ax, fp.y + 1);
   for (const s of HUB_STATIONS) {
     if (s.id === 'dummy' || s.id === 'wreck' || s.id === 'setout' || !stationAwake(s.id)) continue;
     const at = stationAt(s, ox, oy), spr = stationSprite(s.id);
     const glow = { forge: [ART.pal.glass[0], 2.2, 1.0], runes: ['#ffb030', 1.2, 0.5], locker: [DIVER_PAL.circuit[0], 1, 0.4], altar: [star[3], 1.6, 0.8] }[s.id];
-    const gx = s.id === 'forge' ? at.x - spr.ax + HART_MOUTH.x : at.x, gy = s.id === 'forge' ? at.y - spr.ay + HART_MOUTH.y : at.y - (spr.ay >> 1);
+    const M = hartPt(spr, HART_MOUTH), gx = s.id === 'forge' ? at.x - spr.ax + M.x : at.x, gy = s.id === 'forge' ? at.y - spr.ay + M.y : at.y - (spr.ay >> 1);
     const fl = s.id === 'forge' ? 0.8 + 0.12 * Math.sin(Game.realT * 11) + 0.08 * Math.sin(Game.realT * 23) : 0.85 + 0.15 * Math.sin(Game.realT * 3);
     lights.push({ x: gx, y: gy, r: TILE * glow[1], i: glow[2] * fl * introWake(s.id), c: rgb01(glow[0]) });
   }
@@ -105,7 +106,10 @@ function outpostSolids(f) {
   // of the door starts clear of it)
   if (f && f.site) {
     const pods = [f.site.home].concat(f.site.pads.slice(0, typeof settlementSize === 'function' ? settlementSize() : 0).map((p) => p.pod));
-    pods.forEach((p, k) => out.push({ id: 'pod' + k, x: p.x * TILE, y: p.y * TILE - 10 - 7, rx: 31, ry: 7 }));
+    // (deep enough that nothing walks up into a pod's front face)
+    pods.forEach((p, k) => out.push({ id: 'pod' + k, x: p.x * TILE, y: p.y * TILE - 2 - 12, rx: 31, ry: 12 }));
+    // the landers on their pads (their feet a little south of the pad's middle: drawLander)
+    f.site.pads.slice(0, typeof settlementSize === 'function' ? settlementSize() : 0).forEach((p, k) => out.push({ id: 'lander' + k, x: p.x * TILE, y: p.y * TILE + 4 - 2 - 9, rx: 26, ry: 9 }));
   }
   // the buildings standing on their plots (structures.js)
   if (f && f.site) for (const b of structureSolids(f.site)) out.push(b);
@@ -119,18 +123,19 @@ function drawHubStation(d, a, ox, oy, lights) {
   const s = a.station, at = stationAt(s, ox, oy), spr = stationSprite(s.id), x = at.x - spr.ax, y = at.y - spr.ay;
   drawArtSprite(spr, x, y);
   if (s.id === 'forge') {
+    const F = spr.f || 1, M = hartPt(spr, HART_MOUTH), RM = hartPt(spr, HART_RAM), AN = hartPt(spr, HART_ANVIL), SK = hartPt(spr, HART_STACK);
     const fire = hartForgeFire(Math.floor(Game.realT * 9) % 3);
-    drawArtSprite(fire, x + HART_MOUTH.x - fire.ax, y + HART_MOUTH.y - fire.ay);
+    drawArtSprite(fire, x + M.x - fire.ax, y + M.y - fire.ay);
     // the press's ram, keeping the smith's beat once there's a smith, and
     // the work glowing on the bed under it
     const beat = settlementSize() >= 1 ? hubPressBeat(Game.realT) : null, ram = hartPressRam(beat ? Math.round(beat.ext * HART_RAM.travel) : 0);
-    drawArtSprite(ram, x + HART_RAM.x, y + HART_RAM.y);
-    if (beat) for (let i = -2; i <= 2; i++) dot(x + HART_ANVIL.x + i, y + HART_ANVIL.y, beat.hit >= 0 && beat.hit < 0.4 ? '#fff6dc' : Math.abs(i) < 2 ? '#ffd27a' : '#d85c18', true);
+    drawArtSprite(ram, x + RM.x, y + RM.y);
+    if (beat) for (let i = -2; i <= 2; i++) dot(x + AN.x + i * F, y + AN.y, beat.hit >= 0 && beat.hit < 0.4 ? '#fff6dc' : Math.abs(i) < 2 ? '#ffd27a' : '#d85c18', true);
     // the status lights, the first blinking
-    if (Math.floor(Game.realT * 1.7) % 3 === 0) dot(x + HART_LEDS[0][0], y + HART_LEDS[0][1], '#0c2014');
+    if (Math.floor(Game.realT * 1.7) % 3 === 0) dot(x + HART_LEDS[0][0] * F, y + HART_LEDS[0][1] * F, '#0c2014');
     // heat off the vent stack, a spark now and then
     for (let i = 0; i < 4; i++) {
-      const ph = (Game.realT * 0.6 + i / 4) % 1, cx = x + HART_STACK.x + Math.round(Math.sin(i * 2.7 + ph * 4) * 2 + ph * 3), cy = y + HART_STACK.y - Math.round(ph * 18);
+      const ph = (Game.realT * 0.6 + i / 4) % 1, cx = x + SK.x + Math.round(Math.sin(i * 2.7 + ph * 4) * 2 + ph * 3), cy = y + SK.y - Math.round(ph * 18);
       dot(cx, cy, i % 2 ? '#5a5a62' : ph < 0.4 ? '#ffb347' : '#902a0a', i % 2 === 0, (1 - ph) * (i % 2 ? 0.5 : 1));
     }
   } else if (spr.dormant) {
@@ -457,14 +462,14 @@ let _hubPressHeard = -1;
 function drawHubSmith(d, a, ox, oy, lights) {
   const f = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(f, ox, oy), fs = hartForge();
   const beat = hubPressBeat(Game.realT), spr = hartPerson(1, 'smith', beat.lever);
-  const fx = at.x - fs.ax + HART_ANVIL.x - 14, fy = at.y + 2;
+  const Fz = fs.f || 1, AN = hartPt(fs, HART_ANVIL), fx = at.x - fs.ax + AN.x - 14 * Fz, fy = at.y + 2;
   drawShadow(fx, fy, 4);
   drawArtSprite(spr, fx - spr.ax, fy - spr.ay);
   // (the slam, heard once a beat: audio.js, from the forge's place)
   if (beat.hit >= 0 && _hubPressHeard !== beat.n && typeof snd === 'function') { _hubPressHeard = beat.n; snd('forgePress', {}); }
   if (beat.hit >= 0) {
     // sparks squeezed out flat either side, arcing down; a flash of light
-    const k = beat.hit, ax = at.x - fs.ax + HART_ANVIL.x, ay = at.y - fs.ay + HART_ANVIL.y;
+    const k = beat.hit, ax = at.x - fs.ax + AN.x, ay = at.y - fs.ay + AN.y;
     if (k < 0.3) for (const [i, j] of [[-7, 0], [7, 0], [-8, -1], [8, -1], [-6, 1], [6, 1]]) dot(ax + i, ay + j, '#fff6dc', true, 1 - k * 3);
     for (let i = 0; i < 18; i++) {
       const side = i % 2 ? 1 : -1, sp = 0.4 + artHash(i, beat.n, 3), up = artHash(i, beat.n, 4), kk = Math.min(1, k * (0.8 + sp * 0.5));

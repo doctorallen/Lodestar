@@ -203,7 +203,8 @@ function pshHubLights(d, still) {
     if (s.lamp && s.lamp.lit) L.push({ x: s.x, y: s.y, h: spr.ay - spr.lamp.y, lx: s.x - spr.ax + spr.lamp.x, ly: s.y - spr.ay + spr.lamp.y, r: TILE * 2.2 * AP, i: 0.7, own: s });
   }
   const fg = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(fg, 0, 0), fs = hartForge();
-  L.push({ x: at.x - fs.ax + HART_MOUTH.x, y: at.y + 2, h: fs.ay - HART_MOUTH.y, lx: at.x - fs.ax + HART_MOUTH.x, ly: at.y - fs.ay + HART_MOUTH.y, r: TILE * 2.2 * AP, i: 1.0, forge: true });
+  const M = hartPt(fs, HART_MOUTH);
+  L.push({ x: at.x - fs.ax + M.x, y: at.y + 2, h: fs.ay - M.y, lx: at.x - fs.ax + M.x, ly: at.y - fs.ay + M.y, r: TILE * 2.2 * AP, i: 1.0, forge: true });
   return L;
 }
 // How much of the light is the light L's at px x, y (0-1), against amb.
@@ -492,7 +493,7 @@ function pshMovers(d) {
   if (d.hub) {
     for (const s of d.settlers || []) out.push({ spr: settlerSprite(s.look, s.walkT > 0 ? 1 + (Math.floor(s.walkT * 7) % 4) : 0, s.west), x: Math.round(s.x * AP), y: Math.round(s.y * AP) });
     const n = settlementSize();
-    if (n >= 1) { const fg = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(fg, 0, 0), fs = hartForge(); out.push({ spr: hartPerson(1, 'smith', 0), x: at.x - fs.ax + HART_ANVIL.x - 14, y: at.y + 2 }); }
+    if (n >= 1) { const fg = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(fg, 0, 0), fs = hartForge(); out.push({ spr: hartPerson(1, 'smith', 0), x: at.x - fs.ax + hartPt(fs, HART_ANVIL).x - 14 * (fs.f || 1), y: at.y + 2 }); }
     if (n >= 2) { const [sx, sy] = hubSitterAt(d.floor.site); out.push({ spr: hartPerson(2, 'sit', 0), x: Math.round(sx * ATILE), y: Math.round(sy * ATILE) }); }
     return out;
   }

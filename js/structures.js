@@ -98,7 +98,7 @@ function bayHere(d) {
 // What can't be walked through (hub.js outpostSolids): each building
 // standing, its base as an ellipse on the ground ending just behind its
 // feet ([half its width, half its depth], world px).
-const STRUCTURE_BASE = { bay: [19, 6], refinery: [20, 7], relay: [14, 5], quarters: [21, 6] };
+const STRUCTURE_BASE = { bay: [19, 8], refinery: [20, 9], relay: [14, 7], quarters: [34, 9] }; // (deep enough that nothing walks up into a front face)
 function structureSolids(S) {
   const out = [];
   STRUCTURE_IDS.forEach((id, k) => {

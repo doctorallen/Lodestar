@@ -281,7 +281,7 @@ const T = {
     // the plots (tiles; floor.js outpostPlots): the footprint kept clear
     // [half width, behind, in front of the feet], how far from the middle
     // they'd best be, and how far from the tracks out (the lodelines)
-    plot: { box: [1.6, 1.4, 0.5], r: 10, path: 2.1 },
+    plot: { box: [1.9, 1.4, 0.5], r: 10, path: 2.1 }, // (the slab's half width grew with the Quarters)
     // a building coming down to its plot: how long (s), from how high (px)
     land: { time: 1.8, high: 150 },
   },
