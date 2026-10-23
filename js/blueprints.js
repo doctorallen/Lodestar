@@ -3,18 +3,19 @@
 // What can be made, and from what: the recipes, and the research that
 // reveals them. A recipe is known (it shows at the forge with exactly what
 // it makes and costs) or not yet; recipes are revealed by research, when
-// something new comes home (an ore, a creature's part, an exotic, a module
-// caught from a kind of creature) and the forge studies it. A few are known
+// something new comes home (an ore, a creature's part, an exotic) or the
+// suit has read a kind of creature's pattern (patterns.js) and the forge
+// studies it. A few are known
 // from the first day. (Before research, recipes were blueprints found in
 // the field; an old save's blueprints are known recipes, and the save keeps
 // them under that name.)
 //
 // Gear is a crafted base: a rig frame, plate or a charm, or a cutter. Its
 // recipe and the ore it's made in set exactly what it is (its stats, a
-// frame's Mod slots, its module sockets); the anvil only adds. What gives a
-// piece its identity is the modules socketed into it (modules.js). The
-// forge also makes the cores the rig's spells are built from (circuits.js),
-// and the carried tools (tools.js).
+// frame's slots); the anvil only adds. What gives a piece its identity is
+// the cores set into it. The forge also makes the cores the rig's spells
+// are built from (circuits.js), with a pattern printed on if the suit has
+// read one (patterns.js), and the tools (tools.js), each once.
 //
 // Parts come from what you kill: each kind of creature leaves its own, in
 // three grades (one a biome). The plain recipes known from the start take
@@ -39,7 +40,7 @@ const BLUEPRINTS = {
   weave: { name: 'Weave', kind: 'armor', cat: 'armor', style: 'weave', ore: 16, need: { fiber: 3 }, mult: 0.55, implicit: { dashCd: -30, moveSpeed: 5 }, text: 'Light. Dash 30% more often, and move a little faster.' },
   shell: { name: 'Shell', kind: 'armor', cat: 'armor', style: 'shell', ore: 26, need: { chitin: 3 }, mult: 1.6, implicit: { moveSpeed: -8 }, text: 'Heavy. Much more armor, a little slower.' },
   // charms
-  charm: { name: 'Charm', kind: 'charm', cat: 'charm', style: 'charm', ore: 13, need: { any: 2 }, start: true, text: 'Takes modules of any family.' },
+  charm: { name: 'Charm', kind: 'charm', cat: 'charm', style: 'charm', ore: 13, need: { any: 2 }, start: true, text: 'A plain charm.' },
   lantern: { name: 'Lantern', kind: 'charm', cat: 'charm', style: 'lantern', ore: 13, need: { spore: 2 }, implicit: { lamp: 30, pullSlow: 20 }, text: 'A brighter lamp, and your light fades 20% slower.' },
   // cutters (kind 'pick'), with the tools
   pick: { name: 'Cutter', kind: 'pick', cat: 'pick', style: 'pick', ore: 15, need: { any: 1 }, mult: 1, start: true, text: 'Breaks the ore above its own.' },
@@ -88,9 +89,9 @@ const bpOfStone = (stone) => BLUEPRINTS[BP_IDS.find((id) => BLUEPRINTS[id].stone
 const recipeName = (id) => { const bp = BLUEPRINTS[id]; return bp.tool ? TOOLS[bp.tool].name : bp.kind === 'stone' ? bp.name + ' core' : bp.kind === 'wick' ? "Wick's " + bp.name : bp.name; };
 
 // Research: what the forge studies, and the recipes it reveals. of: an
-// ore, a part's kind, an exotic, or a module caught from a kind of
-// creature ('any': the first module of all). The first time one is at home
-// when the forge is opened, the forge studies it (modules.js).
+// ore, a part's kind, an exotic, or a kind of creature whose pattern the
+// suit has read ('any': the first pattern of all). The first time one is
+// at home when the forge is opened, the forge studies it (modules.js).
 const RESEARCH = [
   { id: 'ore:lumenite', of: 'lumenite', opens: ['lantern', 'form_nova'] },
   { id: 'ore:resonite', of: 'resonite', opens: ['drill'] },
@@ -106,14 +107,14 @@ const RESEARCH = [
   { id: 'ex:frostglass', of: 'frostglass', opens: ['el_frost'] },
   { id: 'ex:emberglass', of: 'emberglass', opens: ['el_ember'] },
   { id: 'ex:blightcap', of: 'blightcap', opens: ['el_blight'] },
-  { id: 'mod:any', of: 'any', opens: ['tool_lens'] },
-  { id: 'mod:snapjaw', of: 'snapjaw', opens: ['weave'] },
-  { id: 'mod:wisp', of: 'wisp', opens: ['form_orb'] },
-  { id: 'mod:construct', of: 'construct', opens: ['form_glaive'] },
+  { id: 'scan:any', of: 'any', opens: ['tool_lens'] },
+  { id: 'scan:snapjaw', of: 'snapjaw', opens: ['weave'] },
+  { id: 'scan:wisp', of: 'wisp', opens: ['form_orb'] },
+  { id: 'scan:construct', of: 'construct', opens: ['form_glaive'] },
 ];
 
-// Creature parts. family: the affixes a creature's own modules lean to
-// (modules.js). heart: the warden's.
+// Creature parts (each kind of creature leaves its own: T.enemies[kind]
+// .part, or `from` here). heart: the warden's.
 const PARTS = {
   chitin: { name: 'chitin', from: 'crawler', family: 'defense' },
   ether: { name: 'ether', from: 'wisp', family: 'spell' },

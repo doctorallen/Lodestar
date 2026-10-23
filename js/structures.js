@@ -14,7 +14,7 @@
 //             refined up a grade there
 //   relay     the Forward Relay: a quicker recall, quicker banking and
 //             travel at a spire (game.js)
-//   quarters  the Settlers' Quarters: threads each time you come home,
+//   quarters  the Settlers' Quarters: scavenged parts each time you come home,
 //             and settlers (story.js)
 // They're painted in hubart.js (structureSprite), stand among the walkers
 // (hub.js hubProps), cast shadows from the star (pshadow.js) and grow
@@ -28,7 +28,7 @@ const STRUCTURES = {
   },
   refinery: {
     short: 'Refinery', label: 'REFINERY', line: 'bld_refinery',
-    text: () => `Makes supplies stronger, and can be upgraded twice more at SUPPLIES. It also refines ${T.structures.refinery.n} of an ore and ${T.structures.refinery.threads} threads into 1 of the next ore up.`,
+    text: () => `Makes supplies stronger, and can be upgraded twice more at SUPPLIES. It also refines ${T.structures.refinery.n} of an ore into 1 of the next ore up.`,
   },
   relay: {
     short: 'Relay', label: 'RELAY', line: 'bld_relay',
@@ -36,7 +36,7 @@ const STRUCTURES = {
   },
   quarters: {
     short: 'Quarters', label: 'QUARTERS', line: 'bld_quarters',
-    text: () => `Room for ${T.structures.quarters.settlers} more settlers. Each time you come home, they bring you ${T.structures.quarters.pay} threads.`,
+    text: () => `Room for ${T.structures.quarters.settlers} more settlers. Each time you come home, they bring you ${T.structures.quarters.pay} creature parts they scavenged.`,
   },
 };
 
@@ -233,13 +233,14 @@ function refineryBlock() {
   const n = refineryNext(), st = Save.data.stash;
   if (!n) return 'top level';
   if (magnitudeOf(Save.data.star) < n.mag) return `needs magnitude ${n.mag}`;
-  for (const k in n.cost) if ((st[k] || 0) < n.cost[k]) return `need ${n.cost[k]} ${stuffName(k)}`;
+  // (a part's kind takes parts of any grade, as a recipe does)
+  for (const k in n.cost) if ((PARTS[k] ? partsHave(st, k) : st[k] || 0) < n.cost[k]) return `need ${PARTS[k] ? partWords(k, n.cost[k]) : n.cost[k] + ' ' + stuffName(k)}`;
   return '';
 }
 function upgradeRefinery() {
   const n = refineryNext(), st = Save.data.stash;
   if (!n || refineryBlock()) return false;
-  for (const k in n.cost) { st[k] -= n.cost[k]; if (!st[k]) delete st[k]; }
+  for (const k in n.cost) { if (PARTS[k]) { partsTake(st, k, n.cost[k]); continue; } st[k] -= n.cost[k]; if (!st[k]) delete st[k]; }
   Save.data.refineryLv = refineryLevel() + 1;
   Save.save();
   return true;
@@ -256,12 +257,11 @@ function refineRoutes(s = Save.data) {
   }
   return out;
 }
-// Refines one: n of an ore and the threads into one of the next up.
+// Refines one: n of an ore into one of the next up.
 function refineOre(from) {
   const s = Save.data, R = T.structures.refinery, r = refineRoutes().find((x) => x.from === from);
-  if (!structureStands('refinery') || !r || (s.stash[from] || 0) < R.n || (s.stash.thread || 0) < R.threads) return false;
+  if (!structureStands('refinery') || !r || (s.stash[from] || 0) < R.n) return false;
   s.stash[from] -= R.n; if (!s.stash[from]) delete s.stash[from];
-  s.stash.thread -= R.threads; if (!s.stash.thread) delete s.stash.thread;
   s.stash[r.to] = (s.stash[r.to] || 0) + 1;
   Save.save();
   return true;
@@ -276,12 +276,12 @@ function refineHtml() {
   const lv = refineryLevel(), n = refineryNext(), why = refineryBlock();
   let h = `<h3 class="refine-head">REFINERY · LEVEL ${lv}/${top}</h3>`;
   if (n) {
-    const cost = Object.keys(n.cost).map((k) => costTag(k, n.cost[k], s.stash[k] || 0)).join(' ');
+    const cost = Object.keys(n.cost).map((k) => (PARTS[k] ? costTag(partId(k, 1), n.cost[k], partsHave(s.stash, k), `${PARTS[k].name} (any grade)`) : costTag(k, n.cost[k], s.stash[k] || 0))).join(' ');
     h += `<div class="row static refine-row"><span class="row-text"><span class="row-name">Level ${lv + 1}: ${esc(supplyPowerText(lv + 1))}</span><span class="cost-list">${cost}</span></span><button class="mini" data-act="upgradeRefinery" ${why ? 'disabled' : ''}>${why.startsWith('needs') ? esc(why.toUpperCase()) : 'UPGRADE'}</button></div>`;
   } else h += '<p class="note">Top level.</p>';
   const rows = refineRoutes().map((r) => {
-    const ok = (s.stash[r.from] || 0) >= R.n && (s.stash.thread || 0) >= R.threads;
-    return `<div class="row static refine-row"><img class="icon" src="${stuffIconUrl(r.to)}" alt=""><span class="row-text"><span class="row-name">1 ${esc(stuffName(r.to))}</span><span class="cost-list">${costTag(r.from, R.n, s.stash[r.from] || 0)} ${costTag('thread', R.threads, s.stash.thread || 0)}</span></span><button class="mini" data-act="refine" data-arg="${r.from}" ${ok ? '' : 'disabled'}>REFINE</button></div>`;
+    const ok = (s.stash[r.from] || 0) >= R.n;
+    return `<div class="row static refine-row"><img class="icon" src="${stuffIconUrl(r.to)}" alt=""><span class="row-text"><span class="row-name">1 ${esc(stuffName(r.to))}</span><span class="cost-list">${costTag(r.from, R.n, s.stash[r.from] || 0)}</span></span><button class="mini" data-act="refine" data-arg="${r.from}" ${ok ? '' : 'disabled'}>REFINE</button></div>`;
   }).join('');
   return h + `<h3>REFINE · ORE UP A GRADE</h3>${rows || '<p class="note">Needs a second ore.</p>'}`;
 }
@@ -290,13 +290,14 @@ function refineHtml() {
 function relayRecallTime() { return T.leave.recall * (structureStands('relay') ? T.structures.relay.recall : 1); }
 function relayBankTime() { return T.leave.extract * (structureStands('relay') ? T.structures.relay.bank : 1); }
 
-// The Settlers' Quarters: threads, each time you come home (frontier.js
-// goHome). Returns how many.
+// The Settlers' Quarters: creature parts the settlers scavenged, each time
+// you come home (frontier.js goHome). Returns what they brought: { id, n }
+// or null.
 function quartersPay() {
-  if (!structureStands('quarters')) return 0;
-  const n = T.structures.quarters.pay, st = Save.data.stash;
-  st.thread = (st.thread || 0) + n;
-  return n;
+  if (!structureStands('quarters')) return null;
+  const n = T.structures.quarters.pay, st = Save.data.stash, id = partId(Save.rng().pick(ANY_PARTS), 1);
+  st[id] = (st[id] || 0) + n;
+  return { id, n };
 }
 
 Object.assign(UI.acts, {

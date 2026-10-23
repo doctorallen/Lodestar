@@ -19,7 +19,7 @@
 //   anvil fairly), forges the cores its spells want and sets them (spell A
 //   an Arc, B a Bolt or Lance, each with an element and Mods as it finds
 //   them), setting the best cores, upgrading those behind its gear from
-//   ore to spare, salvages the rest (spare cores into threads),
+//   ore to spare, salvages the rest (spare cores into ore),
 //   unseals relics, sets any shard and feeds the light its deeds earned to
 //   the star (held at the altar), makes supplies from old ore at the
 //   fabricator, builds the outpost's buildings and fits Wick's upgrades
@@ -384,11 +384,12 @@ function installBot() {
     };
     best();
     // forge: a recipe in an ore, striking the anvil fairly
-    const forge = (bpId, oreId) => {
-      if (!s.blueprints.includes(bpId) || recipeShort(recipeCost(bpId, oreId), s.stash).length) return false;
-      Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, exotic: null, codex: false });
+    const forge = (bpId, oreId, pattern = null) => {
+      if (!s.blueprints.includes(bpId) || recipeShort(forgeCost(bpId, oreId, pattern), s.stash).length) return false;
+      Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, exotic: null, codex: false, pattern });
       acts.craft();
-      if (Anvil.job) { const it = Anvil.finish(1); if (it && it.temperChoice) { it.bonus = it.temperChoice[0]; delete it.temperChoice; } Reveal.done(); }
+      if (!Anvil.job) return false;
+      Anvil.finish(1); Reveal.done();
       return true;
     };
     UI.forge.field = false;
@@ -406,7 +407,7 @@ function installBot() {
     UI.closeCard();
     log.push(...circuits(forge));
     log.push(...cores());
-    // salvage what's left: bases into ore, spare cores into threads (a
+    // salvage what's left: bases into ore, spare cores into ore (a
     // core's upgrade is paid in them)
     for (const it of s.items.filter((i) => i.kind !== 'relic' && !i.fav)) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
     UI.closeCard();
@@ -471,15 +472,24 @@ function installBot() {
     return log;
   }
 
-  // Cores as a player might work them: every part of the rig filled with
-  // the best core of its kind for it (the ones the circuits routine chose
-  // by stone; a found one with a bonus over a plain one), the extra part
-  // too; then, with threads and ore to spare, a tier up for the set core
-  // furthest behind the best worn base. Keeps one spare of each kind in
-  // the stash; the rest go to salvage.
+  // Cores as a player might work them: three of a kind in the stash folded
+  // into one a tier denser (the bench's MERGE); every part of the rig
+  // filled with the best core of its kind for it (the ones the circuits
+  // routine chose by stone; a printed one over a plain one), the extra
+  // part too. Keeps one spare of each kind in the stash; the rest go to
+  // salvage.
   function cores() {
     const s = Save.data, log = [], rig = s.equip.main;
     if (!isCaster(rig)) return log;
+    // three of a kind fold, as many times as they can
+    for (let k = 0; k < 20; k++) {
+      const g = coreGroups(s.items.filter((x) => x.kind === 'stone')).find(coreMergeable);
+      if (!g) break;
+      const m = mergeCores(s.items, g);
+      if (!m) break;
+      s.botMerges = (s.botMerges || 0) + 1;
+      log.push(`folded three ${g.c.name}s into tier ${m.tier}`);
+    }
     let n = 0;
     for (const sp of rig.spells) {
       for (const [key, cur] of spellParts(sp)) {
@@ -492,19 +502,6 @@ function installBot() {
       }
     }
     if (n) log.push(`set ${n} cores`);
-    const set = rigCores(rig);
-    // tiers up for what's set, the furthest behind the best worn base
-    // first, from ore to spare (the forge has had its pick, and the next
-    // pick's ore is kept back)
-    const pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
-    const top = Math.max(1, ...SLOTS.map((k) => (s.equip[k] ? s.equip[k].tier : 0)));
-    for (let ups = 0; ups < 4; ups++) {
-      const next = set.filter((c) => c.tier < top).sort((a, b) => a.tier - b.tier || coreWorth(b) - coreWorth(a))
-        .find((c) => { const cost = coreUpgradeCost(c); return cost && !benchShort(cost, s.stash).length && (s.stash[cost.ore.id] || 0) - cost.ore.n >= 6 + (pickOre && cost.ore.id === pickOre.id ? BLUEPRINTS.pick.ore : 0); });
-      if (!next) break;
-      benchPay(coreUpgradeCost(next), s.stash); coreUpgrade(next); s.botUps = (s.botUps || 0) + 1;
-      log.push(`upgraded ${next.name} to ${next.tier}`);
-    }
     // one spare of each kind, kept
     for (const k of ['form', 'element', 'glyph']) { const spare = s.items.filter((x) => x.kind === 'stone' && stoneKind(x.stone) === k).sort((a, b) => coreWorth(b) - coreWorth(a)); spare.forEach((c, i) => { c.fav = i === 0; }); }
     return log;
@@ -582,8 +579,10 @@ function installBot() {
   // The spells a player might build: spell A an Arc (Quicken, Amplify),
   // B a Lance if it has one, else a Bolt (Split or Pierce, Amplify), each
   // with an Element if it has the exotic. It forges the cores it wants from
-  // what's in the stash (a core again when its ore is a tier better), with
-  // home's forge(bp, ore), then sets them.
+  // what's in the stash (a core again when its ore is a tier better, or
+  // when it can print a pattern the core has none of: the best known one
+  // that fits, if its creature's parts are there), with home's forge(bp,
+  // ore), then sets them.
   function circuits(forge) {
     const s = Save.data, log = [], rig = s.equip.main;
     if (!rig || !rig.spells) return log;
@@ -597,14 +596,18 @@ function installBot() {
     // (keeping back what the next pick takes)
     const pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
     const bestOre = (bp) => T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) - (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0) >= bp.ore + 4);
+    // the pattern to print: the best known one that fits, whose parts are there
+    const bestPattern = (bp) => patternsFor(bp.stoneKind).filter((k) => partsHave(s.stash, patternCost(k).kind) >= patternCost(k).n + 2).sort((a, b) => patternBonus(b, 1).v * (AFFIX_WORTH[PATTERNS[b].bonus] || 0.3) - patternBonus(a, 1).v * (AFFIX_WORTH[PATTERNS[a].bonus] || 0.3))[0] || null;
     const make = (id) => {
       const bpId = BP_IDS.find((b) => BLUEPRINTS[b].stone === id);
       if (!bpId || !s.blueprints.includes(bpId)) return false;
       const ore = bestOre(BLUEPRINTS[bpId]);
       if (!ore) return false;
-      const top = Math.max(0, ...have(id).map((x) => x.tier));
-      if (top >= ore.tier) return false;
-      if (forge(bpId, ore.id)) { log.push(`forged ${id} core in ${ore.name}`); return true; }
+      const mine = have(id), top = Math.max(0, ...mine.map((x) => x.tier)), pattern = bestPattern(BLUEPRINTS[bpId]);
+      // (a core again when its ore is a tier better, or to print a pattern
+      // none of them carries yet)
+      if (top >= ore.tier && !(pattern && !mine.some((x) => x.pattern))) return false;
+      if (forge(bpId, ore.id, pattern)) { log.push(`forged ${id} core in ${ore.name}${pattern ? ' with ' + PATTERNS[pattern].name : ''}`); if (pattern) s.botPrints = (s.botPrints || 0) + 1; return true; }
       return false;
     };
     const n = rigMods(rig);
@@ -652,7 +655,7 @@ function installBot() {
       const mods = rigCores(s.equip.main).filter((c) => c.bonus || c.power);
       r.socketed = rigCores(s.equip.main).length; r.sockets = isCaster(s.equip.main) ? s.equip.main.spells.reduce((a, sp) => a + spellParts(sp).length, 0) : 0;
       r.modTiers = rigCores(s.equip.main).map((m) => m.tier); r.modRarities = mods.map((m) => m.rarity[0]).join('');
-      r.found = s.coresFound || 0; r.ups = s.botUps || 0; r.threads = s.stash.thread || 0;
+      r.found = s.coresFound || 0; r.merges = s.botMerges || 0; r.prints = s.botPrints || 0; r.patterns = knownPatterns().length;
       r.kindledAll = kindledCount();
       r.star = s.star;
       r.packs = JSON.parse(JSON.stringify(Bot.packs));

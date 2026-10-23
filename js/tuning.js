@@ -263,42 +263,42 @@ const T = {
     // more than spawnMax alive
     spawnEvery: 25, spawnMax: 3,
   },
-  // Tools: the magnitude each can be made at, and what it costs from the
-  // stash (a part's kind takes parts of any grade, the lowest first).
-  // sight/reach in tiles; the beacon lands after `land` seconds and
-  // wakes what's within `noise` px; in a territory, standing within `refill`
-  // px of it brings your light back at refillRate a second.
+  // Tools: made once, and always with you from then on. The magnitude each
+  // can be made at, and what it costs from the stash: something specific
+  // (a part's kind takes parts of any grade, the lowest first; the Beacon
+  // a warden's heart). sight/reach in tiles; the beacon lands after `land`
+  // seconds and wakes what's within `noise` px; in a territory, standing
+  // within `refill` px of it brings your light back at refillRate a second.
   tools: {
     compass: { mag: 1, cost: {} },
-    oresense: { mag: 2, cost: { ferrite: 14, spore: 3 }, reach: 9 },
-    radar: { mag: 2, cost: { ferrite: 14, ether: 3 }, reach: 18 },
-    beacon: { mag: 2, cost: { lumenite: 6, cog: 3 }, land: 6, noise: 140, refill: 40, refillRate: 0.12 },
-    map: { mag: 3, cost: { lumenite: 8, fiber: 4 }, sight: 6 },
-    lens: { mag: 2, cost: { lumenite: 6, thread: 6 } },
+    oresense: { mag: 2, cost: { lumenite: 8, spore: 4 }, reach: 9 },
+    radar: { mag: 2, cost: { lumenite: 8, ether: 4 }, reach: 18 },
+    beacon: { mag: 2, cost: { resonite: 6, heart: 1 }, land: 6, noise: 140, refill: 40, refillRate: 0.12 },
+    map: { mag: 3, cost: { lumenite: 10, fiber: 5 }, sight: 6 },
+    lens: { mag: 2, cost: { resonite: 6, ether: 3, chitin: 3 } },
   },
   // The outpost's buildings (structures.js): each built once, at the
   // forge's BUILDINGS tab, and set down at its plot. mag: the magnitude the
-  // star must have reached; cost: what it takes from the stash (ore,
-  // threads, a part's kind, an exotic). Mid-game goals, and where the
-  // threads go once the modules are worked.
+  // star must have reached; cost: what it takes from the stash (ore, a
+  // part's kind, an exotic). Mid-game goals.
   //   bay: the Drone Bay, where Wick is fitted with upgrades (wickUp).
-  //   refinery: at the fabricator, `n` of an ore and `threads` refine into
-  //     one of the next ore up (only to an ore already brought home).
+  //   refinery: at the fabricator, `n` of an ore refine into one of the
+  //     next ore up (only to an ore already brought home).
   //     Building it is level 1; `levels` are the upgrades past it, at the
   //     SUPPLIES screen (the magnitude each needs and its cost). Each level
   //     makes both supplies stronger (T.supplies).
   //   relay: an emergency recall takes `recall` of its time; banking and
   //     travelling at a spire, `bank`.
-  //   quarters: each time you come home the settlers bring `pay` threads,
-  //     and `settlers` more live at the outpost.
+  //   quarters: each time you come home the settlers bring `pay` creature
+  //     parts they scavenged, and `settlers` more live at the outpost.
   structures: {
-    bay: { mag: 2, cost: { ferrite: 4, thread: 15 } },
+    bay: { mag: 2, cost: { ferrite: 12, chitin: 2 } },
     refinery: {
-      mag: 2, cost: { lumenite: 4, thread: 35 }, n: 4, threads: 2,
-      levels: [{ mag: 3, cost: { resonite: 6, thread: 50 } }, { mag: 5, cost: { sigilite: 6, thread: 90 } }],
+      mag: 2, cost: { lumenite: 10, cog: 2 }, n: 4,
+      levels: [{ mag: 3, cost: { resonite: 10, ether: 3 } }, { mag: 5, cost: { sigilite: 10, spore: 3 } }],
     },
-    relay: { mag: 3, cost: { resonite: 5, thread: 70, chitin: 3 }, recall: 0.5, bank: 0.6 },
-    quarters: { mag: 4, cost: { aetherglass: 4, thread: 100, lodeshard: 1 }, pay: 6, settlers: 2 },
+    relay: { mag: 3, cost: { resonite: 10, chitin: 3, cog: 2 }, recall: 0.5, bank: 0.6 },
+    quarters: { mag: 4, cost: { aetherglass: 8, fiber: 4, lodeshard: 1 }, pay: 3, settlers: 2 },
     // the plots (tiles; floor.js outpostPlots): the footprint kept clear
     // [half width, behind, in front of the feet], how far from the middle
     // they'd best be, and how far from the tracks out (the lodelines)
@@ -319,10 +319,10 @@ const T = {
   //   spark: every `every` s, a small shock at the nearest awake foe
   //     within `reach` px: `frac` of its health (a boss's, `boss`).
   wickUp: {
-    scan: { mag: 2, cost: { lumenite: 3, thread: 15, spore: 3 }, every: 7, reach: 8, show: 3.5 },
-    lamp: { mag: 3, cost: { resonite: 3, thread: 30, fiber: 3 }, reach: 0.62, i: 0.6, edge: 32 },
-    shield: { mag: 3, cost: { resonite: 4, thread: 60, chitin: 3 }, below: 0.35, rest: 20 },
-    spark: { mag: 4, cost: { aetherglass: 4, thread: 75, cog: 3 }, every: 2.6, reach: 64, frac: 0.07, boss: 0.012 },
+    scan: { mag: 2, cost: { lumenite: 6, spore: 3 }, every: 7, reach: 8, show: 3.5 },
+    lamp: { mag: 3, cost: { resonite: 6, fiber: 3 }, reach: 0.62, i: 0.6, edge: 32 },
+    shield: { mag: 3, cost: { resonite: 8, chitin: 4 }, below: 0.35, rest: 20 },
+    spark: { mag: 4, cost: { aetherglass: 8, cog: 4 }, every: 2.6, reach: 64, frac: 0.07, boss: 0.012 },
   },
 
   // The chance a vein is the biome's deeper ore, by site.
@@ -836,18 +836,14 @@ const T = {
 
   // Drops. Enemies leave their own parts (part: the chance; partTwo: the
   // chance of a second), elites and the warden more, and now and then an
-  // exotic or a sealed relic (it opens into a rare or better core); and
-  // cores (T.cores.drop). Bases come from the forge. motes heal.
-  // rarity: [base, per enemy level] weights (for cores).
+  // exotic or a sealed relic (it opens into a legendary core); and cores
+  // (T.cores). Bases come from the forge. motes heal.
   // (with half the enemies, each kill pays about twice: part, partTwo,
   // exotic, relic and mote are set so a sortie's haul is what it was)
   loot: {
     part: 0.8, partTwo: 0.35, eliteParts: [2, 3], bossParts: 4,
     exotic: 0.05, eliteExotic: 0.5,
     relic: 0.014, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.4, moteHeal: 14, moteShare: 0.15, // a mote heals moteShare of the health, moteHeal at least
-    rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.2, 0.06] },
-    // a sealed relic opens into a rare module, or now and then better
-    relicOpens: { rare: 85, legendary: 15 },
   },
 
   // Gear. Base numbers at tier 1, times tierGrowth a tier (affixes grow by
@@ -873,32 +869,30 @@ const T = {
   // anvil's quality (rough, fair, fine, masterwork); a masterwork frame has
   // the extra slot.
   gear: { stat: [0, 0.05, 0.1, 0.15] },
-  // Cores carry the found power (modules.js): a dying creature's strongest
-  // thread, caught by the suit's capture field and set in a core, a Form,
-  // an Element or a Mod with one bonus on it. Set in the rig's spells, free
-  // to swap at home; nothing else takes them.
-  //   drop: the chance a kill leaves one (foe, elite; an elite a room holds
-  //     for sure always does), or how many (boss: a warden; keeper); deep: a
-  //     Deep's chances, times; early: while fewer than `found` have ever been
-  //     caught, the chances times `mult`; lens: carrying the Capture Lens.
-  //   rarity: weights as T.loot.rarity's ([base, per enemy level]); an
-  //     elite's is at least magic, a warden's or a Keeper's rare, and a
-  //     Keeper's legendary weight is keeperLegend times.
-  //   kinds: the odds a found core is a Form, an Element or a Mod.
-  //   bonus: a found core's bonus against an old item affix's, by rarity (a
-  //     legendary carries a power too). temper: a forged core's bonus by the
-  //     anvil's quality (0: none); a masterwork chooses from `choices`.
-  //   upgrade: a tier up (to 2–6): ore of the new tier, and threads by the
-  //     new tier. salvage: threads, by rarity, +perTier a tier above 1.
+  // Cores (patterns.js): a core is its kind and its tier, and nothing
+  // rolls. Set in the rig's spells, free to swap at home; nothing else
+  // takes them.
+  //   elite: the chance an elite leaves the core its first affix names.
+  //   legend: how many legendary cores a warden (boss) and a Keeper leave:
+  //     any kind (kinds: the odds of a Form, an Element or a Mod), with a
+  //     power, found and never made.
+  //   merge: this many plain cores of a kind and tier fold into one a tier
+  //     denser at the tuning bench. salvage: ore of a core's tier for a
+  //     spare one.
   cores: {
-    drop: { foe: 0.03, elite: 0.4, boss: 2, keeper: 3, deep: 1.4, early: { found: 4, mult: 2.5 }, lens: 1.5 },
-    keeperLegend: 5,
+    elite: 1, legend: { boss: 1, keeper: 1 },
     kinds: { form: 3, element: 3, glyph: 2 },
-    bonus: { common: 0.8, magic: 1.0, rare: 1.25, legendary: 1.25 }, // (one bonus a core where a module held two or three: each worth more)
-    temper: [0, 1.0, 1.25, 1.25], choices: 3,
-    upgrade: { ore: 10, threads: [0, 4, 8, 14, 20, 28] },
-    salvage: { common: 1, magic: 2, rare: 4, legendary: 7, perTier: 1 },
+    merge: 3, salvage: { ore: 2 },
   },
+  // Patterns (patterns.js): what the suit reads from each kind of creature
+  // as it falls. scans: reads of a kind before the replicator knows its
+  // pattern; an elite counts `elite`, a boss all; lens: the Capture Lens,
+  // made, reads this many times as fast. parts: printing a pattern onto a
+  // core takes this many of the creature's parts. roll: where in the
+  // bonus's range a printed pattern stands (0–1); master: times this from a
+  // masterwork forge. threadOre: an older save's threads become one Lumenite
+  // each this many.
+  patterns: { scans: 6, elite: 3, lens: 1.5, parts: 3, roll: 0.7, master: 1.25, threadOre: 3 },
 
   // The Lodestar grows from deeds, not ore (deeds.js): each deed gives
   // light, motes of it, carried home and fed to the star at its altar, a
@@ -972,9 +966,9 @@ const T = {
     landerEvery: 3, callLanders: 5, turnEcho: 5,
     settlers: { perLander: 1, most: 6, speed: 9, rest: [2, 6], talkR: 1.4, talkGap: 40 },
   },
-  // By an ancient forge, the chance a module lies, left by whoever worked
-  // it (how often one stands is the zone's).
-  fieldForge: { core: 0.6 },
+  // By an ancient forge, the chance a legendary core lies, left by whoever
+  // worked it (how often one stands is the zone's).
+  fieldForge: { core: 0.35 },
   // The anvil: three strikes, each a marker sweeping a bar at `speeds`
   // (sweeps a second), slowed to `drag` of that while it's over the zone.
   // A strike inside the zone (`zone` of the bar wide, narrowing by `shrink`

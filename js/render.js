@@ -1513,7 +1513,7 @@ function drawDrop(dr, ox, oy, lights) {
   else if (dr.echo) col = '#9fc4ff';
   else if (dr.resStone) col = '#ffd34d';
   else if (dr.exotic) col = ART.exotics[dr.exotic];
-  else col = ART.rarity[dr.item.rarity] || '#ffffff';
+  else col = dr.item.kind === 'stone' ? coreColour(dr.item) : ART.rarity[dr.item.rarity] || '#ffffff';
   if (dr.mote) { for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, fy + j, col, true); }
   else if (dr.item && dr.item.kind === 'stone') {
     // a core's crystal, settled out of its capture (modules.js)

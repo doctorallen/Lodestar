@@ -1,22 +1,31 @@
 'use strict';
 // ---------------------------------------------------------------------------
 // The gear screens: the forge (recipes by category, each with exactly what
-// it makes and costs, what's close and what's missing; research's reveal
-// when something new comes home), the locker (what's worn, the rig and its
-// two spells, frames and bases, the spare cores, salvage), the tuning bench
-// (every core, set in the rig or stashed, to upgrade or salvage), and the
-// cards: a base's (a rig's spells with the drawer of cores to set, free)
-// and a core's (what it does, its bonus and power, where it was caught; at
-// home, UPGRADE and SALVAGE). ui.js holds the screens' plumbing; these
-// redraw through UI.redraw like the rest.
+// it makes and costs, what's close and what's missing; a core's recipe
+// with the pattern to print on it and what the suit has read; research's
+// reveal when something new comes home), the locker (what's worn, the rig
+// and its two spells, frames and bases, the spare cores stacked, salvage),
+// the tuning bench (every core, set in the rig or stashed, three of a kind
+// to merge, spares to salvage), and the cards: a base's (a rig's spells
+// with the drawer of cores to set, free) and a core's (what it does, its
+// pattern and power, where it came from; at home, MERGE and SALVAGE).
+// ui.js holds the screens' plumbing; these redraw through UI.redraw like
+// the rest.
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Bits
 // ---------------------------------------------------------------------------
-// "need 3 more Lumenite and 2 threads"
+// "need 3 more Lumenite and 2 cogs"
 function shortWords(short) {
-  return short.map((x) => (x.part ? partWords(x.part, x.n) : `${x.n} ${x.id === 'thread' && x.n === 1 ? 'Thread' : stuffName(x.id)}`)).join(', ');
+  return short.map((x) => (x.part ? partWords(x.part, x.n) : `${x.n} ${stuffName(x.id)}`)).join(', ');
+}
+// A core's recipe's cost, with the pattern to print on it (its creature's
+// parts) if one's chosen.
+function forgeCost(bpId, oreId, pattern) {
+  const cost = recipeCost(bpId, oreId);
+  if (pattern && BLUEPRINTS[bpId].kind === 'stone' && patternKnown(pattern)) cost.parts.push(patternCost(pattern));
+  return cost;
 }
 // Where a core is: in the stash, or set in a part of the worn rig (or of a
 // frame in the stash). { c, base, part ('i:key'), slot } or null.
@@ -79,7 +88,7 @@ function recipeLock(id) {
   }
   if (bp.kind !== 'tool') return null;
   if (UI.forge.field) return 'Made at home';
-  if (toolOwned(bp.tool)) return 'Made: choose it at the portal';
+  if (toolOwned(bp.tool)) return 'Made: always on';
   if (!toolOpen(bp.tool)) return `The star must reach magnitude ${T.tools[bp.tool].mag}`;
   return null;
 }
@@ -131,7 +140,9 @@ function drawForge() {
   const ore0 = !tool && T.ores[ORE_INDEX[F.ore]], topOre = ore0 && ore0.tier >= T.ores.length;
   const exotics = bp.kind === 'caster' || bp.kind === 'armor' || bp.kind === 'charm' || bp.kind === 'pick' ? T.exotics.filter((x) => (src[x.id] || 0) > 0 && exoticForgeWord(F.bp, x, ore0 ? ore0.tier : 1) && !(x.tierUp && topOre)) : [];
   if (F.exotic && !exotics.some((x) => x.id === F.exotic)) F.exotic = null;
-  const ore = tool ? null : ore0, cost = recipeCost(F.bp, F.ore), short = recipeShort(cost, src), lock = recipeLock(F.bp);
+  // (a core's pattern: one the suit has read that fits its kind)
+  if (bp.kind !== 'stone' || (F.pattern && !patternFits(F.pattern, bp.stoneKind))) F.pattern = null;
+  const ore = tool ? null : ore0, cost = forgeCost(F.bp, F.ore, F.pattern), short = recipeShort(cost, src), lock = recipeLock(F.bp);
   const ready = !short.length && !lock;
 
   // what's close, then the tabs and the recipes in this one
@@ -154,6 +165,14 @@ function drawForge() {
       || `<span class="note">No ore${F.field ? ' carried' : ''}.</span>`;
     h += `<h3>ORE</h3><div class="chips ore-chips">${oreChips}</div>`;
     if (exotics.length) h += `<h3>EXOTIC</h3><div class="chips">${exotics.map((x) => chip('forgeExotic', x.id, `${stuffIcon(x.id)}${esc(x.name)}<small>${src[x.id]} · ${esc(exoticForgeWord(F.bp, x, ore.tier))}</small>`, x.id === F.exotic)).join('')}</div>`;
+    // a core: the pattern to print on it, from what the suit has read of
+    // the kinds whose pattern fits (patterns.js)
+    if (bp.kind === 'stone') {
+      const fits = patternsFor(bp.stoneKind);
+      const pchips = [chip('forgePattern', '', 'NONE<small>plain</small>', !F.pattern)].concat(fits.map((k) => { const pc = patternCost(k), have = partsHave(src, pc.kind); return chip('forgePattern', k, `${stuffIcon(partId(pc.kind, 1))}${esc(PATTERNS[k].name)}<small>${esc(foeWord(k))} · ${pc.n} ${esc(PARTS[pc.kind].name)} · have ${have}</small>`, F.pattern === k); }));
+      const reading = scannedKinds().filter((k) => !patternKnown(k) && patternFits(k, bp.stoneKind)).slice(0, 3).map((k) => `${foeWord(k)} ${Math.floor(scanCount(k))}/${T.patterns.scans}`);
+      h += `<h3>PATTERN</h3><div class="chips">${pchips.join('')}</div>${fits.length ? '' : `<p class="note">The suit has read no pattern that fits a ${esc(STONE_KIND_NAMES[bp.stoneKind])} yet${reading.length ? `: ${esc(reading.join(', '))}` : ''}.</p>`}`;
+    }
   }
   // exactly what comes out
   const ex = F.exotic && T.exotics.find((x) => x.id === F.exotic), lines = [];
@@ -166,7 +185,9 @@ function drawForge() {
     lines.push(esc(TOOLS[bp.tool].text));
   } else if (bp.kind === 'stone') {
     title = `${bp.name} core`;
-    lines.push(`<b>T${ore.tier}</b> · ${esc(stoneLine(bp.stone))}`, esc(stoneTierLine(bp.stone, ore.tier)), 'Plain from a rough forge; the anvil tempers it: a fair forge a lesser bonus, a fine one a full one and a tier up, a masterwork a choice of three.');
+    lines.push(`<b>T${ore.tier}</b> · ${esc(stoneLine(bp.stone))}`, esc(stoneTierLine(bp.stone, ore.tier)));
+    if (F.pattern) lines.push(`<b>${esc(PATTERNS[F.pattern].name)}</b> · ${esc(fmtAffix(patternBonus(F.pattern, ore.tier)))}, printed on it. A masterwork prints it ×${T.patterns.master}.`);
+    else lines.push('Plain. A fine forge makes it a tier denser. Three of a kind fold into one a tier denser at the bench.');
   } else {
     const tier = Math.min(T.ores.length, ore.tier + (ex && ex.tierUp ? 1 : 0)), it = recipePreview(F.bp, tier, 0, !!(ex && ex.modSlot));
     title = `${oreOfTier(tier).name} ${bp.name}`;
@@ -187,6 +208,8 @@ function drawForge() {
   if (ex) tags.push(costTag(ex.id, 1, src[ex.id] || 0));
   const goWord = lock ? lock.toUpperCase() : short.length ? 'NOT ENOUGH' : '';
   const goLabel = bp.kind === 'structure' ? 'BUILD' : bp.kind === 'wick' ? 'FIT' : tool ? 'MAKE' : 'FORGE';
+  // what the suit has read so far, in the CORES tab
+  const scanRows = bp.kind === 'stone' && !F.field ? scannedKinds().map((k) => { const n = Math.min(T.patterns.scans, scanCount(k)), known = patternKnown(k), pc = patternCost(k); return `<div class="row static scan-row"><img class="icon" src="${stuffIconUrl(partId(pc.kind, 1))}" alt=""><span class="row-text"><span class="row-name">${esc(foeWord(k))}${known ? ` · <b class="printed">${esc(PATTERNS[k].name)}</b>` : ''}</span><span class="row-sub">${known ? `${esc(fmtAffix(patternBonus(k, 1)))} at tier 1 · fits a ${esc(STONE_KIND_NAMES[stoneKindOfBonus(PATTERNS[k].bonus)])} · ${pc.n} ${esc(PARTS[pc.kind].name)}` : `read ${Math.floor(n)} of ${T.patterns.scans}`}</span></span>${known ? '' : `<span class="scan-ring"><span style="width:${Math.round((n / T.patterns.scans) * 100)}%"></span></span>`}</div>`; }).join('') : '';
   $('forge-body').innerHTML = `
     ${closeRows ? `<h3>CLOSE TO MAKING</h3>${closeRows}` : ''}
     ${list}
@@ -197,7 +220,8 @@ function drawForge() {
       ${made ? '' : `<h3>COSTS</h3><div class="cost-list">${tags.join('')}</div>`}
       ${F.field ? '<p class="note">It goes in your cargo.</p>' : ''}
       <div class="menu forge-go"><button class="btn primary" data-act="craft" ${ready ? '' : 'disabled'}>${goLabel}${goWord ? `<small>${esc(goWord)}</small>` : ''}</button></div>
-    </div>`;
+    </div>
+    ${scanRows ? `<h3>WHAT THE SUIT HAS READ</h3>${scanRows}` : bp.kind === 'stone' && !F.field ? '<p class="note">The suit reads each kind of creature as it falls; six, and the forge can print its pattern.</p>' : ''}`;
   const on = document.querySelector('#forge-body .bp.on');
   if (on && on.scrollIntoView && UI.forge.scroll) { UI.forge.scroll = false; on.scrollIntoView({ block: 'nearest' }); }
   // (a recipe chosen: its panel, costs and FORGE button brought into view)
@@ -257,9 +281,9 @@ function drawGear() {
   const kinds = ['caster', 'armor', 'charm', 'pick'], relics = s.items.filter((it) => it.kind === 'relic');
   const bases = s.items.filter((it) => kinds.includes(it.kind)).sort((a, b) => kinds.indexOf(a.kind) - kinds.indexOf(b.kind) || b.tier - a.tier)
     .map((it) => itemRow(it, 'cardStash', it.uid, compareTag(it, s.equip))).join('');
-  // the spare cores, by kind, the best first
+  // the spare cores, by kind, the best first, the same ones stacked
   const cores = s.items.filter((it) => it.kind === 'stone').sort((a, b) => ['form', 'element', 'glyph'].indexOf(stoneKind(a.stone)) - ['form', 'element', 'glyph'].indexOf(stoneKind(b.stone)) || STONE_ORDER.indexOf(a.stone) - STONE_ORDER.indexOf(b.stone) || coreWorth(b) - coreWorth(a));
-  const coreList = ['form', 'element', 'glyph'].map((k) => { const list = cores.filter((c) => stoneKind(c.stone) === k); return list.length ? `<div class="gl">${STONE_KIND_NAMES[k].toUpperCase()}S</div>${list.map((c) => coreRow(c, 'cardStash', c.uid)).join('')}` : ''; }).join('');
+  const coreList = ['form', 'element', 'glyph'].map((k) => { const list = coreGroups(cores.filter((c) => stoneKind(c.stone) === k)); return list.length ? `<div class="gl">${STONE_KIND_NAMES[k].toUpperCase()}S</div>${list.map((g) => coreRow(g.c, 'cardStash', g.c.uid, '', '', g.n)).join('')}` : ''; }).join('');
   const down = downgrades();
   $('gear-title').textContent = 'THE LOCKER';
   $('gear-body').innerHTML = `
@@ -299,16 +323,19 @@ function downgrades() {
 }
 
 // ---------------------------------------------------------------------------
-// The tuning bench: every core, set in the rig first, to upgrade or salvage
+// The tuning bench: every core, set in the rig first; in the stash the same
+// ones stacked, three of a kind to merge
 // ---------------------------------------------------------------------------
 function drawBench() {
   const s = Save.data, rows = [], rig = s.equip.main;
   if (isCaster(rig)) rig.spells.forEach((sp, i) => { for (const [k, c] of spellParts(sp)) if (c) rows.push(coreRow(c, 'benchCore', c.uid, '', `In spell ${i ? 'B' : 'A'} · ${itemKindLine(c)}`)); });
   const stash = s.items.filter((x) => x.kind === 'stone').sort((a, b) => ['form', 'element', 'glyph'].indexOf(stoneKind(a.stone)) - ['form', 'element', 'glyph'].indexOf(stoneKind(b.stone)) || coreWorth(b) - coreWorth(a));
+  const groups = coreGroups(stash), merges = groups.filter(coreMergeable);
   $('bench-body').innerHTML = `
-    <p class="have-line"><img class="cost-icon" src="${threadIconUrl()}" alt=""><b>${s.stash.thread || 0} Threads</b> · ${esc(stuffLines(Object.fromEntries(T.ores.filter((o) => s.stash[o.id]).map((o) => [o.id, s.stash[o.id]]))) || 'no ore')}</p>
+    <p class="have-line">${esc(stuffLines(Object.fromEntries(T.ores.filter((o) => s.stash[o.id]).map((o) => [o.id, s.stash[o.id]]))) || 'no ore')}</p>
+    ${merges.length ? `<h3>THREE OF A KIND · ${merges.length}</h3>${merges.map((g) => `<div class="row static merge-row"><img class="icon" src="${stoneIconUrl(g.c.stone)}" alt=""><span class="row-text"><span class="row-name">${esc(g.c.name)} <small class="count">×${g.n}</small></span><span class="row-sub">${Math.floor(g.n / T.cores.merge)} × ${T.cores.merge} fold into one tier ${g.c.tier + 1}</span></span><button class="mini" data-act="coreMerge" data-arg="${esc(g.key)}">MERGE</button></div>`).join('')}` : ''}
     <h3>SET IN THE RIG · ${rows.length}</h3>${rows.join('') || '<p class="note">Nothing set.</p>'}
-    <h3>IN THE STASH · ${stash.length}</h3>${stash.map((c) => coreRow(c, 'benchCore', c.uid)).join('') || '<p class="note">None.</p>'}`;
+    <h3>IN THE STASH · ${stash.length}</h3>${groups.map((g) => coreRow(g.c, 'benchCore', g.c.uid, '', '', g.n)).join('') || '<p class="note">None.</p>'}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -366,42 +393,31 @@ function drawBaseCard(c) {
     ${acts.length ? `<div class="menu card-menu">${acts.join('')}</div>` : ''}</div>`;
 }
 
-// A core: what it does, its tier, its bonus and power, where it was
-// caught; at home, UPGRADE (a tier up, for threads and the new tier's ore)
-// and SALVAGE (threads), and, set in the rig, TAKE OUT.
+// A core: what it does, its tier, its pattern and power, where it came
+// from; at home, MERGE (three of a kind in the stash fold into one a tier
+// denser) and SALVAGE (its ore), and, set in the rig, TAKE OUT.
 function drawCoreCard(c) {
-  const st = c.item, s = Save.data, home = c.where === 'stash' || (c.where === 'rig' && (!c.back || c.back.where === 'equip' || c.back.where === 'stash')), src = s.stash;
-  const rollBar = (a) => { const r = affixRoll(a, st.tier, T.cores.bonus[st.rarity] || 1); return `<span class="roll" title="How well it rolled"><span style="width:${Math.round(clamp(r, 0.04, 1) * 100)}%" class="${r > 1 ? 'over' : r > 0.8 ? 'high' : ''}"></span></span>`; };
-  const traits = st.bonus ? `<li><span class="aff">${esc(fmtAffix(st.bonus))}${rollBar(st.bonus)}</span></li>` : '';
+  const st = c.item, s = Save.data, home = c.where === 'stash' || (c.where === 'rig' && (!c.back || c.back.where === 'equip' || c.back.where === 'stash'));
+  const traits = st.bonus ? `<li><span class="aff">${st.pattern && PATTERNS[st.pattern] ? `<b class="printed">${esc(PATTERNS[st.pattern].name)}</b> · ` : ''}${esc(fmtAffix(st.bonus))}</span></li>` : '';
   let extra = `<p class="base">${esc(stoneLine(st.stone))}</p><p class="note">${esc(stoneTierLine(st.stone, st.tier))}</p>`;
   if (st.power) extra += `<p class="power">★ ${esc(LEGENDARIES[st.power].text)}</p>`;
-  if (!st.bonus && !st.power) extra += '<p class="note">Plain: no bonus. A found core carries one; so does a core from a fair forge or better.</p>';
-  // the temper to choose, from a masterwork forge
-  if (st.temperChoice) extra += `<div class="temper"><div class="row-sub">A MASTERWORK: CHOOSE ITS TEMPER</div>${st.temperChoice.map((b, i) => `<button class="row mod-row" data-act="temperPick" data-arg="${i}"><span class="row-text"><span class="row-name r-rare">${esc(fmtAffix(b))}</span></span>${b === st.bonus ? '<span class="tag up">✓</span>' : ''}</button>`).join('')}</div>`;
-  const acts = [], th = coreSalvageThreads(st);
-  const salvageBtn = `<button class="btn danger wide" data-act="salvage" data-confirm="SURE? +${th} THREADS">SALVAGE · +${th} THREADS</button>`;
-  if (home) {
-    const up = coreUpgradeCost(st), short = up ? benchShort(up, src) : [];
-    acts.push(`<button class="btn wide tune-btn${short.length ? ' short' : ''}" data-act="coreUpgrade" ${!up || short.length ? 'disabled' : ''}><span>${up ? `UPGRADE · TIER ${st.tier + 1}` : 'UPGRADE'}</span><small>${!up ? 'As dense as it grows' : short.length ? `need ${esc(shortWords(short))}` : benchCostWords(up)}</small></button>`);
-  }
+  if (st.pattern && PATTERNS[st.pattern]) extra += `<p class="note">The ${esc(foeWord(st.pattern))}'s pattern, printed${st.printQ >= 3 ? ' by a masterwork' : ''}. It stays.</p>`;
+  else if (!st.power) extra += '<p class="note">Plain: no pattern. A pattern is printed as a core is forged, from what the suit has read.</p>';
+  const group = c.where === 'stash' ? coreGroups(s.items.filter((x) => x.kind === 'stone')).find((g) => g.uids.includes(st.uid)) : null;
+  if (group && group.n > 1) extra += `<p class="note">×${group.n} the same in the stash.</p>`;
+  const acts = [], sv = coreSalvageOre(st);
+  const salvageBtn = `<button class="btn danger wide" data-act="salvage" data-confirm="SURE? +${sv.n} ${esc(stuffName(sv.id).toUpperCase())}">SALVAGE · +${sv.n} ${esc(stuffName(sv.id).toUpperCase())}</button>`;
+  if (group && home) acts.push(`<button class="btn wide tune-btn" data-act="coreMerge" data-arg="${esc(group.key)}" ${coreMergeable(group) ? '' : 'disabled'}><span>MERGE · TIER ${st.tier + 1}</span><small>${st.power || st.pattern ? 'Only plain cores fold' : st.tier >= T.ores.length ? 'As dense as it grows' : `${T.cores.merge} of a kind fold into one; have ${group.n}`}</small></button>`);
   if (c.where === 'stash' && home && !st.fav) acts.push(salvageBtn);
   else if (c.where === 'rig' && home) acts.push('<button class="btn" data-act="coreOut">TAKE OUT</button>');
   else if (c.where === 'cargo') acts.push('<button class="btn danger" data-act="drop" data-confirm="SURE? DROP IT">DROP</button>');
   const favBtn = home ? `<button class="mini fav ${st.fav ? 'on' : ''}" data-act="fav" title="Keep: never salvaged">${st.fav ? '★ KEPT' : '☆ KEEP'}</button>` : '';
   $('card-body').innerHTML = cardBar(c.bench ? 'THE TUNING BENCH' : cardWhere(c), favBtn) + `<div class="card-scroll">
-    <div class="card-head"><img class="icon big" src="${stoneIconUrl(st.stone)}" alt=""><div class="grow"><div class="card-name r-${st.rarity || 'common'}">${esc(st.name)}</div><div class="row-sub">${esc(itemKindLine(st))}</div></div></div>
+    <div class="card-head"><img class="icon big" src="${stoneIconUrl(st.stone)}" alt=""><div class="grow"><div class="card-name ${st.power ? 'r-legendary' : st.pattern ? 'printed' : 'r-common'}">${esc(st.name)}</div><div class="row-sub">${esc(itemKindLine(st))}</div></div></div>
     ${coreSource(st) ? `<p class="src">${esc(coreSource(st))}</p>` : ''}
     ${traits ? `<ul class="affixes">${traits}</ul>` : ''}
     ${extra}
     ${acts.length ? `<div class="menu card-menu">${acts.join('')}</div>` : ''}</div>`;
-}
-// "8 Threads + 10 Resonite", with the threads' icon.
-function benchCostWords(cost) {
-  const bits = [];
-  if (cost.threads) bits.push(`${cost.threads} Threads`);
-  if (cost.ore) bits.push(`${cost.ore.n} ${stuffName(cost.ore.id)}`);
-  for (const x of cost.stuff || []) bits.push(`${x.n} ${stuffName(x.id)}`);
-  return `<img class="cost-icon" src="${threadIconUrl()}" alt="">${esc(bits.join(' + '))}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -410,6 +426,7 @@ function benchCostWords(cost) {
 Object.assign(UI.acts, {
   forgeOre: (id) => { UI.forge.ore = id; UI.redraw(); },
   forgeExotic: (id) => { UI.forge.exotic = UI.forge.exotic === id ? null : id; UI.redraw(); },
+  forgePattern: (id) => { UI.forge.pattern = id && patternKnown(id) ? id : null; UI.redraw(); },
   forgeBp: (id) => { UI.forge.bp = id; UI.forge.codex = false; UI.forge.showPanel = true; UI.redraw(); },
   // a close-to-making row: that recipe, in that ore
   forgeGo: (arg) => { const [id, ore] = arg.split(':'); Object.assign(UI.forge, { bp: id, ore: ore || UI.forge.ore, codex: false }); UI.redraw(); },
@@ -445,25 +462,30 @@ Object.assign(UI.acts, {
       UI.redraw();
       return;
     }
-    const cost = recipeCost(F.bp, F.ore);
+    const pattern = bp.kind === 'stone' && F.pattern && patternKnown(F.pattern) && patternFits(F.pattern, bp.stoneKind) ? F.pattern : null;
+    const cost = forgeCost(F.bp, F.ore, pattern);
     if (!recipePay(cost, src)) return;
     let exotic = bp.exotic || null;
     if (!exotic && F.exotic && (src[F.exotic] || 0) > 0) { exotic = F.exotic; src[exotic] -= 1; if (!src[exotic]) delete src[exotic]; }
     F.exotic = null;
     if (!F.field) Save.save();
     snd('forgeFire');
-    Anvil.start({ bp: F.bp, ore: F.ore, exotic, field: !!F.field });
+    if (pattern) Story.say('print');
+    Anvil.start({ bp: F.bp, ore: F.ore, exotic, field: !!F.field, pattern });
   },
 
   // the tuning bench: a core's card, to upgrade or salvage it
   benchCore: (uid) => { const f = findCore(uid); if (!f) return; UI.openCard(f.c, f.base ? 'rig' : 'stash', f.c.uid); UI.card.bench = true; if (f.base) { UI.card.host = f.base; UI.card.part = f.part; } drawCard(); },
-  coreUpgrade: () => {
-    const c = UI.card.item, cost = coreUpgradeCost(c);
-    if (!cost || !benchPay(cost, Save.data.stash)) return;
-    coreUpgrade(c);
-    snd('reveal', { rarity: c.rarity });
-    UI.toast(`${c.name}: tier ${c.tier}`, c.rarity);
-    Story.say('coreUp');
+  // three of a kind in the stash fold into one a tier denser (patterns.js)
+  coreMerge: (key) => {
+    const s = Save.data, g = coreGroups(s.items.filter((x) => x.kind === 'stone')).find((x) => x.key === key);
+    if (!g || !coreMergeable(g)) return;
+    const c = mergeCores(s.items, g);
+    if (!c) return;
+    snd('reveal', { rarity: 'rare' });
+    UI.toast(`Three ${g.c.name}s folded: ${c.name}, tier ${c.tier}`, 'rare');
+    Story.say('merge');
+    if (UI.card && UI.card.item && UI.card.item.kind === 'stone' && !s.items.includes(UI.card.item)) { UI.closeCard(); UI.redraw(); return; }
     afterChange();
   },
   coreOut: () => {
@@ -474,8 +496,6 @@ Object.assign(UI.acts, {
     if (c.back) { const b = c.back; UI.openCard(b.item, b.where, b.key); UI.card.focus = 'spells'; } else UI.closeCard();
     afterChange();
   },
-  // a masterwork core's temper, chosen from three
-  temperPick: (i) => { const c = UI.card.item; if (!c.temperChoice) return; c.bonus = c.temperChoice[Number(i)]; delete c.temperChoice; snd('reveal', { rarity: 'rare' }); UI.toast(`Tempered: ${fmtAffix(c.bonus)}`, 'rare'); afterChange(); },
   benchBack: () => UI.close(),
 
   equip: (slot) => {
@@ -505,7 +525,7 @@ Object.assign(UI.acts, {
     UI.redraw();
   },
   // at home into the stash; mid-dive into the cargo. A base gives back ore
-  // and its cores; a core unravels into threads.
+  // and its cores; a spare core its ore.
   salvage: () => {
     const c = UI.card, it = c.item, field = c.where === 'cargo';
     const s = field ? Game.dive.cargo : Save.data.stash, list = field ? Game.dive.items : Save.data.items;
@@ -573,14 +593,14 @@ Object.assign(UI.acts, {
   },
 });
 
-// Breaks a piece down into `stash`: a core into threads, a base into ore
-// (and an exotic now and then), its cores out whole into `list`. Returns
-// what it gave.
+// Breaks a piece down into `stash`: a core into ore of its tier, a base
+// into ore (and an exotic now and then), its cores out whole into `list`.
+// Returns what it gave.
 function salvageInto(it, list, stash, field) {
   const got = {}, add = (k, n) => { if (!n) return; stash[k] = (stash[k] || 0) + n; got[k] = (got[k] || 0) + n; };
   if (it.kind === 'stone') {
-    add('thread', coreSalvageThreads(it));
-    Story.say('unravel');
+    const sv = coreSalvageOre(it);
+    add(sv.id, sv.n);
     return got;
   }
   const y = salvageYield(Save.rng(), it);

@@ -57,9 +57,11 @@ function cleanSaveItem(it) {
   if (!it || typeof it !== 'object') return null;
   if (it.kind === 'stone') {
     if (!stoneKind(it.stone)) return null;
-    if (!('bonus' in it) || (it.bonus && !AFFIXES[it.bonus.id])) it.bonus = null;
-    if (!RARITIES.includes(it.rarity)) it.rarity = it.bonus ? 'magic' : 'common';
     if (it.power && !LEGENDARIES[it.power]) delete it.power;
+    // (its bonus is its pattern's, at its tier: the number isn't kept)
+    refreshPattern(it);
+    it.rarity = it.power ? 'legendary' : 'common';
+    delete it.temperChoice;
     return it;
   }
   // (modules are gone: migrateCoreSave turned them into threads and cores)
@@ -157,6 +159,8 @@ function cleanSave(s) {
   migrateRigSave(s);
   // then modules into threads and legendary cores, frames with their extra part
   migrateCoreSave(s);
+  // then cores as their names: no rolled bonus, no threads, every tool made (patterns.js)
+  migratePatternSave(s);
   s.blueprints = (s.blueprints || []).filter((id) => BLUEPRINTS[id]);
   s.studied = (s.studied || []).filter((id) => RESEARCH.some((r) => r.id === id));
   // (a slot this version doesn't wear: what's in it goes to the stash)
@@ -170,7 +174,8 @@ function cleanSave(s) {
   if ((s.tools || []).includes('satchel')) { s.stash.lumenite = (s.stash.lumenite || 0) + 8; s.stash[partId('chitin', 1)] = (s.stash[partId('chitin', 1)] || 0) + 4; }
   s.tools = (s.tools || []).filter((id) => TOOLS[id]);
   if (!s.tools.includes('compass')) s.tools.unshift('compass');
-  if (!s.tools.includes(s.tool)) s.tool = 'compass';
+  delete s.tool;
+  if (!s.scans || typeof s.scans !== 'object') s.scans = {};
   // the lean rules (above)
   cleanLeanSave(s);
   // the outpost's buildings and Wick's upgrades (none in an older save):
@@ -213,7 +218,7 @@ const Save = {
       // the recipes known (by their old name), what the forge has studied,
       // and how many cores have ever been caught
       blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start), studied: [], coresFound: 0,
-      tools: ['compass'], tool: 'compass', natures: {}, resCodex: { kindling: [0, 1, 2] },
+      tools: ['compass'], scans: {}, natures: {}, resCodex: { kindling: [0, 1, 2] },
       // the star's points are light (deeds.js; an older save's are rescaled),
       // what's been found, the pack a fall left, and the supplies carried
       starScale: T.star.scale, found: {}, cache: null, supplies: {},

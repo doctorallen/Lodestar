@@ -106,7 +106,7 @@ function saveRun(d) {
   if (!d || d.hub || d.dying || !d.sortie) return;
   const b = d.beacon;
   Save.data.run = {
-    seed: d.sortieSeed, terr: d.terr, how: d.how, deep: d.deep ? d.deep.site : 0, lat: d.lat !== null && d.lat !== undefined ? d.lat : -1, tool: d.tool,
+    seed: d.sortieSeed, terr: d.terr, how: d.how, deep: d.deep ? d.deep.site : 0, lat: d.lat !== null && d.lat !== undefined ? d.lat : -1,
     cargo: d.cargo, items: d.items, blueprints: d.blueprints, banked: d.banked, far: d.far, maxRing: d.maxRing,
     hp: Math.max(1, Math.round(d.p.hp)), pull: d.pull, pullTime: d.pullTime, kills: d.kills, time: d.time,
     gotShard: !!d.gotShard, echoes: d.echoes || 0, beaconUsed: !!d.beaconUsed, beacon: b ? { x: b.x, y: b.y, t: b.t, landed: b.landed } : null,
@@ -120,7 +120,7 @@ function saveRun(d) {
 function resumeRun() {
   const r = Save.data.run;
   if (!r) return;
-  Game.dive = newWorld({ sortie: true, sortieSeed: r.seed, rng: new Rng(hashInts(r.seed, 0x5eed, r.terr, r.kills)), tool: r.tool || 'compass', storm: !!r.storm,
+  Game.dive = newWorld({ sortie: true, sortieSeed: r.seed, rng: new Rng(hashInts(r.seed, 0x5eed, r.terr, r.kills)), storm: !!r.storm,
     far: r.far || 0, maxRing: r.maxRing || 0, banked: r.banked || { stuff: {}, items: [], learned: [], fed: 0 }, tally: r.tally || {}, pull: r.pull === undefined ? 1 : r.pull, pullTime: r.pullTime || T.world.light });
   Game.scene = 'dive';
   const d = Game.dive;
@@ -158,7 +158,7 @@ function placeFieldForge(d) {
   if (hazardNear(f, d.fieldForge.x, d.fieldForge.y, 1)) { const dry = r.cells.filter((c) => !hazardNear(f, c % f.w, Math.floor(c / f.w), 1)); if (dry.length) { const j = dry[(i >>> 0) % dry.length]; d.fieldForge = { x: j % f.w, y: Math.floor(j / f.w) }; } }
   // whoever worked it left a schematic behind, now and then
   const leave = (thing) => d.drops.push(Object.assign({ x: (d.fieldForge.x + 1.5) * TILE, y: (d.fieldForge.y + 0.5) * TILE, t: 0 }, thing));
-  if (rng.chance(T.fieldForge.core) && forgeFindOnce(d)) leave({ item: rollCore(rng, floorLevel(d), dropTier(d), 'magic', 1, { forge: true }) });
+  if (rng.chance(T.fieldForge.core) && forgeFindOnce(d)) leave({ item: legendaryCore(rng, Math.min(T.ores.length, dropTier(d) + 1), { forge: true }) });
   if (rng.chance(T.story.echoForge)) leave({ echo: true });
   // and a resonance stone, now and then, by the old forges
   if (rng.chance(T.circuits.resonance.forge) && !codexAllWhole()) leave({ resStone: true });

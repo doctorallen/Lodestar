@@ -1,12 +1,12 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Tools. The diver carries one, chosen at the portal before setting out, and
-// each changes what can be seen or done out there: where the light is,
-// where the ore is, what's coming, the lay of the land, a
-// spire's light called down where there's none, cores likelier. The
-// Compass is carried from the start; the rest are made once, at the forge,
-// as the star grows (their recipes are in blueprints.js; T.tools: the
-// magnitude each needs, and what it costs).
+// Tools. Each is made once, at the forge, as the star grows, for
+// something specific (their recipes are in blueprints.js; T.tools: the
+// magnitude each needs, and what it costs), and from then on it's simply
+// with you, always on: where the light is, where the ore is, what's
+// coming, the lay of the land, a spire's light called down where there's
+// none (once a sortie), the suit reading creatures faster. The Compass is
+// carried from the start.
 // ---------------------------------------------------------------------------
 
 const TOOLS = {
@@ -14,8 +14,8 @@ const TOOLS = {
   oresense: { name: 'Ore Sense', icon: 'lens', text: 'Nearby veins glint through the dark.' },
   radar: { name: 'Threat Radar', icon: 'radar', text: "Marks what's out there at the view's edge." },
   map: { name: "Surveyor's Map", icon: 'map', text: 'Draws each place as you walk it.' },
-  lens: { name: 'Capture Lens', icon: 'lure', text: 'Creatures leave cores half again as often.' },
-  beacon: { name: 'Lode Beacon', icon: 'beacon', text: "Once a sortie, call a spire's light down where you stand." },
+  lens: { name: 'Capture Lens', icon: 'lure', text: "The suit reads a creature's pattern half again as fast." },
+  beacon: { name: 'Lode Beacon', icon: 'beacon', text: "Once a sortie, from the pause screen: call a spire's light down where you stand." },
 };
 const TOOL_IDS = ['compass', 'oresense', 'radar', 'beacon', 'map', 'lens'];
 
@@ -28,12 +28,11 @@ function toolIconUrl(id) {
 function toolOwned(id) { return (Save.data.tools || []).includes(id); }
 function toolOpen(id) { return magnitudeOf(Save.data.star) >= T.tools[id].mag; }
 // Makes a tool from the stash (its recipe at the forge): once, when it's
-// known and the star has grown enough. It's carried next.
+// known and the star has grown enough. It's always on from then.
 function makeTool(id) {
   const rid = 'tool_' + id;
   if (toolOwned(id) || !toolOpen(id) || !Save.data.blueprints.includes(rid) || !recipePay(recipeCost(rid), Save.data.stash)) return false;
   Save.data.tools.push(id);
-  Save.data.tool = id;
   Save.save();
   return true;
 }
@@ -48,15 +47,15 @@ function updateTools(dt) {
   const d = Game.dive, f = d.floor, p = d.p, tx = Math.floor(p.x / TILE), ty = Math.floor(p.y / TILE);
   if ((d.toolT = (d.toolT || 0) - dt) <= 0) {
     d.toolT = 0.4;
-    if (d.tool === 'map') {
+    if (toolOwned('map')) {
       const R = T.tools.map.sight;
       if (!d.seen || d.seen.length !== f.w * f.h) d.seen = new Uint8Array(f.w * f.h);
       for (let y = Math.max(0, ty - R); y <= Math.min(f.h - 1, ty + R); y++)
         for (let x = Math.max(0, tx - R); x <= Math.min(f.w - 1, tx + R); x++)
           if ((x - tx) * (x - tx) + (y - ty) * (y - ty) <= R * R) d.seen[y * f.w + x] = 1;
     }
-    if (d.tool === 'compass') d.compass = compassTarget(d, tx, ty);
-    if (d.tool === 'oresense') d.oreNear = nearestOre(d, tx, ty);
+    if (toolOwned('compass')) d.compass = compassTarget(d, tx, ty);
+    if (toolOwned('oresense')) d.oreNear = nearestOre(d, tx, ty);
   }
   const b = d.beacon;
   if (b && !b.landed && (b.t += dt) >= T.tools.beacon.land) landBeacon(d);
@@ -93,7 +92,7 @@ function nearestOre(d, tx, ty) {
 // Plants the beacon: it lands after a few seconds, and lights a lodeline.
 function plantBeacon() {
   const d = Game.dive, p = d.p, f = d.floor, tx = Math.floor(p.x / TILE), ty = Math.floor(p.y / TILE);
-  if (d.tool !== 'beacon' || d.beaconUsed || d.beacon || d.hub) return false;
+  if (!toolOwned('beacon') || d.beaconUsed || d.beacon || d.hub) return false;
   if (d.zone === 'lair' && d.keeper && !d.keeper.dead) { UI.toast("The Keeper's hold is too strong here"); return false; }
   if (f.pad && !d.padDark) { UI.toast(d.deep ? 'The light already reaches here' : 'A spire already stands here'); return false; }
   if (d.sortie && !d.deep && (f.heart && Math.hypot(f.heart.x - tx, f.heart.y - ty) < 2 || (f.stones || []).some((s) => Math.hypot(s.x - tx, s.y - ty) < 2))) { UI.toast('Not so close to that'); return false; }
@@ -156,7 +155,7 @@ function drawToolHud(d, ox, oy) {
     for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; c.fillRect(Math.round(bx + Math.cos(a) * r), Math.round(by + Math.sin(a) * r * 0.6), 1, 1); }
     c.globalAlpha = 1;
   }
-  if (d.tool === 'compass' && d.compass) {
+  if (toolOwned('compass') && d.compass) {
     const t = d.compass, wx = (t.x + 0.5) * TILE, wy = (t.y + 0.5) * TILE, m = dist(wx, wy, p.x, p.y);
     if (m > TILE * 2.5) {
       const a = Math.atan2(wy - p.y, wx - p.x);
@@ -165,7 +164,7 @@ function drawToolHud(d, ox, oy) {
       c.globalAlpha = 1;
     }
   }
-  if (d.tool === 'oresense') {
+  if (toolOwned('oresense')) {
     const R = T.tools.oresense.reach * TILE, f = d.floor;
     const x0 = Math.max(0, Math.floor((p.x - R) / TILE)), x1 = Math.min(f.w - 1, Math.floor((p.x + R) / TILE));
     const y0 = Math.max(0, Math.floor((p.y - R) / TILE)), y1 = Math.min(f.h - 1, Math.floor((p.y + R) / TILE));
@@ -182,7 +181,7 @@ function drawToolHud(d, ox, oy) {
     const o = d.oreNear;
     if (o) edgePip(px, py, (o.x + 0.5) * TILE, (o.y + 0.5) * TILE, ox, oy, ART.ores[o.ore][3], 3);
   }
-  if (d.tool === 'radar') {
+  if (toolOwned('radar')) {
     const R = T.tools.radar.reach * TILE;
     for (const e of d.enemies) {
       if (e.dead || e.type === 'dummy' || T.enemies[e.type].rooted || dist(e.x, e.y, p.x, p.y) > R) continue;
@@ -191,7 +190,7 @@ function drawToolHud(d, ox, oy) {
       edgePip(px, py, e.x, e.y, ox, oy, col, e.boss || e.type === 'hollow' ? 4 : 3);
     }
   }
-  if (d.tool === 'map' && d.seen) drawSiteMap(d);
+  if (toolOwned('map') && d.seen) drawSiteMap(d);
 }
 
 // The map: what's been seen of the site, in the view's top-right corner: a

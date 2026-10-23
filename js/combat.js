@@ -196,6 +196,8 @@ function killEnemy(e) {
   e.dead = true;
   d.kills++;
   tallyKill(d, e);
+  // the suit reads its pattern (patterns.js)
+  scanKill(d, e);
   if (e.blight) for (const o of d.enemies) if (!o.dead && o !== e && dist(o.x, o.y, e.x, e.y) < T.elements.blightSpread) o.blight = { t: T.elements.blightTime, dps: e.blight.dps };
   castFxDeath(e.x, e.y - 5, ENEMY_PAL[T.biomes[d.biome].id].crystal[0], !!e.boss);
   snd('kill', { x: e.x, y: e.y, big: !!e.boss });
@@ -211,15 +213,15 @@ function killEnemy(e) {
     d.drops.push(Object.assign({ x, y, t: 0 }, thing));
   };
   // what it was made of: its own part, graded by the biome; elites and the
-  // warden leave more, and now and then an exotic or a relic. Its pattern,
-  // caught: a module now and then, from an elite likely, from a warden or
-  // a Keeper several; it collapses where it fell into a crystal
+  // warden leave more, and now and then an exotic or a relic. A core: an
+  // elite leaves the one its affix names, a warden or a Keeper a legendary
+  // (modules.js coreDrops); it collapses where it fell into a crystal
   const grade = d.biome + 1, part = T.enemies[e.type].part || Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
   const parts = (n) => { if (part) for (let k = 0; k < n; k++) drop({ stuff: partId(part, grade), n: 1 }); };
   // a boss's hoard: ordinary parts of any creature (its own heart is apart)
   const hoard = (n) => { for (let k = 0; k < n; k++) drop({ stuff: partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), grade), n: 1 }); };
   const tier = dropTier(d);
-  for (const m of coreDrops(d, e)) { drop({ item: m }); const dr = d.drops[d.drops.length - 1]; dr.cap = coreCaptureFx(d, dr.x, dr.y, ART.rarity[m.rarity]); }
+  for (const m of coreDrops(d, e)) { drop({ item: m }); const dr = d.drops[d.drops.length - 1]; dr.cap = coreCaptureFx(d, dr.x, dr.y, coreColour(m)); }
   if (e.type === 'keeper') {
     // its lodeline lights, and the dark starts to come back: a short pull
     if (d.zone === 'lair') { d.padDark = false; d.pull = 1; d.pullTime = T.enemies.keeper.afterPull; UI.toast("The star's light reaches down. Go, before the dark comes back", 'legendary'); }
@@ -319,10 +321,10 @@ function updatePickups(dt) {
       // the capture field's tether pulls it home
       d.items.push(dr.item);
       Save.data.coresFound = (Save.data.coresFound || 0) + 1;
-      coreTetherFx(d, dr.x, dr.y, ART.rarity[dr.item.rarity]);
-      UI.toast(`${dr.item.name}${dr.item.bonus ? ': ' + fmtAffix(dr.item.bonus) : ''}`, dr.item.rarity);
+      coreTetherFx(d, dr.x, dr.y, coreColour(dr.item));
+      UI.toast(`${dr.item.name}${dr.item.power ? ': ' + LEGENDARIES[dr.item.power].name : ''}`, dr.item.rarity);
       snd('loot', { rarity: dr.item.rarity });
-      Story.say('core');
+      Story.say(dr.item.power ? 'legendary' : 'core');
       UI.tip('core', 'Set cores in the rig at home. Free');
     } else if (dr.item) { UI.tip('gear', 'Tap CARGO to look at what you found'); d.items.push(dr.item); UI.toast(dr.item.kind === 'relic' ? 'A sealed relic' : dr.item.name, dr.item.rarity); snd('loot', { rarity: dr.item.kind === 'relic' ? 'relic' : dr.item.rarity }); }
     else { d.cargo[dr.exotic] = (d.cargo[dr.exotic] || 0) + 1; UI.toast(T.exotics.find((x) => x.id === dr.exotic).name, 'exotic'); snd('loot', { rarity: 'exotic' }); }

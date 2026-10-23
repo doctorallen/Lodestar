@@ -367,10 +367,11 @@ body.home #btn-mine { display: none; }
 
 /* the item card: how each affix rolled, the comparison, the keep star */
 .affixes .aff { display: flex; flex-direction: column; gap: 3px; flex: 1; }
-.roll { display: block; height: 3px; width: 100%; max-width: 160px; background: #1c2230; }
-.roll > span { display: block; height: 100%; background: #4f6fa8; }
-.roll > span.high { background: var(--magic); }
-.roll > span.over { background: var(--legendary); }
+.printed { color: #5fd3d6; }
+.count { color: var(--dim); font-weight: normal; letter-spacing: 0.04em; }
+.scan-ring { display: block; width: 44px; height: 4px; background: #1c2230; align-self: center; flex: none; }
+.scan-ring > span { display: block; height: 100%; background: #5fd3d6; }
+.merge-row .mini { align-self: center; }
 .compare { margin: 8px 0; padding: 6px 8px; border: 1px solid var(--line); background: var(--panel2); font-size: 12px; }
 .compare .up { color: #6fe08a; } .compare .down { color: var(--danger); }
 .card-head .grow { flex: 1; }
@@ -785,5 +786,3 @@ body.guiding:not(.modal) .toasts { top: calc(104px + env(safe-area-inset-top)); 
 .tile { position: relative; }
 .tile .pip { position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 4px currentColor; }
 /* a masterwork core's temper, chosen from three on its card */
-.temper { margin: 8px 0; padding: 6px 8px; border: 1px solid var(--legendary); background: #1a1410; }
-.temper .row-sub { margin-bottom: 4px; }

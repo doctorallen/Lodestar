@@ -251,10 +251,8 @@ function drawSetOut() {
   if (UI.mapLayer === 'lattice') drawLatticeCard(); else drawMapCard();
   animateWorldMap();
   if (travel) { $('setout-body').innerHTML = `<p class="note">Tap a spire, or the star for home. Your cargo banks first.</p>`; return; }
-  // (the tools wake at magnitude 2: onboard.js)
-  const owned = TOOL_IDS.filter(toolOwned);
-  const carry = `<h3>CARRYING</h3><div class="chips">${owned.map((id) => `<button class="chip ${s.tool === id ? 'on' : ''}" data-act="carryTool" data-arg="${id}"><img class="chip-icon" src="${toolIconUrl(id)}" alt="">${esc(TOOLS[id].name)}</button>`).join('')}</div>`;
-  $('setout-body').innerHTML = nextGoalHtml() + (onboardHas('tools') ? carry + drawToolRows() : '');
+  // (the tools wake at magnitude 2: onboard.js; each made is always on)
+  $('setout-body').innerHTML = nextGoalHtml() + (onboardHas('tools') ? drawToolRows() : '');
 }
 
 // At home, what's next over the view (#hud-goal), a line. True if shown.

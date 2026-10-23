@@ -1,22 +1,23 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Gear: the affix table, rarities, legendary powers and the set (which
-// modules carry, modules.js); crafted bases (rig frames, plate, charms,
-// picks) and the cores spells are built from; sealed relics; forging a
-// base from its recipe; salvaging one; and the stats an outfit adds up to,
-// the modules in its sockets with it. What can be made is in blueprints.js;
-// how a spell casts, in circuits.js.
+// Gear: the affix table (the bonuses patterns print, patterns.js), the
+// legendary powers; crafted bases (rig frames, plate, charms, picks) and
+// the cores spells are built from; sealed relics; forging a base or a core
+// from its recipe; salvaging one; and the stats an outfit adds up to, the
+// cores set in its rig with it. What can be made is in blueprints.js; how
+// a spell casts, in circuits.js.
 //
-// A base is exact. Its recipe and its ore's tier set its stats, its module
-// sockets and a frame's Mod slots; the anvil's quality only adds (T.gear).
-// It never rolls an affix: what gives it an identity is what's socketed
-// into it. (Internally a rig frame is still kind 'caster' and a core kind
-// 'stone', as the save has always called them.)
+// A base is exact. Its recipe and its ore's tier set its stats and a
+// frame's slots; the anvil's quality only adds (T.gear). It never rolls an
+// affix: what gives it an identity is the cores set in it. A core is its
+// kind and its tier, and the pattern printed on it, if one is. (Internally
+// a rig frame is still kind 'caster' and a core kind 'stone', as the save
+// has always called them.)
 // ---------------------------------------------------------------------------
 
-// Affixes, the traits a module carries. lo–hi at tier 1, grown by
-// T.items.affixGrowth a tier (a core's bonus at T.cores.bonus of that). dp:
-// decimal places. flat: doesn't grow with the tier.
+// Affixes: the bonuses a pattern prints onto a core. lo–hi at tier 1,
+// grown by T.items.affixGrowth a tier. dp: decimal places. flat: doesn't
+// grow with the tier.
 const AFFIXES = {
   closeDmg: { family: 'close', text: '+{v}% close spell damage', lo: 8, hi: 15 },
   castSpeed: { family: 'close', text: '+{v}% cast speed', lo: 5, hi: 10 },
@@ -44,9 +45,9 @@ const AFFIXES = {
 };
 const AFFIX_IDS = Object.keys(AFFIXES);
 
-// Which bonuses a found or tempered core of each kind can carry (its
-// kind's own concerns: a Form the casting, an Element the hit's statuses,
-// a Mod the suit).
+// Which bonuses a core of each kind can carry (its kind's own concerns: a
+// Form the casting, an Element the hit's statuses, a Mod the suit): a
+// pattern fits the kinds whose list holds its bonus (patterns.js).
 const CORE_BONUSES = {
   form: ['closeDmg', 'castSpeed', 'crit', 'spellDmg', 'chargeRegen', 'maxCharge', 'openDmg', 'arcCharge'],
   element: ['shock', 'leech', 'chill', 'chilledDmg', 'burnDmg', 'spellDmg'],
@@ -63,6 +64,7 @@ const SLOTS = ['main', 'pick', 'armor', 'charm'];
 const SLOT_NAMES = { main: 'Rig', pick: 'Cutter', armor: 'Armor', charm: 'Charm' };
 const QUALITY_NAMES = ['Rough', 'Fair', 'Fine', 'Masterwork'];
 
+// (a core is common or legendary now; the save knew magic and rare)
 const RARITIES = ['common', 'magic', 'rare', 'legendary'];
 const RARITY_NAMES = { common: 'Common', magic: 'Magic', rare: 'Rare', legendary: 'Legendary' };
 
@@ -97,17 +99,6 @@ function affixValue(id, tier, roll, k = 1) {
   const v = (a.lo + (a.hi - a.lo) * roll) * grow * k;
   const p = Math.pow(10, a.dp || 0);
   return Math.max(a.dp ? 0.1 : 1, Math.round(v * p) / p);
-}
-
-// A rarity by enemy level, at least `min`; `boost` multiplies the
-// legendary and set weights.
-function rollRarity(rng, level, min = 'common', boost = 1) {
-  const floor = RARITIES.indexOf(min);
-  const list = RARITIES.filter((r, i) => i >= floor).map((r) => {
-    const [base, per] = T.loot.rarity[r];
-    return [Math.max(0.1, base + per * level) * (r === 'legendary' || r === 'set' ? boost : 1), r];
-  });
-  return rng.weighted(list);
 }
 
 // ---------------------------------------------------------------------------
@@ -145,56 +136,26 @@ function baseName(item) {
 }
 
 // A core for a spell: a Form, an Element or a Mod, of a tier. o: { rarity,
-// bonus ({ id, v }), power, src }: a forged one is common and plain; a
-// found or tempered one carries a bonus, a legendary a power too.
+// src }: plain (common) unless it's a legendary, which carries a power
+// (patterns.js legendaryCore); a pattern is printed on it as it's forged.
 function makeStone(stone, tier, o = {}) {
-  const c = { uid: newItemUid(), kind: 'stone', stone, tier: clamp(tier, 1, T.ores.length), rarity: o.rarity || 'common', bonus: o.bonus || null, affixes: [], name: `${stoneWords(stone).name} core` };
+  const c = { uid: newItemUid(), kind: 'stone', stone, tier: clamp(tier, 1, T.ores.length), rarity: o.rarity || 'common', bonus: null, affixes: [], name: `${stoneWords(stone).name} core` };
   if (o.power) c.power = o.power;
   if (o.src) c.src = o.src;
   return c;
 }
-// A core's bonus: one of its kind's (CORE_BONUSES), at its tier, at the
-// strength its rarity allows (T.cores.bonus).
-function coreBonusRoll(rng, stone, tier, rarity, not) {
-  const pool = (CORE_BONUSES[stoneKind(stone)] || CORE_BONUSES.glyph).filter((id) => !not || !not.includes(id));
-  const id = rng.pick(pool);
-  return { id, v: affixValue(id, tier, rng.f(), T.cores.bonus[rarity] || 1) };
-}
-// A core's bonus and power as traits: [{ key, text, aff }].
+// A core's pattern and power as traits: [{ key, text, aff }].
 function coreTraits(c) {
   const out = [];
-  if (c.bonus) out.push({ key: 'bonus', text: fmtAffix(c.bonus), aff: c.bonus });
+  if (c.bonus) out.push({ key: 'bonus', text: `${c.pattern && PATTERNS[c.pattern] ? PATTERNS[c.pattern].name + ': ' : ''}${fmtAffix(c.bonus)}`, aff: c.bonus });
   if (c.power) out.push({ key: 'power', text: LEGENDARIES[c.power].text });
   return out;
 }
-// A rough worth, for sorting and ▲/▼: its tier, its bonus, its power.
+// A rough worth, for sorting and ▲/▼: its tier, its pattern, its power.
 function coreWorth(c) {
   if (!c) return 0;
   return c.tier * 2 + (c.bonus ? c.bonus.v * (AFFIX_WORTH[c.bonus.id] || 0.3) : 0) + (c.power ? 8 : 0);
 }
-// A bonus carried to another tier: its value grows (or not, if flat) as
-// the tier's range does, times k.
-function rescaleAffix(a, from, to, k = 1) {
-  const A = AFFIXES[a.id], g = (t) => (A.flat ? 1 : 1 + T.items.affixGrowth * (Math.max(1, t) - 1)), p = Math.pow(10, A.dp || 0);
-  const v = Math.round(a.v * (g(to) / g(from)) * k * p) / p;
-  return { id: a.id, v: to > from || k > 1 ? Math.max(v, a.v + (A.flat && k === 1 ? 0 : 1 / p)) : v };
-}
-// A tier up (the tuning bench): threads and the new tier's ore; the bonus
-// grows with it.
-function coreUpgradeCost(c) {
-  if (c.tier >= T.ores.length) return null;
-  const U = T.cores.upgrade;
-  return { threads: U.threads[c.tier], ore: { id: T.ores[c.tier].id, n: U.ore } };
-}
-function coreUpgrade(c) {
-  if (c.tier >= T.ores.length) return false;
-  if (c.bonus) c.bonus = rescaleAffix(c.bonus, c.tier, c.tier + 1);
-  c.tier++;
-  return true;
-}
-// Salvaged, a core unravels into threads: more for a richer one and a
-// denser one.
-function coreSalvageThreads(c) { const S = T.cores.salvage; return (S[c.rarity] || 1) + S.perTier * (c.tier - 1); }
 
 function makeRelic(tier) {
   return { uid: newItemUid(), kind: 'relic', tier: Math.max(1, tier), rarity: 'relic', affixes: [], name: 'Sealed relic' };
@@ -214,21 +175,15 @@ function startingGear() {
 // maybe with an exotic: riftglass forges it a tier above its ore; an
 // elemental exotic worked into a frame brings its Element's core out with
 // it (item.withStone); a Lodestone shard gives a frame its extra slot. A
-// core comes out a tier higher from a fine forge, and tempered: the anvil
-// gives it a bonus (T.cores.temper: a fair forge a lesser one, a fine one
-// a full one, a masterwork a choice of three, item.temperChoice, made at
-// the forge after the reveal). The caller has checked and paid the cost.
-function forgeItem(bpId, oreId, exoticId, q = 0) {
+// core comes out a tier higher from a fine forge, and with `pattern` (a
+// creature kind the suit has read) printed on it, stronger from a
+// masterwork (patterns.js). The caller has checked and paid the cost.
+function forgeItem(bpId, oreId, exoticId, q = 0, pattern = null) {
   const bp = BLUEPRINTS[bpId], ex = exoticId && T.exotics.find((e) => e.id === exoticId);
   const tier = Math.min(T.ores.length, T.ores[ORE_INDEX[oreId]].tier + (ex && ex.tierUp ? 1 : 0));
   if (bp.kind === 'stone') {
-    const c = makeStone(bp.stone, tier + (q >= 2 ? 1 : 0)), k = T.cores.temper[clamp(q, 0, 3)];
-    if (k > 0) {
-      const rng = new Rng(hashInts(c.uid, c.tier, q, 0xc0e)), rarity = q >= 2 ? 'rare' : 'magic';
-      c.rarity = rarity;
-      if (q >= 3) { c.temperChoice = []; for (let i = 0; i < T.cores.choices; i++) c.temperChoice.push(coreBonusRoll(rng, c.stone, c.tier, rarity, c.temperChoice.map((b) => b.id))); c.bonus = c.temperChoice[0]; }
-      else c.bonus = coreBonusRoll(rng, c.stone, c.tier, rarity);
-    }
+    const c = makeStone(bp.stone, tier + (q >= 2 ? 1 : 0), { src: { forged: true } });
+    if (pattern) printPattern(c, pattern, q);
     return c;
   }
   const item = makeBase(bpId, tier, q, bp.kind === 'caster' && !!(ex && ex.modSlot));
@@ -258,13 +213,13 @@ function itemBaseLine(item) {
   if (item.kind === 'armor') return `${b.armor} armor, +${b.hp} max health`;
   if (item.kind === 'pick') { const top = T.ores.filter((o) => o.tier <= b.power).pop(); return `Breaks up to ${top ? top.name : 'nothing'}, ${b.speed}× speed`; }
   if (item.kind === 'stone') return `${stoneLine(item.stone)} ${stoneTierLine(item.stone, item.tier)}`;
-  if (item.kind === 'relic') return `Tier ${item.tier}. The Lodestar's light will open it: a rare module, or better.`;
+  if (item.kind === 'relic') return `Tier ${item.tier}. The Lodestar's light will open it: a legendary core.`;
   return '';
 }
 
 function itemKindLine(item) {
   if (item.kind === 'relic') return 'Sealed relic';
-  if (item.kind === 'stone') return `${item.rarity && item.rarity !== 'common' ? RARITY_NAMES[item.rarity] + ' ' : ''}${STONE_KIND_NAMES[stoneKind(item.stone)]} core · tier ${item.tier}`;
+  if (item.kind === 'stone') return `${item.rarity === 'legendary' ? 'Legendary ' : ''}${STONE_KIND_NAMES[stoneKind(item.stone)]} core · tier ${item.tier}${item.pattern && PATTERNS[item.pattern] ? ' · ' + PATTERNS[item.pattern].name : ''}`;
   const what = item.kind === 'caster' ? 'rig frame' : (bpOf(item) || { name: KIND_NAMES[item.kind] }).name.toLowerCase();
   return `${item.q ? QUALITY_NAMES[item.q] + ' ' : ''}${what} · tier ${item.tier}${item.kind === 'caster' && item.extra ? ` · a second ${STONE_KIND_NAMES[item.extra]} slot` : ''}`;
 }
@@ -296,7 +251,8 @@ const rigCores = (it) => (it && it.spells ? it.spells.flatMap(spellCores) : []);
 const rigHasPower = (it, power) => rigCores(it).some((c) => c.power === power);
 
 // What an outfit (its bases, the cores set in its rig) and the attunements
-// add up to. A core's bonus and power count while it's set in a spell.
+// add up to. A core's printed pattern and power count while it's set in a
+// spell.
 function computeStats(equip, attune) {
   const s = freshStats();
   for (const slot of SLOTS) {
@@ -365,19 +321,12 @@ function compareLines(it, cur) {
   if (cur && cur.power && cur.power !== it.power) out.push({ text: 'Loses: ' + LEGENDARIES[cur.power].text, up: false });
   return out;
 }
-// Where an affix rolled in its range at its tier, 0–1 (above 1 once
-// raised); a module's against a module's range.
-function affixRoll(a, tier, k = 1) {
-  const lo = affixValue(a.id, tier, 0, k), hi = affixValue(a.id, tier, 1, k);
-  return hi > lo ? (a.v - lo) / (hi - lo) : 1;
-}
-
 // The slot a base would replace.
 function compareSlot(equip, it) { return KIND_SLOT[it.kind] || null; }
 
 // What breaking a base down gives back: { ore: id, n, exotic: id | null }:
 // some of its ore, and now and then an exotic. (Its cores come out whole;
-// a core itself unravels into threads: coreSalvageThreads.)
+// a spare core itself salvages into ore: patterns.js coreSalvageOre.)
 function salvageYield(rng, item) {
   const bp = bpOf(item);
   const n = Math.max(1, Math.floor((bp ? bp.ore : 0) * T.salvage.back));

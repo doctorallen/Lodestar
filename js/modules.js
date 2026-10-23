@@ -1,40 +1,31 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Cores carry the found power. The dark's creatures are made of the
-// world's own living energy, and when one dies its pattern unravels. The
-// Charter suit's capture field catches the strongest thread of it and sets
-// it in a core: a Form, an Element or a Mod for the rig's spells, with one
-// bonus on it (a Form's a bonus to the casting, an Element's to the hit's
-// statuses, a Mod's to the suit). How much of the pattern was caught is its
-// rarity (elites and Keepers carry richer patterns; a legendary carries a
-// power too); how dense a lattice holds it, its tier. A core is set in a
-// spell at the locker, free to swap; nothing else takes it.
-//
-// A core can be grown a tier (its lattice regrown in denser ore, its bonus
-// stronger), for threads and the new tier's ore: UPGRADE, on its card at
-// the locker or the tuning bench. Salvaged, it unravels into threads.
-// Legendaries are found, never made; a forged core's bonus is the anvil's
-// (items.js forgeItem).
-//
-// Also here: what a kill leaves (coreDrops), research (what the forge
-// studies, and the recipes it reveals), old saves (gear from before modules
-// turned into bases and modules, then modules into threads and legendary
-// cores: migrateGearSave, migrateCoreSave), and how a core on the ground
-// looks: the crystal, its capture and the tether as it's taken.
-// Never say outright that the dark is alive.
+// Cores on the ground, and what leaves them. A core is its kind and its
+// tier (patterns.js: what a pattern is, what the suit reads, the stacks
+// and the merge). Here: what a kill leaves in cores (an elite the core its
+// affix names; a warden or a Keeper a legendary, with a power), a sealed
+// relic and an ancient forge (a legendary), research (what the forge
+// studies, and the recipes it reveals), old saves (gear from before
+// modules turned into bases and modules, then modules into threads and
+// legendary cores: migrateGearSave, migrateCoreSave; patterns.js takes
+// them on from there), and how a core on the ground looks: the crystal,
+// its capture and the tether as it's taken. Never say outright that the
+// dark is alive.
 // ---------------------------------------------------------------------------
 
 const FOE_WORDS = { crawler: 'Crawler', wisp: 'Wisp', construct: 'Stalker', snapjaw: 'Snapjaw', spitter: 'Spitter', warden: 'Warden', keeper: 'Keeper', hollow: 'Hollow' };
 const foeWord = (type) => FOE_WORDS[type] || (typeof FOE_NAMES !== 'undefined' && FOE_NAMES[type] ? FOE_NAMES[type][0] : 'creature');
 
-// Where a core was caught, in words: "Caught from an elite Crawler, Bloomfen".
+// Where a core came from, in words: "Caught from a Warden, Bloomfen";
+// "Printed at the replicator".
 function coreSource(c) {
   const s = c.src;
   if (!s) return '';
   if (s.was) return `From ${s.was}, made before cores carried power`;
   if (s.relic) return 'Opened from a sealed relic';
   if (s.forge) return 'Found by an ancient forge';
-  if (s.anvil) return 'Tempered at the anvil';
+  if (s.merged) return 'Folded from three at the tuning bench';
+  if (s.forged) return c.pattern ? 'Printed at the replicator' : 'Made at the replicator';
   if (!s.foe) return '';
   const who = foeWord(s.foe), where = [s.clime ? climeName(s.clime) : '', s.deep ? 'a Deep' : ''].filter(Boolean).join(', ');
   const what = s.foe === 'keeper' ? 'the Keeper' : s.foe === 'warden' ? 'a Warden' : `${s.elite ? 'an elite' : /^[AEIOU]/.test(who) ? 'an' : 'a'} ${who}`;
@@ -44,38 +35,17 @@ function coreSource(c) {
 // ---------------------------------------------------------------------------
 // Drops
 // ---------------------------------------------------------------------------
-// The chances, times: richer in a Deep, generous at first, and with the
-// Capture Lens carried.
-function coreDropMult(d) {
-  const D = T.cores.drop, found = (Save.data && Save.data.coresFound) || 0;
-  return (d.deep ? D.deep : 1) * (found < D.early.found ? D.early.mult : 1) * (d.tool === 'lens' ? D.lens : 1);
-}
-// A core rolled for a kill or a find: rarity by the enemy level, at least
-// `min` (boost: the legendary weight times); a Form, an Element or a Mod by
-// the odds (T.cores.kinds), any of its kind; its bonus; a legendary's
-// power.
-function rollCore(rng, level, tier, min, boost, src) {
-  const rarity = rollRarity(rng, level, min, boost), K = T.cores.kinds;
-  const kind = rng.weighted([[K.form, 'form'], [K.element, 'element'], [K.glyph, 'glyph']]);
-  const stone = rng.pick(kind === 'form' ? STONE_FORMS : kind === 'element' ? Object.keys(STONE_ELEMENTS) : Object.keys(STONE_GLYPHS));
-  const c = makeStone(stone, tier, { rarity, src });
-  c.bonus = coreBonusRoll(rng, stone, c.tier, rarity);
-  if (rarity === 'legendary') c.power = rng.pick(Object.keys(LEGENDARIES));
-  return c;
-}
-// What a kill leaves in cores: a Keeper several, a warden two, an elite
-// half the time (the room's sure elite always), anything else seldom.
-// Rolled with the dive's rng.
+// What a kill leaves in cores: a Keeper or a warden a legendary (or more:
+// T.cores.legend), an elite the core its first affix names (T.cores.elite
+// of the time), anything else nothing. Rolled with the dive's rng.
 function coreDrops(d, e) {
-  const D = T.cores.drop, rng = d.rng, k = coreDropMult(d), level = floorLevel(d);
+  const C = T.cores, rng = d.rng, tier = dropTier(d);
   const src = { foe: e.type, clime: d.clime || null, elite: !!e.elite, deep: !!d.deep };
-  let n = 0, min = 'common', boost = 1, tier = dropTier(d);
-  if (e.type === 'keeper') { n = D.keeper; min = 'rare'; boost = T.cores.keeperLegend; tier++; }
-  else if (e.boss) { n = D.boss; min = 'rare'; tier++; }
-  else if (e.elite) { n = e.sure || rng.chance(Math.min(1, D.elite * k)) ? 1 : 0; min = 'magic'; }
-  else n = rng.chance(D.foe * k) ? 1 : 0;
   const out = [];
-  for (let i = 0; i < n; i++) out.push(rollCore(rng, level, Math.min(T.ores.length, tier), min, boost, src));
+  if (e.type === 'keeper') { for (let i = 0; i < C.legend.keeper; i++) out.push(legendaryCore(rng, Math.min(T.ores.length, tier + 1), src)); return out; }
+  if (e.boss) { for (let i = 0; i < C.legend.boss; i++) out.push(legendaryCore(rng, Math.min(T.ores.length, tier + 1), src)); return out; }
+  const stone = eliteCoreFor(e);
+  if (stone && rng.chance(C.elite)) out.push(makeStone(stone, Math.min(T.ores.length, tier), { src }));
   return out;
 }
 
@@ -89,12 +59,8 @@ function forgeFindOnce(d) {
   return true;
 }
 
-// A sealed relic opens at the Lodestar into a rare core or better.
-function unsealRelic(rng, relic) {
-  const W = T.loot.relicOpens, rarity = rng.weighted([[W.rare, 'rare'], [W.legendary, 'legendary']]);
-  // (rolled at least that rarity: a rare may still come out legendary)
-  return rollCore(rng, 1, relic.tier, rarity, 1, { relic: true });
-}
+// A sealed relic opens at the Lodestar into a legendary core.
+function unsealRelic(rng, relic) { return legendaryCore(rng, relic.tier, { relic: true }); }
 
 // ---------------------------------------------------------------------------
 // A cost: { threads, ore: { id, n } | null, stuff: [{ id, n }] }. What's
@@ -120,14 +86,14 @@ function benchPay(cost, src) {
 // Research
 // ---------------------------------------------------------------------------
 // Whether a research's thing is at home: an ore, a part (any grade) or an
-// exotic in the stash, or a core caught from its kind of creature in the
-// stash or set in the rig.
+// exotic in the stash, or a kind of creature's pattern read by the suit
+// (patterns.js; 'any': the first pattern of all).
 function researchHas(s, r) {
   const k = r.id.split(':')[0];
   if (k === 'ore' || k === 'ex') return (s.stash[r.of] || 0) > 0;
   if (k === 'part') return [1, 2, 3].some((g) => (s.stash[partId(r.of, g)] || 0) > 0);
-  const cores = s.items.filter((x) => x.kind === 'stone' && x.src).concat(rigCores(s.equip.main));
-  return cores.some((c) => c.src && (r.of === 'any' || c.src.foe === r.of));
+  const known = PATTERN_KINDS.filter((kind) => ((s.scans || {})[kind] || 0) >= T.patterns.scans);
+  return r.of === 'any' ? known.length > 0 : known.includes(r.of);
 }
 // What the forge has yet to study, of what's at home.
 function researchDue(s = Save.data) {
@@ -153,12 +119,12 @@ function researchWhat(r) {
   const k = r.id.split(':')[0];
   if (k === 'ore' || k === 'ex') return stuffName(r.of);
   if (k === 'part') return PARTS[r.of].name.charAt(0).toUpperCase() + PARTS[r.of].name.slice(1);
-  return r.of === 'any' ? 'A caught core' : `A core caught from a ${foeWord(r.of)}`;
+  return r.of === 'any' ? 'A pattern read' : `The ${foeWord(r.of)}'s pattern`;
 }
 function researchIconUrl(r) {
   const k = r.id.split(':')[0];
   if (k === 'part') return stuffIconUrl(partId(r.of, 1));
-  if (k === 'mod') return stoneIconUrl('bolt');
+  if (k === 'scan') return stoneIconUrl('bolt');
   return stuffIconUrl(r.of);
 }
 
@@ -228,8 +194,8 @@ function migrateCoreSave(s) {
   const threadsOf = (m) => { const S = T.cores.salvage; return (S[m.rarity] || S.common) + S.perTier * (Math.max(1, m.tier || 1) - 1); };
   const fromModule = (m, into) => {
     if (m.power && LEGENDARIES[m.power]) {
-      const c = rollCore(new Rng(hashInts(m.uid || 1, 0x8c, 1)), 1, Math.max(1, m.tier || 1), 'legendary', 1, { was: m.name || 'a module' });
-      c.rarity = 'legendary'; c.power = m.power;
+      const c = legendaryCore(new Rng(hashInts(m.uid || 1, 0x8c, 1)), Math.max(1, m.tier || 1), { was: m.name || 'a module' });
+      c.power = m.power;
       if (m.fav) c.fav = true;
       into.push(c);
     } else stash.thread = (stash.thread || 0) + threadsOf(m);
@@ -268,20 +234,8 @@ function migrateCoreSave(s) {
 }
 
 // ---------------------------------------------------------------------------
-// Looks: the thread icon, the crystal on the ground, the capture and the tether
+// Looks: the crystal on the ground, the capture and the tether
 // ---------------------------------------------------------------------------
-// Threads in the stash: a loose coil of light.
-const THREAD_ROWS = ['................', '.....aaaa.......', '...aa....aa.....', '..a..bbbb..a....', '..a.b....b.a....', '..a.b.cc.b.a....', '..a.b.c..b.a....', '...a.bb.b.a.....', '....a...a.......', '.....aaa..cc....', '..........c.c...', '...........c....', '................'];
-let _threadIcon = null;
-function threadIconUrl() {
-  if (_threadIcon) return _threadIcon;
-  const c = document.createElement('canvas');
-  c.width = 16; c.height = 13;
-  const x = c.getContext('2d'), pal = { a: '#a898d8', b: '#d8ccff', c: '#ffffff' };
-  THREAD_ROWS.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (pal[r[i]]) { x.fillStyle = pal[r[i]]; x.fillRect(i, j, 1, 1); } });
-  return (_threadIcon = c.toDataURL());
-}
-
 // The crystal on the ground (painted, as the other drops): a lattice point
 // standing on a dark scatter, its faces in the rarity's tones.
 const _coreDrops = new Map();

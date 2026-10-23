@@ -89,7 +89,7 @@ const Anvil = {
   // the quality to forge at, without the strikes.
   finish(q = this.quality()) {
     const j = this.job;
-    const item = forgeItem(j.bp, j.ore, j.exotic, q);
+    const item = forgeItem(j.bp, j.ore, j.exotic, q, j.pattern || null);
     // the first piece of a tier past any before: Wick marks it
     if (item.tier > (Save.data.topTier || 1)) { Save.data.topTier = item.tier; Story.say('tier' + item.tier); }
     this.job = null;
@@ -175,7 +175,7 @@ const Reveal = {
       <div class="reveal-beam" style="--col:${col}"></div>
       <img class="reveal-icon" src="${itemIconUrl(item)}" alt="">
       <div class="reveal-name r-${forged ? rar : item.rarity}">${esc(item.name)}</div>
-      <div class="reveal-sub">${esc(itemKindLine(item))}${forged ? ` · ${['Rough', 'Fair', 'Fine', 'Masterwork'][q]}: ${item.kind === 'stone' ? ['as the recipe says', 'a lesser bonus', 'a tier up, a bonus', 'a tier up, your choice of bonus'][q] : ANVIL_ADDS[q] + masterMod}` : ''}</div>`;
+      <div class="reveal-sub">${esc(itemKindLine(item))}${forged ? ` · ${['Rough', 'Fair', 'Fine', 'Masterwork'][q]}: ${item.kind === 'stone' ? ['as the recipe says', 'as the recipe says', 'a tier up', item.pattern ? 'a tier up, its pattern printed stronger' : 'a tier up'][q] : ANVIL_ADDS[q] + masterMod}` : ''}</div>`;
     UI.show('screen-reveal');
     this.shownAt = Game.realT;
     snd('reveal', { rarity: item.kind === 'relic' ? 'relic' : rar });

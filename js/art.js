@@ -982,7 +982,6 @@ const STUFF_ROWS = [
   'MMMMMMMMMMM',
 ];
 function stuffIconUrl(id) {
-  if (id === 'thread') return threadIconUrl();
   const key = 'stuff/' + id;
   let url = _iconCache.get(key);
   if (url) return url;

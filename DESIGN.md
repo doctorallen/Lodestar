@@ -9,7 +9,7 @@ Items marked **(proposed)** aren't settled or aren't built yet. Everything else 
 ## Pillars
 
 1. **Always another upgrade.** A new ore leads to a new cutter, which opens new depths, which leads to new gear.
-2. **Crafted bases, found power.** What you forge is exactly what its recipe says; what you find (cores with a bonus on them) is rolled, and gives the rig its identity. The anvil only adds.
+2. **Crafted bases, named cores, learned patterns.** What you forge is exactly what its recipe says, and nothing rolls: a core is its kind and its tier, and the power on it is a pattern the suit learned from a creature and the replicator printed for that creature's parts. The dark leaves parts and knowledge; only the Keepers, wardens, relics and ancient forges leave finds (legendaries). The anvil only adds.
 3. **Push your luck.** The further out you go, the better the loot and the higher the risk of losing it.
 4. **Built for a thumb.** It plays well upright with one or two thumbs, in short or long sessions.
 
@@ -142,16 +142,16 @@ One suggested goal at a time, the plainest first: a shard to set, the light wait
 
 ## Tools
 
-The diver carries one tool, chosen at the portal before setting out. Each changes what you can see or do out there, so the choice shapes the sortie. The Compass is carried from the start; the rest are made once, at the forge (its TOOLS tab), as the star grows.
+Each tool is made once, at the forge (its TOOLS tab), as the star grows, for something specific, and from then on it's simply with you, always on (there's no choosing at the portal: the portal lists them, each ON once made). The Compass is carried from the start.
 
 | Tool | From magnitude | What it does |
 |---|---|---|
 | Lodestone Compass | 1 | An arrow round the diver to the spire here, or in dark land to the opening towards the nearest kindled land; in a Deep, to its lit lodeline or the way on. |
-| Ore Sense | 2 | Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the cutter can break. |
-| Threat Radar | 2 | Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
-| Surveyor's Map | 3 | A map of each place, drawn as you walk it, in the view's corner, with its openings, holes, spire, waystones and ancient forge once seen. |
-| Capture Lens | 2 | Cores half again as likely. Revealed by research once the first core comes home; made from Lumenite and threads. |
-| Lode Beacon | 2 | Once a sortie, from the pause menu: call a spire's light down where you stand, where no spire is: you can bank and travel from it, and standing in it brings your light back slowly. In a Deep it's a lodeline. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
+| Ore Sense | 2 | 8 Lumenite, 4 spores. Veins within 9 tiles glint through the dark, and an arrow at the view's edge points to the nearest vein the cutter can break. |
+| Threat Radar | 2 | 8 Lumenite, 4 ether. Marks at the view's edge for what's out there within 18 tiles: dim for the unaware, red for the hunting, elite colours, violet for the Hollow. |
+| Surveyor's Map | 3 | 10 Lumenite, 5 fibre. A map of each place, drawn as you walk it, in the view's corner, with its openings, holes, spire, waystones and ancient forge once seen. |
+| Capture Lens | 2 | 6 Resonite, 3 ether, 3 chitin. The suit reads a creature's pattern half again as fast (Loot). Revealed by research once the first pattern is read. |
+| Lode Beacon | 2 | 6 Resonite and a warden's heart. Once a sortie, from the pause menu: call a spire's light down where you stand, where no spire is: you can bank and travel from it, and standing in it brings your light back slowly. In a Deep it's a lodeline. It lands after 6 s, and its light wakes everything near. Not while a Keeper lives. |
 
 ## Rifts
 
@@ -256,23 +256,23 @@ While a skink is under the sand, an eel under the water or a dropper on the roof
 | The Choir | Crystal caverns that sing when struck | Resonite (3), Aetherglass (4) |
 | The Underforge | Ancient machine ruins near magma | Sigilite (5), Starmetal (6) |
 
-- **Exotic materials** drop from elites and the warden, and now and then from anything else. (Bloodresin is retired: it fed the old reroll, no longer drops, and what was banked became threads.)
+- **Exotic materials** drop from elites and the warden, and now and then from anything else. (Bloodresin is retired: it fed the old reroll, and no longer drops.)
 
 ## Crafting (the heart of the game)
 
-Gear is two halves: a **base you craft**, exactly what its recipe says, and **cores you find**, rolled loot that goes into the rig's spells and gives them their identity. Joy comes in layers: a find each fight or two (a core), a craft each trip home (a base, an upgrade), an unlock every few sessions (the star).
+Gear is two halves: a **base you craft**, exactly what its recipe says, and **cores** that go into the rig's spells and give them their identity: a core is its kind and its tier, and nothing rolls; what makes it yours is the **pattern** printed on it, learned from a creature and paid for in that creature's parts (Loot). Joy comes in layers: a pattern learned every sortie or two, a craft each trip home (a base, a core printed), a find every few sorties (a legendary), an unlock every few sessions (the star).
 
-- **Each half has its own currency:** bases are made from ore and creature parts; cores come from what you kill, or from the forge; their upgrades are paid in **threads** (from salvaging cores) and ore.
+- **One currency:** everything is made from ore and creature parts. The dark leaves parts; the forge turns them into bases, cores and printed patterns; a spare core salvages back into ore. (Threads are gone.)
 
 ### Bases, at the forge
 
 - **A recipe is known and exact.** The forge shows, for the ore you choose, the base's tier (the ore's), its stats, a rig frame's slots (and the extra one its ore gives), and the cost of every resource by name, with how many you have. There are no random affixes on a crafted base.
-- **The anvil only adds.** Three strikes set the temper: rough as the recipe says, fair +5% on its numbers, fine +10%, a masterwork +15% and, on a rig frame, the extra slot. A core is tempered by it: a rough forge leaves it plain, a fair one gives it a lesser bonus, a fine one a tier up and a full bonus, a masterwork a tier up and your choice of three bonuses, made on its card after the reveal.
+- **The anvil only adds.** Three strikes set the temper: rough as the recipe says, fair +5% on its numbers, fine +10%, a masterwork +15% and, on a rig frame, the extra slot. A core comes out a tier up from a fine forge or better, and a masterwork prints its pattern a quarter stronger. Nothing about a core is random.
 - **The extra slot.** A frame of Resonite or denser, a masterwork, or one forged with a Lodestone shard has a fourth part in each spell, of the kind its ore chooses: Ferrite, Lumenite and Resonite a second Mod; Aetherglass a second Form; Sigilite and Starmetal a second Element.
 - **What it takes:** the recipe's ore (any ore: it sets the tier; a rig frame 14, plate 21, a weave 16, a shell 26, a charm or lantern 13, a cutter 15, a drill 23) and parts. The plain recipes known from the start (the rig frame, plate, charm, cutter) take any creature's parts; the rest name their creature: weave 3 fibre, shell 3 chitin, lantern 2 spores, drill 2 cogs.
 - **Optional exotics:** riftglass forges a base a tier above its ore; an elemental exotic worked into a rig frame brings its Element's core out with it; a Lodestone shard worked into a frame gives it its extra slot.
 - **The forge's tabs:** FRAMES, CUTTERS (the cutter and the drill), CORES, ARMOR, CHARMS, TOOLS (the carried tools), BUILDINGS (the outpost's buildings), WICK (Wick's upgrades) and the CODEX (the resonances); a new game shows only FRAMES and CUTTERS, and the rest appear as they wake (Onboarding, below). A dot marks what can be made now, a tick what's built or fitted. At the top, **CLOSE TO MAKING** names up to two recipes better than what's worn that are short by a little, and what they're missing.
-- **Cores** for spells (Combat and builds) are recipes too: a Form's 6 ore and 2 ether (a Ward's, a warden's heart); an Element's 4 ore and its exotic (Force needs none); a Mod's 5 ore and 3 of its creature's parts (chitin Pierce and Split, ether Echo, cogs Quicken, fibre Linger, spores Chain, any Amplify).
+- **Cores** for spells (Combat and builds) are recipes too: a Form's 6 ore and 2 ether (a Ward's, a warden's heart); an Element's 4 ore and its exotic (Force needs none); a Mod's 5 ore and 3 of its creature's parts (chitin Pierce and Split, ether Echo, cogs Quicken, fibre Linger, spores Chain, any Amplify). A core's recipe offers the **pattern** to print on it: NONE, or any the suit has read that fits the core's kind, for 3 of its creature's parts; under the recipes, WHAT THE SUIT HAS READ lists each kind met with its reads out of 6, or its pattern once known.
 - **Tools** are made once at the forge, from the stash, when the star has grown enough (Tools).
 
 ### Research
@@ -292,25 +292,46 @@ Recipes are revealed by research, instantly, at the forge. When you bring home s
 | Spore | Chain core |
 | A warden's heart | Ward core |
 | An elemental exotic | its Element's core |
-| The first core caught | the Capture Lens |
-| A core caught from a snapjaw, a wisp, a stalker | Weave, Orb core, Glaive core |
+| The first pattern read | the Capture Lens |
+| The Snapjaw's, the Wisp's, the Stalker's pattern read | Weave, Orb core, Glaive core |
 
 Known from the start: the rig frame, plate, charm and cutter, the Arc and Bolt, Force and Amplify, and the tools. Blueprints are gone as drops; an old save's blueprints are known recipes.
 
 ## Loot
 
 - **Drops are materials, and cores.** Each creature leaves its own part, graded by the biome; elites and wardens more, and now and then an exotic or a sealed relic.
-- **Cores carry the found power.** The dark's creatures are made of the world's own living energy; when one dies, its pattern unravels, and the Charter suit's capture field catches the strongest thread of it and sets it in a core: a Form, an Element or a Mod for the rig, with one bonus on it. Rarity is how much of the pattern was caught.
-  - **Few but meaningful:** a kill leaves one 3% of the time, an elite half the time (magic or better; the elite a room holds for sure always leaves one), a warden two and a Keeper three (rare or better, a tier up, a Keeper's legendaries five times likelier). A Deep's chances are 1.4 times, the Capture Lens 1.5 times, and the first four cores ever come 2.5 times as often. About one or two a sortie, more from elites.
-  - **In the field:** the creature's energy draws in and collapses into a small faceted crystal in its rarity's colour, which glints now and then (rare and better stand in a beam). Walked over, the capture field's tether pulls a few motes to the Kindler.
-  - **Rolled:** any Form, Element or Mod (so a core can be found before its recipe is known), with one bonus of its kind: a Form's to the casting (close or spell damage, cast speed, crit, charge, damage to a foe that's open, Arc hits giving charge), an Element's to the hit (chill, shock, leech, damage to the chilled or the burning), a Mod's to the suit (health, armor, regeneration, speed, reach, mining, armor in light). A legendary carries a power too. Its tier is where it was caught, so deeper cores roll higher.
-  - **The card** says what the core does, its tier, its bonus with how well it rolled, its power, and where it was caught ("Caught from an elite Wisp, Bloomfen").
-- **Setting cores is free** at home, at the locker: tap the rig, tap a part of a spell, tap a core from the drawer (each ▲ or ▼ against what's there). A core's bonus and power count while it's set in a spell. A better frame takes the old one's cores when equipped.
-- **Working a core is UPGRADE and SALVAGE, nothing else.** Both are buttons on its card at home, at the locker or the **tuning bench** (the outpost station that lists every core, set in the rig first):
-  - **Upgrade** a tier (its lattice regrown in denser ore): 10 ore of the new tier and 4, 8, 14, 20 or 28 threads; its bonus grows with it, and its spell hits harder.
-  - **Salvage** a core into threads (common 1, magic 2, rare 4, legendary 7, +1 a tier above 1); a base into 40% of its ore (its cores come out whole), now and then an exotic. SALVAGE ALL ▼ breaks down every base worse than what's worn and every plain spare core a better one is set over, that isn't kept (★).
-  - Legendaries are found, never made: there's no reroll, fusing, adding a trait or imprinting.
-- **Sealed relics** open at home into a rare core or better.
+- **A core is its name.** The Charter's cores are standard parts: a core is a Form, an Element or a Mod, of a tier, and nothing rolls. Two Bolt cores of a tier are the same Bolt, and stack (a count on one row, in the locker's drawer and at the bench). Plain unless a pattern is printed on it; a legendary carries a power.
+- **The pattern is what you learned.** The suit's capture field was always the Charter's survey instrument: it reads a creature's pattern as it falls, and once it has read enough of a kind (6; an elite counts 3, a warden or a Keeper all of it; the Capture Lens reads half again as fast) the replicator knows what that kind is for. Each kind has one pattern, fixed, so the territory card's creatures already say what you'll learn there (`patterns.js`):
+
+| Creature | Pattern | Prints | For |
+|---|---|---|---|
+| Crawler | Open wound | damage to a foe that's open | Forms |
+| Wisp | Drift | charge regeneration | Forms |
+| Stalker | Edge | critical chance | Forms |
+| Skink | Ambush | close spell damage | Forms |
+| Dropper | Weight | Arc hits give charge | Forms |
+| Sentinel | Focus | cast speed | Forms |
+| Eel | Ground | chance to arc lightning | Elements |
+| Wraith | Cinder | damage to the burning | Elements |
+| Tusker | Rime | damage to the chilled | Elements |
+| Lurker | Draw | leech | Elements |
+| Weaver | Snare | chance to chill | Elements |
+| Snapjaw | Set | armor in light | Mods |
+| Spitter | Grind | mining speed | Mods |
+| Crab | Shell | armor | Mods |
+| Idol | Still | health a second | Mods |
+| Hound | Wind | move speed | Mods |
+
+  Printing a pattern onto a core as it's forged costs 3 of that creature's parts (the Monster Hunter sentence: "three more chitin and I can print Open wound on the Arc"); its value is the bonus at the core's tier, a masterwork's ×1.25; printed once, it stays. Wick says it the first time a pattern is read, and a toast names it in the field.
+- **What drops.** Ordinary kills leave parts only (and the suit reads them). **Every elite leaves the core its first affix names** (Frosted leaves Frost, Chained leaves Chain, Mortar leaves Orb, Blinker leaves Bolt, Warded leaves Ward, Fast leaves Quicken…: `AFFIX_CORE`), so the drop is known before the fight. **Legendaries** come only from a warden, a Keeper (one each, a tier above the floor's), a sealed relic and an ancient forge (35% of the time, once each): any kind, with a power, found and never made. About one or two cores a sortie, every one legible.
+  - **In the field:** the creature's energy draws in and collapses into a small faceted crystal, plain, teal for a printed one, gold for a legendary (which stands in a beam), and glints now and then. Walked over, the capture field's tether pulls a few motes to the Kindler.
+  - **The card** says what the core does, its tier, its pattern and power, and where it came from ("Caught from an elite Wisp, Bloomfen"; "Printed at the replicator"; "Folded from three at the tuning bench").
+- **Setting cores is free** at home, at the locker: tap the rig, tap a part of a spell, tap a core from the drawer (each ▲ or ▼ against what's there). A core's pattern and power count while it's set in a spell. A better frame takes the old one's cores when equipped.
+- **Working a core is MERGE and SALVAGE, nothing else.** Both are on its card at home, at the locker or the **tuning bench** (the outpost station that lists every core, set in the rig first, the stash's stacked, THREE OF A KIND at the top):
+  - **Merge:** three plain cores of a kind and tier fold into one a tier denser (the Horadric rule); never a printed one, a legendary or the densest.
+  - **Salvage** a spare core into 2 ore of its tier; a base into 40% of its ore (its cores come out whole), now and then an exotic. SALVAGE ALL ▼ breaks down every base worse than what's worn and every plain spare core a better one is set over, that isn't kept (★).
+  - Legendaries are found, never made: there's no upgrade, reroll, fusing, adding a trait or imprinting.
+- **Sealed relics** open at home into a legendary core.
 - **Legendary powers** change how you play; a legendary core carries one, and it works while the core is set:
 
 | Name | Power |
@@ -413,19 +434,18 @@ Home is a place you walk, not a menu. It's the middle territory of the world: a 
 
 | Station | What it does |
 |---|---|
-| The portal (SET OUT) | In a Charter gate. The world map: a territory next to the outpost to walk out into, or a spire to set out to, and the tool to carry |
+| The portal (SET OUT) | In a Charter gate. The world map (and its Lattice layer): a territory next to the outpost to walk out into, or a spire to set out to; the tools, each ON once made |
 | The forge (FORGE, SUPPLIES) | The Charter's fabricator. Recipes by tab, each exact: rig frames, Form, Element and Mod cores, plate, charms, picks and tools, from banked ore, parts and exotics. Studies what's new (research). Every forge is played on the anvil. SUPPLIES, beside FORGE, makes supplies from ore |
-| The tuning bench (TUNE) | Every core, set in the rig first: tap one to UPGRADE it (threads and the new tier's ore) or SALVAGE it (threads) |
-| The locker (OPEN LOCKER, or LOCKER in the top bar anywhere at home) | What's worn, the rig's two spells, the stash's frames, bases and spare cores, stats; equip, set cores (free), upgrade and salvage, unseal relics, KEEP |
+| The tuning bench (TUNE) | Every core, set in the rig first, the stash's stacked: THREE OF A KIND fold into one a tier denser (MERGE); a spare SALVAGEs into ore |
+| The locker (OPEN LOCKER, or LOCKER in the top bar anywhere at home) | What's worn, the rig's two spells, the stash's frames, bases and spare cores (stacked), stats; equip, set cores (free), merge and salvage, unseal relics, KEEP |
 | The star's altar (THE STAR) | Hold FEED THE STAR and the light your deeds earned rises into the star, mote by mote, faster the longer you hold, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements. A shard carried home is set here instead (SET THE SHARD) |
 | The practice target | A construct that takes every hit and never falls, for trying combos |
 | The uplink (THE UPLINK) | A relay mast to the *Meridian* in orbit: the landers it can send, the shards set, the echoes, and calling the colony down |
 
 - **The anvil.** Each forge is three hammer strikes: a marker sweeps a bar, faster each time and dragging as it crosses the glowing zone, and you tap while it's in the zone.
   - A strike in the zone is good, and one in its marked middle is perfect.
-  - The strikes add up to a quality from rough to masterwork, which only adds to the recipe (Crafting): +5%, +10% or +15% on its numbers, and a masterwork frame its extra slot; a core it tempers (a bonus, a tier, a masterwork's choice of three).
-  - A fine forge raises a core's tier.
-- **The reveal.** A forged piece rises in a beam of its quality's colour (an unsealed core, its rarity's), then its card opens.
+  - The strikes add up to a quality from rough to masterwork, which only adds to the recipe (Crafting): +5%, +10% or +15% on its numbers, and a masterwork frame its extra slot; a core a tier up from a fine forge, and a masterwork prints its pattern stronger.
+- **The reveal.** A forged piece rises in a beam of its quality's colour (an unsealed core, a legendary's), then its card opens.
 - **After a sortie,** a report says what came home or what was lost (and where you wake, after a fall), then you're back on the plaza or at that spire.
 
 | Attunement | Each rank (up to 5) |
@@ -440,20 +460,20 @@ The Charter planned more base than came down with the seed. Each building has a 
 
 | Building | Magnitude | Costs | What it does |
 |---|---|---|---|
-| Drone Bay | 2 | 8 Ferrite, 15 threads | Wick can be fitted with upgrades: walk up to it |
-| Refinery | 2 | 4 Lumenite, 35 threads | Level 1 of 3: supplies stronger (below). Upgraded at SUPPLIES: level 2 at magnitude 3 for 6 Resonite and 50 threads, level 3 at magnitude 5 for 6 Sigilite and 90 threads. Also 4 of an ore and 2 threads refine into 1 of the next ore up (one already brought home) |
-| Forward Relay | 3 | 5 Resonite, 70 threads, 3 chitin | An emergency recall takes half the time; banking and travel at a spire are quicker |
-| Settlers' Quarters | 4 | 4 Aetherglass, 100 threads, a Lodestone shard | Each time you come home the settlers bring 6 threads; two more settlers, and their lines |
+| Drone Bay | 2 | 12 Ferrite, 2 chitin | Wick can be fitted with upgrades: walk up to it |
+| Refinery | 2 | 10 Lumenite, 2 cogs | Level 1 of 3: supplies stronger (below). Upgraded at SUPPLIES: level 2 at magnitude 3 for 10 Resonite and 3 ether, level 3 at magnitude 5 for 10 Sigilite and 3 spores. Also 4 of an ore refine into 1 of the next ore up (one already brought home) |
+| Forward Relay | 3 | 10 Resonite, 3 chitin, 2 cogs | An emergency recall takes half the time; banking and travel at a spire are quicker |
+| Settlers' Quarters | 4 | 8 Aetherglass, 4 fibre, a Lodestone shard | Each time you come home the settlers bring 3 creature parts they scavenged; two more settlers, and their lines |
 
 ### Wick's upgrades
 Fitted once at the Drone Bay (walk up to it), once it stands; each can be turned off and on there, free. Each shows what it does, and Wick says a line the first time. Numbers in `T.wickUp`.
 
 | Upgrade | Magnitude | Costs | What it does |
 |---|---|---|---|
-| Scanner | 2 | 5 Lumenite, 15 threads, 3 spore | Every 7 s out in the land a ring goes out from Wick: veins within 8 tiles glint, arrows mark the pack and cores on the ground |
-| Lamp | 3 | 6 Resonite, 25 threads, 3 fibre | A second, dimmer beam behind you (with the lamp as a beam) |
-| Hex Shield | 3 | 8 Resonite, 50 threads, 3 chitin | Once a fight, a hex shield stops the hit that would leave you under 35% health; ready again after 20 s unhurt |
-| Spark | 4 | 8 Aetherglass, 65 threads, 3 cogs | Every 2.6 s, a shock at the nearest awake foe within 4 tiles: 7% of its health |
+| Scanner | 2 | 6 Lumenite, 3 spores | Every 7 s out in the land a ring goes out from Wick: veins within 8 tiles glint, arrows mark the pack and cores on the ground |
+| Lamp | 3 | 6 Resonite, 3 fibre | A second, dimmer beam behind you (with the lamp as a beam) |
+| Hex Shield | 3 | 8 Resonite, 4 chitin | Once a fight, a hex shield stops the hit that would leave you under 35% health; ready again after 20 s unhurt |
+| Spark | 4 | 8 Aetherglass, 4 cogs | Every 2.6 s, a shock at the nearest awake foe within 4 tiles: 7% of its health |
 
 ### Fewer trips home
 - **Ancient forges:** from depth 3, a floor sometimes has one in a side cavern. It forges from what you carry, on the same anvil, and the piece goes in your cargo.

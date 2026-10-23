@@ -230,7 +230,7 @@ async function phone(browser) {
   check(await page.evaluate((t0) => Game.dive.time === t0, t0), 'phone: the dive ran on while paused');
   await tap(page, '#pause-resume');
   check(!(await page.evaluate(() => Game.modal)), 'phone: RESUME did not close the pause');
-  await page.evaluate(() => { Game.dive.items.push(rollCore(new Rng(5), 6, 2, 'rare', 1, { foe: 'wisp', clime: 'badlands' })); Game.dive.items.push(makeBase('plate', 1)); Game.dive.items.push(rollCore(new Rng(7), 3, 1, 'magic', 1, { foe: 'crawler', clime: 'badlands' })); });
+  await page.evaluate(() => { Game.dive.items.push(legendaryCore(new Rng(5), 2, { foe: 'warden', clime: 'badlands' })); Game.dive.items.push(makeBase('plate', 1)); Game.dive.items.push(makeStone('bolt', 1, { src: { foe: 'crawler', elite: true, clime: 'badlands' } })); });
   await tap(page, '#btn-cargo');
   check(await visible(page, '#screen-cargo'), 'phone: CARGO did not open');
   check(await page.evaluate(() => document.querySelectorAll('#cargo-body [data-act=cardCargo]').length === 3), 'phone: the found gear is not in the cargo');
@@ -243,21 +243,20 @@ async function phone(browser) {
   await page.evaluate(() => document.querySelector('#cargo-body .mag').scrollIntoView({ block: 'end' }));
   await shot(page, 'lean/cargo');
   await tap(page, '#screen-cargo [data-act=resume]');
-  // a kill that leaves a core: its pattern caught in a crystal where it
-  // fell, and taken, tethered in
+  // an elite's kill leaves the core its affix names, in a crystal where it
+  // fell, and taken, tethered in; the suit reads the kind as it falls
   const caught = await page.evaluate(() => {
     UI.close();
-    const d = Game.dive, was = T.cores.drop.foe, n0 = d.items.length;
-    T.cores.drop.foe = 1;
-    const e = makeEnemy('crawler', d.p.x + 30, d.p.y, 1); e.dead = false; d.enemies.push(e); killEnemy(e);
-    T.cores.drop.foe = was;
+    const d = Game.dive, n0 = d.items.length, s0 = (Save.data.scans || {}).crawler || 0;
+    const e = makeEnemy('crawler', d.p.x + 30, d.p.y, 1); e.dead = false; e.elite = 'frosted'; e.affixes = ['frosted']; d.enemies.push(e); killEnemy(e);
     const dr = d.drops.find((x) => x.item && x.item.kind === 'stone'), fx = d.fx.some((x) => x.kind === 'capture');
     if (!dr) return { dr: false };
     dr.x = d.p.x; dr.y = d.p.y;
     for (let i = 0; i < 40; i++) Game.step(1 / 60);
-    return { dr: true, fx, got: d.items.length === n0 + 1 && d.items[d.items.length - 1].kind === 'stone' && !!d.items[d.items.length - 1].bonus, src: d.items[d.items.length - 1].src && d.items[d.items.length - 1].src.foe };
+    const c = d.items[d.items.length - 1];
+    return { dr: true, fx, got: d.items.length === n0 + 1 && c.kind === 'stone' && c.stone === 'frost' && !c.bonus && c.rarity === 'common', src: c.src && c.src.foe, read: (Save.data.scans.crawler || 0) === s0 + T.patterns.elite };
   });
-  check(caught.dr && caught.fx && caught.got && caught.src === 'crawler', `phone: a core was not caught and taken (${JSON.stringify(caught)})`);
+  check(caught.dr && caught.fx && caught.got && caught.src === 'crawler' && caught.read, `phone: an elite's core was not caught and taken, or the kill went unread (${JSON.stringify(caught)})`);
 
   // an ancient forge forges from the cargo, and what it makes goes in it
   await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 20; d.cargo.fiber1 = 3; d.fieldForge = { x: Math.floor(d.p.x / TILE), y: Math.floor(d.p.y / TILE) }; });
@@ -385,9 +384,9 @@ async function phone(browser) {
   check(await page.evaluate(() => spellName(Save.data.equip.main.spells[0]) === 'ARC' && spellName(Save.data.equip.main.spells[1]) === 'BOLT'), 'phone: the empty frame did not take the old one\'s cores');
   await tap(page, '#screen-forge [data-act=back]');
 
-  // the locker: a found core set in the rig's spell, free, and its bonus
-  // in the stats; the cores move across when the frame is replaced
-  const mod = await page.evaluate(() => { const c = makeStone('arc', 1, { rarity: 'rare', bonus: { id: 'crit', v: 5 }, src: { foe: 'construct', clime: 'badlands' } }); Save.data.items.push(c); Save.data.stash.thread = 30; Save.data.stash.lumenite = 20; return c.uid; });
+  // the locker: a printed core set in the rig's spell, free, and its
+  // pattern in the stats; the cores move across when the frame is replaced
+  const mod = await page.evaluate(() => { const c = makeStone('arc', 1, { src: { forged: true } }); printPattern(c, 'construct', 0); Save.data.items.push(c); Save.data.stash.lumenite = 20; return c.uid; });
   await page.evaluate(atStation, 'locker');
   await run(page, 0.05);
   await tap(page, '#btn-act');
@@ -397,26 +396,29 @@ async function phone(browser) {
   await shot(page, 'smoke-cores');
   const feSock = await page.evaluate(() => Save.data.stash.ferrite);
   await tap(page, `#card [data-act=partPut][data-arg="${mod}"]`);
-  check(await page.evaluate(([uid, fe]) => Save.data.equip.main.spells[0].form && String(Save.data.equip.main.spells[0].form.uid) === String(uid) && Save.data.stash.ferrite === fe && Save.data.stash.thread === 30, [mod, feSock]), 'phone: setting a found core was not free, or it did not go in');
+  check(await page.evaluate(([uid, fe]) => Save.data.equip.main.spells[0].form && String(Save.data.equip.main.spells[0].form.uid) === String(uid) && Save.data.stash.ferrite === fe && Save.data.stash.lumenite === 20, [mod, feSock]), 'phone: setting a printed core was not free, or it did not go in');
   check(await page.evaluate(() => { const c = Save.data.equip.main.spells[0].form, st = computeStats(Save.data.equip, Save.data.attune); return st.crit >= c.bonus.v; }), 'phone: a set core\'s bonus is not in the stats');
   await tap(page, '#card [data-act=closeCard]');
   await shot(page, 'smoke-gear');
   await tap(page, '#screen-gear [data-act=back]');
 
-  // the tuning bench: a tier up, paid in threads and ore; no reroll, fuse
-  // or imprint
+  // the tuning bench: the same cores stacked, three of a kind folded into
+  // one a tier denser; no upgrade, reroll, fuse or imprint
+  await page.evaluate(() => { for (let i = 0; i < 3; i++) Save.data.items.push(makeStone('bolt', 1, { src: { foe: 'crawler', elite: true } })); });
   await page.evaluate(atStation, 'runes');
   await run(page, 0.05);
   check(await page.evaluate(() => $('btn-act').textContent === 'TUNE'), 'phone: no TUNE at the tuning bench');
   await tap(page, '#btn-act');
   await run(page, 0.05);
   check(await visible(page, '#screen-bench'), 'phone: the tuning bench did not open');
-  await tap(page, `#bench-body [data-act=benchCore][data-arg="${mod}"]`);
   await shot(page, 'smoke-bench');
-  check(await page.evaluate(() => !document.querySelector('#card [data-act=modReroll], #card [data-act=modFuse], #card [data-act=modImprint], #card [data-act=modEnrich]') && /UPGRADE · TIER 2/.test($('card-body').textContent) && /Threads \+ 10 Lumenite/.test($('card-body').textContent)), 'phone: the bench\'s card has no UPGRADE for threads and ore, or still rerolls, fuses or imprints');
-  const tier0 = await page.evaluate(() => Save.data.equip.main.spells[0].form.tier);
-  await tap(page, '#card [data-act=coreUpgrade]');
-  check(await page.evaluate((t) => Save.data.equip.main.spells[0].form.tier === t + 1 && Save.data.stash.lumenite === 20 - T.cores.upgrade.ore && Save.data.stash.thread === 30 - T.cores.upgrade.threads[1], tier0), 'phone: the upgrade did not raise the tier for threads and ore');
+  const stacked = await page.evaluate(() => ({ rows: document.querySelectorAll('#bench-body [data-act=benchCore]').length, cores: Save.data.items.filter((x) => x.kind === 'stone').length + rigCores(Save.data.equip.main).length, merge: !!document.querySelector('#bench-body [data-act=coreMerge]'), text: $('bench-body').textContent }));
+  check(stacked.rows < stacked.cores && /×[3-9]/.test(stacked.text) && stacked.merge && !/UPGRADE|Threads/.test(stacked.text), `phone: the bench did not stack the same cores with MERGE (${JSON.stringify([stacked.rows, stacked.cores, stacked.merge, stacked.text.slice(0, 200)])})`);
+  const n0 = await page.evaluate(() => ({ all: Save.data.items.filter((x) => x.kind === 'stone').length, b1: Save.data.items.filter((x) => x.kind === 'stone' && x.stone === 'bolt' && x.tier === 1).length }));
+  await tap(page, '#bench-body [data-act=coreMerge]');
+  check(await page.evaluate((n0) => { const b = (t) => Save.data.items.filter((x) => x.kind === 'stone' && x.stone === 'bolt' && x.tier === t).length; return b(2) === 1 && b(1) === n0.b1 - 3 && Save.data.items.filter((x) => x.kind === 'stone').length === n0.all - 2 && !Save.data.stash.thread; }, n0), 'phone: three Bolt cores did not fold into one tier 2');
+  await tap(page, `#bench-body [data-act=benchCore][data-arg="${mod}"]`);
+  check(await page.evaluate(() => !document.querySelector('#card [data-act=coreUpgrade], #card [data-act=modReroll], #card [data-act=modFuse], #card [data-act=modImprint]') && /Edge/.test($('card-body').textContent) && /TAKE OUT/.test($('card-body').textContent)), 'phone: the bench\'s core card still upgrades, or does not name its pattern');
   await tap(page, '#card [data-act=closeCard]');
   await tap(page, '#screen-bench [data-act=back]');
 
@@ -490,14 +492,14 @@ async function phone(browser) {
     const s = Save.data, p0 = [supplyPct('injector'), supplyPct('cell')];
     s.built = (s.built || []).concat('refinery'); s.landing = null;
     const p1 = [supplyPct('injector'), supplyPct('cell')];
-    s.stash.resonite = 6; s.stash.thread = 50; s.star = Math.max(s.star, T.star.levels[2]);
+    s.stash.resonite = 10; s.stash.ether1 = 3; s.star = Math.max(s.star, T.star.levels[2]);
     UI.redraw();
     return { p0, p1, row: /REFINERY · LEVEL 1\/3/.test($('supplies-body').textContent) };
   });
   check(ref.p0.join() === '35,30' && ref.p1.join() === '50,40' && ref.row, `phone: the Refinery does not strengthen supplies, or SUPPLIES does not show its level (${JSON.stringify(ref)})`);
   await shot(page, 'lean/supplies-refinery');
   await tap(page, '#supplies-body [data-act=upgradeRefinery]');
-  check(await page.evaluate(() => refineryLevel() === 2 && supplyPct('injector') === 65 && supplyPct('cell') === 50 && !Save.data.stash.resonite && !Save.data.stash.thread && /LEVEL 2\/3/.test($('supplies-body').textContent)), 'phone: upgrading the Refinery did not cost its ore and threads, or did not strengthen supplies');
+  check(await page.evaluate(() => refineryLevel() === 2 && supplyPct('injector') === 65 && supplyPct('cell') === 50 && !Save.data.stash.resonite && !Save.data.stash.ether1 && /LEVEL 2\/3/.test($('supplies-body').textContent)), 'phone: upgrading the Refinery did not cost its ore and parts, or did not strengthen supplies');
   await shot(page, 'lean/supplies-upgraded');
   await tap(page, '#screen-supplies [data-act=back]');
   // (and taken down again, for the checks of the forge's BUILDINGS below)
@@ -527,10 +529,10 @@ async function phone(browser) {
   // light down where none stands
   const tools = await page.evaluate(() => {
     const s = Save.data, was = s.star, lit = window._kid, dark = ring1(null);
-    s.star = 3000; Object.assign(s.stash, { ferrite: 40, spore1: 5, ether2: 5, lumenite: 30, fiber3: 5, chitin1: 5, resonite: 20, cog2: 5 });
-    s.blueprints.push('tool_lens'); s.stash.thread = 10;
-    const made = TOOL_IDS.filter((id) => id !== 'compass').every((id) => makeTool(id));
-    s.tool = 'compass'; UI.close(); startSortie({ terr: lit, spire: true });
+    s.star = 3000; Object.assign(s.stash, { ferrite: 40, spore1: 5, ether2: 8, lumenite: 40, fiber3: 5, chitin1: 5, resonite: 20, cog2: 5, heart1: 1 });
+    s.blueprints.push('tool_lens');
+    const made = TOOL_IDS.filter((id) => id !== 'compass').every((id) => makeTool(id)) && !s.tool && TOOL_IDS.every(toolOwned);
+    UI.close(); startSortie({ terr: lit, spire: true });
     let d = Game.dive;
     for (let i = 0; i < 30; i++) Game.step(1 / 60);
     const points = !!d.compass && d.compass.home && d.compass.x === d.floor.pad.x;
@@ -539,7 +541,7 @@ async function phone(browser) {
     if (!d.compass) return { why: JSON.stringify({ modal: Game.modal, hit: Game.hitstop, warp: !!d.warp, tool: d.tool, terr: d.terr, dark, game: Game.dive === d, exits: d.floor.exits.length, t: d.toolT }) };
     const e = d.floor.exits.find((x) => x.x === d.compass.x && x.y === d.compass.y), out = !!e && (isKindled(e.to) || worldMap().terrs[e.to].nb.some(isKindled));
     UI.close(); goHome('walk'); UI.close();
-    s.tool = 'beacon'; startSortie({ terr: lit, spire: true }); d = Game.dive;
+    startSortie({ terr: lit, spire: true }); d = Game.dive;
     const refused = !plantBeacon();
     enterTerritory(dark, { from: 0 }); sturdy();
     const planted = refused && plantBeacon(), again = plantBeacon();
@@ -547,7 +549,7 @@ async function phone(browser) {
     d.p.x = (d.beacon.x + 0.5) * TILE; d.p.y = (d.beacon.y + 0.5) * TILE; Game.step(1 / 60);
     const lands = actionHere() === 'extract' && $('btn-act').textContent === 'BANK';
     UI.close(); goHome('walk'); UI.close();
-    s.star = was; s.tool = 'compass';
+    s.star = was;
     return { made, points, out, planted, again, lands };
   });
   check(!tools.why, 'phone: no compass in dark land ' + tools.why);
@@ -563,7 +565,7 @@ async function phone(browser) {
   // the land it pings, and the veins near are marked
   await page.evaluate(() => {
     const s = Save.data; window._starWas = s.star; s.star = T.star.levels[2] + 1;
-    Object.assign(s.stash, { ferrite: 60, lumenite: 20, thread: 60, spore1: 4 });
+    Object.assign(s.stash, { ferrite: 60, lumenite: 20, chitin1: 4, spore1: 4 });
     UI.close(); enterHub(); UI.close(); researchStudy(); openForge(false);
   });
   await run(page, 0.5);
@@ -573,7 +575,7 @@ async function phone(browser) {
   await tap(page, '#forge-body [data-act=forgeBp][data-arg=bld_bay]');
   await tap(page, '#forge-body [data-act=craft]');
   const bay = await page.evaluate(() => {
-    const s = Save.data, built = structureBuilt('bay') && s.landing === 'bay' && s.stash.thread === 60 - T.structures.bay.cost.thread;
+    const s = Save.data, built = structureBuilt('bay') && s.landing === 'bay' && s.stash.ferrite === 60 - T.structures.bay.cost.ferrite;
     UI.close();
     // (its plot in view: it comes down, and stands)
     const d = Game.dive, p = d.floor.site.plots[0];
@@ -751,18 +753,18 @@ async function phone(browser) {
   check(rifts.gate === true, 'phone: a gate did not carry the diver through');
   check(rifts.tier === 2, 'phone: riftglass did not forge a tier higher');
 
-  // a warden leaves two modules, rare or better, a tier above the floor's
+  // a warden leaves a legendary core, with a power, a tier above the floor's
   const warden = await page.evaluate(() => {
     UI.close(); startSortie({ terr: ring1(null), from: 0 });
     const d = Game.dive, e = makeEnemy('warden', d.p.x, d.p.y, 3); e.boss = true;
-    const got = coreDrops(d, e);
+    const got = coreDrops(d, e), plain = coreDrops(d, makeEnemy('crawler', d.p.x, d.p.y, 3));
     UI.close(); goHome('walk'); UI.close();
-    return got.length === T.cores.drop.boss && got.every((m) => ['rare', 'legendary'].includes(m.rarity) && m.src.foe === 'warden');
+    return got.length === T.cores.legend.boss && got.every((m) => m.rarity === 'legendary' && LEGENDARIES[m.power] && m.src.foe === 'warden') && !plain.length;
   });
-  check(warden, 'phone: a warden did not leave its cores');
+  check(warden, 'phone: a warden did not leave its legendary, or a plain kill left a core');
 
   // what's next: one goal, at the portal and over the view at home; and
-  // the Settlers' Quarters bring threads each time home
+  // the Settlers' Quarters bring scavenged parts each time home
   const next = await page.evaluate(() => {
     UI.close(); Game.step(1 / 60);
     const hud = !$('hud-goal').hidden && /NEXT/.test($('hud-goal').textContent) && $('hud-goal').textContent.length < 140;
@@ -771,15 +773,15 @@ async function phone(browser) {
     const goal = nextGoal();
     UI.close();
     const s = Save.data; s.built = (s.built || []).concat('quarters'); s.landing = null;
-    const th = s.stash.thread || 0;
+    const th = partsHave(s.stash, 'any');
     startSortie({ terr: ring1(null), from: 0 }); goHome('walk');
-    const paid = (s.stash.thread || 0) === th + T.structures.quarters.pay && /SETTLERS/.test($('report-body').textContent);
+    const paid = partsHave(s.stash, 'any') === th + T.structures.quarters.pay && /SETTLERS/.test($('report-body').textContent);
     UI.acts.closeReport();
     s.built = s.built.filter((id) => id !== 'quarters');
     return { hud, portal, goal, paid };
   });
   check(next.hud && next.portal && next.goal, `phone: no single next goal at the portal or over the view at home (${JSON.stringify(next)})`);
-  check(next.paid, 'phone: the Settlers\' Quarters brought no threads home');
+  check(next.paid, 'phone: the Settlers\' Quarters brought no parts home');
   await page.evaluate(() => { UI.close(); Game.step(1 / 60); Game.render(); });
   await shot(page, 'lean/home-next');
   await page.evaluate(() => UI.useStation('setout'));
@@ -1173,15 +1175,16 @@ async function oldSave(browser) {
       out.powers = cores.filter((x) => x.power).map((x) => x.power);
       UI.close(); UI.useStation('locker'); const m = cores.find((x) => x.power) || cores[0]; if (m) { UI.openCard(m, s.items.includes(m) ? 'stash' : 'rig', m.uid); UI.closeCard(); }
       UI.close(); UI.useStation('runes'); if (cores[0]) UI.acts.benchCore(cores[0].uid);
-      out.bench = !cores[0] || (/UPGRADE/.test($('card-body').textContent) && !/REROLL|FUSE|IMPRINT|SOCKET/.test($('card-body').textContent));
+      out.bench = !cores[0] || (/MERGE|SALVAGE|TAKE OUT/.test($('card-body').textContent) && !/UPGRADE|REROLL|FUSE|IMPRINT|SOCKET|Threads/.test($('card-body').textContent));
+      out.plain = cores.every((c) => !c.bonus && (c.rarity === 'legendary') === !!c.power && !c.temperChoice);
       UI.closeCard(); UI.close(); UI.useStation('locker'); UI.acts.cardEquip('main');
       out.rigCard = /SPELLS/.test($('card-body').textContent) && !!document.querySelector('#card .spell') && !/MODULE|SOCKET/.test($('card-body').textContent);
       UI.closeCard(); UI.close(); UI.useStation('forge');
       out.forge = UI.screen === 'screen-forge' || UI.screen === 'screen-research';
       return out;
     });
-    // the worn plate's own 7 armor (its old modules' armor went with them, into threads)
-    check(r.v === 8 && r.bases && r.rig && r.rigCard && r.cores >= 1 && r.lode && r.bench && r.forge && r.threads > 0 && (f !== 'save-v5-home.json' || r.armor === 7), `old save ${f}: ${JSON.stringify(r)}`);
+    // the worn plate's own 7 armor (its old modules' armor went with them)
+    check(r.v === 9 && r.bases && r.rig && r.rigCard && r.cores >= 1 && r.lode && r.bench && r.plain && r.forge && !r.threads && (f !== 'save-v5-home.json' || r.armor === 7), `old save ${f}: ${JSON.stringify(r)}`);
     if (f === 'save-v5-run.json') check(r.run && r.resumed, `old save ${f}: the sortie under way did not come back as bases and cores (${JSON.stringify(r)})`);
     await page.evaluate(() => { UI.close(); UI.useStation('locker'); });
     await new Promise((res) => setTimeout(res, 450));
@@ -1253,7 +1256,7 @@ async function leanSave(browser) {
   }, pocketItem);
   check(JSON.stringify(r.supplies) === '{"injector":3,"cell":1}' && !r.sel && !r.contracts, `lean save: supplies or contracts not converted (${JSON.stringify(r)})`);
   check(!r.attune.capacity && r.attune.vitality === 1 && r.pts === 4 - 1 - 1, `lean save: the Capacity points did not come back (${JSON.stringify(r.attune)}, ${r.pts})`);
-  check(r.tools.join() === 'compass' && r.tool === 'compass', `lean save: the Deep Satchel is still carried (${r.tools})`);
+  check(r.tools.join() === 'compass' && !r.tool, `lean save: the Deep Satchel is still carried (${r.tools})`);
   check(!r.pocket && r.item && r.stash.lumenite === (st0.lumenite || 0) + 7 + 8, `lean save: the pocket did not go to the stash (${JSON.stringify(r.stash)})`);
   check(r.stash.ferrite === (st0.ferrite || 0) + 2 * T_REFUND && r.stash.resonite === (st0.resonite || 0) + T_REFUND && r.stash.sigilite === (st0.sigilite || 0) + T_REFUND, `lean save: Flares, Ward Cells and Charges were not refunded as ore (${JSON.stringify(r.stash)})`);
   check(r.resumed && r.portal, `lean save: the sortie did not resume, or the portal has no next goal (${JSON.stringify(r)})`);

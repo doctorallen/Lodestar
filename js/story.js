@@ -93,10 +93,12 @@ const WICK = {
   tier5: 'Sigilite. The Keepers wrote in this. I would rather not know what.',
   tier6: 'Starmetal. Nothing cuts deeper. Nothing should need to.',
   // cores (modules.js, gearui.js)
-  core: "The suit caught its pattern and set it in a core. Set that in the rig at home.",
+  core: 'A core. Charter standard: a Bolt is a Bolt. Set it in the rig at home, or fold three into one.',
+  legendary: "That one's not standard. Someone's rig made it, long before ours. Keep it.",
+  pattern: "The suit's been reading them as they fall. Six in, and the forge knows what that one is for.",
+  print: 'Printed. The pattern is in the lattice now; it stays.',
+  merge: 'Three into one. The lattice goes a grade denser.',
   research: "The forge studied what we brought in. New recipes.",
-  coreUp: 'Denser ore, a bigger lattice. It holds more of what it caught now.',
-  unravel: "Unravelled. The threads keep, though. They'll grow another core.",
   rift: 'A tear in the world. Things leak through. Seal it, and something solid is left behind.',
   rift_graft: "That ground isn't from here. Neither is the ore in it.",
   rift_bloom: 'The rock round the tear has woken. It is all ore now.',
@@ -151,7 +153,7 @@ const WICK = {
   bld_bay: "A bay of my own. Charging cradle, spare fins, a window. I'll try not to get used to it.",
   bld_refinery: "The refinery's down. Injectors and Lightcells come out stronger now.",
   bld_relay: "The relay's up. The spires can hear the outpost now: a recall's quicker, and so is banking.",
-  bld_quarters: "Quarters. The Meridian sent two volunteers down already. They spin threads. Volunteers is their word.",
+  bld_quarters: "Quarters. The Meridian sent two volunteers down already. They scavenge. Volunteers is their word.",
   // Wick's upgrades, the first time each does its thing (wick.js)
   wick_scan: "Ping. That's me. Ore, your pack, anything with a pattern in it: I'll mark what I find.",
   wick_lamp: "I'll keep a light on behind us. You watch ahead.",
@@ -159,7 +161,7 @@ const WICK = {
   wick_spark: "Sorry. Reflex. They gave me teeth, small ones.",
   // a system waking for a new Kindler (onboard.js), once each
   wake_spells: 'A new core. The rig\'s spells can be rebuilt now, at the locker.',
-  wake_modules: 'The tuning bench is awake. Cores grow denser there, or unravel.',
+  wake_modules: 'The tuning bench is awake. Three cores of a kind fold into one a grade denser there.',
   wake_altar: 'Light from a deed. The star\'s altar is awake: feed it.',
   wake_supplies: 'The fabricator\'s on. SUPPLIES, beside the forge.',
   wake_gear: 'The forge has armour and charms for us now.',

@@ -82,7 +82,7 @@ function startSortie(at) {
   Save.data.dives++;
   const seed = (Math.random() * 4294967296) >>> 0;
   Game.dive = newWorld({
-    sortie: true, sortieSeed: seed, rng: new Rng(hashInts(seed, 0x5eed)), tool: Save.data.tool || 'compass', storm: new Rng(hashInts(seed, 0x5707)).chance(T.storm.chance),
+    sortie: true, sortieSeed: seed, rng: new Rng(hashInts(seed, 0x5eed)), storm: new Rng(hashInts(seed, 0x5707)).chance(T.storm.chance),
     far: 0, maxRing: 0, pullTime: T.world.light, banked: { stuff: {}, items: [], learned: [], fed: 0 }, tally: {},
   });
   Game.scene = 'dive';
@@ -266,7 +266,7 @@ function travelDone(d, to) {
   d.warp = { t: 0, at: null, zone: lat ? 'lattice' : 'surface', go: () => (to === 0 ? goHome('spire') : lat ? enterGallery(Number(to.slice(1)), { spire: true }) : enterTerritory(to, { spire: true })) };
 }
 
-// Home: everything carried is banked, the settlers' threads (the Settlers'
+// Home: everything carried is banked, the settlers' scavenged parts (the Settlers'
 // Quarters), and the report. how: 'walk', 'spire' or 'recall'. from: the
 // territory walked home from, if walked.
 function goHome(how, from) {

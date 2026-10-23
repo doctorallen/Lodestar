@@ -35,11 +35,11 @@ A new game starts with the essentials: after the opening, Wick offers to walk yo
 
 At home, walk the outpost's stations:
 - the forge: recipes, each saying exactly what it makes and costs, and the BUILDINGS tab, where the outpost's buildings are built (each comes down to its plot; once the Drone Bay stands, walk up to it to fit Wick with upgrades); it studies anything new you bring home and reveals what it can make from it; strike the anvil well and it adds to the piece; its Codex shows the resonances found so far; SUPPLIES beside it makes Mending Injectors and Lightcells from your plainest ore, upgrades the Refinery (each level makes both stronger) and refines ore up a grade once it stands;
-- the locker (LOCKER in the top bar, anywhere at home, or at its station): your gear (crafted bases), the rig's two spells with the cores set in them, and the rig's two spells, each a Form, an Element and a Mod core (two Mods from a better frame); changing them is free; a module's card upgrades it (threads and ore) or salvages it (threads); and Wick's upgrades, each turned off or on, free;
-- the tuning bench: every core in one list, to upgrade or salvage;
+- the locker (LOCKER in the top bar, anywhere at home, or at its station): your gear (crafted bases), the rig's two spells, each a Form, an Element and a Mod core (and the extra part a better frame's ore gives); changing them is free; the spare cores, the same ones stacked; a core's card merges three of a kind into one a tier denser, or salvages a spare into ore;
+- the tuning bench: every core in one list, set in the rig first, the stash's stacked, three of a kind to MERGE;
 - the star's altar: hold FEED THE STAR and the light your deeds earned (heartlight, deeplight) rises into it, until you let go; ATTUNE shows the light waiting, what grows the star and its reach, and spends attunements;
 - the uplink: the *Meridian* in orbit, the shards, the echoes, and calling the colony down;
-- the portal: what's next (one goal, also shown over the view at home), the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tool to carry; or walk out of any opening on the outpost's edge.
+- the portal: what's next (one goal, also shown over the view at home), the world map (with what each territory's kindling and Deep would give the star, and your pack), to set out to a spire, and the tools (each always on once made at the forge); or walk out of any opening on the outpost's edge.
 
 Where there's WebGL2 the whole frame is drawn by the GPU (`docs/RENDERING.md`): one canvas, nothing read back. `?nogpu` in the address keeps the 2D canvases and the JavaScript lighting, as a browser without WebGL2 gets; `?perf` shows a readout over the frame (which path draws, what a frame costs, how the frames are spaced, the first error) for seeing what a phone sees.
 
@@ -77,8 +77,9 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/art2.js` | Art for crafting and the story: new item icons (the rig frame), parts, cores, the uplink, a tent, the Shard Keepers |
 | `js/art3.js` | The sunlit surface's palette and plants, the rift, tool icons |
 | `js/foesart.js` | Each clime's own creature: its frames drawn by hand at 24 px, and its colours |
-| `js/items.js` | Affixes (the cores' bonuses), rarities, legendaries; crafted bases (their stats, a frame's slots), cores (plain or tempered), relics; forging, salvage, the stats an outfit adds up to, comparing two pieces |
-| `js/modules.js` | Cores as found power: what a kill leaves (a Form, Element or Mod core with one bonus), relics, research, old saves' gear turned into bases and cores, and how a core looks on the ground and as it's caught |
+| `js/items.js` | Affixes (the bonuses patterns print), legendaries; crafted bases (their stats, a frame's slots), cores (a kind and a tier, a pattern printed on as it's forged), relics; forging, salvage, the stats an outfit adds up to, comparing two pieces |
+| `js/modules.js` | Cores on the ground: what a kill leaves (an elite the core its affix names, a warden or a Keeper a legendary), relics, research, old saves' gear turned into bases and cores, and how a core looks on the ground and as it's caught |
+| `js/patterns.js` | A core is its name, and the pattern is what you learned: each creature kind's pattern, the suit reading kinds as they fall, printing a pattern onto a forged core for the creature's parts, legendary cores, the same cores stacked and three folded into one a tier denser, an older save's rolled cores and threads converted |
 | `js/game.js` | Game state, a sortie's play: walking, mining, your light, channels, and how it ends |
 | `js/enemies.js` | Spawning, the flow field, each enemy's behaviour, their shots |
 | `js/affixes.js` | Elite affixes (Fast, Warded, Frosted, Mortar, Chained, Bulwark, Broodmother, Hulking, Splitter, Leech, Blinker, Thorned…): what each does, how it's rolled and shown |
@@ -90,7 +91,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
 | `js/deeds.js` | The star grows from deeds: heartlight and deeplight, what each deed gives, the star's reach over the rings, the pack a fall leaves and recovering it, what's next from home, and rescaling an older save's star |
 | `js/lattice.js` | The Lattice, the world under the world: the Deeps joined by tunnels into one web of galleries laid out from the save's seed (a shaft gallery under every Deep, junctions between), each built as a territory is, with no sky and the light always draining; the cold spires of Kindlers before, relit by a hold into spires of your own (bank, travel, your light back); the map's second layer |
-| `js/tools.js` | The carried tools: compass, ore sense, radar, map, beacon, lens |
+| `js/tools.js` | The tools, each made once and always on: compass, ore sense, radar, map, beacon, lens |
 | `js/hazards.js` | Each clime's hazard at play (pools, ice, lava, vents, spores), and painting a clime's ground |
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |
 | `js/undergrowth.js` | How flora grows into a place (cosmetic): habitat, drifts, stands of tall grass, beds and ground cover painted into the floor, moss and roots on the walls, wind and stir |

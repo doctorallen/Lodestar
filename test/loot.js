@@ -66,17 +66,43 @@ for (const id of gearIds) {
 }
 // each ore's extra part is of its kind
 for (const ore of G.T.ores) { const x = extraOf(ore.tier, 3, false), want = G.T.circuits.ores[ore.id].extra || 'glyph'; if (x !== want) fail(`${ore.id}: extra ${x}, not ${want}`); }
-// cores forged: their ore's tier, one more from a fine forge; plain from a
-// rough one, tempered by a better: a bonus of their kind, a masterwork's
-// choice of three, all different
+// cores forged: their ore's tier, one more from a fine forge; plain, or
+// with a pattern printed on: its creature's bonus at the core's tier, a
+// masterwork's ×T.patterns.master, printed once
 for (const id of G.BP_IDS.filter((x) => G.BLUEPRINTS[x].kind === 'stone')) for (let q = 0; q < 4; q++) {
-  const st = G.forgeItem(id, 'lumenite', null, q), at = `${id} at quality ${q}`;
-  if (st.kind !== 'stone' || st.stone !== G.BLUEPRINTS[id].stone || st.tier !== 2 + (q >= 2 ? 1 : 0) || !/ core$/.test(st.name)) fail(`${at}: ${JSON.stringify(st)}`);
-  if (q === 0 && (st.bonus || st.rarity !== 'common')) fail(`${at}: a rough core came tempered`);
-  if (q > 0 && (!st.bonus || !G.CORE_BONUSES[G.stoneKind(st.stone)].includes(st.bonus.id) || st.rarity !== (q === 1 ? 'magic' : 'rare'))) fail(`${at}: ${JSON.stringify(st.bonus)} ${st.rarity}`);
-  if (q === 3 && (!st.temperChoice || st.temperChoice.length !== G.T_CORES.choices || new Set(st.temperChoice.map((b) => b.id)).size !== st.temperChoice.length || !st.temperChoice.includes(st.bonus))) fail(`${at}: choices ${JSON.stringify(st.temperChoice)}`);
-  if (q < 3 && st.temperChoice) fail(`${at}: a choice without a masterwork`);
-  if (bad(G.itemKindLine(st)) || (st.bonus && bad(G.fmtAffix(st.bonus)))) fail(`${at}: words`);
+  const bp = G.BLUEPRINTS[id], st = G.forgeItem(id, 'lumenite', null, q), at = `${id} at quality ${q}`;
+  if (st.kind !== 'stone' || st.stone !== bp.stone || st.tier !== 2 + (q >= 2 ? 1 : 0) || !/ core$/.test(st.name)) fail(`${at}: ${JSON.stringify(st)}`);
+  if (st.bonus || st.pattern || st.rarity !== 'common' || st.temperChoice) fail(`${at}: a plain core came with something on it`);
+  const fits = G.PATTERN_KINDS.filter((k) => G.patternFits(k, bp.stoneKind));
+  if (!fits.length) fail(`${id}: no pattern fits a ${bp.stoneKind}`);
+  for (const k of fits) {
+    const p = G.forgeItem(id, 'lumenite', null, q, k), want = G.patternBonus(k, p.tier, q);
+    if (p.pattern !== k || !p.bonus || p.bonus.id !== G.PATTERNS[k].bonus || p.bonus.v !== want.v || !G.CORE_BONUSES[bp.stoneKind].includes(p.bonus.id)) fail(`${at} with ${k}: ${JSON.stringify(p.bonus)}, not ${JSON.stringify(want)}`);
+    if (q >= 3 && !(p.bonus.v > G.patternBonus(k, p.tier, 0).v || G.AFFIXES[p.bonus.id].flat)) fail(`${at} with ${k}: a masterwork printed no stronger`);
+    if (G.printPattern(p, fits[0], 0)) fail(`${at}: printed twice`);
+    if (bad(G.itemKindLine(p)) || !G.coreTraits(p).length || G.coreTraits(p).some((t) => bad(t.text)) || !/tier/.test(G.itemKindLine(p)) || !new RegExp(G.PATTERNS[k].name).test(G.itemKindLine(p))) fail(`${at} with ${k}: words "${G.itemKindLine(p)}"`);
+    // the number isn't kept: a retune reaches an old core
+    const copy = JSON.parse(JSON.stringify(p)); copy.bonus = { id: p.bonus.id, v: 1 }; G.refreshPattern(copy);
+    if (copy.bonus.v !== p.bonus.v) fail(`${at} with ${k}: refreshing lost the pattern's value`);
+  }
+  const not = G.PATTERN_KINDS.find((k) => !G.patternFits(k, bp.stoneKind));
+  if (not && G.forgeItem(id, 'lumenite', null, q, not).pattern) fail(`${at}: ${not} printed on a ${bp.stoneKind}`);
+}
+// every creature kind's pattern: a real bonus of one kind, a real part to
+// pay with, a name, and no two the same bonus
+{
+  const seen = {};
+  for (const k of G.PATTERN_KINDS) {
+    const p = G.PATTERNS[k], at = `pattern ${k}`;
+    if (!G.AFFIXES[p.bonus] || !p.name) fail(`${at}: ${JSON.stringify(p)}`);
+    if (['form', 'element', 'glyph'].filter((s) => G.patternFits(k, s)).length < 1) fail(`${at}: fits nothing`);
+    const c = G.patternCost(k);
+    if (!G.PARTS[c.kind] || c.kind === 'heart' || !(c.n > 0)) fail(`${at}: costs ${JSON.stringify(c)}`);
+    if (seen[p.bonus]) fail(`${at}: ${p.bonus} is also ${seen[p.bonus]}'s`); seen[p.bonus] = k;
+    if (!(G.patternBonus(k, 6, 3).v >= G.patternBonus(k, 1, 0).v)) fail(`${at}: weaker at tier 6`);
+  }
+  for (const [aff, stone] of Object.entries(G.AFFIX_CORE)) if (!G.stoneKind(stone)) fail(`affix ${aff} names no core (${stone})`);
+  if (!G.eliteCoreFor({ elite: 'frosted' }) || G.eliteCoreFor({ elite: null }) || G.eliteCoreFor({})) fail('an elite\'s core is not named by its affix');
 }
 // no wand, gauntlet, staff or Trigger left to make
 for (const id of ['wand', 'gauntlet', 'staff', 'glyph_trigger']) if (G.BLUEPRINTS[id]) fail(`${id} can still be made`);
@@ -89,47 +115,40 @@ for (const id of ['wand', 'gauntlet', 'staff', 'glyph_trigger']) if (G.BLUEPRINT
 }
 
 // --- cores found -----------------------------------------------------------
-const rarities = {}, kindsN = {};
-const foes = ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter', 'tusker', 'crab'];
-for (let seed = 1; seed <= 4000; seed++) {
-  const rng = new G.Rng(seed), level = seed % 14, tier = 1 + (seed % 6), min = ['common', 'magic', 'rare'][seed % 3];
-  const c = G.rollCore(rng, level, tier, min, seed % 7 ? 1 : 3, { foe: foes[seed % foes.length], clime: 'bloomfen' }), at = `core ${seed}`;
-  rarities[c.rarity] = (rarities[c.rarity] || 0) + 1; kindsN[G.stoneKind(c.stone)] = (kindsN[G.stoneKind(c.stone)] || 0) + 1;
-  checkCore(c, at);
-  if (G.RARITIES.indexOf(c.rarity) < G.RARITIES.indexOf(min)) fail(`${at}: ${c.rarity} under its floor ${min}`);
-  if (c.tier !== tier) fail(`${at}: tier ${c.tier}, not ${tier}`);
-  // a tier up: its bonus at least as strong, stronger if it grows
-  const up = JSON.parse(JSON.stringify(c)), cost = G.coreUpgradeCost(up);
-  if (c.tier < 6) {
-    if (!cost || cost.ore.id !== G.T.ores[c.tier].id || !(cost.threads > 0)) fail(`${at}: upgrade costs ${JSON.stringify(cost)}`);
-    G.coreUpgrade(up);
-    if (up.tier !== c.tier + 1) fail(`${at}: upgraded to tier ${up.tier}`);
-    if (up.bonus.id !== c.bonus.id || up.bonus.v < c.bonus.v || (!G.AFFIXES[up.bonus.id].flat && !(up.bonus.v > c.bonus.v))) fail(`${at}: upgrading ${c.bonus.id} ${c.bonus.v} gave ${up.bonus.v}`);
-  } else if (cost || G.coreUpgrade(up)) fail(`${at}: a tier 6 core upgraded`);
-  if (!(G.coreSalvageThreads(c) > 0)) fail(`${at}: salvage gives no threads`);
+// legendaries: any kind, a power, a name; relics open into one. Stacks: the
+// same cores group, three plain fold into one a tier denser (never a
+// printed one, a legendary or the densest), a spare salvages into its
+// tier's ore.
+const kindsN = {};
+for (let seed = 1; seed <= 1000; seed++) {
+  const rng = new G.Rng(seed), tier = 1 + (seed % 6), c = G.legendaryCore(rng, tier, { foe: seed % 2 ? 'warden' : 'keeper' }), at = `legendary ${seed}`;
+  kindsN[G.stoneKind(c.stone)] = (kindsN[G.stoneKind(c.stone)] || 0) + 1;
+  if (c.kind !== 'stone' || !G.stoneKind(c.stone) || c.rarity !== 'legendary' || !G.LEGENDARIES[c.power] || c.bonus || c.tier !== tier || !c.name || bad(c.name)) fail(`${at}: ${JSON.stringify(c)}`);
+  if (bad(G.itemKindLine(c)) || !/Legendary/.test(G.itemKindLine(c)) || G.coreTraits(c).length !== 1 || !(G.coreWorth(c) > G.coreWorth(G.makeStone(c.stone, tier)))) fail(`${at}: words or worth`);
   if (G.compareLines(c, c).length) fail(`${at}: differs from itself`);
   for (const l of G.compareLines(c, null)) if (bad(l.text)) fail(`${at}: "${l.text}"`);
+  const r = G.unsealRelic(new G.Rng(seed), G.makeRelic(tier));
+  if (r.rarity !== 'legendary' || !G.LEGENDARIES[r.power] || !r.src.relic) fail(`relic ${seed} opened into ${JSON.stringify(r)}`);
 }
-for (const r of G.RARITIES) if (!rarities[r]) fail(`no ${r} core in 4000`);
-for (const k of ['form', 'element', 'glyph']) if (!kindsN[k]) fail(`no ${k} core in 4000`);
-function checkCore(c, at) {
-  if (c.kind !== 'stone' || !G.stoneKind(c.stone) || !c.name || bad(c.name)) fail(`${at}: ${JSON.stringify(c)}`);
-  if (!c.bonus || !G.AFFIXES[c.bonus.id] || !(c.bonus.v > 0) || bad(G.fmtAffix(c.bonus))) fail(`${at}: bonus ${JSON.stringify(c.bonus)}`);
-  if (c.bonus && !G.CORE_BONUSES[G.stoneKind(c.stone)].includes(c.bonus.id)) fail(`${at}: a ${G.stoneKind(c.stone)} core rolled ${c.bonus.id}`);
-  if (c.bonus) { const r = G.affixRoll(c.bonus, c.tier, G.T_CORES.bonus[c.rarity]); if (!(r >= -0.08 && r <= 2.6)) fail(`${at}: ${c.bonus.id} ${c.bonus.v} at tier ${c.tier} rolled ${r}`); }
-  if ((c.rarity === 'legendary') !== !!c.power) fail(`${at}: ${c.rarity} with power ${c.power}`);
-  if (c.power && !G.LEGENDARIES[c.power]) fail(`${at}: power ${c.power}`);
-  if (bad(G.itemKindLine(c)) || G.coreTraits(c).some((t) => bad(t.text)) || !(G.coreWorth(c) > 0)) fail(`${at}: words or worth`);
+for (const k of ['form', 'element', 'glyph']) if (!kindsN[k]) fail(`no ${k} legendary in 1000`);
+{
+  const list = [G.makeStone('bolt', 2), G.makeStone('bolt', 2), G.makeStone('bolt', 2), G.makeStone('bolt', 3), G.makeStone('arc', 2), G.legendaryCore(new G.Rng(1), 2, {}), G.forgeItem('form_bolt', 'lumenite', null, 0, 'crawler')];
+  const g = G.coreGroups(list);
+  if (g.length !== 5 || g[0].n !== 3 || g[0].uids.length !== 3 || !G.coreMergeable(g[0]) || g.slice(1).some(G.coreMergeable)) fail(`stacks: ${JSON.stringify(g.map((x) => [x.key, x.n]))}`);
+  const m = G.mergeCores(list, g[0]);
+  if (!m || m.stone !== 'bolt' || m.tier !== 3 || m.bonus || list.length !== 5 || list.filter((x) => x.stone === 'bolt' && x.tier === 3).length !== 2) fail(`merge: ${JSON.stringify(m)} leaving ${list.length}`);
+  if (G.mergeCores(list, g[0]) !== null) fail('merged with nothing to merge');
+  const six = [G.makeStone('arc', 6), G.makeStone('arc', 6), G.makeStone('arc', 6)];
+  if (G.coreMergeable(G.coreGroups(six)[0])) fail('the densest cores merge');
+  const sv = G.coreSalvageOre(G.makeStone('frost', 4));
+  if (sv.id !== G.T.ores[3].id || !(sv.n > 0)) fail(`salvage: ${JSON.stringify(sv)}`);
 }
-// a relic opens into a rare core or better
-for (let seed = 1; seed <= 200; seed++) { const c = G.unsealRelic(new G.Rng(seed), G.makeRelic(1 + (seed % 6))); checkCore(c, `relic ${seed}`); if (c.rarity === 'common' || c.rarity === 'magic') fail(`relic ${seed} opened into a ${c.rarity} core`); }
-
 // --- research --------------------------------------------------------------
 for (const id of G.BP_IDS) if (!G.BLUEPRINTS[id].start && !G.RESEARCH.some((r) => r.opens.includes(id))) fail(`${id} can never be found`);
 for (const r of G.RESEARCH) for (const id of r.opens) if (!G.BLUEPRINTS[id]) fail(`${r.id} opens ${id}, which isn't a recipe`);
 for (const id of Object.keys(G.CIRCUIT_FORMS).concat(Object.keys(G.CIRCUIT_ELEMENTS), Object.keys(G.CIRCUIT_GLYPHS))) if (!G.BP_IDS.some((b) => G.BLUEPRINTS[b].stone === id)) fail(`no recipe makes a ${id} stone`);
 {
-  const s = { stash: { lumenite: 1, chitin2: 1 }, items: [G.rollCore(new G.Rng(1), 3, 1, 'common', 1, { foe: 'wisp' })], equip: {}, blueprints: G.BP_IDS.filter((id) => G.BLUEPRINTS[id].start), studied: [] };
+  const s = { stash: { lumenite: 1, chitin2: 1 }, items: [], equip: {}, scans: { wisp: G.T.patterns.scans }, blueprints: G.BP_IDS.filter((id) => G.BLUEPRINTS[id].start), studied: [] };
   const finds = G.researchStudy(s), opened = finds.flatMap((f) => f.opened);
   for (const id of ['lantern', 'form_nova', 'glyph_pierce', 'glyph_split', 'form_orb', 'tool_lens']) if (!opened.includes(id) || !s.blueprints.includes(id)) fail(`research did not reveal ${id}`);
   if (G.researchStudy(s).length || G.researchDue(s).length) fail('research studied the same thing twice');
@@ -137,10 +156,10 @@ for (const id of Object.keys(G.CIRCUIT_FORMS).concat(Object.keys(G.CIRCUIT_ELEME
 
 // --- an old save -----------------------------------------------------------
 // From before modules (v5), from just before the rig (main, v6) and with
-// modules (v7 is what main wrote until tonight): everything becomes bases,
-// cores and rig frames; every module is threads, or a legendary core with
-// its power; no socket is left; every frame's spells are shaped by its
-// extra part; every core the save held is still there.
+// modules (v7): everything becomes bases, cores and rig frames; every
+// module is a legendary core with its power or nothing; no socket is left;
+// every frame's spells are shaped by its extra part; every core the save
+// held is still there, as its name, no bonus on it; its threads are ore.
 const coreIds = (list) => list.flatMap((x) => (x && x.kind === 'stone' ? [x] : x && x.kind === 'caster' ? (x.slots || []).filter(Boolean).concat((x.spells || []).flatMap(G.spellCores)) : [])).filter((c) => c.stone !== 'trigger').map((c) => c.stone + c.tier).sort().join();
 for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json', 'save-main-run.json', 'save-v6-home.json']) {
   const s = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
@@ -152,6 +171,9 @@ for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json',
   const modsOf = (list) => list.filter((x) => x.kind === 'module').concat(list.flatMap((x) => (x.sockets || []).filter(Boolean)));
   const oldMods = modsOf(all(mid)), oldPowers = oldMods.filter((m) => m.power).map((m) => m.power).sort().join(), oldCores = coreIds(all(mid)), oldThreads = mid.stash.thread || 0;
   if (!G.migrateCoreSave(s) || s.v !== 8 || G.migrateCoreSave(s)) fail(`${f}: migrated wrong to cores`);
+  const threadsMid = s.stash.thread || 0, lumMid = s.stash.lumenite || 0;
+  if (!G.migratePatternSave(s) || s.v !== 9 || G.migratePatternSave(s)) fail(`${f}: migrated wrong to named cores`);
+  if (s.stash.thread !== undefined || s.tool !== undefined || !s.scans || (threadsMid && !((s.stash.lumenite || 0) > lumMid))) fail(`${f}: threads, the tool carried or the scans are wrong (${s.stash.thread}, ${s.tool}, ${lumMid} → ${s.stash.lumenite})`);
   s.items = s.items.map(G.cleanSaveItem).filter(Boolean);
   for (const k of Object.keys(s.equip)) s.equip[k] = G.cleanSaveItem(s.equip[k]);
   const pieces = all(s);
@@ -160,13 +182,12 @@ for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json',
     if (G.KIND_SLOT[it.kind] && (it.affixes.length || it.power || it.set)) fail(`${f}: ${it.name} is not a base`);
     if (it.kind === 'caster' && (it.bp !== 'rig' || it.slots || it.links || !it.spells || it.spells.length !== 2 || /Wand|Staff|Gauntlet/.test(it.name) || it.extra === undefined)) fail(`${f}: ${it.name} is not a rig frame`);
     if (it.kind === 'caster') for (const sp of it.spells) { const want = it.extra === 'glyph' ? 2 : 1; if (sp.mods.length !== want || ('el2' in sp) !== (it.extra === 'element') || ('form2' in sp) !== (it.extra === 'form')) fail(`${f}: ${it.name}'s spell is shaped ${Object.keys(sp)} for extra ${it.extra}`); }
-    if (it.kind === 'stone' && (!G.stoneKind(it.stone) || !('bonus' in it) || !G.RARITIES.includes(it.rarity))) fail(`${f}: a ${it.stone} core is odd (${JSON.stringify(it)})`);
+    if (it.kind === 'stone' && (!G.stoneKind(it.stone) || it.bonus || it.temperChoice || it.rarity !== (it.power ? 'legendary' : 'common'))) fail(`${f}: a ${it.stone} core is odd (${JSON.stringify(it)})`);
   }
   const cores = pieces.filter((x) => x.kind === 'stone').concat(pieces.flatMap((x) => (x.kind === 'caster' ? x.spells.flatMap(G.spellCores) : [])));
   const powers = cores.filter((c) => c.power).map((c) => c.power).sort().join();
   if (powers !== oldPowers) fail(`${f}: powers ${powers}, were ${oldPowers}`);
   if (!coreIds(pieces).startsWith(oldCores.split(',')[0] || '') || coreIds(pieces).split(',').filter(Boolean).length < oldCores.split(',').filter(Boolean).length) fail(`${f}: cores ${coreIds(pieces)} were ${oldCores}`);
-  if ((s.stash.thread || 0) < oldThreads + oldMods.filter((m) => !m.power).length) fail(`${f}: ${s.stash.thread} threads, from ${oldThreads} and ${oldMods.length} modules`);
   if ('off' in s.equip || s.codex || s.stash.bloodresin || s.modsFound !== undefined) fail(`${f}: the off hand, the Codex of powers, Bloodresin or modsFound is left`);
   if (!s.equip.main || s.equip.main.kind !== 'caster') fail(`${f}: no rig worn`);
   if (/Scrap Gauntlet/.test(mid.equip.main.name) && s.equip.main.name !== 'Scrap Rig') fail(`${f}: the Scrap Gauntlet became ${s.equip.main.name}`);
@@ -177,13 +198,13 @@ for (const f of ['save-v5-home.json', 'save-v5-run.json', 'save-main-home.json',
 // --- outfits stay within the caps ------------------------------------------
 for (let seed = 1; seed <= 400; seed++) {
   const rng = new G.Rng(seed * 7), eq = { main: G.makeBase('rig', 6, 3), pick: G.makeBase('pick', 6, 3), armor: G.makeBase('plate', 6, 3), charm: G.makeBase('charm', 6, 3) };
-  for (const sp of eq.main.spells) for (const [key] of G.spellParts(sp)) { const kind = key.startsWith('form') ? 'form' : key.startsWith('el') ? 'element' : 'glyph'; const c = G.rollCore(rng, 12, 6, rng.pick(['rare', 'legendary']), 1, {}); const ids = Object.keys(kind === 'form' ? G.CIRCUIT_FORMS : kind === 'element' ? G.CIRCUIT_ELEMENTS : G.CIRCUIT_GLYPHS); c.stone = rng.pick(ids); c.bonus = G.coreBonusRoll(rng, c.stone, 6, c.rarity); sp[key.startsWith('m') ? 'mods' : key] = key.startsWith('m') ? sp.mods : c; if (key.startsWith('m')) sp.mods[Number(key.slice(1))] = c; }
+  for (const sp of eq.main.spells) for (const [key] of G.spellParts(sp)) { const kind = key.startsWith('form') ? 'form' : key.startsWith('el') ? 'element' : 'glyph'; const c = rng.chance(0.3) ? G.legendaryCore(rng, 6, {}) : G.makeStone('bolt', 6); if (!c.power) G.printPattern(c, rng.pick(G.PATTERN_KINDS.filter((k) => G.patternFits(k, kind))), 3); const ids = Object.keys(kind === 'form' ? G.CIRCUIT_FORMS : kind === 'element' ? G.CIRCUIT_ELEMENTS : G.CIRCUIT_GLYPHS); c.stone = rng.pick(ids); sp[key.startsWith('m') ? 'mods' : key] = key.startsWith('m') ? sp.mods : c; if (key.startsWith('m')) sp.mods[Number(key.slice(1))] = c; }
   const st = G.computeStats(eq, { vitality: 5, proximity: 5, clarity: 5, stride: 5 });
   for (const k in G.T.caps) if (st[k] > G.T.caps[k]) fail(`outfit ${seed}: ${k} ${st[k]} over its cap`);
   if (!(st.maxHp > G.T.player.hp)) fail(`outfit ${seed}: plate added no health`);
   if (bad(JSON.stringify(st))) fail(`outfit ${seed}: ${JSON.stringify(st)}`);
-  // a core's bonus counts set, not loose
-  const loose = G.rollCore(rng, 12, 6, 'rare', 1, {}), eq2 = { main: G.makeBase('rig', 1), pick: null, armor: null, charm: null }, base = G.computeStats(eq2, {})[loose.bonus.id];
+  // a core's printed pattern counts set, not loose
+  const loose = G.forgeItem('form_bolt', 'starmetal', null, 3, 'construct'), eq2 = { main: G.makeBase('rig', 1), pick: null, armor: null, charm: null }, base = G.computeStats(eq2, {})[loose.bonus.id];
   eq2.main.spells[0].form = Object.assign(loose, { stone: 'bolt' });
   if (!(G.computeStats(eq2, {})[loose.bonus.id] >= base + Math.min(loose.bonus.v, 1))) fail(`outfit ${seed}: a set core's bonus is not in the stats`);
 }
