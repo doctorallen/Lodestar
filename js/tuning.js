@@ -887,12 +887,13 @@ const T = {
   // Patterns (patterns.js): what the suit reads from each kind of creature
   // as it falls. scans: reads of a kind before the replicator knows its
   // pattern; an elite counts `elite`, a boss all; lens: the Capture Lens,
-  // made, reads this many times as fast. parts: printing a pattern onto a
+  // made, reads this many times as fast. known: the kinds the Charter's
+  // survey read before the landing, known from the first day. parts: printing a pattern onto a
   // core takes this many of the creature's parts. roll: where in the
   // bonus's range a printed pattern stands (0–1); master: times this from a
   // masterwork forge. threadOre: an older save's threads become one Lumenite
   // each this many.
-  patterns: { scans: 6, elite: 3, lens: 1.5, parts: 3, roll: 0.8, master: 1.25, threadOre: 3 },
+  patterns: { scans: 4, elite: 2, lens: 1.5, parts: 3, roll: 0.8, master: 1.25, threadOre: 3, known: ['crawler'] },
 
   // The Lodestar grows from deeds, not ore (deeds.js): each deed gives
   // light, motes of it, carried home and fed to the star at its altar, a

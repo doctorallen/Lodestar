@@ -256,7 +256,7 @@ async function phone(browser) {
     dr.x = d.p.x; dr.y = d.p.y;
     for (let i = 0; i < 40; i++) Game.step(1 / 60);
     const c = d.items[d.items.length - 1];
-    return { dr: true, fx, got: d.items.length === n0 + 1 && c.kind === 'stone' && c.stone === 'frost' && !c.bonus && c.rarity === 'common', src: c.src && c.src.foe, read: (Save.data.scans.crawler || 0) === s0 + T.patterns.elite };
+    return { dr: true, fx, got: d.items.length === n0 + 1 && c.kind === 'stone' && c.stone === 'frost' && !c.bonus && c.rarity === 'common', src: c.src && c.src.foe, read: s0 >= T.patterns.scans || (Save.data.scans.crawler || 0) === s0 + T.patterns.elite };
   });
   check(caught.dr && caught.fx && caught.got && caught.src === 'crawler' && caught.read, `phone: an elite's core was not caught and taken, or the kill went unread (${JSON.stringify(caught)})`);
 

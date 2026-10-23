@@ -175,7 +175,7 @@ function cleanSave(s) {
   s.tools = (s.tools || []).filter((id) => TOOLS[id]);
   if (!s.tools.includes('compass')) s.tools.unshift('compass');
   delete s.tool;
-  if (!s.scans || typeof s.scans !== 'object') s.scans = {};
+  s.scans = surveyScans(s.scans && typeof s.scans === 'object' ? s.scans : {});
   // the lean rules (above)
   cleanLeanSave(s);
   // the outpost's buildings and Wick's upgrades (none in an older save):
@@ -218,7 +218,7 @@ const Save = {
       // the recipes known (by their old name), what the forge has studied,
       // and how many cores have ever been caught
       blueprints: BP_IDS.filter((id) => BLUEPRINTS[id].start), studied: [], coresFound: 0,
-      tools: ['compass'], scans: {}, natures: {}, resCodex: { kindling: [0, 1, 2] },
+      tools: ['compass'], scans: surveyScans(), natures: {}, resCodex: { kindling: [0, 1, 2] },
       // the star's points are light (deeds.js; an older save's are rescaled),
       // what's been found, the pack a fall left, and the supplies carried
       starScale: T.star.scale, found: {}, cache: null, supplies: {},

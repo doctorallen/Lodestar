@@ -56,7 +56,10 @@ const AFFIX_CORE = {
 function eliteCoreFor(e) { return (e && e.elite && AFFIX_CORE[e.elite]) || null; }
 
 // --- what the suit has read -------------------------------------------------
-function scansOf(s = Save.data) { return s.scans || (s.scans = {}); }
+function scansOf(s = Save.data) { return s.scans || (s.scans = surveyScans()); }
+// What the Charter's survey read before the landing (T.patterns.known):
+// known from the first day.
+function surveyScans(into = {}) { for (const k of T.patterns.known || []) if (PATTERNS[k]) into[k] = Math.max(into[k] || 0, T.patterns.scans); return into; }
 function scanCount(kind) { return scansOf()[kind] || 0; }
 function patternKnown(kind) { return !!PATTERNS[kind] && scanCount(kind) >= T.patterns.scans; }
 function knownPatterns() { return PATTERN_KINDS.filter(patternKnown); }
@@ -165,7 +168,7 @@ function migratePatternSave(s) {
   delete stash.thread;
   if (s.run && s.run.cargo) delete s.run.cargo.thread;
   delete s.tool;
-  s.scans = s.scans && typeof s.scans === 'object' ? s.scans : {};
+  s.scans = surveyScans(s.scans && typeof s.scans === 'object' ? s.scans : {});
   s.v = 9;
   return true;
 }
