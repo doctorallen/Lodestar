@@ -337,7 +337,7 @@ function circuitHit(s, e, dmg, opts = {}) {
   if (e.dead || e.hid) return;
   const crit = d.rng.f(100) < st.crit, kf = s.els.includes('force') ? T.circuits.force.knock : 1;
   hurtEnemy(e, dmg * (crit ? 2 : 1), { spell: true, crit, els: s.els, att: s.att, heavy: !!opts.heavy, knock: opts.knock ? { x: opts.knock.x * kf, y: opts.knock.y * kf } : null });
-  snd('hit', { el: s.els[0], crit, heavy: !!opts.heavy, x: e.x, y: e.y });
+  snd('hit', { el: s.els[0], crit, heavy: !!opts.heavy, verdict: e.lastVerdict, x: e.x, y: e.y });
   if (crit && st.powers.bloodedge) healPlayer(st.maxHp * 0.04);
   if (s.refundLeft > 0) { s.refundLeft--; p.charge = Math.min(st.maxCharge, p.charge + s.refund); }
   if (s.chain && !opts.noChain) circuitLeap(s, e, dmg);

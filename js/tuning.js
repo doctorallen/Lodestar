@@ -10,8 +10,12 @@ const T = {
   // give some back when they hit (T.circuits). magnet: how close loot must
   // be to be picked up. rest: health comes back at restRegen a second once
   // nothing has hurt the diver for restAfter seconds.
+  // Health comes back (restRegen a second after restAfter s unhurt) only
+  // where there's light: at home, in kindled land, within restLight px of
+  // a lit lodeline or a landed beacon, or in a lit waystone's hold. In
+  // the dark it's injectors and motes, so a sortie wears you down.
   player: {
-    hp: 100, speed: 56, radius: 4, hurtInvuln: 0.5, restAfter: 4, restRegen: 3,
+    hp: 100, speed: 56, radius: 4, hurtInvuln: 0.5, restAfter: 4, restRegen: 3, restLight: 48,
     charge: 30, chargeRegen: 4.5, magnet: 14,
     dustEvery: 0.24, // s walked between the puffs of dust off his heels (game.js, render.js)
   },
@@ -25,7 +29,7 @@ const T = {
   // (render.js drawCutter): its body px long, the beam stopping short of
   // the tile's middle (a share of a tile), sparks a frame thrown up to
   // spray px, the beam's sheath and the molten bite
-  mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 1], drillNoise: 90,
+  mine: { reach: 10, ahead: 10, speed: 1.4, hitEvery: 0.22, yield: [1, 2], drillNoise: 90, // (yield: ore a vein, least to most; with no regeneration in the dark a sortie is shorter, so a vein gives more)
     cutter: { body: 4, short: 0.08, sparks: 9, spray: 8, sheath: '#7fd8ff', molten: '#ff9a3a' } },
 
   // Your light (d.pull): full in kindled land and at home, it drains in the
@@ -340,6 +344,9 @@ const T = {
   // ahead; another press within comboWindow carries an Arc's combo on.
   // fist: the power with no rig worn (spell A casts a free Arc).
   hands: { autoAim: 52, comboWindow: 0.6, chargeStart: 0.25, chargeFull: 0.7, fist: 3 },
+  // The HUD: the spell buttons read the nearest foe within verdictReach px
+  // (in sight) and say whether it fears or shrugs off each spell's element.
+  hud: { verdictReach: 140 },
   retiredThreads: 4,
   // A dash: a burst of speed with a moment of untouchability. A flick of
   // the move thumb (flickPx in flickMs) dashes too.
@@ -429,7 +436,10 @@ const T = {
     // ever immune. Each enemy's own verdicts are T.enemies.resist; a clime
     // moves them a step (T.climes[id].resist); an elite's affix adds its own
     // (T.enemies.eliteResist).
-    resist: { W: 1.5, R: 0.5, I: 0.25 },
+    // (what a weak, a resisted and an all-but-shrugged-off hit does: the
+    // wrong element is a slog and the right one a rout, so the cores you
+    // bring are the decision; 2026-10-22, were 1.5, 0.5, 0.25)
+    resist: { W: 1.75, R: 0.3, I: 0.15 },
     // Reactions between statuses (reactions.js). Every element a hit
     // carries leaves its status on a foe for `status` s; a second element on
     // a carrier reacts, in either order, and two on one Form react on their
@@ -604,16 +614,28 @@ const T = {
   // circling, until one falls. One woken by another, or by a noise, waits
   // wakeStagger s (between the two) before it comes.
   // A heavy hit staggers anything but the warden for staggerTime.
+  // Fewer and tougher (2026-10-22): a room holds one to three, each kind's
+  // health is hpScale times its number below and its damage dmgScale times
+  // (bosses keep their own health), so a regular foe takes six to eight
+  // hits at gear parity and its hit costs a fifth to a quarter of the
+  // health; one in an exposed state (dazed, stranded, spent, recovering)
+  // takes `exposed` times the damage, so the fight is dodge, then punish.
   enemies: {
-    hpGrowth: 1.16, dmgGrowth: 1.07, hpEarly: 0.5, hpFullAt: 8, aggro: 96, hurtFlash: 0.12, staggerTime: 0.35,
+    // (hpEarly: the Rim's share of a foe's health and damage at level 1,
+    // rising to all of it at hpFullAt; shotScale: what a shot, a glob or a
+    // beam does against a bite, since it's harder to step out of)
+    hpGrowth: 1.14, dmgGrowth: 1.12, hpScale: 1.7, dmgScale: 1.6, shotScale: 0.75, hpEarly: 0.7, hpFullAt: 4, aggro: 96, hurtFlash: 0.12, staggerTime: 0.35,
     attackers: 1, attackersPerDepth: 0.34, attackersPerBiome: 0.75, press: 2, pressPerBiome: 1, holdBack: 72, wakeStagger: [0.5, 1.6],
     // crawlers close to `circle` px, circle for a moment, wind up, lunge,
     // then recover (open to a counter)
-    crawler: { hp: 26, dmg: 14, speed: 36, radius: 5, circle: 28, windup: 0.38, lungeSpeed: 145, lungeTime: 0.28, recover: 0.55, weight: 5 },
+    // (size: how much bigger the common kinds are drawn than their painters'
+    // units, foespaint.js; their bodies, `radius`, grew with them)
+    size: { crawler: 1.3, wisp: 1.3, construct: 1.3 },
+    crawler: { hp: 26, dmg: 14, speed: 36, radius: 6, circle: 28, windup: 0.38, lungeSpeed: 145, lungeTime: 0.28, recover: 0.55, weight: 5, barY: 21 },
     // wisps keep `keep` px away and strafe; from fanDepth they fire three
-    wisp: { hp: 17, dmg: 9, speed: 28, radius: 4, keep: 60, range: 115, windup: 0.55, cooldown: 1.9, shotSpeed: 72, fanDepth: 3, weight: 3 },
+    wisp: { hp: 17, dmg: 9, speed: 28, radius: 5, keep: 60, range: 115, windup: 0.55, cooldown: 1.9, shotSpeed: 72, fanDepth: 3, weight: 3, barY: 28 },
     // constructs show where they'll charge; one that hits a wall is dazed
-    construct: { hp: 52, dmg: 16, speed: 20, radius: 6, range: 80, windup: 0.7, cooldown: 2.2, chargeSpeed: 135, chargeTime: 0.5, dazed: 1.3, weight: 2 },
+    construct: { hp: 52, dmg: 16, speed: 20, radius: 8, range: 80, windup: 0.7, cooldown: 2.2, chargeSpeed: 135, chargeTime: 0.5, dazed: 1.3, weight: 2, barY: 26 },
     // flora that fights: rooted, hidden among the harmless kind until it
     // wakes. A snapjaw snaps at anything within `reach`; a spitter lobs a
     // glob that leaves spores on the ground (`puddle` px across, hurting
@@ -627,7 +649,7 @@ const T = {
     // one takes `exposed` times the damage, as a dazed one does. part: the
     // creature part it leaves. knock: how far hits push it (1 a crawler).
     // barY: how high its health bar sits (world px over its feet).
-    signatureShare: 0.3, graftFoes: [1, 2], exposed: 1.5,
+    signatureShare: 0.3, graftFoes: [1, 2], exposed: 2.5,
     signature: { badlands: 'skink', frost: 'tusker', cinder: 'wraith', bloomfen: 'lurker', caverns: 'dropper', grotto: 'eel', magma: 'crab', rootdeep: 'weaver', archive: 'sentinel', temple: 'idol', vault: 'hound' },
     // the Dune Skink (Badlands) swims under the sand (its speed), shows a
     // ring where it will burst up once within `strike` px, and bursts there
@@ -698,11 +720,13 @@ const T = {
     keeper: { hp: 455, enrageAt: 90, enrageSpeed: 1.3, afterPull: 30, dmg: 18, speed: 22, radius: 12, range: 100, windup: 0.75, cooldown: 1.8, chargeSpeed: 130, chargeTime: 0.6, dazed: 1.5, shotSpeed: 70, shots: 12, summonEvery: 7, broodMax: 4, magma: 0.35, magmaR: 18, magmaTime: 4, summon: 2 },
     warden: { hp: 380, dmg: 16, speed: 18, radius: 9, range: 95, windup: 0.75, cooldown: 2.0, chargeSpeed: 125, chargeTime: 0.6, dazed: 1.6, shotSpeed: 65, shots: 10 },
     // a room's enemies: perRoom + perDepth × depth + perBiome × region,
-    // give or take one
-    perRoom: 1.0, perDepth: 0.4, perBiome: 0.8, maxPerRoom: 6,
+    // give or take one (so some rooms hold none, and a fight is an event)
+    perRoom: 0.6, perDepth: 0.2, perBiome: 0.4, maxPerRoom: 3,
     // elites: chance eliteBase + eliteDepth × depth, to eliteMax; elites:
     // how often each affix comes up
-    eliteBase: 0.06, eliteDepth: 0.035, eliteMax: 0.35, eliteHp: 2.5, eliteDmg: 1.3,
+    // (an elite on a foe already 1.7× as tough: 1.8× its health and 1.2×
+    // its damage, the room's boss rather than a wall; were 2.5 and 1.3)
+    eliteBase: 0.08, eliteDepth: 0.05, eliteMax: 0.4, eliteHp: 1.8, eliteDmg: 1.2,
     elites: { fast: 3, tough: 3, volatile: 3, insulated: 2, fireproof: 2, warded: 1.5, shifting: 1.5 },
     fast: 1.5, tough: 1.6, volatileRadius: 26, volatileDmg: 1.5, volatileFuse: 0.6,
     // a warded elite resists everything until wardHits Force hits (a heavy
@@ -713,14 +737,16 @@ const T = {
     // by element (missing: neither). natures.js reads it: elementMultFor.
     resist: {
       crawler: { ember: 'W' }, // a chitin shell, dry inside
-      wisp: { force: 'R', shock: 'R', blight: 'I' }, // no body, all ether
+      // (no kind met with the starting rig's plain Force resists Force: at
+      // 0.3 that was a wall for a fresh player, a wisp taking a dozen hits)
+      wisp: { shock: 'R', blight: 'I' }, // no body, all ether
       construct: { blight: 'W' }, // the stalker: living, thin-shelled
       snapjaw: { frost: 'R', ember: 'W', blight: 'R' }, // living plants
       spitter: { frost: 'R', ember: 'W', blight: 'R' },
       hollow: { force: 'R', shock: 'R', frost: 'R', ember: 'R', blight: 'R' }, // the living dark
       // each clime's own creature (foes.js)
       skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', blight: 'W', frost: 'R' }, wraith: { frost: 'W', ember: 'R' }, lurker: { ember: 'W', blight: 'R' },
-      dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', blight: 'W', ember: 'R' }, crab: { frost: 'W', ember: 'R', force: 'R' }, weaver: { ember: 'W', blight: 'R' },
+      dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', blight: 'W', ember: 'R' }, crab: { frost: 'W', ember: 'R' }, weaver: { ember: 'W', blight: 'R' }, // (the crab's shell stands in for a Force resistance)
       sentinel: { shock: 'W', blight: 'R' }, idol: { force: 'W', frost: 'R' }, hound: { shock: 'W', force: 'R' },
     },
     // the warden and the Keepers: one weakness and one resistance, by region
@@ -743,10 +769,12 @@ const T = {
   // exotic or a sealed relic (it opens into a rare or better module); and
   // modules (T.modules.drop). Bases come from the forge. motes heal.
   // rarity: [base, per enemy level] weights (for modules).
+  // (with half the enemies, each kill pays about twice: part, partTwo,
+  // exotic, relic and mote are set so a sortie's haul is what it was)
   loot: {
-    part: 0.45, partTwo: 0.15, eliteParts: [2, 3], bossParts: 4,
-    exotic: 0.03, eliteExotic: 0.5,
-    relic: 0.008, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.14, moteHeal: 14,
+    part: 0.8, partTwo: 0.35, eliteParts: [2, 3], bossParts: 4,
+    exotic: 0.05, eliteExotic: 0.5,
+    relic: 0.014, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.4, moteHeal: 14, moteShare: 0.15, // a mote heals moteShare of the health, moteHeal at least
     rarity: { common: [60, -2], magic: [30, 1], rare: [8, 1.2], legendary: [0.15, 0.05], set: [0.15, 0.04] },
     // a sealed relic opens into a rare module, or now and then better
     relicOpens: { rare: 80, legendary: 12, set: 8 },
@@ -802,7 +830,7 @@ const T = {
   //   salvage: threads, by rarity, +perTier a tier above 1. weight: in the
   //     cargo.
   modules: {
-    drop: { foe: 0.07, elite: 0.65, boss: 2, keeper: 3, deep: 1.4, early: { found: 8, mult: 2.6 }, lens: 1.5 },
+    drop: { foe: 0.12, elite: 0.65, boss: 2, keeper: 3, deep: 1.4, early: { found: 8, mult: 2.6 }, lens: 1.5 },
     keeperLegend: 5,
     affixes: { common: 1, magic: 2, rare: 3, legendary: 2, set: 1 },
     value: 0.6,

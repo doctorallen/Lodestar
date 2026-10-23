@@ -371,7 +371,11 @@ const SND_CUES = {
   noCharge: { g: 0.14, gap: 0.35, bank: () => [['noCharge', 1]] },
   // a spell strikes a foe: el, crit, heavy; x, y
   hit: { g: 0.28, gap: 0.045, bank(a) {
-    const parts = [[BANK['hit.' + a.el] ? 'hit.' + a.el : 'hit.force', 1]];
+    // (a resisted hit is muffled under a dull thud; a weak one cracks)
+    const resisted = a.verdict === 'R' || a.verdict === 'I';
+    const parts = [[BANK['hit.' + a.el] ? 'hit.' + a.el : 'hit.force', resisted ? 0.45 : 1]];
+    if (resisted) parts.push(['hit.resist', 1]);
+    else if (a.verdict === 'W') parts.push(['hit.weak', 0.8]);
     if (a.crit) parts.push(['hit.crit', 0.5]);
     if (a.heavy) parts.push(['hit.heavy', 0.7]);
     return parts;

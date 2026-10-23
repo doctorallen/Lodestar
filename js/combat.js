@@ -131,7 +131,11 @@ function hurtEnemy(e, dmg, opts = {}) {
     m = elementMult(e, els);
     verdict = m > 1.01 ? 'W' : m < 0.99 ? 'R' : null;
     if (opts.spell) learnNature(e, els, verdict);
+    // (the hit's sound and its ring say it too: circuits.js circuitHit,
+    // render.js 'verdict')
+    if (opts.spell && verdict && Game.realT - (e.verdictFxAt || -9) > 0.12) { e.verdictFxAt = Game.realT; d.fx.push({ kind: 'verdict', v: verdict, el: els[0], x: e.x, y: e.y - 5, t: 0.28, max: 0.28 }); }
   }
+  e.lastVerdict = verdict;
   // a Slag Crab's shell (foes.js): while it's shut it stands in for what
   // the crab resists, rather than adding to it; what it fears still tells
   if (e.type === 'crab') { const sh = crabShell(e, opts); if (sh < 1) m = sh * Math.max(1, m); }
@@ -238,7 +242,7 @@ function killEnemy(e) {
     if (rng.chance(L.exotic)) drop({ exotic: randomExotic(rng) });
     if (rng.chance(L.relic)) drop({ item: makeRelic(tier) });
   }
-  if (rng.chance(L.mote)) drop({ mote: L.moteHeal });
+  if (rng.chance(L.mote)) drop({ mote: Math.max(L.moteHeal, Math.round(st.maxHp * L.moteShare)) });
 }
 
 // Any exotic but the rifts' own.

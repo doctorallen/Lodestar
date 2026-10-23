@@ -275,16 +275,18 @@ function fpFoeSprite(type, frame, variant, rows, pal, letters) {
 function fpEnemySprites(biomeId) {
   const pal = ENEMY_PAL[biomeId], out = {};
   const wc = { shell: pal.shell, core: pal.crystal[0], heart: pal.coreglow[0], r0: 4.3, r1: 7.4, gap: 0.16 }, hc = { shell: ['#000000', '#030205', '#0a0712', '#161020'], inner: '#5a1478', core: '#ff2a6a', heart: '#ffd0dc', r0: 4.4, r1: 7.6, gap: 0.12 };
-  out.wisp = fpWisp(17, 20, 1, wc, 0, biomeId.length); out.wisp.walk = fpWisp(17, 20, 1, wc, 1, biomeId.length);
+  // (the common kinds a size up, T.enemies.size: fewer foes, each a fight)
+  const Z = T.enemies.size || {}, kw = Z.wisp || 1, kc = Z.construct || 1, kr = Z.crawler || 1, ww = Math.round(17 * kw), wh = Math.round(20 * kw), cw = Math.round(23 * kc);
+  out.wisp = fpWisp(ww, wh, kw, wc, 0, biomeId.length); out.wisp.walk = fpWisp(ww, wh, kw, wc, 1, biomeId.length);
   out.hollow = fpWisp(32, 38, 1.9, hc, 0, 7); out.hollow.walk = fpWisp(32, 38, 1.9, hc, 1, 7);
   for (const pose of ['idle', 'walk', 'windup']) {
-    const c = fpConstruct(23, 23, 1, pal, pose, biomeId.length), w = fpConstruct(44, 44, 1.92, Object.assign({}, pal, { plate: ['#0c0a0e', '#1e1a22', '#34303c', '#565064'] }), pose, biomeId.length);
+    const c = fpConstruct(cw, cw, kc, pal, pose, biomeId.length), w = fpConstruct(44, 44, 1.92, Object.assign({}, pal, { plate: ['#0c0a0e', '#1e1a22', '#34303c', '#565064'] }), pose, biomeId.length);
     if (pose === 'idle') { out.construct = c; out.warden = w; } else { out.construct[pose] = c; out.warden[pose] = w; }
   }
   out.dummy = fpTargetDummy(23, 23, 1, Object.assign({}, pal, { plate: ['#1c1810', '#3a3020', '#5e4c30', '#8a7048'], rune: [ART.pal.star[2]] }), 'idle', 3);
-  out.crawler = fpCrawler(pal, 'idle', biomeId.length);
-  out.crawler.walk = fpCrawler(pal, 'walk', biomeId.length);
-  out.crawler.windup = fpCrawler(pal, 'windup', biomeId.length);
+  out.crawler = fpCrawler(pal, 'idle', biomeId.length, kr);
+  out.crawler.walk = fpCrawler(pal, 'walk', biomeId.length, kr);
+  out.crawler.windup = fpCrawler(pal, 'windup', biomeId.length, kr);
   for (const k of Object.keys(out)) if (k !== 'dummy') for (const f of [out[k], out[k].walk, out[k].windup]) if (f) fpReadable(f);
   return out;
 }
@@ -509,55 +511,57 @@ const fpHot = (R) => mix(R[R.length - 1], '#efe2c8', 0.3);
 // with a glint, two small), pale mandibles, three jointed legs a side, the
 // far ones darker. pose: 'idle', 'walk' (the other three legs lifted),
 // 'windup' (crouched, legs splayed, eyes hot). 29 × 20, feet on row 18.
-function fpCrawler(pal, pose = 'idle', seed = 1) {
-  const s = new FpSpr(29, 20, hashInts(seed, pose.length, 0xc4a)), SH = fpRamp(pal.shell), cx = 14;
+function fpCrawler(pal, pose = 'idle', seed = 1, k = 1) {
+  // (k: its size; 1 is 29 × 20, and every place and length below is in
+  // those units)
+  const W = Math.round(29 * k), H = Math.round(20 * k), s = new FpSpr(W, H, hashInts(seed, pose.length, 0xc4a)), SH = fpRamp(pal.shell), cx = (W - 1) / 2;
   const CR = fpGlowRamp(pal.crystal[0]), EYE = ART.pal.eyeglow[0], BONE = ['#3a3028', '#6a5c4a', '#a89878', '#d8ccb0'];
-  const crouch = pose === 'windup' ? 1 : 0, cy = 8.5 + crouch, splay = crouch;
+  const crouch = pose === 'windup' ? 1 : 0, cy = (8.5 + crouch) * k, splay = crouch * k, X = (v) => cx + v * k;
   // legs, a tripod gait: hip under the shell's side, knee up and out, foot
   // down and out
-  const leg = (side, k) => {
-    const far = k === 0, up = pose === 'walk' && (k % 2 === 0) === (side < 0) ? 1 : 0;
-    const hip = [cx + side * 7, cy + [0.5, 2.2, 3.6][k]];
-    const knee = [cx + side * ([11.2, 12.2, 10.4][k] + splay), cy + [-1.6, 0.6, 3.8][k] - up - crouch * 0.5];
-    const foot = [cx + side * ([13.6, 13.8, 11.6][k] + splay), [cy + 3, 15.6, 18][k] - up * 1.5];
-    s.tag(far ? 'farleg' : 'leg').limb([hip, knee, foot], 1.1, 0.5, (t, sd) => (far ? SH[sd < 0 ? 2 : 1] : sd < 0 ? SH[4] : sd > 0 ? SH[1] : SH[2]));
+  const leg = (side, j) => {
+    const far = j === 0, up = pose === 'walk' && (j % 2 === 0) === (side < 0) ? 1 : 0;
+    const hip = [X(side * 7), cy + [0.5, 2.2, 3.6][j] * k];
+    const knee = [X(side * [11.2, 12.2, 10.4][j]) + side * splay, cy + ([-1.6, 0.6, 3.8][j] - up - crouch * 0.5) * k];
+    const foot = [X(side * [13.6, 13.8, 11.6][j]) + side * splay, [cy + 3 * k, 15.6 * k, 18 * k][j] - up * 1.5 * k];
+    s.tag(far ? 'farleg' : 'leg').limb([hip, knee, foot], 1.1 * k, 0.5 * k, (t, sd) => (far ? SH[sd < 0 ? 2 : 1] : sd < 0 ? SH[4] : sd > 0 ? SH[1] : SH[2]));
     s.px(knee[0], knee[1] - 0.4, far ? SH[3] : SH[5]);
   };
   for (const side of [-1, 1]) leg(side, 0);
   // the carapace, and the head plate under its front
-  s.tag('shell').ell(cx, cy, 9.4, 5.2, SH, { lo: 2, hi: 7, bias: 0.02 });
-  s.tag('face').ell(cx, cy + 4, 6.2, 2.4, SH, { lo: 1, hi: 4, bias: -0.05 });
-  for (const side of [-1, 1]) for (const k of [1, 2]) leg(side, k);
+  s.tag('shell').ell(cx, cy, 9.4 * k, 5.2 * k, SH, { lo: 2, hi: 7, bias: 0.02 });
+  s.tag('face').ell(cx, cy + 4 * k, 6.2 * k, 2.4 * k, SH, { lo: 1, hi: 4, bias: -0.05 });
+  for (const side of [-1, 1]) for (const j of [1, 2]) leg(side, j);
   // plates: the seam down its back and two across, each plate's top lip lit
-  for (let y = Math.round(cy - 4); y <= cy + 2; y++) s.tag('seam').px(cx, y, SH[0]);
-  for (const v of [-0.15, 0.45]) for (let x = cx - 9; x <= cx + 9; x++) {
-    const y = Math.round(cy + v * 5.2 + ((x - cx) / 9.4) ** 2 * 1.6);
+  for (let y = Math.round(cy - 4 * k); y <= cy + 2 * k; y++) s.tag('seam').px(cx, y, SH[0]);
+  for (const v of [-0.15, 0.45]) for (let x = Math.round(cx - 9 * k); x <= cx + 9 * k; x++) {
+    const y = Math.round(cy + v * 5.2 * k + ((x - cx) / (9.4 * k)) ** 2 * 1.6 * k);
     if (s.tagAt(x, y) !== 'shell') continue;
-    s.tag('seam').px(x, y, SH[x === cx ? 0 : 1]);
-    if (s.tagAt(x, y + 1) === 'shell' && x !== cx && s.h01(x, y, 40) < (x < cx ? 0.85 : 0.4)) s.tag('shell').px(x, y + 1, x < cx - 3 ? SH[7] : x < cx ? SH[6] : SH[5]);
+    s.tag('seam').px(x, y, SH[Math.abs(x - cx) < 0.5 ? 0 : 1]);
+    if (s.tagAt(x, y + 1) === 'shell' && Math.abs(x - cx) >= 0.5 && s.h01(x, y, 40) < (x < cx ? 0.85 : 0.4)) s.tag('shell').px(x, y + 1, x < cx - 3 * k ? SH[7] : x < cx ? SH[6] : SH[5]);
   }
   // the crest: three crystals along its spine, the middle one tallest
   s.tag('crystal');
-  [[cx - 3.4, 3.4, 2.6, -0.7], [cx + 3.6, 3.0, 2.6, 0.7], [cx + 0.1, 5.2, 3.0, -0.2]].forEach(([x, h, w, l]) => s.shard(x, cy - 4 + Math.abs(x - cx) * 0.25, h - crouch * 0.5, w, l, CR));
+  [[-3.4, 3.4, 2.6, -0.7], [3.6, 3.0, 2.6, 0.7], [0.1, 5.2, 3.0, -0.2]].forEach(([dx, h, w, l]) => s.shard(X(dx), cy - 4 * k + Math.abs(dx) * 0.25 * k, (h - crouch * 0.5) * k, w * k, l, CR));
   // the lit rim along its top, hot on the left
-  s.rim(['shell'], fpHot(SH), SH[7], { under: ['crystal'], below: SH[6], hot: 0.5, p: 0.9, x0: 0, x1: cx + 4 });
-  s.rim(['shell'], SH[6], SH[5], { under: ['crystal'], p: 0.6, x0: cx + 5, x1: 28 });
+  s.rim(['shell'], fpHot(SH), SH[7], { under: ['crystal'], below: SH[6], hot: 0.5, p: 0.9, x0: 0, x1: Math.round(X(4)) });
+  s.rim(['shell'], SH[6], SH[5], { under: ['crystal'], p: 0.6, x0: Math.round(X(5)), x1: W - 1 });
   s.rim(['face'], SH[5], SH[4], { p: 0.6, under: ['shell', 'seam'] });
   s.under(['face', 'shell'], SH[0]);
   // mandibles, pale at their tips
   for (const side of [-1, 1]) {
-    const tip = [cx + side * 0.8, cy + 8.4 - crouch * 0.5];
-    s.tag('jaw').limb([[cx + side * 1.8, cy + 5.6], [cx + side * 2.4, cy + 7.2], tip], 0.9, 0.5, (t, sd) => (t > 0.7 ? BONE[sd < 0 ? 2 : 1] : SH[sd < 0 ? 4 : 1]));
+    const tip = [X(side * 0.8), cy + (8.4 - crouch * 0.5) * k];
+    s.tag('jaw').limb([[X(side * 1.8), cy + 5.6 * k], [X(side * 2.4), cy + 7.2 * k], tip], 0.9 * k, 0.5 * k, (t, sd) => (t > 0.7 ? BONE[sd < 0 ? 2 : 1] : SH[sd < 0 ? 4 : 1]));
     s.px(tip[0], tip[1], BONE[3]);
   }
   // the eyes: two big, a glint each, two small; hot as it winds up
   const hot = pose === 'windup', E2 = mix(EYE, '#ffffff', hot ? 0.65 : 0.45), E0 = hot ? EYE : mix(EYE, '#000000', 0.3);
   s.tag('eye');
   for (const side of [-1, 1]) {
-    const ex = side < 0 ? cx - 5 : cx + 4;
-    s.px(ex, cy + 2.5, E2, true); s.px(ex + 1, cy + 2.5, EYE, true);
-    s.px(ex, cy + 3.5, mix(EYE, '#000000', hot ? 0.1 : 0.35), true); s.px(ex + 1, cy + 3.5, mix(EYE, '#000000', hot ? 0.3 : 0.55), true);
-    s.px(cx + side * 2, cy + 4, E0, true);
+    const ex = Math.round(side < 0 ? X(-5) : X(4)), ey = Math.round(cy + 2.5 * k);
+    s.px(ex, ey, E2, true); s.px(ex + 1, ey, EYE, true);
+    s.px(ex, ey + 1, mix(EYE, '#000000', hot ? 0.1 : 0.35), true); s.px(ex + 1, ey + 1, mix(EYE, '#000000', hot ? 0.3 : 0.55), true);
+    s.px(X(side * 2), cy + 4 * k, E0, true);
   }
   return fpDone(s);
 }

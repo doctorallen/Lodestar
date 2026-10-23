@@ -219,7 +219,7 @@ function installBot() {
       const foeM = foe ? dist(foe.x, foe.y, p.x, p.y) : 1e9, close = foe && (foeM < 40 || (foe.state === 'windup' && foeM < 70));
       // dim: no more light than the walk back to lit land takes, and a bit
       const lead = d.deep ? 0.3 : (() => { const g = compassTargetWorld(d, steps), n = g ? steps[at(g.x, g.y)] : 30; return (Math.max(0, n) / 3.2 + 3) / T.world.light; })();
-      const full = cargoCount(d) >= BOT_HAUL * 0.92, hurt = p.hp < st.maxHp * 0.3, dim = !d.kindled && d.pull < lead;
+      const full = cargoCount(d) >= BOT_HAUL * 0.92, hurt = p.hp < st.maxHp * 0.3 && !supplyCount('injector'), dim = !d.kindled && d.pull < lead;
       if (!d.kindled && (full || hurt || dim || (t > 420 && d.terr === target))) back = true;
       if (d.terr === target && d.kindled && !P.deep) back = true;
       // back in lit land with light again: push out once more, if it's fit

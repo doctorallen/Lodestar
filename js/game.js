@@ -193,7 +193,7 @@ function updateDive(dtReal, dt) {
   p.lowCharge = Math.max(0, p.lowCharge - dtReal);
   if (p.wardT > 0 && (p.wardT -= dtReal) <= 0) { p.ward = 0; wardGone(p); }
   p.restT += dtReal;
-  const rest = p.restT > T.player.restAfter ? T.player.restRegen : 0;
+  const rest = p.restT > T.player.restAfter && restingLight(d) ? T.player.restRegen : 0;
   p.hp = Math.min(st.maxHp, p.hp + (st.regen + rest) * dtReal);
   p.charge = Math.min(st.maxCharge, p.charge + T.player.chargeRegen * (1 + st.chargeRegen / 100) * dtReal);
   if (p.cast && (p.cast.t -= dtReal) <= 0) p.cast = null;
@@ -277,6 +277,22 @@ function actionHere() {
 // ---------------------------------------------------------------------------
 // Your light: full in kindled land, draining in the dark
 // ---------------------------------------------------------------------------
+// Where health comes back of itself (T.player.restLight): light. Home and
+// kindled land; within reach of a lit lodeline (a spire's pad, a Deep's
+// shaft) or a landed beacon; a lit waystone's hold. Nowhere else: in the
+// dark a sortie wears you down, and it's injectors and motes.
+function restingLight(d) {
+  if (d.hub || (d.kindled && !d.deep)) return true;
+  const p = d.p, f = d.floor, R = T.player.restLight, at = (t) => dist(p.x, p.y, (t.x + 0.5) * TILE, (t.y + 0.5) * TILE);
+  if (f.pad && !d.padDark && at(f.pad) < R) return true;
+  if (d.beacon && d.beacon.landed && at(d.beacon) < R) return true;
+  if (d.sortie && !d.deep && f.stones) {
+    const lit = (terrState(d.terr).lit || []), W = T.world.waystone;
+    for (const k of lit) if (f.stones[k] && at(f.stones[k]) < W.holdR) return true;
+  }
+  return false;
+}
+
 function updatePull(dt) {
   const d = Game.dive, P = T.pull;
   if (d.kindled && !d.deep) { d.pull = 1; return; }

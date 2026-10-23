@@ -15,12 +15,16 @@
 //     light.
 // elementMultFor(enemy, element) applies all of it, and everything calls it.
 //
-// Wick learns a kind's verdict on an element the first time it's hit with
-// it (kept in the save), and from then on it shows as a mark over the foe:
-// ▲ in the element's colour for weak, ▼ for resistant, a bar for very
-// resistant; "?" while some are still unknown. A weak hit's number pops
-// bigger and green with WEAK under it, a resisted one small and grey with
-// RESIST.
+// Wick knows every kind's nature (the Charter's survey of the fauna), and
+// it's shown everywhere it matters: on the world map, a territory's card
+// lists what lives there with what each fears and shrugs off; out in the
+// land, badges over every foe in sight, ▲ in the element's colour for
+// weak, ▼ for resistant, a bar for very resistant; on the two spell
+// buttons, which light green with ▲ when the nearest foe fears that
+// spell's element and go grey with ▼ when it resists it; and on the hit
+// itself, a weak hit's number big and green with WEAK and a crack of a
+// sound, a resisted one small and grey with RESIST, a dull ring and a
+// thud. (Wick still notes the first weak and resisted hit, for his lines.)
 // ---------------------------------------------------------------------------
 
 // The verdicts in order, from weak to very resistant (null: neither).
@@ -50,12 +54,24 @@ function hollowInLight(e) {
 function natureBase(e, el) {
   if (e.type === 'dummy') return null;
   if (e.type === 'hollow' && hollowInLight(e)) return null;
-  const E = T.enemies, own = (e.boss && E.regionResist && E.regionResist[natureRegion(e)]) || natureTable(e.type);
-  let i = natureStep(own && own[el]);
   const d = Game.dive, cl = e.clime !== undefined ? e.clime : d && !d.hub ? d.clime : null;
-  const C = cl && T.climes[cl] && T.climes[cl].resist;
+  return kindNature(e.type, el, cl, e.boss ? natureRegion(e) : null);
+}
+// A kind's verdict on an element in a clime (a boss's by its region):
+// what a territory's card can say before anyone sets out.
+function kindNature(type, el, clime, region) {
+  const E = T.enemies, own = (region && E.regionResist && E.regionResist[region]) || natureTable(type);
+  let i = natureStep(own && own[el]);
+  const C = clime && T.climes[clime] && T.climes[clime].resist;
   if (C) { if (C.more === el) i = Math.min(3, i + 1); if (C.less === el) i = Math.max(0, i - 1); }
   return NATURE_STEPS[i];
+}
+// Every verdict a kind has in a clime, weak first: [{ el, v }].
+function kindNatures(type, clime, region) {
+  const out = [];
+  for (const el of CORE_ELEMENTS) { const v = kindNature(type, el, clime, region); if (v) out.push({ el, v }); }
+  out.sort((x, y) => NATURE_ORDER[x.v] - NATURE_ORDER[y.v]);
+  return out;
 }
 // What its affix makes of it, if anything: 'W', 'R', 'I', or undefined.
 function natureAffix(e, el) {
@@ -85,14 +101,12 @@ function elementMult(e, els) {
 }
 
 // ---------------------------------------------------------------------------
-// What Wick has learned
+// What Wick knows: everything (the survey). What he's seen hit is still
+// kept, for his first-time lines.
 // ---------------------------------------------------------------------------
-function natureKnown(e, el) {
-  const k = Save.data.natures, w = k && k[natureKey(e)];
-  return !!(w && w[el]);
-}
-// A spell's hit on a foe: Wick learns its verdict on each of the hit's
-// elements, says so the first time a hit is weak or resisted, and keeps it.
+function natureKnown(e, el) { return e.type !== 'dummy'; }
+// A spell's hit on a foe: Wick notes the elements it's been hit with, and
+// says so the first time a hit is weak or resisted.
 function learnNature(e, els, verdict) {
   if (e.type === 'dummy') return;
   const K = Save.data.natures || (Save.data.natures = {}), key = natureKey(e), w = K[key] || (K[key] = {});
@@ -104,23 +118,17 @@ function learnNature(e, els, verdict) {
 }
 
 const NATURE_ORDER = { W: 0, I: 1, R: 2 }, NATURE_MOST = 3;
-// The marks over a foe: [{ el, v }], weak first, and whether any of its
-// kind's are still unknown (no more than three in all, so an elite's row
-// stays short). An affix's marks always show: the elite's pip
-// gives it away.
+// The badges over a foe: [{ el, v }], weak first, then what it resists
+// most, three at most so an elite's row stays short (its affix's verdicts
+// are in it: the elite's pip gives it away).
 function natureMarks(e) {
   const marks = [];
-  let unknown = false;
   for (const el of CORE_ELEMENTS) {
     const a = natureAffix(e, el), v = a !== undefined ? a : natureBase(e, el);
-    if (!v) continue;
-    if (a !== undefined || natureKnown(e, el)) marks.push({ el, v });
-    else unknown = true;
+    if (v) marks.push({ el, v });
   }
-  // at most NATURE_MOST: what it fears first, then what it resists most
   marks.sort((x, y) => NATURE_ORDER[x.v] - NATURE_ORDER[y.v]);
-  if (marks.length >= NATURE_MOST) return { marks: marks.slice(0, NATURE_MOST), unknown: false };
-  return { marks, unknown };
+  return { marks: marks.slice(0, NATURE_MOST), unknown: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -156,33 +164,47 @@ function crackWard(e, heavy) {
 // ---------------------------------------------------------------------------
 // Drawing (render.js calls these on the unlit layer over the view)
 // ---------------------------------------------------------------------------
-// The marks: 3 art px wide, a dark rim round each so it reads on any ground.
-// A row of marks is painted once into a small picture and kept.
-const NATURE_MARK = { W: ['.#.', '###'], R: ['###', '.#.'], I: ['###', '###'] };
+// The badges: each a 5 × 5 glyph in its element's colour on a dark tile,
+// at the view's grain (AF), so they read from across the room on a phone:
+// ▲ weak, ▼ resistant, a bar very resistant. A row is painted once and
+// kept.
+const NATURE_MARK = {
+  W: ['...#...', '..###..', '.#####.', '#######', '#######', '.......'],
+  R: ['.......', '#######', '#######', '.#####.', '..###..', '...#...'],
+  I: ['.......', '#######', '#######', '#######', '#######', '.......'],
+};
+// Under each glyph, the element's two letters in the same colour, since a
+// colour alone doesn't say which element it is. The badges' colours are
+// their own, five hues apart (the spells' colours, ELEMENT_COLS, have
+// Force and Frost both pale and Shock near Ember): white, sky blue,
+// yellow, red-orange, green.
+const NATURE_TAG = { force: 'FO', shock: 'SH', frost: 'FR', ember: 'EM', blight: 'BL' };
+const NATURE_COLS = { force: '#ffffff', shock: '#ffe040', frost: '#4fb4ff', ember: '#ff5a1e', blight: '#6ee83c' };
 const _naturePips = new Map();
-function naturePipsPic(marks, unknown) {
-  const key = marks.map((m) => m.el + m.v).join() + (unknown ? '?' : '');
+function naturePipsPic(marks) {
+  const key = marks.map((m) => m.el + m.v).join();
   let pic = _naturePips.get(key);
   if (pic) return pic;
-  const n = marks.length + (unknown ? 1 : 0), w = n * 5 + 1, h = 7, [c, o] = makeCanvas(w, h);
-  let x = 1;
+  const F = AF, tile = 9, step = 10, tall = 14, w = (marks.length * step - 1) * F, h = tall * F, [c, o] = makeCanvas(w, h);
+  let x = 0;
   for (const m of marks) {
-    const rows = NATURE_MARK[m.v];
-    o.fillStyle = '#0b0a12'; o.fillRect(x - 1, 2, 5, rows.length + 2);
-    o.fillStyle = ELEMENT_COLS[m.el];
-    rows.forEach((r, j) => { for (let i = 0; i < 3; i++) if (r[i] === '#') o.fillRect(x + i, 3 + j, 1, 1); });
-    x += 5;
+    const rows = NATURE_MARK[m.v], col = NATURE_COLS[m.el];
+    o.fillStyle = '#0b0a12'; o.fillRect(x * F, 0, tile * F, tall * F);
+    o.fillStyle = col;
+    rows.forEach((r, j) => { for (let i = 0; i < 7; i++) if (r[i] === '#') o.fillRect((x + 1 + i) * F, (1 + j) * F, F, F); });
+    const tag = pixelTextPic(NATURE_TAG[m.el] || '', col);
+    o.drawImage(tag, Math.round((x + tile / 2) * F - tag.textW / 2), 7 * F);
+    x += step;
   }
-  if (unknown) o.drawImage(pixelTextPic('?', '#c8bca0'), x, 0);
-  pic = { c, w };
+  pic = { c, w, h };
   _naturePips.set(key, pic);
   return pic;
 }
 function drawNaturePips(o, e, cx, y) {
-  const { marks, unknown } = natureMarks(e);
-  if (!marks.length && !unknown) return;
-  const pic = naturePipsPic(marks, unknown);
-  o.drawImage(pic.c, Math.round(cx - pic.w / 2), y - 3);
+  const { marks } = natureMarks(e);
+  if (!marks.length) return;
+  const pic = naturePipsPic(marks);
+  o.drawImage(pic.c, Math.round(cx - pic.w / 2), y - pic.h);
 }
 
 // A foe's number: bigger and green with WEAK under it when weak, small and

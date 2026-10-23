@@ -288,7 +288,7 @@ async function phone(browser) {
     await tap(page, '#btn-act');
     await page.evaluate(sturdy);
     await page.evaluate(() => { for (let i = 0; i < 60 * (T.world.waystone.channel + 0.2); i++) { Game.step(1 / 60); for (const e of Game.dive.enemies) e.dead = true; } });
-    stones.push(await page.evaluate(() => [(terrState(Game.dive.terr).lit || []).length, !!Game.dive.hold]));
+    stones.push(await page.evaluate(() => { const d = Game.dive, s = d.floor.stones[d.hold ? d.hold.k : 0]; return [(terrState(d.terr).lit || []).length, !!d.hold, d.channel ? 'channel' : '', Game.modal || '', $('toasts').textContent.slice(-60), Math.round(d.p.x), Math.round(d.p.y), $('btn-act').textContent]; }));
   }
   check(stones[0][0] === 1 && stones[1][0] === 2 && stones[2][1], `phone: the waystones did not light one by one, the last held (${JSON.stringify(stones)})`);
   check(await page.evaluate(() => terrState(Game.dive.terr).state === 'contested' && /Stay in its light/.test($('hud-goal').textContent)), 'phone: lighting a waystone did not contest the land, or the goal does not show the hold');
@@ -1053,9 +1053,11 @@ async function spellcraft(browser) {
     out.warded = elementMultFor(w, 'ember');
     for (let k = 0; k < T.enemies.wardHits; k++) hurtEnemy(w, 0.01, { els: ['force'], spell: true });
     out.unwarded = elementMultFor(w, 'ember');
-    out.known0 = natureKnown(c, 'ember');
+    // (Wick knows every kind's nature: a crawler's badges show before any
+    // hit, and a weak hit's number says WEAK)
+    out.known0 = natureKnown(c, 'ember') && natureMarks(c).marks.some((m) => m.el === 'ember' && m.v === 'W');
     hurtEnemy(c, 1, { els: ['ember'], spell: true });
-    out.known1 = natureKnown(c, 'ember') && d.nums.some((n) => n.verdict === 'W');
+    out.known1 = d.nums.some((n) => n.verdict === 'W') && d.fx.some((f) => f.kind === 'verdict' && f.v === 'W');
     // a chilled foe struck by Force shatters
     const t = foe('construct', null, -30), hp = t.hp;
     hurtEnemy(t, 1, { els: ['frost'], spell: true });
@@ -1072,13 +1074,14 @@ async function spellcraft(browser) {
     out.stirs = !!(resonanceNear(it.spells[0]) || {}).stir;
     UI.show('screen-gear'); UI.openCard(it, 'stash', it.uid); UI.card.focus = 'spells'; UI.card.part = '0:m0'; UI.acts.partPut('echo:2');
     out.live = !!document.querySelector('.spell.res') && /Shatterglass/.test($('card-body').textContent) && codexWhole(resonanceById('shatterglass'));
-    return out;
+    out.RS = T.circuits.resist; return out;
   });
-  check(r.crawler.join() === '1,1.5,1', `natures: a crawler is ${r.crawler} to force, ember, shock`);
-  check(r.magma.join() === '1,1.5', `natures: the Magma Tubes don't shift a crawler (${r.magma})`);
-  check(r.insulated === 0.25, 'natures: Insulated does not shrug off Shock');
-  check(r.warded === 0.5 && r.unwarded === 1, `natures: a ward isn't ${r.warded} until Force breaks it (${r.unwarded})`);
-  check(!r.known0 && r.known1, 'natures: Wick did not learn a weakness from a hit');
+  const RS = r.RS;
+  check(r.crawler.join() === `1,${RS.W},1`, `natures: a crawler is ${r.crawler} to force, ember, shock`);
+  check(r.magma.join() === `1,${RS.W}`, `natures: the Magma Tubes don't shift a crawler (${r.magma})`);
+  check(r.insulated === RS.I, 'natures: Insulated does not shrug off Shock');
+  check(r.warded === RS.R && r.unwarded === 1, `natures: a ward isn't ${r.warded} until Force breaks it (${r.unwarded})`);
+  check(r.known0 && r.known1, 'natures: the crawler\'s weakness did not show before the hit, or the hit did not say WEAK');
   check(r.shatter, 'reactions: Force on the chilled did not shatter');
   check(r.codex0 && r.stirs && r.live, `resonances: the Codex or the locker is wrong ${JSON.stringify(r)}`);
   check(!errors.length, 'spellcraft: ' + errors.join(' | '));

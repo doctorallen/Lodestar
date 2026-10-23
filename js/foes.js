@@ -415,7 +415,7 @@ function updateSentinel(d, e, pd, sp, dt, free) {
       // has the beam passed over the diver since the last step?
       const m = Math.max(1, dist(e.x, e.y, p.x, p.y)), tol = Math.atan2(T.player.radius + 2, m);
       const lo = Math.min(was, e.beamA) - tol, hi = Math.max(was, e.beamA) + tol, a = foeAngleNear(Math.atan2(p.y - e.y, p.x - e.x), (lo + hi) / 2);
-      if (a >= lo && a <= hi && m < def.range && foeRay(f, e.x, e.y, (p.x - e.x) / m, (p.y - e.y) / m, m) >= m - 2) { e.hitDone = true; hurtPlayer(e.dmg, e); }
+      if (a >= lo && a <= hi && m < def.range && foeRay(f, e.x, e.y, (p.x - e.x) / m, (p.y - e.y) / m, m) >= m - 2) { e.hitDone = true; hurtPlayer(e.dmg * T.enemies.shotScale, e); }
     }
     if (e.t <= 0) { e.state = 'hover'; e.cd = def.cooldown; }
     return;

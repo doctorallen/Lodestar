@@ -155,8 +155,8 @@ const WICK = {
   wake_wick: 'Fit me with something. Walk me over to the Drone Bay.',
   wake_uplink: 'The uplink\'s warm. The Meridian is listening.',
   // natures (natures.js)
-  weakHit: "It hates that. I'll mark what each kind fears over its head.",
-  resistHit: "That barely touched it. Some things shrug an element off. Try the other spell.",
+  weakHit: "It hates that. The badge over its head says what each kind fears; your buttons say it too.",
+  resistHit: "That barely touched it. A grey button means it shrugs that element off. Try the other spell, or come back with other cores.",
   warded: "That one's warded. Only something blunt will crack its shell.",
   wardBroken: 'The ward is down. Everything works on it now.',
   shifting: 'Its colour keeps changing, and so does what it fears. Watch the mark.',

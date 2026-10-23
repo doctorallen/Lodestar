@@ -245,6 +245,18 @@ Object.assign(BANK, {
     bkFM(R, o, t, { f: sndRange(115, 125), ratio: 2.73, i0: 6, i1: 0.5, id: 0.05, d: 0.18, g: 0.5, lp: 2500 });
     sndNoise(R, o, t, { ft: 'lowpass', f: 1500, a: 0.001, d: 0.05, g: 0.6 });
   } },
+  // a hit turned by what it struck: a dull knock, no ring to it
+  'hit.resist': { dur: 0.4, verb: 'room', wet: 0.1, fn(R, o, t) {
+    bkSub(R, o, t, 120, 70, 0.09, 0.9);
+    bkFM(R, o, t, { f: sndRange(200, 230), ratio: 1.02, i0: 1.5, i1: 0.2, id: 0.04, d: 0.08, g: 0.45, lp: 900 });
+    sndNoise(R, o, t, { ft: 'lowpass', f: 700, f2: 250, glide: 0.05, a: 0.001, d: 0.06, g: 0.5 });
+  } },
+  // a hit on what fears it: a crack, bright and short
+  'hit.weak': { dur: 0.45, verb: 'room', wet: 0.25, fn(R, o, t) {
+    bkSnap(R, o, t, 0.9, 3200, 0.003);
+    bkPings(R, o, t, 2, 0.008, { f: [2400, 3600], d: [0.08, 0.14], g: [0.3, 0.4] });
+    bkFM(R, o, t, { f: sndRange(900, 980), ratio: 2.01, i0: 3, i1: 0.3, id: 0.03, d: 0.1, g: 0.35 });
+  } },
   'hit.crit': { dur: 0.55, verb: 'room', wet: 0.3, fn(R, o, t) {
     bkSnap(R, o, t, 0.6, 2500, 0.002);
     bkPings(R, o, t, 3, 0.01, { f: [1700, 2600], d: [0.12, 0.2], g: [0.3, 0.4] });
@@ -467,7 +479,7 @@ const BANK_INTRO = ['intro.scene1', 'intro.craft', 'intro.scene2', 'intro.beam',
 // one of the long rare ones), and the order (the commonest first).
 const BANK_N = 4;
 const BANK_MANY = new Set(['hit.force', 'hit.shock', 'hit.frost', 'hit.ember', 'hit.blight', 'form.arc', 'cast.force', 'cast.shock', 'cast.frost', 'cast.ember', 'cast.blight', 'form.bolt', 'dash', 'kill', 'hurt', 'form.arcHeavy']);
-const BANK_ORDER = ['hit.force', 'hit.shock', 'hit.frost', 'hit.ember', 'hit.blight', 'form.arc', 'cast.force', 'cast.shock', 'cast.frost', 'cast.ember', 'cast.blight', 'form.bolt', 'form.spark', 'dash', 'kill', 'hurt', ...Object.keys(BANK_STEPS).map((m) => 'step.' + m), 'hit.heavy', 'hit.crit', 'form.arcHeavy', 'form.nova', 'form.lance', 'form.orb', 'form.well', 'form.ward', 'form.glaive', 'form.charged', 'react', 'noCharge', 'heal', 'kill.big', 'res', 'sting.elite', 'sting.boss', 'sting.hollow'];
+const BANK_ORDER = ['hit.force', 'hit.shock', 'hit.frost', 'hit.ember', 'hit.blight', 'form.arc', 'cast.force', 'cast.shock', 'cast.frost', 'cast.ember', 'cast.blight', 'form.bolt', 'form.spark', 'dash', 'kill', 'hurt', ...Object.keys(BANK_STEPS).map((m) => 'step.' + m), 'hit.heavy', 'hit.crit', 'hit.resist', 'hit.weak', 'form.arcHeavy', 'form.nova', 'form.lance', 'form.orb', 'form.well', 'form.ward', 'form.glaive', 'form.charged', 'react', 'noCharge', 'heal', 'kill.big', 'res', 'sting.elite', 'sting.boss', 'sting.hollow'];
 
 const SndBank = {
   bufs: {}, started: false, done: false, bytes: 0, rate: BANK_RATE, irs: null, noises: null, ms: 0,

@@ -361,6 +361,9 @@ const UI = {
     drawSupplyDeck(d);
     const eq = Save.data.equip;
     const rig = isCaster(eq.main) ? eq.main : null;
+    // the foe the spells would reach: each button says whether it fears or
+    // shrugs off that spell's element (natures.js)
+    const foe = !d.hub && !Game.modal ? nearestEnemy(d, T.hud.verdictReach) : null;
     for (const slot of ['main', 'off']) {
       // each spell's button shows its Form
       const sp = rig && rigSpell(rig, slot === 'off' ? 1 : 0), form = rig ? spellForm(sp) : 'arc', btn = $('btn-' + slot), key = `${rig ? rig.uid : 'fist'}:${form}`;
@@ -371,6 +374,10 @@ const UI = {
       const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
       btn.classList.toggle('charging', lv > 0 && lv < 1);
       btn.classList.toggle('charged', lv >= 1);
+      let m = 1;
+      if (foe && foe.type !== 'dummy') { const g = rig ? spellGroup(sp) : null, els = !rig ? ['force'] : g ? (g.els.length ? g.els : ['force']) : null; if (els) m = elementMult(foe, els); }
+      btn.classList.toggle('weak', m > 1.01);
+      btn.classList.toggle('resist', m < 0.99);
     }
     if ($('btn-off').hidden !== !rig) $('btn-off').hidden = !rig;
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);

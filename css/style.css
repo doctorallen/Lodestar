@@ -118,6 +118,14 @@ body.home #btn-mine { display: none; }
 .deck-btn.charging { box-shadow: 0 0 10px rgba(255, 240, 200, 0.5); }
 .deck-btn.charged { box-shadow: 0 0 18px rgba(255, 240, 200, 0.95); background: rgba(255, 240, 200, 0.3); }
 .deck-btn.cooling { opacity: 0.45; }
+/* the nearest foe's verdict on a spell's element (natures.js): fears it,
+   green with ▲; shrugs it off, grey with ▼ */
+.deck-btn.main, .deck-btn.off { position: absolute; }
+.deck-btn.weak, .deck-btn.off.weak { border-color: #7ef06a; color: #7ef06a; background: rgba(126, 240, 106, 0.14); box-shadow: 0 0 14px rgba(126, 240, 106, 0.55); }
+.deck-btn.resist, .deck-btn.off.resist { border-color: #6f6a80; color: #9a93ad; background: rgba(120, 112, 140, 0.1); }
+.deck-btn.weak::after, .deck-btn.resist::after { content: '▲'; position: absolute; top: -4px; right: -2px; width: 22px; height: 22px; border-radius: 50%; background: #7ef06a; color: #0b0a12; font-size: 11px; line-height: 22px; text-align: center; }
+.deck-btn.resist::after { content: '▼'; background: #9a93ad; }
+.deck-btn.charged.weak, .deck-btn.charged.resist { background: rgba(255, 240, 200, 0.3); }
 .deck-btn.act { left: auto; top: auto; right: 10px; bottom: calc(100% + 8px); width: auto; height: 44px; padding: 0 16px; border-radius: 22px; color: #111; background: var(--gold); white-space: nowrap; z-index: 5; }
 #app.wide .deck-btn.act { bottom: calc(166px + env(safe-area-inset-bottom)); right: 8px; }
 /* at a spire, TRAVEL sits over BANK */
@@ -516,6 +524,12 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .tcard .trow span:first-child { color: var(--dim); font-size: 10px; letter-spacing: 0.08em; padding-top: 2px; }
 .tcard .trow span:last-child { text-align: right; }
 .tcard .goal { background: #1a1628; border-left: 2px solid #a77bff; padding: 6px 8px; margin: 6px 0; font-size: 12px; }
+/* what lives there, and what each fears (▲) and shrugs off (▼) */
+.tcard .fauna { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0 3px 10px; font-size: 12px; }
+.tcard .fauna .fname { color: var(--ink); }
+.tcard .fauna .nat { text-align: right; white-space: nowrap; }
+.tcard .fauna .nat b { display: inline-block; font-weight: bold; margin-left: 5px; padding: 1px 5px; border-radius: 3px; color: #0b0a12; font-size: 11px; }
+.tcard .fauna .nat .r { opacity: 0.6; }
 .tcard .menu { margin-top: 8px; }
 .pill { display: inline-block; font-size: 10px; letter-spacing: 0.08em; padding: 2px 5px; border: 1px solid currentColor; margin-left: 6px; vertical-align: 1px; }
 .pill.kindled, .pill.home { color: var(--gold); } .pill.contested { color: #ff5ad8; } .pill.dark { color: #a77bff; } .pill.edge { color: var(--dim); }

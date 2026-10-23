@@ -169,6 +169,22 @@ function animateWorldMap() {
   WorldMapView.raf = requestAnimationFrame(tick);
 }
 
+// What lives in a territory, each with what it fears (▲) and shrugs off
+// (▼, a bar for all but), in its clime (natures.js kindNatures): the
+// clime's own creature first, then the kinds found everywhere. The cores
+// are chosen at the locker, so the map is where this has to be read.
+const MAP_COMMON_KINDS = ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'];
+function mapFaunaRows(t) {
+  const sig = foeOfClime(t.clime), kinds = (sig ? [sig] : []).concat(MAP_COMMON_KINDS);
+  const glyph = { W: '▲', R: '▼', I: '▬' };
+  return kinds.map((k) => {
+    // (a filled pill in the element's colour with dark text: coloured text
+    // on the dark card was hard to read)
+    const nat = kindNatures(k, t.clime, null).slice(0, 3).map((m) => `<b class="${m.v === 'W' ? 'w' : 'r'}" style="background:${NATURE_COLS[m.el]}">${glyph[m.v]} ${esc(CIRCUIT_ELEMENTS[m.el].name)}</b>`).join('');
+    return `<div class="fauna"><span class="fname">${esc(foeWord(k))}</span><span class="nat">${nat || '<b class="r">—</b>'}</span></div>`;
+  }).join('');
+}
+
 // The chosen territory's card, and where the diver can go from here.
 function drawMapCard() {
   const L = worldMap(), t = L.terrs[UI.mapSel] || L.terrs[0], s = terrPeek(t.id) || {}, d = Game.dive, mode = UI.mapMode;
@@ -180,7 +196,7 @@ function drawMapCard() {
   else if (!seen) h += `<div class="goal">Unknown until walked.</div>` + row('ENEMIES', `level ${terrLevel(t)}+`);
   else {
     const ores = T.biomes[t.biome].ores.map((id) => T.ores[ORE_INDEX[id]].name).join(', ');
-    h += row('ENEMIES', `level ${terrLevel(t)}`) + row('ORE', ores + (t.edge ? ' (rich)' : ''));
+    h += row('ENEMIES', `level ${terrLevel(t)}`) + mapFaunaRows(t) + row('ORE', ores + (t.edge ? ' (rich)' : ''));
     const g = MAP_GOAL_TEXT[t.goal];
     if (s.starter) h += `<div class="goal"><b>Kindled</b> by the outpost's own spire.</div>`;
     else if (word === 'kindled') h += `<div class="goal"><b>Kindled.</b> Its spire banks and travels.</div>`;

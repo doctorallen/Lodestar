@@ -39,12 +39,17 @@ function enemyEarlyHp(type, level) {
 }
 
 function makeEnemy(type, x, y, level, elite) {
-  const E = T.enemies, def = E[type];
-  const hpMul = Math.pow(E.hpGrowth, level - 1) * enemyEarlyHp(type, level) * (elite ? E.eliteHp * (elite === 'tough' ? E.tough : 1) : 1);
+  const E = T.enemies, def = E[type], boss = type === 'warden' || type === 'keeper', plain = type !== 'dummy' && type !== 'hollow';
+  // (fewer and tougher: a regular kind's health and every kind's damage
+  // are scaled up, T.enemies.hpScale and dmgScale; bosses keep their own
+  // health, the practice dummy its own everything)
+  const early = enemyEarlyHp(type, level);
+  const hpMul = Math.pow(E.hpGrowth, level - 1) * early * (elite ? E.eliteHp * (elite === 'tough' ? E.tough : 1) : 1) * (plain && !boss ? E.hpScale : 1);
   const hp = Math.round(def.hp * hpMul);
   const e = {
-    type, x, y, hp, maxHp: hp, r: def.radius, level, elite, boss: type === 'warden' || type === 'keeper',
-    dmg: def.dmg * Math.pow(E.dmgGrowth, level - 1) * (elite ? E.eliteDmg : 1),
+    type, x, y, hp, maxHp: hp, r: def.radius, level, elite, boss,
+    // (the Rim's handicap, `early`, eases a regular foe's damage too)
+    dmg: def.dmg * Math.pow(E.dmgGrowth, level - 1) * (elite ? E.eliteDmg : 1) * (type !== 'dummy' ? E.dmgScale : 1) * (plain && !boss ? early : 1),
     speed: def.speed * (elite === 'fast' ? E.fast : 1),
     state: 'idle', t: 0, cd: 0, aggro: false, flash: 0, slowT: 0, stunT: 0, kx: 0, ky: 0, kvx: 0, kvy: 0, hitDone: false, bob: 0,
     burst: false, dead: false, orbit: (Math.floor(x + y) & 1) * 2 - 1,
@@ -420,7 +425,7 @@ function updatePlant(d, e, pd, dt) {
       d.fx.push({ kind: 'snap', x: e.x, y: e.y - 6, dx: e.aimX - e.x, dy: e.aimY - e.y, t: 0.18, max: 0.18 });
     } else {
       // a glob, lobbed to where the diver stood
-      d.globs.push({ x: e.x, y: e.y - 10, x0: e.x, y0: e.y - 10, x1: e.aimX, y1: e.aimY, t: 0, max: dist(e.x, e.y, e.aimX, e.aimY) / def.shotSpeed, dmg: e.dmg });
+      d.globs.push({ x: e.x, y: e.y - 10, x0: e.x, y0: e.y - 10, x1: e.aimX, y1: e.aimY, t: 0, max: dist(e.x, e.y, e.aimX, e.aimY) / def.shotSpeed, dmg: e.dmg * T.enemies.shotScale });
     }
     e.state = 'rest'; e.cd = def.cooldown;
     return;
@@ -463,8 +468,9 @@ function updateGlobs(dt) {
 // ---------------------------------------------------------------------------
 // Their shots
 // ---------------------------------------------------------------------------
+// (a shot does shotScale of a bite: it's harder to step out of)
 function fireEnemyShot(d, x, y, vx, vy, dmg, col) {
-  d.shots.push({ x, y, vx, vy, dmg, t: 4, col });
+  d.shots.push({ x, y, vx, vy, dmg: dmg * T.enemies.shotScale, t: 4, col });
 }
 
 function updateEnemyShots(dt) {

@@ -1127,10 +1127,10 @@ function renderFrameDraw() {
   const o = View.overCtx;
   for (const e of d.enemies) {
     if (e.dead || e.hid) continue;
-    // over each awake foe: what it fears and shrugs off, as Wick knows it
-    // (natures.js), over its health (none over one still hidden)
+    // over each foe in sight: what it fears and shrugs off (natures.js),
+    // over its health (none over one still hidden)
     const head = e.boss ? vy(e.y) - Math.round(enemySprite(d, e.type).ay) - 4 : vy(e.y) - ap(T.enemies[e.type].barY || (e.type === 'wisp' ? 22 : e.type === 'construct' ? 20 : 16));
-    if (e.aggro && e.type !== 'dummy') { const ex = vx(e.x); if (ex > -20 && ex < View.w + 20 && head > -10 && head < View.h + 10) drawNaturePips(o, e, ex, head - 5); }
+    if (e.type !== 'dummy') { const ex = vx(e.x); if (ex > -20 && ex < View.w + 20 && head > -10 && head < View.h + 10) drawNaturePips(o, e, ex, head - 2 * AF); }
     if (e.boss || (e.hp >= e.maxHp && !e.elite)) continue;
     const w = ap(e.r * 2 + 4), bx = Math.round(vx(e.x) - w / 2), by = head;
     o.fillStyle = '#000'; o.fillRect(bx - AF, by - AF, w + 2 * AF, 4 * AF);
@@ -1579,6 +1579,13 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     cfxRays(cx, cy, r * 0.3, r, 10, R, cfxBand(k), cfxSeed(fx));
     cfxStrokeRing(cx, cy, r, Math.round(r * 0.75), R, cfxBand(k), cfxSeed(fx), true, 0.25);
     lights.push({ x: cx, y: cy, r: fx.r * 1.5, i: 1.2 * k, c: [1, 0.5, 0.25] });
+  } else if (fx.kind === 'verdict') {
+    // the hit's verdict, on the foe: resisted, a dull grey ring closing on
+    // it like a shell turning the blow; weak, a crisp ring of the element's
+    // colour thrown out
+    const u = 1 - k;
+    if (fx.v === 'W') hlRingHard(cx, cy, Math.round(ap(4) + u * ap(10)), NATURE_COLS[fx.el] || '#7ef06a', 0.6, k);
+    else hlRingHard(cx, cy, Math.round(ap(12) - u * ap(7)), '#9a93ad', 0.6, k * 0.8);
   } else if (fx.kind === 'volatile') {
     if (tick % 2) for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) dot(cx + i - 1, cy - ap(4) + j - 1, '#ff5a3a', true);
     lights.push({ x: cx, y: cy, r: TILE, i: 0.8, c: [1, 0.35, 0.2] });
