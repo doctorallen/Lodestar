@@ -49,9 +49,7 @@
 //                  thing (wick.js)
 //   wake_<key>     a system waking for a new Kindler (onboard.js)
 // And:
-//   storyKindledCount()           territories kindled (0 with no world yet)
-//   kindleLogLine(clime, name)    the log's line for a territory kindled
-//   playKindlerEnding(choice, done)  'kindle' or 'leave', at the Edge
+//   playWorldLives(done)          the ending, once, at the last magnitude
 // The uplink is the station with the id 'wreck' (floor.js HUB_STATIONS),
 // kept so the outpost's layout needn't change.
 // ---------------------------------------------------------------------------
@@ -302,80 +300,23 @@ const ECHOES = [
   { title: 'Last log of the Halcyon', text: "I've stopped feeding her. She burns low now. Not out. Just smaller. If you're the next one: you could light it all. Ask whose night it is first." },
 ];
 
-// The endings, at the Edge: kindle the heart, or leave it. The game goes on
-// after either.
-const KINDLER_ENDINGS = {
-  kindle: [
-    // the Kindler at the heart of the dark, the Lodestar's light pouring
-    // into it
-    'At the heart of the dark, you give it your light. All of it, the way a Kindler is taught.',
-    'Morning runs out from the Edge like water. It reaches the outpost, and the old dim stars underground, and keeps going.',
-    'The Hollow do not fight it. They thin, and pale, and are gone. Where they were, green comes up.',
-    "Wick: It's a garden. A whole world of it. The Charter will call it a triumph.",
-    'Wick: …It went very quiet, at the end. I keep listening for it.',
-    'The Meridian comes down at last, by the book, into the morning you made. The star takes it as it took everything you carried up to it.',
-    'Wick: …That was the last line of the spec. I read it a hundred times. I never once read it right.',
-  ],
-  leave: [
-    // the Kindler at the heart of the dark, light held close, turning back
-    'At the heart of the dark, with your light in your hands, you choose not to.',
-    'Something out there has waited a long time to see what you would do. It turns back to its night.',
-    'The Hollow keep to the dark, and the light keeps what you gave it. There is a line between them now, and it holds.',
-    "Wick: The Charter won't like it. I don't think anyone from the Charter has ever stood here.",
-    'The Meridian stays in orbit, its sleepers asleep. The star is not whole, so it never calls them down. Wick says there is a slow way to wake them, by hand, one pod at a time.',
-    'And over them, for the first time in an age, the world has stars of its own.',
-  ],
-};
-// One line in the log for each territory kindled, by its clime. {name} is
-// the territory's.
-const KINDLE_LOG = {
-  badlands: ['{name} kindled. The dust settles, and something green finds the cracks.', '{name} kindled. The mesas hold the warmth long after dark.'],
-  frost: ['{name} kindled. The ice ticks as it thaws, all night long.', '{name} kindled. Meltwater, running for the first time in an age.'],
-  cinder: ['{name} kindled. The vents still smoke, but it smells like a hearth now.', '{name} kindled. Ash underfoot, and a first shoot through it.'],
-  bloomfen: ['{name} kindled. Every bloom in the fen turned to face the star.', '{name} kindled. The fen went still, then started singing again. A different song.'],
-  caverns: ['{name} kindled. Light in the cracks, all the way down.'],
-  grotto: ['{name} kindled. The water is clear to the bottom now. Something moved off it.'],
-  magma: ['{name} kindled. The rock still runs, but it runs gold.'],
-  rootdeep: ['{name} kindled. The roots are pulling up, towards the light.', '{name} kindled. The spores have stopped drifting. Wick says they are waiting.'],
-  archive: ['{name} kindled. The shelves are lit. Someone wrote all this. Someone read it.'],
-  temple: ['{name} kindled. The temple doors face away from the star. They always did.'],
-  vault: ['{name} kindled. The clocks inside started again. Wick thinks they were counting down.'],
-  any: ['{name} kindled. The light holds, and the dark draws back.', '{name} kindled. Quiet there now.'],
-};
-
-// ---------------------------------------------------------------------------
-// For the world: how much of it is kindled, and what that's worth.
-// ---------------------------------------------------------------------------
-
-// The territories kindled, as the world lays them out (so with a name and
-// a clime), read from the world's save: Save.data.world.territories[id]
-// .state === 'kindled' (frontier.js). The starter doesn't count, as the
-// outpost's own light reaches it; none while there's no world yet.
-function storyKindled() { return []; }
-// The star's core gone: the world is lost (game.js starGoesOut).
-const STAR_OUT_LINES = [
-  'The last of the light goes out of the heart. The veins go dark along their length, one after another, out to the furthest node.',
-  'Wick: …I have no line for this. The spec never had one.',
-  'Above, the Meridian waits for a star that will not call it down. The world keeps its night.',
+// The ending (DESIGN.md, The end): the veins have reached every reach of
+// the world, and the star says the world lives. The Kindler walks into the
+// heart's light and doesn't come out; the light draws in along every vein
+// and out again as day; the Meridian comes down; Wick, alone on the ground,
+// says the one line he has been not saying. Told in panels, once; the game
+// stays open after, the world lit.
+const WORLD_LIVES_LINES = [
+  'The last vein sets, and the star says the world lives. It has never spoken so plainly.',
+  'You walk into the light under the heart, as you have a hundred times to take up a thread. This time there is no thread.',
+  'The light draws in along every vein you laid, all at once, into the heart, and out again as day. All of it. Over all of it.',
+  'Above, the Meridian turns, and comes down by the book, into the morning.',
+  "Wick: I always knew. The Kindler is the part of the star that walks. It was never going to walk back out.",
+  'Wick: …They will be fine down here. You saw to that. I will tell them whose it was.',
 ];
-function storyKindledCount() { return storyKindled().length; }
-
-// The log's line for a territory kindled: one of its clime's, the same one
-// each time for the same name.
-function kindleLogLine(clime, name) {
-  const lines = KINDLE_LOG[clime] || KINDLE_LOG.any, n = String(name || 'The territory');
-  let h = 0;
-  for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) | 0;
-  return lines[Math.abs(h) % lines.length].replace('{name}', n);
-}
-
-// An ending, in panels: 'kindle' or 'leave'. The choice is kept, and the
-// game goes on after.
-function playKindlerEnding(choice, done) {
-  const key = choice === 'leave' ? 'leave' : 'kindle';
-  Save.data.kindlerEnding = key; Save.save();
-  const lines = KINDLER_ENDINGS[key].slice();
-  UI.openStory(lines, done);
+function playWorldLives(done) {
+  Save.data.worldLives = true; Save.save();
+  UI.openStory(WORLD_LIVES_LINES.slice(), done);
 }
 
 const Story = {

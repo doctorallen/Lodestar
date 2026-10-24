@@ -80,22 +80,25 @@ function drawStarUnder(d, ox, oy, lights) {
   const f = d.floor;
   if (!f.star) return;
   const S = T.star, mag = magnitudeOf(), cx = Math.round((f.star.x + 0.5) * ATILE) + ox, cy = Math.round((f.star.y + 0.5) * ATILE) + oy;
-  const k = 0.92 + 0.08 * Math.sin(Game.realT * 1.7);
-  lights.push({ x: cx, y: cy, r: TILE * (S.pool.r[0] + S.pool.r[1] * mag), i: S.pool.i * k, c: rgb01(HART.star[5]) });
+  const k = 0.92 + 0.08 * Math.sin(Game.realT * 1.7), lit = Intro.hub ? Intro.hub.lit : 1;
+  lights.push({ x: cx, y: cy, r: TILE * (S.pool.r[0] + S.pool.r[1] * mag), i: S.pool.i * k * lit, c: rgb01(HART.star[5]) });
 }
 // The heart of the star, colossal, in its halo, with its own light. It
 // stands among the walkers by its ground point, so the Kindler walks
 // behind it to the north and before it to the south.
 function drawStarHeart(d, a, ox, oy, lights) {
   const S = T.star, mag = magnitudeOf(), k = starHeartScale(mag);
-  const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE + Math.sin(Game.realT * 0.8) * 3 * AP) + oy;
+  // (in the opening's last shot it comes down and lights: intro.js Intro.hub)
+  const ih = Intro.hub, lit = ih ? ih.lit : 1, drop = ih ? Math.round(ih.starDY) : 0;
+  const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE + Math.sin(Game.realT * 0.8) * 3 * AP) + oy + drop;
   if (sx < -200 * AF || sx > View.w + 200 * AF || sy < -200 * AF || sy > View.h + 200 * AF) return;
   const halo = starHeartSprite('halo', k, Math.floor(Game.realT * 3) % 2), st = starHeartSprite('star', k);
-  View.ctx.globalAlpha = 0.7;
+  View.ctx.globalAlpha = 0.7 * lit;
   View.ctx.drawImage(halo.c, sx - halo.ax, sy - halo.ay - 4 * k);
-  View.ctx.globalAlpha = 1;
+  View.ctx.globalAlpha = View.emCtx.globalAlpha = 0.35 + 0.65 * lit;
   drawArtSprite(st, sx - st.ax, sy - st.ay);
-  lights.push({ x: sx, y: sy, r: TILE * (S.heartLight.r[0] + S.heartLight.r[1] * mag), i: S.heartLight.i[0] + S.heartLight.i[1] * mag, c: rgb01(ART.pal.star[2]) });
+  View.ctx.globalAlpha = View.emCtx.globalAlpha = 1;
+  lights.push({ x: sx, y: sy, r: TILE * (S.heartLight.r[0] + S.heartLight.r[1] * mag) * (0.35 + 0.65 * lit), i: (S.heartLight.i[0] + S.heartLight.i[1] * mag) * (0.3 + 0.7 * lit), c: rgb01(ART.pal.star[2]) });
 }
 // What of the star stands among the walkers: the heart, by its ground
 // point (world px), never hidden by the rock.

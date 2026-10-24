@@ -887,7 +887,7 @@ function lampLevels(d) {
   if (zl && sun > zl.lampAt) lamp *= 0.15;
   // (in the opening's last shot, off while he's in his pod, coming on as he
   // looks out: intro.js; its reach kept, only its strength)
-  const on = d.hub && Intro.hub ? Intro.hub.lamp : 1;
+  const on = Intro.hub ? Intro.hub.lamp : 1;
   return { amb, tint, lamp: lamp * on, r: Lt.lamp[0] * ATILE * lamp * (1 + (d.stats.lamp || 0) / 100), i: Lt.lamp[1] * lamp * on };
 }
 
@@ -1074,7 +1074,7 @@ function renderFrameDraw() {
   // light it: ambient, the floor's lights in view, the lodeline, the lamp
   // (dimmed at first in the opening's last shot, intro.js; only here, so the
   // floor isn't painted again for it)
-  const ambLevel = lv.amb * (d.hub && Intro.hub ? Intro.hub.amb : 1), tint = lv.tint;
+  const ambLevel = lv.amb * (Intro.hub ? Intro.hub.amb : 1), tint = lv.tint;
   const L = View.light;
   // (the ambient's brightness, for the violet in the dark: lightScene)
   View.lightAmbI = ambLevel * Math.max(tint[0], tint[1], tint[2]);
@@ -1098,7 +1098,7 @@ function renderFrameDraw() {
   lightScene(-ox, -oy);
   // the corners sinking to the violet black (air.js; the paint lab's AIR)
   airVignette(d);
-  if (d.hub && Intro.hub) introHubOver(d, ox, oy);
+  if (Intro.hub) introHubOver(d, ox, oy);
   bloomScene(-ox, -oy);
   drawLifeShade(d, ox, oy);
 
@@ -1226,7 +1226,7 @@ function drawShadow(fx, fy, rx, up) { pshContact(fx, fy, rx, up || 0); }
 
 function drawProspector(d, ox, oy, tick, lights) {
   // (still in his pod, in the opening: intro.js)
-  if (d.hub && Intro.hub && Intro.hub.hidden) return;
+  if (Intro.hub && Intro.hub.hidden) return;
   const p = d.p;
   // casting: the pose, turned to the aim and leaning into it (castfx.js);
   // the legs keep walking. Charging a spell, the pose is held, wound back.

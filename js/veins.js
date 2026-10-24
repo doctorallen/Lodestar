@@ -282,6 +282,8 @@ function holdSet(d, to) {
   snd('starFeed', { tier: 4, rate: 6, n: 12, stream: true });
   buzz(40);
   if (magnitudeOf() > magWas) { Story.starGrew(); shapesStarOffer(magnitudeOf()); }
+  // the world lives: the last magnitude reached, the ending told once
+  if (magnitudeOf() >= T.magnitude.at.length && !Save.data.worldLives) playWorldLives(() => UI.toast('The world lives. The light holds', 'legendary'));
   // a mend sends the Hollow at the cut off
   if (to >= 0 && !joined) d.enemies = d.enemies.filter((e) => !(e.type === 'hollow' && dist(e.x, e.y, x, y) < 14 * TILE));
 }
@@ -311,6 +313,16 @@ function veinsCutOnReturn(d) {
   Save.save();
   UI.toast(`The dark cut ${cut.length === 1 ? 'a vein' : cut.length + ' veins'} while you were away`, 'legendary');
   Story.say('firstCut');
+}
+// What to do next, in a line under the bar (ui.js): the state says it.
+function veinsNext(d) {
+  const s = Save.data, V = veinsState(), p = d.p;
+  if (d.hold) return `HOLD ${Math.ceil(d.hold.max - d.hold.t)} s · NODE ${Math.max(0, Math.round((d.hold.light / T.veins.nodeLight) * 100))}%`;
+  if (d.thread) { const left = Math.round(Math.max(0, d.thread.max - d.thread.len) / TILE); return veinsAction(d) === 'plant' ? `PLANT IT · ${left} LEFT` : litAt(d, p.x, p.y) ? 'WALK IT OUT' : `OUT IN THE DARK · ${left} LEFT`; }
+  if (s.shapes && s.shapes.pending.length) return 'A SHAPE WAITS AT THE STAR';
+  if (V.veins.some((v) => v.cut)) return 'A VEIN IS CUT · MEND IT';
+  if (!restingLight(d)) return 'THE DARK';
+  return V.veins.length ? 'LAY THE LIGHT FURTHER' : 'TAKE UP THE THREAD';
 }
 // Standing at a living node (the map): there.
 function veinsTravel(d, idx) {

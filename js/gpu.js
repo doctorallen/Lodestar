@@ -636,7 +636,10 @@ class GpuCtx {
     if (!(sw > 0 && sh > 0)) return;
     let flags = this.layers | (this.imageSmoothingEnabled ? GPU_F.SMOOTH : 0), u0, v0, page = 0, dyn = null;
     if (img === View.floorCol || img === View.floorEm) { if (Gpu.dirty.length) gpuFloorSync(); flags |= img === View.floorCol ? GPU_F.FLOOR : GPU_F.FLOOREM; u0 = sx; v0 = sy; }
-    else if (img.width > GPU_ATLAS || img.height > GPU_ATLAS) { const t = Gpu.dynTexs.get(img); dyn = t && t.tex ? { tex: t.tex } : gpuOwnTex(img, img.getContext('2d').getImageData(0, 0, img.width, img.height), 0, img.height); flags |= GPU_F.DYN; u0 = sx; v0 = sy; }
+    // (a picture too big for a page, or one that asks (gpuOwn: the stands'
+    // atlas pages, which the shared atlas can't always find room for), as a
+    // texture of its own)
+    else if (img.gpuOwn || img.width > GPU_ATLAS || img.height > GPU_ATLAS) { const t = Gpu.dynTexs.get(img); dyn = t && t.tex ? { tex: t.tex } : gpuOwnTex(img, img.getContext('2d').getImageData(0, 0, img.width, img.height), 0, img.height); flags |= GPU_F.DYN; u0 = sx; v0 = sy; }
     else { const e = gpuPic(img); if (!e) return; u0 = e.x + sx; v0 = e.y + sy; page = e.page; if (flags & GPU_F.SMOOTH) { flags &= ~GPU_F.SMOOTH; if (dw !== sw || dh !== sh) flags |= GPU_F.SMOOTH; } }
     this._state(dyn);
     gpuPush(this.over, dx + this.tx, dy + this.ty, dw, dh, u0, v0, u0 + sw, v0 + sh, page, alpha, alpha, alpha, alpha, flags);

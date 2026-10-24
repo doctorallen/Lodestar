@@ -544,7 +544,7 @@ function placeUndergrowth(f, set, o = {}) {
   if (strips.length) {
     // (in pages no taller than a GPU texture may be: a large floor has
     // thousands of stands)
-    const AW = 1024, AHmax = 2048, pages = [];
+    const AW = 1024, AHmax = 1024, pages = [];
     let cx = 0, cy = 0, rowH = 0, pg = 0;
     for (const s of strips) {
       if (cx + s.w > AW) { cx = 0; cy += rowH; rowH = 0; }
@@ -563,7 +563,8 @@ function placeUndergrowth(f, set, o = {}) {
         for (let j = 0; j < st.h; j++) for (let i = 0; i < st.w; i++) { const v = st.px[j * st.w + i]; if (v) px[(dy + j) * AW + dx + i] = v; }
       }
     }
-    U.atlases = U.atlases.map(({ px, AH }) => { const [c, cx2] = makeCanvas(AW, AH); cx2.putImageData(new ImageData(new Uint8ClampedArray(px.buffer), AW, AH), 0, 0); return c; });
+    // (each page a texture of its own on the GPU: gpu.js gpuOwn)
+    U.atlases = U.atlases.map(({ px, AH }) => { const [c, cx2] = makeCanvas(AW, AH); cx2.putImageData(new ImageData(new Uint8ClampedArray(px.buffer), AW, AH), 0, 0); c.gpuOwn = true; return c; });
     U.atlas = U.atlases[0];
     for (const s of strips) if (s.owner) {
       const o = s.owner;

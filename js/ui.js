@@ -174,7 +174,7 @@ const UI = {
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
     $('hud-hp').classList.toggle('fading', hp < T.pull.dimAt);
     $('hud-hp').classList.toggle('lit', restingLight(d));
-    setTextIfChanged('hud-depth', d.hold ? `HOLD · ${Math.ceil(d.hold.max - d.hold.t)} s · NODE ${Math.max(0, Math.round((d.hold.light / T.veins.nodeLight) * 100))}%` : d.thread ? 'THE THREAD' : restingLight(d) ? 'IN THE LIGHT' : 'THE DARK');
+    setTextIfChanged('hud-depth', d.litG ? veinsNext(d) : restingLight(d) ? 'IN THE LIGHT' : 'THE DARK');
     // the thread's length left, a thin line under the bar
     const th = $('hud-thread');
     if (th.hidden !== !d.thread) th.hidden = !d.thread;
