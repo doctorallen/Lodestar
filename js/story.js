@@ -170,7 +170,6 @@ const WICK = {
   firstRead: 'Read. Face it at the star, and the wrist casts it.',
   firstCut: "The dark cut a vein while we were away. The node past it has gone dark. Two ways to a place, and it can't.",
   hollowAtCut: "That's what cuts them. It follows into the light. Slowly.",
-  firstOld: "Someone planted that before us. It took the light like it remembered it. Whatever they knew is in it.",
   holdWave: 'Here they come. Stand by it.',
   firstTide: "The dark's coming back in, like a tide. Hold the spire and it'll go out again. It always has.",
   firstDeep: "A Deep. Down here the star can't see us at all. Quick in, quicker out.",

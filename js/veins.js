@@ -26,30 +26,21 @@ function veinsState() { const s = Save.data; if (!s.veins || !Array.isArray(s.ve
 // On entering the world: node 0 is the star, and the grid is built.
 function veinsLoad(d) {
   const f = d.floor, V = veinsState(), sx = (f.star.x + 0.5) * TILE, sy = (f.star.y + 0.5) * TILE;
-  if (!V.nodes.length) { V.nodes.push({ x: sx, y: sy }); veinsOldNodes(d, V); } else { V.nodes[0].x = sx; V.nodes[0].y = sy; }
+  if (!V.nodes.length) V.nodes.push({ x: sx, y: sy }); else { V.nodes[0].x = sx; V.nodes[0].y = sy; }
+  veinsMigrate(V);
   d.thread = null; d.hold = null;
   veinsRebuild(d);
 }
-
-// The old Kindlers' nodes: dead, dark, out in the land in every direction
-// (T.veins.old: how many, how far), each holding a shape (shapes.js). Laid
-// out once a save, from its seed, in the caverns nearest each sector's
-// reach. Relit by a thread from a living node (a mend), one lives, and its
-// shape is read.
-function veinsOldNodes(d, V) {
-  const f = d.floor, O = T.veins.old, rng = new Rng(hashInts(f.seed, 0x01d)), cx = f.star.x, cy = f.star.y;
-  for (let k = 0; k < O.n; k++) {
-    const a0 = (k / O.n) * Math.PI * 2, want = O.far[0] + rng.f() * (O.far[1] - O.far[0]);
-    let best = null, bd = Infinity;
-    for (const r of f.rooms) {
-      const dx = r.cx - cx, dy = r.cy - cy, m = Math.hypot(dx, dy), a = Math.atan2(dy, dx), da = Math.abs(Math.atan2(Math.sin(a - a0), Math.cos(a - a0)));
-      if (da > Math.PI / O.n || m < O.far[0] * 0.7) continue;
-      const score = Math.abs(m - want) + da * 20;
-      if (score < bd) { bd = score; best = r; }
-    }
-    if (!best) continue;
-    V.nodes.push({ x: (best.cx + 0.5) * TILE, y: (best.cy + 0.5) * TILE, old: 'old' + (k + 1) });
-  }
+// A save from before: the old Kindlers' nodes (no one was here before us)
+// are dropped where nothing joins them, and plain nodes where a vein does.
+function veinsMigrate(V) {
+  if (!V.nodes.some((n) => n.old)) return;
+  const keep = V.nodes.map((n, i) => !n.old || V.veins.some((v) => v.a === i || v.b === i)), idx = [];
+  let k = 0;
+  for (let i = 0; i < V.nodes.length; i++) idx.push(keep[i] ? k++ : -1);
+  V.nodes = V.nodes.filter((n, i) => keep[i]).map((n) => ({ x: n.x, y: n.y }));
+  for (const v of V.veins) { v.a = idx[v.a]; v.b = idx[v.b]; }
+  V.veins = V.veins.filter((v) => v.a >= 0 && v.b >= 0);
 }
 
 // Which nodes live: joined to the star by uncut veins.
@@ -173,7 +164,7 @@ function veinsAction(d) {
     if (n === d.thread.from) return null;
     const had = V.veins.find((v) => (v.a === d.thread.from && v.b === n) || (v.a === n && v.b === d.thread.from));
     if (had && !had.cut) return null;
-    return d.vLive[n] ? 'join' : V.nodes[n].old && !V.veins.some((v) => v.a === n || v.b === n) ? 'relight' : 'mend';
+    return d.vLive[n] ? 'join' : 'mend';
   }
   if (veinsNodeNear(p.x, p.y, Vn.nodeGap * TILE) >= 0) return null;
   return bodyHits(d.floor, p.x, p.y, T.player.radius + 2) ? null : 'plant';
@@ -181,7 +172,7 @@ function veinsAction(d) {
 function veinsAct(d, a) {
   if (a === 'take up') threadTake(d, veinsNodeNear(d.p.x, d.p.y, T.veins.reach * TILE));
   else if (a === 'plant') plantHere(d);
-  else if (a === 'join' || a === 'mend' || a === 'relight') joinNode(d, veinsNodeNear(d.p.x, d.p.y, T.veins.joinReach * TILE));
+  else if (a === 'join' || a === 'mend') joinNode(d, veinsNodeNear(d.p.x, d.p.y, T.veins.joinReach * TILE));
 }
 // Taking up the thread at living node `from`.
 function threadTake(d, from) {
@@ -242,9 +233,9 @@ function joinNode(d, to) {
   const n = V.nodes[to];
   th.pts.push([n.x, n.y]);
   if (d.vLive[to]) { holdSet(d, to); return; }
-  d.hold = { x: n.x, y: n.y, t: 0, max: n.old ? T.veins.relight : T.veins.join, light: T.veins.nodeLight, waveT: T.veins.holdWave, to };
+  d.hold = { x: n.x, y: n.y, t: 0, max: T.veins.join, light: T.veins.nodeLight, waveT: T.veins.holdWave, to };
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, n.x, n.y) < T.leave.noise) wake(d, e, true);
-  UI.toast(n.old ? 'An old node, dark a long time. Hold, and it relights' : 'Mending: hold', 'legendary');
+  UI.toast('Mending: hold', 'legendary');
   snd('beaconLand');
 }
 // Each step of a hold: the dark comes for the node, and bites it.
@@ -298,10 +289,8 @@ function holdSet(d, to) {
   const [x, y] = last;
   spawnSparks(x, y - 8, [ART.pal.star[3], ART.pal.star[2], '#ffffff'], 40);
   for (let i = 0; i < 12; i++) d.fx.push({ kind: 'mote', x: x + (i % 3 - 1) * 6, y: y - 4, t: 1 + i * 0.05, max: 1 + i * 0.05, seed: i, to: { x, y: y - 14 } });
-  const oldNode = to >= 0 && V.nodes[to].old && !joined;
-  UI.toast(joined ? 'Joined: two ways to it now' : oldNode ? 'The old node lights. Something in it reads' : to >= 0 ? 'Mended: the light runs again' : 'The node set. The vein lights', 'legendary');
-  Story.say(joined ? 'firstJoin' : oldNode ? 'firstOld' : 'firstSet');
-  if (oldNode) shapesOldOffer(V.nodes[to].old);
+  UI.toast(joined ? 'Joined: two ways to it now' : to >= 0 ? 'Mended: the light runs again' : 'The node set. The vein lights', 'legendary');
+  Story.say(joined ? 'firstJoin' : 'firstSet');
   snd('starFeed', { tier: 4, rate: 6, n: 12, stream: true });
   buzz(40);
   if (magnitudeOf() > magWas) { Story.starGrew(); shapesStarOffer(magnitudeOf()); }
@@ -344,7 +333,6 @@ function veinsNext(d) {
   if (d.thread) { const left = Math.round(Math.max(0, d.thread.max - d.thread.len) / TILE); return veinsAction(d) === 'plant' ? `PLANT IT · ${left} LEFT` : litAt(d, p.x, p.y) ? 'WALK IT OUT' : `OUT IN THE DARK · ${left} LEFT`; }
   if (s.shapes && s.shapes.pending.length) return 'A SHAPE WAITS AT THE STAR';
   if (V.veins.some((v) => v.cut)) return 'A VEIN IS CUT · MEND IT';
-  if (d.thread === null && veinsAction(d) === 'relight') return 'AN OLD NODE · RELIGHT IT';
   if (!restingLight(d)) return 'THE DARK';
   return V.veins.length ? 'LAY THE LIGHT FURTHER' : 'TAKE UP THE THREAD';
 }
@@ -379,7 +367,7 @@ function nodeSprite(lit) {
 // The nodes among the walkers, by their ground point.
 function veinProps(d) {
   const V = veinsState(), live = d.vLive, out = [];
-  for (let i = 1; i < V.nodes.length; i++) { const n = V.nodes[i]; out.push({ x: n.x, y: n.y, node: i, lit: !!live[i], old: !!n.old, draw: drawNode }); }
+  for (let i = 1; i < V.nodes.length; i++) { const n = V.nodes[i]; out.push({ x: n.x, y: n.y, node: i, lit: !!live[i], draw: drawNode }); }
   if (d.hold && d.hold.to < 0) out.push({ x: d.hold.x, y: d.hold.y, node: -1, hold: true, draw: drawNode });
   return out;
 }
@@ -389,7 +377,7 @@ function drawNode(d, a, ox, oy, lights) {
   const h = a.hold ? d.hold : null, k = h ? clamp(h.t / h.max, 0, 1) : 1;
   const spr = nodeSprite(a.lit || !!h);
   drawShadow(fx, fy, 6);
-  View.ctx.globalAlpha = View.emCtx.globalAlpha = a.lit ? 1 : h ? 0.5 + 0.5 * k : a.old ? 0.75 : 0.55;
+  View.ctx.globalAlpha = View.emCtx.globalAlpha = a.lit ? 1 : h ? 0.5 + 0.5 * k : 0.55;
   drawArtSprite(spr, fx - spr.ax, fy - spr.ay);
   View.ctx.globalAlpha = View.emCtx.globalAlpha = 1;
   if (a.lit) lights.push({ x: fx, y: fy - ap(8), r: TILE * 2.5, i: 0.5 + 0.1 * Math.sin(Game.realT * 2 + a.node), c: rgb01(ART.pal.star[2]) });

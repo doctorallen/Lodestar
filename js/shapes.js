@@ -29,13 +29,6 @@ const SHAPES = {
   skink: { name: 'the skink', a: { id: 'burst', name: 'Burst', line: 'up from under: a burst all round', form: 'nova', mod: 'quicken' }, b: { id: 'sink', name: 'Sink', line: 'a well that drags them down to you', form: 'well' } },
   wraith: { name: 'the wraith', a: { id: 'ember', name: 'Ember', line: 'a bolt that burns, and the burn spreads', form: 'bolt', el: 'ember' }, b: { id: 'smoulder', name: 'Smoulder', line: 'a sweep of fire that lingers on the ground', form: 'arc', el: 'ember', mod: 'linger' } },
   lurker: { name: 'the lurker', a: { id: 'tongue', name: 'Tongue', line: 'a lance that drags the first one in', form: 'lance', mod: 'chain' }, b: { id: 'mire', name: 'Mire', line: 'a well of blight that holds them', form: 'well', el: 'blight' } },
-  // the old Kindlers' nodes, relit (veins.js veinsOldNodes)
-  old1: { name: "the old node (Halcyon's)", a: { id: 'twinlance', name: 'Twin Lance', line: 'a lance cast again as it lands', form: 'lance', mod: 'echo' }, b: { id: 'greatorb', name: 'Great Orb', line: 'a wide, heavy orb', form: 'orb', mod: 'amplify' } },
-  old2: { name: "the old node (Wren's)", a: { id: 'quickblades', name: 'Quick Blades', line: 'blades that circle you, quick to cast', form: 'glaive', mod: 'quicken' }, b: { id: 'afterglow', name: 'Afterglow', line: 'a burst that leaves a field', form: 'nova', mod: 'linger' } },
-  old3: { name: 'the old node (unsigned)', a: { id: 'fan', name: 'Fan', line: 'three bolts at once', form: 'bolt', mod: 'split' }, b: { id: 'leaplance', name: 'Leaping Lance', line: 'a lance whose hits leap on', form: 'lance', mod: 'chain' } },
-  old4: { name: 'the old node (the Keeper notes)', a: { id: 'frostwell', name: 'Frost Well', line: 'a well that chills what it holds', form: 'well', el: 'frost' }, b: { id: 'greatwell', name: 'Great Well', line: 'a wide well', form: 'well', mod: 'amplify' } },
-  old5: { name: 'the old node (the last log)', a: { id: 'chainsweep', name: 'Chain Sweep', line: 'a sweep whose hits leap on', form: 'arc', mod: 'chain' }, b: { id: 'greatblades', name: 'Great Blades', line: 'wide blades that circle you', form: 'glaive', mod: 'amplify' } },
-  old6: { name: 'the old node (day 60)', a: { id: 'twicenova', name: 'Twice Nova', line: 'a burst cast again as it fades', form: 'nova', mod: 'echo' }, b: { id: 'needlebolt', name: 'Needle Bolt', line: 'a bolt that passes through them', form: 'bolt', mod: 'pierce' } },
   // the star's own, at each magnitude in T.shapes.starAt
   star2: { name: 'the star', a: { id: 'shell', name: 'Shell', line: "a shield of the star's light", form: 'ward' }, b: { id: 'draw', name: 'Draw', line: 'a well that pulls them in and holds them', form: 'well' } },
   star4: { name: 'the star', a: { id: 'twice', name: 'Twice', line: 'a bolt cast again as it lands', form: 'bolt', mod: 'echo' }, b: { id: 'leap', name: 'Leap', line: 'a bolt whose hit leaps to the next', form: 'bolt', mod: 'chain' } },
@@ -79,14 +72,6 @@ function shapesStarOffer(mag) {
     const key = 'star' + A[k];
     if (mag >= A[k] && SHAPES[key] && !s.shapes.read[key] && !s.shapes.pending.includes(key)) { s.shapes.pending.push(key); UI.toast('The star offers a shape of its own', 'legendary'); }
   }
-}
-// An old node relit (veins.js): its shape waits.
-function shapesOldOffer(key) {
-  const s = shapesState();
-  if (!SHAPES[key] || s.shapes.read[key] || s.shapes.pending.includes(key)) return;
-  s.shapes.pending.push(key);
-  Save.saveField('shapes');
-  UI.toast('A shape, from whoever planted it', 'legendary');
 }
 // The pick, at the star's screen: one reading kept, the other gone.
 function shapePick(kind, which) {
@@ -132,7 +117,7 @@ function shapesHtml() {
     const i = s.carry.indexOf(sp.id), tag = i === 0 ? 'A' : i === 1 ? 'B' : '';
     rows.push(`<div class="row static${tag ? ' on' : ''}"><img class="icon" src="${stoneIconUrl(sp.form)}" alt=""><span class="row-text"><span class="row-name">${esc(sp.name)}${tag ? ` <span class="r-legendary">· ${tag}</span>` : ''}</span><span class="row-sub">${esc(sp.line)} · ${esc(sp.from)}</span></span>${i === 0 ? '' : `<button class="mini" data-act="carrySet" data-arg="a:${sp.id}">A</button>`}${i === 1 ? '' : `<button class="mini" data-act="carrySet" data-arg="b:${sp.id}">B</button>`}</div>`);
   }
-  const need = Object.keys(SHAPES).filter((k) => !k.startsWith('star') && !k.startsWith('old') && !s.shapes.read[k] && !s.shapes.pending.includes(k)).map((k) => `${SHAPES[k].name} ${s.killsOf[k] || 0}/${T.shapes.kills}`);
+  const need = Object.keys(SHAPES).filter((k) => !k.startsWith('star') && !s.shapes.read[k] && !s.shapes.pending.includes(k)).map((k) => `${SHAPES[k].name} ${s.killsOf[k] || 0}/${T.shapes.kills}`);
   if (need.length) rows.push(`<p class="note">Being read: ${esc(need.join(', '))}.</p>`);
   return rows.join('');
 }
