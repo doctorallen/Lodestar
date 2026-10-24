@@ -101,6 +101,9 @@ function deedDeepEnd(d, t) {
   f.deeps[t.id] = true;
   Save.saveField('found');
   grantLight(d, 'deeplight', deepLightFor(t), "the Deep's end, reached");
+  // and the star learns the next Shape, from the world's depth (facets.js)
+  const shape = nextShapeToLearn();
+  if (shape) learnShape(shape, "from the Deep's end");
 }
 // An echo found.
 function deedEcho(d) { grantLight(d, 'deeplight', T.deeds.echo, 'an echo found'); }
@@ -308,9 +311,9 @@ function nextGoal() {
   if (wait && lightToMag(mag + 1) && wait >= lightToMag(mag + 1)) return `Feed the star: ${wait} light waiting.`;
   if (s.cache) return `Get your pack back, in ${s.cache.where}.`;
   if (wait) return `Feed the star: ${wait} light waiting.`;
-  // (a first cutter, before anything: it opens the next ore)
-  const pick = s.equip.pick;
-  if ((!pick || pick.tier < 1) && !s.items.some((x) => x.kind === 'pick' && x.tier >= 1)) return (s.stash.ferrite || 0) >= BLUEPRINTS.pick.ore ? 'Forge a Ferrite cutter: it breaks Lumenite.' : `Bring home ${BLUEPRINTS.pick.ore} Ferrite for a better cutter.`;
+  // ore brought home and not yet given: the star has to taste it (spectrum.js)
+  const held = T.ores.filter((o) => (s.stash[o.id] || 0) >= T.spectrum.depths[1] && bandToNext(o.id) > 0);
+  if (held.length) { const o = held.find((x) => bandDepth(x.id) < 1) || held[0]; return `Give the star the ${o.name} you carried home: each ore it tastes is a band of its light${bandDepth(o.id) < 1 && bandOpensWord(o.id) ? `, and ${bandOpensWord(o.id)} is dark to it` : ''}.`; }
   if (!s.world) return 'Walk out into the land and kindle it.';
   const L = worldMap(), lit = (id) => isKindled(id);
   const front = L.terrs.filter((t) => !t.home && !lit(t.id) && t.nb.some(lit)).sort((a, b) => terrLevel(a) - terrLevel(b));

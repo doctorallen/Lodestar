@@ -239,11 +239,8 @@ function bankHaul(d) {
   const s = Save.data.stash, b = d.banked, got = {};
   const add = (k, n) => { s[k] = (s[k] || 0) + n; b.stuff[k] = (b.stuff[k] || 0) + n; got[k] = (got[k] || 0) + n; };
   for (const k in d.cargo) if (d.cargo[k] > 0) add(k, d.cargo[k]);
-  Save.data.items.push(...d.items); b.items.push(...d.items);
-  b.learned.push(...bankBlueprints(d));
-  const n = d.items.length;
-  d.cargo = {}; d.items = [];
-  return { got, n };
+  d.cargo = {};
+  return { got, n: 0 };
 }
 
 function bankAtSpire(d, quiet) {
@@ -275,17 +272,16 @@ function travelDone(d, to) {
   d.warp = { t: 0, at: null, zone: lat ? 'lattice' : 'surface', go: () => (to === 0 ? goHome('spire') : lat ? enterGallery(Number(to.slice(1)), { spire: true }) : enterTerritory(to, { spire: true })) };
 }
 
-// Home: everything carried is banked, the settlers' scavenged parts (the Settlers'
-// Quarters), and the report. how: 'walk', 'spire' or 'recall'. from: the
+// Home: everything carried is banked, and the report. how: 'walk', 'spire' or 'recall'. from: the
 // territory walked home from, if walked.
 function goHome(how, from) {
   const d = Game.dive;
   bankHaul(d);
   Save.data.run = null;
   Save.data.lastSpire = 0;
-  const b = d.banked, settlers = quartersPay();
+  const b = d.banked;
   Save.save();
-  enterHub({ banked: b.stuff, items: b.items, light: (d.tally && d.tally.light) || {}, learned: b.learned, settlers, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), how, recalled: how === 'recall', kindled: (d.tally && d.tally.kindled) || 0 }, { from });
+  enterHub({ banked: b.stuff, light: (d.tally && d.tally.light) || {}, shard: d.gotShard, echoes: d.echoes, where: sortieWhere(d), how, recalled: how === 'recall', kindled: (d.tally && d.tally.kindled) || 0 }, { from });
 }
 
 // Where a sortie got to, for the report.

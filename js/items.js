@@ -246,7 +246,8 @@ function freshStats() {
 }
 
 // The cores set in a rig's spells, every part.
-const rigCores = (it) => (it && it.spells ? it.spells.flatMap(spellCores) : []);
+// (the Splinter's Readings count with its cores: facets.js)
+const rigCores = (it) => (it && it.spells ? it.spells.flatMap(spellCores).concat(it.readings || []) : []);
 // Whether a core set in the rig carries a power.
 const rigHasPower = (it, power) => rigCores(it).some((c) => c.power === power);
 

@@ -121,10 +121,6 @@ function installBot() {
     window.recoverCache = function (d, c) { const n = rec(d, c); if (!Save.data.cache) Bot.packs.recovered++; return n; };
     window.leaveCache = function (d) { const r = leave(d); if (r.cache) Bot.packs.left++; if (r.old) Bot.packs.lost++; return r; };
     window.useSupply = function (k) { const ok = use(k); if (ok) Bot.packs.used[k] = (Bot.packs.used[k] || 0) + 1; return ok; };
-    // the cores rolled, by where they came from and their rarity
-    const drops = window.coreDrops, unseal = window.unsealRelic, tally = (from, m) => { const t = Bot.rolled[from] || (Bot.rolled[from] = {}); t[m.rarity] = (t[m.rarity] || 0) + 1; };
-    window.coreDrops = function (d, e) { const out = drops(d, e); for (const m of out) tally(e.type === 'keeper' ? 'keeper' : e.boss ? 'warden' : e.elite ? 'elite' : 'foe', m); return out; };
-    window.unsealRelic = function (rng, r) { const m = unseal(rng, r); tally('relic', m); return m; };
   }
 
   // The world's next step out: the dark territory next to lit land (the
@@ -159,10 +155,12 @@ function installBot() {
     const fresh = deeps.filter((t) => !deepReached(t.id));
     // (and not into a region whose ore its pick can't break yet: a player
     // gets the pick first)
-    const power = Save.data.equip.pick ? Save.data.equip.pick.base.power : 1;
+    const power = cutPower();
     const mineable = (t) => T.ores[ORE_INDEX[T.biomes[t.biome].ores[0]]].tier <= power;
     const ready = front.filter((t) => terrLevel(t) <= best && mineable(t));
-    if (deeps.length && (Math.random() < deepOdds * (fresh.length ? 2 : 1) || !front.length)) {
+    // (a land dark to the star for its band is worth a sortie for its ore
+    // before a Deep is: it's what opens the next ring)
+    if (deeps.length && (Math.random() < deepOdds * (fresh.length ? 2 : 1) || (!front.length && !banded.some(mineable)))) {
       const t = (fresh.length ? fresh : deeps).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
       return hasSpire(t.id) ? { target: t.id, spire: t.id, deep: true } : { target: t.id, walk: t.id, deep: true };
     }
@@ -176,7 +174,7 @@ function installBot() {
   }
   // Falls by where, with the gear worn at the time: a player stops going
   // back to a Deep that has beaten them twice, until their gear is better.
-  const gearSum = () => SLOTS.reduce((a, k) => a + (Save.data.equip[k] ? Save.data.equip[k].tier : 0), 0);
+  const gearSum = () => facetTier() * 4;
   function botBeaten(id) { const f = (Save.data.botFalls || {})[id]; return !!f && f.n >= 2 && f.gear >= gearSum(); }
   function botFell(id) { const F = Save.data.botFalls || (Save.data.botFalls = {}), g = gearSum(), f = F[id]; F[id] = { n: f && f.gear >= g ? f.n + 1 : 1, gear: g }; }
   // the opening of this territory that leads (over the fewest territories,
@@ -367,56 +365,13 @@ function installBot() {
     return Object.assign(r, { ended, why });
   }
 
-  // what a player might do at home with the haul
+  // Home, as a player would spend it: the star turned (its casts from the
+  // best facets it has), supplies from old ore, the light its deeds earned
+  // fed, the ore the bands need given, and the attunements spent.
   function home() {
     const s = Save.data, acts = UI.acts, log = [];
-    UI.closeCard();
-    // the forge studies what came home
-    const finds = researchStudy();
-    if (finds.length) log.push('researched ' + finds.flatMap((f) => f.opened).join(' '));
-    // unseal relics
-    for (const r of s.items.filter((i) => i.kind === 'relic')) { UI.openCard(r, 'stash', r.uid); acts.unseal(); Reveal.done(); UI.closeCard(); log.push('unsealed'); }
-    const best = () => {
-      // equip any base better than what's worn (frames: below)
-      for (const it of s.items.slice()) {
-        const slot = compareSlot(s.equip, it);
-        if (!slot || it.kind === 'caster') continue;
-        if (itemWorth(it) > itemWorth(s.equip[slot]) * 1.05) { UI.openCard(it, 'stash', it.uid); acts.equip(slot); log.push('equip ' + it.name); }
-      }
-    };
-    best();
-    // forge: a recipe in an ore, striking the anvil fairly
-    const forge = (bpId, oreId, pattern = null) => {
-      if (!s.blueprints.includes(bpId) || recipeShort(forgeCost(bpId, oreId, pattern), s.stash).length) return false;
-      Object.assign(UI.forge, { field: false, bp: bpId, ore: oreId, exotic: null, codex: false, pattern });
-      acts.craft();
-      if (!Anvil.job) return false;
-      Anvil.finish(1); Reveal.done();
-      return true;
-    };
-    UI.forge.field = false;
-    // a pick that breaks the next ore up, first: it's what reaches better
-    // ore (refining the ore below into its ore if it's a little short and
-    // the Refinery stands)
-    const pick = s.equip.pick, pickOre = T.ores.find((o) => o.tier === (pick ? pick.base.power : 1));
-    if (pickOre && structureStands('refinery')) {
-      const below = T.ores[ORE_INDEX[pickOre.id] - 1], R = T.structures.refinery, want = BLUEPRINTS.pick.ore - (s.stash[pickOre.id] || 0);
-      if (below && want > 0 && want <= 6 && (s.stash[below.id] || 0) >= want * R.n + 20) { let n = 0; while (n < want && refineOre(below.id)) n++; if (n) log.push(`refined ${n} ${pickOre.name}`); }
-    }
-    const pickBp = s.blueprints.includes('drill') && !recipeShort(recipeCost('drill', pickOre && pickOre.id), s.stash).length ? 'drill' : 'pick';
-    if (pickOre && forge(pickBp, pickOre.id)) { log.push('forged ' + pickOre.name + ' ' + pickBp); wear(s.items[s.items.length - 1], 'pick'); }
-    log.push(...forgeGear(forge, pickOre));
-    UI.closeCard();
-    log.push(...circuits(forge));
-    log.push(...cores());
-    // salvage what's left: bases into ore, spare cores into ore (a
-    // core's upgrade is paid in them)
-    for (const it of s.items.filter((i) => i.kind !== 'relic' && !i.fav)) { UI.openCard(it, 'stash', it.uid); acts.salvage(); }
-    UI.closeCard();
-    // the outpost's buildings and Wick's upgrades from what the gear left
-    // (the ore for the next pick kept back), before supplies take the old ore
-    log.push(...Bot.buildings());
-    // supplies from old ore, then the light its deeds earned to the star
+    UI.close();
+    log.push(...turnStar());
     log.push(...makeSupplies());
     const fed = feedStar();
     if (fed) log.push(`fed the star ${fed}`);
@@ -427,119 +382,23 @@ function installBot() {
     return log;
   }
 
-  // Puts a base on (a frame's cores move across, as the locker does it).
-  function wear(it, slot) {
-    if (!it || !Save.data.items.includes(it)) return;
-    UI.openCard(it, 'stash', it.uid);
-    UI.acts.equip(slot);
-    UI.closeCard();
-  }
-  // How far behind a worn base is: its tier (the Scrap Rig counts as below
-  // Ferrite; nothing worn, below that).
-  function wornTier(slot) {
-    const cur = Save.data.equip[slot];
-    return !cur ? -1 : /^(Scrap|Cracked) /.test(cur.name) ? 0 : cur.tier;
-  }
-  // Gear as a player keeps it up: every slot (the rig's frame, plate and a
-  // charm) forged again in better ore whenever there's enough, the slot
-  // furthest behind first, in the best ore it can pay for, keeping back
-  // what the next pick takes.
-  function forgeGear(forge, pickOre) {
-    const s = Save.data, log = [];
-    const reserve = (o) => (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0);
-    const afford = (bpId, o) => { const c = recipeCost(bpId, o.id); return s.blueprints.includes(bpId) && (s.stash[o.id] || 0) - reserve(o) >= c.ore.n && !recipeShort(c, s.stash).length; };
-    const wants = { main: ['rig'], armor: ['plate'], charm: ['charm'] };
-    const tried = new Set();
-    for (let k = 0; k < 8; k++) {
-      // the slot furthest behind that something better can be made for
-      const order = Object.keys(wants).filter((slot) => !tried.has(slot)).sort((a, b) => wornTier(a) - wornTier(b));
-      let made = false;
-      for (const slot of order) {
-        const cur = wornTier(slot);
-        for (const o of T.ores.slice().reverse()) {
-          if (o.tier <= cur) break;
-          for (const bpId of wants[slot]) {
-            if (!afford(bpId, o) || !forge(bpId, o.id)) continue;
-            wear(s.items[s.items.length - 1], slot);
-            log.push(`forged ${bpId} in ${o.name} for ${slot}`);
-            made = true;
-            break;
-          }
-          if (made) break;
-        }
-        if (made) break;
-        tried.add(slot);
-      }
-      if (!made) break;
+  // The star turned as a player might: cast A an Arc (a Glaive once it
+  // has one) in the deepest band, cast B a Lance if it has one, else a
+  // Bolt, in the next band; the extra facets Quicken and Amplify first,
+  // then the Readings and the shards of old light, best first.
+  function turnStar() {
+    const F = facetsState(), log = [], bands = bandsCastable().sort((a, b) => bandDepth(b) - bandDepth(a));
+    const want = [F.shapes.includes('glaive') ? 'glaive' : 'arc', F.shapes.includes('lance') ? 'lance' : 'bolt'];
+    want.forEach((shape, i) => { if (F.casts[i].shape !== shape) { faceSet(i, 'shape', shape); log.push(`cast ${i ? 'B' : 'A'}: ${shape}`); } });
+    bands.slice(0, 2).forEach((ore, i) => { const c = F.casts[i] || F.casts[0]; if (c.band !== ore && bandDepth(ore) > bandDepth(c.band)) { faceSet(i, 'band', ore); log.push(`cast ${i ? 'B' : 'A'} in ${ore}`); } });
+    const order = ['quicken', 'amplify', 'chain', 'echo', 'split', 'pierce', 'linger'];
+    const pool = extraFacets().sort((x, y) => (x.kind === 'legend' ? -1 : x.kind === 'mod' ? order.indexOf(x.id) : 50) - (y.kind === 'legend' ? -1 : y.kind === 'mod' ? order.indexOf(y.id) : 50));
+    let k = 0;
+    for (let i = 0; i < 2; i++) for (let slot = 0; slot < facetExtraSlots(); slot++) {
+      const x = pool[k++];
+      if (!x) break;
+      if (!facetSame(F.casts[i].extra[slot], x)) { faceSet(i, slot, x); log.push(`faced ${facetName(x)}`); }
     }
-    return log;
-  }
-
-  // Cores as a player might work them: three of a kind in the stash folded
-  // into one a tier denser (the bench's MERGE); every part of the rig
-  // filled with the best core of its kind for it (the ones the circuits
-  // routine chose by stone; a printed one over a plain one), the extra
-  // part too. Keeps one spare of each kind in the stash; the rest go to
-  // salvage.
-  function cores() {
-    const s = Save.data, log = [], rig = s.equip.main;
-    if (!isCaster(rig)) return log;
-    // three of a kind fold, as many times as they can
-    for (let k = 0; k < 20; k++) {
-      const g = coreGroups(s.items.filter((x) => x.kind === 'stone')).find(coreMergeable);
-      if (!g) break;
-      const m = mergeCores(s.items, g);
-      if (!m) break;
-      s.botMerges = (s.botMerges || 0) + 1;
-      log.push(`folded three ${g.c.name}s into tier ${m.tier}`);
-    }
-    let n = 0;
-    for (const sp of rig.spells) {
-      for (const [key, cur] of spellParts(sp)) {
-        const kind = spellPartKind(key), pool = s.items.filter((x) => x.kind === 'stone' && stoneKind(x.stone) === kind && (!cur || x.stone === cur.stone)).sort((a, b) => coreWorth(b) - coreWorth(a));
-        const best = pool[0];
-        if (!best || (cur && coreWorth(best) <= coreWorth(cur) * 1.05)) continue;
-        s.items.splice(s.items.indexOf(best), 1);
-        if (cur) s.items.push(cur);
-        spellSet(sp, key, best); n++;
-      }
-    }
-    if (n) log.push(`set ${n} cores`);
-    // one spare of each kind, kept
-    for (const k of ['form', 'element', 'glyph']) { const spare = s.items.filter((x) => x.kind === 'stone' && stoneKind(x.stone) === k).sort((a, b) => coreWorth(b) - coreWorth(a)); spare.forEach((c, i) => { c.fav = i === 0; }); }
-    return log;
-  }
-
-  // The outpost's buildings and Wick's upgrades as a player might: in turn,
-  // each once the star allows it and the stash can pay (the ore its next
-  // pick takes kept back), after the gear, through the forge's BUILD and
-  // FIT. Each is noted with the sortie it came after.
-  function buildings() {
-    const s = Save.data, log = [], pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
-    const order = ['bld_bay', 'wick_scan', 'bld_refinery', 'wick_shield', 'bld_relay', 'wick_lamp', 'wick_spark', 'bld_quarters'];
-    for (const id of order) {
-      const bp = BLUEPRINTS[id];
-      if (recipeLock(id)) continue;
-      const cost = recipeCost(id);
-      // (ore to spare: what's left after it covers the next pick and a little)
-      const spare = cost.stuff.every((x) => !ORE_INDEX.hasOwnProperty(x.id) || (s.stash[x.id] || 0) - x.n >= (pickOre && x.id === pickOre.id ? BLUEPRINTS.pick.ore : 0));
-      if (!spare || recipeShort(cost, s.stash).length) continue;
-      Object.assign(UI.forge, { field: false, bp: id, codex: false });
-      UI.acts.craft();
-      if (!(bp.structure ? structureBuilt(bp.structure) : wickFitted(bp.wick))) continue;
-      // (it comes down at once: the bot doesn't look)
-      if (bp.structure) s.landing = null;
-      Bot.built[id] = Bot.n;
-      log.push((bp.structure ? 'built ' : 'fitted ') + recipeName(id));
-    }
-    // the Refinery's next level, at SUPPLIES, once the stash can spare it
-    for (let n = refineryNext(); n && !refineryBlock(); n = refineryNext()) {
-      const spare = Object.keys(n.cost).every((k) => !ORE_INDEX.hasOwnProperty(k) || (s.stash[k] || 0) - n.cost[k] >= (pickOre && k === pickOre.id ? BLUEPRINTS.pick.ore : 0));
-      if (!spare || !upgradeRefinery()) break;
-      Bot.built['refinery' + refineryLevel()] = Bot.n;
-      log.push('Refinery level ' + refineryLevel());
-    }
-    UI.close();
     return log;
   }
 
@@ -582,7 +441,7 @@ function installBot() {
   // one its pick is working through is spare, the current one's is kept
   // back for gear (30 of it). Injectors most, then Lightcells.
   function makeSupplies() {
-    const s = Save.data, log = [], power = s.equip.pick ? s.equip.pick.base.power : 1, region = Math.floor((power - 1) / 2);
+    const s = Save.data, log = [], power = cutPower(), region = Math.floor((power - 1) / 2);
     const want = [['injector', 4], ['cell', 2]];
     const spare = (ore) => { const i = ORE_INDEX[ore], r = Math.floor(i / 2); return (s.stash[ore] || 0) - (r >= region ? 30 : 0); };
     for (const [kind, n] of want) {
@@ -595,86 +454,23 @@ function installBot() {
     return log;
   }
 
-  // The spells a player might build: spell A an Arc (Quicken, Amplify),
-  // B a Lance if it has one, else a Bolt (Split or Pierce, Amplify), each
-  // with an Element if it has the exotic. It forges the cores it wants from
-  // what's in the stash (a core again when its ore is a tier better, or
-  // when it can print a pattern the core has none of: the best known one
-  // that fits, if its creature's parts are there), with home's forge(bp,
-  // ore), then sets them.
-  function circuits(forge) {
-    const s = Save.data, log = [], rig = s.equip.main;
-    if (!rig || !rig.spells) return log;
-    const lance = s.blueprints.includes('form_lance');
-    const want = [['arc', ['quicken', 'amplify']], [lance ? 'lance' : 'bolt', [lance ? 'split' : 'pierce', 'amplify']]];
-    // the elements, best first: by how often the kinds it meets fear them
-    // and how seldom they shrug them off
-    const worth = (el) => ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'].reduce((n, t) => { const v = (natureTable(t) || {})[el]; return n + T.enemies[t].weight * (v ? T.circuits.resist[v] : 1); }, 0);
-    const elements = ['shock', 'frost', 'ember', 'blight'].sort((a, b) => worth(b) - worth(a));
-    const have = (id) => s.items.filter((x) => x.kind === 'stone' && x.stone === id).concat(rig.spells.flatMap(spellCores).filter((x) => x.stone === id));
-    // (keeping back what the next pick takes)
-    const pickOre = T.ores.find((o) => o.tier === (s.equip.pick ? s.equip.pick.base.power : 1));
-    const bestOre = (bp) => T.ores.slice().reverse().find((o) => (s.stash[o.id] || 0) - (pickOre && o.id === pickOre.id ? BLUEPRINTS.pick.ore : 0) >= bp.ore + 4);
-    // the pattern to print: the best known one that fits, whose parts are there
-    const bestPattern = (bp) => patternsFor(bp.stoneKind).filter((k) => partsHave(s.stash, patternCost(k).kind) >= patternCost(k).n + 2).sort((a, b) => patternBonus(b, 1).v * (AFFIX_WORTH[PATTERNS[b].bonus] || 0.3) - patternBonus(a, 1).v * (AFFIX_WORTH[PATTERNS[a].bonus] || 0.3))[0] || null;
-    const make = (id) => {
-      const bpId = BP_IDS.find((b) => BLUEPRINTS[b].stone === id);
-      if (!bpId || !s.blueprints.includes(bpId)) return false;
-      const ore = bestOre(BLUEPRINTS[bpId]);
-      if (!ore) return false;
-      const mine = have(id), top = Math.max(0, ...mine.map((x) => x.tier)), pattern = bestPattern(BLUEPRINTS[bpId]);
-      // (a core again when its ore is a tier better, or to print a pattern
-      // none of them carries yet)
-      if (top >= ore.tier && !(pattern && !mine.some((x) => x.pattern))) return false;
-      if (forge(bpId, ore.id, pattern)) { log.push(`forged ${id} core in ${ore.name}${pattern ? ' with ' + PATTERNS[pattern].name : ''}`); if (pattern) s.botPrints = (s.botPrints || 0) + 1; return true; }
-      return false;
-    };
-    const n = rigMods(rig);
-    for (const [form, mods] of want) {
-      make(form);
-      for (const id of mods.slice(0, n)) make(id);
-    }
-    // (a frame with a second Element slot: a second element core)
-    if (rig.extra === 'element' && elements.filter((e) => have(e).length).length < 3) { const e = elements.find((x) => !have(x).length && s.stash[STONE_ELEMENTS[x]] && s.blueprints.includes('el_' + x)); if (e) make(e); }
-    // an element for each spell, from an exotic it has
-    if (elements.filter((e) => have(e).length).length < 2) { const e = elements.find((x) => !have(x).length && s.stash[STONE_ELEMENTS[x]] && s.blueprints.includes('el_' + x)); if (e) make(e); }
-    // set them: every core back to the stash, then each spell's best
-    for (const sp of rig.spells) for (const c of spellCores(sp)) s.items.push(c);
-    rig.spells = rig.spells.map(() => emptySpell(rig.extra));
-    const take = (id) => { const st = s.items.filter((x) => x.kind === 'stone' && x.stone === id).sort((a, b) => coreWorth(b) - coreWorth(a))[0]; if (st) s.items.splice(s.items.indexOf(st), 1); return st || null; };
-    const used = [];
-    want.forEach(([form, mods], i) => {
-      const sp = rig.spells[i];
-      sp.form = take(form) || (form === 'lance' ? take('bolt') : null);
-      const e = elements.find((x) => !used.includes(x) && s.items.some((y) => y.stone === x)) || elements.find((x) => s.items.some((y) => y.stone === x));
-      if (e) { sp.el = take(e); used.push(e); }
-      let k = 0;
-      for (const id of mods) { if (k >= n) break; const st = take(id); if (st) sp.mods[k++] = st; }
-      // the extra part: a second element (another the foes fear), or a second form
-      if ('el2' in sp) { const e2 = elements.find((x) => x !== (sp.el && sp.el.stone) && s.items.some((y) => y.kind === 'stone' && y.stone === x)); if (e2) sp.el2 = take(e2); }
-      if ('form2' in sp) { const f2 = ['bolt', 'lance', 'orb', 'arc'].find((x) => x !== form && s.items.some((y) => y.kind === 'stone' && y.stone === x)); if (f2) sp.form2 = take(f2); }
-    });
-    Save.save();
-    return log;
-  }
-
   function career({ sorties = 20 } = {}) {
     const out = [];
     for (let n = 0; n < sorties; n++) {
-      const s = Save.data, f0 = s.coresFound || 0;
+      const s = Save.data, f0 = facetCount();
       Bot.n = n + 1;
       const r = sortie();
-      r.mods = (s.coresFound || 0) - f0;
+      r.mods = facetCount() - f0;
       r.home = home();
       r.mag = magnitudeOf(s.star);
       r.pick = s.equip.pick ? s.equip.pick.base.power : 0;
       r.hands = s.equip.main ? `${s.equip.main.name} t${s.equip.main.tier} [${s.equip.main.spells.map(spellName).join(' / ')}]` : 'fist';
       r.maxHp = computeStats(s.equip, s.attune).maxHp;
       r.gearTier = ['main', 'armor', 'charm', 'pick'].map((k) => (s.equip[k] ? s.equip[k].tier : 0));
-      const mods = rigCores(s.equip.main).filter((c) => c.bonus || c.power);
-      r.socketed = rigCores(s.equip.main).length; r.sockets = isCaster(s.equip.main) ? s.equip.main.spells.reduce((a, sp) => a + spellParts(sp).length, 0) : 0;
-      r.modTiers = rigCores(s.equip.main).map((m) => m.tier); r.modRarities = mods.map((m) => m.rarity[0]).join('');
-      r.found = s.coresFound || 0; r.merges = s.botMerges || 0; r.prints = s.botPrints || 0; r.patterns = knownPatterns().length;
+      const F = facetsState();
+      r.socketed = rigCores(s.equip.main).length; r.sockets = s.equip.main.spells.reduce((a, sp) => a + spellParts(sp).length, 0);
+      r.modTiers = rigCores(s.equip.main).map((m) => m.tier); r.modRarities = '';
+      r.found = facetCount(); r.merges = 0; r.prints = F.legends.length; r.patterns = knownPatterns().length; r.shapes = F.shapes.length; r.turns = F.mods.length;
       r.kindledAll = kindledCount();
       r.bands = Object.assign({}, Save.data.bands);
       r.star = s.star;
@@ -687,7 +483,9 @@ function installBot() {
     return out;
   }
 
-  window.Bot = { sortie, plan, home, career, circuits, feedStar, makeSupplies, buildings, packs: { recovered: 0, left: 0, lost: 0, used: {} }, rolled: {}, built: {}, n: 0 };
+  // how many facets the star knows, of every kind
+  const facetCount = () => { const F = facetsState(); return F.shapes.length + F.mods.length + F.legends.length + knownPatterns().length; };
+  window.Bot = { sortie, plan, home, career, turnStar, feedStar, makeSupplies, packs: { recovered: 0, left: 0, lost: 0, used: {} }, rolled: {}, built: {}, n: 0 };
 }
 
 module.exports = { installBot };

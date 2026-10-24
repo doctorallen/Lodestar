@@ -139,7 +139,8 @@ function portalFaceAt(t) {
 // The portals on the floor, as props sorted with the actors (a diver
 // standing at one is drawn in front of it).
 function portalProps(d) {
-  if (d.hub) { const s = HUB_STATIONS.find((x) => x.id === 'setout'); return [{ portal: 'surface', at: s, y: (s.y + 0.5) * TILE - 1 }]; }
+  // (at home there's no portal: the star's GO face is the way out, and the openings)
+  if (d.hub) return [];
   return (d.floor.ways || []).map((w, i) => wayKind(d, i) === 'portal' && { portal: d.ways[i], clime: d.wayClimes && d.wayClimes[i], at: w, y: (w.y + 0.5) * TILE - 1 }).filter(Boolean);
 }
 

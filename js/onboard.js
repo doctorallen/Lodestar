@@ -31,20 +31,12 @@
 // Ferrite gives two a vein, and the foe Wick calls up always leaves a part.
 // ---------------------------------------------------------------------------
 
+// What the Kindler is given: everything, from the first day (the star
+// provides). The keys stay for the saves that carried them.
 const ONBOARD_KEYS = ['spells', 'modules', 'altar', 'supplies', 'gear', 'tools', 'buildings', 'wick', 'uplink'];
-const ONBOARD_WHEN = {
-  spells: (s) => s.items.some((x) => x.kind === 'stone') || s.blueprints.some((id) => BLUEPRINTS[id] && BLUEPRINTS[id].kind === 'stone' && !BLUEPRINTS[id].start) || magnitudeOf(s.star) >= 2,
-  modules: (s) => (s.coresFound || 0) > 0 || s.items.some((x) => x.kind === 'stone' && (x.src || x.power)) || rigCores(s.equip.main).some((x) => x.src || x.power),
-  altar: (s) => s.star > 0 || lightWaiting() > 0 || (s.shards || []).length > 0,
-  supplies: (s) => (T.ores.some((o) => s.stash[o.id] > 0) && !Guide.on()) || Object.values(s.supplies || {}).some((n) => n > 0) || (s.built || []).length > 0 || magnitudeOf(s.star) >= 2,
-  gear: (s) => (s.crafts || 0) > 0 || !!s.equip.armor || !!s.equip.charm || s.items.some((x) => x.kind === 'armor' || x.kind === 'charm') || magnitudeOf(s.star) >= 2,
-  tools: (s) => magnitudeOf(s.star) >= 2 || (s.tools || []).length > 1,
-  buildings: (s) => magnitudeOf(s.star) >= 2 || (s.built || []).length > 0,
-  wick: (s) => (s.built || []).includes('bay') || Object.keys(s.wickUps || {}).length > 0,
-  uplink: (s) => magnitudeOf(s.star) >= 2 || (s.echoes || []).length > 0 || (s.shards || []).length > 0,
-};
-// Which station each unlock wakes (the rest are always awake).
-const ONBOARD_STATION = { runes: 'modules', altar: 'altar', wreck: 'uplink' };
+const ONBOARD_WHEN = Object.fromEntries(ONBOARD_KEYS.map((k) => [k, () => true]));
+// (nothing at home sleeps: the star is the only thing there)
+const ONBOARD_STATION = {};
 
 function onboardState() {
   const s = Save.data;
@@ -137,10 +129,10 @@ const GUIDE_STEPS = [
   { id: 'arc', say: () => 'Company. Tap ARC: that\'s spell A.', btn: 'btn-main', mark: (d) => guideFoeMark(d), start: (d) => guideFoe(d), done: (d) => guideCasts(d, 'main') > 0 },
   { id: 'bolt', say: () => 'Now BOLT, from the other wrist.', btn: 'btn-off', mark: (d) => guideFoeMark(d), start: (d) => guideFoe(d), done: (d) => guideCasts(d, 'off') > 0 },
   { id: 'dash', say: () => 'DASH to slip clear of it.', btn: 'btn-dash', mark: (d) => guideFoeMark(d), start: (d) => guideFoe(d), done: (d) => d.p.dashT > 0 },
-  { id: 'finish', say: () => 'Finish it. It\'ll leave a part.', btn: 'btn-main', mark: (d) => guideFoeMark(d), done: (d) => !guideFoes(d).length && guideParts(d) > 0, start: (d) => guideFoe(d, true) },
-  { id: 'haul', say: (d) => (guideParts(d) ? `${BLUEPRINTS.pick.ore} Ferrite makes a better cutter. ${Math.min(BLUEPRINTS.pick.ore, guideFerrite(d))}/${BLUEPRINTS.pick.ore}` : 'A creature part too. Fight one.'), btn: 'btn-mine', mark: (d) => (guideParts(d) ? guideOreMark(d, 'ferrite') : guideFoeMark(d)), start: (d) => guideFoe(d, true), done: (d) => guideFerrite(d) >= BLUEPRINTS.pick.ore && guideParts(d) > 0 },
+  { id: 'finish', say: () => 'Finish it. The dark leaves ore where it falls.', btn: 'btn-main', mark: (d) => guideFoeMark(d), done: (d) => !guideFoes(d).length, start: (d) => guideFoe(d, true) },
+  { id: 'haul', say: (d) => `${T.spectrum.depths[1]} Ferrite: the star has to taste the ground before it can light more of it. ${Math.min(T.spectrum.depths[1], guideFerrite(d))}/${T.spectrum.depths[1]}`, btn: 'btn-mine', mark: (d) => guideOreMark(d, 'ferrite'), done: (d) => guideFerrite(d) >= T.spectrum.depths[1] },
   { id: 'home', say: () => 'That will do. Back the way we came, or II, then RECALL.', mark: (d) => guideExitMark(d, 0), done: (d) => !!d.hub },
-  { id: 'forge', home: true, say: () => (guidePickStashed() ? 'Wear it: EQUIP it at the locker.' : 'To the forge. A Ferrite cutter breaks Lumenite.'), mark: () => guideStationMark(guidePickStashed() ? 'locker' : 'forge'), done: () => guidePickMade() },
+  { id: 'give', home: true, say: () => 'To the star. GIVE it the Ferrite: its first band deepens.', mark: () => guideStationMark('altar'), done: () => bandGiven('ferrite') > T.spectrum.startIron },
   { id: 'free', home: true, say: () => "That's the loop. NEXT, up there, says where to go.", done: (d, g) => g.t > 7 },
 ];
 
@@ -230,14 +222,13 @@ function guideOreMark(d, ore) {
 }
 function guideOre(d) { return T.ores.reduce((n, o) => n + (d.cargo[o.id] || 0), 0); }
 function guideFerrite(d) { return d.cargo.ferrite || 0; }
-function guideParts(d) { return partsHave(d.cargo, 'any') + partsHave(Save.data.stash, 'any'); }
 function guideCasts(d, slot) { return (d.casts && d.casts[slot]) || 0; }
 function guideFoes(d) { return d.enemies.filter((e) => e.guide && !e.dead); }
 function guideFoeMark(d) { const e = guideFoes(d)[0]; return e ? { x: e.x, y: e.y - 6 } : null; }
 // A foe for the fight's steps, on open ground a few tiles ahead (if none
 // stands); `last`: only while no part has come yet.
 function guideFoe(d, last) {
-  if (guideFoes(d).length || (d.guideFoes || 0) >= 6 || (last && guideParts(d) > 0)) return;
+  if (guideFoes(d).length || (d.guideFoes || 0) >= 6 || (last && (d.kills || 0) > 0)) return;
   const f = d.floor, p = d.p;
   for (let r = 5; r >= 2; r--) for (let a = 0; a < 16; a++) {
     const an = Math.atan2(p.fy, p.fx) + (a % 2 ? 1 : -1) * Math.ceil(a / 2) * 0.4, x = p.x + Math.cos(an) * r * TILE, y = p.y + Math.sin(an) * r * TILE;
@@ -255,8 +246,6 @@ function rockBetween(f, x0, y0, x1, y1) {
   for (let i = 1; i < n; i++) if (TILE_SOLID[floorTile(f, Math.floor(lerp(x0, x1, i / n) / TILE), Math.floor(lerp(y0, y1, i / n) / TILE))]) return true;
   return false;
 }
-function guidePickMade() { const p = Save.data.equip.pick; return !!(p && p.tier >= 1); }
-function guidePickStashed() { return Save.data.items.some((x) => x.kind === 'pick' && x.tier >= 1); }
 // Mining in the guided land: Ferrite gives two a vein.
 function onboardOreBonus(d, o) { const st = Guide.on() && Guide.step(); return st && !d.hub && (st.id === 'ore' || st.id === 'haul' || st.id === 'arc' || st.id === 'bolt' || st.id === 'dash' || st.id === 'finish') && o.id === 'ferrite' ? 1 : 0; }
 

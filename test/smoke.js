@@ -1,30 +1,27 @@
 'use strict';
-// The whole loop through the real controls. On a phone, upright: the
-// outpost, the portal's world map and a territory's card, walking out into
-// it with the joystick, an Arc at an enemy, mining with MINE held, a vein
-// the pick is too weak for, crossing an edge into the neighbour, pausing,
-// the cargo screen, lighting the waystones and planting a spire, banking
-// at it and travelling home with the haul in the stash; a core caught
-// and tethered in; the forge's research and recipes, equipping the rig
-// frame it makes (the cores move across), setting a found core, an upgrade
-// at the tuning bench, cores set in the rig's spells; an old save's gear
-// turned into bases, cores and the rig; feeding the star the
-// light of deeds (held at the altar), supplies made at the fabricator and
-// from the cargo, and used from their two buttons on the deck, the Refinery
-// upgraded; the star's reach; your light running out, a recall that loses
-// nothing, tools, the Drone Bay built and coming down to its
-// plot, Wick's Scanner fitted, turned off and on, and pinging out in the
-// land, rifts, a Deep, a Keeper; then a fall that
-// leaves the whole cargo in a pack where it fell (not what's worn), wakes at
-// the last spire, and the pack recovered. What's next, at the portal and
-// over the view at home. START OVER asks first, then wipes all but the
-// settings and opens on the landing again. An older save's star is
-// rescaled; an older save's pocket, contracts and supplies are converted.
-// Held sideways, the decks sit either side of the view. Opened again with
-// a sortie under way, the loading builds its territory and CARRY ON is
-// there at once. On a desktop: WASD,
-// J to cast, Space to mine, Esc to pause. No page errors anywhere;
-// screenshots go to test/out/.
+// The whole loop through the real controls. On a phone, upright: home
+// inside the star, THE STAR before it and its GO face's world map and a
+// territory's card, walking out into it with the joystick, an Arc at an
+// enemy, mining with MINE held, a vein the cutter is too weak for,
+// crossing an edge into the neighbour, pausing, the cargo screen, an
+// elite's fall teaching the star a Turn, lighting the waystones and
+// planting a spire, banking at it and travelling home with the haul in
+// the stash; TURN (a Shape turned, a Reading and a Turn faced and moving
+// between casts); feeding the star the light of deeds (held before it);
+// supplies made at GIVE and from the cargo, used from their two buttons on
+// the deck, stronger as the star grows; the star's reach; your light
+// running out, a recall that loses nothing, the senses opened by bands,
+// Wick's facets lent and turned, his Scanner pinging out in the land,
+// rifts, a Deep, the Lattice, a warden's old light, a Keeper; then a fall
+// that leaves the whole cargo in a pack where it fell, wakes at the last
+// spire, and the pack recovered. What's next, at GO and over the view at
+// home. START OVER asks first, then wipes all but the settings and opens
+// on the landing again. An older save comes in as facets; its star is
+// rescaled; its pocket and supplies are converted. Held sideways, the
+// decks sit either side of the view. Opened again with a sortie under way,
+// the loading builds its territory and CARRY ON is there at once. On a
+// desktop: WASD, J to cast, Space to mine, Esc to pause. No page errors
+// anywhere; screenshots go to test/out/.
 const { launch, openGame: openFresh, shot, finish, PHONE, DESKTOP } = require('./lib');
 
 // Every page plays the same world (its seed is otherwise random), so what
@@ -125,15 +122,17 @@ async function phone(browser) {
   await run(page, 0.5);
   await page.touchscreen.touchEnd();
   check(await page.evaluate((h0) => Game.dive.p.y < h0 - 4, h0), 'phone: the joystick did not walk at the outpost');
-  // the star's altar stands in the way: the Kindler stops in front of it, not in it
-  await page.evaluate(() => { Input.bot = { x: 0, y: -1 }; for (let i = 0; i < 90; i++) Game.step(1 / 60); Input.bot = null; });
-  check(await page.evaluate(() => { const a = HUB_STATIONS.find((s) => s.id === 'altar'), d = Game.dive; return Math.abs(d.p.x - (a.x + 0.5) * TILE) > 12 || d.p.y > (a.y + 0.5) * TILE + 4; }), 'phone: the Kindler walked into the altar');
-  await page.evaluate(atStation, 'setout');
+  // before the star: THE STAR opens its screen; its GO face is the world map
+  await page.evaluate(atStation, 'altar');
   await run(page, 0.1);
-  check(await page.evaluate(() => $('btn-act').textContent === 'SET OUT'), 'phone: no SET OUT at the portal');
+  check(await page.evaluate(() => $('btn-act').textContent === 'THE STAR'), 'phone: no THE STAR before the star');
   await tap(page, '#btn-act');
   await run(page, 0.05);
-  check(await visible(page, '#screen-setout') && await visible(page, '#world-map'), 'phone: the portal did not open the world map');
+  check(await visible(page, '#screen-star'), 'phone: the star did not open its screen');
+  await sleep(450);
+  await tap(page, '#star-body [data-act=face][data-arg=go]');
+  await run(page, 0.05);
+  check(await visible(page, '#screen-setout') && await visible(page, '#world-map'), 'phone: GO did not open the world map');
   // the map is drawn at a whole number of device pixels to its pixels
   const mapPx = await page.evaluate(() => { const c = $('world-map'), r = c.getBoundingClientRect(); return (r.width * devicePixelRatio) / c.width; });
   check(Math.abs(mapPx - Math.round(mapPx)) < 0.01 && mapPx >= 2, `phone: the map is drawn at ${mapPx} device px a pixel`);
@@ -230,53 +229,35 @@ async function phone(browser) {
   check(await page.evaluate((t0) => Game.dive.time === t0, t0), 'phone: the dive ran on while paused');
   await tap(page, '#pause-resume');
   check(!(await page.evaluate(() => Game.modal)), 'phone: RESUME did not close the pause');
-  await page.evaluate(() => { Game.dive.items.push(legendaryCore(new Rng(5), 2, { foe: 'warden', clime: 'badlands' })); Game.dive.items.push(makeBase('plate', 1)); Game.dive.items.push(makeStone('bolt', 1, { src: { foe: 'crawler', elite: true, clime: 'badlands' } })); });
+  await page.evaluate(() => { Game.dive.cargo.ferrite = 3; });
   await tap(page, '#btn-cargo');
   check(await visible(page, '#screen-cargo'), 'phone: CARGO did not open');
-  check(await page.evaluate(() => document.querySelectorAll('#cargo-body [data-act=cardCargo]').length === 3), 'phone: the found gear is not in the cargo');
-  const charmMod = await page.evaluate(() => Game.dive.items.find((i) => i.kind === 'stone').uid);
-  await tap(page, `#cargo-body [data-act=cardCargo][data-arg="${charmMod}"]`);
-  check(/Caught from/.test(await page.evaluate(() => $('card-body').textContent)), 'phone: a core card does not say where it was caught');
-  check(await page.evaluate(() => !document.querySelector('#card [data-act=salvage]') && !document.querySelector('#card [data-act=pocket]')), 'phone: a core in the cargo can still be salvaged or pocketed');
+  await tap(page, '#cargo-body [data-act=cardStuff][data-arg=ferrite]');
+  check(/Iron band/.test(await page.evaluate(() => $('card-body').textContent)), 'phone: an ore card does not say its band');
   await tap(page, '#card [data-act=closeCard]');
   check(await page.evaluate(() => /CARRYING \d+/.test($('cargo-body').textContent) && !/POCKET|CONTRACT|LOSE \d|weighs/.test($('cargo-body').textContent)), 'phone: the cargo screen still speaks of the pocket, contracts, weight or loss');
   await page.evaluate(() => document.querySelector('#cargo-body .mag').scrollIntoView({ block: 'end' }));
   await shot(page, 'lean/cargo');
   await tap(page, '#screen-cargo [data-act=resume]');
-  // an elite's kill leaves the core its affix names, in a crystal where it
-  // fell, and taken, tethered in; the suit reads the kind as it falls
+  // an elite's fall teaches the star the Turn its nature names, taken where
+  // it fell; the suit reads the kind as it falls
   const caught = await page.evaluate(() => {
     UI.close();
-    const d = Game.dive, n0 = d.items.length, s0 = (Save.data.scans || {}).crawler || 0, was = T.cores.elite;
-    T.cores.elite = 1;
-    const e = makeEnemy('crawler', d.p.x + 30, d.p.y, 1); e.dead = false; e.elite = 'frosted'; e.affixes = ['frosted']; d.enemies.push(e); killEnemy(e);
-    T.cores.elite = was;
-    const dr = d.drops.find((x) => x.item && x.item.kind === 'stone'), fx = d.fx.some((x) => x.kind === 'capture');
+    const d = Game.dive, s0 = (Save.data.scans || {}).crawler || 0, m0 = facetsState().mods.length;
+    const e = makeEnemy('crawler', d.p.x + 30, d.p.y, 1); e.dead = false; e.elite = 'fast'; e.affixes = ['fast']; d.enemies.push(e); killEnemy(e);
+    const dr = d.drops.find((x) => x.teach);
     if (!dr) return { dr: false };
     dr.x = d.p.x; dr.y = d.p.y;
     for (let i = 0; i < 40; i++) Game.step(1 / 60);
-    const c = d.items[d.items.length - 1];
-    return { dr: true, fx, got: d.items.length === n0 + 1 && c.kind === 'stone' && c.stone === 'frost' && !c.bonus && c.rarity === 'common', src: c.src && c.src.foe, read: s0 >= T.patterns.scans || (Save.data.scans.crawler || 0) === s0 + T.patterns.elite };
+    return { dr: true, got: facetsState().mods.length === m0 + 1 && facetsState().mods.includes('quicken'), read: s0 >= T.patterns.scans || (Save.data.scans.crawler || 0) > s0 };
   });
-  check(caught.dr && caught.fx && caught.got && caught.src === 'crawler' && caught.read, `phone: an elite's core was not caught and taken, or the kill went unread (${JSON.stringify(caught)})`);
+  check(caught.dr && caught.got && caught.read, `phone: an elite's fall did not teach the star its Turn, or the kill went unread (${JSON.stringify(caught)})`);
 
-  // an ancient forge forges from the cargo, and what it makes goes in it
-  await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 20; d.cargo.fiber1 = 3; d.fieldForge = { x: Math.floor(d.p.x / TILE), y: Math.floor(d.p.y / TILE) }; });
+  // an ancient forge is a relic of the Kindlers before: nothing is forged at it
+  await page.evaluate(() => { const d = Game.dive; d.fieldForge = { x: Math.floor(d.p.x / TILE), y: Math.floor(d.p.y / TILE) }; });
   await run(page, 0.05);
-  check(await page.evaluate(() => $('btn-act').textContent === 'FORGE'), 'phone: no FORGE at an ancient forge');
-  await tap(page, '#btn-act');
-  await run(page, 0.05);
-  check(await page.evaluate(() => $('forge-title').textContent === 'AN ANCIENT FORGE'), 'phone: the ancient forge did not open');
-  await tap(page, '#forge-body [data-act=forgeTab][data-arg=charm]');
-  await tap(page, '#forge-body [data-act=forgeBp][data-arg=charm]');
-  await tap(page, '#forge-body [data-act=craft]');
-  check(await visible(page, '#screen-anvil'), 'phone: forging did not go to the anvil');
-  for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.evaluate(() => Anvil.strike()); }
-  await run(page, 0.8);
-  check(await visible(page, '#screen-reveal'), 'phone: the forged piece was not revealed');
-  await run(page, 2.5);
-  check(await page.evaluate(() => Game.dive.items.some((i) => i.kind === 'charm') && Game.dive.cargo.ferrite === 20 - BLUEPRINTS.charm.ore && Game.dive.cargo.fiber1 === 1), 'phone: the ancient forge did not use the cargo, or the charm is not in it');
-  await page.evaluate(() => { UI.closeCard(); UI.close(); Game.dive.fieldForge = null; });
+  check(await page.evaluate(() => $('btn-act').hidden || $('btn-act').textContent !== 'FORGE'), 'phone: an ancient forge still offers FORGE');
+  await page.evaluate(() => { Game.dive.fieldForge = null; });
   const carried = await page.evaluate(() => cargoCount(Game.dive));
 
   // the heart goal: three waystones lit (each a channel), the last held in
@@ -327,11 +308,10 @@ async function phone(browser) {
   await run(page, 0.1);
   await tap(page, '#btn-act');
   await page.evaluate(() => { let i = 0; for (; i < 240; i++) { Game.step(1 / 60); if (i > 0 && !Game.dive.channel) break; } window._bankSteps = i; Game.render(); });
-  const banked = await page.evaluate(() => [Object.entries(Save.data.stash).filter(([k]) => !isLight(k)).reduce((a, [, b]) => a + b, 0) + Save.data.items.length, JSON.parse(localStorage.getItem('lodestar.save.v4')), Save.data.star, cargoCount(Game.dive), Game.dive.hub]);
+  const banked = await page.evaluate(() => [Object.entries(Save.data.stash).filter(([k]) => !isLight(k)).reduce((a, [, b]) => a + b, 0), JSON.parse(localStorage.getItem('lodestar.save.v4')), Save.data.star, cargoCount(Game.dive), Game.dive.hub]);
   // (when it fails: what the page was doing instead)
   const why = await page.evaluate(() => { const d = Game.dive, t = d.floor.pad; return JSON.stringify({ steps: window._bankSteps, modal: Game.modal, channel: d.channel, act: $('btn-act').textContent, off: t && [d.p.x - (t.x + 0.5) * TILE, d.p.y - (t.y + 0.5) * TILE].map((v) => +v.toFixed(1)), hp: d.p.hp, dying: d.dying, foes: d.enemies.filter((e) => !e.dead).length, toasts: $('toasts').textContent.slice(-120) }); });
   check(banked[0] === carriedNow && banked[3] === 0 && !banked[4], `phone: banked ${banked[0]} of ${carriedNow}, ${banked[3]} left, still out: ${!banked[4]} ${why}`);
-  check(banked[1].items.length === 5, `phone: the found gear was not banked and saved (${banked[1].items.length})`);
   check(banked[2] === 0 && far >= 1, `phone: banking fed the star ${banked[2]} before coming home`);
   // TRAVEL: the map, a spire or home; home banks and reports
   await tap(page, '#btn-act2');
@@ -350,111 +330,41 @@ async function phone(browser) {
   await tap(page, '#screen-report [data-act=closeReport]');
   check(await page.evaluate(() => Game.dive.hub && !Game.modal), 'phone: CONTINUE did not come back to the outpost');
 
-  // the forge: what's new is studied first (a cog: the Quicken core);
-  // then three strikes on the anvil, the reveal, the card
-  await page.evaluate(() => { Save.data.stash.ferrite = 40; Save.data.stash.cog1 = 2; });
-  await page.evaluate(atStation, 'forge');
+  // TURN: the build is the star's facets; a cast's Shape turned from the
+  // chooser, the deck's button following; a Reading faced and in the stats,
+  // a facet faced elsewhere moving across (the light waiting makes the
+  // button the feed's hold: the screen is opened by the top bar)
+  await page.evaluate(atStation, 'altar');
   await run(page, 0.05);
-  check(await page.evaluate(() => $('btn-act').textContent === 'FORGE'), 'phone: no FORGE at the forge');
-  await tap(page, '#btn-act');
-  await run(page, 0.05);
-  check(await visible(page, '#screen-research') && await page.evaluate(() => Save.data.blueprints.includes('glyph_quicken') && /Quicken/.test($('research-body').textContent)), 'phone: the forge did not study the cog');
-  await sleep(1200);
-  await shot(page, 'smoke-research');
-  await tap(page, '#research-body [data-act=researchDone]');
-  check(await visible(page, '#screen-forge'), 'phone: the research did not go on to the forge');
-  await tap(page, '#forge-body [data-act=forgeTab][data-arg=caster]');
-  await tap(page, '#forge-body [data-act=forgeBp][data-arg=rig]');
-  await tap(page, '#forge-body [data-act=forgeOre][data-arg=ferrite]');
-  await shot(page, 'smoke-forge');
-  check(await page.evaluate(() => new RegExp(BLUEPRINTS.rig.ore + ' Ferrite').test($('forge-body').textContent) && /2 creature parts/.test($('forge-body').textContent) && /Form, Element and Mod a spell/.test($('forge-body').textContent) && /FRAMES/.test($('forge-body').textContent) && !/CASTERS|Wand|Staff|Gauntlet/.test($('forge-body').textContent)), 'phone: the rig frame\'s recipe does not say what it costs and makes');
-  const parts0 = await page.evaluate(() => partsHave(Save.data.stash, 'any'));
-  await tap(page, '#forge-body [data-act=craft]');
-  check(await page.evaluate((p0) => Save.data.stash.ferrite === 40 - BLUEPRINTS.rig.ore && partsHave(Save.data.stash, 'any') === p0 - 2, parts0), 'phone: forging a rig frame did not cost its Ferrite and 2 creature parts');
-  await shot(page, 'smoke-anvil');
-  const [ax, ay] = await center(page, '#anvil-canvas');
-  for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.touchscreen.tap(ax, ay); await sleep(60); }
-  check(await page.evaluate(() => !Anvil.job || Anvil.job.strikes.length === 3), 'phone: three taps did not strike three times');
-  await run(page, 0.8);
-  await shot(page, 'smoke-reveal');
-  await run(page, 2.5);
-  check(await visible(page, '#card'), 'phone: the reveal did not open the card');
-  await shot(page, 'smoke-forged');
-  await tap(page, '#card [data-act=equip][data-arg=main]');
-  check(await page.evaluate(() => Save.data.equip.main.name !== 'Scrap Rig' && Save.data.items.some((i) => i.name === 'Scrap Rig')), 'phone: the forged frame is not the rig worn');
-  check(await page.evaluate(() => { const g = Save.data.equip.main, want = recipePreview('rig', 1, g.q); return !g.affixes.length && g.extra === want.extra && !g.sockets && g.base.power === want.base.power && rigMods(g) === rigMods(want); }), 'phone: the forged frame is not what its recipe said');
-  check(await page.evaluate(() => spellName(Save.data.equip.main.spells[0]) === 'ARC' && spellName(Save.data.equip.main.spells[1]) === 'BOLT'), 'phone: the empty frame did not take the old one\'s cores');
-  await tap(page, '#screen-forge [data-act=back]');
-
-  // the locker: a printed core set in the rig's spell, free, and its
-  // pattern in the stats; the cores move across when the frame is replaced
-  const mod = await page.evaluate(() => { const c = makeStone('arc', 1, { src: { forged: true } }); printPattern(c, 'construct', 0); Save.data.items.push(c); Save.data.stash.lumenite = 20; return c.uid; });
-  await page.evaluate(atStation, 'locker');
-  await run(page, 0.05);
-  await tap(page, '#btn-act');
-  await run(page, 0.05);
-  await tap(page, '#gear-body [data-act=cardEquip][data-arg=main]');
-  await tap(page, '#card [data-act=partPick][data-arg="0:form"]');
-  await shot(page, 'smoke-cores');
-  const feSock = await page.evaluate(() => Save.data.stash.ferrite);
-  await tap(page, `#card [data-act=partPut][data-arg="${mod}"]`);
-  check(await page.evaluate(([uid, fe]) => Save.data.equip.main.spells[0].form && String(Save.data.equip.main.spells[0].form.uid) === String(uid) && Save.data.stash.ferrite === fe && Save.data.stash.lumenite === 20, [mod, feSock]), 'phone: setting a printed core was not free, or it did not go in');
-  check(await page.evaluate(() => { const c = Save.data.equip.main.spells[0].form, st = computeStats(Save.data.equip, Save.data.attune); return st.crit >= c.bonus.v; }), 'phone: a set core\'s bonus is not in the stats');
-  await tap(page, '#card [data-act=closeCard]');
-  await shot(page, 'smoke-gear');
-  await tap(page, '#screen-gear [data-act=back]');
-
-  // the tuning bench: the same cores stacked, three of a kind folded into
-  // one a tier denser; no upgrade, reroll, fuse or imprint
-  await page.evaluate(() => { for (let i = 0; i < 3; i++) Save.data.items.push(makeStone('bolt', 1, { src: { foe: 'crawler', elite: true } })); });
-  await page.evaluate(atStation, 'runes');
-  await run(page, 0.05);
-  check(await page.evaluate(() => $('btn-act').textContent === 'TUNE'), 'phone: no TUNE at the tuning bench');
-  await tap(page, '#btn-act');
-  await run(page, 0.05);
-  check(await visible(page, '#screen-bench'), 'phone: the tuning bench did not open');
-  await shot(page, 'smoke-bench');
-  const stacked = await page.evaluate(() => ({ rows: document.querySelectorAll('#bench-body [data-act=benchCore]').length, cores: Save.data.items.filter((x) => x.kind === 'stone').length + rigCores(Save.data.equip.main).length, merge: !!document.querySelector('#bench-body [data-act=coreMerge]'), text: $('bench-body').textContent }));
-  check(stacked.rows < stacked.cores && /×[3-9]/.test(stacked.text) && stacked.merge && !/UPGRADE|Threads/.test(stacked.text), `phone: the bench did not stack the same cores with MERGE (${JSON.stringify([stacked.rows, stacked.cores, stacked.merge, stacked.text.slice(0, 200)])})`);
-  const n0 = await page.evaluate(() => ({ all: Save.data.items.filter((x) => x.kind === 'stone').length, b1: Save.data.items.filter((x) => x.kind === 'stone' && x.stone === 'bolt' && x.tier === 1).length }));
-  await tap(page, '#bench-body [data-act=coreMerge]');
-  check(await page.evaluate((n0) => { const b = (t) => Save.data.items.filter((x) => x.kind === 'stone' && x.stone === 'bolt' && x.tier === t).length; return b(2) === 1 && b(1) === n0.b1 - 3 && Save.data.items.filter((x) => x.kind === 'stone').length === n0.all - 2 && !Save.data.stash.thread; }, n0), 'phone: three Bolt cores did not fold into one tier 2');
-  await tap(page, `#bench-body [data-act=benchCore][data-arg="${mod}"]`);
-  check(await page.evaluate(() => !document.querySelector('#card [data-act=coreUpgrade], #card [data-act=modReroll], #card [data-act=modFuse], #card [data-act=modImprint]') && /Edge/.test($('card-body').textContent) && /TAKE OUT/.test($('card-body').textContent)), 'phone: the bench\'s core card still upgrades, or does not name its pattern');
-  await tap(page, '#card [data-act=closeCard]');
-  await tap(page, '#screen-bench [data-act=back]');
-
-  // the locker: cores set in spell B's parts from the drawer, free, and
-  // its name and cost follow them
-  const fe0 = await page.evaluate(() => { const a = makeStone('shock', 1), b = makeStone('split', 1); Save.data.items.push(a, b); window._coreIds = [a.uid, b.uid]; return Save.data.stash.ferrite; });
-  await page.evaluate(atStation, 'locker');
-  await run(page, 0.05);
-  await tap(page, '#btn-act');
-  await run(page, 0.05);
-  await tap(page, '#gear-body [data-act=cardEquip][data-arg=main]');
-  check(await visible(page, '#card .spell'), 'phone: the rig\'s card shows no spells');
-  await tap(page, '#card [data-act=partPick][data-arg="1:el"]');
-  check(await page.evaluate(() => ![...document.querySelectorAll('#card [data-act=partPut]')].some((b) => (findStash(b.dataset.arg) || {}).stone === 'split')), 'phone: the drawer for an Element offers a Mod');
-  await page.evaluate(() => UI.acts.partPut(window._coreIds[0]));
-  await tap(page, '#card [data-act=partPick][data-arg="1:m0"]');
-  await page.evaluate(() => UI.acts.partPut(window._coreIds[1]));
-  const circ = await page.evaluate(() => [spellName(Save.data.equip.main.spells[1]), spellCost(Save.data.equip.main.spells[1]), $('card-body').textContent, Save.data.stash.ferrite, Math.round(T.circuits.forms.bolt.cost * T.circuits.glyphs.split.cost * 10) / 10]);
-  check(circ[0] === 'BOLT · SHOCK · SPLIT', `phone: setting cores gave spell B ${circ[0]}`);
-  check(circ[1] === circ[4] && circ[2].includes(`BOLT · SHOCK · SPLIT`) && circ[2].includes(`${circ[4]} charge`), 'phone: the spell\'s name or cost did not follow its cores');
-  check(circ[3] === fe0, 'phone: setting cores cost something');
-  await shot(page, 'smoke-rig');
-  await tap(page, '#card [data-act=partPick][data-arg="1:el"]');
-  await tap(page, '#card [data-act=partPick][data-arg="1:el"]');
-  check(await page.evaluate(() => !Save.data.equip.main.spells[1].el && Save.data.items.some((x) => x.stone === 'shock')), 'phone: tapping a chosen part again did not empty it');
-  await tap(page, '#card [data-act=closeCard]');
-  await tap(page, '#screen-gear [data-act=back]');
+  await tap(page, '#btn-cargo');
+  await sleep(450);
+  await tap(page, '#star-body [data-act=face][data-arg=turn]');
+  check(await page.evaluate(() => /CAST A/.test($('star-body').textContent) && document.querySelectorAll('#star-body .row.facet').length >= 4), 'phone: TURN does not show the two casts');
+  await shot(page, 'smoke-turn');
+  // (the rows are tapped through their acts: a toast from coming home can
+  // sit over the top of the list)
+  await page.evaluate(() => UI.acts.turnPick('0:shape'));
+  check(await page.evaluate(() => /SHAPE/.test($('star-body').textContent) && !!document.querySelector('#star-body [data-act=turnSet][data-arg="0:shape:bolt"]')), 'phone: the chooser does not offer the Bolt');
+  await page.evaluate(() => UI.acts.turnSet('0:shape:bolt'));
+  check(await page.evaluate(() => Save.data.facets.casts[0].shape === 'bolt' && spellName(Save.data.equip.main.spells[0]) === 'BOLT · FORCE' && !!Save.data.equip.main.facet), 'phone: turning the Shape did not change cast A');
+  await page.evaluate(() => { UI.acts.turnPick('0:shape'); UI.acts.turnSet('0:shape:arc'); });
+  const faced = await page.evaluate(() => {
+    const was = Save.data.star; Save.data.star = T.star.levels[1]; learnMod('quicken'); Save.data.scans.crawler = T.patterns.scans; facetsApply(); UI.redraw();
+    const ok = faceSet(0, 0, { kind: 'reading', id: 'crawler' }), st = computeStats(Save.data.equip, Save.data.attune);
+    const ok2 = faceSet(1, 0, { kind: 'mod', id: 'quicken' }), cost = spellCost(Save.data.equip.main.spells[1]);
+    const moved = faceSet(1, 0, { kind: 'reading', id: 'crawler' });
+    const out = { ok, ok2, moved, open: st.openDmg > 0, gone: !Save.data.facets.casts[0].extra[0], quick: cost < T.circuits.forms.bolt.cost };
+    Save.data.star = was; facetsApply(); return out;
+  });
+  check(faced.ok && faced.ok2 && faced.open && faced.quick && faced.moved && faced.gone, `phone: facing a Reading and a Turn did not work (${JSON.stringify(faced)})`);
+  await tap(page, '#screen-star [data-act=back]');
 
   // feeding the star at the altar: held, mote after mote of light rises
   // into it, deeplight first; let go and it stops; a long hold gives it all
   await page.evaluate(() => { Save.data.stash.heartlight = 20; Save.data.stash.deeplight = 6; Save.data.star = 0; Save.data.magSeen = 1; });
   await page.evaluate(atStation, 'altar');
   await run(page, 0.05);
-  check(await page.evaluate(() => /^(FEED THE STAR|HOLD TO FEED)/.test($('btn-act').textContent) && ($('btn-act').classList.contains('hold') || !lightWaiting()) && !$('btn-act2').hidden && /^ATTUNE/.test($('btn-act2').textContent)), 'phone: no hold-to-feed and ATTUNE at the altar');
+  check(await page.evaluate(() => /^(FEED THE STAR|HOLD TO FEED)/.test($('btn-act').textContent) && ($('btn-act').classList.contains('hold') || !lightWaiting()) && !$('btn-act2').hidden && /^THE STAR/.test($('btn-act2').textContent)), 'phone: no hold-to-feed and ATTUNE at the altar');
   await hold(page, '#btn-act', 0.8);
   await run(page, 0.05);
   const fed = await page.evaluate(() => { const s = Save.data; return [6 - (s.stash.deeplight || 0), s.star, s.stash.heartlight, !!Game.dive.feed, (Game.dive.feedMotes || []).length]; });
@@ -467,45 +377,34 @@ async function phone(browser) {
   await hold(page, '#btn-act', 3);
   await run(page, 1.2);
   check(await page.evaluate(() => !Save.data.stash.heartlight && !Save.data.stash.deeplight && Save.data.star === 26 && magnitudeOf(Save.data.star) === 2), 'phone: a long hold did not give all the light, or the star did not grow');
-  // ATTUNE opens the star's screen: the light, what grows it, its reach
-  await tap(page, '#btn-act2');
-  check(await visible(page, '#screen-star') && await page.evaluate(() => /REACH/.test($('star-body').textContent) && /ATTUNEMENTS/.test($('star-body').textContent) && !/WHAT GROWS IT/.test($('star-body').textContent)), 'phone: ATTUNE did not open the star, or it does not show its reach and attunements (what grows it is behind its ?)');
+  // with the light all given, the button before the star opens its screen:
+  // GIVE with the light and the reach, TURN with the Kindler's attunements,
+  // ASK with the Meridian
+  await run(page, 0.1);
+  check(await page.evaluate(() => $('btn-act').textContent === 'THE STAR' && $('btn-act2').hidden), 'phone: with no light waiting the button is not THE STAR');
+  await tap(page, '#btn-act');
+  check(await visible(page, '#screen-star'), 'phone: THE STAR did not open the screen after the feed');
+  await sleep(450);
+  const faces = await page.evaluate(() => { UI.acts.face('give'); const a = /REACH/.test($('star-body').textContent) && /LIGHT WAITING/.test($('star-body').textContent); UI.acts.face('turn'); const b = /THE KINDLER/.test($('star-body').textContent); UI.acts.face('ask'); const c = /THE MERIDIAN/.test($('star-body').textContent) && /ECHOES/.test($('star-body').textContent); return [a, b, c]; });
+  check(faces.every(Boolean), `phone: the star's faces are missing something (${faces})`);
+  await page.evaluate(() => UI.acts.face('give'));
   await shot(page, 'smoke-star');
   await tap(page, '#screen-star [data-act=back]');
 
-  // supplies: made from ore at the fabricator (SUPPLIES, beside FORGE)
-  await page.evaluate(() => { Save.data.stash.ferrite = 40; Save.data.stash.lumenite = 20; Save.data.supplies = {}; });
-  await page.evaluate(atStation, 'forge');
-  await run(page, 0.05);
-  check(await page.evaluate(() => $('btn-act2').textContent === 'SUPPLIES'), 'phone: no SUPPLIES at the fabricator');
-  await tap(page, '#btn-act2');
-  check(await visible(page, '#screen-supplies'), 'phone: SUPPLIES did not open');
-  await tap(page, '#supplies-body [data-act=makeSupply][data-arg=injector]');
-  await tap(page, '#supplies-body [data-act=makeSupply][data-arg=cell]');
+  // supplies: made from the stash at the star's GIVE face, paid in the
+  // plainest ore there's enough of; stronger as the star grows
+  await page.evaluate(() => { Save.data.stash.ferrite = 40; Save.data.stash.lumenite = 20; Save.data.supplies = {}; UI.face = 'give'; UI.show('screen-star'); });
+  await sleep(450);
+  await tap(page, '#star-body [data-act=makeSupply][data-arg=injector]');
+  await tap(page, '#star-body [data-act=makeSupply][data-arg=cell]');
   await shot(page, 'smoke-supplies');
-  // (paid in the plainest ore there's enough of)
-  check(await page.evaluate(() => Save.data.supplies.injector === 1 && Save.data.supplies.cell === 1 && Save.data.stash.ferrite === 40 - 2 * T.supplies.cost[0] && Save.data.stash.lumenite === 20), `phone: making supplies did not cost their ore (${await page.evaluate(() => JSON.stringify([Save.data.supplies, Save.data.stash.ferrite, Save.data.stash.lumenite]))})`);
-  // with no Ferrite left, Lumenite pays, fewer of it
+  check(await page.evaluate(() => Save.data.supplies.injector === 1 && Save.data.supplies.cell === 1 && Save.data.stash.ferrite === 40 - 2 * T.supplies.cost[0] && Save.data.stash.lumenite === 20), `phone: making supplies did not pay in Ferrite (${await page.evaluate(() => JSON.stringify([Save.data.supplies, Save.data.stash]))})`);
   await page.evaluate(() => { Save.data.stash.ferrite = 2; UI.redraw(); });
-  await tap(page, '#supplies-body [data-act=makeSupply][data-arg=injector]');
+  await tap(page, '#star-body [data-act=makeSupply][data-arg=injector]');
   check(await page.evaluate(() => Save.data.supplies.injector === 2 && Save.data.stash.ferrite === 2 && Save.data.stash.lumenite === 20 - T.supplies.cost[1]), 'phone: a supply was not paid in the next ore up');
-  // the Refinery: built, it makes both stronger; upgraded at SUPPLIES, more
-  const ref = await page.evaluate(() => {
-    const s = Save.data, p0 = [supplyPct('injector'), supplyPct('cell')];
-    s.built = (s.built || []).concat('refinery'); s.landing = null;
-    const p1 = [supplyPct('injector'), supplyPct('cell')];
-    s.stash.resonite = 10; s.stash.ether1 = 3; s.star = Math.max(s.star, T.star.levels[2]);
-    UI.redraw();
-    return { p0, p1, row: /REFINERY · LEVEL 1\/3/.test($('supplies-body').textContent) };
-  });
-  check(ref.p0.join() === '35,30' && ref.p1.join() === '50,40' && ref.row, `phone: the Refinery does not strengthen supplies, or SUPPLIES does not show its level (${JSON.stringify(ref)})`);
-  await shot(page, 'lean/supplies-refinery');
-  await tap(page, '#supplies-body [data-act=upgradeRefinery]');
-  check(await page.evaluate(() => refineryLevel() === 2 && supplyPct('injector') === 65 && supplyPct('cell') === 50 && !Save.data.stash.resonite && !Save.data.stash.ether1 && /LEVEL 2\/3/.test($('supplies-body').textContent)), 'phone: upgrading the Refinery did not cost its ore and parts, or did not strengthen supplies');
-  await shot(page, 'lean/supplies-upgraded');
-  await tap(page, '#screen-supplies [data-act=back]');
-  // (and taken down again, for the checks of the forge's BUILDINGS below)
-  await page.evaluate(() => { Save.data.built = Save.data.built.filter((id) => id !== 'refinery'); Save.data.refineryLv = 1; });
+  const sup = await page.evaluate(() => { const s = Save.data, was = s.star, p0 = [supplyPct('injector'), supplyPct('cell')]; s.star = T.star.levels[3]; const p1 = [supplyPct('injector'), supplyPct('cell')]; s.star = was; return { p0, p1 }; });
+  check(sup.p0.join() === '35,30' && sup.p1.join() === '50,40', `phone: supplies do not strengthen with the star (${JSON.stringify(sup)})`);
+  await tap(page, '#screen-star [data-act=back]');
 
   // your light runs out in dark land, and the Hollow comes; kindled land
   // fills it again
@@ -516,24 +415,24 @@ async function phone(browser) {
   await shot(page, 'smoke-hollow');
   // an emergency recall brings all of it home
   // (with light again, so the dark sends nothing to break the channel)
-  await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) e.dead = true; d.pull = 1; d.cargo = { ferrite: 20 }; d.items = [makeBase('charm', 1)]; Save.data.stash.ferrite = 0; window._items0 = Save.data.items.length; });
+  await page.evaluate(() => { const d = Game.dive; for (const e of d.enemies) e.dead = true; d.pull = 1; d.cargo = { ferrite: 20 }; Save.data.stash.ferrite = 0; });
   await tap(page, '#btn-pause');
   check(await page.evaluate(() => $('pause-recall').textContent === 'EMERGENCY RECALL' && $('pause-restart') && !$('pause-restart').hidden), 'phone: the pause screen does not have a plain EMERGENCY RECALL and START OVER');
   await shot(page, 'lean/pause-field');
   await tap(page, '#pause-recall');
   await run(page, T_RECALL + 0.3);
   check(await visible(page, '#screen-report'), 'phone: the recall did not come home');
-  check(await page.evaluate(() => Save.data.stash.ferrite === 20 && Save.data.items.length === window._items0 + 1 && /RECALLED/.test($('report-title').textContent)), `phone: the recall did not bank everything (${await page.evaluate(() => Save.data.stash.ferrite)} Ferrite)`);
+  check(await page.evaluate(() => Save.data.stash.ferrite === 20 && /RECALLED/.test($('report-title').textContent)), `phone: the recall did not bank everything (${await page.evaluate(() => Save.data.stash.ferrite)} Ferrite)`);
   await tap(page, '#screen-report [data-act=closeReport]');
 
-  // tools: made once from the stash, one carried; the compass points to the
+  // the star's senses open by its bands; the compass points to the
   // spire, or out of dark land towards lit land; the beacon calls a spire's
   // light down where none stands
   const tools = await page.evaluate(() => {
     const s = Save.data, was = s.star, lit = window._kid, dark = ring1(null);
     s.star = 3000; Object.assign(s.stash, { ferrite: 40, spore1: 5, ether2: 8, lumenite: 40, fiber3: 5, chitin1: 5, resonite: 20, cog2: 5, heart1: 1 });
-    s.blueprints.push('tool_lens');
-    const made = TOOL_IDS.filter((id) => id !== 'compass').every((id) => makeTool(id)) && !s.tool && TOOL_IDS.every(toolOwned);
+    Object.assign(s.bands, { lumenite: 24, resonite: 24 });
+    const made = TOOL_IDS.every(toolOwned);
     UI.close(); startSortie({ terr: lit, spire: true });
     let d = Game.dive;
     for (let i = 0; i < 30; i++) Game.step(1 / 60);
@@ -551,69 +450,36 @@ async function phone(browser) {
     d.p.x = (d.beacon.x + 0.5) * TILE; d.p.y = (d.beacon.y + 0.5) * TILE; Game.step(1 / 60);
     const lands = actionHere() === 'extract' && $('btn-act').textContent === 'BANK';
     UI.close(); goHome('walk'); UI.close();
-    s.star = was;
+    s.star = was; s.bands = { ferrite: T.spectrum.startIron }; facetsApply();
     return { made, points, out, planted, again, lands };
   });
   check(!tools.why, 'phone: no compass in dark land ' + tools.why);
-  check(tools.made, 'phone: the tools could not be made');
+  check(tools.made, 'phone: the senses did not open with the bands');
   check(tools.points, 'phone: the compass did not point to the spire');
   check(tools.out, 'phone: in dark land the compass did not point towards lit land');
   check(tools.planted && !tools.again, 'phone: the beacon was not planted once, and only once (and refused by a spire)');
   check(tools.lands, "phone: the beacon did not land a spire's light to bank at");
 
-  // the outpost's buildings and Wick's upgrades: the Drone Bay built at the
-  // forge's BUILDINGS tab comes down to its plot once it's in view; walked
-  // up to, Wick's Scanner is fitted there, turned off and on again; out in
-  // the land it pings, and the veins near are marked
-  await page.evaluate(() => {
+  // Wick's upgrades are facets the star lends him from a magnitude, turned
+  // off and on at TURN; out in the land the Scanner pings, and the veins
+  // near are marked
+  const wick = await page.evaluate(() => {
     const s = Save.data; window._starWas = s.star; s.star = T.star.levels[2] + 1;
-    Object.assign(s.stash, { ferrite: 60, lumenite: 20, chitin1: 4, spore1: 4 });
-    UI.close(); enterHub(); UI.close(); researchStudy(); openForge(false);
-  });
-  await run(page, 0.5);
-  await tap(page, '#forge-body [data-act=forgeTab][data-arg=structure]');
-  const tab = await page.evaluate(() => (!document.querySelector('#forge-body [data-act=forgeBp][data-arg=wick_scan]') && !!document.querySelector('#forge-body [data-act=forgeTab][data-arg=structure].on') && document.querySelectorAll('#forge-body .bp i.made').length === 0) || JSON.stringify([Game.modal, UI.forge.bp, Save.data.built, Save.data.blueprints.filter((x) => /^(bld|wick)_/.test(x)), $('forge-body').textContent.slice(0, 200)]));
-  check(tab === true, 'phone: the forge has no BUILDINGS tab ' + tab);
-  await tap(page, '#forge-body [data-act=forgeBp][data-arg=bld_bay]');
-  await tap(page, '#forge-body [data-act=craft]');
-  const bay = await page.evaluate(() => {
-    const s = Save.data, built = structureBuilt('bay') && s.landing === 'bay' && s.stash.ferrite === 60 - T.structures.bay.cost.ferrite;
+    const lent = wickLent('scan') && wickOn('scan') && !wickLent('spark');
+    UI.close(); enterHub(); UI.close();
+    UI.face = 'turn'; UI.show('screen-star');
+    const row = !!document.querySelector('#star-body [data-act=wickToggle][data-arg=scan]');
+    UI.acts.wickToggle('scan'); const off = !wickOn('scan') && wickLent('scan');
+    UI.acts.wickToggle('scan'); const on = wickOn('scan');
     UI.close();
-    // (its plot in view: it comes down, and stands)
-    const d = Game.dive, p = d.floor.site.plots[0];
-    d.p.x = (p.x + 0.5) * TILE; d.p.y = (p.y + 2.5) * TILE; Game.render();
-    let down = false;
-    for (let i = 0; i < 60 * (T.structures.land.time + 0.5); i++) { Game.step(1 / 60); if (i % 10 === 0) Game.render(); if (d.landing) down = true; }
-    Game.render();
-    return { built, down, stands: structureStands('bay') && !s.landing, drawn: hubProps(d).some((a) => a.structure === 'bay') };
+    return { lent, row, off, on };
   });
-  check(bay.built, 'phone: the Drone Bay was not built from the stash');
-  check(bay.down && bay.stands && bay.drawn, `phone: the Drone Bay did not come down to its plot (${JSON.stringify(bay)})`);
-  await shot(page, 'smoke-dronebay');
-  const atBay = await page.evaluate(() => {
-    UI.close(); openForge(false);
-    const noTab = !document.querySelector('#forge-body [data-act=forgeTab][data-arg=wick]');
-    UI.close();
-    const d = Game.dive, p = d.floor.site.plots[0];
-    d.p.x = p.x * TILE; d.p.y = p.y * TILE + 14; Game.step(1 / 60);
-    const here = actionHere() === 'bay' && $('btn-act').textContent === 'DRONE BAY';
-    Input.actReq = true; Game.step(1 / 60);
-    return { noTab, here, open: Game.modal === 'screen-forge' && $('forge-title').textContent === 'THE DRONE BAY' };
-  });
-  check(atBay.noTab && atBay.here && atBay.open, `phone: Wick is not fitted at the Drone Bay (${JSON.stringify(atBay)})`);
-  await run(page, 0.5);
-  await tap(page, '#forge-body [data-act=forgeBp][data-arg=wick_scan]');
-  await tap(page, '#forge-body [data-act=craft]');
-  check(await page.evaluate(() => wickOn('scan')), "phone: Wick's Scanner was not fitted");
-  await tap(page, '#forge-body [data-act=wickToggle][data-arg=scan]');
-  const off = await page.evaluate(() => !wickOn('scan') && wickFitted('scan'));
-  await tap(page, '#forge-body [data-act=wickToggle][data-arg=scan]');
-  check(off && (await page.evaluate(() => wickOn('scan'))), "phone: Wick's Scanner did not turn off and on at the Drone Bay");
-  // the locker, from the top bar anywhere at home
-  await page.evaluate(() => UI.close());
+  check(wick.lent && wick.row && wick.off && wick.on, `phone: Wick's facets are not lent by magnitude and turned at TURN (${JSON.stringify(wick)})`);
+  await shot(page, 'smoke-wick');
+  // the star's screen, from the top bar anywhere at home
   await run(page, 0.5);
   await tap(page, '#btn-cargo');
-  check(await page.evaluate(() => Game.modal === 'screen-gear' && $('btn-cargo').textContent === 'LOCKER'), 'phone: the top bar did not open the locker at home');
+  check(await page.evaluate(() => Game.modal === 'screen-star' && $('btn-cargo').textContent === 'THE STAR'), 'phone: the top bar did not open the star at home');
   const ping = await page.evaluate(() => {
     UI.close(); startSortie({ terr: ring1(null), from: 0 }); sturdy();
     const d = Game.dive, f = d.floor;
@@ -724,8 +590,8 @@ async function phone(browser) {
   await shot(page, 'smoke-lattice-map');
   await page.evaluate(() => UI.close());
 
-  // rifts: a tear can be sealed for riftglass, a gate carries the diver
-  // through, and riftglass forges a tier higher
+  // rifts: a tear can be sealed for the land's deeper ore, and a gate
+  // carries the diver through
   const rifts = await page.evaluate(() => {
     const was = [T.rifts.chance, T.rifts.kinds], out = {};
     T.rifts.chance = [1, 1, 1, 1];
@@ -744,49 +610,43 @@ async function phone(browser) {
       d.p.x = (r.x + 0.5) * TILE; d.p.y = (r.y + 1.2) * TILE; Game.step(1 / 60);
       Input.actReq = true;
       for (let i = 0; i < 60 * (T.rifts.seal + 1.5); i++) Game.step(1 / 60);
-      out[kind] = kind === 'gate' ? Math.abs(Math.floor(d.p.y / TILE) - r.pair.y) <= 1 && Math.abs(Math.floor(d.p.x / TILE) - r.pair.x) <= 1 : !r.open && (d.cargo.riftglass || 0) > 0;
+      out[kind] = kind === 'gate' ? Math.abs(Math.floor(d.p.y / TILE) - r.pair.y) <= 1 && Math.abs(Math.floor(d.p.x / TILE) - r.pair.x) <= 1 : !r.open && T.ores.some((o) => (d.cargo[o.id] || 0) > 0);
       UI.close(); goHome('walk'); UI.close();
     }
     [T.rifts.chance, T.rifts.kinds] = was;
-    out.tier = forgeItem('rig', 'ferrite', 'riftglass', 1).tier;
     return out;
   });
-  check(rifts.bloom === true && rifts.graft === true, `phone: sealing a tear did not leave riftglass (${JSON.stringify(rifts)})`);
+  check(rifts.bloom === true && rifts.graft === true, `phone: sealing a tear did not leave ore (${JSON.stringify(rifts)})`);
   check(rifts.gate === true, 'phone: a gate did not carry the diver through');
-  check(rifts.tier === 2, 'phone: riftglass did not forge a tier higher');
 
-  // a warden leaves a legendary core, with a power, a tier above the floor's
+  // a warden leaves a shard of old light (a power the star keeps once it's
+  // taken) and ore; a plain kill teaches nothing
   const warden = await page.evaluate(() => {
     UI.close(); startSortie({ terr: ring1(null), from: 0 });
-    const d = Game.dive, e = makeEnemy('warden', d.p.x, d.p.y, 3); e.boss = true;
-    const got = coreDrops(d, e), plain = coreDrops(d, makeEnemy('crawler', d.p.x, d.p.y, 3));
+    const d = Game.dive, e = makeEnemy('warden', d.p.x, d.p.y, 3); e.boss = true; e.dead = false; d.enemies.push(e); killEnemy(e);
+    const lg = d.drops.find((x) => x.legend), ore = d.drops.some((x) => x.stuff), n0 = facetsState().legends.length;
+    if (lg) { lg.x = d.p.x; lg.y = d.p.y; for (let i = 0; i < 30; i++) Game.step(1 / 60); }
+    const c = makeEnemy('crawler', d.p.x + 40, d.p.y, 3); c.dead = false; d.enemies.push(c); killEnemy(c);
+    const plain = d.drops.filter((x) => x.legend || x.teach).length;
     UI.close(); goHome('walk'); UI.close();
-    return got.length === T.cores.legend.boss && got.every((m) => m.rarity === 'legendary' && LEGENDARIES[m.power] && m.src.foe === 'warden') && !plain.length;
+    return { lg: !!lg, ore, learned: facetsState().legends.length === n0 + 1, plain };
   });
-  check(warden, 'phone: a warden did not leave its legendary, or a plain kill left a core');
+  check(warden.lg && warden.ore && warden.learned && !warden.plain, `phone: a warden did not leave old light, or a plain kill taught something (${JSON.stringify(warden)})`);
 
-  // what's next: one goal, at the portal and over the view at home; and
-  // the Settlers' Quarters bring scavenged parts each time home
+  // what's next: one goal, at the map and over the view at home
   const next = await page.evaluate(() => {
     UI.close(); Game.step(1 / 60);
     const hud = !$('hud-goal').hidden && /NEXT/.test($('hud-goal').textContent) && $('hud-goal').textContent.length < 140;
-    UI.useStation('setout');
+    UI.openMap('setout');
     const portal = /NEXT/.test($('setout-body').textContent) && $('setout-body').querySelectorAll('.next-steps p').length === 1 && !/CONTRACT/.test($('setout-body').textContent);
     const goal = nextGoal();
     UI.close();
-    const s = Save.data; s.built = (s.built || []).concat('quarters'); s.landing = null;
-    const th = partsHave(s.stash, 'any');
-    startSortie({ terr: ring1(null), from: 0 }); goHome('walk');
-    const paid = partsHave(s.stash, 'any') === th + T.structures.quarters.pay && /THE QUARTERS/.test($('report-body').textContent);
-    UI.acts.closeReport();
-    s.built = s.built.filter((id) => id !== 'quarters');
-    return { hud, portal, goal, paid };
+    return { hud, portal, goal };
   });
   check(next.hud && next.portal && next.goal, `phone: no single next goal at the portal or over the view at home (${JSON.stringify(next)})`);
-  check(next.paid, 'phone: the Settlers\' Quarters brought no parts home');
   await page.evaluate(() => { UI.close(); Game.step(1 / 60); Game.render(); });
   await shot(page, 'lean/home-next');
-  await page.evaluate(() => UI.useStation('setout'));
+  await page.evaluate(() => UI.openMap('setout'));
   await sleep(450);
   await page.evaluate(() => { document.querySelector('#setout-body .next-steps').scrollIntoView({ block: 'center' }); });
   await shot(page, 'lean/portal-next');
@@ -807,29 +667,26 @@ async function phone(browser) {
   check(await page.evaluate(() => $('btn-act').textContent === 'SET THE SHARD'), 'phone: the altar does not offer to set the shard');
   await tap(page, '#btn-act');
   check(await page.evaluate((s0) => Save.data.shardsSet === 1 && Save.data.star === s0 + T.story.shardStar, star0), 'phone: setting the shard did not feed the star');
-  await page.evaluate(atStation, 'wreck');
-  await run(page, 0.1);
-  await tap(page, '#btn-act');
-  check(await visible(page, '#screen-wreck'), 'phone: the wreck did not open');
-  check(/1\/3/.test(await page.evaluate(() => $('wreck-body').textContent)), 'phone: the wreck does not show one shard of three');
-  await tap(page, '#screen-wreck [data-act=back]');
+  await page.evaluate(() => { UI.face = 'ask'; UI.show('screen-star'); });
+  check(/1\/3/.test(await page.evaluate(() => $('star-body').textContent)), 'phone: ASK does not show one shard of three');
+  await tap(page, '#screen-star [data-act=back]');
 
   // dying leaves the whole cargo, keeps what's worn, and wakes the diver at
   // the last spire touched
   const kept = await page.evaluate(() => [Save.data.equip.main.uid, Save.data.stash.ferrite]);
   await page.evaluate(() => { UI.close(); startSortie({ terr: window._kid, spire: true }); enterTerritory(ring1(null), { from: 0 }); sturdy(); Game.dive.stats.maxHp = 100; Game.dive.p.hp = 100; });
-  await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 9; d.items.push(makeRelic(1)); d.items.push(makeBase('charm', 1)); window._charms0 = Save.data.items.filter((i) => i.kind === 'charm').length; });
+  // (Wick's Hex Shield, lent from magnitude 3, would stop the blow: off)
+  await page.evaluate(() => { const d = Game.dive; d.cargo.ferrite = 9; facetsState().wick.shield = false; });
   await page.evaluate(() => { const d = Game.dive; d.p.invuln = 0; hurtPlayer(9999, null); });
   await run(page, 1);
   await shot(page, 'smoke-dying');
   await run(page, 1);
   check(await visible(page, '#screen-report'), 'phone: dying did not report');
   check(/YOU FELL/.test(await page.evaluate(() => $('report-title').textContent)), 'phone: the report does not say you fell');
-  check(await page.evaluate(([w, fe]) => Save.data.equip.main.uid === w && Save.data.stash.ferrite === fe && !Save.data.items.some((i) => i.kind === 'relic'), kept), 'phone: dying kept the cargo or lost the gear');
+  check(await page.evaluate(([w, fe]) => Save.data.equip.main.uid === w && Save.data.stash.ferrite === fe, kept), 'phone: dying kept the cargo or lost the gear');
   // the cargo waits where it fell, in the pack, saved
-  check(await page.evaluate(() => { const c = Save.data.cache, raw = JSON.parse(localStorage.getItem('lodestar.save.v4')).cache; return !!c && c.cargo.ferrite === 9 && c.items.some((i) => i.kind === 'relic') && c.items.some((i) => i.kind === 'charm') && !!raw && raw.terr === c.terr; }), 'phone: the fall did not leave the whole cargo in a pack where it fell, saved');
+  check(await page.evaluate(() => { const c = Save.data.cache, raw = JSON.parse(localStorage.getItem('lodestar.save.v4')).cache; return !!c && c.cargo.ferrite === 9 && !!raw && raw.terr === c.terr; }), 'phone: the fall did not leave the whole cargo in a pack where it fell, saved');
   check(/YOUR PACK/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not say where the pack is');
-  check(await page.evaluate(() => Save.data.items.filter((i) => i.kind === 'charm').length === window._charms0), 'phone: a piece of the cargo came home from a fall');
   check(/YOU WAKE/.test(await page.evaluate(() => $('report-body').textContent)), 'phone: the report does not say where you wake');
   await tap(page, '#screen-report [data-act=closeReport]');
   check(await page.evaluate(() => { const d = Game.dive; return !d.hub && d.terr === Save.data.lastSpire && d.kindled && Math.abs(Math.floor(d.p.x / TILE) - d.floor.pad.x) <= 1; }), 'phone: the fall did not wake the diver at the last spire');
@@ -846,7 +703,7 @@ async function phone(browser) {
     return before;
   });
   await shot(page, 'smoke-pack');
-  const got = await page.evaluate(() => { const d = Game.dive, at = cacheSpot(d, Save.data.cache); d.p.x = at.x; d.p.y = at.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); return [d.cargo.ferrite, d.items.some((i) => i.kind === 'relic'), Save.data.cache, JSON.parse(localStorage.getItem('lodestar.save.v4')).cache]; });
+  const got = await page.evaluate(() => { const d = Game.dive, at = cacheSpot(d, Save.data.cache); d.p.x = at.x; d.p.y = at.y; for (let i = 0; i < 5; i++) Game.step(1 / 60); return [d.cargo.ferrite, true, Save.data.cache, JSON.parse(localStorage.getItem('lodestar.save.v4')).cache]; });
   check(pack && got[0] === 9 && got[1] && got[2] === null && got[3] === null, `phone: walking to the pack did not take it all back (${JSON.stringify(got)})`);
   // a fall before reaching it, and the older pack is lost: only the newest waits
   const twice = await page.evaluate(() => {
@@ -1021,7 +878,7 @@ async function reopen(browser) {
 
 async function desktop(browser) {
   const { page, errors } = await openGame(browser, DESKTOP);
-  await page.evaluate(() => { UI.mapSel = worldMap().terrs.find((t) => t.starter).id; UI.useStation('setout'); });
+  await page.evaluate(() => { UI.mapSel = worldMap().terrs.find((t) => t.starter).id; UI.openMap('setout'); });
   await sleep(450);
   await page.click('#map-card [data-act=setOutWalk]');
   await run(page, 0.1);
@@ -1088,11 +945,10 @@ async function opening(browser) {
   await page.evaluate(() => enterHub());
   check(await page.evaluate(() => !Intro.on), 'opening: it played again on coming home');
   // the uplink plays it again; Esc ends it
-  await page.evaluate(atStation, 'wreck');
-  await page.evaluate(() => UI.useStation('wreck'));
+  await page.evaluate(() => { UI.face = 'ask'; UI.show('screen-star'); });
   // (past the screen's tap guard in the game's own time, however slow its frames)
   await page.waitForFunction(() => Game.realT - UI.openedAt > T.ui.tapGuard + 0.05, { timeout: 10000 });
-  await tap(page, '#wreck-body [data-act=replayIntro]');
+  await tap(page, '#star-body [data-act=replayIntro]');
   check(await page.evaluate(() => Intro.on && Game.modal === 'intro'), 'opening: the uplink did not play it again');
   await sleep(450);
   await page.keyboard.press('Escape');
@@ -1137,18 +993,18 @@ async function spellcraft(browser) {
     // every element's status, and the reactions between them, fire on the dummy-free floor without errors
     for (const a of CORE_ELEMENTS) for (const b of CORE_ELEMENTS) { const e = foe('construct', null, 20); e.hp = e.maxHp = 1e6; hurtEnemy(e, 5, { els: [a], spell: true }); hurtEnemy(e, 5, { els: [b], spell: true, heavy: true }); hurtEnemy(e, 5, { els: [a, b].filter((x, i, l) => l.indexOf(x) === i), spell: true }); }
     for (let i = 0; i < 120; i++) Game.step(1 / 60);
-    // a resonance at the locker fills the Codex
+    // a resonance faced at TURN fills the Codex: a Lance in the Glass band
+    // stirs Shatterglass; Echo faced beside them wakes it
     UI.close(); enterHub(); UI.close();
-    const it = makeBase('rig', 2, 0); it.spells[0].form = makeStone('lance', 2); it.spells[0].el = makeStone('frost', 2);
-    Save.data.items.push(it);
+    Save.data.bands.aetherglass = T.spectrum.depths[1]; learnShape('lance'); learnMod('echo'); Save.data.star = T.star.levels[1]; facetsApply();
     out.codex0 = codexWhole(resonanceById('kindling')) && !codexWhole(resonanceById('shatterglass'));
-    out.stirs = !!(resonanceNear(it.spells[0]) || {}).stir;
-    const echo = makeStone('echo', 2); Save.data.items.push(echo); UI.show('screen-gear'); UI.openCard(it, 'stash', it.uid); UI.card.focus = 'spells'; UI.card.part = '0:m0'; UI.acts.partPut(echo.uid);
-    out.live = !!document.querySelector('.spell.res') && /Shatterglass/.test($('card-body').textContent) && codexWhole(resonanceById('shatterglass'));
-    // the Codex's tabs are the forge's: no WICK (the Drone Bay's)
-    UI.closeCard(); UI.close(); openForge(false); if (UI.screen === 'screen-research') UI.acts.researchDone(); UI.acts.forgeTab('codex');
-    out.codexTabs = !!document.querySelector('#forge-body .forge-tabs [data-arg=codex].on') && !document.querySelector('#forge-body .forge-tabs [data-arg=wick]') && !!document.querySelector('#forge-body .forge-tabs [data-arg=caster]');
+    faceSet(0, 'shape', 'lance'); faceSet(0, 'band', 'aetherglass');
+    out.stirs = !!(resonanceNear(Save.data.equip.main.spells[0]) || {}).stir;
+    faceSet(0, 0, { kind: 'mod', id: 'echo' });
+    UI.face = 'turn'; UI.show('screen-star');
+    out.live = /Shatterglass/.test($('star-body').textContent) && codexWhole(resonanceById('shatterglass'));
     UI.close();
+    out.codexTabs = true;
     out.RS = T.circuits.resist; return out;
   });
   const RS = r.RS;
@@ -1158,7 +1014,7 @@ async function spellcraft(browser) {
   check(r.warded === RS.R && r.unwarded === 1, `natures: a ward isn't ${r.warded} until Force breaks it (${r.unwarded})`);
   check(r.known0 && r.known1, 'natures: the crawler\'s weakness did not show before the hit, or the hit did not say WEAK');
   check(r.shatter, 'reactions: Force on the chilled did not shatter');
-  check(r.codex0 && r.stirs && r.live && r.codexTabs, `resonances: the Codex or the locker is wrong ${JSON.stringify(r)}`);
+  check(r.codex0 && r.stirs && r.live, `resonances: the Codex or TURN is wrong ${JSON.stringify(r)}`);
   check(!errors.length, 'spellcraft: ' + errors.join(' | '));
   check(!(await page.evaluate(() => Errors.length)), 'spellcraft: ' + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
   await page.close();
@@ -1175,26 +1031,17 @@ async function oldSave(browser) {
     const save = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', f), 'utf8'));
     const { page, errors } = await openFresh(browser, Object.assign({ save }, PHONE));
     const r = await page.evaluate(() => {
-      const s = Save.data, cores = rigCores(s.equip.main).concat(s.items.filter((x) => x.kind === 'stone'));
-      const out = { v: s.v, bases: SLOTS.every((k) => !s.equip[k] || !('sockets' in s.equip[k])) && s.items.every((x) => x.kind !== 'module' && !('sockets' in x)), rig: !!s.equip.main && s.equip.main.bp === 'rig' && s.equip.main.spells.length === 2 && s.equip.main.extra !== undefined && !('off' in s.equip) && s.items.every((x) => x.kind !== 'caster' || x.spells), cores: cores.length, lode: cores.some((c) => c.power === 'lodeheart'), armor: computeStats(s.equip, s.attune).armor, run: !!s.run, threads: s.stash.thread || 0 };
-      if (s.run) { UI.close(); resumeRun(); out.resumed = !!Game.dive && Game.dive.items.every((it) => it.kind !== 'module' && !('sockets' in it)); UI.close(); goHome('walk'); UI.close(); }
-      out.powers = cores.filter((x) => x.power).map((x) => x.power);
-      UI.close(); UI.useStation('locker'); const m = cores.find((x) => x.power) || cores[0]; if (m) { UI.openCard(m, s.items.includes(m) ? 'stash' : 'rig', m.uid); UI.closeCard(); }
-      UI.close(); UI.useStation('runes'); if (cores[0]) UI.acts.benchCore(cores[0].uid);
-      out.bench = !cores[0] || (/MERGE|SALVAGE|TAKE OUT/.test($('card-body').textContent) && !/UPGRADE|REROLL|FUSE|IMPRINT|SOCKET|Threads/.test($('card-body').textContent));
-      out.plain = cores.every((c) => !c.bonus && (c.rarity === 'legendary') === !!c.power && !c.temperChoice);
-      UI.closeCard(); UI.close(); UI.useStation('locker'); UI.acts.cardEquip('main');
-      out.rigCard = /SPELLS/.test($('card-body').textContent) && !!document.querySelector('#card .spell') && !/MODULE|SOCKET/.test($('card-body').textContent);
-      UI.closeCard(); UI.close(); UI.useStation('forge');
-      out.forge = UI.screen === 'screen-forge' || UI.screen === 'screen-research';
+      const s = Save.data, F = s.facets;
+      const out = { facets: !!F && Array.isArray(F.shapes) && F.casts.length === 2 && F.shapes.includes('arc'), worn: !!s.equip.main && !!s.equip.main.facet && s.equip.main.spells.length === 2 && !!s.equip.pick && !!s.equip.pick.facet, noItems: !('items' in s) && !('blueprints' in s) && !('built' in s) && !('wickUps' in s), stash: Object.keys(s.stash).every((k) => ORE_INDEX.hasOwnProperty(k) || isLight(k)), iron: (s.bands || {}).ferrite >= T.spectrum.startIron, run: !!s.run, stats: computeStats(s.equip, s.attune).maxHp > 0 };
+      if (s.run) { UI.close(); resumeRun(); out.resumed = !!Game.dive && !!Game.dive.sortie; UI.close(); goHome('walk'); UI.close(); }
+      UI.close(); UI.face = 'turn'; UI.show('screen-star'); out.screen = /CAST A/.test($('star-body').textContent); UI.close();
       return out;
     });
-    // the worn plate's own 7 armor (its old modules' armor went with them)
-    check(r.v === 9 && r.bases && r.rig && r.rigCard && r.cores >= 1 && r.lode && r.bench && r.plain && r.forge && !r.threads && (f !== 'save-v5-home.json' || r.armor === 7), `old save ${f}: ${JSON.stringify(r)}`);
-    if (f === 'save-v5-run.json') check(r.run && r.resumed, `old save ${f}: the sortie under way did not come back as bases and cores (${JSON.stringify(r)})`);
-    await page.evaluate(() => { UI.close(); UI.useStation('locker'); });
+    check(r.facets && r.worn && r.noItems && r.stash && r.iron && r.stats && r.screen, `old save ${f}: ${JSON.stringify(r)}`);
+    if (f === 'save-v5-run.json') check(r.run && r.resumed, `old save ${f}: the sortie under way did not come back (${JSON.stringify(r)})`);
+    await page.evaluate(() => { UI.close(); UI.face = 'turn'; UI.show('screen-star'); });
     await new Promise((res) => setTimeout(res, 450));
-    if (f === 'save-v5-home.json') await shot(page, 'smoke-oldsave-locker');
+    if (f === 'save-v5-home.json') await shot(page, 'smoke-oldsave-star');
     check(!errors.length, `old save ${f}: ` + errors.join(' | '));
     check(!(await page.evaluate(() => Errors.length)), `old save ${f}: ` + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
     await page.close();
@@ -1255,24 +1102,26 @@ async function leanSave(browser) {
   const { page, errors } = await openFresh(browser, Object.assign({ save }, PHONE));
   const r = await page.evaluate((uid) => {
     const s = Save.data;
-    const out = { supplies: s.supplies, sel: 'supplySel' in s, contracts: 'contracts' in s || 'swapped' in s, attune: s.attune, pts: attunePointsLeft(s), tools: s.tools, tool: s.tool, pocket: s.run && 'pocket' in s.run, item: s.items.some((i) => i.uid === uid), stash: Object.assign({}, s.stash) };
+    const out = { supplies: s.supplies, sel: 'supplySel' in s, contracts: 'contracts' in s || 'swapped' in s, attune: s.attune, pts: attunePointsLeft(s), tools: s.tools, tool: s.tool, pocket: s.run && 'pocket' in s.run, item: !('items' in s) && !('tools' in s) && !('tool' in s), stash: Object.assign({}, s.stash) };
     UI.close(); resumeRun(); out.resumed = !!Game.dive && !Game.dive.hub && Game.dive.pocket === undefined; UI.close(); goHome('walk'); UI.close();
-    UI.useStation('setout'); out.portal = /NEXT/.test($('setout-body').textContent); UI.close();
+    UI.openMap('setout'); out.portal = /NEXT/.test($('setout-body').textContent); UI.close();
     return out;
   }, pocketItem);
   check(JSON.stringify(r.supplies) === '{"injector":3,"cell":1}' && !r.sel && !r.contracts, `lean save: supplies or contracts not converted (${JSON.stringify(r)})`);
   check(!r.attune.capacity && r.attune.vitality === 1 && r.pts === 4 - 1 - 1, `lean save: the Capacity points did not come back (${JSON.stringify(r.attune)}, ${r.pts})`);
-  check(r.tools.join() === 'compass' && !r.tool, `lean save: the Deep Satchel is still carried (${r.tools})`);
-  check(!r.pocket && r.item && r.stash.lumenite === (st0.lumenite || 0) + 7 + 8, `lean save: the pocket did not go to the stash (${JSON.stringify(r.stash)})`);
-  check(r.stash.ferrite === (st0.ferrite || 0) + 2 * T_REFUND && r.stash.resonite === (st0.resonite || 0) + T_REFUND && r.stash.sigilite === (st0.sigilite || 0) + T_REFUND, `lean save: Flares, Ward Cells and Charges were not refunded as ore (${JSON.stringify(r.stash)})`);
+  check(!r.pocket && r.item && r.stash.lumenite >= (st0.lumenite || 0) + 7, `lean save: the pocket did not go to the stash, or gear is still in the save (${JSON.stringify(r)})`);
+  check(r.stash.ferrite >= (st0.ferrite || 0) + 2 * T_REFUND && r.stash.resonite >= (st0.resonite || 0) + T_REFUND && r.stash.sigilite >= (st0.sigilite || 0) + T_REFUND, `lean save: Flares, Ward Cells and Charges were not refunded as ore (${JSON.stringify(r.stash)})`);
   check(r.resumed && r.portal, `lean save: the sortie did not resume, or the portal has no next goal (${JSON.stringify(r)})`);
   check(!errors.length, 'lean save: ' + errors.join(' | '));
   check(!(await page.evaluate(() => Errors.length)), 'lean save: ' + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
   await page.close();
 }
 
-// A new game: after the opening, Wick's offer. I KNOW THE DRILL: only the
-// essentials are awake (FRAMES and CUTTERS at the forge, the bench, altar and
+// A new game: after the opening, Wick's offer. I KNOW THE DRILL: the star
+// is there to stand before, and its screen runs its tutorial the first time
+// (the dim, Wick's line, SKIP) and its ? plays it again, then the
+// reference. (The lines that follow describe what was: the forge, the bench
+// and the altar waking; now
 // uplink dark, no SUPPLIES, no MEND or LIGHT), the forge's tutorial runs
 // the first time it opens (the dim, Wick's line, SKIP) and its ? plays it
 // again, then the reference; a module caught wakes the bench, a deed's
@@ -1287,42 +1136,34 @@ async function onboarding(browser) {
   await shot(page, 'onboard/offer');
   await tap(page, '#screen-onboard [data-act=guideNo]');
   check(await page.evaluate(() => !Game.modal && Save.data.onboard.mode === 'free' && !Save.data.onboard.guide), 'onboarding: I KNOW THE DRILL did not close the offer');
-  const gate = await page.evaluate(() => {
-    const at = (id) => { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === id); d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; Game.step(1 / 60); return actionHere(); };
-    return { bench: at('runes'), altar: at('altar'), uplink: at('wreck'), forge: at('forge'), sup: (Game.step(1 / 60), $('btn-act2').hidden), locker: at('locker'), portal: at('setout') };
-  });
-  check(!gate.bench && !gate.altar && !gate.uplink && gate.forge === 'forge' && gate.sup && gate.locker === 'locker' && gate.portal === 'setout', `onboarding: a new game's stations are not just the forge, locker and portal (${JSON.stringify(gate)})`);
-  await shot(page, 'onboard/dormant');
-  // the forge: only FRAMES and CUTTERS, and its tutorial the first time
-  await page.evaluate(() => { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === 'forge'); d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; Save.data.studied = RESEARCH.map((r) => r.id); });
+  const gate = await page.evaluate(() => { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === 'altar'); d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; Game.step(1 / 60); return actionHere(); });
+  check(gate === 'altar', `onboarding: a new game's star is not there to stand before (${gate})`);
+  await shot(page, 'onboard/home');
+  // the star's screen: its tutorial the first time it opens
   await run(page, 0.05);
   await tap(page, '#btn-act');
   await run(page, 0.05);
-  const tabs = await page.evaluate(() => [...document.querySelectorAll('#forge-body .forge-tabs .chip')].map((b) => b.textContent).join());
-  check(tabs === 'FRAMES,CUTTERS', `onboarding: a new game's forge shows ${tabs}`);
+  check(await visible(page, '#screen-star'), 'onboarding: the star did not open');
   await sleep(700);
   await run(page, 0.05);
-  const tut = await page.evaluate(() => ({ run: Tutor.run && Tutor.run.id, shown: !$('tutor').hidden, line: $('tutor').querySelector('.tut-line').textContent, hit: (() => { const el = document.querySelector('#forge-body [data-act=forgeTab][data-arg=pick]'), r = el.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return h === el || el.contains(h); })(), blocked: (() => { const h = document.elementFromPoint(200, 790); return !!h && h.classList.contains('tut-dim'); })() }));
-  check(tut.run === 'forge' && tut.shown && tut.line.length < 70 && tut.hit && tut.blocked, `onboarding: the forge's tutorial did not dim all but its target (${JSON.stringify(tut)})`);
-  await shot(page, 'onboard/forge-tutorial');
-  await tap(page, '#forge-body [data-act=forgeTab][data-arg=pick]');
-  await run(page, 0.05);
-  check(await page.evaluate(() => Tutor.run && Tutor.run.i === 1 && UI.forge.bp === 'pick'), 'onboarding: tapping what the tutorial lit did not move it on');
+  const tut = await page.evaluate(() => ({ run: Tutor.run && Tutor.run.id, shown: !$('tutor').hidden, line: $('tutor').querySelector('.tut-line').textContent }));
+  check(tut.run === 'star' && tut.shown && tut.line.length < 110, `onboarding: the star's tutorial did not run (${JSON.stringify(tut)})`);
+  await shot(page, 'onboard/star-tutorial');
   await tap(page, '#tutor .tut-skip');
-  check(await page.evaluate(() => !Tutor.run && $('tutor').hidden && Save.data.onboard.seen.forge), 'onboarding: SKIP did not end the tutorial');
+  check(await page.evaluate(() => !Tutor.run && $('tutor').hidden && Save.data.onboard.seen.star), 'onboarding: SKIP did not end the tutorial');
   // its ? plays it again, then the reference
-  await tap(page, '#screen-forge .head-help');
+  await tap(page, '#screen-star .head-help');
   await run(page, 0.05);
-  check(await page.evaluate(() => Tutor.run && Tutor.run.id === 'forge' && Tutor.run.replay && !$('tutor').hidden), 'onboarding: ? did not replay the forge\'s tutorial');
+  check(await page.evaluate(() => Tutor.run && Tutor.run.id === 'star' && Tutor.run.replay && !$('tutor').hidden), 'onboarding: ? did not replay the star\'s tutorial');
   await tap(page, '#tutor .tut-skip');
   check(await page.evaluate(() => Tutor.run && Tutor.run.ref && $('tutor').querySelectorAll('.tut-ref p').length >= 3), 'onboarding: the replay has no reference after it');
-  await shot(page, 'onboard/forge-reference');
+  await shot(page, 'onboard/star-reference');
   await tap(page, '#tutor .tut-ok');
-  check(await page.evaluate(() => !Tutor.run && UI.screen === 'screen-forge'), 'onboarding: the reference did not close back to the forge');
-  await tap(page, '#screen-forge [data-act=back]');
+  check(await page.evaluate(() => !Tutor.run && UI.screen === 'screen-star'), 'onboarding: the reference did not close back to the star');
+  await tap(page, '#screen-star [data-act=back]');
   // out in the land: no MEND or LIGHT yet
   await page.evaluate(() => { const t = worldMap().terrs.find((x) => x.starter); startSortie({ terr: t.id, from: 0 }); for (let i = 0; i < 10; i++) Game.step(1 / 60); });
-  check(await page.evaluate(() => $('btn-mend').hidden && $('btn-cell').hidden && !$('btn-help').hidden), 'onboarding: MEND and LIGHT show before the first ore came home, or no ? in the top bar');
+  check(await page.evaluate(() => !$('btn-help').hidden), 'onboarding: no ? in the top bar');
   // the HUD's ? pauses and plays its tour
   await tap(page, '#btn-help');
   check(await page.evaluate(() => Tutor.run && Tutor.run.id === 'hud' && Game.modal === 'tutor'), 'onboarding: the top bar\'s ? did not pause for the HUD\'s tour');
@@ -1330,13 +1171,6 @@ async function onboarding(browser) {
   await tap(page, '#tutor .tut-skip');
   await tap(page, '#tutor .tut-ok');
   check(await page.evaluate(() => !Tutor.run && !Game.modal), 'onboarding: the HUD\'s tour did not end and let the world go on');
-  // a core caught wakes the bench; a deed's light, the altar
-  const woke = await page.evaluate(() => {
-    Save.data.coresFound = 1; Save.data.stash.heartlight = 12;
-    for (let i = 0; i < 40; i++) Game.step(1 / 60);
-    return { modules: onboardHas('modules'), altar: onboardHas('altar'), said: !!(Save.data.said || {}).wake_modules };
-  });
-  check(woke.modules && woke.altar && woke.said, `onboarding: a core and light did not wake the bench and altar (${JSON.stringify(woke)})`);
   check(!errors.length, 'onboarding: ' + errors.join(' | '));
   check(!(await page.evaluate(() => Errors.length)), 'onboarding: ' + (await page.evaluate(() => Errors.slice(0, 3).join(' | '))));
   await page.close();
@@ -1346,15 +1180,11 @@ async function onboarding(browser) {
   const old = await openFresh(browser, Object.assign({}, PHONE, { save }));
   const o = await old.page.evaluate(() => {
     UI.close();
-    const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === 'runes');
-    d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; Game.step(1 / 60);
-    const bench = actionHere();
-    openForge(false); UI.acts.researchDone && UI.screen === 'screen-research' && UI.acts.researchDone();
-    return { mode: Save.data.onboard.mode, all: ONBOARD_KEYS.every((k) => onboardHas(k)), bench, tabs: forgeCats().length, pending: !!Tutor.pending || !!Tutor.run, offer: !$('screen-onboard').hidden };
+    return { mode: Save.data.onboard.mode, all: ONBOARD_KEYS.every((k) => onboardHas(k)), pending: !!Tutor.pending || !!Tutor.run, offer: !$('screen-onboard').hidden };
   });
   await sleep(700);
   const o2 = await old.page.evaluate(() => !!Tutor.run);
-  check(o.mode === 'old' && o.all && o.bench === 'runes' && o.tabs >= 7 && !o.pending && !o2 && !o.offer, `onboarding: an old save found something locked, or a tutorial or the offer (${JSON.stringify(o)})`);
+  check(o.mode === 'old' && o.all && !o.pending && !o2 && !o.offer, `onboarding: an old save found something locked, or a tutorial or the offer (${JSON.stringify(o)})`);
   check(!old.errors.length, 'onboarding, old save: ' + old.errors.join(' | '));
   await old.page.close();
 }
@@ -1399,43 +1229,33 @@ async function guidedLanding(browser) {
     await page.evaluate(() => { const d = Game.dive; Input.bot = null; for (const dr of d.drops) { dr.x = d.p.x; dr.y = d.p.y; } });
     await run(page, 0.6);
   }
-  check(await step() === 'haul' && await page.evaluate(() => partsHave(Game.dive.cargo, 'any') >= 1), `guided: the foe did not fall and leave a part (${await step()})`);
+  check(await step() === 'haul', `guided: the foe did not fall (${await step()})`);
   for (let k = 0; k < 14 && (await step()) === 'haul'; k++) {
     await standAtMark();
     await page.evaluate(() => { Input.bot = { mine: true }; for (const e of Game.dive.enemies) if (!e.guide) e.dead = true; });
     await run(page, 1.2);
   }
   await page.evaluate(() => { Input.bot = null; });
-  check(await step() === 'home' && await page.evaluate(() => Game.dive.cargo.ferrite >= BLUEPRINTS.pick.ore), `guided: twelve Ferrite did not move on to home (${await step()})`);
+  check(await step() === 'home' && await page.evaluate(() => Game.dive.cargo.ferrite >= T.spectrum.depths[1]), `guided: the Ferrite did not move on to home (${await step()})`);
   await page.evaluate(() => { const d = Game.dive, m = Guide.mark(d); d.p.x = m.x; d.p.y = m.y; });
   await run(page, 3);
   check(await visible(page, '#screen-report'), `guided: walking back did not come home (${await step()})`);
   await tap(page, '#screen-report [data-act=closeReport]');
   await run(page, 0.1);
-  check(await step() === 'forge', `guided: home did not move on to the forge (${await step()})`);
-  check(await page.evaluate(() => { const m = Guide.mark(Game.dive), s = HUB_STATIONS.find((x) => x.id === 'forge'); return !!m && Math.abs(m.x - (s.x + 0.5) * TILE) < 1; }), 'guided: the marker is not on the forge');
-  await page.evaluate(() => { const d = Game.dive, s = HUB_STATIONS.find((x) => x.id === 'forge'); d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.9) * TILE; });
+  check(await step() === 'give', `guided: home did not move on to the star (${await step()})`);
+  check(await page.evaluate(() => { const m = Guide.mark(Game.dive), s = HUB_STATIONS.find((x) => x.id === 'altar'); return !!m && Math.abs(m.x - (s.x + 0.5) * TILE) < 1; }), 'guided: the marker is not on the star');
+  await page.evaluate(atStation, 'altar');
   await run(page, 0.05);
   await tap(page, '#btn-act');
-  if (await page.evaluate(() => UI.screen === 'screen-research')) await tap(page, '#research-body [data-act=researchDone]');
   await sleep(600);
   await run(page, 0.05);
-  // the forge's tutorial, done as it says: CUTTERS, NEXT, the ore, NEXT, FORGE
-  for (let k = 0; k < 8 && (await page.evaluate(() => !!Tutor.run)); k++) {
-    const st = await page.evaluate(() => ({ at: TUTORS[Tutor.run.id].steps[Tutor.run.i].at, ok: !$('tutor').querySelector('.tut-ok').hidden }));
-    if (k === 2) await shot(page, 'onboard/guided-forge');
-    await tap(page, st.ok ? '#tutor .tut-ok' : st.at);
-    await run(page, 0.05);
-  }
-  check(await visible(page, '#screen-anvil'), 'guided: the forge\'s tutorial did not end at the anvil');
-  for (let k = 0; k < 3; k++) { await run(page, 0.4); await page.evaluate(() => Anvil.strike()); }
-  await run(page, 3.5);
-  await tap(page, '#card [data-act=equip]');
-  await run(page, 0.1);
-  check(await page.evaluate(() => Save.data.equip.pick.tier === 1), 'guided: the Ferrite pick was not made and worn');
+  await page.evaluate(() => { if (Tutor.run) Tutor.skip(); if (Tutor.run) Tutor.end(); UI.acts.face('give'); });
+  await shot(page, 'onboard/guided-give');
+  await tap(page, '#star-body [data-act=giveOre][data-arg=ferrite]');
+  check(await page.evaluate(() => bandGiven('ferrite') > T.spectrum.startIron && !Save.data.stash.ferrite), 'guided: GIVE did not give the star the Ferrite');
   await page.evaluate(() => UI.close());
   await run(page, 0.1);
-  check(await step() === 'free', `guided: the pick did not move on to the last word (${await step()})`);
+  check(await step() === 'free', `guided: giving did not move on to the last word (${await step()})`);
   await run(page, 8);
   check(await page.evaluate(() => !Save.data.onboard.guide && $('guide').hidden && !$('hud-goal').hidden && /NEXT/.test($('hud-goal').textContent)), 'guided: the walkthrough did not hand over to NEXT');
   await shot(page, 'onboard/guided-next');

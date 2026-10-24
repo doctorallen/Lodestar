@@ -1509,13 +1509,15 @@ function drawDrop(dr, ox, oy, lights) {
   const fx = Math.round(dr.x * AP) + ox, fy = Math.round((dr.y - 3 - Math.sin(dr.t * 3 + dr.x) * 1.2) * AP) + oy;
   let col;
   if (dr.mote) col = '#c8ffd8';
-  else if (dr.stuff) { const pk = parsePart(dr.stuff); col = ART.ores[dr.stuff] ? ART.ores[dr.stuff][2] : pk ? ART.parts[pk.kind] : ART.exotics[dr.stuff]; }
-  else if (dr.blueprint) col = ART.rarity.legendary;
+  else if (dr.stuff) col = ART.ores[dr.stuff] ? ART.ores[dr.stuff][2] : ART.exotics[dr.stuff] || '#ffffff';
   else if (dr.shard !== undefined) col = ART.pal.star[3];
   else if (dr.echo) col = '#9fc4ff';
   else if (dr.resStone) col = '#ffd34d';
-  else if (dr.exotic) col = ART.exotics[dr.exotic];
-  else col = dr.item.kind === 'stone' ? coreColour(dr.item) : ART.rarity[dr.item.rarity] || '#ffffff';
+  // what the star learns from a fall (facets.js): a Shape or a Turn in its
+  // own colour, old light in the legendary's
+  else if (dr.teach) col = stoneCol(dr.teach);
+  else if (dr.legend) col = ART.rarity.legendary;
+  else col = dr.item ? (dr.item.kind === 'stone' ? coreColour(dr.item) : ART.rarity[dr.item.rarity] || '#ffffff') : '#ffffff';
   if (dr.mote) { for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) dot(fx + i, fy + j, col, true); }
   else if (dr.item && dr.item.kind === 'stone') {
     // a core's crystal, settled out of its capture (modules.js)
@@ -1536,7 +1538,7 @@ function drawDrop(dr, ox, oy, lights) {
     drawArtSprite(s, fx - 5, fy - 5);
     // the best of it stands up in a beam, so it's seen from across a room
     const it = dr.item;
-    if (dr.blueprint || dr.shard !== undefined || dr.echo || dr.resStone || (it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'relic')))
+    if (dr.shard !== undefined || dr.echo || dr.resStone || dr.teach || dr.legend || (it && (it.rarity === 'rare' || it.rarity === 'legendary' || it.rarity === 'set' || it.rarity === 'relic')))
       for (let k = ap(3), n = ap(18); k < n; k++) dot(fx, fy - k, col, true, 0.7 * (1 - k / n));
   }
   lights.push({ x: fx, y: fy, r: TILE, i: 0.5, c: rgb01(col) });

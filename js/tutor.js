@@ -20,83 +20,22 @@
 // ---------------------------------------------------------------------------
 
 const TUTORS = {
-  forge: {
-    screen: 'screen-forge', title: 'THE FORGE',
-    steps: [
-      { at: '#forge-body [data-act=forgeTab][data-arg=pick]', say: 'Cutters first. A better cutter breaks the next ore up.', when: () => !UI.forge.field && BLUEPRINTS[UI.forge.bp].cat !== 'pick' },
-      { at: '#forge-body .bp.on', say: 'A recipe says just what it makes, and from what.', next: true },
-      { at: '#forge-body .ore-chips .chip', say: 'The ore you choose sets its tier. Tap one.' },
-      { at: '#forge-body .cost-list', say: 'What it costs, and what you have. Red is short.', next: true },
-      { at: '#forge-body [data-act=craft]', say: 'FORGE. Then strike as the marker crosses the glow.', next: () => !!$q('#forge-body [data-act=craft]:disabled') },
-    ],
-    ref: [
-      'The ore sets the tier. An exotic, if you have one, adds to it.',
-      'The anvil only adds: up to +15% on a base; on a core, a bonus, a tier, a choice.',
-      "A frame's extra slot: Resonite or denser, a masterwork, or a Lodestone shard. Its ore says what kind.",
-      'Bring home something new and the forge studies it: new recipes.',
-      'CODEX: the resonances found so far. Cores in step wake one.',
-      'Tabs open as you go: research, the star, the outpost.',
-    ],
-  },
-  locker: {
-    screen: 'screen-gear', title: 'THE LOCKER',
-    steps: [
-      { at: '#gear-body [data-act=cardEquip][data-arg=main]', say: 'Your rig. Tap it.' },
-      { at: '#card .spell', say: 'Two spells, A and B. Each is a Form, an Element and a Mod.', next: true },
-      { at: '#card .circuit .tile', say: 'Tap a part to swap its core. Changing is free.', when: () => onboardHas('spells') },
-      { at: '#card [data-act=closeCard]', say: 'And ✕ to step back.' },
-    ],
-    ref: [
-      'Tap anything worn to see it, and what it would replace: ▲ better, ▼ worse.',
-      'A spell is a Form (its shape), an Element (what it does) and a Mod.',
-      'Cores in step wake a resonance: try them.',
-      'A core is its kind and tier. A pattern printed on it counts while it\'s set. Changing cores is free.',
-      'SALVAGE ALL ▼ breaks down what you have no use for. ★ KEEP saves a piece.',
-    ],
-  },
-  bench: {
-    screen: 'screen-bench', title: 'THE TUNING BENCH',
-    steps: [
-      { at: '#bench-body .mod-row', say: 'Every core you hold. Tap one.' },
-      { at: '#card [data-act=coreMerge]', say: 'MERGE folds three of a kind into one a tier denser.', next: true },
-      { at: '#card [data-act=salvage]', say: 'SALVAGE gives a spare one\'s ore back.', next: true },
-      { at: '#card [data-act=closeCard]', say: 'And ✕ to step back.' },
-    ],
-    ref: [
-      'A core is its kind and its tier; the same ones stack.',
-      'MERGE: three of a kind and tier fold into one a tier denser.',
-      'SALVAGE: ore back. ★ KEEP stops it being salvaged.',
-      'Patterns are printed at the forge. Legendaries are found, never made.',
-    ],
-  },
   star: {
     screen: 'screen-star', title: 'THE STAR',
     steps: [
-      { at: '#star-body .mag', say: 'The star\'s magnitude. Light from deeds grows it, not ore.', next: true },
-      { at: '#star-body .light-chips', say: 'Light waiting. At the altar, press and hold to feed it.', next: true },
-      { at: '#star-body .reach', say: 'Its reach: a spire only holds where its light does.', next: true },
-      { at: '#star-body .att-list', say: 'A point each magnitude, spent here. Tap +.', next: true },
+      { at: '#star-body .faces', say: 'Four faces. GIVE feeds it, TURN is your build, ASK is what it knows, GO is the world.', next: true },
+      { at: '#star-body .spec-list', say: 'Ore given is a band of its light. A land\'s band at depth 1, and it can light that land.', next: true, face: 'give' },
+      { at: '#star-body .light-chips', say: 'Light from deeds grows its magnitude: stand before it and hold FEED.', next: true, face: 'give' },
+      { at: '#star-body .row.facet', say: 'Your casts are its facets. Tap one to turn the star.', next: true, face: 'turn' },
+      { at: '#star-body .att-list', say: 'A point each magnitude, spent here. Tap +.', next: true, face: 'turn' },
     ],
     ref: [
-      'Kindling land gives heartlight: bound to you, safe from a fall.',
-      'A Deep\'s end, an ancient forge, an echo: deeplight. It rides in the cargo.',
-      'A Keeper\'s shard, set at the altar, gives the most.',
-      'Ring 2 needs magnitude 3, ring 3 needs 5, the Edge 7.',
-      'Each magnitude gives an attunement point.',
-    ],
-  },
-  supplies: {
-    screen: 'screen-supplies', title: 'SUPPLIES',
-    steps: [
-      { at: '#supplies-body [data-act=makeSupply][data-arg=injector]', say: 'MEND heals you, out there. Make one.', next: () => !!$q('#supplies-body [data-act=makeSupply][data-arg=injector]:disabled') },
-      { at: '#supplies-body [data-act=makeSupply][data-arg=cell]', say: 'LIGHT tops up your light.', next: () => !!$q('#supplies-body [data-act=makeSupply][data-arg=cell]:disabled') },
-      { at: '#supplies-body .refine-head', say: 'The Refinery makes both stronger.', next: true },
-    ],
-    ref: [
-      'Paid in your plainest ore there\'s enough of. Higher ores cost fewer.',
-      'MEND and LIGHT sit on the deck out in the land (Q and R).',
-      'In the field, CARGO makes them from the ore you carry.',
-      'The Refinery\'s levels strengthen both, and refine ore up a grade.',
+      'GIVE: ore deepens a band; light from deeds grows the magnitude.',
+      'TURN: each cast is a Shape, a Band and, as the star grows, a Turn or a Reading.',
+      'Shapes come from the Deeps\' ends and from elites; Readings from creatures read four times.',
+      'A warden or a Keeper leaves a shard of old light: a power, while it faces you.',
+      'ASK: what the star needs next, the Meridian, the shards, the echoes.',
+      'Ring 2 needs magnitude 3, ring 3 needs 5, the Edge 7; and the land\'s band tasted.',
     ],
   },
   map: {
@@ -111,20 +50,7 @@ const TUTORS = {
       'Your light lasts about three minutes in dark land, and fills in kindled land.',
       'Kindle land: its heart goal, then plant a spire at its heart.',
       'A spire banks your cargo, and travels to any other.',
-      'Once made at the forge, a tool is always on.',
-    ],
-  },
-  uplink: {
-    screen: 'screen-wreck', title: 'THE UPLINK',
-    steps: [
-      { at: '#wreck-body .up-meridian', say: 'The Meridian sleeps until the star is whole: every band at its mark.', next: true },
-      { at: '#wreck-body .up-shards', say: 'Three Keepers hold shards. The star wants them.', next: true },
-      { at: '#wreck-body .up-echoes', say: 'Logs found in the dark are kept here.', next: true },
-    ],
-    ref: [
-      'The Meridian\'s sleepers wait in orbit until every band of the star stands at the mark.',
-      'A shard lies in the Keeper\'s Lair, under the furthest land of each ring.',
-      'Ore given at the altar deepens its band; a land\'s band at depth 1 lets the star light it.',
+      'The star\'s senses open as its bands deepen.',
     ],
   },
   hud: {
@@ -182,9 +108,8 @@ const Tutor = {
   auto(screen) {
     const id = TUTOR_OF[screen];
     if (!id || Tutor.run || !Save.data) return;
-    const o = onboardState(), guidedForge = id === 'forge' && Guide.on() && Guide.step().id === 'forge' && !Tutor.ranGuided;
-    if ((o.seen[id] || o.mode === 'old') && !guidedForge) return;
-    if (guidedForge) Tutor.ranGuided = true;
+    const o = onboardState();
+    if (o.seen[id] || o.mode === 'old') return;
     Tutor.pending = { id, at: Game.realT + T.ui.tapGuard + 0.05 };
   },
   start(id, replay = false) {
@@ -208,6 +133,8 @@ const Tutor = {
     for (r.i++; r.i < steps.length; r.i++) {
       const st = steps[r.i];
       if (st.when && !st.when(r)) continue;
+      // (a step on another face of the star's screen turns to it: starui.js)
+      if (st.face && UI.face !== st.face) { UI.face = st.face; UI.turn = null; UI.redraw(); }
       if (!tutorTarget(st)) continue;
       const el = tutorTarget(st);
       if (el.scrollIntoView) el.scrollIntoView({ block: 'center' });

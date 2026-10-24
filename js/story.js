@@ -71,7 +71,7 @@ const STORY_INTRO = [
   [{ text: 'The survey sweeps the dark below and marks a site. Bedrock, level, nothing moving.' }],
   // the seed and the base modules coming down on their thrusters, the
   // cradle locking
-  [{ text: 'The seed comes down by the book, the base with it. The cradle takes it, and locks.' }],
+  [{ text: 'The seed comes down alone, by the book. Where it lands, its light opens, and the ground takes it.' }],
   // the Meridian in orbit; inside, its settlers asleep in rows
   [{ text: 'Above, the colony ship Meridian waits. Its settlers sleep until the star is whole.' }],
   // the outpost: the star rising over its cradle and lighting, the Kindler
@@ -107,7 +107,7 @@ const WICK = {
   rift_gate: 'Two tears, one place. Step into one and out of the other.',
   rift_inversion: "Daylight, down here. It's coming out of the tear, not from us.",
   riftGate: 'I will never get used to that.',
-  riftSealed: 'Riftglass. Forge with it, and the piece comes out a tier above its ore.',
+  riftSealed: "What's left behind is solid. Ore. The star can taste that.",
   storm: "A lodestorm. Where the ground flickers, the sky's about to hit.",
   riftSpawn: "Something came through the tear. It'll keep coming until we seal it.",
   pullFading: "Our light's thinning here. We shouldn't stay much longer.",
@@ -126,8 +126,16 @@ const WICK = {
   echo: "An echo: a Kindler's log, from before us. I'll keep it at the uplink.",
   // the first time the star is fed, at its altar (hub.js)
   firstFeed: "By the book: fed light until it can light a world. You're doing fine.",
+  // the star learning from the world (facets.js): a Shape, a Turn, a shard
+  // of old light; and the first time the build is turned
+  firstShape: 'The star read that. A new Shape: face it at TURN, and it casts it.',
+  firstMod: "It learned a Turn. Face it beside a Shape and the cast changes. Nothing to carry.",
+  firstLegend: "Old light. Another star's. Face it and its power is yours, as long as it faces you.",
+  firstTurn: 'Face it the other way and it is a different suit. Nothing to carry home.',
   // ore given to the star (spectrum.js): the first time, a land it hasn't
   // tasted, and every band at the Meridian's mark
+  // coming home with ore for the first time: what it's for
+  spectrum: "That ore is for the star. It can make anything, but it can only shine on ground it knows: every kind of ore it tastes is a band of its light, and a land stays dark to it until it has tasted that land's ore. GIVE, at the star.",
   firstGive: 'Ore, into the star. It has to taste the ground before it can light it. Nobody mentions that part in training.',
   starBand: "The star can't light this land yet. It hasn't tasted what's in the ground here. Bring some home and give it.",
   spectrumWhole: 'Every band at the mark. That is the whole spec. The Meridian will have seen it by now.',

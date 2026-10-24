@@ -167,14 +167,7 @@ function pshBlocked(f, x0, y0, x1, y1) {
 function pshHubStill(d) {
   const out = [];
   for (const a of hubProps(d)) {
-    if (a.station) { const s = a.station, at = stationAt(s, 0, 0); out.push({ spr: stationSprite(s.id), x: at.x, y: at.y }); }
-    else if (a.wreck) { const s = HUB_STATIONS.find((x) => x.id === 'wreck'); out.push({ spr: hartUplink(), x: Math.round((s.x + 0.5) * ATILE), y: Math.round((s.y + 0.5) * ATILE) }); }
-    else if (a.lamp) out.push({ spr: hartLantern(a.lit), x: Math.round((a.at[0] + 0.5) * ATILE), y: Math.round((a.at[1] + 0.5) * ATILE), lamp: a });
-    else if (a.gate) { const s = HUB_STATIONS.find((x) => x.id === 'setout'); out.push({ spr: hartGate(), x: Math.round((s.x + 0.5) * ATILE), y: Math.round((s.y + 0.5) * ATILE) + 1 }); }
-    else if (a.cradle) out.push({ spr: hartCradle(), x: Math.round(OUTPOST_CRADLE.x * ATILE), y: Math.round(OUTPOST_CRADLE.y * ATILE), cradle: true });
-    else if (a.pod) out.push({ spr: hartPod(a.look % 2), x: Math.round(a.pod.x * ATILE), y: Math.round(a.pod.y * ATILE) });
-    else if (a.dress) out.push({ spr: hartProp(a.dress.kind), x: Math.round(a.dress.x * ATILE), y: Math.round(a.dress.y * ATILE) });
-    else if (a.structure && !a.landing) { const at = plotAt(a.plot, 0, 0); out.push({ spr: structureSprite(a.structure), x: at.x, y: at.y }); }
+    if (a.lamp) out.push({ spr: hartLantern(a.lit), x: Math.round((a.at[0] + 0.5) * ATILE), y: Math.round((a.at[1] + 0.5) * ATILE), lamp: a });
   }
   return out;
 }
@@ -201,9 +194,6 @@ function pshHubLights(d, still) {
     const spr = s.spr;
     if (s.lamp && s.lamp.lit) L.push({ x: s.x, y: s.y, h: spr.ay - spr.lamp.y, lx: s.x - spr.ax + spr.lamp.x, ly: s.y - spr.ay + spr.lamp.y, r: TILE * 2.2 * AP, i: 0.7, own: s });
   }
-  const fg = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(fg, 0, 0), fs = hartForge();
-  const M = hartPt(fs, HART_MOUTH);
-  L.push({ x: at.x - fs.ax + M.x, y: at.y + 2, h: fs.ay - M.y, lx: at.x - fs.ax + M.x, ly: at.y - fs.ay + M.y, r: TILE * 2.2 * AP, i: 1.0, forge: true });
   return L;
 }
 // How much of the light is the light L's at px x, y (0-1), against amb.
@@ -315,7 +305,7 @@ function pshBake(f) {
 // What the plaza's baked shadows were made for: its settlement, its lit
 // lanterns and its buildings (if any changes, the outpost is painted
 // again).
-function pshHubSig() { return hubStarMag() + '/' + structuresStanding().join(); }
+function pshHubSig() { return String(hubStarMag()); }
 
 // ---------------------------------------------------------------------------
 // Each frame: a mask of greys over the view, multiplied over the ground

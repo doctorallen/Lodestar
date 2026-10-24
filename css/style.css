@@ -72,7 +72,7 @@ body:not(.diving) #topbar > * { visibility: hidden; }
 body.home #topbar .bars { display: none; }
 body.home .hud-depth { flex: 1 1 auto; text-align: right; }
 /* the Spectrum (spectrum.js): six bars, a band each, the Meridian's mark across them */
-.hud-spec { display: none; flex: 0 0 auto; }
+.hud-spec { display: none; flex: 0 0 auto; cursor: pointer; padding: 6px 2px; }
 body.home .hud-spec { display: flex; }
 .spec { display: inline-flex; gap: 2px; align-items: flex-end; height: 16px; }
 .spec.small { height: 14px; }
@@ -805,3 +805,14 @@ body.guiding:not(.modal) .toasts { top: calc(104px + env(safe-area-inset-top)); 
 .tile { position: relative; }
 .tile .pip { position: absolute; top: 2px; right: 2px; width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 4px currentColor; }
 /* a masterwork core's temper, chosen from three on its card */
+
+/* the star's screen (starui.js): its four faces, and the facets' rows */
+.chips.faces { justify-content: center; margin-bottom: 10px; }
+.row.facet .pip { display: inline-block; width: 10px; height: 10px; margin-right: 8px; flex: none; }
+.row.facet .pip.hollow, .row .pip.hollow { display: inline-block; width: 10px; height: 10px; margin-right: 8px; flex: none; border: 1px solid var(--line); box-sizing: border-box; }
+.row.facet.on { border-color: var(--gold); }
+.row.facet .row-tag { color: var(--gold); }
+.row .lock { color: var(--dim); }
+.cast-line { margin: 2px 0 10px; }
+.ask-line { margin: 4px 0; color: var(--ink); }
+.row .dim { color: var(--dim); font-weight: normal; }

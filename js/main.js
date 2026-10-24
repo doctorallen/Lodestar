@@ -16,7 +16,6 @@ function step(dtReal) {
   updateSparks(dtReal);
   UI.frame(dtReal);
   View.shake = (View.shake || 0) * Math.exp(-14 * dtReal);
-  if (Game.modal === 'screen-anvil') Anvil.update(dtReal);
   if (Game.dive && Game.dive.feedT > 0) Game.dive.feedT = Math.max(0, Game.dive.feedT - dtReal);
   if (Game.modal) return;
   // a hit lands: everything holds still for a moment
@@ -96,8 +95,6 @@ function boot() {
   // leaving the tab pauses a dive
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && Game.dive && !Game.dive.hub) {
-      // the materials are already spent: make the piece before the page can die
-      if (Game.modal === 'screen-anvil' && Anvil.job && Anvil.job.field) Anvil.finish();
       saveRun(Game.dive);
       if (!Game.modal) UI.openPause();
     }

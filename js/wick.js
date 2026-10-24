@@ -3,7 +3,8 @@
 // Wick's upgrades, fitted at the Drone Bay once it stands (structures.js;
 // their recipes in blueprints.js, their numbers in T.wickUp), each once.
 // Each can be turned off and on there, free
-// (Save.data.wickUps: id → on). Out in the land, each shows what it does:
+// (facets.js: lent from a magnitude, off if turned off at TURN). Out in the
+// land, each shows what it does:
 //   scan    a ping now and then: a ring out from Wick, veins near glinting
 //           for a moment, marks on the pack and on cores on the ground
 //   lamp    a second, dimmer beam from behind you (render.js)
@@ -21,25 +22,11 @@ const WICK_UPS = {
 };
 const WICK_COL = { scan: '#7dffd8', lamp: '#ffe2b0', shield: '#8fc4ff', spark: '#c9a2ff' };
 
-function wickFitted(id, s = Save.data) { return !!(s && s.wickUps && Object.prototype.hasOwnProperty.call(s.wickUps, id)); }
-function wickOn(id) { const w = Save.data && Save.data.wickUps; return !!w && w[id] === true; }
-function wickOpen(id) { return magnitudeOf(Save.data.star) >= T.wickUp[id].mag; }
-// Fits one from the stash: once, with the Drone Bay standing and the star
-// grown enough. It's on at once.
-function fitWick(id) {
-  const s = Save.data, rid = 'wick_' + id;
-  if (wickFitted(id) || !structureStands('bay') || !wickOpen(id) || !s.blueprints.includes(rid) || !recipePay(recipeCost(rid), s.stash)) return false;
-  s.wickUps = Object.assign({}, s.wickUps, { [id]: true });
-  Save.save();
-  return true;
-}
-function toggleWick(id) {
-  const s = Save.data;
-  if (!wickFitted(id)) return false;
-  s.wickUps[id] = !s.wickUps[id];
-  Save.save();
-  return true;
-}
+// Wick's upgrades are facets the star lends him (facets.js): each from a
+// magnitude, on unless turned off at TURN.
+function wickFitted(id) { return wickLent(id); }
+function wickOn(id) { return wickLent(id) && !wickOff(id); }
+function wickOpen(id) { return wickLent(id); }
 
 // Wick's icon for an upgrade: the drone, and the upgrade's mark beside it.
 const _wickIcons = {};
@@ -69,7 +56,7 @@ function wickAt(d) { return d.drone ? { x: d.drone.x, y: d.drone.y } : { x: d.p.
 
 // Each step out in the land.
 function updateWick(d, dt) {
-  if (d.hub || d.dying || !Save.data.wickUps) return;
+  if (d.hub || d.dying) return;
   const W = wickState(d), U = T.wickUp;
   for (const f of W.fx) f.t -= dt;
   W.fx = W.fx.filter((f) => f.t > 0);
@@ -205,20 +192,3 @@ function addWickLamp(d, L, Bm) {
   const S = T.light.shadow.walls ? lampBeamSight(d, W, WickBeamSight) : null;
   addConeLight(L, W, rgb01('#e8eeff'), S);
 }
-
-// ---------------------------------------------------------------------------
-// At the Drone Bay: Wick's upgrades, each turned off or on, free
-// ---------------------------------------------------------------------------
-function wickBayHtml() {
-  if (!structureStands('bay')) return `<h3>WICK</h3><p class="note">${structureBuilt('bay') ? 'The Drone Bay is coming down.' : 'Needs the Drone Bay.'}</p>`;
-  const rows = WICK_UP_IDS.map((id) => {
-    const own = wickFitted(id), on = wickOn(id);
-    const sub = own ? WICK_UPS[id].text() : `Not fitted${wickOpen(id) ? '' : ` · magnitude ${T.wickUp[id].mag}`}`;
-    return `<div class="row static wick-row${own ? '' : ' dim-row'}"><img class="icon" src="${wickIconUrl(id)}" alt=""><span class="row-text"><span class="row-name">${esc(WICK_UP_NAMES[id])}</span><span class="row-sub">${esc(sub)}</span></span>${own ? `<button class="mini toggle${on ? ' on' : ''}" data-act="wickToggle" data-arg="${id}" aria-pressed="${on}">${on ? 'ON' : 'OFF'}</button>` : ''}</div>`;
-  }).join('');
-  return `<h3>WICK <span class="dim">· ${WICK_UP_IDS.filter((x) => wickFitted(x)).length}/${WICK_UP_IDS.length} FITTED</span></h3>${rows}`;
-}
-
-Object.assign(UI.acts, {
-  wickToggle: (id) => { if (toggleWick(id)) { snd('tap', {}); UI.redraw(); } },
-});

@@ -186,7 +186,8 @@ function rigBase() {
 // Ore affinity
 // ---------------------------------------------------------------------------
 // A frame's ore: the one it's named for (its tier's), or null (the fist).
-function casterOre(it) { return it && !it.fist && it.tier >= 1 ? oreOfTier(it.tier).id : null; }
+// (the Splinter has no ore: facets.js)
+function casterOre(it) { return it && !it.fist && !it.facet && it.tier >= 1 ? oreOfTier(it.tier).id : null; }
 // Its ore's way (T.circuits.ores), or {}.
 const casterOreWay = (it) => (casterOre(it) && T.circuits.ores[casterOre(it)]) || {};
 // The element its ore favours, or null.

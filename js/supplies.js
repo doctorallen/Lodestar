@@ -3,7 +3,7 @@
 // Supplies: two consumables made from ore, so old ore has a use once the
 // next region's is found: the Mending Injector (health) and the Lightcell
 // (light). The Refinery makes both stronger, level by level (structures.js
-// refineryLevel; the numbers are T.supplies).
+// supplyLevel, by the star's magnitude; the numbers are T.supplies).
 //
 // Made at home at the fabricator (SUPPLIES, beside FORGE), from the stash,
 // or out in the world from the ore carried (MAKE, in the cargo screen).
@@ -23,7 +23,10 @@ const SUPPLY_KINDS = {
 const SUPPLY_ORDER = ['injector', 'cell'];
 
 // How strong one is at a Refinery level (0: none), in percent.
-function supplyPct(kind, lv = refineryLevel()) {
+// How strong supplies are: the star's magnitude, a step every two (the
+// Refinery's levels were: 0 none, then 1 to 3).
+function supplyLevel() { return clamp(Math.floor((magnitudeOf(Save.data.star) - 1) / 2), 0, 3); }
+function supplyPct(kind, lv = supplyLevel()) {
   const v = kind === 'injector' ? T.supplies.injector.heal : T.supplies.cell.light;
   return Math.round(v[clamp(lv, 0, v.length - 1)] * 100);
 }
@@ -153,12 +156,10 @@ function supplyRows(field) {
     return `<div class="row static supply-row"><img class="icon" src="${supplyIconUrl(kind)}" alt=""><span class="row-text"><span class="row-name">${esc(K.name)} · ${n}/${T.supplies.most}</span><span class="row-sub">${esc(K.text())}</span>${full ? '' : `<span class="cost-list">${costTag(c.ore, c.n, src[c.ore] || 0)}</span>`}</span><button class="mini" data-act="makeSupply" data-arg="${kind}${field ? ':field' : ''}" ${why ? 'disabled' : ''}>${full ? 'FULL' : 'MAKE'}</button></div>`;
   }).join('');
 }
-function drawSupplies() {
-  $('supplies-body').innerHTML = `${supplyRows(false)}${refineHtml()}`;
-}
-// The cargo screen's MAKE section (ui.js drawCargo).
-function supplyMakeHtml() {
-  return `<h3>MAKE</h3>${supplyRows(true) || `<p class="note">Needs ${T.supplies.cost[0]} ${stuffName(T.ores[0].id)}.</p>`}`;
+// MAKE: in the cargo screen from the ore carried (ui.js drawCargo), and at
+// the star's GIVE face from the stash (starui.js).
+function supplyMakeHtml(field = true) {
+  return `<h3>MAKE · ${esc(supplyPowerText(supplyLevel()))}</h3>${supplyRows(field) || `<p class="note">Needs ${T.supplies.cost[0]} ${stuffName(T.ores[0].id)}.</p>`}`;
 }
 
 // An older save's supplies: graded injectors and Lightcells ('injector2')
@@ -181,5 +182,4 @@ Object.assign(UI.acts, {
     const [kind, where] = String(arg).split(':');
     if (makeSupply(kind, where === 'field')) { UI.toast(`Made: ${SUPPLY_KINDS[kind].name}`, 'legendary'); UI.redraw(); }
   },
-  supplies: () => UI.show('screen-supplies'),
 });

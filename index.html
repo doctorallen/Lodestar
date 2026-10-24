@@ -74,10 +74,6 @@
     <div class="menu"><button class="btn primary" data-act="resumeRun">CARRY ON</button><button class="btn danger" data-act="dropRun" data-confirm="SURE? IT STAYS IN YOUR PACK">GIVE IT UP</button></div>
   </section>
 
-  <section id="screen-wreck" class="screen panel" hidden>
-    <header class="screen-head"><div class="head-in"><h2>THE UPLINK</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
-    <div id="wreck-body" class="list"></div>
-  </section>
 
   <section id="screen-report" class="screen" hidden>
     <h2 id="report-title"></h2>
@@ -93,35 +89,15 @@
     <div id="setout-body" class="list"></div>
   </section>
 
-  <section id="screen-forge" class="screen panel" hidden>
-    <header class="screen-head"><div class="head-in"><h2 id="forge-title">THE FORGE</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
-    <div id="forge-body" class="list"></div>
-  </section>
 
-  <section id="screen-gear" class="screen panel" hidden>
-    <header class="screen-head"><div class="head-in"><h2 id="gear-title">GEAR</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
-    <div id="gear-body" class="list"></div>
-  </section>
 
-  <section id="screen-bench" class="screen panel" hidden>
-    <header class="screen-head"><div class="head-in"><h2>THE TUNING BENCH</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
-    <div id="bench-body" class="list"></div>
-  </section>
 
-  <section id="screen-research" class="screen panel research" hidden>
-    <header class="screen-head"><div class="head-in"><h2>RESEARCH</h2><button class="head-close" data-act="researchDone" aria-label="To the forge">✕</button></div></header>
-    <div id="research-body" class="list"></div>
-  </section>
 
   <section id="screen-star" class="screen panel" hidden>
     <header class="screen-head"><div class="head-in"><h2>THE STAR</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
     <div id="star-body" class="list"></div>
   </section>
 
-  <section id="screen-supplies" class="screen panel" hidden>
-    <header class="screen-head"><div class="head-in"><h2>SUPPLIES</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
-    <div id="supplies-body" class="list"></div>
-  </section>
 
   <section id="screen-cargo" class="screen panel" hidden>
     <header class="screen-head"><div class="head-in"><h2>CARGO</h2><button class="head-close" data-act="resume" aria-label="Back to the sortie">✕</button></div></header>
@@ -166,16 +142,7 @@
     </div>
   </section>
 
-  <section id="screen-anvil" class="screen anvil" hidden>
-    <h2>THE ANVIL</h2>
-    <p id="anvil-what" class="note center"></p>
-    <canvas id="anvil-canvas"></canvas>
-    <p id="anvil-call" class="anvil-call"></p>
-  </section>
 
-  <section id="screen-reveal" class="screen reveal" hidden>
-    <div id="reveal-body" class="reveal-stage"></div>
-  </section>
 
   <div id="card" class="card-wrap" hidden><div id="card-body" class="card"></div></div>
 
@@ -267,15 +234,14 @@
 <script src="js/hubground.js"></script>
 <script src="js/spectrum.js"></script>
 <script src="js/terraform.js"></script>
+<script src="js/facets.js"></script>
 <script src="js/story.js"></script>
 <script src="js/input.js"></script>
 <script src="js/ui.js"></script>
-<script src="js/gearui.js"></script>
+<script src="js/starui.js"></script>
 <script src="js/worldmap.js"></script>
 <script src="js/supplies.js"></script>
-<script src="js/structures.js"></script>
 <script src="js/wick.js"></script>
-<script src="js/anvil.js"></script>
 <script src="js/intro.js"></script>
 <script src="js/onboard.js"></script>
 <script src="js/tutor.js"></script>

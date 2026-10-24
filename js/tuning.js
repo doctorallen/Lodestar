@@ -269,13 +269,15 @@ const T = {
   // a warden's heart). sight/reach in tiles; the beacon lands after `land`
   // seconds and wakes what's within `noise` px; in a territory, standing
   // within `refill` px of it brings your light back at refillRate a second.
+  // (band: the ore and the depth of its band that opens the sense:
+  // facets.js senseOpen; the Compass is the splinter itself)
   tools: {
-    compass: { mag: 1, cost: {} },
-    oresense: { mag: 2, cost: { lumenite: 8, spore: 4 }, reach: 9 },
-    radar: { mag: 2, cost: { lumenite: 8, ether: 4 }, reach: 18 },
-    beacon: { mag: 2, cost: { resonite: 6, heart: 1 }, land: 6, noise: 140, refill: 40, refillRate: 0.12 },
-    map: { mag: 3, cost: { lumenite: 10, fiber: 5 }, sight: 6 },
-    lens: { mag: 2, cost: { resonite: 6, ether: 3, chitin: 3 } },
+    compass: { mag: 1 },
+    oresense: { mag: 1, band: ['lumenite', 1], reach: 9 },
+    radar: { mag: 1, band: ['resonite', 1], reach: 18 },
+    beacon: { mag: 1, band: ['lumenite', 2], land: 6, noise: 140, refill: 40, refillRate: 0.12 },
+    map: { mag: 1, band: ['lumenite', 1], sight: 6 },
+    lens: { mag: 1, band: ['resonite', 2] },
   },
   // The outpost's buildings (structures.js): each built once, at the
   // forge's BUILDINGS tab, and set down at its plot. mag: the magnitude the
@@ -840,10 +842,13 @@ const T = {
   // (T.cores). Bases come from the forge. motes heal.
   // (with half the enemies, each kill pays about twice: part, partTwo,
   // exotic, relic and mote are set so a sortie's haul is what it was)
+  // What a kill leaves (combat.js killDrops): part, the chance an ordinary
+  // kill leaves an ore of its land; an elite eliteOre [least, most] of it, a
+  // warden or a Keeper bossOre of each of its land's two. mote: a mote
+  // heals moteShare of the health, moteHeal at least.
   loot: {
-    part: 0.8, partTwo: 0.35, eliteParts: [2, 3], bossParts: 4,
-    exotic: 0.05, eliteExotic: 0.5,
-    relic: 0.014, eliteRelic: 0.05, bossRelic: 0.6, mote: 0.4, moteHeal: 14, moteShare: 0.15, // a mote heals moteShare of the health, moteHeal at least
+    part: 0.8, eliteOre: [2, 4], bossOre: 6,
+    mote: 0.4, moteHeal: 14, moteShare: 0.15,
   },
 
   // Gear. Base numbers at tier 1, times tierGrowth a tier (affixes grow by
@@ -969,6 +974,27 @@ const T = {
   // light the colony can live under; the star is whole when all six stand
   // there. startIron: the Iron the survey taught it, so it lands at depth 1.
   spectrum: { depths: [0, 8, 24, 60, 120, 200], mark: 4, startIron: 8 },
+  // Home, the inside of the star (floor.js HOLLOW, hubground.js, hub.js):
+  //   glass: the floor's tones, dark to light (amber glass over light);
+  //   skin: the skin's, from its inner edge to the white wall; sectors and
+  //   bands (tiles) cut the floor into facets; hot: the floor's colour
+  //   under the heart, to hotR tiles, hotMix how far it goes; passage: how
+  //   wide (tiles, each side of a way out's line) the skin stands open.
+  //   heart: how many times the seed's size the heart is drawn, small
+  //   until magnitude bigFrom, big after. light: the heart's pool on the
+  //   floor [tiles at magnitude 0, more each magnitude] and its strength,
+  //   and the skin's lights (how many, each one's reach in tiles, its
+  //   strength).
+  hollow: {
+    glass: ['#2a1c0c', '#3a2810', '#4a3414', '#5a4018', '#6a4c1c', '#7a5a22'],
+    skin: ['#8a6a22', '#b88a44', '#e4b64a', '#f6e7b0', '#fff7dc'],
+    sectors: 24, bands: [5, 10, 15], hot: '#fff7dc', hotR: 4.5, hotMix: 0.35, passage: 1.7,
+    heart: { small: 3, big: 4, bigFrom: 4 },
+    light: { pool: [7, 0.8], poolI: 1.0, skinN: 16, skinR: 5, skinI: 0.8 },
+  },
+  // Facets (facets.js): extraAt, the magnitude at which each of a cast's
+  // two extra facets opens (a Turn or a Reading beside its Shape and Band).
+  facets: { extraAt: [2, 4] },
   // Kindled land terraforming by the light (terraform.js): the starstone
   // spreading from a territory's spire, reach [tiles at magnitude 1, more
   // each magnitude], its shape as the outpost's ground's (T.outpost.ground),

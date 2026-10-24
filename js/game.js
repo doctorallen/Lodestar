@@ -72,7 +72,7 @@ function hubWelcome(report) {
   UI.close();
   if (report) UI.openReport(report);
   // (after the opening, once: Wick's offer to walk you through it)
-  else if (!Save.data.run && !Story.intro() && !Onboard.offer()) UI.tip('hub', 'Walk out any opening, or take the portal');
+  else if (!Save.data.run && !Story.intro() && !Onboard.offer()) UI.tip('hub', 'Walk out any opening, or GO from the star');
 }
 // The daylight over the outpost: the star's own ground, brighter as it
 // grows (T.outpost.sun).
@@ -155,9 +155,9 @@ function placeFieldForge(d) {
   d.fieldForge = { x: i % f.w, y: Math.floor(i / f.w) };
   // never standing in a clime's pool or lava, nor on a vent
   if (hazardNear(f, d.fieldForge.x, d.fieldForge.y, 1)) { const dry = r.cells.filter((c) => !hazardNear(f, c % f.w, Math.floor(c / f.w), 1)); if (dry.length) { const j = dry[(i >>> 0) % dry.length]; d.fieldForge = { x: j % f.w, y: Math.floor(j / f.w) }; } }
-  // whoever worked it left a schematic behind, now and then
+  // whoever worked it left a shard of their light behind, now and then
   const leave = (thing) => d.drops.push(Object.assign({ x: (d.fieldForge.x + 1.5) * TILE, y: (d.fieldForge.y + 0.5) * TILE, t: 0 }, thing));
-  if (rng.chance(T.fieldForge.core) && forgeFindOnce(d)) leave({ item: legendaryCore(rng, Math.min(T.ores.length, dropTier(d) + 1), { forge: true }) });
+  if (rng.chance(T.fieldForge.core) && forgeFindOnce(d)) { const lg = nextLegendToLearn(rng); if (lg) leave({ legend: lg }); }
   if (rng.chance(T.story.echoForge)) leave({ echo: true });
   // and a resonance stone, now and then, by the old forges
   if (rng.chance(T.circuits.resonance.forge) && !codexAllWhole()) leave({ resStone: true });
@@ -224,13 +224,14 @@ function updateDive(dtReal, dt) {
   updateAuras(dt);
   updateCombatFx(dt);
   if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); }
-  else { updateStarFeed(d, dtReal); updateStructures(d, dtReal); }
+  else updateStarFeed(d, dtReal);
   if (!d.hub) updateWick(d, dt);
   updatePickups(dtReal);
   if (Input.consumeAct()) {
     const a = actionHere();
-    // (the altar: a shard to set, or else the star fed for as long as it's held)
-    if (d.hub) { if (a === 'altar' && Story.shardsHeld() <= Story.shardsSet()) startStarFeed(d); else if (a) UI.useStation(a); }
+    // (before the star: a shard to set; else the light fed for as long as
+    // the button is held; with no light waiting, its screen)
+    if (d.hub) { if (a === 'altar' && Story.shardsHeld() <= Story.shardsSet() && starFeedNextLight()) startStarFeed(d); else if (a) UI.useStation(a); }
     else if (a === 'way') stepThrough(d, wayHere(d));
     else if (a === 'extract') startChannel('extract');
     else if (a === 'stone') startChannel('stone');
@@ -242,7 +243,6 @@ function updateDive(dtReal, dt) {
       else { UI.toast(blk.why === 'reach' ? `The star must reach magnitude ${blk.mag} before a spire can hold here` : `The star hasn't tasted ${stuffName(blk.ore)}: give it some at the altar, and it can light this land`); Story.say(blk.why === 'reach' ? 'starReach' : 'starBand'); }
     }
     else if (a === 'rift') useRift(d);
-    else if (a === 'forge') UI.useStation('fieldForge');
   }
 }
 
@@ -265,13 +265,12 @@ function actionHere() {
   if (!d || d.dying || d.warp) return null;
   const near = (tx, ty, r) => dist(d.p.x, d.p.y, (tx + 0.5) * TILE, (ty + 0.5) * TILE) < r;
   // (a station not yet awake has no button: onboard.js)
-  if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && stationAwake(s.id) && near(s.x, s.y, s.id === 'wreck' ? 30 : 20)); return s ? s.id : bayHere(d) ? 'bay' : null; }
+  if (d.hub) { const s = HUB_STATIONS.find((s) => s.id !== 'dummy' && near(s.x, s.y, 26)); return s ? s.id : null; }
   const t = floorTile(d.floor, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE));
   if (t === TILE_PAD && !d.padDark && !d.channel) return 'extract';
   if (d.sortie && !d.channel && stoneHere(d) >= 0) return 'stone';
   if (d.sortie && !d.channel && heartReady(d)) return 'plant';
   if (d.sortie && !d.channel && coldSpireHere(d)) return 'relight';
-  if (d.fieldForge && near(d.fieldForge.x, d.fieldForge.y, 20)) return 'forge';
   if (wayHere(d) >= 0) return 'way';
   if (!d.channel && riftHere(d)) return 'rift';
   return null;
@@ -362,7 +361,7 @@ function startChannel(kind) {
   const d = Game.dive, L = T.leave;
   if (!d || d.hub || d.dying || d.channel) return;
   // (the Forward Relay makes a recall, banking and travel quicker: structures.js)
-  const max = { recall: relayRecallTime(), seal: T.rifts.seal, stone: T.world.waystone.channel, plant: T.world.plant }[kind] || relayBankTime();
+  const max = { recall: T.leave.recall, seal: T.rifts.seal, stone: T.world.waystone.channel, plant: T.world.plant }[kind] || T.leave.extract;
   d.channel = { kind, t: 0, max, x: d.p.x, y: d.p.y, stone: kind === 'stone' ? stoneHere(d) : -1 };
   // the light draws attention
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, d.p.x, d.p.y) < L.noise) wake(d, e, true);
@@ -512,13 +511,6 @@ function breakOre(tgt, o) {
 // ---------------------------------------------------------------------------
 function learnBlueprint(id) { if (!Save.data.blueprints.includes(id)) Save.data.blueprints.push(id); }
 
-// Blueprints carried home are learned.
-function bankBlueprints(d) {
-  const learned = d.blueprints.map((b) => b.id).filter((id) => !Save.data.blueprints.includes(id));
-  for (const id of learned) learnBlueprint(id);
-  d.blueprints = [];
-  return learned;
-}
 
 // Standing in a gold beam: at a spire the cargo is banked; a Deep's
 // lodeline lifts the diver back to its territory's surface.

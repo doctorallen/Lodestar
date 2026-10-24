@@ -212,53 +212,41 @@ function killEnemy(e) {
     if (TILE_SOLID[floorTile(d.floor, Math.floor(x / TILE), Math.floor(y / TILE))]) { x = e.x; y = e.y; }
     d.drops.push(Object.assign({ x, y, t: 0 }, thing));
   };
-  // what it was made of: its own part, graded by the biome; elites and the
-  // warden leave more, and now and then an exotic or a relic. A core: an
-  // elite leaves the one its affix names, a warden or a Keeper a legendary
-  // (modules.js coreDrops); it collapses where it fell into a crystal
-  const grade = d.biome + 1, part = T.enemies[e.type].part || Object.keys(PARTS).find((k) => PARTS[k].from === e.type);
-  const parts = (n) => { if (part) for (let k = 0; k < n; k++) drop({ stuff: partId(part, grade), n: 1 }); };
-  // a boss's hoard: ordinary parts of any creature (its own heart is apart)
-  const hoard = (n) => { for (let k = 0; k < n; k++) drop({ stuff: partId(rng.pick(['chitin', 'ether', 'cog', 'fiber', 'spore']), grade), n: 1 }); };
-  const tier = dropTier(d);
-  for (const m of coreDrops(d, e)) { drop({ item: m }); const dr = d.drops[d.drops.length - 1]; dr.cap = coreCaptureFx(d, dr.x, dr.y, coreColour(m)); }
+  // what it leaves: ore (the dark is of the world, and carries the
+  // world's body in it), a Keeper its shard and an echo; and what it
+  // teaches the star (facets.js): an elite the Shape or Turn its nature
+  // names, a warden or a Keeper a shard of old light
+  const tier = dropTier(d), oreOf = (deep) => { const b = T.biomes[clamp(d.biome, 0, T.biomes.length - 1)]; return b.ores[deep ? 1 : 0]; };
+  const ore = (n, deep) => { if (n > 0) drop({ stuff: oreOf(deep), n }); };
   if (e.type === 'keeper') {
     // its lodeline lights, and the dark starts to come back: a short pull
     if (d.zone === 'lair') { d.padDark = false; d.pull = 1; d.pullTime = T.enemies.keeper.afterPull; UI.toast("The star's light reaches down. Go, before the dark comes back", 'legendary'); }
     // its heart-shard, and what it had gathered
     drop({ shard: d.biome });
     drop({ echo: true });
-    hoard(L.bossParts);
-    for (let k = 0; k < 2; k++) drop({ exotic: randomExotic(rng) });
-    if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
+    ore(L.bossOre, true); ore(L.bossOre, false);
+    const lg = nextLegendToLearn(rng); if (lg) drop({ legend: lg });
     return;
   }
   if (e.boss) {
-    hoard(L.bossParts);
-    drop({ stuff: partId('heart', grade), n: 1 });
-    if (rng.chance(L.bossRelic)) drop({ item: makeRelic(tier + 1) });
-    drop({ exotic: randomExotic(rng) });
+    ore(L.bossOre, true); ore(L.bossOre, false);
+    const lg = nextLegendToLearn(rng); if (lg) drop({ legend: lg });
     return;
   }
   if (e.elite) {
-    parts(rng.i(L.eliteParts[0], L.eliteParts[1]));
-    if (rng.chance(L.eliteExotic)) drop({ exotic: randomExotic(rng) });
-    if (rng.chance(L.eliteRelic)) drop({ item: makeRelic(tier) });
+    ore(rng.i(L.eliteOre[0], L.eliteOre[1]), rng.chance(0.5));
+    const taught = eliteCoreFor(e);
+    if (taught && !(CIRCUIT_FORMS[taught] ? facetsState().shapes : facetsState().mods).includes(taught)) drop({ teach: taught, from: e.type });
     if (rng.chance(T.story.echoElite)) drop({ echo: true });
     if (rng.chance(T.circuits.resonance.elite) && !codexAllWhole()) drop({ resStone: true });
   } else {
     // (a foe Wick calls up on the first landing always leaves one: onboard.js)
-    if (e.guide) parts(1);
-    else if (rng.chance(L.part)) parts(rng.chance(L.partTwo) ? 2 : 1);
-    if (rng.chance(L.exotic)) drop({ exotic: randomExotic(rng) });
-    if (rng.chance(L.relic)) drop({ item: makeRelic(tier) });
+    if (e.guide || rng.chance(L.part)) ore(1, false);
   }
   if (rng.chance(L.mote)) drop({ mote: Math.max(L.moteHeal, Math.round(st.maxHp * L.moteShare)) });
   affixOnDeath(e);
 }
 
-// Any exotic but the rifts' own.
-function randomExotic(rng) { return rng.pick(T.exotics.filter((x) => !x.riftOnly && !x.retired)).id; }
 
 // The tier of loot on this floor: the biome's lower ore, or its deeper one
 // more often further down.
@@ -299,9 +287,7 @@ function updatePickups(dt) {
       d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k;
       snd('pickup');
       // a small +n in the stuff's colour, not a toast: pickups are many
-      const pk = parsePart(dr.stuff);
-      d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : pk ? ART.parts[pk.kind] : '#ffffff' });
-      if (pk) UI.tip('parts', 'Creature parts: the forge takes them');
+      d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : '#ffffff' });
       dr.gone = true;
       continue;
     }
@@ -309,25 +295,15 @@ function updatePickups(dt) {
     if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard, still warm', 'legendary'); dr.gone = true; snd('shard'); continue; }
     if (dr.resStone) { resonanceStoneFound(d.rng); dr.gone = true; snd('resStone'); buzz(12); continue; }
     if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); snd('echo'); deedEcho(d); } dr.gone = true; continue; }
-    if (dr.blueprint) {
-      d.blueprints.push({ id: dr.blueprint });
-      snd('blueprint');
-      UI.toast(`Blueprint: ${BLUEPRINTS[dr.blueprint].name}. Bring it home to learn it`, 'legendary');
-      UI.tip('blueprint', 'A blueprint is learned once banked');
-      dr.gone = true;
+    // what the star learns from a fall: a Shape or a Turn, or a shard of
+    // old light (facets.js)
+    if (dr.teach) {
+      if (CIRCUIT_FORMS[dr.teach]) learnShape(dr.teach, `read from the ${foeWord(dr.from)}`); else learnMod(dr.teach, `read from the ${foeWord(dr.from)}`);
+      coreTetherFx(d, dr.x, dr.y, stoneCol(dr.teach));
+      dr.gone = true; buzz(12);
       continue;
     }
-    if (dr.item && dr.item.kind === 'stone') {
-      // the capture field's tether pulls it home
-      d.items.push(dr.item);
-      Save.data.coresFound = (Save.data.coresFound || 0) + 1;
-      coreTetherFx(d, dr.x, dr.y, coreColour(dr.item));
-      UI.toast(`${dr.item.name}${dr.item.power ? ': ' + LEGENDARIES[dr.item.power].name : ''}`, dr.item.rarity);
-      snd('loot', { rarity: dr.item.rarity });
-      Story.say(dr.item.power ? 'legendary' : 'core');
-      UI.tip('core', 'Set cores in the rig at home. Free');
-    } else if (dr.item) { UI.tip('gear', 'Tap CARGO to look at what you found'); d.items.push(dr.item); UI.toast(dr.item.kind === 'relic' ? 'A sealed relic' : dr.item.name, dr.item.rarity); snd('loot', { rarity: dr.item.kind === 'relic' ? 'relic' : dr.item.rarity }); }
-    else { d.cargo[dr.exotic] = (d.cargo[dr.exotic] || 0) + 1; UI.toast(T.exotics.find((x) => x.id === dr.exotic).name, 'exotic'); snd('loot', { rarity: 'exotic' }); }
+    if (dr.legend) { learnLegend(dr.legend, 'the old light, kept'); coreTetherFx(d, dr.x, dr.y, ART.rarity.legendary); dr.gone = true; buzz(12); continue; }
     dr.gone = true;
     buzz(12);
   }
@@ -340,5 +316,5 @@ function updatePickups(dt) {
 function cargoCount(d) {
   let n = 0;
   for (const k in d.cargo) if (!isLight(k)) n += d.cargo[k];
-  return n + d.items.length + (d.blueprints || []).length;
+  return n + ((d.items && d.items.length) || 0) + ((d.blueprints && d.blueprints.length) || 0);
 }

@@ -25,17 +25,12 @@ function toolIconUrl(id) {
   return _toolIcons[id];
 }
 
-function toolOwned(id) { return (Save.data.tools || []).includes(id); }
-function toolOpen(id) { return magnitudeOf(Save.data.star) >= T.tools[id].mag; }
-// Makes a tool from the stash (its recipe at the forge): once, when it's
-// known and the star has grown enough. It's always on from then.
-function makeTool(id) {
-  const rid = 'tool_' + id;
-  if (toolOwned(id) || !toolOpen(id) || !Save.data.blueprints.includes(rid) || !recipePay(recipeCost(rid), Save.data.stash)) return false;
-  Save.data.tools.push(id);
-  Save.save();
-  return true;
-}
+// The tools are the star's senses, each open once a band of its light is
+// deep enough (facets.js senseOpen); the Compass is the splinter itself.
+function toolOwned(id) { return senseOpen(id); }
+function toolOpen(id) { return senseOpen(id); }
+// What opens a sense, in words.
+function toolOpensLine(id) { const b = T.tools[id].band; return b ? `${bandName(b[0])} at depth ${b[1]} (${stuffName(b[0])})` : 'always'; }
 
 // ---------------------------------------------------------------------------
 // In a dive
