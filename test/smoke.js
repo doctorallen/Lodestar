@@ -5,7 +5,8 @@
 // and drains in the dark; a cast hits something; a fall wakes him at the
 // star with the core a piece down; the pause screen opens and closes; and
 // held sideways the layout turns; the thread, a node planted and held,
-// the vein lit and saved, the map and travel by it. Screenshots go to test/out.
+// the vein lit and saved, the regions and the Deep, a shaft taken down and
+// up, the map and travel by its card. Screenshots go to test/out.
 const { launch, openGame, shot, finish, PHONE, DESKTOP } = require('./lib');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -147,6 +148,40 @@ async function phone(browser, failures) {
   await page.evaluate(() => { Game.dive.p.invuln = 0; });
   const mended = await page.evaluate(() => { const d = Game.dive, V = veinsState(); return { cut: V.veins.filter((v) => v.cut).length, veins: V.veins.length, live1: !!d.vLive[V.nodes.length - 1], worth: d.vWorth }; });
   if (mended.cut || !mended.live1 || mended.veins !== 1) fail(`the vein was not mended (${JSON.stringify(mended)})`);
+  // the regions: several climes on the surface, the badlands at the star;
+  // the Deep under it with its own; a shaft taken down with the thread
+  // and up again; the map's card standing him at a node
+  const world = await page.evaluate(() => { const d = Game.dive, w = d.world, f = w.surface; return { regions: f.regions.length, climes: new Set(f.regions.map((r) => r.clime)).size, home: climeAt(f, f.star.x, f.star.y), deepRegions: w.deep.regions.length, deepHome: climeAt(w.deep, f.star.x, f.star.y), shafts: f.shafts.length, hazKinds: f.hazKinds.length }; });
+  if (world.regions < 4 || world.climes < 3) fail(`too few regions or climes (${JSON.stringify(world)})`);
+  if (world.home !== 'badlands' || world.deepHome !== 'caverns') fail(`the home climes are wrong (${JSON.stringify(world)})`);
+  if (world.shafts < 6) fail(`too few shafts (${world.shafts})`);
+  await page.evaluate(() => { const d = Game.dive; veinsTravel(d, 0); d.p.y -= TILE * 1.6; d.enemies = []; d.p.invuln = 1e9; });
+  await steps(page, { x: 0, y: 0, act: true }, 1);
+  await steps(page, { x: 0, y: 0 }, 3);
+  const atShaft = await page.evaluate(() => { const d = Game.dive, f = d.floor, s = f.shafts[0]; d.thread.max = 1e9; d.p.x = (s.x + 0.5) * TILE; d.p.y = (s.y + 0.5) * TILE + 6; for (let k = 0; k < 3; k++) Game.step(1 / 60); return actionHere(); });
+  if (atShaft !== 'descend') fail(`GO DOWN is not offered at a shaft (${atShaft})`);
+  await steps(page, { x: 0, y: 0, act: true }, 1);
+  await steps(page, { x: 0, y: 0 }, 5);
+  const below = await page.evaluate(() => { const d = Game.dive; return { layer: d.layer, zone: d.zone, act: actionHere(), pts: d.thread && d.thread.pts.length, foes: d.enemies.length, lit: starLight(d, d.p.x, d.p.y) }; });
+  if (below.layer !== 1 || below.zone !== 'cave') fail(`the shaft did not lead down (${JSON.stringify(below)})`);
+  if (below.act !== 'ascend') fail(`CLIMB UP is not offered below (${below.act})`);
+  if (!below.pts || below.pts < 3) fail('the thread did not come down the shaft');
+  if (below.lit > 0) fail('the Deep is lit with no vein in it');
+  if (!below.foes) fail('nothing lives in the Deep');
+  await sleep(300);
+  await shot(page, 'smoke-deep');
+  await steps(page, { x: 0, y: 0, act: true }, 1);
+  await steps(page, { x: 0, y: 0 }, 3);
+  if ((await page.evaluate(() => Game.dive.layer)) !== 0) fail('the shaft did not lead back up');
+  await page.evaluate(() => { threadSnap(Game.dive, null); Game.dive.p.invuln = 0; });
+  await page.evaluate(() => UI.show('screen-map'));
+  await sleep(450);
+  const card = await page.evaluate(() => { const V = veinsState(), { s, ox, oy } = mapOrigin(); mapTapAt(ox + (V.nodes[1].x / TILE) * s, oy + (V.nodes[1].y / TILE) * s); return { sel: MapView.sel, go: !!document.querySelector('#map-body [data-act=mapGo]'), tabs: document.querySelectorAll('#map-body [data-act=mapLayer]').length }; });
+  if (card.sel !== 1 || !card.go) fail(`the map's card did not offer the node (${JSON.stringify(card)})`);
+  if (card.tabs !== 2) fail('the map has no layer tabs');
+  await shot(page, 'smoke-map-card');
+  const stood = await page.evaluate(() => { UI.acts.mapGo(); const d = Game.dive, n = veinsState().nodes[1]; return { modal: Game.modal, near: dist(d.p.x, d.p.y, n.x, n.y) < TILE * 3 }; });
+  if (stood.modal || !stood.near) fail(`STAND THERE did not stand him at the node (${JSON.stringify(stood)})`);
   // the pause screen, and back
   await page.evaluate(() => UI.openPause());
   await sleep(450);

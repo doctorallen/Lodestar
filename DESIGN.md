@@ -15,11 +15,13 @@ The Charter's ship, the *Meridian*, brought a seed-star to a dead world and ever
 
 What the player isn't told: the Kindler is the star's hand. When the veins are whole the star draws its light home, and him with it. The sleepers wake and come down to a living world, and no one meets them. Wick knows, and that is what his kindness is. Nothing before the ending may say it; the heart's glow at the star, the light that holds the Kindler's shards together growing with it, and Wick's silences are allowed to show it.
 
-Old Kindlers came before. Their dead nodes stand out in the dark, and their shapes are in them.
+No one has been here before. The world is as the dark made it.
 
 ## The world
 
-One continuous map, generated once a save from the seed and kept; the save holds the seed and what's been done. The floor generator is run large (first guess 320 × 320 tiles, about a kilometre a side at the Kindler's pace), with the climes laid as regions round the star, the gentle one nearest, and each clime's hazards, undergrowth, water and lava as they are. There are no sites, rings, Deeps or portals: the world is the one place, and you walk it. Nothing in it regrows but the creatures.
+One continuous map, generated once a save from the seed and kept; the save holds the seed and what's been done. The floor generator is run large (320 × 320 tiles, about a kilometre a side at the Kindler's pace), with the climes laid as **regions** round the star (`regions.js`): nine or so countries each about four old sites across, the Badlands nearest the star, their borders melding over a few tiles (ground, rock and light blended; each clime's flora, hazards, creatures and critters its own). There are no sites, rings or portals: the world is the one place, and you walk it. Nothing in it regrows but the creatures.
+
+**The Deep.** Under the surface lies a second floor the same size (`deep.js`): caverns in the cave climes (the Caverns under the star, then the Flooded Grotto, the Magma Tubes, the Rootdeep), with no sun and no star of its own. Shafts join the two where open ground lies over open ground: a hole in the surface the Kindler goes down (GO DOWN) and climbs back up, thread in hand if he has it, so a vein can run down a shaft and light the Deep, and its nodes are stood at from the map like any other. The map shows one layer at a time.
 
 The star stands in the open at the middle, its heart hanging large over the ground as the Hollow Star's did, and the ground round it is lit from the start: the first node is the star.
 
@@ -47,7 +49,7 @@ You wake at the nearest living node. The thread you were laying is gone. And the
 
 A **node** is a shard of the star planted in the ground: a standing crystal the star's colour, small when set and growing with the light's age. It is **living** if a chain of living veins joins it to the star, and **dark** if not.
 
-**Laying a vein.** At the star or any living node, hold TAKE UP (1 s) and the thread is in your hand: a line of the star's light from the node to you. Walk. The thread pays out behind you along the path you walk, smoothed a little.
+**Laying a vein.** At the star or any living node, hold TAKE UP (1 s) and the thread is in your hand: a line of the star's light from the node to you. Walk. The thread pays out behind you along the path you walk, pressed into the ground as a seam of faint gold where your feet went: it is in the world, not drawn over it, and when the node sets the seam lights along its whole length.
 
 While threading:
 - no DASH, and your step is 85%;
@@ -55,11 +57,11 @@ While threading:
 - the dark is drawn to the thread: every 30 s of threading a wave wakes along it behind you, so a long thread is a long fight;
 - a fall loses the thread.
 
-**Planting.** Where you stand, on open ground 6 tiles or more from any node: hold PLANT (1 s) and the node is set in the ground, dim, and **the hold** begins: 45 s near the star, to 90 s at the far reaches. The node has its own light, which is its health; the dark comes in waves for it and for you, and a creature within reach of the node bites it. If the node's light goes out the shard shatters, the thread snaps back to its start, and nothing is lit; take up again. If it stands when the hold ends it **sets**: the vein lights along the whole thread, the land along it begins to turn, your bar fills, the core gains a piece, and Wick says a word.
+**Planting.** Where you stand, on open ground 6 tiles or more from any node: hold PLANT (1 s) and the node is set in the ground, dim, and **the hold** begins: 18 s near the star, to 30 s at the far reaches, never longer. The node has its own light, which is its health; the dark comes in waves for it and for you, and a creature within reach of the node bites it. If the node's light goes out the shard shatters, the thread snaps back to its start, and nothing is lit; take up again. If it stands when the hold ends it **sets**: the vein lights along the whole thread, the land along it begins to turn, your bar fills, the core gains a piece, and Wick says a word.
 
-**Joining.** A thread walked to an existing node, dark or living, joins it: to a dark one with a shorter hold (20 s), to a living one at once. So the map can be made a web, not just a tree. A node joined two ways survives one cut.
+**Joining.** A thread walked to an existing node, dark or living, joins it: to a dark one with a shorter hold (12 s), to a living one at once. So the map can be made a web, not just a tree. A node joined two ways survives one cut.
 
-**Travel.** The map screen lets you stand at any living node at a tap. Veins are lit and quiet, so walking them is safe and dull, and the tap saves it. Set out from the node nearest the dark you want.
+**Travel.** The map screen lets you stand at any living node: tap it, its card names it and where it is, and STAND THERE takes you (on either layer). Veins are lit and quiet, so walking them is safe and dull, and the tap saves it. Set out from the node nearest the dark you want.
 
 ## The dark cuts
 
@@ -93,17 +95,16 @@ The roster stays as patterns, retuned to tells and windows and stripped of eleme
 
 - **Where it lives** is set by distance from the star (density and which kinds) and by the clime (which kinds). The gentle land round the star is crawlers alone; the far reaches are packs with a stalker in them.
 - **Elites** are a bigger one of its kind with a second tell, in dark land only.
-- **Keepers**, three, hold the old Kindlers' largest nodes, one a region, and each carries a legendary shape. They stand where they are until fought.
+- **Keepers**, three, hold the far reaches of three regions, and each carries a legendary shape. They stand where they are until fought.
 - **The Hollow** cuts veins and is sometimes at a cut. It follows into light, slowly, and leaves when the vein is mended.
 
 Creatures hunt the Kindler, and during a hold the node; they never attack a set vein (cutting is what the dark does between sessions, so the player never watches the world come apart).
 
 ## Spells: shaped at the star
 
-A spell is a **shape** the star has read into a cast. Shapes are raw, and come from three places:
+A spell is a **shape** the star has read into a cast. Shapes are raw, and come from two places:
 
 - **From the creatures.** Kill six of a kind (an elite counts two, a Keeper all) and its shape is in you, once a kind: the suit has read how it moves.
-- **From the world.** Old Kindlers' nodes relit give their Kindler's shape; glyph stones in the generator's ruins hold one each, walked over and taken.
 - **From the star.** At magnitudes 2, 4 and 6 the star offers a shape of its own.
 
 A raw shape is carried home in you (not as cargo; a fall doesn't lose it). At the star, each waiting shape is read **two ways**, and you pick one; the other is gone. Both are the creature's movement turned to light:
@@ -125,7 +126,7 @@ Two spells are carried out (A and B, three from magnitude 3), swapped at the sta
 
 One screen, from the star (walk into the heart's light) or the MAP button anywhere, which opens it on the map. Three parts, scrolled:
 
-1. **THE WORLD.** The map: veins in gold, nodes, cuts marked red, dark old nodes once seen, where the Hollow was last, the regions' names as they're walked. Tap a living node to stand there.
+1. **THE WORLD.** The map, a layer at a time (THE SURFACE, THE DEEP), pinched to zoom: the regions in their own colours and their names as they're walked, veins in gold, nodes as marks, cuts marked red, shafts once seen, the Kindler. Tap a node for its card; STAND THERE to go.
 2. **SHAPES.** Shapes waiting to be read, each with its two readings and PICK; then the spells shaped, with A and B set by tapping.
 3. **WICK.** His log, the *Meridian* overhead (how many sleep), the core's pieces, and the opening again.
 
@@ -168,16 +169,19 @@ Pruning in place: main is unplayable until the first step lands.
 1. **The ground** (done 2026-10-24). One large map, painted in a window, the star in the open, one bar, movement, dash and a two-spell fight with placeholder spells; everything cut is deleted. Playable: walk out, fight, go dim, come back.
 2. **The veins** (done 2026-10-24, but for the land's turning spreading with age). The thread, planting, the hold, the set, veins lighting, the map screen with travel, the save of nodes and veins, terraforming along veins, the core and falling.
 3. **The star** (done 2026-10-24, with the readings as the old Forms and Mods until the fight is rethought; shapes from the world's ruins and old nodes still to come). Shapes from creatures and the star, the two readings, the star's screen, magnitude and its thresholds, cutting on return, mending, the Hollow at a cut.
-4. **The dark and the words.** Creatures retuned to tells and windows, elites, Keepers at the old nodes, Wick's lines, the onboarding, the opening's home scene, the ending; the smoke test and the bot rewritten round the trip.
+4. **The dark and the words.** Creatures retuned to tells and windows, elites, Keepers at the far reaches, Wick's lines, the onboarding, the opening's home scene, the ending; the smoke test and the bot rewritten round the trip.
+
+Added 2026-10-24, after play: the regions and the Deep (done), the thread pressed into the ground (done), the map with zoom, cards and layers (done), the hold capped at 30 s, and no one before us (the old nodes gone).
 
 ## First numbers for `T`
 
 ```
 veins: { band: [5,5,6,6,7,8,8], thread: [60,80,100,120,140,170,200], threadSpeed: 0.85,
-         wave: 30, takeUp: 1, plant: 1, hold: [45, 90], join: 20, nodeGap: 6,
+         wave: 30, takeUp: 1, plant: 1, hold: [18, 30], join: 12, nodeGap: 6,
          nodeLight: 100, core: 7, cutEvery: 8 * 3600, cutMax: 2 }
 bar:   { max: 100, drain: 180, fill: 4 }
 magnitude: { at: [0,150,400,800,1400,2200,3200], power: [1,1.25,1.5,1.8,2.1,2.5,3], nodeWorth: 20 }
 shapes: { kills: 6, elite: 2 }
 world: { tiles: 320, chunk: 32, reaches: 1 }
+regions: { area: 10816, meld: 7 }   deep: { n: 14, fromStar: 18, apart: 24 }
 ```

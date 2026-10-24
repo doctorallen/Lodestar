@@ -52,10 +52,12 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/paintrock.js`, `js/painthole.js`, `js/pflora.js` | The rock's growth and tint, pools and the wading cut, the painted plants |
 | `js/flora.js`, `js/undergrowth.js` | Each biome's flora, and how it grows into a place |
 | `js/climes.js`, `js/hazards.js` | Climes: each one's palette, flora, critters and weather; each clime's hazard at play |
+| `js/regions.js` | The climes laid as regions over each layer of the world, melding at their borders; the clime, look and light read by place |
+| `js/deep.js` | The Deep: the floor under the world, the shafts down to it, the Kindler's way between the two layers |
 | `js/story.js` | The story: the opening's captions, Wick's lines, the star's words, the echoes, the endings |
 | `js/star.js` | The Lodestar in the world: where it stands, its light on the land (`starLight`, `litAt`), the daylight by it, the heart drawn colossal |
-| `js/veins.js` | The Veins: the thread taken up and walked out, planting, the hold, the set, joining and mending; the graph in the save, who lives, the magnitude, the light grid every tile reads; the nodes and lines drawn |
-| `js/map.js` | The star's screen: the map (the world as the light has reached it, a pixel a tile; tap a lit node to stand there), the shapes, Wick's notes |
+| `js/veins.js` | The Veins: the thread taken up and walked out (pressed into the ground as it goes), planting, the hold, the set, joining and mending; the graph in the save (each node and point on its layer), who lives, the magnitude, a light grid a layer; the nodes drawn, the lines painted into the floor |
+| `js/map.js` | The star's screen: the map (a layer at a time, pinch to zoom, the regions' colours and names, the shafts seen; tap a node for its card and STAND THERE), the shapes, Wick's notes |
 | `js/shapes.js` | Shapes: each creature kind's two readings, the star's own, the kills that read them, the pick, the spells carried into the rig |
 | `js/terraform.js` | The land terraforming by the light: starstone along every living vein and round every node, gold veins running on through the land, the ground greening past the light's edge, lit motes |
 | `js/hubart.js` | The star and its halo, painted; the older outpost's pieces, kept for the opening |
