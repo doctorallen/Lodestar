@@ -957,3 +957,11 @@ Main moved onto the Veins (DESIGN.md) in one cut rather than system by system. G
 - **A fall wakes you at the star and takes a piece of its core** (7). At none the star goes out: a short story screen, then a fresh start.
 - **The old save is not read.** The save key moved to v5; what was under v4 stays in the browser untouched. A game this different has nothing to migrate.
 - **The two spells are a fixed Arc and Bolt** built as the cast code reads a rig, so circuits.js runs unchanged until the shapes replace it.
+
+## 2026-10-24: the large map, painted in a window
+
+The world is one floor 320 tiles square (`T.worldgen`), the generator run large with its rooms scaled to the area, the star in the cavern nearest the middle. Its painted pixels can't be kept whole (some 40 bytes an art px, a gigabyte and more), so the floor's buffers hold a **window** of it (`paint.js PWIN`, 64 tiles square, 48 at fine grain: about what a site's buffers cost before) that moves with the view.
+- **Floor px everywhere, the offset only at the index.** The painting code keeps working in floor px, so the noise and hashes that give the ground its strokes stay fixed to the world and a strip painted after a move matches what was painted before it; only a buffer's index subtracts the window's origin. Chosen over cell-local coordinates (seams in the strokes and a wall line that disagreed with collision) and over wrapping the buffers (every row split at the seam).
+- **A move copies the overlap and clears the rest**, then the exposed strip is painted lazily like any unpainted chunk; the light bake, the sights and the GPU's textures are taken again. The window steps in multiples of the heights' chunk (96 px) so the chunk grids stay aligned.
+- **Far creatures rest.** An unaware creature more than 40 tiles off isn't stepped, and the frame leaves out those off the view; a large world holds a few hundred.
+- **The stands' atlas is paged** at 2048 px, the first thing a large world broke on the GPU.

@@ -246,10 +246,10 @@ function pntStrokeLens(mid, n, len) {
 // lower right as high as the rock stands). Then strokes: each pixel takes
 // its stroke's middle's value, jittered. paintCaveTile reads them.
 function pntGroundTones(f, x0, y0, x1, y1) {
-  const G = T.paint.ground, Bq = pntBrush(), W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx, H = View.rockH, out = View.groundTone, nt = Bq.gTones;
-  x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(Hp, y1);
+  const G = T.paint.ground, Bq = pntBrush(), WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, R = View.rockPx, H = View.rockH, out = View.groundTone, nt = Bq.gTones;
+  x0 = Math.max(WX, x0); y0 = Math.max(WY, y0); x1 = Math.min(X1, x1); y1 = Math.min(Y1, y1);
   if (x1 <= x0 || y1 <= y0) return;
-  glGroundDirty(y0, y1);
+  glGroundDirty(y0 - WY, y1 - WY);
   const sun = !!artBiome(f).sun, seedH = (f.seed ^ f.depth) | 0, pad = Math.max(PNT_CELL, Bq.cell, T.paint.calm.cell), ax = x0 - pad, n = x1 - x0 + 2 * pad;
   const v = new Float32Array(n), n1 = new Float32Array(n), n2 = new Float32Array(n), n3 = new Float32Array(n), cl = new Float32Array(n), mid = new Int16Array(n), jit = new Float32Array(n);
   // for each column, how many rows since rock above it (up to G.foot + 1)
@@ -270,9 +270,9 @@ function pntGroundTones(f, x0, y0, x1, y1) {
   const HUE = brk ? View.groundHue : null;
   // the CONTOUR brush works out the values of the rows round the area
   // first, then reads them along the land (below)
-  const cont = !!Bq.contour, yS = cont ? Math.max(0, y0 - pad) : y0, yE = cont ? Math.min(Hp, y1 + pad) : y1;
+  const cont = !!Bq.contour, yS = cont ? Math.max(WY, y0 - pad) : y0, yE = cont ? Math.min(Y1, y1 + pad) : y1;
   const VV = cont ? new Float32Array(n * (yE - yS)) : null;
-  const rk = (x, y) => x < 0 || y < 0 || x >= W || y >= Hp || R[y * W + x] === 1;
+  const rk = (x, y) => x < WX || y < WY || x >= X1 || y >= Y1 || R[y * W + x + OFF] === 1;
   for (let i = 0; i < n; i++) { let k = F + 1; for (let j = 1; j <= F; j++) if (rk(ax + i, yS - j)) { k = j - 1; break; } since[i] = k; }
   for (let y = yS; y < yE; y++) {
     pntNoiseRow(n1, ax, n, y, G.swell, G.swell, seedH + 21);
@@ -280,9 +280,9 @@ function pntGroundTones(f, x0, y0, x1, y1) {
     pntNoiseRow(n3, ax, n, y, G.patch[0] * 0.45, G.patch[1] * 0.6, seedH + 23);
     artClumpRow(cl, ax, n, y, seedH);
     if (calm) pntNoiseRow(calm, ax, n, y, Cm.scale[0], Cm.scale[1], seedH + 41);
-    const row = y * W;
+    const row = y * W + OFF;
     for (let i = 0; i < n; i++) {
-      const x = ax + i, here = x < 0 || x >= W || R[row + x] === 1;
+      const x = ax + i, here = x < WX || x >= X1 || R[row + x] === 1;
       let val = G.base + (n1[i] - 0.5) * G.swellAmt + cl[i] * G.clump;
       // streaky light: patches of it, their edges torn in streaks
       const p = n2[i] * 0.65 + n3[i] * 0.35;
@@ -296,8 +296,8 @@ function pntGroundTones(f, x0, y0, x1, y1) {
       if (sun && !here) {
         for (let s = 1; s <= G.sunSteps; s++) {
           const sx = x - s * G.sunDir[0], sy = y - s * G.sunDir[1];
-          if (sx < 0 || sy < 0) break;
-          if (H[sy * W + sx] > s * G.sunSlope) { val -= G.sunDark; break; }
+          if (sx < WX || sy < WY) break;
+          if (H[sy * W + sx + OFF] > s * G.sunSlope) { val -= G.sunDark; break; }
         }
       }
       if (SHD && !here) { const sh = SHD[row + x] / 255; val -= sh; busy += sh * Cm.shade; }
@@ -328,7 +328,7 @@ function pntGroundTones(f, x0, y0, x1, y1) {
   for (let r = 0; r < rows; r++) for (let i = 0; i < n; i++) NG[r * n + i] = artHash(Math.floor((ax + i) / cs), Math.floor((yS + r) / cs), seedH + 35);
   const dv = [0, 0];
   for (let y = y0; y < y1; y++) {
-    const row = y * W;
+    const row = y * W + OFF;
     for (let x = x0; x < x1; x++) {
       pntContourDir(fl, x, y, dv);
       let sv = 0, sg = 0, k = 0;
@@ -351,7 +351,7 @@ function pntGroundTones(f, x0, y0, x1, y1) {
 // steeply that changes; plus a slow drift off level. Kept as each block's
 // doubled angle (so a way and its reverse agree when blended).
 function pntContourField(f, x0, y0, x1, y1) {
-  const C = T.paint.contour, B = C.block, M = C.margin, W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx, seed = (f.seed ^ f.depth) | 0;
+  const C = T.paint.contour, B = C.block, M = C.margin, WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, R = View.rockPx, seed = (f.seed ^ f.depth) | 0;
   const bx0 = Math.floor((x0 - M) / B), by0 = Math.floor((y0 - M) / B), bw = Math.floor((x1 + M) / B) - bx0 + 1, bh = Math.floor((y1 + M) / B) - by0 + 1;
   const A = new Float32Array(bw * bh), Tm = new Float32Array(bw * bh), q0 = B >> 2, q1 = (3 * B) >> 2;
   // (four samples a block; off the floor is rock)
@@ -359,7 +359,7 @@ function pntContourField(f, x0, y0, x1, y1) {
     let s = 0;
     for (let v = 0; v < 2; v++) for (let u = 0; u < 2; u++) {
       const x = (bx0 + i) * B + (u ? q1 : q0), y = (by0 + j) * B + (v ? q1 : q0);
-      s += x < 0 || y < 0 || x >= W || y >= Hp || R[y * W + x] === 1 ? 1 : 0;
+      s += x < WX || y < WY || x >= X1 || y >= Y1 || R[y * W + x + OFF] === 1 ? 1 : 0;
     }
     A[j * bw + i] = s * 0.25;
   }
@@ -433,9 +433,9 @@ function pntBoulderAt(x, y, seed) {
 // window, capped; then heights for its inner part.
 let _pntDist = new Uint16Array(0);
 function pntHeights(f, x0, y0, x1, y1) {
-  const Wl = T.paint.wall, R = View.rockPx, W = f.w * ATILE, Hp = f.h * ATILE, H = View.rockH, HF = View.rockHf;
+  const Wl = T.paint.wall, R = View.rockPx, WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, H = View.rockH, HF = View.rockHf;
   const cap = Math.max(Wl.edge, Wl.ramp) + 2, m = cap + 1;
-  const wx0 = Math.max(0, x0 - m), wy0 = Math.max(0, y0 - m), wx1 = Math.min(W, x1 + m), wy1 = Math.min(Hp, y1 + m), ww = wx1 - wx0, wh = wy1 - wy0;
+  const wx0 = Math.max(WX, x0 - m), wy0 = Math.max(WY, y0 - m), wx1 = Math.min(X1, x1 + m), wy1 = Math.min(Y1, y1 + m), ww = wx1 - wx0, wh = wy1 - wy0;
   // (a border a pixel wide of rock round the window, so the passes need
   // no edge tests)
   const pw = ww + 2, ph = wh + 2;
@@ -443,7 +443,7 @@ function pntHeights(f, x0, y0, x1, y1) {
   const D = _pntDist, BIG = 60000, C = cap * 5;
   D.fill(BIG, 0, pw); D.fill(BIG, (ph - 1) * pw, ph * pw);
   for (let y = 0; y < wh; y++) {
-    const o = (y + 1) * pw, r = (wy0 + y) * W + wx0;
+    const o = (y + 1) * pw, r = (wy0 + y) * W + wx0 + OFF;
     D[o] = BIG; D[o + pw - 1] = BIG;
     for (let x = 0; x < ww; x++) D[o + 1 + x] = R[r + x] ? BIG : 0;
   }
@@ -478,11 +478,11 @@ function pntHeights(f, x0, y0, x1, y1) {
     pntBoulder(gx0 + i, gy0 + j, seed, bo);
     BX[o] = bo[0]; BY[o] = bo[1]; BRX[o] = bo[2]; BRY[o] = bo[3]; BH[o] = bo[4]; BK[o] = bo[5];
   }
-  for (let y = Math.max(0, y0); y < Math.min(Hp, y1); y++) {
+  for (let y = Math.max(WY, y0); y < Math.min(Y1, y1); y++) {
     pntNoiseRow(row2, x0, x1 - x0, y, bs * 0.45, bs * 0.4, seed + 42);
     const gy = Math.floor(y / Bo) - gy0;
-    for (let x = Math.max(0, x0); x < Math.min(W, x1); x++) {
-      const dd = D[(y - wy0 + 1) * pw + x - wx0 + 1], k = y * W + x;
+    for (let x = Math.max(WX, x0); x < Math.min(X1, x1); x++) {
+      const dd = D[(y - wy0 + 1) * pw + x - wx0 + 1], k = y * W + x + OFF;
       if (!dd) { H[k] = 0; HF[k] = 0; continue; }
       const d = (dd < C ? dd : C) * 0.2, u = d < edge ? d / edge : 1, rise = 1 - (1 - u) * (1 - u);
       let bv = 0;
@@ -503,24 +503,24 @@ function pntHeights(f, x0, y0, x1, y1) {
 let _pntCell = new Int32Array(0);
 function paintRockArea(f, x0, y0, x1, y1) {
   if (!View.rockBuf || View.floorFor !== f) return;
-  const W = f.w * ATILE, Hp = f.h * ATILE, maxH = pntMaxLift();
-  x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(Hp, y1);
+  const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, maxH = pntMaxLift();
+  x0 = Math.max(WX, x0); y0 = Math.max(WY, y0); x1 = Math.min(X1, x1); y1 = Math.min(Y1, y1);
   if (x1 <= x0 || y1 <= y0) return;
   const R = View.rockPx, H = View.rockH, LF = View.rockLift, Q = View.rockBuf, C32 = Q.col32 || (Q.col32 = new Uint32Array(Q.col.buffer)), E = Q.em;
-  for (let y = y0; y < y1; y++) { C32.fill(0, y * W + x0, y * W + x1); for (let x = x0; x < x1; x++) E[(y * W + x) * 4 + 3] = 0; }
+  for (let y = y0; y < y1; y++) { C32.fill(0, y * W + x0 + OFF, y * W + x1 + OFF); for (let x = x0; x < x1; x++) E[(y * W + x + OFF) * 4 + 3] = 0; }
   // march: each pixel of rock notes how far its surface point is lifted
   // (a little past the area, as its edges look at their neighbours)
-  const cm = pntCellMax(), mx0 = Math.max(0, x0 - cm), mx1 = Math.min(W, x1 + cm), my0 = Math.max(0, y0 - 4), my1 = Math.min(Hp, y1 + 4);
-  const yTop = Math.min(Hp - 1, my1 - 1 + maxH);
+  const cm = pntCellMax(), mx0 = Math.max(WX, x0 - cm), mx1 = Math.min(X1, x1 + cm), my0 = Math.max(WY, y0 - 4), my1 = Math.min(Y1, y1 + 4);
+  const yTop = Math.min(Y1 - 1, my1 - 1 + maxH);
   for (let x = mx0; x < mx1; x++) {
     let ymin = yTop + 1;
-    for (let y = my0; y < my1; y++) LF[y * W + x] = 0;
+    for (let y = my0; y < my1; y++) LF[y * W + x + OFF] = 0;
     for (let y = yTop; y >= my0; y--) {
-      const k = y * W + x;
+      const k = y * W + x + OFF;
       if (R[k]) {
         const sy = y - H[k];
         if (sy < ymin) {
-          for (let r = Math.max(sy, my0), e = Math.min(ymin, my1); r < e; r++) LF[r * W + x] = Math.min(255, y - r + 1);
+          for (let r = Math.max(sy, my0), e = Math.min(ymin, my1); r < e; r++) LF[r * W + x + OFF] = Math.min(255, y - r + 1);
           ymin = sy;
         }
       } else if (y < ymin) ymin = y;
@@ -649,14 +649,14 @@ function pntGraftLook(f) {
 // the faces, soot in the creases where boulders meet, a lit rim along the
 // silhouette and along a face's lip, soot at a face's foot.
 function pntPaintRock(f, x0, y0, x1, y1) {
-  const P = T.paint, Wl = P.wall, Rk = P.rock, Fc = P.facet, Sl = P.slab, HF = View.rockHf, LF = View.rockLift, Q = View.rockBuf, C32 = Q.col32, W = f.w * ATILE, Hp = f.h * ATILE;
+  const P = T.paint, Wl = P.wall, Rk = P.rock, Fc = P.facet, Sl = P.slab, HF = View.rockHf, LF = View.rockLift, Q = View.rockBuf, C32 = Q.col32, WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX;
   const b = artBiome(f), ramp = pntLook(b).rock, nt = ramp.length, seed = (f.seed ^ f.depth) | 0, rw = x1 - x0, rh = y1 - y0;
   const Bq = pntBrush(), tsc = (nt - 1) / 9, hatch = !!Bq.hatch, hA = hatch ? Math.round((nt - 1) * Bq.hatchAt[0]) : 0;
   const ml = f.meld ? f.meld.to.map((_, k) => pntLook(hgrMeldLook(f, k)).rock) : null;
   const gl = pntGraftLook(f), gRamp = gl ? pntLook(gl).rock : null, g = f.graft, gcx = g ? (g.x + 0.5) * ATILE : 0, gcy = g ? (g.y + 0.5) * ATILE : 0, gR = g ? (g.r + 2) * ATILE : 0;
   const ll = Math.hypot(Rk.light[0], Rk.light[1], Rk.light[2]), lx = Rk.light[0] / ll, ly = Rk.light[1] / ll, lz = Rk.light[2] / ll;
-  const hq = (x, y) => (x < 0 || y < 0 || x >= W || y >= Hp ? Wl.face : HF[y * W + x] / 16);
-  const isRock = (x, y) => x >= 0 && y >= 0 && x < W && y < Hp && LF[y * W + x] > 0;
+  const hq = (x, y) => (x < WX || y < WY || x >= X1 || y >= Y1 ? Wl.face : HF[y * W + x + OFF] / 16);
+  const isRock = (x, y) => x >= WX && y >= WY && x < X1 && y < Y1 && LF[y * W + x + OFF] > 0;
   // the facets, for the rows and a few either side, and the columns the
   // strokes read
   const sp = 4, ch = rh + 2 * sp, cx0 = x0 - 8, cw = rw + 16;
@@ -680,9 +680,9 @@ function pntPaintRock(f, x0, y0, x1, y1) {
   // a surface point's (floor px x, sy) light as a top (0..1, its broad
   // slope tilted by tx, ty, to the light), how steep it is, and its tone
   const at = (x, sy, tx, ty, o) => {
-    const k = sy * W + x;
+    const k = sy * W + x + OFF;
     let h, hx, hy, hxs, hys;
-    if (x >= S && x < W - S && sy >= S && sy < Hp - S) {
+    if (x >= WX + S && x < X1 - S && sy >= WY + S && sy < Y1 - S) {
       h = HF[k] * 0.0625; hx = (HF[k + 2] - HF[k - 2]) * 0.015625; hy = (HF[k + W2] - HF[k - W2]) * 0.015625;
       hxs = (HF[k + S] - HF[k - S]) * iS; hys = (HF[k + SW] - HF[k - SW]) * iS;
     } else { h = hq(x, sy); hx = (hq(x + 2, sy) - hq(x - 2, sy)) * 0.25; hy = (hq(x, sy + 2) - hq(x, sy - 2)) * 0.25; hxs = hx; hys = hy; }
@@ -717,13 +717,13 @@ function pntPaintRock(f, x0, y0, x1, y1) {
   // rock or the rows the facets are cut for)
   const toneAt = (x, ym, i) => {
     if (ym < y0 - sp || ym >= y1 + sp || !isRock(x, ym)) return NaN;
-    at(x, ym + LF[ym * W + x] - 1, 0, 0, tmp);
+    at(x, ym + LF[ym * W + x + OFF] - 1, 0, 0, tmp);
     const fv = facetOf(cell[(ym - y0 + sp) * cw + i]), w = tmp[1], k = flat * (1 - w);
     return (fv[0] * (1 - w) + tmp[0] * w) * k + tmp[0] * (1 - k);
   };
   let lastId = NaN, lastF = null;
   const look = (x, y, tb, wb, i, r) => {
-    at(x, y + LF[y * W + x] - 1, 0, 0, tmp);
+    at(x, y + LF[y * W + x + OFF] - 1, 0, 0, tmp);
     let t = tmp[0], w = tmp[1], vt = tmp[2];
     // the facet's plane, where the pixel is the same kind (top or face)
     const id = cell[r * cw + i];
@@ -748,7 +748,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
     for (let x = x0; x < x1; x++) {
       const i = x - cx0;
       if (wb[i] < 0) continue;
-      const sy = y + LF[y * W + x] - 1, face = wb[i] > 0.5, m = mid[i];
+      const sy = y + LF[y * W + x + OFF] - 1, face = wb[i] > 0.5, m = mid[i];
       // the stroke's tone, from its middle if that's rock too
       let t, runAt = -1, runId = 0;
       if (form && face) {
@@ -785,8 +785,8 @@ function pntPaintRock(f, x0, y0, x1, y1) {
         else if (cell[cj + 1] !== id && cell[cj + 1] >= 0 && artHash(id, 4, seed + 89) < (mason ? Ms.side : Sl.side)) t = Math.min(t, Sl.crack + (mason ? 0 : 1));
       }
       // a crease where the rock folds (where two boulders meet): hard soot
-      if (!face && x >= cr && x < W - cr && sy >= cr && sy < Hp - cr) {
-        const ks = sy * W + x, cav = (HF[ks] * 4 - HF[ks - cr] - HF[ks + cr] - HF[ks - crW] - HF[ks + crW]) * crK;
+      if (!face && x >= WX + cr && x < X1 - cr && sy >= WY + cr && sy < Y1 - cr) {
+        const ks = sy * W + x + OFF, cav = (HF[ks] * 4 - HF[ks - cr] - HF[ks + cr] - HF[ks - crW] - HF[ks + crW]) * crK;
         if (cav < -Rk.crease) { t = Math.min(t, cav < -Rk.crease * 1.8 ? 0 : 1); creased = true; }
       }
       // the silhouette's top edge, lit; the lip where a top turns down
@@ -802,7 +802,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       let rp = ramp;
       // broken colour: the stroke (the run) warm or cool
       if (brk && rp === ramp) { const hu = runAt >= 0 ? pntHueOf(x, runId, seed + 9) : pntHueOf(cx0 + m, y, seed); if (hu) rp = hu === 1 ? LK.rockW : LK.rockC; }
-      C32[y * W + x] = rp[t < 0 ? 0 : t > nt - 1 ? nt - 1 : t];
+      C32[y * W + x + OFF] = rp[t < 0 ? 0 : t > nt - 1 ? nt - 1 : t];
       // bounce: at a face's foot, the lit ground's colour (a little on the
       // soot, the most a few px up), fading up the face
       if (bnc && face) {
@@ -810,12 +810,12 @@ function pntPaintRock(f, x0, y0, x1, y1) {
         while (dd <= Bo.reach && isRock(x, y + dd)) dd++;
         if (dd <= Bo.reach) {
           const u = dd <= Bo.peak ? Bo.foot + ((1 - Bo.foot) * (dd - 1)) / Math.max(1, Bo.peak - 1) : 1 - (dd - Bo.peak) / Math.max(1, Bo.reach - Bo.peak);
-          const a = Bo.amt * u, c = C32[y * W + x], cr = c & 255, cg = (c >> 8) & 255, cb = (c >> 16) & 255;
-          C32[y * W + x] = pntU32([cr + (BC[0] - cr) * a, cg + (BC[1] - cg) * a, cb + (BC[2] - cb) * a]);
+          const a = Bo.amt * u, c = C32[y * W + x + OFF], cr = c & 255, cg = (c >> 8) & 255, cb = (c >> 16) & 255;
+          C32[y * W + x + OFF] = pntU32([cr + (BC[0] - cr) * a, cg + (BC[1] - cg) * a, cb + (BC[2] - cb) * a]);
         }
       }
       // (the form strokes: a crease's lit twin, a pixel to its upper left)
-      if (form && creased && x > x0 && y > y0 && isRock(x - 1, y - 1) && cell[cj - cw - 1] === cell[cj]) C32[(y - 1) * W + x - 1] = rp[Math.min(nt - 1, Math.round(Fm.crackLit * tsc))];
+      if (form && creased && x > x0 && y > y0 && isRock(x - 1, y - 1) && cell[cj - cw - 1] === cell[cj]) C32[(y - 1) * W + x - 1 + OFF] = rp[Math.min(nt - 1, Math.round(Fm.crackLit * tsc))];
     }
     let q = tbUp; tbUp = tb; tb = q; q = wbUp; wbUp = wb; wb = q;
   }
@@ -824,9 +824,9 @@ function pntPaintRock(f, x0, y0, x1, y1) {
 // What the rock carries: ore breaking out of it (on its top and, where
 // it faces the ground, its face), and now and then a faint glowing vein.
 function pntRockDecor(f, x0, y0, x1, y1) {
-  const W = f.w * ATILE, Hp = f.h * ATILE, H = View.rockH, LF = View.rockLift, Q = View.rockBuf, b = artBiome(f), maxH = pntMaxLift();
+  const W = PWIN.w, OFF = -PWIN.y * W - PWIN.x, H = View.rockH, LF = View.rockLift, Q = View.rockBuf, b = artBiome(f), maxH = pntMaxLift();
   const tx0 = Math.max(0, Math.floor(x0 / ATILE) - 1), tx1 = Math.min(f.w - 1, Math.floor(x1 / ATILE) + 1), ty0 = Math.max(0, Math.floor(y0 / ATILE)), ty1 = Math.min(f.h - 1, Math.floor((y1 + maxH) / ATILE) + 1);
-  const on = (x, y, ty) => x >= x0 && y >= y0 && x < x1 && y < y1 && LF[y * W + x] && Math.floor((y + LF[y * W + x] - 1) / ATILE) === ty;
+  const on = (x, y, ty) => x >= x0 && y >= y0 && x < x1 && y < y1 && LF[y * W + x + OFF] && Math.floor((y + LF[y * W + x + OFF] - 1) / ATILE) === ty;
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
     const t = f.tiles[ty * f.w + tx];
     if (t !== TILE_ORE && !(t === TILE_ROCK && (hashInts(f.seed, tx, ty, 0x7e1) & 255) < 18)) continue;
@@ -838,7 +838,7 @@ function pntRockDecor(f, x0, y0, x1, y1) {
     const col = rgbOf(mix(b.glow, '#000000', 0.7));
     let fx = tx * ATILE + ap(3) + Math.floor(rnd() * ap(10)), fy = ty * ATILE + ap(2) + Math.floor(rnd() * ap(8));
     for (let k = 0, n = ap(9); k < n; k++) {
-      const sy = fy - H[fy * W + fx];
+      const sy = fy - H[fy * W + fx + OFF];
       if (!on(fx, sy, ty) || !R1(View.rockPx, W, fx, fy)) break;
       pntPut(Q, LF, W, fx, sy, col, true, fy);
       fx += rnd() < 0.5 ? 1 : -1; if (rnd() < 0.6) fy += rnd() < 0.5 ? 1 : -1;
@@ -846,10 +846,10 @@ function pntRockDecor(f, x0, y0, x1, y1) {
     }
   }
 }
-const R1 = (R, W, x, y) => R[y * W + x] === 1;
+const R1 = (R, W, x, y) => R[(y - PWIN.y) * W + x - PWIN.x] === 1;
 // One pixel of the rock layer, standing on floor row fy.
 function pntPut(Q, LF, W, x, y, c, glow, fy) {
-  const k = y * W + x;
+  const k = (y - PWIN.y) * W + x - PWIN.x;
   Q.col32[k] = (0xff000000 | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0;
   if (glow) { const e = k * 4; Q.em[e] = c[0]; Q.em[e + 1] = c[1]; Q.em[e + 2] = c[2]; Q.em[e + 3] = 255; } else Q.em[k * 4 + 3] = 0;
   LF[k] = Math.max(1, Math.min(255, fy - y + 1));
@@ -860,10 +860,11 @@ function pntPut(Q, LF, W, x, y, c, glow, fy) {
 // of it is passed over at once.
 const PNT_BLK = 8;
 function pntRockBlocks(f, x0, y0, x1, y1) {
-  const W = f.w * ATILE, LF = View.rockLift, B = View.rockBlk, bw = Math.ceil(W / PNT_BLK), Hp = f.h * ATILE;
-  for (let by = Math.floor(y0 / PNT_BLK); by * PNT_BLK < y1; by++) for (let bx = Math.floor(x0 / PNT_BLK); bx * PNT_BLK < x1; bx++) {
+  const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, LF = View.rockLift, B = View.rockBlk, bw = Math.ceil(W / PNT_BLK), bh = Math.ceil(PWIN.h / PNT_BLK);
+  for (let by = Math.max(0, Math.floor((y0 - WY) / PNT_BLK)); by < bh && WY + by * PNT_BLK < y1; by++) for (let bx = Math.max(0, Math.floor((x0 - WX) / PNT_BLK)); bx < bw && WX + bx * PNT_BLK < x1; bx++) {
     let m = 0;
-    for (let y = by * PNT_BLK; y < Math.min(Hp, by * PNT_BLK + PNT_BLK); y++) for (let x = bx * PNT_BLK; x < Math.min(W, bx * PNT_BLK + PNT_BLK); x++) { const l = LF[y * W + x]; if (l && y + l > m) m = y + l; }
+    const ya = WY + by * PNT_BLK, xa = WX + bx * PNT_BLK;
+    for (let y = ya; y < Math.min(Y1, ya + PNT_BLK); y++) for (let x = xa; x < Math.min(X1, xa + PNT_BLK); x++) { const l = LF[y * W + x + OFF]; if (l && y + l > m) m = y + l; }
     B[by * bw + bx] = m;
   }
 }
@@ -872,10 +873,10 @@ function pntRockBlocks(f, x0, y0, x1, y1) {
 function pntLiftAt(x, y) {
   const H = View.rockH, P = View.floorBuf;
   x = Math.round(x); y = Math.round(y);
-  if (!H || !P || x < 0 || y < 0 || x >= P.w || y >= P.h) return 0;
+  if (!H || !P || x < PWIN.x || y < PWIN.y || x >= PWIN.x + P.w || y >= PWIN.y + P.h) return 0;
   const S = View.pnt;
-  if (S && !S.hdone[Math.floor(y / PNT_HCH) * S.hnx + Math.floor(x / PNT_HCH)]) pntEnsureHeights(S.f, x, y, x + 1, y + 1);
-  return H[y * P.w + x];
+  if (S && !S.hdone[Math.floor((y - PWIN.y) / PNT_HCH) * S.hnx + Math.floor((x - PWIN.x) / PNT_HCH)]) pntEnsureHeights(S.f, x, y, x + 1, y + 1);
+  return H[(y - PWIN.y) * P.w + x - PWIN.x];
 }
 
 // ---- the floor's layers ----------------------------------------------------
@@ -886,8 +887,82 @@ function pntLiftAt(x, y) {
 // they're needed. pntFloorStart sets up a floor's buffers and canvases
 // (paintFloor calls it after the footprint).
 const PNT_CH = 48, PNT_HCH = 96;
+
+// ---- the painted window ----------------------------------------------------
+// The floor's painted buffers hold a window of it, PWIN: its top-left
+// (floor px) and its size, the whole floor when that's small (T.paint
+// .window). The painting code works in floor px throughout; a buffer's
+// index is (y - PWIN.y) * PWIN.w + x - PWIN.x (OFF, in each function; a
+// pixBuf carries its origin as ox, oy). As the camera nears the window's
+// edge it moves (pntWindowKeep): what the old and new windows share is
+// copied along in every buffer, and the strip exposed is painted again as
+// the view comes to it. fw, fh: the floor's whole size.
+const PWIN = { x: 0, y: 0, w: 0, h: 0, fw: 0, fh: 0 };
+// The window for floor f, round a camera at camX, camY (floor px, the view's
+// top-left) if given, else the floor's middle.
+function pntWindowFor(f, camX, camY) {
+  const Wn = T.paint.window, fw = f.w * ATILE, fh = f.h * ATILE, cap = Wn.tiles[AF - 1] * ATILE;
+  PWIN.fw = fw; PWIN.fh = fh;
+  PWIN.w = Math.min(fw, cap); PWIN.h = Math.min(fh, cap);
+  PWIN.x = pntWindowOrigin(camX !== undefined ? camX : fw / 2 - (View.w || 0) / 2, PWIN.w, fw, View.w || 0);
+  PWIN.y = pntWindowOrigin(camY !== undefined ? camY : fh / 2 - (View.h || 0) / 2, PWIN.h, fh, View.h || 0);
+}
+// Where a window w wide on a floor fw wide starts, so the view (cam, vw
+// wide) sits in its middle: a multiple of PNT_HCH, inside the floor.
+function pntWindowOrigin(cam, w, fw, vw) {
+  if (w >= fw) return 0;
+  return clamp(Math.round((cam + vw / 2 - w / 2) / PNT_HCH) * PNT_HCH, 0, Math.floor((fw - w) / PNT_HCH) * PNT_HCH);
+}
+// Before a frame: the window moved if the view has come within the margin
+// of its edge.
+function pntWindowKeep(f, camX, camY) {
+  if (PWIN.w >= PWIN.fw && PWIN.h >= PWIN.fh) return;
+  const m = T.paint.window.margin * ATILE;
+  const needX = PWIN.w < PWIN.fw && (camX < PWIN.x + m || camX + View.w > PWIN.x + PWIN.w - m);
+  const needY = PWIN.h < PWIN.fh && (camY < PWIN.y + m || camY + View.h > PWIN.y + PWIN.h - m);
+  if (!needX && !needY) return;
+  const nx = needX ? pntWindowOrigin(camX, PWIN.w, PWIN.fw, View.w) : PWIN.x, ny = needY ? pntWindowOrigin(camY, PWIN.h, PWIN.fh, View.h) : PWIN.y;
+  if (nx !== PWIN.x || ny !== PWIN.y) pntWindowMove(f, nx, ny);
+}
+// Shifts a window-sized buffer (W × H pixels of epp elements) so that what
+// was at (x + dx, y + dy) is at (x, y), and clears what's exposed.
+function pntShift(a, W, H, dx, dy, epp) {
+  const rw = W * epp, adx = Math.abs(dx), ady = Math.abs(dy);
+  if (adx >= W || ady >= H) { a.fill(0); return; }
+  const cw = (W - adx) * epp, sx = Math.max(0, dx) * epp, tx = Math.max(0, -dx) * epp, rows = H - ady;
+  if (dy >= 0) for (let y = 0; y < rows; y++) a.copyWithin(y * rw + tx, (y + dy) * rw + sx, (y + dy) * rw + sx + cw);
+  else for (let y = rows - 1; y >= 0; y--) a.copyWithin(y * rw + tx, (y + dy) * rw + sx, (y + dy) * rw + sx + cw);
+  // the exposed rows and columns
+  if (dy > 0) a.fill(0, rows * rw, H * rw); else if (dy < 0) a.fill(0, 0, ady * rw);
+  if (dx) for (let y = 0; y < H; y++) { if (dx > 0) a.fill(0, y * rw + cw, (y + 1) * rw); else a.fill(0, y * rw, y * rw + adx * epp); }
+}
+// Moves the window to nx, ny (floor px, multiples of PNT_HCH).
+function pntWindowMove(f, nx, ny) {
+  const dx = nx - PWIN.x, dy = ny - PWIN.y, W = PWIN.w, H = PWIN.h, P = View.floorBuf, Q = View.rockBuf;
+  if (!P || View.floorFor !== f) { PWIN.x = nx; PWIN.y = ny; return; }
+  const bakeA = PshBake.tone === View.groundTone ? PshBake.a : null;
+  for (const [a, epp] of [[P.col, 4], [P.em, 4], [Q.col, 4], [Q.em, 4], [View.rockPx, 1], [View.rockH, 1], [View.rockHf, 1], [View.groundTone, 1], [View.rockLift, 1], [View.groundHue, 1], [bakeA, 1]]) if (a) pntShift(a, W, H, dx, dy, epp);
+  const S = View.pnt;
+  pntShift(S.done, S.nx, S.ny, dx / PNT_CH, dy / PNT_CH, 1);
+  pntShift(S.hdone, S.hnx, S.hny, dx / PNT_HCH, dy / PNT_HCH, 1);
+  S.left = 0; for (let i = 0; i < S.done.length; i++) if (!S.done[i]) S.left++;
+  pntShift(View.rockBlk, Math.ceil(W / PNT_BLK), Math.ceil(H / PNT_BLK), dx / PNT_BLK, dy / PNT_BLK, 1);
+  PWIN.x = nx; PWIN.y = ny; P.ox = Q.ox = nx; P.oy = Q.oy = ny;
+  // the canvases, shifted onto themselves; the exposed strips are painted
+  // again chunk by chunk (pntComposite puts them)
+  for (const c of [View.floorCol, View.floorEm]) { const g = c.getContext('2d'); g.globalCompositeOperation = 'copy'; g.drawImage(c, -dx, -dy); g.globalCompositeOperation = 'source-over'; }
+  // the rock's footprint over the exposed strips
+  if (dx > 0) fillRockField(f, nx + W - dx, ny, nx + W, ny + H); else if (dx < 0) fillRockField(f, nx, ny, nx - dx, ny + H);
+  if (dy > 0) fillRockField(f, nx, ny + H - dy, nx + W, ny + H); else if (dy < 0) fillRockField(f, nx, ny, nx + W, ny - dy);
+  // what was worked out from the buffers as they lay: the light, the sights, the GPU's textures
+  View.bakedFrom = null; View.occCache = new Map(); View.pnrTiles = null; S.stale = false;
+  pntSightsForget();
+  gpuFloorDirty(0, 0, W, H);
+  glGroundDirty(0, H);
+}
+
 function pntFloorStart(f) {
-  const W = f.w * ATILE, Hp = f.h * ATILE;
+  const W = PWIN.w, Hp = PWIN.h;
   // (painted for the light it will be seen in: pntLook)
   View.pntLift = pntDarkness(f);
   View.rockH = new Uint8Array(W * Hp);
@@ -896,6 +971,7 @@ function pntFloorStart(f) {
   View.rockLift = new Uint8Array(W * Hp);
   View.rockBlk = new Int16Array(Math.ceil(W / PNT_BLK) * Math.ceil(Hp / PNT_BLK));
   View.rockBuf = pixBuf(W, Hp);
+  View.rockBuf.ox = PWIN.x; View.rockBuf.oy = PWIN.y;
   View.rockBuf.col32 = new Uint32Array(View.rockBuf.col.buffer);
   View.occCache = new Map(); View.pnrTiles = null;
   const nx = Math.ceil(W / PNT_CH), ny = Math.ceil(Hp / PNT_CH), hx = Math.ceil(W / PNT_HCH), hy = Math.ceil(Hp / PNT_HCH);
@@ -915,44 +991,45 @@ function pntFloorStart(f) {
 // (x1, y1 past its end), or null if none did.
 let _pntHfOld = new Uint16Array(0);
 function pntHfWatch(f, x0, y0, x1, y1) {
-  const W = f.w * ATILE, Hp = f.h * ATILE, HF = View.rockHf;
-  x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(Hp, y1);
+  const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, HF = View.rockHf;
+  x0 = Math.max(WX, x0); y0 = Math.max(WY, y0); x1 = Math.min(X1, x1); y1 = Math.min(Y1, y1);
   const w = Math.max(0, x1 - x0), h = Math.max(0, y1 - y0);
   if (_pntHfOld.length < w * h) _pntHfOld = new Uint16Array(w * h);
-  for (let y = 0; y < h; y++) _pntHfOld.set(HF.subarray((y0 + y) * W + x0, (y0 + y) * W + x1), y * w);
-  return { x0, y0, x1, y1, w, h, W };
+  for (let y = 0; y < h; y++) _pntHfOld.set(HF.subarray((y0 + y) * W + x0 + OFF, (y0 + y) * W + x1 + OFF), y * w);
+  return { x0, y0, x1, y1, w, h, W, OFF };
 }
 function pntHfChanged(o) {
   const HF = View.rockHf;
   let bx0 = Infinity, by0 = Infinity, bx1 = -1, by1 = -1;
-  for (let y = 0; y < o.h; y++) for (let x = 0, r = (o.y0 + y) * o.W + o.x0, q = y * o.w; x < o.w; x++) if (HF[r + x] !== _pntHfOld[q + x]) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; by1 = y; }
+  for (let y = 0; y < o.h; y++) for (let x = 0, r = (o.y0 + y) * o.W + o.x0 + o.OFF, q = y * o.w; x < o.w; x++) if (HF[r + x] !== _pntHfOld[q + x]) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; by1 = y; }
   return bx1 < 0 ? null : { x0: o.x0 + bx0, y0: o.y0 + by0, x1: o.x0 + bx1 + 1, y1: o.y0 + by1 + 1 };
 }
 function pntComposite(f, x0, y0, x1, y1) {
-  const W = f.w * ATILE, Hp = f.h * ATILE, P = View.floorBuf, Q = View.rockBuf, LF = View.rockLift;
-  x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(Hp, y1);
+  const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, P = View.floorBuf, Q = View.rockBuf, LF = View.rockLift;
+  x0 = Math.max(WX, x0); y0 = Math.max(WY, y0); x1 = Math.min(X1, x1); y1 = Math.min(Y1, y1);
   if (x1 <= x0 || y1 <= y0) return;
   const PC = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), QC = Q.col32, PE = P.em32 || (P.em32 = new Uint32Array(P.em.buffer)), QE = Q.em32 || (Q.em32 = new Uint32Array(Q.em.buffer));
-  for (let y = y0; y < y1; y++) for (let k = y * W + x0, e = y * W + x1; k < e; k++) if (LF[k] && QC[k]) { PC[k] = QC[k]; PE[k] = QE[k]; }
-  View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, x0, y0, x1 - x0, y1 - y0);
-  View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, x0, y0, x1 - x0, y1 - y0);
-  gpuFloorDirty(x0, y0, x1, y1);
+  for (let y = y0; y < y1; y++) for (let k = y * W + x0 + OFF, e = y * W + x1 + OFF; k < e; k++) if (LF[k] && QC[k]) { PC[k] = QC[k]; PE[k] = QE[k]; }
+  View.floorCol.getContext('2d').putImageData(View.floorImgs[0], 0, 0, x0 - WX, y0 - WY, x1 - x0, y1 - y0);
+  View.floorEm.getContext('2d').putImageData(View.floorImgs[1], 0, 0, x0 - WX, y0 - WY, x1 - x0, y1 - y0);
+  gpuFloorDirty(x0 - WX, y0 - WY, x1 - WX, y1 - WY);
 }
 // The heights over floor px x0..x1, y0..y1, worked out where they aren't.
 function pntEnsureHeights(f, x0, y0, x1, y1) {
   const S = View.pnt;
   if (!S || S.f !== f) return;
-  for (let j = Math.max(0, Math.floor(y0 / PNT_HCH)); j <= Math.min(S.hny - 1, Math.floor((y1 - 1) / PNT_HCH)); j++)
-    for (let i = Math.max(0, Math.floor(x0 / PNT_HCH)); i <= Math.min(S.hnx - 1, Math.floor((x1 - 1) / PNT_HCH)); i++)
-      if (!S.hdone[j * S.hnx + i]) { S.hdone[j * S.hnx + i] = 1; pntHeights(f, i * PNT_HCH, j * PNT_HCH, (i + 1) * PNT_HCH, (j + 1) * PNT_HCH); }
+  const WX = PWIN.x, WY = PWIN.y;
+  for (let j = Math.max(0, Math.floor((y0 - WY) / PNT_HCH)); j <= Math.min(S.hny - 1, Math.floor((y1 - 1 - WY) / PNT_HCH)); j++)
+    for (let i = Math.max(0, Math.floor((x0 - WX) / PNT_HCH)); i <= Math.min(S.hnx - 1, Math.floor((x1 - 1 - WX) / PNT_HCH)); i++)
+      if (!S.hdone[j * S.hnx + i]) { S.hdone[j * S.hnx + i] = 1; pntHeights(f, WX + i * PNT_HCH, WY + j * PNT_HCH, WX + (i + 1) * PNT_HCH, WY + (j + 1) * PNT_HCH); }
 }
 // One chunk, both layers: the heights it reads, the ground's tones, its
 // tiles (paintTileArt: the ground, the clime's hazards, the beds), a
 // graft and a tear's tint, then the rock standing over it.
 function pntPaintChunk(f, i, j) {
-  const S = View.pnt, W = f.w * ATILE, Hp = f.h * ATILE, maxH = pntMaxLift(), G = T.paint.ground;
+  const S = View.pnt, WX = PWIN.x, WY = PWIN.y, X1 = WX + PWIN.w, Y1 = WY + PWIN.h, maxH = pntMaxLift(), G = T.paint.ground;
   S.done[j * S.nx + i] = 1; S.left--;
-  const x0 = i * PNT_CH, y0 = j * PNT_CH, x1 = Math.min(W, x0 + PNT_CH), y1 = Math.min(Hp, y0 + PNT_CH), back = G.sunSteps * Math.max(G.sunDir[0], G.sunDir[1]);
+  const x0 = WX + i * PNT_CH, y0 = WY + j * PNT_CH, x1 = Math.min(X1, x0 + PNT_CH), y1 = Math.min(Y1, y0 + PNT_CH), back = G.sunSteps * Math.max(G.sunDir[0], G.sunDir[1]);
   const sm = T.paint.facet.smooth + 3;
   const cm = pntCellMax();
   pntEnsureHeights(f, x0 - Math.max(back, cm + sm) - 4, y0 - Math.max(back, sm) - 4, x1 + cm + sm + 4, y1 + maxH + sm + 8);
@@ -976,9 +1053,10 @@ function pntPaintChunk(f, i, j) {
 function pntEnsure(f, x0, y0, x1, y1, budget, at, only) {
   const S = View.pnt;
   if (!S || S.f !== f || !S.left) return true;
-  const i0 = Math.max(0, Math.floor(x0 / PNT_CH)), i1 = Math.min(S.nx - 1, Math.floor((x1 - 1) / PNT_CH)), j0 = Math.max(0, Math.floor(y0 / PNT_CH)), j1 = Math.min(S.ny - 1, Math.floor((y1 - 1) / PNT_CH));
-  const ci = at ? at.x / PNT_CH - 0.5 : (i0 + i1) / 2, cj = at ? at.y / PNT_CH - 0.5 : (j0 + j1) / 2, todo = [];
-  const outside = (i, j) => { if (!only) return false; const nx = clamp(only.x, i * PNT_CH, (i + 1) * PNT_CH), ny = clamp(only.y, j * PNT_CH, (j + 1) * PNT_CH); return Math.hypot(nx - only.x, ny - only.y) > only.r; };
+  const WX = PWIN.x, WY = PWIN.y;
+  const i0 = Math.max(0, Math.floor((x0 - WX) / PNT_CH)), i1 = Math.min(S.nx - 1, Math.floor((x1 - 1 - WX) / PNT_CH)), j0 = Math.max(0, Math.floor((y0 - WY) / PNT_CH)), j1 = Math.min(S.ny - 1, Math.floor((y1 - 1 - WY) / PNT_CH));
+  const ci = at ? (at.x - WX) / PNT_CH - 0.5 : (i0 + i1) / 2, cj = at ? (at.y - WY) / PNT_CH - 0.5 : (j0 + j1) / 2, todo = [];
+  const outside = (i, j) => { if (!only) return false; const nx = clamp(only.x, WX + i * PNT_CH, WX + (i + 1) * PNT_CH), ny = clamp(only.y, WY + j * PNT_CH, WY + (j + 1) * PNT_CH); return Math.hypot(nx - only.x, ny - only.y) > only.r; };
   for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (!S.done[j * S.nx + i] && !outside(i, j)) todo.push([(i - ci) ** 2 + (j - cj) ** 2, i, j]);
   if (!todo.length) return true;
   todo.sort((a, b) => a[0] - b[0]);
@@ -1001,6 +1079,8 @@ function pntFrame(f, camX, camY, reveal, lead) {
   const L = T.paint.lazy, m1 = L.near * ATILE, m2 = L.far * ATILE;
   // the place's light has changed a lot (kindled): painted again for it
   if (Math.abs(pntDarkness(f) - (View.pntLift || 0)) > 0.15) paintFloor(f);
+  // the window moved along with the view
+  pntWindowKeep(f, camX, camY);
   if (reveal) {
     pntEnsure(f, camX - m1, camY - m1, camX + View.w + m1, camY + View.h + m1, undefined, reveal, reveal);
     pntEnsure(f, camX - m1, camY - m1, camX + View.w + m1, camY + View.h + m1, L.arrive, reveal);
@@ -1043,14 +1123,14 @@ function paintOcclude(x, y, w, h, fy, ox, oy) {
   // (on the GPU the rock goes over an actor's pixels in the shader, by the
   // same rule, from Gpu.feet: gpu.js)
   if (Gpu.on || !View.rockLift || !f || T.paint.occlude === false) return;
-  const W = f.w * ATILE, Hp = f.h * ATILE, F = fy - oy;
+  const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, F = fy - oy;
   let fx0 = x - ox, fy0 = y - oy, fx1 = fx0 + w, fy1 = fy0 + h;
-  fx0 = Math.max(0, fx0); fy0 = Math.max(0, fy0); fx1 = Math.min(W, fx1); fy1 = Math.min(Hp, fy1);
+  fx0 = Math.max(WX, fx0); fy0 = Math.max(WY, fy0); fx1 = Math.min(X1, fx1); fy1 = Math.min(Y1, fy1);
   if (fx1 <= fx0 || fy1 <= fy0 || x + w < 0 || y + h < 0 || x > View.w || y > View.h) return;
   // anything in front at all?
   const B = View.rockBlk, bw = Math.ceil(W / PNT_BLK);
   let any = false;
-  for (let by = Math.floor(fy0 / PNT_BLK); by * PNT_BLK < fy1 && !any; by++) for (let bx = Math.floor(fx0 / PNT_BLK); bx * PNT_BLK < fx1; bx++) if (B[by * bw + bx] > F + 1) { any = true; break; }
+  for (let by = Math.floor((fy0 - WY) / PNT_BLK); WY + by * PNT_BLK < fy1 && !any; by++) for (let bx = Math.floor((fx0 - WX) / PNT_BLK); WX + bx * PNT_BLK < fx1; bx++) if (B[by * bw + bx] > F + 1) { any = true; break; }
   if (!any) return;
   const key = fx0 + ',' + fy0 + ',' + fx1 + ',' + fy1 + ',' + F, cache = View.occCache;
   let c = cache.get(key);
@@ -1060,7 +1140,7 @@ function paintOcclude(x, y, w, h, fy, ox, oy) {
     let n = 0;
     for (let yy = 0; yy < chh; yy++) {
       const ry = fy0 + yy;
-      for (let xx = 0, k = ry * W + fx0; xx < cw; xx++, k++) { const l = LF[k]; if (l && ry + l - 1 > F) { d32[yy * cw + xx] = src[k]; n++; } }
+      for (let xx = 0, k = ry * W + fx0 + OFF; xx < cw; xx++, k++) { const l = LF[k]; if (l && ry + l - 1 > F) { d32[yy * cw + xx] = src[k]; n++; } }
     }
     c = null;
     if (n) { const [cv, cx] = makeCanvas(cw, chh); cx.putImageData(img, 0, 0); c = cv; }

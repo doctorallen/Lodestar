@@ -41,15 +41,15 @@ function terraStoneAt(f, gx, gy, R) {
 function terraPaintGround(P, f, tx, ty, ox, oy) {
   const reach = terraReach(f);
   if (!reach) return;
-  const G = T.terraform, Ps = T.paint.site, R = View.rockPx, tone = View.groundTone, W = P.w, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em;
+  const G = T.terraform, Ps = T.paint.site, R = View.rockPx, tone = View.groundTone, W = P.w, OFF = -P.oy * W - P.ox, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em;
   const gx0 = tx + 0.5, gy0 = ty + 0.5, far = reach * G.bloom, d0 = Math.hypot(gx0 - f.star.x - 0.5, (gy0 - f.star.y - 0.5) / G.squash);
   if (d0 > far + 1) return;
   const stoneNear = d0 < reach + G.wander + G.tendril[0] + 1;
   const LS = Ps.lodestone.map(rgbOf), V = Ps.vein.map((h) => pntU32(rgbOf(h))), VR = Ps.vein.map(rgbOf), green = rgbOf(G.green), gold = rgbOf(G.gold), goldU = pntU32(gold), seed = f.seed + 80;
-  const put = (x, y, c, glow, a = 255) => { const k = y * W + x; C32[k] = c; if (glow) { E[k * 4] = glow[0]; E[k * 4 + 1] = glow[1]; E[k * 4 + 2] = glow[2]; E[k * 4 + 3] = a; } };
+  const put = (x, y, c, glow, a = 255) => { const k = y * W + x + OFF; C32[k] = c; if (glow) { E[k * 4] = glow[0]; E[k * 4 + 1] = glow[1]; E[k * 4 + 2] = glow[2]; E[k * 4 + 3] = a; } };
   for (let y = oy; y < oy + ATILE; y++)
     for (let x = ox; x < ox + ATILE; x++) {
-      const q = y * W + x;
+      const q = y * W + x + OFF;
       if (R[q]) continue;
       const gx = (x + 0.5) / ATILE, gy = (y + 0.5) / ATILE, t = tone[q];
       const st = stoneNear ? terraStoneAt(f, gx, gy, reach) : 0;

@@ -123,12 +123,12 @@ function sporeR(c) { return c.r * Math.min(1, 0.4 + c.t * 0.8) * Math.min(1, (c.
 const HAZ_RAMPS = { pool: ['#0a2232', '#103248', '#18465f', '#6aa6c8'], slick: ['#6f90ba', '#86a7cf', '#a2c0e2', '#eef8ff'], burn: ['#801808', '#d4420c', '#ff8c20', '#ffd860'] };
 
 function paintClimeTile(P, f, tx, ty, ox, oy, b) {
-  const R = View.rockPx, W = P.w;
+  const R = View.rockPx, W = P.w, OFF = -P.oy * W - P.ox;
   if (!R) return;
   // in a wall's shadow (or under the sky, a mesa's): left dark
   const shaded = (x, y) => {
-    for (let k = 1; k <= CAVE_SHADE + 1; k++) if (R[(y - k) * W + x]) return true;
-    if (b.sun) for (let k = 0; k < CAVE_SUN.length - 1; k++) if (R[(y - CAVE_SUN[k][1]) * W + x - CAVE_SUN[k][0]]) return true;
+    for (let k = 1; k <= CAVE_SHADE + 1; k++) if (R[(y - k) * W + x + OFF]) return true;
+    if (b.sun) for (let k = 0; k < CAVE_SUN.length - 1; k++) if (R[(y - CAVE_SUN[k][1]) * W + x - CAVE_SUN[k][0] + OFF]) return true;
     return false;
   };
   let near = false;
@@ -151,22 +151,22 @@ function paintClimeTile(P, f, tx, ty, ox, oy, b) {
 // the near rim catches the light.
 const HAZ_IN = ap(2), HAZ_DEEP = ap(4), HAZ_STREAK = ap(13), HAZ_RIPPLE = ap(6), HAZ_UP = HAZ_DEEP + ap(12), _hazMask = new Uint8Array((ATILE + 2 * HAZ_DEEP) * (ATILE + HAZ_DEEP + HAZ_UP));
 function paintHazardPixels(P, f, ox, oy, b, shaded) {
-  const R = View.rockPx, W = P.w, kind = f.hazKind, r = b.haz || HAZ_RAMPS[kind], lava = kind === 'burn', ice = kind === 'slick';
+  const R = View.rockPx, W = P.w, OFF = -P.oy * W - P.ox, kind = f.hazKind, r = b.haz || HAZ_RAMPS[kind], lava = kind === 'burn', ice = kind === 'slick';
   const D = Math.min(HAZ_UP - HAZ_DEEP, phlDepth(kind)), Ho = T.paint.hole, GR = pntLook(b).ground, seed = (f.seed ^ f.depth) | 0;
   // the hazard's outline round the tile, read once
   const G = HAZ_DEEP, MW = ATILE + 2 * G, MH = ATILE + G + HAZ_UP, Hm = _hazMask;
   for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) Hm[j * MW + i] = hazardAt(f, (ox - G + i + 0.5) / AP, (oy - HAZ_UP + j + 0.5) / AP) !== 0 ? 1 : 0;
   const at = (x, y) => Hm[(y - oy + HAZ_UP) * MW + x - ox + G] === 1;
-  const inside = (x, y) => x >= ox - G && x < ox + ATILE + G && y >= oy - HAZ_UP && y < oy + ATILE + G && at(x, y) && !R[y * W + x];
+  const inside = (x, y) => x >= ox - G && x < ox + ATILE + G && y >= oy - HAZ_UP && y < oy + ATILE + G && at(x, y) && !R[y * W + x + OFF];
   const lavaC = [rgbOf(r[1]), rgbOf(r[2])].map(pntU32);
   for (let y = oy; y < oy + ATILE; y++) {
     phlStrokes(ox - 8, y, seed + 331);
     for (let x = ox; x < ox + ATILE; x++) {
-      if (R[y * W + x]) continue;
+      if (R[y * W + x + OFF]) continue;
       if (!at(x, y)) {
         // the near rim, lit
-        if (D && at(x, y - 1) && !R[(y - 1) * W + x]) phlNearLip(P, x, y, b, Ho.lip);
-        else if (D && at(x, y - 2) && !R[(y - 2) * W + x]) phlNearLip(P, x, y, b, Ho.lip - 2);
+        if (D && at(x, y - 1) && !R[(y - 1) * W + x + OFF]) phlNearLip(P, x, y, b, Ho.lip);
+        else if (D && at(x, y - 2) && !R[(y - 2) * W + x + OFF]) phlNearLip(P, x, y, b, Ho.lip - 2);
         continue;
       }
       // the bank, under the far rim
@@ -287,17 +287,17 @@ function paintPodBed(P, cx, cy, b) {
 // top and down its face, lighter than the rock and darker than the floor,
 // so walls still read as walls.
 function paintRootRock(P, ox, oy) {
-  const R = View.rockPx, W = P.w;
+  const R = View.rockPx, W = P.w, OFF = -P.oy * W - P.ox;
   for (let y = oy; y < oy + ATILE; y++)
     for (let x = ox; x < ox + ATILE; x++) {
-      if (!R[y * W + x]) continue;
+      if (!R[y * W + x + OFF]) continue;
       const wx = x / AP, wy = y / AP;
-      const top = R[(y + FACE_H) * W + x] && R[(y - 1) * W + x] && R[y * W + x - 1] && R[y * W + x + 1];
+      const top = R[(y + FACE_H) * W + x + OFF] && R[(y - 1) * W + x + OFF] && R[y * W + x - 1 + OFF] && R[y * W + x + 1 + OFF];
       const a = Math.abs(wallNoise(wx * 0.7, wy * 1.4, 9)), c = Math.abs(wallNoise(wx * 1.4 + 70, wy * 0.6, 8));
       if (top) { if (a < 0.07) putPx(P, x, y, a < 0.035 ? '#2a2016' : '#1c140e'); else if (c < 0.05) putPx(P, x, y, '#1a120c'); }
       else {
         let face = false;
-        for (let k = 1; k < FACE_H && !face; k++) if (!R[(y + k) * W + x]) face = true;
+        for (let k = 1; k < FACE_H && !face; k++) if (!R[(y + k) * W + x + OFF]) face = true;
         if (face && Math.abs(wallNoise(wx * 1.8, wy * 0.3, 6)) < 0.09) putPx(P, x, y, '#5a4430');
       }
     }
@@ -307,8 +307,8 @@ function paintRootRock(P, ox, oy) {
 // clusters, never lone pixels. Placed in world px within the tile (and
 // drawn at whole art px), each mark's own shape in art px.
 function paintDecor(P, f, tx, ty, ox, oy, b, shaded) {
-  const R = View.rockPx, W = P.w, rnd = (k) => (hashInts(f.seed, tx, ty, k) & 1023) / 1023;
-  const put = (x, y, c, glow) => { if (x >= ox && y >= oy && x < ox + ATILE && y < oy + ATILE && !R[y * W + x] && !shaded(x, y)) putPx(P, x, y, c, glow); };
+  const R = View.rockPx, W = P.w, OFF = -P.oy * W - P.ox, rnd = (k) => (hashInts(f.seed, tx, ty, k) & 1023) / 1023;
+  const put = (x, y, c, glow) => { if (x >= ox && y >= oy && x < ox + ATILE && y < oy + ATILE && !R[y * W + x + OFF] && !shaded(x, y)) putPx(P, x, y, c, glow); };
   // a little clump: pixels round x, y (offsets), each in one of the colours
   const clump = (x, y, pts, cols, glow) => pts.forEach(([i, j], n) => put(x + i, y + j, cols[n % cols.length], glow));
   // somewhere lo..lo + span world px into the tile, in art px

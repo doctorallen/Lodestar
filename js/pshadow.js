@@ -86,13 +86,13 @@ function pshShadeFor(f) {
 // less within its penumbra (T.paint.shade.edge); fade(x, y), if given,
 // scales it (a light's share).
 function pshBakeCast(A, f, S, ax, ay, fx, fy, aux, auy, azx, azy, sp, drop, fade) {
-  const W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx;
-  if (!pshGeom(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, 0, 0, W, Hp)) return;
+  const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, R = View.rockPx;
+  if (!pshGeom(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, WX, WY, X1, Y1)) return;
   const G = _pshG, a = S.a, sw = S.w, sh = S.h, zm = G.zmax + 0.5, edge = T.paint.shade.edge[0], pen = T.paint.shade.edge[1];
   for (let y = G.y0; y < G.y1; y++) {
     const ry = y + 0.5 - fy;
     for (let x = G.x0; x < G.x1; x++) {
-      const k = y * W + x;
+      const k = y * W + x + OFF;
       if (R[k]) continue;
       const rx = x + 0.5 - fx, z = rx * G.izx + ry * G.izy;
       if (z < -0.5 || z > zm) continue;
@@ -113,12 +113,12 @@ function pshBakeCast(A, f, S, ax, ay, fx, fy, aux, auy, azx, azy, sp, drop, fade
 // drop in its middle, falling off to its edge (the ground's strokes break
 // it up).
 function pshBakeContact(A, f, cx, cy, rx, ry, drop) {
-  const W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx, pw = T.paint.shade.contactFall;
-  for (let y = Math.max(0, Math.floor(cy - ry)); y < Math.min(Hp, Math.ceil(cy + ry)); y++) {
+  const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, R = View.rockPx, pw = T.paint.shade.contactFall;
+  for (let y = Math.max(WY, Math.floor(cy - ry)); y < Math.min(Y1, Math.ceil(cy + ry)); y++) {
     const dy = (y + 0.5 - cy) / ry, dy2 = dy * dy;
     if (dy2 >= 1) continue;
-    for (let x = Math.max(0, Math.floor(cx - rx)); x < Math.min(W, Math.ceil(cx + rx)); x++) {
-      const k = y * W + x, dx = (x + 0.5 - cx) / rx, q = dx * dx + dy2;
+    for (let x = Math.max(WX, Math.floor(cx - rx)); x < Math.min(X1, Math.ceil(cx + rx)); x++) {
+      const k = y * W + x + OFF, dx = (x + 0.5 - cx) / rx, q = dx * dx + dy2;
       if (q >= 1 || R[k]) continue;
       const v = Math.round(drop * Math.pow(1 - q, pw) * 255);
       if (v > A[k]) A[k] = v;
@@ -133,17 +133,17 @@ const _pshMid = new Int16Array(ATILE + 2 * PNT_CELL), _pshJit = new Float32Array
 function pshShadeTile(P, f, ox, oy) {
   const A = PshBake.tone === View.groundTone ? PshBake.a : null;
   if (!A) return;
-  const W = P.w, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), R = View.rockPx, k = T.paint.shade.mul / 255, seedH = (f.seed ^ f.depth) | 0, mid = _pshMid;
+  const W = P.w, OFF = -P.oy * W - P.ox, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), R = View.rockPx, k = T.paint.shade.mul / 255, seedH = (f.seed ^ f.depth) | 0, mid = _pshMid;
   for (let y = oy; y < oy + ATILE; y++) {
-    const row = y * W;
+    const row = y * W + OFF;
     let any = false;
-    for (let x = Math.max(0, ox - PNT_CELL); x < Math.min(W, ox + ATILE + PNT_CELL); x++) if (A[row + x]) { any = true; break; }
+    for (let x = Math.max(P.ox, ox - PNT_CELL); x < Math.min(P.ox + W, ox + ATILE + PNT_CELL); x++) if (A[row + x]) { any = true; break; }
     if (!any) continue;
     pntStrokeRow(mid, _pshJit, ox, ATILE, y, seedH + 31);
     for (let i = 0; i < ATILE; i++) {
       const x = ox + i, q = row + x;
       if (R[q]) continue;
-      const xm = clamp(ox + mid[i], 0, W - 1), s = A[row + xm];
+      const xm = clamp(ox + mid[i], P.ox, P.ox + W - 1), s = A[row + xm];
       if (!s) continue;
       C32[q] = ugDarken(C32[q], 1 - s * k);
     }
@@ -152,10 +152,11 @@ function pshShadeTile(P, f, ox, oy) {
 
 // Is there rock on the straight line between two floor points (px)?
 function pshBlocked(f, x0, y0, x1, y1) {
-  const W = f.w * ATILE, R = View.rockPx, n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 4);
+  const W = PWIN.w, OFF = -PWIN.y * W - PWIN.x, R = View.rockPx, n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 4);
   for (let i = 1; i < n; i++) {
     const x = (x0 + ((x1 - x0) * i) / n) | 0, y = (y0 + ((y1 - y0) * i) / n) | 0;
-    if (R[y * W + x]) return true;
+    if (x < PWIN.x || y < PWIN.y || x >= PWIN.x + W || y >= PWIN.y + PWIN.h) continue;
+    if (R[y * W + x + OFF]) return true;
   }
   return false;
 }
@@ -218,7 +219,7 @@ function pshAxes(lx, ly, h, fx, fy, k, hc = 0) {
 }
 
 function pshBake(f) {
-  const d = Game.dive, P = T.paint.shade, C = T.light.shadow.cast, W = f.w * ATILE, Hp = f.h * ATILE;
+  const d = Game.dive, P = T.paint.shade, C = T.light.shadow.cast, W = PWIN.w, Hp = PWIN.h;
   if (!d || d.floor !== f) return null;
   const A = new Uint8Array(W * Hp), U = View.ug, sky = !!artBiome(f).sun;
   // the sun's strength (daylight in kindled land, a dusk in the dark)
@@ -374,7 +375,7 @@ function pshClipRun(k, c0, lo, hi, vfx) {
 // distance from the light Lt (pshTab) times dark, only within its reach and
 // where its sight S2 (if any) lets it.
 function pshMaskCast(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, footRow, dark, tab, Lt, S2, ox, oy) {
-  const M = PshMask, f = Game.dive.floor, W = f.w * ATILE, Hp = f.h * ATILE, LF = View.rockLift || View.rockPx, R = View.rockPx;
+  const M = PshMask, f = Game.dive.floor, WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, LF = View.rockLift || View.rockPx, R = View.rockPx;
   let cx0 = 0, cy0 = 0, cx1 = M.w, cy1 = M.h;
   if (tab) { cx0 = Math.max(0, Math.floor(Lt.lx - Lt.r + ox)); cx1 = Math.min(M.w, Math.ceil(Lt.lx + Lt.r + ox)); cy0 = Math.max(0, Math.floor(Lt.ly - Lt.r + oy)); cy1 = Math.min(M.h, Math.ceil(Lt.ly + Lt.r + oy)); }
   const vfx = fx + ox, vfy = fy + oy;
@@ -390,7 +391,7 @@ function pshMaskCast(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, footRow, dark, t
   let any = false;
   for (let y = G.y0; y < G.y1; y++) {
     const wy = y - oy;
-    if (wy < 0 || wy >= Hp) continue;
+    if (wy < WY || wy >= Y1) continue;
     const ry = y + 0.5 - vfy;
     // (the row's run inside the shadow's parallelogram: where z and u are
     // in range, both linear along it; and inside the light's reach)
@@ -410,7 +411,7 @@ function pshMaskCast(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, footRow, dark, t
     }
     if (xa < 0) xa = 0;
     if (xb > mw) xb = mw;
-    const row = wy * W, cj = S2 ? Math.floor(wy * iLC) - sy0 : 0, vrow = cj * sww;
+    const row = wy * W + OFF, cj = S2 ? Math.floor(wy * iLC) - sy0 : 0, vrow = cj * sww;
     if (S2 && (cj < 0 || cj >= sww)) continue;
     const ry0 = ry * izy, ru0 = ry * iuy, qrow = y * mw;
     for (let x = xa; x < xb; x++) {
@@ -423,7 +424,7 @@ function pshMaskCast(S, ax, ay, fx, fy, aux, auy, azx, azy, sp, footRow, dark, t
       const cl = a[r * sw + (uu | 0)];
       if (!cl) continue;
       const wx = x - ox;
-      if (wx < 0 || wx >= W) continue;
+      if (wx < WX || wx >= X1) continue;
       const k = row + wx, lf = LF[k];
       if (lf !== 0 ? wy + lf - 1 >= footRow : R[k] !== 0) continue;
       let s = dark;
@@ -471,15 +472,19 @@ function pshKindlerSpr(d) {
 }
 // What moves or may change, each { spr, x, y } (feet, floor px, rounded as
 // it's drawn).
-function pshMovers(d) {
+function pshMovers(d, ox, oy) {
   const out = [], p = d.p;
   // (none while he's still in his pod, in the opening: intro.js)
   if (!(d.hub && Intro.hub && Intro.hub.hidden)) out.push({ spr: pshKindlerSpr(d), x: Math.round(p.x * AP), y: Math.round(p.y * AP), me: true });
   if (d.hub) {
     return out;
   }
+  // (only those near the view: the rest cast nothing seen)
+  const vx0 = -ox - 80 * AF, vx1 = -ox + View.w + 80 * AF, vy0 = -oy - 120 * AF, vy1 = -oy + View.h + 60 * AF;
   for (const e of d.enemies) {
     if (e.dead || e.hid) continue;
+    const ex = e.x * AP, ey = e.y * AP;
+    if (ex < vx0 || ex > vx1 || ey < vy0 || ey > vy1) continue;
     if (FOE_NAMES[e.type]) { const look = foeLook(d, e); if (!look || look.hidden || look.noShadow) continue; out.push({ spr: look.spr, x: Math.round(e.x * AP), y: Math.round(e.y * AP), lift: look.lift || 0 }); continue; }
     out.push({ spr: enemySprite(d, e.type), x: Math.round(e.x * AP), y: Math.round(e.y * AP), lift: e.type === 'wisp' || e.type === 'hollow' ? 5 : 0 });
   }
@@ -513,7 +518,7 @@ function pshFrame(d, ox, oy) {
   const lv = lampLevels(d), amb = lv.amb * (lv.tint[0] + lv.tint[1] + lv.tint[2]) / 3;
   const vx0 = -ox - 60, vx1 = -ox + View.w + 60, vy0 = -oy - 40, vy1 = -oy + View.h + 120;
   const p = d.p, lampAt = diverLampAt(d), lamp = { lx: lampAt.x, ly: lampAt.y, x: lampAt.x, y: p.y * AP, r: lv.r, i: lv.i };
-  const movers = pshMovers(d);
+  const movers = pshMovers(d, ox, oy);
   // at home: the Kindler and the settlers from the strongest lantern (the
   // rest is baked), and the lamp casts nothing
   if (d.hub) {
@@ -561,7 +566,7 @@ function pshFrame(d, ox, oy) {
   if (lv.lamp > 0 && lv.i > 0) {
     const S2 = T.light.shadow.walls && !d.hub ? (Bm ? lampBeamSight(d, Bm) : lampSight(d, lv.r)) : null, E = ap(T.light.shadow.eye), r = lamp.r;
     // (the fixed lights already there at the lamp's foot share the light)
-    const bk = View.bake, bake = (x, y) => { if (!bk) return 0; const i = Math.floor(x / LC), j = Math.floor(y / LC); if (i < 0 || j < 0 || i >= bk.w || j >= bk.h) return 0; const o = (j * bk.w + i) * 3; return (bk.a[o] + bk.a[o + 1] + bk.a[o + 2]) / 3 / T.art.lightSteps; };
+    const bk = View.bake, bake = (x, y) => { if (!bk) return 0; const i = Math.floor(x / LC) - bk.x0, j = Math.floor(y / LC) - bk.y0; if (i < 0 || j < 0 || i >= bk.w || j >= bk.h) return 0; const o = (j * bk.w + i) * 3; return (bk.a[o] + bk.a[o + 1] + bk.a[o + 2]) / 3 / T.art.lightSteps; };
     const one = (spr, ax, ay, fx, fy, footRow) => {
       const dx = fx - lamp.x, dy = fy - lamp.y;
       if (dx * dx + dy * dy > r * r) return;

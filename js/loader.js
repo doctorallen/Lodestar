@@ -227,7 +227,7 @@ function loaderPaint(job) {
   const S = View.pnt, cx = d.p.x * AP, cy = d.p.y * AP, reach = 3.2 * Math.max(View.w, View.h);
   const todo = [];
   for (let j = 0; j < S.ny; j++) for (let i = 0; i < S.nx; i++) {
-    const m = Math.hypot((i + 0.5) * PNT_CH - cx, (j + 0.5) * PNT_CH - cy);
+    const m = Math.hypot(PWIN.x + (i + 0.5) * PNT_CH - cx, PWIN.y + (j + 0.5) * PNT_CH - cy);
     if (m < reach) todo.push([m, i, j]);
   }
   todo.sort((a, b) => a[0] - b[0]);
@@ -242,7 +242,8 @@ function loaderSweep(job) {
   if (!d || !View.w) return;
   job.say('LIGHTING THE LAND');
   const p = d.p, home = { x: p.x, y: p.y }, f = d.floor, sw = (View.w * 0.8) / AP, sh = (View.h * 0.8) / AP;
-  const reach = 2.2 * Math.max(View.w, View.h) / AP, pts = [];
+  // (within the painted window, so the sweep doesn't move it: paint.js PWIN)
+  const reach = Math.max(View.w, Math.min(2.2 * Math.max(View.w, View.h), PWIN.w / 2 - View.w, PWIN.h / 2 - View.h)) / AP, pts = [];
   for (let y = sh / 2; y < f.h * TILE; y += sh) for (let x = sw / 2; x < f.w * TILE; x += sw) if (Math.hypot(x - home.x, y - home.y) < reach) pts.push({ x, y });
   pts.sort((a, b) => Math.hypot(a.x - home.x, a.y - home.y) - Math.hypot(b.x - home.x, b.y - home.y));
   let i = 0;

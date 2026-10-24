@@ -419,14 +419,14 @@ function pflCoverKit(set, look, pal) {
 // tile, over whatever is behind it. Seeded by the tile.
 // ---------------------------------------------------------------------------
 function pflOreTile(f, tx, ty, on, x0, y0, x1, y1) {
-  const W = f.w * ATILE, H = View.rockH, LF = View.rockLift, Q = View.rockBuf, b = artBiome(f), O = T.paint.ore;
+  const W = PWIN.w, OFF = -PWIN.y * W - PWIN.x, H = View.rockH, LF = View.rockLift, Q = View.rockBuf, b = artBiome(f), O = T.paint.ore;
   const ore = ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id], r = ore.map(rgbOf), seed = hashInts(f.seed, f.depth, tx, ty, 0x0e5) | 0;
   const rnd = (k) => artHash(k, 41, seed), soot = rgbOf(b.rock[0]), white = [255, 255, 255];
   const put = (x, y, c, glow, fy) => { if (on(x, y)) pntPut(Q, LF, W, x, y, c, glow, fy); };
   // (a crystal's pixel: in the area, over rock or ground that's behind it)
-  const putUp = (x, y, c, glow, fy) => { if (x >= x0 && y >= y0 && x < x1 && y < y1 && (!LF[y * W + x] || y + LF[y * W + x] - 1 <= fy)) pntPut(Q, LF, W, x, y, c, glow, fy); };
+  const putUp = (x, y, c, glow, fy) => { if (x >= x0 && y >= y0 && x < x1 && y < y1 && (!LF[y * W + x + OFF] || y + LF[y * W + x + OFF] - 1 <= fy)) pntPut(Q, LF, W, x, y, c, glow, fy); };
   // where a floor point is drawn (its surface lifted)
-  const lift = (x, y) => y - H[y * W + x];
+  const lift = (x, y) => y - H[y * W + x + OFF];
   // flecks: short strokes of the ore in the rock's top
   for (let k = 0; k < O.flecks; k++) {
     const fx = tx * ATILE + 2 + Math.floor(rnd(100 + k) * (ATILE - 6)), fy = ty * ATILE + 2 + Math.floor(rnd(120 + k) * (ATILE - 4)), n = 1 + Math.floor(rnd(140 + k) * 2.5);

@@ -661,6 +661,7 @@ const T = {
   // health; one in an exposed state (dazed, stranded, spent, recovering)
   // takes `exposed` times the damage, so the fight is dodge, then punish.
   enemies: {
+    cull: 40, // tiles from the Kindler beyond which an unaware creature rests, unstepped
     // (hpEarly: the Rim's share of a foe's health and damage at level 1,
     // rising to all of it at hpFullAt; shotScale: what a shot, a glob or a
     // beam does against a bite, since it's harder to step out of)
@@ -941,7 +942,7 @@ const T = {
   bar: { fill: 4 },
   // The world's one map (game.js generateWorld): the generator's depth and
   // clime, and overrides of its numbers.
-  worldgen: { depth: 1, clime: null, over: { rooms: [6, 8] } },
+  worldgen: { depth: 1, clime: null, over: { w: 320, h: 320, rooms: [230, 270] } },
   // Deeds (deeds.js): the light each gives the star. heart: heartlight for
   // kindling a territory, by ring; bound to the Kindler the moment the spire
   // stands, safe from any fall. deepEnd: deeplight for first reaching a
@@ -1173,6 +1174,10 @@ const T = {
     // out); cover: under a tuft or a stand's blade, coverPad, coverRy.
     shade: { mul: 0.75, sun: 0.32, stand: 0.6, light: 0.3, home: 0.6, edge: [1.5, 0.05], contact: [0.16, 0.24, 0.3], contactPad: [1, 2, 3], contactRy: [2.5, 4.5], contactAt: [0.5, 0.5], contactFall: 0.7, cover: 0.14, coverPad: 0.5, coverRy: 1.6 },
     lazy: { near: 2, far: 7, budget: 3, arrive: 12, lead: 96 },
+    // window: the part of the floor whose painted pixels are kept (paint.js
+    // PWIN), tiles square at [the coarse grain, FINE GRAIN]; it moves when
+    // the view comes within `margin` tiles of its edge.
+    window: { tiles: [64, 48], margin: 10 },
     ramp: { dark: [0.62, 0.3], light: [0.14, 0.28], rock: { dark: [0.6, 0.3], light: [0.3, 0.6] } },
     rampEven: { ground: { deep: 0.45, high: 0.24, gamma: 1 }, rock: { deep: 0.55, high: 0.45, gamma: 1.15 }, darkAt: [0.95, 0.42], liftGround: [0.7, 1.2], liftRock: [1.3, 2.2], under: [0.38, 8] },
     stroke: { whole: 0.12, one: 0.48 },

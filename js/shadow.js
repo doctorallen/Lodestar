@@ -59,13 +59,13 @@ function sightTables(H, B, ey) {
 // nothing). cone (the lamp as a beam: beamSightCone) keeps each ray that
 // leaves the beam to its near reach, so the rays behind him cost little.
 function seeFrom(f, cx, cy, r, S, ey = 0, cone = null) {
-  const Sh = T.light.shadow, R = View.rockPx, W = f.w * ATILE, Hp = f.h * ATILE;
+  const Sh = T.light.shadow, R = View.rockPx, WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX;
   const H = Math.ceil(r / LC) + 1, w = 2 * H + 1, B = Math.max(16, 8 * Math.ceil((2 * Math.PI * (H + ey) * Sh.rays * (cone ? T.light.beam.rays : 1)) / 8));
   const t = sightTables(H, B, ey), ox = (cx + 0.5) * LC, oy = (cy + 0.5) * LC, oxi = ox | 0, oyi = oy | 0;
   S.x0 = cx - H; S.y0 = cy - ey - H; S.w = w;
   if (!S.vis || S.vis.length < w * w) S.vis = new Float32Array(w * w);
   const vis = S.vis;
-  if (oxi < 0 || oyi < 0 || oxi >= W || oyi >= Hp || R[oyi * W + oxi]) return false;
+  if (oxi < WX || oyi < WY || oxi >= X1 || oyi >= Y1 || R[oyi * W + oxi + OFF]) return false;
   // how far each ray goes before it strikes rock (the floor's edge is
   // rock), an art px at a time, but straight across a block
   // between four open tiles' middles, where there's no rock to find
@@ -78,7 +78,7 @@ function seeFrom(f, cx, cy, r, S, ey = 0, cone = null) {
     let s = 1;
     while (s <= rm) {
       const x = ox + dx * s, y = oy + dy * s;
-      if (x < 0 || y < 0 || x >= W || y >= Hp) break;
+      if (x < WX || y < WY || x >= X1 || y >= Y1) break;
       const bx = Math.floor((x - h2) / ATILE), by = Math.floor((y - h2) / ATILE);
       if (bx >= 0 && by >= 0 && ob[by * BW + bx]) {
         // to where the ray leaves the block
@@ -87,7 +87,7 @@ function seeFrom(f, cx, cy, r, S, ey = 0, cone = null) {
         s += e >= st ? Math.floor(e) : st;
         continue;
       }
-      if (R[(y | 0) * W + (x | 0)]) break;
+      if (R[(y | 0) * W + (x | 0) + OFF]) break;
       s += st;
     }
     depth[b] = s;
@@ -109,9 +109,9 @@ function seeFrom(f, cx, cy, r, S, ey = 0, cone = null) {
     vis.fill(0, 0, w * w);
   }
   for (let j = cj1; j >= cj0; j--) {
-    const py = (cy - ey - H + j) * LC + (LC >> 1), rowIn = py >= 0 && py < Hp, faces = j < oj + 1;
+    const py = (cy - ey - H + j) * LC + (LC >> 1), rowIn = py >= WY && py < Y1, faces = j < oj + 1;
     for (let i = ci0, k = j * w + ci0, px = (cx - H + ci0) * LC + (LC >> 1); i <= ci1; i++, k++, px += LC) {
-      const r = (rock[k] = !rowIn || px < 0 || px >= W ? 1 : RS[py * W + px] ? 1 : 0), bk = bin[k];
+      const r = (rock[k] = !rowIn || px < WX || px >= X1 ? 1 : RS[py * W + px + OFF] ? 1 : 0), bk = bin[k];
       if (bk < 0) { vis[k] = 0; continue; }
       if (dist[k] <= depth[bk] + reach) { vis[k] = 1; continue; }
       let v = 0;
@@ -171,7 +171,7 @@ function addLightSeen(L, x, y, r, i, c, S) {
 // very edge.
 const _lampCell = [0, 0];
 function lampGroundCell(d, x) {
-  const f = d.floor, R = View.rockPx, W = f.w * ATILE, open = (i, j) => { const x = i * LC + (LC >> 1), y = j * LC + (LC >> 1); return x >= 0 && y >= 0 && x < W && y < f.h * ATILE && !R[y * W + x]; };
+  const R = View.rockPx, WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, open = (i, j) => { const x = i * LC + (LC >> 1), y = j * LC + (LC >> 1); return x >= WX && y >= WY && x < X1 && y < Y1 && !R[y * W + x + OFF]; };
   let cx = Math.floor(x / LC), cy = Math.floor((d.p.y * AP) / LC);
   if (!open(cx, cy)) for (const [i, j] of [[0, -1], [-1, 0], [1, 0], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) if (open(cx + i, cy + j)) { cx += i; cy += j; break; }
   _lampCell[0] = cx; _lampCell[1] = cy;
@@ -182,6 +182,9 @@ function lampGroundCell(d, x) {
 // unchanged (a mined wall stops casting at once: View.lights is rebuilt
 // with the rock).
 const LampSight = { x0: 0, y0: 0, w: 0, vis: null, key: '', rock: null, lights: null, ok: false };
+// The window moved (paint.js pntWindowMove): what was seen from where is
+// seen again.
+function pntSightsForget() { LampSight.key = ''; BeamSight.key = ''; _bakedSights.map.clear(); }
 function lampSight(d, r) {
   const f = d.floor, Sh = T.light.shadow, R = View.rockPx, [cx, cy] = lampGroundCell(d, diverLampAt(d).x);
   // (the reach rounded up to whole steps, so the window is rebuilt rarely;
@@ -365,9 +368,9 @@ function bakedSightsFor(f) {
 }
 // One of the floor's lights, s (world px), into the bake map L.
 function addBakedLight(f, L, s) {
-  const x = s.x * AP, y = s.y * AP, r = s.r * AP, cx = Math.floor(x / LC), cy = Math.floor(y / LC), R = View.rockPx, W = f.w * ATILE;
+  const x = s.x * AP, y = s.y * AP, r = s.r * AP, cx = Math.floor(x / LC), cy = Math.floor(y / LC), R = View.rockPx, WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX;
   const px = cx * LC + (LC >> 1), py = cy * LC + (LC >> 1);
-  if (!T.light.shadow.baked || s.inRock || px < 0 || py < 0 || px >= W || py >= f.h * ATILE || R[py * W + px]) { addLight(L, x, y, r, s.i, s.c); return; }
+  if (!T.light.shadow.baked || s.inRock || px < WX || py < WY || px >= X1 || py >= Y1 || R[py * W + px + OFF]) { addLight(L, x, y, r, s.i, s.c); return; }
   const key = cx + ',' + cy + ',' + Math.ceil(r), M = _bakedSights.map;
   let e = M.get(key);
   if (!e) {
@@ -406,13 +409,13 @@ function drawLampShadows(d, ox, oy) { pshFrame(d, ox, oy); }
 function drawBeamAir(d, Bm, lv, ox, oy) {
   const A = T.light.beam.air, dark = clamp((0.95 - lv.amb) / 0.45, 0, 1) * Math.min(1, lv.lamp) * Bm.flick;
   if (dark <= 0.02 || !(Bm.r > 0)) return;
-  const f = d.floor, S = T.light.shadow.walls && !d.hub ? lampBeamSight(d, Bm) : null, R = View.rockPx, LF = View.rockLift || R, W = f.w * ATILE, Hp = f.h * ATILE;
+  const S = T.light.shadow.walls && !d.hub ? lampBeamSight(d, Bm) : null, R = View.rockPx, LF = View.rockLift || R, WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX;
   const t = Game.realT, cols = [DIVER_PAL.lamp[0], '#ffe2b0', '#ffc878'];
   // the ground point gx, gy seen from the beam's sight, and the view's
   // pixel x, y over it not rock
   const clear = (gx, gy, x, y) => {
     const xi = x | 0, yi = y | 0, gi = gx | 0, gj = gy | 0;
-    if (gi < 0 || gj < 0 || gi >= W || gj >= Hp || R[gj * W + gi] || xi < 0 || yi < 0 || xi >= W || yi >= Hp || LF[yi * W + xi]) return false;
+    if (gi < WX || gj < WY || gi >= X1 || gj >= Y1 || R[gj * W + gi + OFF] || xi < WX || yi < WY || xi >= X1 || yi >= Y1 || LF[yi * W + xi + OFF]) return false;
     if (!S) return true;
     const i = Math.floor(gx / LC) - S.x0, j = Math.floor(gy / LC) - S.y0;
     return i >= 0 && j >= 0 && i < S.w && j < S.w && S.vis[j * S.w + i] >= 1;

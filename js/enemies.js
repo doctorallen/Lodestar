@@ -200,9 +200,11 @@ function updateEnemies(dt) {
   const most = E.attackers + Math.floor(E.attackersPerDepth * d.depth + E.attackersPerBiome * d.biome);
   choosePressers(d);
   updateFoeWorld(d, dt);
-  const knockFade = Math.exp(-T.impact.knockDecay * dt);
+  const knockFade = Math.exp(-T.impact.knockDecay * dt), cull2 = (E.cull * TILE) * (E.cull * TILE);
   for (const e of d.enemies) {
     if (e.dead) continue;
+    // (one far off and unaware rests: a large world holds many)
+    if (!e.aggro && (e.x - p.x) * (e.x - p.x) + (e.y - p.y) * (e.y - p.y) > cull2) continue;
     e.flash = Math.max(0, e.flash - dt);
     e.slowT = Math.max(0, e.slowT - dt);
     // statuses wearing off (reactions.js), a shifting weakness (natures.js)
@@ -260,12 +262,11 @@ function updateEnemies(dt) {
     else updateCharger(d, e, pd, sp, dt, free);
     if (!was && ATTACKING.has(e.state)) attackers++;
   }
-  // keep them from stacking up on each other
-  const L = d.enemies;
+  // keep them from stacking up on each other (those near enough to matter)
+  const L = d.enemies.filter((e) => !e.dead && !e.hid && (e.x - p.x) * (e.x - p.x) + (e.y - p.y) * (e.y - p.y) <= cull2);
   for (let i = 0; i < L.length; i++)
     for (let j = i + 1; j < L.length; j++) {
       const a = L[i], b = L[j];
-      if (a.dead || b.dead || a.hid || b.hid) continue;
       const dx = b.x - a.x, dy = b.y - a.y, m = Math.hypot(dx, dy), min = a.r + b.r;
       if (m > 0.01 && m < min) {
         const push = (min - m) / 2;

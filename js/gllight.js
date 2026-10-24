@@ -34,7 +34,7 @@ uniform ivec2 uSize;
 uniform ivec2 uCellsSize;
 uniform int uLC;
 uniform ivec2 uP;
-uniform ivec2 uCam;
+uniform ivec2 uCam, uWin;
 uniform float uTop, uInv, uMx, uLo, uDz, uAmbI, uLpK;
 uniform int uFit, uSoft, uNoct, uUnl, uHueOn, uWeaveOn, uWeaveN, uTones;
 uniform vec3 uViolet;
@@ -98,11 +98,11 @@ void main() {
     vec3 f = min(l * (level / I) * tf, vec3(uMx));
     f = floor(f * 256.0 + 0.5) / 256.0;
     // the ground's own tone, taken back towards unlifted
-    if (uUnl == 1 && wx >= 0 && wy >= 0 && wx < uFloor.x && wy < uFloor.y) {
+    if (uUnl == 1 && wx >= uWin.x && wy >= uWin.y && wx < uWin.x + uFloor.x && wy < uWin.y + uFloor.y) {
       float ul = clamp((level - uAmbI) * uUlK, 0.0, 1.0);
       if (ul > 0.0) {
-        int t = int(texelFetch(uGT, ivec2(wx, wy), 0).r * 255.0 + 0.5);
-        int hu = uHueOn == 1 ? int(texelFetch(uHue, ivec2(wx, wy), 0).r * 255.0 + 0.5) : 0;
+        int t = int(texelFetch(uGT, ivec2(wx, wy) - uWin, 0).r * 255.0 + 0.5);
+        int hu = uHueOn == 1 ? int(texelFetch(uHue, ivec2(wx, wy) - uWin, 0).r * 255.0 + 0.5) : 0;
         vec3 a = texelFetch(uPal, ivec2(t, hu), 0).rgb;
         if (ivec3(p * 255.0 + 0.5) == ivec3(a * 255.0 + 0.5)) p = mix(p, texelFetch(uPal, ivec2(t, 3 + hu), 0).rgb, ul);
       }
@@ -136,7 +136,7 @@ function glLightInit() {
   if (!Gpu.on) return false;
   try {
     const gl = Gpu.gl;
-    const { p, u } = gpuProgram(gl, GPU_TRI_VS, GLIGHT_FS, ['uScene', 'uCells', 'uGT', 'uHue', 'uPal', 'uWeave', 'uSize', 'uCellsSize', 'uLC', 'uP', 'uCam', 'uTop', 'uInv', 'uMx', 'uLo', 'uDz', 'uAmbI', 'uLpK', 'uFit', 'uSoft', 'uNoct', 'uUnl', 'uHueOn', 'uWeaveOn', 'uWeaveN', 'uTones', 'uViolet', 'uDark', 'uNT', 'uNAmt', 'uNDark', 'uUlK', 'uFloor', 'uSfLen', 'uSfK']);
+    const { p, u } = gpuProgram(gl, GPU_TRI_VS, GLIGHT_FS, ['uScene', 'uCells', 'uGT', 'uHue', 'uPal', 'uWeave', 'uSize', 'uCellsSize', 'uLC', 'uP', 'uCam', 'uWin', 'uTop', 'uInv', 'uMx', 'uLo', 'uDz', 'uAmbI', 'uLpK', 'uFit', 'uSoft', 'uNoct', 'uUnl', 'uHueOn', 'uWeaveOn', 'uWeaveN', 'uTones', 'uViolet', 'uDark', 'uNT', 'uNAmt', 'uNDark', 'uUlK', 'uFloor', 'uSfLen', 'uSfK']);
     G.prog = p; G.u = u;
     gl.useProgram(p);
     // the textures, each on its own unit from 5 (0-4 are the quads')
@@ -234,7 +234,7 @@ function glLightScene(cx, cy) {
   const dark = clamp((Vi.darkAt[0] - ambI) / (Vi.darkAt[0] - Vi.darkAt[1]), 0, 1);
   const noct = Lab.on('nocturne'), Nc = Lt.nocturne, nDark = noct ? clamp((Nc.darkAt[0] - ambI) / (Nc.darkAt[0] - Nc.darkAt[1]), 0, 1) : 0;
   const fCap = Math.max(1, ambI), gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone;
-  const unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === gf.w * ATILE * gf.h * ATILE);
+  const unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === PWIN.w * PWIN.h);
   const u = G.u;
   gl.uniform2i(u.uSize, w, h); gl.uniform2i(u.uCellsSize, L.w, L.h);
   gl.uniform1i(u.uLC, LC); gl.uniform2i(u.uP, cx - LC * L.x0, cy - LC * L.y0); gl.uniform2i(u.uCam, cx, cy);
@@ -245,8 +245,9 @@ function glLightScene(cx, cy) {
   const soft = Lab.on('soft'), Sf = Lt.soft;
   gl.uniform1i(u.uSoft, soft ? 1 : 0); gl.uniform1f(u.uSfLen, Sf.len * AF); gl.uniform1f(u.uSfK, Sf.amt / 255);
   if (unl) {
-    const GL = pntLook(gLook), GU = pntLook(gLook, 0), gW = gf.w * ATILE, gH = gf.h * ATILE, HUE = GL.groundW ? View.groundHue : null;
+    const GL = pntLook(gLook), GU = pntLook(gLook, 0), gW = PWIN.w, gH = PWIN.h, HUE = GL.groundW ? View.groundHue : null;
     glLightGround(gl, G, GT, HUE, gW, gH);
+    gl.uniform2i(u.uWin, PWIN.x, PWIN.y);
     glLightPal(gl, G, GL, GU, GL.ground.length);
     gl.uniform1i(u.uUnl, 1); gl.uniform1i(u.uHueOn, HUE ? 1 : 0); gl.uniform2i(u.uFloor, gW, gH); gl.uniform1f(u.uUlK, 1 / Math.max(0.05, fCap - ambI)); gl.uniform1i(u.uTones, GL.ground.length);
   } else gl.uniform1i(u.uUnl, 0);

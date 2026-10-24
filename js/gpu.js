@@ -456,7 +456,7 @@ function gpuQuadsReady(q, n, target) {
   gpuBind(target === 'scene' ? G.scene.fb : target === 'lit' ? G.lit.fb : null);
   gl.viewport(0, 0, G.w, G.h);
   gl.useProgram(G.quad.p);
-  gl.uniform2f(G.quad.u.uViewF, G.w, G.h); gl.uniform2i(G.quad.u.uView, G.w, G.h); gl.uniform2i(G.quad.u.uCam, G.ox, G.oy); gl.uniform2i(G.quad.u.uFloorSize, G.floorW, G.floorH);
+  gl.uniform2f(G.quad.u.uViewF, G.w, G.h); gl.uniform2i(G.quad.u.uView, G.w, G.h); gl.uniform2i(G.quad.u.uCam, G.ox + PWIN.x, G.oy + PWIN.y); gl.uniform2i(G.quad.u.uFloorSize, G.floorW, G.floorH);
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D_ARRAY, G.atlasTex);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, G.floorCol);
   gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, G.floorEm);

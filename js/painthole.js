@@ -90,13 +90,13 @@ const phlClampT = (t, n) => { t = Math.round(t); return t < 0 ? 0 : t > n - 1 ? 
 // One pixel of the floor buffer, as a whole pixel (glow: also on the glow
 // layer).
 function phlPut(P, x, y, c, glow) {
-  const k = y * P.w + x, C = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em32 || (P.em32 = new Uint32Array(P.em.buffer));
+  const k = (y - P.oy) * P.w + x - P.ox, C = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em32 || (P.em32 = new Uint32Array(P.em.buffer));
   C[k] = c; E[k] = glow ? c : 0;
 }
 // The near rim, where the ground turns down into a hole whose inner wall
 // faces the light: its ground a few tones lighter, in its strokes.
 function phlNearLip(P, x, y, b, step) {
-  const GR = pntLook(b).ground, t = View.groundTone[y * P.w + x] + step;
+  const GR = pntLook(b).ground, t = View.groundTone[(y - P.oy) * P.w + x - P.ox] + step;
   phlPut(P, x, y, GR[t > GR.length - 1 ? GR.length - 1 : t]);
 }
 

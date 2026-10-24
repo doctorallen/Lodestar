@@ -22,7 +22,7 @@ function pnrRockGrowth(f, x0, y0, x1, y1) {
   if (!U || U.f !== f) return;
   const F = T.flora, Q = U.Q, S = F.sets[U.set] || F.sets.rim, strands = Q.strand && S.strands > 0 && !U.sky, lipG = U.sky && Q.lip;
   if (!Q.moss && !strands && !lipG && !roots) return;
-  const W = f.w * ATILE, Hp = f.h * ATILE, R = View.rockPx, H = View.rockH, LF = View.rockLift, C32 = View.rockBuf.col32, E = View.rockBuf.em;
+  const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, R = View.rockPx, H = View.rockH, LF = View.rockLift, C32 = View.rockBuf.col32, E = View.rockBuf.em;
   const seedH = (f.seed ^ f.depth) | 0, zone = T.paint.wall.ramp, maxH = pntMaxLift(), rw = x1 - x0, rh = y1 - y0;
   // (the growth's own colours lifted with the rock's mid tones, so they keep
   // their place against it in a dark place)
@@ -32,14 +32,14 @@ function pnrRockGrowth(f, x0, y0, x1, y1) {
   if (roots && _pnrFace.a.length < rw * rh) _pnrFace.a = new Uint8Array(rw * rh);
   const FM = _pnrFace.a;
   if (roots) FM.fill(0, 0, rw * rh);
-  const put = (x, y, c) => { const k = y * W + x; C32[k] = c; E[k * 4 + 3] = 0; };
+  const put = (x, y, c) => { const k = y * W + x + OFF; C32[k] = c; E[k * 4 + 3] = 0; };
   for (let x = x0; x < x1; x++) {
-    for (let ye = Math.min(Hp - 2, y1 + maxH + zone); ye >= Math.max(0, y0 - 1); ye--) {
-      const ke = ye * W + x;
+    for (let ye = Math.min(Y1 - 2, y1 + maxH + zone); ye >= Math.max(WY, y0 - 1); ye--) {
+      const ke = ye * W + x + OFF;
       if (!R[ke] || R[ke + W]) continue;
       // the face: its lip, the highest its zone's points are drawn
       let lip = ye - H[ke], top = ye;
-      for (let y = ye - 1; y >= Math.max(0, ye - zone) && R[y * W + x]; y--) { top = y; if (y - H[y * W + x] < lip) lip = y - H[y * W + x]; }
+      for (let y = ye - 1; y >= Math.max(WY, ye - zone) && R[y * W + x + OFF]; y--) { top = y; if (y - H[y * W + x + OFF] < lip) lip = y - H[y * W + x + OFF]; }
       const foot = ye, yf = ye + 1, len = foot - lip + 1;
       if (lip >= y1 || foot < y0) { ye = top; continue; }
       // what grows on it (as the undergrowth worked it out for the old lip,
@@ -50,7 +50,7 @@ function pnrRockGrowth(f, x0, y0, x1, y1) {
       const hm = bv > 0.05 ? Math.round(len * F.faceMoss * Math.min(1, bv * 2.5) * (0.6 + 0.4 * artNoise(x / AP, yf / AP, 3, seedH + 81))) : 0;
       const Ls = strands ? (ugStrandLen(x, yf, seedH, S.strands) * len) / FACE_H : 0;
       for (let y = Math.max(lip, y0); y <= Math.min(foot, y1 - 1); y++) {
-        const k = y * W + x, l = LF[k];
+        const k = y * W + x + OFF, l = LF[k];
         if (!l) continue;
         const sy = y + l - 1;
         if (sy > ye || sy < top) continue;
@@ -75,8 +75,8 @@ function pnrRockGrowth(f, x0, y0, x1, y1) {
   // than its lit edges, so walls still read as walls
   const rt = [lit(pntU32(rgbOf('#2a2016'))), lit(pntU32(rgbOf('#1c140e'))), lit(pntU32(rgbOf('#1a120c'))), lit(pntU32(rgbOf('#5a4430')))];
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-    const k = y * W + x, l = LF[k];
-    if (!l || !R[(y + l - 1) * W + x]) continue;
+    const k = y * W + x + OFF, l = LF[k];
+    if (!l || !R[(y + l - 1) * W + x + OFF]) continue;
     if (FM[(y - y0) * rw + x - x0]) { if (Math.abs(wallNoise((x / AP) * 1.8, (y / AP) * 0.3, 6)) < 0.09) put(x, y, rt[3]); continue; }
     const wx = x / AP, wy = (y + l - 1) / AP, a = Math.abs(wallNoise(wx * 0.7, wy * 1.4, 9));
     if (a < 0.07) put(x, y, rt[a < 0.035 ? 0 : 1]);
@@ -159,14 +159,14 @@ function pnrOccludeGround(ox, oy) {
     for (const sc of CFX.scars) { const L = Math.hypot(sc.x1 - sc.x0, sc.y1 - sc.y0); for (let s = 0; s <= L; s += 8) { const u = L ? s / L : 0; round(lerp(sc.x0, sc.x1, u), lerp(sc.y0, sc.y1, u), 5); } }
   }
   // each marked tile's rock laid back
-  const B = View.rockBlk, bw = Math.ceil((f.w * ATILE) / PNT_BLK), per = ATILE / PNT_BLK, ex = View.emCtx;
+  const B = View.rockBlk, bw = Math.ceil(PWIN.w / PNT_BLK), bh = Math.ceil(PWIN.h / PNT_BLK), per = ATILE / PNT_BLK, bx0 = PWIN.x / PNT_BLK, by0 = PWIN.y / PNT_BLK, ex = View.emCtx;
   let C = View.pnrTiles;
   if (!C) C = View.pnrTiles = new Map();
   for (const k of list) {
     M[k] = 0;
     const i = k % tw, j = (k - i) / tw;
     let any = false;
-    for (let by = j * per; by < j * per + per && !any; by++) for (let bx = i * per; bx < i * per + per; bx++) if (B[by * bw + bx]) { any = true; break; }
+    for (let by = j * per - by0; by < j * per + per - by0 && !any; by++) { if (by < 0 || by >= bh) continue; for (let bx = i * per - bx0; bx < i * per + per - bx0; bx++) if (bx >= 0 && bx < bw && B[by * bw + bx]) { any = true; break; } }
     if (!any) continue;
     let c = C.get(k);
     if (c === undefined) { c = pnrTilePics(f, i, j); C.set(k, c); }
@@ -182,10 +182,11 @@ function pnrOccludeGround(ox, oy) {
 // A tile's rock (every pixel of the rock layer in it), as pictures: its
 // colour, and its glow (null if none); null if the tile has no rock.
 function pnrTilePics(f, i, j) {
-  const W = f.w * ATILE, LF = View.rockLift, Q = View.rockBuf, src = Q.col32, se = Q.em32 || (Q.em32 = new Uint32Array(Q.em.buffer));
+  const W = PWIN.w, OFF = -PWIN.y * W - PWIN.x, LF = View.rockLift, Q = View.rockBuf, src = Q.col32, se = Q.em32 || (Q.em32 = new Uint32Array(Q.em.buffer));
+  if (j * ATILE < PWIN.y || (j + 1) * ATILE > PWIN.y + PWIN.h || i * ATILE < PWIN.x || (i + 1) * ATILE > PWIN.x + W) return null;
   const img = new ImageData(ATILE, ATILE), d32 = new Uint32Array(img.data.buffer), eimg = new ImageData(ATILE, ATILE), e32 = new Uint32Array(eimg.data.buffer);
   let n = 0, ne = 0;
-  for (let y = 0; y < ATILE; y++) for (let x = 0, k = (j * ATILE + y) * W + i * ATILE; x < ATILE; x++, k++) if (LF[k] && src[k]) { d32[y * ATILE + x] = src[k]; n++; if (se[k] >>> 24) { e32[y * ATILE + x] = se[k]; ne++; } }
+  for (let y = 0; y < ATILE; y++) for (let x = 0, k = (j * ATILE + y) * W + i * ATILE + OFF; x < ATILE; x++, k++) if (LF[k] && src[k]) { d32[y * ATILE + x] = src[k]; n++; if (se[k] >>> 24) { e32[y * ATILE + x] = se[k]; ne++; } }
   if (!n) return null;
   const [cv, cx] = makeCanvas(ATILE, ATILE);
   cx.putImageData(img, 0, 0);
@@ -201,15 +202,15 @@ function pnrTilePics(f, i, j) {
 function pnrLipAbove(x, y) {
   const P = View.floorBuf, R = View.rockPx, H = View.rockH;
   x = Math.round(x); y = Math.round(y);
-  if (!P || !R || !H || x < 0 || x >= P.w) return 0;
-  const W = P.w, zone = T.paint.wall.ramp;
+  if (!P || !R || !H || x < P.ox || x >= P.ox + P.w) return 0;
+  const W = P.w, OFF = -P.oy * W - P.ox, zone = T.paint.wall.ramp;
   // the footprint's south edge, at or just above the anchor
   let ye = -1;
-  for (let k = 0; k <= ap(4); k++) { const yy = y - k; if (yy >= 0 && yy < P.h && R[yy * W + x]) { ye = yy; break; } }
+  for (let k = 0; k <= ap(4); k++) { const yy = y - k; if (yy >= P.oy && yy < P.oy + P.h && R[yy * W + x + OFF]) { ye = yy; break; } }
   if (ye < 0) return 0;
   pntLiftAt(x, ye);
-  let lip = ye - H[ye * W + x];
-  for (let yy = ye - 1; yy >= Math.max(0, ye - zone) && R[yy * W + x]; yy--) lip = Math.min(lip, yy - H[yy * W + x]);
+  let lip = ye - H[ye * W + x + OFF];
+  for (let yy = ye - 1; yy >= Math.max(P.oy, ye - zone) && R[yy * W + x + OFF]; yy--) lip = Math.min(lip, yy - H[yy * W + x + OFF]);
   return Math.max(0, y - lip - 1);
 }
 

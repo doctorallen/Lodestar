@@ -53,20 +53,25 @@ function airHaze(d, ox, oy) {
 // (a few two px wide).
 function airMotes(d, ox, oy) {
   if (!Lab.on('air')) return;
-  const A = T.air.motes, f = d.floor, fw = f.w * ATILE, fh = f.h * ATILE, t = Game.realT;
-  const n = Math.round((fw * fh) / 10000 * A.per), col = airColour(d), x = View.ctx;
+  // (the motes lie over the floor in squares `per` px across, the same in
+  // each; only the squares under the view are drawn, so a large floor
+  // costs no more than a small one)
+  const A = T.air.motes, f = d.floor, per = Math.min(Math.max(f.w, f.h) * ATILE, 1024), t = Game.realT;
+  const n = Math.round((per * per) / 10000 * A.per), col = airColour(d), x = View.ctx;
   x.fillStyle = col;
   x.globalAlpha = A.alpha;
-  const w = View.w, h = View.h;
+  const w = View.w, h = View.h, kx0 = Math.floor(-ox / per), kx1 = Math.floor((-ox + w) / per), ky0 = Math.floor(-oy / per), ky1 = Math.floor((-oy + h) / per);
   for (let i = 0; i < n; i++) {
     const h1 = artHash(i, 1, 0x41), h2 = artHash(i, 2, 0x41), h3 = artHash(i, 3, 0x41), h4 = artHash(i, 4, 0x41);
     const sp = A.speed[0] + (A.speed[1] - A.speed[0]) * h3;
-    let wx = (h1 * fw + Math.sin(t * 0.8 + i) * A.sway + t * sp * 0.3) % fw, wy = (h2 * fh - t * sp) % fh;
-    if (wx < 0) wx += fw;
-    if (wy < 0) wy += fh;
-    const sx = Math.round(wx) + ox, sy = Math.round(wy) + oy;
-    if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
-    x.fillRect(sx, sy, h4 < A.wide ? 2 : 1, 1);
+    let wx = (h1 * per + Math.sin(t * 0.8 + i) * A.sway + t * sp * 0.3) % per, wy = (h2 * per - t * sp) % per;
+    if (wx < 0) wx += per;
+    if (wy < 0) wy += per;
+    for (let ky = ky0; ky <= ky1; ky++) for (let kx = kx0; kx <= kx1; kx++) {
+      const sx = Math.round(wx + kx * per) + ox, sy = Math.round(wy + ky * per) + oy;
+      if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
+      x.fillRect(sx, sy, h4 < A.wide ? 2 : 1, 1);
+    }
   }
   x.globalAlpha = 1;
 }

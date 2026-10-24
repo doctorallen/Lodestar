@@ -542,27 +542,34 @@ function placeUndergrowth(f, set, o = {}) {
   }
   for (const s of fronts) strips.push(s);
   if (strips.length) {
-    const AW = 1024;
-    let cx = 0, cy = 0, rowH = 0;
+    // (in pages no taller than a GPU texture may be: a large floor has
+    // thousands of stands)
+    const AW = 1024, AHmax = 2048, pages = [];
+    let cx = 0, cy = 0, rowH = 0, pg = 0;
     for (const s of strips) {
       if (cx + s.w > AW) { cx = 0; cy += rowH; rowH = 0; }
-      s.sx = cx; s.sy = cy; cx += s.w; rowH = Math.max(rowH, s.h);
+      if (cy + s.h > AHmax) { pages.push(cy + rowH); pg++; cx = 0; cy = 0; rowH = 0; }
+      s.sx = cx; s.sy = cy; s.pg = pg; cx += s.w; rowH = Math.max(rowH, s.h);
     }
-    const AH = cy + rowH, px = new Uint32Array(AW * AH);
+    pages.push(cy + rowH);
+    U.atlases = pages.map((AH) => {
+      const px = new Uint32Array(AW * AH);
+      return { px, AH };
+    });
     for (const s of strips) {
+      const px = U.atlases[s.pg].px;
       for (const o of s.blades) {
         const st = o.st, dx = s.sx + o.x - s.x0, dy = s.sy + o.y - s.y0;
         for (let j = 0; j < st.h; j++) for (let i = 0; i < st.w; i++) { const v = st.px[j * st.w + i]; if (v) px[(dy + j) * AW + dx + i] = v; }
       }
     }
-    const [c, cx2] = makeCanvas(AW, AH);
-    cx2.putImageData(new ImageData(new Uint8ClampedArray(px.buffer), AW, AH), 0, 0);
-    U.atlas = c;
+    U.atlases = U.atlases.map(({ px, AH }) => { const [c, cx2] = makeCanvas(AW, AH); cx2.putImageData(new ImageData(new Uint8ClampedArray(px.buffer), AW, AH), 0, 0); return c; });
+    U.atlas = U.atlases[0];
     for (const s of strips) if (s.owner) {
       const o = s.owner;
-      o.front = { sx: s.sx, sy: s.sy, w: s.w, h: s.h, x0: s.x0, y0: s.y0 };
+      o.front = { sx: s.sx, sy: s.sy, pg: s.pg, w: s.w, h: s.h, x0: s.x0, y0: s.y0 };
       o.bx0 = Math.min(o.bx0, s.x0); o.bx1 = Math.max(o.bx1, s.x0 + s.w); o.by1 = Math.max(o.by1, s.y0 + s.h);
-    } else items.push({ strip: true, ug: U, sx: s.sx, sy: s.sy, w: s.w, h: s.h, bx0: s.x0, by0: s.y0, bx1: s.x0 + s.w, by1: s.y0 + s.h, x: (s.x0 + s.w / 2) / AP, y: s.y, hgt: s.h, phase: rng.f(), amp: 0, stir: 0, stirDir: 1 });
+    } else items.push({ strip: true, ug: U, sx: s.sx, sy: s.sy, pg: s.pg, w: s.w, h: s.h, bx0: s.x0, by0: s.y0, bx1: s.x0 + s.w, by1: s.y0 + s.h, x: (s.x0 + s.w / 2) / AP, y: s.y, hgt: s.h, phase: rng.f(), amp: 0, stir: 0, stirDir: 1 });
   }
   // the tiles a bed of a stand or a wall's foot can reach
   for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
@@ -630,7 +637,7 @@ function paintUndergrowth(P, f, tx, ty, ox, oy, b) {
 function ugPaintTile(P, f, tx, ty, ox, oy, b) {
   const U = View.ug;
   if (!U || U.f !== f) return;
-  const F = T.flora, R = View.rockPx, W = P.w, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em, Q = U.Q, i = ty * f.w + tx;
+  const F = T.flora, R = View.rockPx, W = P.w, OFF = -P.oy * W - P.ox, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em, Q = U.Q, i = ty * f.w + tx;
   const grid = U.gridNear[i] && !U.orig[i], beds = (U.beds[i] || grid) && !U.orig[i] ? U.beds[i] || UG_NONE : null, shadows = U.shadows[i] && !U.orig[i] ? U.shadows[i] : null, stamps = U.stamps[i];
   const seedH = (f.seed ^ f.depth) | 0, S = F.sets[U.set] || F.sets.rim;
   // which of the tile's pixels are a hazard's, where there's one near
@@ -653,7 +660,7 @@ function ugPaintTile(P, f, tx, ty, ox, oy, b) {
     for (let x = ox; x < ox + ATILE; x++) {
       let yfC = -1, lipN = 0, hm = 0, L = 0;
       for (let y = oy; y < oy + ATILE; y++) {
-        const k = y * W + x;
+        const k = y * W + x + OFF;
         if (!R[k]) continue;
         const below = BL[(y - oy) * ATILE + x - ox];
         if (!below) continue;
@@ -703,7 +710,7 @@ function ugPaintTile(P, f, tx, ty, ox, oy, b) {
       const bd = nb > 0 || gOn;
       if (!bd && !ns) continue;
       for (let x = ox; x < ox + ATILE; x++) {
-        const k = y * W + x;
+        const k = y * W + x + OFF;
         if (R[k] || (hz && _ugHaz[(y - oy) * ATILE + x - ox])) continue;
         // (the edge follows the ground's own clumps: the cave painter's
         // texture for this tile, -1 to 1)
@@ -744,8 +751,8 @@ function ugPaintTile(P, f, tx, ty, ox, oy, b) {
   if (hang && !Q.icicle)
     for (let x = ox; x < ox + ATILE; x++) {
       let since = 99;
-      for (let y = Math.max(1, oy - 3); y < oy + ATILE; y++) {
-        const k = y * W + x;
+      for (let y = Math.max(P.oy + 1, oy - 3); y < oy + ATILE; y++) {
+        const k = y * W + x + OFF;
         if (R[k]) { since = 0; continue; }
         if (++since > F.strands.past || y < oy) continue;
         if (since === 1 && !ugStrandLen(x, y, seedH, S.strands)) { since = 99; continue; }
@@ -760,7 +767,7 @@ function ugPaintTile(P, f, tx, ty, ox, oy, b) {
         for (let x = x0; x < x1; x++) {
           const v = st.px[(y - s.y) * st.w + x - s.x];
           if (!v || (hz && _ugHaz[(y - oy) * ATILE + x - ox])) continue;
-          const k = y * W + x;
+          const k = y * W + x + OFF;
           C32[k] = v; E[k * 4 + 3] = 0;
         }
     }
@@ -862,13 +869,13 @@ function ugGlows(spr) {
 // their height has it of the plant's lean.
 function drawFootFront(it, ox, oy) {
   const U = it.ug || View.ug, s = it.front;
-  if (!U || !U.atlas) return;
-  drawLeaning(U.atlas, null, s.sx, s.sy, s.w, s.h, s.x0 + ox, s.y0 + oy, (it.amp || 0) * Math.min(1, s.h / Math.max(1, it.hgt)) * 2, false, it.over !== false);
+  if (!U || !U.atlases) return;
+  drawLeaning(U.atlases[s.pg || 0], null, s.sx, s.sy, s.w, s.h, s.x0 + ox, s.y0 + oy, (it.amp || 0) * Math.min(1, s.h / Math.max(1, it.hgt)) * 2, false, it.over !== false);
 }
 
 // A stand's row of stems.
 function drawStandRow(it, ox, oy) {
   const U = it.ug || View.ug;
-  if (!U || !U.atlas) return;
-  drawLeaning(U.atlas, null, it.sx, it.sy, it.w, it.h, it.bx0 + ox, it.by0 + oy, it.amp, false, it.over);
+  if (!U || !U.atlases) return;
+  drawLeaning(U.atlases[it.pg || 0], null, it.sx, it.sy, it.w, it.h, it.bx0 + ox, it.by0 + oy, it.amp, false, it.over);
 }

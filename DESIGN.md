@@ -23,7 +23,7 @@ One continuous map, generated once a save from the seed and kept; the save holds
 
 The star stands in the open at the middle, its heart hanging large over the ground as the Hollow Star's did, and the ground round it is lit from the start: the first node is the star.
 
-Painting a map this size is done in chunks round the view (32 × 32 tiles, cached, evicted), not as one buffer. This is the biggest technical piece of the prune.
+Painting a map this size is done in a window of the floor that moves with the view (64 tiles square, 48 at fine grain; `paint.js PWIN`), not as one buffer: the buffers hold the window, the overlap is copied along when it moves, and the strip exposed is painted in chunks as the view comes to it.
 
 ## The light
 
@@ -165,7 +165,7 @@ The renderer and the painted style, the GPU frame, lighting and bloom, fine grai
 
 Pruning in place: main is unplayable until the first step lands.
 
-1. **The ground.** One large map, chunked painting, the star in the open, one bar, movement, dash and a two-spell fight with placeholder spells; everything cut is deleted. Playable: walk out, fight, go dim, come back.
+1. **The ground** (done 2026-10-24). One large map, painted in a window, the star in the open, one bar, movement, dash and a two-spell fight with placeholder spells; everything cut is deleted. Playable: walk out, fight, go dim, come back.
 2. **The veins.** The thread, planting, the hold, the set, veins lighting, the map screen with travel, the save of nodes and veins, terraforming along veins, the core and falling.
 3. **The star.** Shapes from creatures and the world, the two readings, the star's screen, magnitude and its thresholds, cutting on return, mending, the Hollow at a cut.
 4. **The dark and the words.** Creatures retuned to tells and windows, elites, Keepers at the old nodes, Wick's lines, the onboarding, the opening's home scene, the ending; the smoke test and the bot rewritten round the trip.

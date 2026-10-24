@@ -191,15 +191,17 @@ function rgbOf(hex) {
   return v;
 }
 
+// (ox, oy: where the buffer's top-left lies on the floor, for the floor's
+// own buffers: paint.js PWIN)
 function pixBuf(w, h) {
-  return { w, h, col: new Uint8ClampedArray(w * h * 4), em: new Uint8ClampedArray(w * h * 4) };
+  return { w, h, ox: 0, oy: 0, col: new Uint8ClampedArray(w * h * 4), em: new Uint8ClampedArray(w * h * 4) };
 }
 
 // Sets one pixel. glow: it's emissive too. alpha: blend over what's there
 // (and leave the emissive layer alone unless it glows).
 function putPx(P, x, y, hex, glow, alpha) {
-  if (x < 0 || y < 0 || x >= P.w || y >= P.h) return;
-  const k = (y * P.w + x) * 4, [r, g, b] = rgbOf(hex), c = P.col, e = P.em;
+  if (x < P.ox || y < P.oy || x >= P.ox + P.w || y >= P.oy + P.h) return;
+  const k = ((y - P.oy) * P.w + x - P.ox) * 4, [r, g, b] = rgbOf(hex), c = P.col, e = P.em;
   if (alpha === undefined) {
     c[k] = r; c[k + 1] = g; c[k + 2] = b; c[k + 3] = 255;
     if (glow) { e[k] = r; e[k + 1] = g; e[k + 2] = b; e[k + 3] = 255; } else e[k + 3] = 0;
@@ -612,13 +614,14 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
   const A = T.art, paving = !!b.paving, cut = sun ? A.sunGround.cut : A.cluster.cut, dz = A.groundDither, gs = A.cluster.grain * A.px;
   // where the tile and all it looks at lie inside the floor, the field is
   // read in place; else the rock round it is read once into a mask
-  const inside = field && ox - CAVE_L >= 0 && oy - CAVE_U >= 0 && ox + ATILE + 1 <= P.w && oy + ATILE + FACE_H <= P.h;
-  const M = inside ? field : _caveMask, W = inside ? P.w : CAVE_MW, base = inside ? 0 : CAVE_U * W + CAVE_L - oy * W - ox;
+  const POFF = -P.oy * P.w - P.ox;
+  const inside = field && ox - CAVE_L >= P.ox && oy - CAVE_U >= P.oy && ox + ATILE + 1 <= P.ox + P.w && oy + ATILE + FACE_H <= P.oy + P.h;
+  const M = inside ? field : _caveMask, W = inside ? P.w : CAVE_MW, base = inside ? POFF : CAVE_U * W + CAVE_L - oy * W - ox;
   const SH = CAVE_SHADE, sunAt = CAVE_SUN.map(([x, y]) => -y * W - x), sunN = sunAt.length - 1;
   if (!inside)
     for (let j = 0; j < CAVE_MH; j++) {
       const y = oy - CAVE_U + j, x0 = ox - CAVE_L;
-      if (field && y >= 0 && y < P.h && x0 >= 0 && x0 + W <= P.w) for (let i = 0, k = y * P.w + x0; i < W; i++) M[j * W + i] = field[k + i];
+      if (field && y >= P.oy && y < P.oy + P.h && x0 >= P.ox && x0 + W <= P.ox + P.w) for (let i = 0, k = y * P.w + x0 + POFF; i < W; i++) M[j * W + i] = field[k + i];
       else for (let i = 0; i < W; i++) M[j * W + i] = rock(x0 + i, y) ? 1 : 0;
     }
   const gRow = _caveRows[0], rRow = _caveRows[1], rCut = A.rockCut, BL = _caveBelow;
@@ -644,7 +647,7 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
       const m = base + y * W + x;
       let c;
       if (!M[m]) {
-        let t = tone[y * P.w + x];
+        let t = tone[y * P.w + x + POFF];
         if (paving) {
           // flagstones: dark seams, each row of stones set off from the
           // last, each stone a little lighter or darker than its neighbours,
@@ -654,10 +657,10 @@ function paintCaveTile(P, rock, ox, oy, b, rnd, seedH, field) {
           else if (gy === 1 || gx === 1) t = Math.min(6, t + 1);
           else t = clamp(t + Math.round((artHash((sx / FLAG_W) | 0, row, seedH) - 0.5) * 2.4), 0, 6);
         }
-        const hu = HUE ? HUE[y * P.w + x] : 0;
+        const hu = HUE ? HUE[y * P.w + x + POFF] : 0;
         c = hu === 1 ? GW[t] : hu === 2 ? GC[t] : GR[t];
       } else c = r[0];
-      const k = y * P.w + x;
+      const k = y * P.w + x + POFF;
       C32[k] = c; E[k * 4 + 3] = 0;
     }
   }

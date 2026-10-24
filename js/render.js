@@ -212,15 +212,15 @@ function floraLights(list) {
 // tile centres that are all rock or all open there's no line to find, so
 // only the blocks it crosses ask rockAt pixel by pixel.
 function fillRockField(f, x0, y0, x1, y1) {
-  const W = f.w * ATILE, R = View.rockPx, H = ATILE / 2, at = (v) => (v + 0.5) / AP - 0.5;
-  x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(f.h * ATILE, y1);
+  const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, R = View.rockPx, H = ATILE / 2, at = (v) => (v + 0.5) / AP - 0.5;
+  x0 = Math.max(WX, x0); y0 = Math.max(WY, y0); x1 = Math.min(X1, x1); y1 = Math.min(Y1, y1);
   const solid = (i, j) => (TILE_SOLID[floorTile(f, i, j)] ? 1 : 0);
   for (let ty = Math.floor((y0 - H) / ATILE); ty * ATILE + H < y1; ty++)
     for (let tx = Math.floor((x0 - H) / ATILE); tx * ATILE + H < x1; tx++) {
       const bx0 = Math.max(x0, tx * ATILE + H), bx1 = Math.min(x1, tx * ATILE + H + ATILE), by0 = Math.max(y0, ty * ATILE + H), by1 = Math.min(y1, ty * ATILE + H + ATILE);
       const a = solid(tx, ty);
-      if (a === solid(tx + 1, ty) && a === solid(tx, ty + 1) && a === solid(tx + 1, ty + 1)) { for (let y = by0; y < by1; y++) R.fill(a, y * W + bx0, y * W + bx1); continue; }
-      for (let y = by0; y < by1; y++) { const wy = at(y); for (let x = bx0; x < bx1; x++) R[y * W + x] = rockAt(f, at(x), wy) ? 1 : 0; }
+      if (a === solid(tx + 1, ty) && a === solid(tx, ty + 1) && a === solid(tx + 1, ty + 1)) { for (let y = by0; y < by1; y++) R.fill(a, y * W + bx0 + OFF, y * W + bx1 + OFF); continue; }
+      for (let y = by0; y < by1; y++) { const wy = at(y); for (let x = bx0; x < bx1; x++) R[y * W + x + OFF] = rockAt(f, at(x), wy) ? 1 : 0; }
     }
 }
 
@@ -230,12 +230,17 @@ function paintFloor(f) { for (const step of paintFloorSteps(f)) step(); }
 // Arriving somewhere, they're taken while the portal's iris is still shut
 // (render), so no one frame does it all.
 function paintFloorSteps(f) {
-  const P = pixBuf(f.w * ATILE, f.h * ATILE), n = 3, strip = Math.ceil(P.h / n);
+  // the window of the floor that's painted (paint.js PWIN), round the
+  // Kindler if he's on it
+  const d = Game.dive, on = d && d.floor === f;
+  pntWindowFor(f, on ? d.p.x * AP - View.w / 2 : undefined, on ? d.p.y * AP - View.h / 2 : undefined);
+  const P = pixBuf(PWIN.w, PWIN.h), n = 3, strip = Math.ceil(P.h / n);
+  P.ox = PWIN.x; P.oy = PWIN.y;
   artLatticeFor(P.w, P.h);
   View.floorFor = f; View.floorBuf = P;
   View.rockPx = new Uint8Array(P.w * P.h);
   const steps = [];
-  for (let k = 0; k < n; k++) steps.push(() => fillRockField(f, 0, k * strip, P.w, (k + 1) * strip));
+  for (let k = 0; k < n; k++) steps.push(() => fillRockField(f, PWIN.x, PWIN.y + k * strip, PWIN.x + P.w, PWIN.y + (k + 1) * strip));
   // what grows here first: its beds are painted with the tiles
   steps.push(() => { View.ugMeld = null; View.flora = placeFlora(f, floraSetOf(f)); });
   // the ground and the rock standing up over it are painted in chunks as
@@ -260,10 +265,10 @@ function tileRnd() {
 }
 
 function paintTileArt(f, tx, ty) {
-  const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, b = artBiome(f), t = floorTile(f, tx, ty), ox = tx * ATILE, oy = ty * ATILE;
+  const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, OFF = -P.oy * W - P.ox, b = artBiome(f), t = floorTile(f, tx, ty), ox = tx * ATILE, oy = ty * ATILE;
   _tileSeed = hashInts(f.seed, f.depth, tx, ty) | 0;
   const rnd = tileRnd;
-  const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
+  const rock = (x, y) => x < P.ox || y < P.oy || x >= P.ox + W || y >= P.oy + H || R[y * W + x + OFF] === 1;
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
   if (f.clime || f.meldPainting >= 0) paintClimeTile(P, f, tx, ty, ox, oy, b);
   // (the star's starstone and green round it: terraform.js)
@@ -557,13 +562,16 @@ function addBeamLight(L, x, y0, y1, r, i, c) {
 // they change.
 function bakeFloorLights(f) {
   View.bakedFrom = View.lights;
-  const w = Math.ceil((f.w * ATILE) / LC), h = Math.ceil((f.h * ATILE) / LC);
-  if (!View.bake || View.bake.w !== w || View.bake.h !== h) View.bake = { a: new Float32Array(w * h * 3), w, h, x0: 0, y0: 0 };
-  else View.bake.a.fill(0);
+  // (over the painted window of the floor, paint.js PWIN: a light whose
+  // reach is all outside it is left out)
+  const w = Math.ceil(PWIN.w / LC), h = Math.ceil(PWIN.h / LC), x0 = Math.floor(PWIN.x / LC), y0 = Math.floor(PWIN.y / LC);
+  if (!View.bake || View.bake.w !== w || View.bake.h !== h) View.bake = { a: new Float32Array(w * h * 3), w, h, x0, y0 };
+  else { View.bake.a.fill(0); View.bake.x0 = x0; View.bake.y0 = y0; }
+  const inWin = (s) => { const x = s.x * AP, y = s.y * AP, r = s.r * AP; return x + r >= PWIN.x && x - r <= PWIN.x + PWIN.w && y + r >= PWIN.y && y - r <= PWIN.y + PWIN.h; };
   // (each stopped by the rock: shadow.js)
   bakedSightsFor(f);
-  for (const s of View.lights) addBakedLight(f, View.bake, s);
-  for (const s of View.floraLights) addBakedLight(f, View.bake, s);
+  for (const s of View.lights) if (inWin(s)) addBakedLight(f, View.bake, s);
+  for (const s of View.floraLights) if (inWin(s)) addBakedLight(f, View.bake, s);
 }
 
 // Starts the view's light for a frame: ambient (r, g, b), plus what's
@@ -577,10 +585,10 @@ function startLight(cx, cy, r, g, b) {
   const I = Math.max(r, g, b), k = I > 0 ? Math.max(1, Math.round(I)) / I : 0;
   r *= k; g *= k; b *= k;
   for (let j = 0; j < L.h; j++) {
-    const by = j + L.y0, row = B && by >= 0 && by < B.h;
+    const by = j + L.y0 - (B ? B.y0 : 0), row = B && by >= 0 && by < B.h;
     let o = j * L.w * 3;
     for (let n = 0; n < L.w; n++, o += 3) {
-      const bx = n + L.x0;
+      const bx = n + L.x0 - (B ? B.x0 : 0);
       if (row && bx >= 0 && bx < B.w) { const k = (by * B.w + bx) * 3; a[o] = r + B.a[k]; a[o + 1] = g + B.a[k + 1]; a[o + 2] = b + B.a[k + 2]; }
       else { a[o] = r; a[o + 1] = g; a[o + 2] = b; }
     }
@@ -634,8 +642,8 @@ function lightScene(cx, cy) {
   // step, 256ths), so a lamp shows the ground no busier than the sun does.
   // Only the ground's own pixels, nothing drawn over it: each matched
   // against its tone in the painted ramp (GL), and given the unlifted (GU).
-  const fCap = Math.max(1, ambI), gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone, unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === gf.w * ATILE * gf.h * ATILE);
-  const GL = unl ? pntLook(gLook) : null, GU = unl ? pntLook(gLook, 0) : null, gHue = unl && GL.groundW ? View.groundHue : null, gW = unl ? gf.w * ATILE : 0, gH = unl ? gf.h * ATILE : 0, UL = new Int32Array(top + 2);
+  const fCap = Math.max(1, ambI), gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone, unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === PWIN.w * PWIN.h);
+  const GL = unl ? pntLook(gLook) : null, GU = unl ? pntLook(gLook, 0) : null, gHue = unl && GL.groundW ? View.groundHue : null, gW = unl ? PWIN.w : 0, gH = unl ? PWIN.h : 0, gX = PWIN.x, gY = PWIN.y, UL = new Int32Array(top + 2);
   for (let q = 0; q <= top + 1; q++) {
     const level = q * inv, lp = clamp((level - ambI) * lpK, 0, 1);
     UL[q] = unl ? Math.round(clamp((level - ambI) / Math.max(0.05, fCap - ambI), 0, 1) * 256) : 0;
@@ -704,7 +712,7 @@ function lightScene(cx, cy) {
         const j = col[x], th = soft ? 32768 + (((Math.imul(Math.floor((x + cx + sfPh) / sfLen), 0x85ebca6b) ^ Math.imul(wy, 0xc2b2ae35)) >>> 24) - 127.5) * sfK : bt[(x + cx) & 3];
         const hi = th + GXO[x] >= CFr[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, ul = CF[j + 9 + hi];
         let p = d32[k];
-        if (ul) p = lightUnlift(p, ul, x + cx, wy, gW, gH, GT, gHue, GL, GU);
+        if (ul) p = lightUnlift(p, ul, x + cx - gX, wy - gY, gW, gH, GT, gHue, GL, GU);
         let r = ((p & 255) * CF[sel] + 128) >> 8, g = (((p >> 8) & 255) * CF[sel + 1] + 128) >> 8, b = (((p >> 16) & 255) * CF[sel + 2] + 128) >> 8;
         // nocturne: the colour going, towards a cool grey of its lightness
         const nd = CF[j + 7 + hi];
@@ -721,7 +729,7 @@ function lightScene(cx, cy) {
       // threshold reaches it: its r, g, b in one 32-bit word
       const j = col[x], hi = bt[(x + cx) & 3] >= CF[j] ? 1 : 0, sel = hi ? j + 4 : j + 1, ul = CF[j + 9 + hi];
       let p = d32[k];
-      if (ul) p = lightUnlift(p, ul, x + cx, y + cy, gW, gH, GT, gHue, GL, GU);
+      if (ul) p = lightUnlift(p, ul, x + cx - gX, y + cy - gY, gW, gH, GT, gHue, GL, GU);
       let r = ((p & 255) * CF[sel] + 128) >> 8, g = (((p >> 8) & 255) * CF[sel + 1] + 128) >> 8, b = (((p >> 16) & 255) * CF[sel + 2] + 128) >> 8;
       const nd = CF[j + 7 + hi];
       if (nd) { const l = (r * 77 + g * 151 + b * 28) >> 8; r += (((l * NT[0]) >> 8) - r) * nd >> 8; g += (((l * NT[1]) >> 8) - g) * nd >> 8; b += (((l * NT[2]) >> 8) - b) * nd >> 8; }
@@ -934,8 +942,8 @@ function renderFrameDraw() {
   Gpu.ox = ox; Gpu.oy = oy;
   const tick = Math.floor(Game.realT * 8);
   ex.clearRect(0, 0, View.w, View.h);
-  x.drawImage(View.floorCol, ox, oy);
-  ex.drawImage(View.floorEm, ox, oy);
+  x.drawImage(View.floorCol, ox + PWIN.x, oy + PWIN.y);
+  ex.drawImage(View.floorEm, ox + PWIN.x, oy + PWIN.y);
   // the shadows big things cast from the lamp, on the ground (shadow.js)
   drawLampShadows(d, ox, oy);
   // a haze over dark land (air.js; the paint lab's AIR)
@@ -988,7 +996,9 @@ function renderFrameDraw() {
   // what lies on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) { Gpu.feet = Math.round(dr.y * AP) + oy; drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8 * AF, Math.round(dr.y * AP) + oy - 16 * AF, 16 * AF, 18 * AF, Math.round(dr.y * AP) + oy, ox, oy); }
   const props = lifeActors(d).concat(starProps(d));
-  const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
+  // (creatures far off the view are left out of the frame)
+  const ax0 = (-ox - 80 * AF) / AP, ax1 = (-ox + View.w + 80 * AF) / AP, ay0 = (-oy - 120 * AF) / AP, ay1 = (-oy + View.h + 60 * AF) / AP;
+  const actors = d.enemies.filter((e) => !e.dead && e.x > ax0 && e.x < ax1 && e.y > ay0 && e.y < ay1).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   Gpu.feet = -2;
   for (const a of actors) {
     // (the rock in front of it goes back over it: here by its feet, or on the GPU as it's drawn)

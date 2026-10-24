@@ -55,6 +55,9 @@ function generateWorld(seed) {
   const W = T.worldgen;
   const f = generateFloor(hashInts(seed, 0x5742) >>> 0, W.depth, 0, 0, 'surface', 0, W.clime, W.over);
   f.ways = []; f.portal = null; f.pad = null;
+  // the star stands in the cavern nearest the middle of the world
+  const mid = f.rooms.slice().sort((a, b) => Math.hypot(a.cx - f.w / 2, a.cy - f.h / 2) - Math.hypot(b.cx - f.w / 2, b.cy - f.h / 2))[0];
+  f.entry = { x: mid.cx, y: mid.cy };
   placeStar(f, f.entry.x, f.entry.y);
   return f;
 }

@@ -1,6 +1,6 @@
 # Lodestar
 
-A top-down pixel-art game for the phone browser, upright or sideways. A seed-star has been brought to a dead world, and you are the Kindler woken to carry its light out: one dark map, the star at the middle of it, and you fighting what lives in the dark with the light draining as you go. The game is being rebuilt round the Veins (`DESIGN.md`): laying lines of the star's light outward by walking, planting nodes that must be defended while they set, and the star's growth being your own. What's here now is the ground of that: the star, the one bar, the fight, the dark.
+A top-down pixel-art game for the phone browser, upright or sideways. A seed-star has been brought to a dead world, and you are the Kindler woken to carry its light out: one dark map, the star at the middle of it, and you fighting what lives in the dark with the light draining as you go. The game is being rebuilt round the Veins (`DESIGN.md`): laying lines of the star's light outward by walking, planting nodes that must be defended while they set, and the star's growth being your own. What's here now is the ground of that: one large map, the star at the middle of it, the one bar, the fight, the dark.
 
 `DESIGN.md` is the design; `DECISIONS.md` says why things are the way they are.
 
@@ -42,7 +42,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/sndbank.js` | The fight's sounds and the footsteps, layered and rendered ahead into a few variants each with an OfflineAudioContext |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, icons, cave painting |
-| `js/paint.js` | The painted style (docs/PAINTED.md): stroke ramps and strokes, the ground's tones, the rock rising as a heightfield from a steep three-quarter camera, occlusion, lazy painting in chunks, and the painted sprite builder |
+| `js/paint.js` | The painted style (docs/PAINTED.md): stroke ramps and strokes, the ground's tones, the rock rising as a heightfield from a steep three-quarter camera, occlusion, lazy painting in chunks within a window of the floor that moves with the view (`PWIN`), and the painted sprite builder |
 | `js/paintrock.js`, `js/painthole.js`, `js/pflora.js` | The rock's growth and tint, pools and the wading cut, the painted plants |
 | `js/flora.js`, `js/undergrowth.js` | Each biome's flora, and how it grows into a place |
 | `js/climes.js`, `js/hazards.js` | Climes: each one's palette, flora, critters and weather; each clime's hazard at play |
