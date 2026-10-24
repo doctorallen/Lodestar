@@ -1074,6 +1074,14 @@ function pntPaintChunk(f, i, j) {
 // { x, y, r } outside which nothing is painted.
 // The chunks over floor px x0..x1, y0..y1 to be painted again (the ground
 // there has changed: a vein lit), as the view comes to them.
+// Whether the chunk holding floor px (x, y) is painted (so a mark made on
+// the ground there must be painted now, not when the chunk is).
+function pntPainted(f, x, y) {
+  const S = View.pnt;
+  if (!S || S.f !== f) return false;
+  const i = Math.floor((x - PWIN.x) / PNT_CH), j = Math.floor((y - PWIN.y) / PNT_CH);
+  return i >= 0 && j >= 0 && i < S.nx && j < S.ny && !!S.done[j * S.nx + i];
+}
 function pntInvalidate(f, x0, y0, x1, y1) {
   const S = View.pnt;
   if (!S || S.f !== f) return;

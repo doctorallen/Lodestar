@@ -274,6 +274,8 @@ function paintTileArt(f, tx, ty) {
   // (the star's starstone and green round it: terraform.js)
   terraPaintGround(P, f, tx, ty, ox, oy);
   paintUndergrowth(P, f, tx, ty, ox, oy, b);
+  // (the veins' lines, pressed into the ground: veins.js)
+  veinsPaintTile(P, f, tx, ty, ox, oy);
   // (ore and veins are on the rock layer: paint.js)
   if (t === TILE_PAD) paintDish(P, ox, oy);
   // (a shaft to the Deep, or the daylight down it: deep.js)

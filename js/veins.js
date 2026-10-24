@@ -216,6 +216,8 @@ function threadUpdate(d, dt) {
   if (m >= Vn.step) {
     th.len += m;
     th.pts.push([p.x, p.y, d.layer | 0]);
+    // (pressed into the ground behind him)
+    veinsLayThread(d, th.pts[th.pts.length - 2], th.pts[th.pts.length - 1]);
     if (th.len > th.max) threadSnap(d, 'The thread ran out: it let go');
   }
   if ((th.waveT -= dt) <= 0) { th.waveT = Vn.wave; stirTheDark(d, Vn.waveN); }
@@ -223,8 +225,12 @@ function threadUpdate(d, dt) {
 // The thread lost: a fall, its length run out, a hold that failed.
 function threadSnap(d, why) {
   if (!d.thread) return;
-  const [x, y] = d.thread.pts[d.thread.pts.length - 1];
+  const pts = d.thread.pts, [x, y] = pts[pts.length - 1];
   d.thread = null;
+  // (its marks on the ground go with it)
+  d.vSig = (d.vSig || 0) + 1;
+  const box = veinBox(pts, d.layer | 0);
+  if (box && View.floorFor === d.floor) pntInvalidate(d.floor, box.x0 * ATILE, box.y0 * ATILE, box.x1 * ATILE, box.y1 * ATILE);
   spawnSparks(x, y - 6, [ART.pal.star[2], '#ffffff'], 10);
   if (why) UI.toast(why);
   snd('channelBreak');
@@ -413,34 +419,109 @@ function drawNode(d, a, ox, oy, lights) {
     lights.push({ x: fx, y: fy - ap(6), r: TILE * (1.5 + k * 2) * (0.4 + 0.6 * lk), i: (0.5 + k) * lk, c: rgb01(col) });
   }
 }
-// Under everyone: the set veins' lines on the ground, and the thread in hand.
-function drawVeinsUnder(d, ox, oy, lights) {
-  const V = veinsState(), live = d.vLive, G = ART.pal.star, t = Game.realT, LY = d.layer | 0;
-  const vx0 = -ox - 40, vx1 = -ox + View.w + 40, vy0 = -oy - 40, vy1 = -oy + View.h + 40;
-  const line = (pts, lit, alpha, moving) => {
-    for (let i = 1; i < pts.length; i++) {
-      if (!veinSegOn(pts, i, LY)) continue;
-      const [ax, ay] = pts[i - 1], [bx, by] = pts[i], x0 = ax * AP + ox, y0 = ay * AP + oy, x1 = bx * AP + ox, y1 = by * AP + oy;
-      if (Math.max(x0, x1) < vx0 || Math.min(x0, x1) > vx1 || Math.max(y0, y1) < vy0 || Math.min(y0, y1) > vy1) continue;
-      const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.round(L / AF)), nx = -(y1 - y0) / L, ny = (x1 - x0) / L;
-      for (let k = 0; k < n; k++) {
-        const u = k / n, gap = artHash(Math.floor((i * 97 + k - (moving ? t * 14 : 0)) / 4), i, 0x10de);
-        if (gap < (lit ? 0.18 : 0.5)) continue;
-        const side = Math.sin((i * 7 + k) * 0.25) * 1.5 * AF, px = x0 + (x1 - x0) * u + nx * side, py = y0 + (y1 - y0) * u + ny * side;
-        const col = lit ? (gap > 0.82 ? G[5] : gap > 0.5 ? G[4] : G[3]) : G[1];
-        dot(Math.round(px), Math.round(py), col, lit, alpha);
-        // (two px wide, so it reads from the camera's height)
-        if (lit) dot(Math.round(px + nx), Math.round(py + ny), gap > 0.5 ? G[3] : G[2], true, alpha * 0.8);
-      }
-    }
+// ---------------------------------------------------------------------------
+// The veins' lines, pressed into the ground: painted into the floor with
+// its tiles (render.js paintTileArt, veinsPaintTile), a living vein a
+// seam of the star's gold, lit, a dark one dim stone, the thread in hand a
+// faint seam that the set lights. veinsIndex buckets this layer's segments
+// by tile, so a tile's painter finds its own; the thread's new segments
+// go in as they're walked (veinsLayThread), painted at once where the
+// ground is already painted.
+// ---------------------------------------------------------------------------
+const VEIN_THREAD = 0, VEIN_LIVE = 1, VEIN_DARK = 2;
+function veinsIndex(d) {
+  const f = d.floor, L = d.layer | 0;
+  if (d.vIdx && d.vIdxSig === d.vSig && d.vIdxLayer === L && d.vIdxFloor === f) return d.vIdx;
+  const V = veinsState(), live = d.vLive || veinsLiving(V), M = (d.vIdx = new Map());
+  d.vIdxSig = d.vSig; d.vIdxLayer = L; d.vIdxFloor = f;
+  for (const v of V.veins) { const kind = veinLiving(live, v) ? VEIN_LIVE : VEIN_DARK; for (let i = 1; i < v.pts.length; i++) if (veinSegOn(v.pts, i, L)) veinsIndexAdd(f, M, v.pts[i - 1], v.pts[i], kind, i); }
+  if (d.thread) for (let i = 1; i < d.thread.pts.length; i++) if (veinSegOn(d.thread.pts, i, L)) veinsIndexAdd(f, M, d.thread.pts[i - 1], d.thread.pts[i], VEIN_THREAD, i);
+  return M;
+}
+// A segment (world px) into every tile its line (and a pixel either side) touches.
+function veinsIndexAdd(f, M, a, b, kind, n) {
+  const seg = { ax: a[0] * AP, ay: a[1] * AP, bx: b[0] * AP, by: b[1] * AP, kind, n };
+  const pad = 3, x0 = Math.floor((Math.min(seg.ax, seg.bx) - pad) / ATILE), x1 = Math.floor((Math.max(seg.ax, seg.bx) + pad) / ATILE), y0 = Math.floor((Math.min(seg.ay, seg.by) - pad) / ATILE), y1 = Math.floor((Math.max(seg.ay, seg.by) + pad) / ATILE);
+  for (let ty = Math.max(0, y0); ty <= Math.min(f.h - 1, y1); ty++) for (let tx = Math.max(0, x0); tx <= Math.min(f.w - 1, x1); tx++) { const k = ty * f.w + tx; let l = M.get(k); if (!l) M.set(k, (l = [])); l.push(seg); }
+  return seg;
+}
+// A tile's share of the lines (render.js paintTileArt).
+function veinsPaintTile(P, f, tx, ty, ox, oy) {
+  const d = Game.dive;
+  if (!d || d.floor !== f || !d.litG) return;
+  const segs = veinsIndex(d).get(ty * f.w + tx);
+  if (!segs) return;
+  for (const sg of segs) veinsPaintSeg(P, f, sg, ox, oy, ox + ATILE, oy + ATILE);
+}
+// One segment's pixels within the box x0..x1, y0..y1 (art px): a seam two
+// px wide along the line, in the star's gold (lit) or dim stone, broken
+// here and there as a stroke is, with the ground pressed dark along its
+// lower right edge.
+function veinsPaintSeg(P, f, sg, x0, y0, x1, y1) {
+  const R = View.rockPx, W = P.w, OFF = -P.oy * W - P.ox, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em, G = ART.pal.star;
+  const L = Math.hypot(sg.bx - sg.ax, sg.by - sg.ay);
+  if (L < 0.5) return;
+  const n = Math.ceil(L), nx = -(sg.by - sg.ay) / L, ny = (sg.bx - sg.ax) / L, kind = sg.kind;
+  const core = kind === VEIN_LIVE ? [pntU32(rgbOf(G[2])), pntU32(rgbOf(G[3])), pntU32(rgbOf(G[1]))] : kind === VEIN_THREAD ? [pntU32(rgbOf(G[1])), pntU32(rgbOf(G[2])), pntU32(rgbOf('#5a4420'))] : [pntU32(rgbOf('#6a5a3a')), pntU32(rgbOf('#7a6a44')), pntU32(rgbOf('#4a3e2a'))];
+  const glow = kind === VEIN_LIVE ? rgbOf(G[2]) : kind === VEIN_THREAD ? rgbOf(G[1]) : null, ga = kind === VEIN_LIVE ? 230 : 110;
+  const soot = [0, 0, 0];
+  const put = (x, y, c, g) => {
+    if (x < x0 || y < y0 || x >= x1 || y >= y1 || x < P.ox || y < P.oy || x >= P.ox + W || y >= P.oy + P.h) return;
+    const k = y * W + x + OFF;
+    if (R[k]) return;
+    C32[k] = c;
+    if (g) { E[k * 4] = g[0]; E[k * 4 + 1] = g[1]; E[k * 4 + 2] = g[2]; E[k * 4 + 3] = ga; }
   };
-  for (const v of V.veins) line(v.pts, veinLiving(live, v), v.cut ? 0.35 : 0.85, false);
-  const th = d.thread;
-  if (th) {
-    const pts = th.pts.concat([[d.p.x, d.p.y, LY]]);
-    line(pts, true, 0.95, true);
-    const [lx, ly] = pts[pts.length - 2];
-    lights.push({ x: Math.round(d.p.x * AP) + ox, y: Math.round(d.p.y * AP) + oy, r: TILE * 1.4, i: 0.5, c: rgb01(G[2]) });
-    lights.push({ x: Math.round(lx * AP) + ox, y: Math.round(ly * AP) + oy, r: TILE, i: 0.3, c: rgb01(G[2]) });
+  const press = (x, y) => {
+    if (x < x0 || y < y0 || x >= x1 || y >= y1 || x < P.ox || y < P.oy || x >= P.ox + W || y >= P.oy + P.h) return;
+    const k = y * W + x + OFF;
+    if (R[k]) return;
+    C32[k] = ugMix(C32[k], soot, 0.45);
+  };
+  for (let k = 0; k <= n; k++) {
+    const u = k / n, px = sg.ax + (sg.bx - sg.ax) * u, py = sg.ay + (sg.by - sg.ay) * u;
+    const h = artHash(Math.floor((sg.n * 97 + k) / 3), sg.n, 0x10de), side = Math.sin((sg.n * 7 + k) * 0.25) * 0.8;
+    const x = Math.round(px + nx * side), y = Math.round(py + ny * side);
+    // the pressed edge, then the seam over it
+    press(x + 1, y + 1); press(x + 1 + Math.round(nx), y + 1 + Math.round(ny));
+    if (h < 0.12) continue;
+    put(x, y, core[h > 0.8 ? 1 : 0], glow);
+    put(x + Math.round(nx), y + Math.round(ny), core[h > 0.5 ? 0 : 2], glow);
   }
+}
+// A segment of the thread just walked: into the index, and onto the ground
+// where it's painted already (the rock laid back over it).
+function veinsLayThread(d, a, b) {
+  const f = d.floor, L = d.layer | 0;
+  if ((a[2] | 0) !== L || (b[2] | 0) !== L) return;
+  const M = veinsIndex(d), seg = veinsIndexAdd(f, M, a, b, VEIN_THREAD, d.thread.pts.length - 1);
+  if (View.floorFor !== f) return;
+  const x0 = Math.floor(Math.min(seg.ax, seg.bx)) - 3, y0 = Math.floor(Math.min(seg.ay, seg.by)) - 3, x1 = Math.ceil(Math.max(seg.ax, seg.bx)) + 4, y1 = Math.ceil(Math.max(seg.ay, seg.by)) + 4;
+  if (!pntPainted(f, x0, y0) || !pntPainted(f, x1, y1)) return;
+  veinsPaintSeg(View.floorBuf, f, seg, x0, y0, x1, y1);
+  pntComposite(f, x0, y0, x1, y1);
+}
+// Under everyone: what moves on the lines, which are in the ground: along
+// the thread in hand, motes of the star's light running back to its
+// start, and its light at his heel.
+function drawVeinsUnder(d, ox, oy, lights) {
+  const G = ART.pal.star, t = Game.realT, LY = d.layer | 0, th = d.thread;
+  if (!th) return;
+  const pts = th.pts.concat([[d.p.x, d.p.y, LY]]);
+  let run = 0;
+  for (let i = 1; i < pts.length; i++) {
+    if (!veinSegOn(pts, i, LY)) continue;
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i], L = Math.hypot(bx - ax, by - ay);
+    // a mote every 28 px along the whole thread, drifting back along it
+    for (let m = Math.ceil((run - ((t * 22) % 28)) / 28) * 28 + ((t * 22) % 28); m < run + L; m += 28) {
+      if (m < run) continue;
+      const u = (m - run) / L, x = Math.round((ax + (bx - ax) * u) * AP) + ox, y = Math.round((ay + (by - ay) * u) * AP) + oy;
+      if (x < -4 || y < -4 || x > View.w + 4 || y > View.h + 4) continue;
+      dot(x, y, G[3], true, 0.9); dot(x - 1, y, G[2], true, 0.6); dot(x + 1, y, G[2], true, 0.6);
+    }
+    run += L;
+  }
+  const [lx, ly] = pts[pts.length - 2];
+  lights.push({ x: Math.round(d.p.x * AP) + ox, y: Math.round(d.p.y * AP) + oy, r: TILE * 1.4, i: 0.5, c: rgb01(G[2]) });
+  lights.push({ x: Math.round(lx * AP) + ox, y: Math.round(ly * AP) + oy, r: TILE, i: 0.3, c: rgb01(G[2]) });
 }
