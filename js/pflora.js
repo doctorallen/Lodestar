@@ -419,7 +419,7 @@ function pflCoverKit(set, look, pal) {
 // tile, over whatever is behind it. Seeded by the tile.
 // ---------------------------------------------------------------------------
 function pflOreTile(f, tx, ty, on, x0, y0, x1, y1) {
-  const W = PWIN.w, OFF = -PWIN.y * W - PWIN.x, H = View.rockH, LF = View.rockLift, Q = View.rockBuf, b = artBiome(f), O = T.paint.ore;
+  const W = PWIN.w, OFF = -PWIN.y * W - PWIN.x, H = View.rockH, LF = View.rockLift, Q = View.rockBuf, b = climeLookAt(f, tx, ty), O = T.paint.ore;
   const ore = ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id], r = ore.map(rgbOf), seed = hashInts(f.seed, f.depth, tx, ty, 0x0e5) | 0;
   const rnd = (k) => artHash(k, 41, seed), soot = rgbOf(b.rock[0]), white = [255, 255, 255];
   const put = (x, y, c, glow, fy) => { if (on(x, y)) pntPut(Q, LF, W, x, y, c, glow, fy); };

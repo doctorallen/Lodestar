@@ -242,7 +242,7 @@ function paintFloorSteps(f) {
   const steps = [];
   for (let k = 0; k < n; k++) steps.push(() => fillRockField(f, PWIN.x, PWIN.y + k * strip, PWIN.x + P.w, PWIN.y + (k + 1) * strip));
   // what grows here first: its beds are painted with the tiles
-  steps.push(() => { View.ugMeld = null; View.flora = placeFlora(f, floraSetOf(f)); });
+  steps.push(() => { View.ugMeld = null; View.flora = f.regions ? placeRegionFlora(f) : placeFlora(f, floraSetOf(f)); });
   // the ground and the rock standing up over it are painted in chunks as
   // the view comes near them (paint.js, pntFrame)
   steps.push(() => {
@@ -265,12 +265,12 @@ function tileRnd() {
 }
 
 function paintTileArt(f, tx, ty) {
-  const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, OFF = -P.oy * W - P.ox, b = artBiome(f), t = floorTile(f, tx, ty), ox = tx * ATILE, oy = ty * ATILE;
+  const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, OFF = -P.oy * W - P.ox, b = climeLookAt(f, tx, ty), t = floorTile(f, tx, ty), ox = tx * ATILE, oy = ty * ATILE;
   _tileSeed = hashInts(f.seed, f.depth, tx, ty) | 0;
   const rnd = tileRnd;
   const rock = (x, y) => x < P.ox || y < P.oy || x >= P.ox + W || y >= P.oy + H || R[y * W + x + OFF] === 1;
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
-  if (f.clime || f.meldPainting >= 0) paintClimeTile(P, f, tx, ty, ox, oy, b);
+  if (f.clime || f.regions || f.meldPainting >= 0) paintClimeTile(P, f, tx, ty, ox, oy, b);
   // (the star's starstone and green round it: terraform.js)
   terraPaintGround(P, f, tx, ty, ox, oy);
   paintUndergrowth(P, f, tx, ty, ox, oy, b);
@@ -315,7 +315,7 @@ function floorLights(f) {
     for (let tx = 0; tx < f.w; tx++)
       // (where the rock stands it up to, unshadowed: it glows from the rock)
       if (floorTile(f, tx, ty) === TILE_ORE) L.push({ x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE - pntLiftAt((tx + 0.5) * ATILE, (ty + 0.5) * ATILE) / AP, r: Lt.ore[0] * TILE, i: Lt.ore[1], c: rgb01(ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][2]), inRock: true });
-  return f.clime ? L.concat(hazardLights(f), climeLights(f)) : L;
+  return f.clime || f.regions ? L.concat(hazardLights(f), climeLights(f)) : L;
 }
 
 // ---------------------------------------------------------------------------
@@ -869,11 +869,12 @@ function bloomSceneWorld(cx, cy) {
 
 // The light of the place and of the diver's lamp this frame: the ambient
 // level (amb) and its tint, a clime's own sun or dark if it has one
-// (T.climes); and the lamp's strength (lamp, 0-1), reach (r, art px) and
-// light (i).
-function lampLevels(d, sunAt) {
+// (T.climes, by where he stands); and the lamp's strength (lamp, 0-1),
+// reach (r, art px) and light (i). plain: the layer's own light, with no
+// clime's (what the floor is painted for).
+function lampLevels(d, sunAt, plain) {
   const f = d.floor, Lt = T.light;
-  const cl = climeLight(f), zl0 = T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
+  const cl = plain ? null : f.regions ? climeLightAt(f, Math.floor(d.p.x / TILE), Math.floor(d.p.y / TILE)) : climeLight(f), zl0 = T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
   // under the sky, the sun (sunOf: daylight in kindled land, a dim dusk in
   // the dark, darker still at the Edge; at home, as the star has grown)
   const sun = sunAt !== undefined ? sunAt : sunOf(d);

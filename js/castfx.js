@@ -333,7 +333,7 @@ function cfxSweep(x, y, r0, r1, col, t, follow, dust, inward) {
   CFX.rings.push({ kind: 'sweep', x: follow ? 0 : x, y: follow ? 0 : y, r0, r1, col, t, max: t, f: !!follow });
   if (!follow) CFX.waves.push({ x, y, r0, r1, t, max: t });
   if (!dust || !d) return;
-  const cx = follow ? p.x : x, cy = follow ? p.y : y, f = d.floor, ground = artBiome(f), dc = [mix(ground.floor[2], '#ffffff', 0.18), ground.floor[1]];
+  const cx = follow ? p.x : x, cy = follow ? p.y : y, f = d.floor, ground = climeLookAtPx(f, cx, cy), dc = [mix(ground.floor[2], '#ffffff', 0.18), ground.floor[1]];
   for (let k = 0; k < dust; k++) {
     const a = FX_R.f(Math.PI * 2), s = FX_R.f(40, 90) * (r1 / 40 + 0.4) * (inward ? -1 : 1), r = inward ? r1 * FX_R.f(0.7, 1) : FX_R.f(2, 6);
     const q = cfxPart(CFX_DUST, cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.6, Math.cos(a) * s, Math.sin(a) * s * 0.6, FX_R.f(0.3, 0.5), dc[k % 2]);

@@ -74,8 +74,6 @@ function spawnEnemies(d) {
   const types = ['crawler', 'wisp', 'construct', 'snapjaw', 'spitter'].filter((t) => !E[t].minDepth || d.depth >= E[t].minDepth);
   const zoneWeight = (T.zones[d.zone] && T.zones[d.zone].enemies) || {};
   const eliteChance = Math.min(E.eliteMax, E.eliteBase + E.eliteDepth * d.depth);
-  // the clime's own creature takes a share of each room
-  const sig = foeOfClime(d.clime);
   // the warden takes a side room: not the entry, a portal's or the lodeline's
   let bossRoom = null;
   const zoneDef = T.zones[d.zone] || {};
@@ -110,6 +108,8 @@ function spawnEnemies(d) {
       continue;
     }
     const sure = level >= (E.eliteSureFrom || 1) && (r === eliteRoom || (ri++ % eliteStep === eliteStep - 1));
+    // the room's clime (regions.js), whose own creature takes a share of it
+    const clime = f.regions ? climeAt(f, r.cx, r.cy) : d.clime, sig = foeOfClime(clime);
     const n = Math.max(sure ? 1 : 0, clamp(Math.round(E.perRoom + E.perDepth * d.depth + E.perBiome * d.biome) + rng.i(-1, 1), 0, E.maxPerRoom));
     for (let k = 0; k < n; k++) {
       // (a signature that needs what the room hasn't got, its water, is
@@ -118,6 +118,7 @@ function spawnEnemies(d) {
       const type = at ? sig : k === 0 && melee.length ? pick(melee) : k === 1 && ranged.length ? pick(ranged) : pick(types);
       const elite = (k === 0 && sure) || rng.chance(eliteChance) ? rollEliteAffix(rng, type) : null;
       const e = makeEnemy(type, 0, 0, level, elite);
+      e.clime = clime;
       if (k === 0 && sure) e.sure = true;
       if (at) { e.x = at.x; e.y = at.y; }
       // on clear ground, not half in a wall

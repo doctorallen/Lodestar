@@ -112,7 +112,7 @@ function phlWadeOf(d, a) {
   const f = d.floor;
   if (!f.haz || d.hub || a.piece || a.strip || a.crit || a.hubDraw || a.tear || a.portal || a.wprop) return 0;
   if (a !== d.p && (a.type === undefined || !hazardWalker(a))) return 0;
-  const k = hazardAt(f, a.x, a.y), want = k ? phlDepth(f.hazKind) : 0;
+  const k = hazardAt(f, a.x, a.y), want = k ? phlDepth(HAZ_KINDS[k]) : 0;
   a._wade = a._wade === undefined ? want : a._wade + (want - a._wade) * T.paint.hole.wadeEase;
   if (Math.abs(a._wade - want) < 0.3) a._wade = want;
   return a._wade;
@@ -121,13 +121,13 @@ let _phlWading = null;
 function phlWadeStart(d, a, ox, oy) {
   const s = phlWadeOf(d, a);
   if (!(s >= 0.5)) return false;
-  const f = d.floor, H = T.paint.hole, D = phlDepth(f.hazKind), dy = Math.round(s), fx = Math.round(a.x * AP), fy0 = Math.round(a.y * AP);
-  const ice = f.hazKind === 'slick', cut = ice ? 0 : Math.round(H.wade * s / D);
+  const f = d.floor, H = T.paint.hole, kind = HAZ_KINDS[hazardAt(f, a.x, a.y)] || f.hazKind, D = phlDepth(kind), dy = Math.round(s), fx = Math.round(a.x * AP), fy0 = Math.round(a.y * AP);
+  const ice = kind === 'slick', cut = ice ? 0 : Math.round(H.wade * s / D);
   // the near rim south of the feet (art px of the floor), as far as it hides
   let rim = fy0 + D + 1;
   for (let y = fy0; y <= fy0 + D; y++) if (!hazardAt(f, (fx + 0.5) / AP, (y + 0.5) / AP)) { rim = y; break; }
   const wl = fy0 + dy - cut, clipY = Math.min(wl, rim) + oy;
-  const w = { x: fx + ox, y: wl + oy, r: Math.max(5, (a.r || T.player.radius) * AP * 1.15), kind: f.hazKind, b: artBiome(f), show: !ice && wl < rim, moving: Math.abs(a.vx || 0) + Math.abs(a.vy || 0) > 5 || (a === d.p && (d.p.walkT || 0) > 0) };
+  const w = { x: fx + ox, y: wl + oy, r: Math.max(5, (a.r || T.player.radius) * AP * 1.15), kind, b: climeLookAtPx(f, a.x, a.y), show: !ice && wl < rim, moving: Math.abs(a.vx || 0) + Math.abs(a.vy || 0) > 5 || (a === d.p && (d.p.walkT || 0) > 0) };
   if (w.show) phlWadeRing(w, -1);
   for (const c of [View.ctx, View.emCtx]) {
     c.save();

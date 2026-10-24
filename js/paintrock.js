@@ -18,9 +18,20 @@
 // a pixel of the layer belongs to it if it shows one of those points.
 const _pnrFace = { a: new Uint8Array(0) };
 function pnrRockGrowth(f, x0, y0, x1, y1) {
-  const U = View.ug, b = artBiome(f), roots = b.rockDecor === 'roots';
-  if (!U || U.f !== f) return;
-  const F = T.flora, Q = U.Q, S = F.sets[U.set] || F.sets.rim, strands = Q.strand && S.strands > 0 && !U.sky, lipG = U.sky && Q.lip;
+  // (a set of undergrowth a region, regions.js; roots where a clime's rock
+  // is woven of them)
+  const all = ugAll(f), roots = f.regions ? f.regions.some((r) => climeBaseLook(f, r.clime).rockDecor === 'roots') : artBiome(f).rockDecor === 'roots';
+  if (!all.length && !roots) return;
+  const rw = x1 - x0, rh = y1 - y0;
+  if (roots && _pnrFace.a.length < rw * rh) _pnrFace.a = new Uint8Array(rw * rh);
+  if (roots) _pnrFace.a.fill(0, 0, rw * rh);
+  for (let k = 0; k < all.length; k++) pnrFaceGrowth(f, all[k], x0, y0, x1, y1, roots && k === 0);
+  if (roots) pnrRoots(f, x0, y0, x1, y1);
+}
+// What one set grows on the faces in the area; mark: the faces' pixels
+// into _pnrFace for the roots.
+function pnrFaceGrowth(f, U, x0, y0, x1, y1, mark) {
+  const F = T.flora, Q = U.Q, S = F.sets[U.set] || F.sets.rim, strands = Q.strand && S.strands > 0 && !U.sky, lipG = U.sky && Q.lip, roots = mark;
   if (!Q.moss && !strands && !lipG && !roots) return;
   const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, R = View.rockPx, H = View.rockH, LF = View.rockLift, C32 = View.rockBuf.col32, E = View.rockBuf.em;
   const seedH = (f.seed ^ f.depth) | 0, zone = T.paint.wall.ramp, maxH = pntMaxLift(), rw = x1 - x0, rh = y1 - y0;
@@ -28,10 +39,8 @@ function pnrRockGrowth(f, x0, y0, x1, y1) {
   // their place against it in a dark place)
   const lift = View.pntLift || 0, L = T.paint.rampEven.liftRock, mul = 1 + lift * L[0] * Math.pow(0.5, L[1]);
   const lit = (c) => (mul === 1 ? c : pnrScale(c, mul));
-  // which pixels of the area are a face's, for the roots
-  if (roots && _pnrFace.a.length < rw * rh) _pnrFace.a = new Uint8Array(rw * rh);
+  // (which pixels of the area are a face's, for the roots)
   const FM = _pnrFace.a;
-  if (roots) FM.fill(0, 0, rw * rh);
   const put = (x, y, c) => { const k = y * W + x + OFF; C32[k] = c; E[k * 4 + 3] = 0; };
   for (let x = x0; x < x1; x++) {
     for (let ye = Math.min(Y1 - 2, y1 + maxH + zone); ye >= Math.max(WY, y0 - 1); ye--) {
@@ -69,14 +78,21 @@ function pnrRockGrowth(f, x0, y0, x1, y1) {
       ye = top;
     }
   }
-  if (!roots) return;
-  // Rootdeep: strands wandering over the rock's top (following its
-  // surface) and down its faces, lighter than the rock's darks and darker
-  // than its lit edges, so walls still read as walls
+}
+// Rootdeep: strands wandering over the rock's top (following its
+// surface) and down its faces, lighter than the rock's darks and darker
+// than its lit edges, so walls still read as walls. Only where the tile's
+// clime has them (regions.js), by the surface point a pixel shows.
+function pnrRoots(f, x0, y0, x1, y1) {
+  const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, OFF = -WY * W - WX, R = View.rockPx, LF = View.rockLift, C32 = View.rockBuf.col32, E = View.rockBuf.em, rw = x1 - x0, FM = _pnrFace.a;
+  const lift = View.pntLift || 0, L = T.paint.rampEven.liftRock, mul = 1 + lift * L[0] * Math.pow(0.5, L[1]);
+  const lit = (c) => (mul === 1 ? c : pnrScale(c, mul));
+  const put = (x, y, c) => { const k = y * W + x + OFF; C32[k] = c; E[k * 4 + 3] = 0; };
+  const here = f.regions ? (x, sy) => climeLookAtArt(f, x, sy).rockDecor === 'roots' : () => true;
   const rt = [lit(pntU32(rgbOf('#2a2016'))), lit(pntU32(rgbOf('#1c140e'))), lit(pntU32(rgbOf('#1a120c'))), lit(pntU32(rgbOf('#5a4430')))];
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
     const k = y * W + x + OFF, l = LF[k];
-    if (!l || !R[(y + l - 1) * W + x + OFF]) continue;
+    if (!l || !R[(y + l - 1) * W + x + OFF] || !here(x, y + l - 1)) continue;
     if (FM[(y - y0) * rw + x - x0]) { if (Math.abs(wallNoise((x / AP) * 1.8, (y / AP) * 0.3, 6)) < 0.09) put(x, y, rt[3]); continue; }
     const wx = x / AP, wy = (y + l - 1) / AP, a = Math.abs(wallNoise(wx * 0.7, wy * 1.4, 9));
     if (a < 0.07) put(x, y, rt[a < 0.035 ? 0 : 1]);
@@ -135,7 +151,7 @@ function pnrOccludeGround(ox, oy) {
   };
   const round = (x, y, r) => mark(x - r, y - r, x + r, y + r);
   // a hazard's bubbles and glints (and a spark lifting off), its ripples
-  if (f.haz && f.hazKind) for (let j = Math.max(0, vy0); j <= Math.min(th - 1, vy1); j++) for (let i = Math.max(0, vx0); i <= Math.min(tw - 1, vx1); i++) if (f.haz[j * tw + i]) mark(i * TILE, j * TILE - 10, i * TILE + TILE - 1, j * TILE + TILE + 9);
+  if (f.haz) for (let j = Math.max(0, vy0); j <= Math.min(th - 1, vy1); j++) for (let i = Math.max(0, vx0); i <= Math.min(tw - 1, vx1); i++) if (f.haz[j * tw + i]) mark(i * TILE, j * TILE - 10, i * TILE + TILE - 1, j * TILE + TILE + 9);
   if (typeof HazRipples !== 'undefined') for (const q of HazRipples) round(q.x, q.y, 16);
   // foes' marks on the ground
   for (const s2 of d.snares || []) mark(Math.min(s2.x0, s2.x1) - 3, Math.min(s2.y0, s2.y1) - 3, Math.max(s2.x0, s2.x1) + 3, Math.max(s2.y0, s2.y1) + 3);

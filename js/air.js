@@ -15,7 +15,7 @@ const Air = { haze: null, hazeKey: '', vig: null, vigKey: '' };
 // The clime's mote colour: its glow; the star's gold at home.
 function airColour(d) {
   if (d.hub) return ART.pal.star[2];
-  const b = artBiome(d.floor);
+  const b = climeLookAtPx(d.floor, d.p.x, d.p.y);
   return (b && b.glow) || '#e0e0ff';
 }
 
@@ -25,7 +25,7 @@ function airHaze(d, ox, oy) {
   if (!Lab.on('air') || d.hub) return;
   const A = T.air.haze, dark = View.darkHere || 0;
   if (dark < 0.05) return;
-  const b = artBiome(d.floor), tone = pntLook(b).groundRgb, c = tone[tone.length - 1];
+  const b = climeLookAtPx(d.floor, d.p.x, d.p.y), tone = pntLook(b).groundRgb, c = tone[tone.length - 1];
   const key = c.join(',');
   if (!Air.haze || Air.hazeKey !== key) {
     // a tile of broad noise in the tone, drawn smoothly at A.scale art px

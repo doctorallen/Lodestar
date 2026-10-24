@@ -143,7 +143,7 @@ function pntRockUnder(rock, ground) {
 function pntLiftAmb(f) {
   const d = Game.dive;
   if (!d || d.floor !== f) return 1;
-  const lv = lampLevels(d, T.world.sun.dark);
+  const lv = lampLevels(d, T.world.sun.dark, true);
   return lv.amb * Math.max(lv.tint[0], lv.tint[1], lv.tint[2]);
 }
 function pntDarkFrom(a) { const P = T.paint.rampEven.darkAt; return Math.max(0, Math.min(1, (P[0] - a) / (P[0] - P[1]))); }
@@ -664,6 +664,9 @@ function pntPaintRock(f, x0, y0, x1, y1) {
   const b = artBiome(f), ramp = pntLook(b).rock, nt = ramp.length, seed = (f.seed ^ f.depth) | 0, rw = x1 - x0, rh = y1 - y0;
   const Bq = pntBrush(), tsc = (nt - 1) / 9, hatch = !!Bq.hatch, hA = hatch ? Math.round((nt - 1) * Bq.hatchAt[0]) : 0;
   const ml = f.meld ? f.meld.to.map((_, k) => pntLook(hgrMeldLook(f, k)).rock) : null;
+  // (regions: each tile's own clime's ramp, melding at a border; read by
+  // the surface point a pixel shows)
+  const RG = f.regions ? pntTileRamps(f, x0, y0, x1, y1 + pntMaxLift() + 2) : null;
   const gl = pntGraftLook(f), gRamp = gl ? pntLook(gl).rock : null, g = f.graft, gcx = g ? (g.x + 0.5) * ATILE : 0, gcy = g ? (g.y + 0.5) * ATILE : 0, gR = g ? (g.r + 2) * ATILE : 0;
   const ll = Math.hypot(Rk.light[0], Rk.light[1], Rk.light[2]), lx = Rk.light[0] / ll, ly = Rk.light[1] / ll, lz = Rk.light[2] / ll;
   const hq = (x, y) => (x < WX || y < WY || x >= X1 || y >= Y1 ? Wl.face : HF[y * W + x + OFF] / 16);
@@ -810,7 +813,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       t = Math.round(t * tsc);
       // ink: soot hatched over the shadowed rock
       if (hatch && t <= hA && (x + sy) % 3 === 0) t = 0;
-      let rp = ramp;
+      let rp = RG ? RG.at(x, sy) : ramp;
       // broken colour: the stroke (the run) warm or cool
       if (brk && rp === ramp) { const hu = runAt >= 0 ? pntHueOf(x, runId, seed + 9) : pntHueOf(cx0 + m, y, seed); if (hu) rp = hu === 1 ? LK.rockW : LK.rockC; }
       C32[y * W + x + OFF] = rp[t < 0 ? 0 : t > nt - 1 ? nt - 1 : t];
@@ -832,6 +835,14 @@ function pntPaintRock(f, x0, y0, x1, y1) {
   }
 }
 
+// The rock ramps of the tiles under floor px x0..x1, y0..y1 (regions.js
+// climeLookAt): at(x, y) is the ramp for the tile holding that pixel.
+function pntTileRamps(f, x0, y0, x1, y1) {
+  const tx0 = Math.max(0, Math.floor((x0 - 8) / ATILE)), ty0 = Math.max(0, Math.floor(y0 / ATILE)), tx1 = Math.min(f.w - 1, Math.floor((x1 + 8) / ATILE)), ty1 = Math.min(f.h - 1, Math.floor(y1 / ATILE));
+  const tw = tx1 - tx0 + 1, th = ty1 - ty0 + 1, ramps = new Array(tw * th);
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) ramps[(ty - ty0) * tw + tx - tx0] = pntLook(climeLookAt(f, tx, ty)).rock;
+  return { at: (x, y) => ramps[clamp(Math.floor(y / ATILE) - ty0, 0, th - 1) * tw + clamp(Math.floor(x / ATILE) - tx0, 0, tw - 1)] };
+}
 // What the rock carries: ore breaking out of it (on its top and, where
 // it faces the ground, its face), and now and then a faint glowing vein.
 function pntRockDecor(f, x0, y0, x1, y1) {
@@ -846,7 +857,7 @@ function pntRockDecor(f, x0, y0, x1, y1) {
     _tileSeed = hashInts(f.seed, f.depth, tx, ty, 0x0e5) | 0;
     const rnd = tileRnd;
     // a vein: a thin dim crack wandering over the top
-    const col = rgbOf(mix(b.glow, '#000000', 0.7));
+    const col = rgbOf(mix(climeLookAt(f, tx, ty).glow, '#000000', 0.7));
     let fx = tx * ATILE + ap(3) + Math.floor(rnd() * ap(10)), fy = ty * ATILE + ap(2) + Math.floor(rnd() * ap(8));
     for (let k = 0, n = ap(9); k < n; k++) {
       const sy = fy - H[fy * W + fx + OFF];

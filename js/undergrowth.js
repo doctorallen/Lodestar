@@ -210,11 +210,11 @@ function ugHabitat(f, S) {
   spread(wd, q, 98);
   // standing water: how near it is
   const wdist = new Uint8Array(N).fill(99), wq = [];
-  if (f.haz && f.hazCode === HAZ_CODES.pool) for (let i = 0; i < N; i++) if (f.haz[i]) { wdist[i] = 0; wq.push(i); }
+  if (f.haz) for (let i = 0; i < N; i++) if (f.haz[i] === HAZ_CODES.pool) { wdist[i] = 0; wq.push(i); }
   spread(wdist, wq, F.wetReach);
   // light underground: lava, and shafts of daylight
   const ldist = new Uint8Array(N).fill(99), lq = [];
-  if (f.haz && f.hazCode === HAZ_CODES.burn) for (let i = 0; i < N; i++) if (f.haz[i]) { ldist[i] = 0; lq.push(i); }
+  if (f.haz) for (let i = 0; i < N; i++) if (f.haz[i] === HAZ_CODES.burn) { ldist[i] = 0; lq.push(i); }
   if (!f.hub) for (const s of climeLights(f)) { const i = Math.floor(s.y / TILE) * W + Math.floor(s.x / TILE); if (i >= 0 && i < N) { ldist[i] = 0; lq.push(i); } }
   spread(ldist, lq, F.lightReach);
   for (let y = 0; y < H; y++)
@@ -635,9 +635,9 @@ function paintUndergrowth(P, f, tx, ty, ox, oy, b) {
   // (then the shadows of what stands on it darken it all: pshadow.js)
   pshShadeTile(P, f, ox, oy);
 }
-function ugPaintTile(P, f, tx, ty, ox, oy, b) {
-  const U = View.ug;
-  if (!U || U.f !== f) return;
+// (every set on the floor: a region's each, regions.js)
+function ugPaintTile(P, f, tx, ty, ox, oy, b) { for (const U of ugAll(f)) ugPaintTileU(U, P, f, tx, ty, ox, oy, b); }
+function ugPaintTileU(U, P, f, tx, ty, ox, oy, b) {
   const F = T.flora, R = View.rockPx, W = P.w, OFF = -P.oy * W - P.ox, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em, Q = U.Q, i = ty * f.w + tx;
   const grid = U.gridNear[i] && !U.orig[i], beds = (U.beds[i] || grid) && !U.orig[i] ? U.beds[i] || UG_NONE : null, shadows = U.shadows[i] && !U.orig[i] ? U.shadows[i] : null, stamps = U.stamps[i];
   const seedH = (f.seed ^ f.depth) | 0, S = F.sets[U.set] || F.sets.rim;

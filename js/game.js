@@ -59,7 +59,11 @@ function generateWorld(seed) {
   // the star stands in the cavern nearest the middle of the world
   const mid = f.rooms.slice().sort((a, b) => Math.hypot(a.cx - f.w / 2, a.cy - f.h / 2) - Math.hypot(b.cx - f.w / 2, b.cy - f.h / 2))[0];
   f.entry = { x: mid.cx, y: mid.cy };
+  f.layer = 0;
   placeStar(f, f.entry.x, f.entry.y);
+  // the climes as regions round the star, the badlands nearest
+  layRegions(f, seed, T.regions.surface, T.regions.surface[0], f.star.x, f.star.y);
+  placeRegionHazards(f, seed);
   return f;
 }
 
@@ -157,6 +161,7 @@ function updateDive(dtReal, dt) {
   updateCombatFx(dt);
   updateLife(d, dt);
   updateWorld(d, dt);
+  regionsStep(d);
   updateWick(d, dt);
   updatePickups(dtReal);
   if (Input.consumeAct()) {

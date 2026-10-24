@@ -71,11 +71,11 @@ const LIFE_MIX = {
 };
 
 // A critter's colours: its clime's (climes.js CLIME_LIFE), else its region's.
-function lifePal(kind, L) { return (CLIME_LIFE[L.key] && CLIME_LIFE[L.key][kind]) || LIFE_PAL[kind][L.biome]; }
+function lifePal(kind, L, key = L.key) { return (CLIME_LIFE[key] && CLIME_LIFE[key][kind]) || LIFE_PAL[kind][L.biome]; }
 
 const _critSprites = {};
-function critSprite(kind, L, frame, dir) {
-  const key = kind + '/' + L.key + '/' + frame + '/' + dir;
+function critSprite(kind, L, frame, dir, ck = L.key) {
+  const key = kind + '/' + ck + '/' + frame + '/' + dir;
   if (_critSprites[key]) return _critSprites[key];
   let rows = LIFE_ROWS[kind][frame];
   const native = ART_NATIVE.get(rows) || 1;
@@ -90,7 +90,7 @@ function critSprite(kind, L, frame, dir) {
   if (native !== AP_ART) rows = artScaleRows(rows, AP_ART / native);
   const pad = (src) => { const [p, x] = makeCanvas(src.width + 2, src.height + 2); x.drawImage(src, 1, 1); return p; };
   // painted, with no outline (foespaint.js)
-  let c = fpCritterCanvas(rows, lifePal(kind, L), kind);
+  let c = fpCritterCanvas(rows, lifePal(kind, L, ck), kind);
   if (dir === 'w') c = flipped(c);
   let ec = kind === 'scurrier' ? pad(spriteFrom(rows.map((r) => r.replace(/[^E]/g, '.')), { E: LIFE_EYESHINE })) : makeCanvas(c.width, c.height)[0];
   if (dir === 'w') ec = flipped(ec);
@@ -105,49 +105,67 @@ function placeLife(d) {
   const f = d.floor;
   d.life = null;
   if (d.hub || !f.rooms || !f.rooms.length) return;
-  const cl = CLIME_LIFE[d.clime], rng = new Rng(hashInts(d.seed, d.depth, 0x11fe)), mix = (cl && cl.mix) || LIFE_MIX[d.zone] || LIFE_MIX.cave;
-  const biome = T.biomes[d.biome].id, L = { crits: [], flocks: [], biome, key: cl ? d.clime : biome, wallSpots: lifeWallSpots(f), drips: [], motes: [], flakes: [], gust: null, gustT: 4 + rng.f(8) };
-  // a clime's weather, the colour of its gusts, its moths (fireflies blink)
-  if (cl) Object.assign(L, { weather: cl.weather, gustCol: cl.gust, moth: cl.moth, firefly: !!cl.firefly });
+  const rng = new Rng(hashInts(d.seed, d.depth, 0x11fe)), biome = T.biomes[d.biome].id;
+  const L = { crits: [], flocks: [], moths: [], biome, key: biome, wallSpots: lifeWallSpots(f), drips: [], motes: [], flakes: [], gust: null, gustT: 4 + rng.f(8) };
   d.life = L;
+  // a region at a time, each with its clime's critters (regions.js), as
+  // many as its size asks; else the floor's one clime
+  const groups = f.regions
+    ? f.regions.map((r, k) => ({ clime: r.clime, k, rooms: f.rooms.filter((rm) => regionAt(f, rm.cx, rm.cy) === k) }))
+    : [{ clime: d.clime, k: -1, rooms: f.rooms }];
+  for (const g of groups) if (g.rooms.length) lifePlaceGroup(d, L, g, rng);
+  lifeWeather(d);
+  if (d.zone === 'surface') placeClouds(d, rng);
+}
+function lifePlaceGroup(d, L, g, rng) {
+  const f = d.floor, cl = CLIME_LIFE[g.clime], mix = (cl && cl.mix) || LIFE_MIX[d.zone] || LIFE_MIX.cave, key = cl ? g.clime : L.biome;
+  const scale = Math.max(1, Math.round(g.rooms.length / T.regions.siteRooms)), n = (r) => rng.i(...(r || [0, 0])) * scale;
   const clear = (x, y) => !bodyHits(f, x, y, 2.5);
   // a clear spot in some room, away from the entry
   const spot = () => {
     for (let k = 0; k < 20; k++) {
-      const r = rng.pick(f.rooms);
+      const r = rng.pick(g.rooms);
       if (!r.cells || !r.cells.length) continue;
       const i = rng.pick(r.cells), x = (i % f.w + 0.2 + rng.f(0.6)) * TILE, y = (Math.floor(i / f.w) + 0.2 + rng.f(0.6)) * TILE;
       if (f.tiles[i] === TILE_FLOOR && clear(x, y) && dist(x, y, (f.entry.x + 0.5) * TILE, (f.entry.y + 0.5) * TILE) > 3 * TILE) return { x, y };
     }
     return null;
   };
-  for (let n = rng.i(...(mix.lizard || [0, 0])); n > 0; n--) {
+  for (let k = n(mix.lizard); k > 0; k--) {
     const at = spot();
-    if (at) L.crits.push({ crit: 'lizard', x: at.x, y: at.y, hx: at.x, hy: at.y, dir: rng.pick(['e', 'w', 'n', 's']), state: 'idle', t: rng.f(3), vx: 0, vy: 0 });
+    if (at) L.crits.push({ crit: 'lizard', key, x: at.x, y: at.y, hx: at.x, hy: at.y, dir: rng.pick(['e', 'w', 'n', 's']), state: 'idle', t: rng.f(3), vx: 0, vy: 0 });
   }
-  for (let n = rng.i(...(mix.scurrier || [0, 0])); n > 0 && L.wallSpots.length; n--) {
-    const w = rng.pick(L.wallSpots);
-    L.crits.push({ crit: 'scurrier', x: w.x, y: w.y, dir: rng.chance(0.5) ? 'e' : 'w', state: 'idle', t: rng.f(2), vx: 0, vy: 0, hide: 0 });
+  const walls = g.k < 0 ? L.wallSpots : L.wallSpots.filter((w) => regionAt(f, Math.floor(w.x / TILE), Math.floor(w.y / TILE)) === g.k);
+  for (let k = n(mix.scurrier); k > 0 && walls.length; k--) {
+    const w = rng.pick(walls);
+    L.crits.push({ crit: 'scurrier', key, x: w.x, y: w.y, dir: rng.chance(0.5) ? 'e' : 'w', state: 'idle', t: rng.f(2), vx: 0, vy: 0, hide: 0 });
   }
-  for (let n = rng.i(...(mix.flock || [0, 0])); n > 0; n--) {
+  for (let k = n(mix.flock); k > 0; k--) {
     const at = spot();
     if (!at) continue;
-    const fl = { state: 'ground', t: 0, birds: [] };
-    for (let k = rng.i(3, 5); k > 0; k--) {
+    const fl = { state: 'ground', t: 0, birds: [], key };
+    for (let j = rng.i(3, 5); j > 0; j--) {
       const x = at.x + rng.f(-12, 12), y = at.y + rng.f(-8, 8);
       if (!clear(x, y)) continue;
-      const b = { crit: 'bird', flock: fl, x, y, z: 0, vx: 0, vy: 0, dir: rng.chance(0.5) ? 'e' : 'w', t: rng.f(2), peck: 0, wing: rng.f(1), delay: 0 };
+      const b = { crit: 'bird', key, flock: fl, x, y, z: 0, vx: 0, vy: 0, dir: rng.chance(0.5) ? 'e' : 'w', t: rng.f(2), peck: 0, wing: rng.f(1), delay: 0 };
       fl.birds.push(b); L.crits.push(b);
     }
     if (fl.birds.length) L.flocks.push(fl);
   }
-  L.moths = [];
-  // moths keep together, in twos and threes
-  for (let n = rng.i(...(mix.moth || [0, 0])), at = null; n > 0; n--) {
+  // moths keep together, in twos and threes (a clime's own colour; some
+  // climes' are fireflies)
+  const col = (cl && cl.moth) || LIFE_MOTH[L.biome], firefly = !!(cl && cl.firefly);
+  for (let k = n(mix.moth), at = null; k > 0; k--) {
     if (!at || rng.chance(0.4)) at = spot();
-    if (at) L.moths.push({ x: at.x + rng.f(-8, 8), y: at.y - 8 + rng.f(-6, 6), hx: at.x, hy: at.y - 8, vx: 0, vy: 0, scared: 0, wing: rng.f(1), orbit: rng.f(Math.PI * 2) });
+    if (at) L.moths.push({ x: at.x + rng.f(-8, 8), y: at.y - 8 + rng.f(-6, 6), hx: at.x, hy: at.y - 8, vx: 0, vy: 0, scared: 0, wing: rng.f(1), orbit: rng.f(Math.PI * 2), col, firefly });
   }
-  if (d.zone === 'surface') placeClouds(d, rng);
+}
+// The weather where the Kindler stands: his clime's (regions.js), read
+// each step; changing, the flakes start over.
+function lifeWeather(d) {
+  const L = d.life, cl = CLIME_LIFE[d.clime], w = (cl && cl.weather) || null;
+  if (L.weather === w && L.weatherSet) return;
+  L.weatherSet = true; L.weather = w; L.gustCol = cl && cl.gust; L.flakes.length = 0;
 }
 
 // Spots at the foot of a wall (rock above, open floor here), for scurriers.
@@ -207,6 +225,7 @@ const lifeDir = (vx, vy, four) => (four && Math.abs(vy) > Math.abs(vx) ? (vy < 0
 function updateLife(d, dt) {
   const L = d.life;
   if (!L || dt <= 0) return;
+  lifeWeather(d);
   const f = d.floor, th = lifeThreats(d);
   for (const c of L.crits) {
     if (c.crit === 'lizard') updateLizard(f, c, th, dt);
@@ -485,12 +504,12 @@ function drawCritter(d, c, ox, oy) {
     x.fillStyle = 'rgba(0,0,0,0.3)';
     if (c.z > 3) { x.fillRect(fx - 2 + Math.round(c.z * 0.15 * AP), fy, ap(3), 1); return; }
     x.fillRect(fx - ap(2), fy, ap(4), 1);
-    const s = critSprite('bird', d.life, c.peck > 0 ? 1 : 0, c.dir);
+    const s = critSprite('bird', d.life, c.peck > 0 ? 1 : 0, c.dir, c.key);
     drawArtSprite(s, fx - Math.round(s.w / 2), fy - s.h + Math.round(footOff(2) * AF) - Math.round(c.z * AP));
     return;
   }
   const moving = c.state === 'flee' || c.state === 'dart' || c.state === 'run';
-  const s = critSprite(c.crit, d.life, moving ? Math.floor(Game.realT * 14) % 2 : 0, c.dir);
+  const s = critSprite(c.crit, d.life, moving ? Math.floor(Game.realT * 14) % 2 : 0, c.dir, c.key);
   const sx = fx - Math.round(s.w / 2), sy = fy - s.h + Math.round(footOff(3) * AF);
   if (c.state === 'hiding') {
     // into a crack: sinking into the wall's foot, cut off at the ground
@@ -509,7 +528,7 @@ function drawLifeAir(d, ox, oy, lights) {
   if (!L) return;
   for (const fl of L.flocks) {
     if (fl.state !== 'fly' && fl.state !== 'land') continue;
-    const col = lifePal('bird', L).D;
+    const col = lifePal('bird', L, fl.key).D;
     for (const b of fl.birds) {
       if (b.z <= 3) continue;
       const bx = Math.round(b.x * AP) + ox, by = Math.round((b.y - b.z) * AP) + oy;
@@ -518,12 +537,12 @@ function drawLifeAir(d, ox, oy, lights) {
     }
   }
   if (L.moths.length) {
-    const col = L.moth || LIFE_MOTH[L.biome], dim = mix(col, '#000000', 0.45);
     for (const m of L.moths) {
       const mx = Math.round(m.x * AP) + ox, my = Math.round(m.y * AP) + oy;
       if (mx < -4 || my < -4 || mx > View.w + 4 || my > View.h + 4) continue;
+      const col = m.col || LIFE_MOTH[L.biome], dim = mix(col, '#000000', 0.45);
       // a firefly: only its light, blinking slowly
-      if (L.firefly) {
+      if (m.firefly) {
         const k = clamp(Math.sin(Game.realT * 1.7 + m.orbit * 3) * 1.6 + 0.4, 0, 1);
         if (k <= 0) continue;
         dot(mx, my, col, true, k); dot(mx, my + 1, dim, true, k * 0.6);

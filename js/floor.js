@@ -248,20 +248,35 @@ function placeHazards(f) {
   const C = f.clime && T.climes[f.clime];
   f.haz = null; f.hazPts = null; f.hazKind = null; f.hazCode = 0;
   if (!C || !C.hazard) return f;
-  const kind = C.hazard, H = Object.assign({}, T.hazards[kind], C.haz), w = f.w, tiles = f.tiles;
+  const kind = C.hazard, H = Object.assign({}, T.hazards[kind], C.haz);
   const rng = new Rng(hashInts(f.seed, f.depth, f.biome, ZONE_SALT[f.zone] || 0, hashString(f.clime)));
-  const banned = new Uint8Array(w * f.h);
+  const banned = hazardBans(f);
+  const rooms = f.rooms.slice(1).filter((r) => !r.arena && r.cells && r.cells.length > 6);
+  if (!rooms.length) return f;
+  f.hazKind = kind;
+  layHazard(f, kind, H, rng, rooms, banned, 1);
+  return f;
+}
+// Where no hazard goes: the entry's cavern, the ways and the lodeline.
+function hazardBans(f) {
+  const w = f.w, banned = new Uint8Array(w * f.h);
   const ban = (x, y, r) => { for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const i = (y + dy) * w + x + dx; if (i >= 0 && i < banned.length) banned[i] = 1; } };
   for (const i of f.rooms[0].cells || []) banned[i] = 1;
   ban(f.entry.x, f.entry.y, 4);
   for (const t of f.ways) ban(t.x, t.y, 2);
   if (f.pad) ban(f.pad.x, f.pad.y, 2);
+  return banned;
+}
+// One kind of hazard laid over `rooms` from `rng`: an area hazard's code
+// into f.haz, a point hazard into f.hazPts (each point with its kind).
+// scale: how many more than a site's share (a region's size).
+function layHazard(f, kind, H, rng, rooms, banned, scale) {
+  const w = f.w, tiles = f.tiles;
   const open = (i) => tiles[i] === TILE_FLOOR && !banned[i];
-  const rooms = f.rooms.slice(1).filter((r) => !r.arena && r.cells && r.cells.length > 6);
-  if (!rooms.length) return f;
-  f.hazKind = kind;
+  const cnt = (r) => Math.max(1, Math.round(rng.i(r[0], r[1]) * scale));
   if (HAZ_CODES[kind]) {
-    const code = (f.hazCode = HAZ_CODES[kind]), haz = (f.haz = new Uint8Array(w * f.h));
+    const code = HAZ_CODES[kind], haz = f.haz || (f.haz = new Uint8Array(w * f.h));
+    if (!f.hazCode) f.hazCode = code;
     // a lumpy blob of it round a tile
     const blob = (cx, cy, rad, mark) => {
       const p1 = rng.f(7), out = [];
@@ -281,7 +296,7 @@ function placeHazards(f) {
         return true;
       };
       const undo = (cells) => { for (const i of cells) haz[i] = 0; };
-      for (let n = rng.i(H.channels[0], H.channels[1]); n > 0; n--) {
+      for (let n = cnt(H.channels); n > 0; n--) {
         const r = rng.pick(rooms), start = rng.pick(r.cells), cells = [];
         let x = start % w, y = Math.floor(start / w), head = rng.f(Math.PI * 2);
         for (let k = rng.i(H.len[0], H.len[1]); k > 0; k--) {
@@ -294,12 +309,12 @@ function placeHazards(f) {
         }
         if (!keepsAll()) undo(cells);
       }
-      for (let n = rng.i(H.pools[0], H.pools[1]); n > 0; n--) {
+      for (let n = cnt(H.pools); n > 0; n--) {
         const r = rng.pick(rooms), c = rng.pick(r.cells), cells = blob(c % w, Math.floor(c / w), rng.f(1, 1.7), code);
         if (!keepsAll()) undo(cells);
       }
     } else {
-      for (let n = rng.i(H.blobs[0], H.blobs[1]); n > 0; n--) {
+      for (let n = cnt(H.blobs); n > 0; n--) {
         const r = rng.pick(rooms), c = rng.pick(r.cells);
         blob(c % w, Math.floor(c / w), rng.f(H.r[0], H.r[1]), code);
       }
@@ -307,7 +322,7 @@ function placeHazards(f) {
     return f;
   }
   // vents and pods: out in the open (never in a passage), a few tiles apart
-  const pts = (f.hazPts = []);
+  const pts = f.hazPts || (f.hazPts = []);
   const cand = [];
   for (const r of rooms) for (const i of r.cells) {
     if (!open(i)) continue;
@@ -315,10 +330,11 @@ function placeHazards(f) {
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (tiles[i + dy * w + dx] === TILE_FLOOR) n++;
     if (n === 9) cand.push(i);
   }
-  for (let n = rng.i(H.n[0], H.n[1]), tries = 0; pts.length < n && cand.length && tries < 200; tries++) {
+  for (let n = cnt(H.n), tries = 0, got = 0; got < n && cand.length && tries < 200 * scale; tries++) {
     const i = rng.pick(cand), x = i % w, y = Math.floor(i / w);
     if (pts.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < 5)) continue;
-    pts.push({ x, y, ph: rng.f(1) });
+    pts.push({ x, y, ph: rng.f(1), kind });
+    got++;
   }
   return f;
 }
@@ -329,10 +345,12 @@ function hazardAt(f, x, y) {
   const H = f.haz;
   if (!H) return 0;
   const gx = x / TILE - 0.5, gy = y / TILE - 0.5, tx = Math.floor(gx), ty = Math.floor(gy), u = gx - tx, v = gy - ty;
-  const s = (i, j) => (i < 0 || j < 0 || i >= f.w || j >= f.h || !H[j * f.w + i] ? 0 : 1);
-  const a = s(tx, ty), b = s(tx + 1, ty), c = s(tx, ty + 1), d = s(tx + 1, ty + 1);
-  if (a === b && b === c && c === d) return a ? f.hazCode : 0;
-  return lerp(lerp(a, b, u), lerp(c, d, u), v) + 0.16 * wallNoise(x + 131, y + 57, 5) > 0.5 ? f.hazCode : 0;
+  const g = (i, j) => (i < 0 || j < 0 || i >= f.w || j >= f.h ? 0 : H[j * f.w + i]);
+  const ca = g(tx, ty), cb = g(tx + 1, ty), cc = g(tx, ty + 1), cd = g(tx + 1, ty + 1), code = Math.max(ca, cb, cc, cd);
+  if (!code) return 0;
+  const a = ca ? 1 : 0, b = cb ? 1 : 0, c = cc ? 1 : 0, d = cd ? 1 : 0;
+  if (a === b && b === c && c === d) return code;
+  return lerp(lerp(a, b, u), lerp(c, d, u), v) + 0.16 * wallNoise(x + 131, y + 57, 5) > 0.5 ? code : 0;
 }
 
 // Steps on foot from x, y to every open tile (-1 where it can't be reached).

@@ -24,8 +24,18 @@ const hazardWalker = (e) => { const def = T.enemies[e.type]; return e.type !== '
 
 // How fast an enemy goes for the ground it's on: slower wading.
 function hazardSlow(f, e) {
-  if (f.hazCode !== HAZ_CODES.pool || !hazardWalker(e)) return 1;
-  return hazardAt(f, e.x, e.y) ? T.hazards.pool.slow : 1;
+  if (!f.haz || !hazardWalker(e)) return 1;
+  return hazardAt(f, e.x, e.y) === HAZ_CODES.pool ? T.hazards.pool.slow : 1;
+}
+// The clime a hazard point is in (its own numbers: T.climes[].haz).
+function hazClimeOf(f, v) { return T.climes[f.regions ? climeAt(f, v.x, v.y) : f.clime] || {}; }
+// The kinds of hazard a floor has.
+function hazKinds(f) { return f.hazKinds || (f.hazKind ? [f.hazKind] : []); }
+// The hazard point on tile tx, ty, if any.
+function hazPtAt(f, tx, ty) {
+  if (!f.hazPts) return null;
+  if (!f.hazPtMap) { f.hazPtMap = new Map(); for (const v of f.hazPts) f.hazPtMap.set(v.y * f.w + v.x, v); }
+  return f.hazPtMap.get(ty * f.w + tx) || null;
 }
 
 // The diver's step at vx, vy px/s: a pool slows it, and on ice the footing
@@ -70,17 +80,20 @@ function hazardDrain(d, n) {
 }
 
 function updateHazards(d, dt) {
-  const f = d.floor, kind = f.hazKind, p = d.p, H = T.hazards;
-  if (!kind || d.hub) return;
+  const f = d.floor, p = d.p, H = T.hazards, kinds = hazKinds(f);
+  if (!kinds.length || d.hub) return;
   d.hazT = (d.hazT || 0) + dt;
   const open = !d.dying && p.invuln <= 0 && p.dashT <= 0;
-  if (f.haz && hazardAt(f, p.x, p.y) && HAZARD_TIPS[kind]) UI.tip('haz_' + kind, HAZARD_TIPS[kind]);
-  if (kind === 'burn') {
-    if (open && hazardAt(f, p.x, p.y)) { hazardDrain(d, H.burn.dps * dt); if (Math.random() < dt * 10) spawnSparks(p.x, p.y - 2, ['#ff8a20', '#ffd060'], 1); }
-    for (const e of d.enemies) if (!e.dead && hazardWalker(e) && !T.enemies[e.type].lavaProof && hazardAt(f, e.x, e.y) && !(e.burn && e.burn.t > 0.3)) e.burn = { t: 0.6, dps: H.burn.dps };
-  } else if (kind === 'vent') {
+  const here = f.haz ? HAZ_KINDS[hazardAt(f, p.x, p.y)] : null;
+  if (here && HAZARD_TIPS[here]) UI.tip('haz_' + here, HAZARD_TIPS[here]);
+  if (kinds.includes('burn')) {
+    if (open && here === 'burn') { hazardDrain(d, H.burn.dps * dt); if (Math.random() < dt * 10) spawnSparks(p.x, p.y - 2, ['#ff8a20', '#ffd060'], 1); }
+    for (const e of d.enemies) if (!e.dead && hazardWalker(e) && !T.enemies[e.type].lavaProof && hazardAt(f, e.x, e.y) === HAZ_CODES.burn && !(e.burn && e.burn.t > 0.3)) e.burn = { t: 0.6, dps: H.burn.dps };
+  }
+  if (kinds.includes('vent')) {
     const V = H.vent;
     for (const v of f.hazPts) {
+      if ((v.kind || f.hazKind) !== 'vent') continue;
       const s = ventPhase(d, v), bursting = s >= V.every - V.burst;
       if (bursting && !v.fired) {
         v.fired = true;
@@ -90,23 +103,24 @@ function updateHazards(d, dt) {
         for (const e of d.enemies) if (!e.dead && hazardWalker(e) && dist(x, y, e.x, e.y) < V.r + e.r) e.burn = { t: 1, dps: V.dmg };
       } else if (!bursting) v.fired = false;
     }
-  } else if (kind === 'spores') {
-    const S = Object.assign({}, H.spores, T.climes[f.clime].haz);
+  }
+  if (kinds.includes('spores')) {
     const clouds = (d.clouds = d.clouds || []), wind = (d.life && d.life.wind) || { x: 0.8, y: 0.3 };
     for (const v of f.hazPts) {
-      const s = (d.hazT / S.every + v.ph) % 1;
+      if ((v.kind || f.hazKind) !== 'spores') continue;
+      const S = Object.assign({}, H.spores, hazClimeOf(f, v).haz), s = (d.hazT / S.every + v.ph) % 1;
       if (v.last !== undefined && s < v.last && dist((v.x + 0.5) * TILE, (v.y + 0.5) * TILE, p.x, p.y) < 14 * TILE)
-        clouds.push({ x: (v.x + 0.5) * TILE, y: (v.y + 0.5) * TILE - 5, t: 0, life: S.life, r: S.r, seed: Math.random() * 99 });
+        clouds.push({ x: (v.x + 0.5) * TILE, y: (v.y + 0.5) * TILE - 5, t: 0, life: S.life, r: S.r, dps: S.dps, drift: S.drift, seed: Math.random() * 99 });
       v.last = s;
     }
-    let inside = false;
+    let inside = 0;
     for (const c of clouds) {
       c.t += dt;
-      c.x += (wind.x * S.drift + Math.sin(c.t * 0.7 + c.seed) * 3) * dt; c.y += (wind.y * S.drift + Math.cos(c.t * 0.5 + c.seed) * 2) * dt;
-      if (dist(c.x, c.y, p.x, p.y - 4) < sporeR(c)) inside = true;
+      c.x += (wind.x * c.drift + Math.sin(c.t * 0.7 + c.seed) * 3) * dt; c.y += (wind.y * c.drift + Math.cos(c.t * 0.5 + c.seed) * 2) * dt;
+      if (dist(c.x, c.y, p.x, p.y - 4) < sporeR(c)) inside = Math.max(inside, c.dps);
     }
     d.clouds = clouds.filter((c) => c.t < c.life);
-    if (inside) { UI.tip('haz_spores', HAZARD_TIPS.spores); if (open) hazardDrain(d, S.dps * dt); }
+    if (inside) { UI.tip('haz_spores', HAZARD_TIPS.spores); if (open) hazardDrain(d, inside * dt); }
   }
 }
 
@@ -131,15 +145,16 @@ function paintClimeTile(P, f, tx, ty, ox, oy, b) {
     if (b.sun) for (let k = 0; k < CAVE_SUN.length - 1; k++) if (R[(y - CAVE_SUN[k][1]) * W + x - CAVE_SUN[k][0] + OFF]) return true;
     return false;
   };
-  let near = false;
-  if (f.haz) for (let y = ty - 1; y <= ty + 1 && !near; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h && f.haz[y * f.w + x]) { near = true; break; }
-  if (near) paintHazardPixels(P, f, ox, oy, b, shaded);
+  // (the hazard's kind: the code of the nearest hazard tile)
+  let near = 0;
+  if (f.haz) for (let y = ty - 1; y <= ty + 1; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h && f.haz[y * f.w + x] > near) near = f.haz[y * f.w + x];
+  if (near) paintHazardPixels(P, f, ox, oy, b, shaded, HAZ_KINDS[near]);
   const t = floorTile(f, tx, ty);
   if (t === TILE_ROCK && b.rockDecor === 'roots') paintRootRock(P, ox, oy);
   if (t !== TILE_FLOOR) return;
-  const pt = f.hazPts && f.hazPts.find((v) => v.x === tx && v.y === ty);
-  if (pt && f.hazKind === 'vent') paintVent(P, ox + ATILE / 2, oy + ATILE / 2, b);
-  else if (pt && f.hazKind === 'spores') paintPodBed(P, ox + ATILE / 2, oy + ap(9), b);
+  const pt = hazPtAt(f, tx, ty), pk = pt && (pt.kind || f.hazKind);
+  if (pk === 'vent') paintVent(P, ox + ATILE / 2, oy + ATILE / 2, b);
+  else if (pk === 'spores') paintPodBed(P, ox + ATILE / 2, oy + ap(9), b);
   else if (b.decor && !(f.haz && f.haz[ty * f.w + tx])) paintDecor(P, f, tx, ty, ox, oy, b, shaded);
 }
 
@@ -150,8 +165,8 @@ function paintClimeTile(P, f, tx, ty, ox, oy, b) {
 // surface point that far north of it, and under the far rim, its bank;
 // the near rim catches the light.
 const HAZ_IN = ap(2), HAZ_DEEP = ap(4), HAZ_STREAK = ap(13), HAZ_RIPPLE = ap(6), HAZ_UP = HAZ_DEEP + ap(12), _hazMask = new Uint8Array((ATILE + 2 * HAZ_DEEP) * (ATILE + HAZ_DEEP + HAZ_UP));
-function paintHazardPixels(P, f, ox, oy, b, shaded) {
-  const R = View.rockPx, W = P.w, OFF = -P.oy * W - P.ox, kind = f.hazKind, r = b.haz || HAZ_RAMPS[kind], lava = kind === 'burn', ice = kind === 'slick';
+function paintHazardPixels(P, f, ox, oy, b, shaded, kind = f.hazKind) {
+  const R = View.rockPx, W = P.w, OFF = -P.oy * W - P.ox, r = b.haz || HAZ_RAMPS[kind], lava = kind === 'burn', ice = kind === 'slick';
   const D = Math.min(HAZ_UP - HAZ_DEEP, phlDepth(kind)), Ho = T.paint.hole, GR = pntLook(b).ground, seed = (f.seed ^ f.depth) | 0;
   // the hazard's outline round the tile, read once
   const G = HAZ_DEEP, MW = ATILE + 2 * G, MH = ATILE + G + HAZ_UP, Hm = _hazMask;
@@ -361,10 +376,11 @@ function paintDecor(P, f, tx, ty, ox, oy, b, shaded) {
 // pods' faint ones.
 function hazardLights(f) {
   const out = [];
-  if (f.hazKind === 'burn' && f.haz) for (let i = 0; i < f.haz.length; i++) if (f.haz[i]) out.push({ x: (i % f.w + 0.5) * TILE, y: (Math.floor(i / f.w) + 0.5) * TILE, r: TILE * 1.4, i: 0.3, c: [1, 0.45, 0.15] });
-  if (f.hazPts) {
-    const b = artBiome(f), col = f.hazKind === 'vent' ? (b.vent === 'steam' ? [0.8, 0.85, 0.9] : [1, 0.4, 0.15]) : rgb01((SPORE_COLS[f.clime] || SPORE_COLS.bloomfen)[0]);
-    for (const v of f.hazPts) out.push({ x: (v.x + 0.5) * TILE, y: (v.y + 0.5) * TILE, r: TILE * 0.9, i: 0.25, c: col });
+  if (f.haz) for (let i = 0; i < f.haz.length; i++) if (f.haz[i] === HAZ_CODES.burn) out.push({ x: (i % f.w + 0.5) * TILE, y: (Math.floor(i / f.w) + 0.5) * TILE, r: TILE * 1.4, i: 0.3, c: [1, 0.45, 0.15] });
+  if (f.hazPts) for (const v of f.hazPts) {
+    const b = climeLookAt(f, v.x, v.y), kind = v.kind || f.hazKind;
+    const col = kind === 'vent' ? (b.vent === 'steam' ? [0.8, 0.85, 0.9] : [1, 0.4, 0.15]) : rgb01((SPORE_COLS[f.regions ? climeAt(f, v.x, v.y) : f.clime] || SPORE_COLS.bloomfen)[0]);
+    out.push({ x: (v.x + 0.5) * TILE, y: (v.y + 0.5) * TILE, r: TILE * 0.9, i: 0.25, c: col });
   }
   return out;
 }
@@ -375,15 +391,18 @@ function hazardLights(f) {
 // ---------------------------------------------------------------------------
 const HazRipples = [];
 function drawHazardsUnder(d, ox, oy, tick, lights) {
-  const f = d.floor, kind = f.hazKind, p = d.p;
-  if (!kind) return;
+  const f = d.floor, p = d.p;
+  if (!hazKinds(f).length) return;
   const tx0 = Math.max(0, Math.floor(-ox / ATILE) - 1), ty0 = Math.max(0, Math.floor(-oy / ATILE) - 1);
   const tx1 = Math.min(f.w - 1, tx0 + Math.ceil(View.w / ATILE) + 2), ty1 = Math.min(f.h - 1, ty0 + Math.ceil(View.h / ATILE) + 2);
-  const b = artBiome(f), r = b.haz || HAZ_RAMPS[kind], dz = phlDepth(kind);
+  // (each tile's hazard its own kind, in its clime's colours: regions.js)
+  let kind = null, r = null, dz = 0;
   if (f.haz) {
     for (let ty = ty0; ty <= ty1; ty++)
       for (let tx = tx0; tx <= tx1; tx++) {
-        if (!f.haz[ty * f.w + tx]) continue;
+        const code = f.haz[ty * f.w + tx];
+        if (!code) continue;
+        kind = HAZ_KINDS[code]; r = climeLookAt(f, tx, ty).haz || HAZ_RAMPS[kind]; dz = phlDepth(kind);
         const h = hashInts(tx, ty, 0x6a2), ph = (Game.realT * (kind === 'burn' ? 0.5 : 0.3) + (h & 255) / 255) % 1;
         const wx = tx * TILE + 3 + ((h >> 8) % 10), wy = ty * TILE + 3 + ((h >> 12) % 10);
         if (!hazardAt(f, wx, wy)) continue;
@@ -403,12 +422,13 @@ function drawHazardsUnder(d, ox, oy, tick, lights) {
         }
       }
     // wading leaves rings on the water
-    if (kind === 'pool' && d.wading && (Math.abs(p.vx || 0) + Math.abs(p.vy || 0)) > 5 && (d.rippleT = (d.rippleT || 0) - 1 / 60) <= 0) { d.rippleT = 0.28; HazRipples.push({ x: p.x, y: p.y, t: 0 }); }
+    if (d.wading === HAZ_CODES.pool && (Math.abs(p.vx || 0) + Math.abs(p.vy || 0)) > 5 && (d.rippleT = (d.rippleT || 0) - 1 / 60) <= 0) { d.rippleT = 0.28; HazRipples.push({ x: p.x, y: p.y, t: 0 }); }
   }
   for (let n = HazRipples.length - 1; n >= 0; n--) {
     const q = HazRipples[n];
     q.t += 1 / 60;
     if (q.t > 0.8 || HazRipples.length > 12) { HazRipples.splice(n, 1); continue; }
+    const r = climeLookAtPx(f, q.x, q.y).haz || HAZ_RAMPS.pool, dz = phlDepth('pool');
     const rr = 3 + q.t * 12, k = 1 - q.t / 0.8, N = Math.round(14 * AP + rr);
     for (let i = 0; i < N; i++) { const a = (i / N) * Math.PI * 2, x = q.x + Math.cos(a) * rr, y = q.y + Math.sin(a) * rr * 0.45; if (hazardAt(f, x, y) && hazardAt(f, x, y + dz / AP)) dot(Math.round(x * AP) + ox, Math.round(y * AP) + oy + dz, r[3], false, 0.7 * k); }
   }
@@ -417,12 +437,13 @@ function drawHazardsUnder(d, ox, oy, tick, lights) {
 // spore pod on its stalk; each hidden by the rock in front of it (drawn
 // after the rock has been laid back over the ground's marks: render.js).
 function drawHazardsStanding(d, ox, oy, tick, lights) {
-  const f = d.floor, kind = f.hazKind;
-  if (!kind || !f.hazPts) return;
-  const b = artBiome(f), V = T.hazards.vent, steam = b.vent === 'steam', vc = VENT_COLS[steam ? 'steam' : 'fire'];
+  const f = d.floor;
+  if (!f.hazPts || !f.hazPts.length) return;
+  const V = T.hazards.vent;
   for (const v of f.hazPts) {
     const cx = Math.round((v.x + 0.5) * ATILE) + ox, cy = Math.round((v.y + 0.5) * ATILE) + oy;
     if (cx < -45 || cy < -60 || cx > View.w + 45 || cy > View.h + 45) continue;
+    const kind = v.kind || f.hazKind, b = climeLookAt(f, v.x, v.y), steam = b.vent === 'steam', vc = VENT_COLS[steam ? 'steam' : 'fire'];
     drawHazardPoint(d, v, cx, cy, kind, b, V, steam, vc, tick, lights);
     paintOcclude(cx - ap(13), cy - ap(36), ap(26), ap(40), cy + ap(2), ox, oy);
   }
@@ -450,8 +471,8 @@ function drawHazardPoint(d, v, cx, cy, kind, b, V, steam, vc, tick, lights) {
     } else if (!steam && tick % 4 === 0) dot(cx, cy, vc[2], true, 0.6);
   } else if (kind === 'spores') {
     // a pod on a stalk, swelling and glowing as it gets ready to let go
-    const S = Object.assign({}, T.hazards.spores, T.climes[f.clime].haz), s = (d.hazT / S.every + v.ph) % 1;
-    const col = SPORE_COLS[f.clime] || SPORE_COLS.bloomfen, sw = s > 0.7 ? (s - 0.7) / 0.3 : 0, rr = (3.6 + sw * 1.6) * AP, x = cx, y = cy - ap(7);
+    const S = Object.assign({}, T.hazards.spores, hazClimeOf(f, v).haz), s = (d.hazT / S.every + v.ph) % 1;
+    const col = SPORE_COLS[f.regions ? climeAt(f, v.x, v.y) : f.clime] || SPORE_COLS.bloomfen, sw = s > 0.7 ? (s - 0.7) / 0.3 : 0, rr = (3.6 + sw * 1.6) * AP, x = cx, y = cy - ap(7);
     for (let j = ap(2); j <= ap(6); j++) { dot(x, y + j, '#3a3020'); dot(x + 1, y + j, '#1e1810'); }
     const n = Math.ceil(rr) + 1, E = (i, j) => (i * i + j * j * 1.15) / (rr * rr);
     for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) {

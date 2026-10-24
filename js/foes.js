@@ -583,7 +583,7 @@ function drawFoeHidden(d, e, ox, oy, tick, lights) {
   } else if (e.type === 'eel') {
     const spr = foeSprite('eel', 'fin');
     drawArtSprite(spr, Math.round(fx - spr.ax), Math.round(fy - spr.ay));
-    const col = (artBiome(d.floor).haz || HAZ_RAMPS.pool)[3];
+    const col = (climeLookAtPx(d.floor, e.x, e.y).haz || HAZ_RAMPS.pool)[3];
     for (let k = 0; k < 2; k++) {
       const ph = (Game.realT * 0.9 + k * 0.5) % 1, rr = (4 + ph * 8) * AP, n = Math.round(rr * 2);
       for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; dot(Math.round(fx + Math.cos(a) * rr), Math.round(fy + Math.sin(a) * rr * 0.45), col, false, 0.6 * (1 - ph)); }

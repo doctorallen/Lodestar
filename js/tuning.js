@@ -949,6 +949,13 @@ const T = {
   // The world's one map (game.js generateWorld): the generator's depth and
   // clime, and overrides of its numbers.
   worldgen: { depth: 1, clime: null, over: { w: 320, h: 320, rooms: [230, 270] } },
+  // Regions (regions.js): the climes laid as countries over each layer.
+  // area: tiles a region covers, about (four old sites' worth); meld: the
+  // tiles either side of a border the two climes blend over; warp: the
+  // border's wander [scale, tiles]; siteRooms: the caverns a site had, so a
+  // region lays its hazards and critters in that proportion; surface and
+  // deep: each layer's climes, the first the home one round the star.
+  regions: { area: 10816, meld: 7, warp: [16, 5], siteRooms: 8, surface: ['badlands', 'frost', 'cinder', 'bloomfen'], deep: ['caverns', 'grotto', 'magma', 'rootdeep'] },
   // The Veins (veins.js). band: the light either side of a living vein and
   // round a node (tiles), by magnitude; thread: how far a thread reaches
   // (tiles), by magnitude; threadSpeed: the step with it in hand; wave: s
