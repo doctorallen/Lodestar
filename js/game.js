@@ -61,9 +61,9 @@ function generateWorld(seed) {
   f.entry = { x: mid.cx, y: mid.cy };
   f.layer = 0;
   placeStar(f, f.entry.x, f.entry.y);
-  // the climes as regions round the star, the badlands nearest
+  // the climes as regions round the star, the badlands nearest (the
+  // hazards once the shafts are placed: deep.js worldFor)
   layRegions(f, seed, T.regions.surface, T.regions.surface[0], f.star.x, f.star.y);
-  placeRegionHazards(f, seed);
   return f;
 }
 
@@ -71,7 +71,7 @@ function newWorld(fields) {
   kindlerGear();
   const stats = kindlerStats();
   return Object.assign({
-    seed: 0, biome: 0, depth: 1, zone: 'surface', clime: null, floor: null, target: null, time: 0, kills: 0, dying: 0,
+    seed: 0, biome: 0, depth: 1, zone: 'surface', clime: null, floor: null, world: null, layer: 0, layers: [], target: null, time: 0, kills: 0, dying: 0,
     rng: new Rng(1), stats,
     cargo: {}, enemies: [], shots: [], bolts: [], drops: [], fx: [], nums: [], globs: [], puddles: [], auras: [], later: [], flow: null, flowAt: -1,
     pull: 1, waveT: 0, channel: null, padDark: false,
@@ -85,17 +85,18 @@ function newWorld(fields) {
 }
 function newHand() { return { cd: 0, comboT: 0, buffer: 0, holdT: 0, holding: false, step: 0 }; }
 
-// Into the world, at the star. quiet: built while the game loads, with
+// Into the world, at the star (both its floors built, or kept from the
+// last time: deep.js worldFor). quiet: built while the game loads, with
 // nothing said yet (worldWelcome says it).
 function enterWorld(at = {}) {
-  const s = Save.data, f = generateWorld(s.seed);
-  const d = (Game.dive = newWorld({ floor: f, clime: f.clime, seed: f.seed, depth: f.depth, rng: new Rng(hashInts(s.seed, 0x5eed, s.falls)) }));
+  const s = Save.data, w = worldFor(s.seed), f = w.surface;
+  const d = (Game.dive = newWorld({ floor: f, world: w, layer: 0, layers: [], clime: f.clime, seed: f.seed, depth: f.depth, rng: new Rng(hashInts(s.seed, 0x5eed, s.falls)) }));
   d.p.x = (f.star.x + 0.5) * TILE; d.p.y = (f.star.y + 0.5) * TILE + T.star.standOff * TILE; d.p.fy = 1;
   d.drone = null;
   // the veins as they stand (veins.js), and where he wakes: at the living
   // node nearest where he fell
   veinsLoad(d);
-  if (at.near) { const n = veinsNearestLiving(d, at.near.x, at.near.y); if (n.i > 0) veinsTravel(d, n.i); }
+  if (at.near) { const n = veinsNearestLiving(d, at.near.x, at.near.y, at.near.l | 0); if (n.i > 0) veinsTravel(d, n.i); }
   spawnEnemies(d);
   // nothing hunts in the light
   d.enemies = d.enemies.filter((e) => starLight(d, e.x, e.y) <= 0);
@@ -310,7 +311,7 @@ function moveBody(f, b, dx, dy, r) {
 // pieces the star goes out, and the world with it.
 // ---------------------------------------------------------------------------
 function loseDive() {
-  const s = Save.data, d = Game.dive, near = d ? { x: d.p.x, y: d.p.y } : null;
+  const s = Save.data, d = Game.dive, near = d ? { x: d.p.x, y: d.p.y, l: d.layer } : null;
   s.falls++;
   s.core = Math.max(0, s.core - 1);
   Save.save();

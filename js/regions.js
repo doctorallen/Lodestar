@@ -140,6 +140,7 @@ function placeRegionHazards(f, seed) {
   if (!f.regions) return f;
   const banned = hazardBans(f);
   if (f.star) { const S = T.star, R = S.clear + 4; for (let y = f.star.y - R; y <= f.star.y + R; y++) for (let x = f.star.x - R; x <= f.star.x + R; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) banned[y * f.w + x] = 1; }
+  for (const sh of f.shafts || []) for (let y = sh.y - 2; y <= sh.y + 2; y++) for (let x = sh.x - 2; x <= sh.x + 2; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) banned[y * f.w + x] = 1;
   const perSite = T.regions.siteRooms;
   for (let k = 0; k < f.regions.length; k++) {
     const C = T.climes[f.regions[k].clime];

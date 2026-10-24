@@ -34,11 +34,14 @@ function veinsLoad(d) {
 // A save from before: the old Kindlers' nodes (no one was here before us)
 // are dropped where nothing joins them, and plain nodes where a vein does.
 function veinsMigrate(V) {
+  // (a node and a thread's point carry their layer: 0 the surface, 1 the Deep)
+  for (const n of V.nodes) n.l = n.l | 0;
+  for (const v of V.veins) v.pts = v.pts.map((q) => (q.length > 2 ? q : [q[0], q[1], 0]));
   if (!V.nodes.some((n) => n.old)) return;
   const keep = V.nodes.map((n, i) => !n.old || V.veins.some((v) => v.a === i || v.b === i)), idx = [];
   let k = 0;
   for (let i = 0; i < V.nodes.length; i++) idx.push(keep[i] ? k++ : -1);
-  V.nodes = V.nodes.filter((n, i) => keep[i]).map((n) => ({ x: n.x, y: n.y }));
+  V.nodes = V.nodes.filter((n, i) => keep[i]).map((n) => ({ x: n.x, y: n.y, l: n.l | 0 }));
   for (const v of V.veins) { v.a = idx[v.a]; v.b = idx[v.b]; }
   V.veins = V.veins.filter((v) => v.a >= 0 && v.b >= 0);
 }
@@ -64,14 +67,19 @@ function veinsWorth(V, live) {
   return w;
 }
 function veinsMagnitude(worth) { const A = T.magnitude.at; let m = 1; while (m < A.length && worth >= A[m]) m++; return m; }
-// Points every `step` px along a vein's line.
+// Points every `step` px along a vein's line, each with its layer; the
+// step between two layers (down a shaft) is no line.
 function veinWalk(v, step, fn) {
   const P = v.pts;
   for (let i = 1; i < P.length; i++) {
-    const [ax, ay] = P[i - 1], [bx, by] = P[i], L = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.ceil(L / step));
-    for (let k = i === 1 ? 0 : 1; k <= n; k++) fn(ax + ((bx - ax) * k) / n, ay + ((by - ay) * k) / n);
+    const [ax, ay, al] = P[i - 1], [bx, by, bl] = P[i], l = al | 0;
+    if (l !== (bl | 0)) continue;
+    const L = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.ceil(L / step));
+    for (let k = i === 1 || (P[i - 2][2] | 0) !== l ? 0 : 1; k <= n; k++) fn(ax + ((bx - ax) * k) / n, ay + ((by - ay) * k) / n, l);
   }
 }
+// Whether a thread's segment lies on layer l.
+const veinSegOn = (P, i, l) => (P[i - 1][2] | 0) === l && (P[i][2] | 0) === l;
 // The band a vein lights either side of it (tiles), by magnitude.
 function veinBand(mag = magnitudeOf()) { const B = T.veins.band; return B[Math.min(B.length - 1, mag - 1)]; }
 // How far the star's own light reaches (tiles).
@@ -80,30 +88,39 @@ function starRadius(mag = magnitudeOf()) { return T.star.lightR + T.star.lightPe
 // The graph read again: who lives, the magnitude, the light grid; and the
 // floor's lights and painted ground follow where it's painted.
 function veinsRebuild(d, box) {
-  const f = d.floor, V = veinsState(), live = (d.vLive = veinsLiving(V)), G = (d.litG = new Float32Array(f.w * f.h).fill(1e9));
+  const V = veinsState(), live = (d.vLive = veinsLiving(V));
+  // a grid a layer (deep.js): the surface's and the Deep's
+  const floors = d.world ? [d.world.surface, d.world.deep] : [d.floor];
+  const Gs = (d.litGs = floors.map((f) => new Float32Array(f.w * f.h).fill(1e9)));
+  d.litG = Gs[d.layer | 0];
   const worth = veinsWorth(V, live), mag = veinsMagnitude(worth);
   Save.data.magnitude = mag; d.vWorth = worth;
   if (typeof shapesStarOffer === 'function' && Save.data.spells) shapesStarOffer(mag);
   const band = veinBand(mag), fade = T.star.lightFade;
-  const stamp = (x, y, r) => {
+  const stamp = (x, y, r, l) => {
+    const f = floors[l | 0], G = Gs[l | 0];
+    if (!f) return;
     const cx = x / TILE - 0.5, cy = y / TILE - 0.5, R = r + fade + 1;
     for (let ty = Math.max(0, Math.floor(cy - R)); ty <= Math.min(f.h - 1, Math.ceil(cy + R)); ty++)
       for (let tx = Math.max(0, Math.floor(cx - R)); tx <= Math.min(f.w - 1, Math.ceil(cx + R)); tx++) { const dd = Math.hypot(tx - cx, ty - cy) - r, i = ty * f.w + tx; if (dd < G[i]) G[i] = dd; }
   };
-  stamp(V.nodes[0].x, V.nodes[0].y, starRadius(mag));
-  for (let i = 1; i < V.nodes.length; i++) if (live[i]) stamp(V.nodes[i].x, V.nodes[i].y, band);
-  for (const v of V.veins) if (veinLiving(live, v)) veinWalk(v, TILE * 0.5, (x, y) => stamp(x, y, band));
+  stamp(V.nodes[0].x, V.nodes[0].y, starRadius(mag), 0);
+  for (let i = 1; i < V.nodes.length; i++) if (live[i]) stamp(V.nodes[i].x, V.nodes[i].y, band, V.nodes[i].l);
+  for (const v of V.veins) if (veinLiving(live, v)) veinWalk(v, TILE * 0.5, (x, y, l) => stamp(x, y, band, l));
   d.vSig = (d.vSig || 0) + 1;
+  const f = d.floor;
   if (View.floorFor === f) {
     View.lights = floorLights(f).concat(veinLights(d));
     View.bakedFrom = null;
     if (box) pntInvalidate(f, box.x0 * ATILE, box.y0 * ATILE, box.x1 * ATILE, box.y1 * ATILE);
   }
 }
-// The box of tiles a vein's light and the ground's turning reach.
-function veinBox(pts, extra) {
+// The box of tiles a vein's light and the ground's turning reach, on
+// layer l (null where none of it lies there).
+function veinBox(pts, l = 0) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  for (const [x, y, pl] of pts) { if ((pl | 0) !== l) continue; x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  if (x0 === Infinity) return null;
   const m = (veinBand() + T.star.lightFade + T.terraform.bloomOut + 2);
   return { x0: Math.floor(x0 / TILE) - m, y0: Math.floor(y0 / TILE) - m, x1: Math.ceil(x1 / TILE) + m + 1, y1: Math.ceil(y1 / TILE) + m + 1 };
 }
@@ -127,23 +144,25 @@ function veinDistTile(d, gx, gy) {
 // light at each living node, and one every couple of tiles along each
 // living vein. (plain: unstopped by the rock, as there are many.)
 function veinLights(d) {
-  const V = veinsState(), live = d.vLive || veinsLiving(V), band = veinBand(), L = [], gold = rgb01(ART.pal.star[2]), Vn = T.veins;
-  for (let i = 1; i < V.nodes.length; i++) if (live[i]) L.push({ x: V.nodes[i].x, y: V.nodes[i].y, r: TILE * band * 1.3, i: Vn.light.node, c: gold, plain: true });
-  for (const v of V.veins) if (veinLiving(live, v)) veinWalk(v, TILE * Vn.light.every, (x, y) => L.push({ x, y, r: TILE * band, i: Vn.light.vein, c: gold, plain: true }));
+  const V = veinsState(), live = d.vLive || veinsLiving(V), band = veinBand(), L = [], gold = rgb01(ART.pal.star[2]), Vn = T.veins, l = d.layer | 0;
+  for (let i = 1; i < V.nodes.length; i++) if (live[i] && (V.nodes[i].l | 0) === l) L.push({ x: V.nodes[i].x, y: V.nodes[i].y, r: TILE * band * 1.3, i: Vn.light.node, c: gold, plain: true });
+  for (const v of V.veins) if (veinLiving(live, v)) veinWalk(v, TILE * Vn.light.every, (x, y, pl) => { if (pl === l) L.push({ x, y, r: TILE * band, i: Vn.light.vein, c: gold, plain: true }); });
   return L;
 }
-// The living node nearest a point, and its distance (px).
-function veinsNearestLiving(d, x, y) {
+// The living node nearest a point on layer l, and its distance (px); one
+// on the other layer counts as a world away, so the star when none lives
+// on this one.
+function veinsNearestLiving(d, x, y, l = d.layer | 0) {
   const V = veinsState(), live = d.vLive || veinsLiving(V);
   let best = 0, bd = Infinity;
-  for (let i = 0; i < V.nodes.length; i++) { if (!live[i]) continue; const m = dist(x, y, V.nodes[i].x, V.nodes[i].y); if (m < bd) { bd = m; best = i; } }
+  for (let i = 0; i < V.nodes.length; i++) { if (!live[i]) continue; const m = dist(x, y, V.nodes[i].x, V.nodes[i].y) + ((V.nodes[i].l | 0) !== l ? 1e6 : 0); if (m < bd) { bd = m; best = i; } }
   return { i: best, d: bd };
 }
-// The node (any) within r px of a point, or -1.
-function veinsNodeNear(x, y, r) {
+// The node (any) within r px of a point on layer l, or -1.
+function veinsNodeNear(x, y, r, l = Game.dive ? Game.dive.layer | 0 : 0) {
   const V = veinsState();
   let best = -1, bd = r;
-  for (let i = 0; i < V.nodes.length; i++) { const m = dist(x, y, V.nodes[i].x, V.nodes[i].y); if (m < bd) { bd = m; best = i; } }
+  for (let i = 0; i < V.nodes.length; i++) { if ((V.nodes[i].l | 0) !== l) continue; const m = dist(x, y, V.nodes[i].x, V.nodes[i].y); if (m < bd) { bd = m; best = i; } }
   return best;
 }
 function veinsJoined(V, a, b) { return V.veins.some((v) => (v.a === a && v.b === b) || (v.a === b && v.b === a)); }
@@ -155,6 +174,8 @@ function veinsJoined(V, a, b) { return V.veins.some((v) => (v.a === a && v.b ===
 function veinsAction(d) {
   const V = veinsState(), p = d.p, Vn = T.veins;
   if (d.hold) return null;
+  // at a shaft: down to the Deep, or up (deep.js), thread or no thread
+  if (shaftNear(d)) return d.layer ? 'ascend' : 'descend';
   if (!d.thread) {
     const n = veinsNodeNear(p.x, p.y, Vn.reach * TILE);
     return n >= 0 && d.vLive[n] ? 'take up' : null;
@@ -173,11 +194,12 @@ function veinsAct(d, a) {
   if (a === 'take up') threadTake(d, veinsNodeNear(d.p.x, d.p.y, T.veins.reach * TILE));
   else if (a === 'plant') plantHere(d);
   else if (a === 'join' || a === 'mend') joinNode(d, veinsNodeNear(d.p.x, d.p.y, T.veins.joinReach * TILE));
+  else if (a === 'descend' || a === 'ascend') shaftTake(d);
 }
 // Taking up the thread at living node `from`.
 function threadTake(d, from) {
   const V = veinsState(), n = V.nodes[from];
-  d.thread = { from, pts: [[n.x, n.y]], len: 0, max: T.veins.thread[Math.min(T.veins.thread.length - 1, magnitudeOf() - 1)] * TILE, waveT: T.veins.wave };
+  d.thread = { from, pts: [[n.x, n.y, n.l | 0]], len: 0, max: T.veins.thread[Math.min(T.veins.thread.length - 1, magnitudeOf() - 1)] * TILE, waveT: T.veins.wave };
   d.p.mine = null;
   spawnSparks(n.x, n.y - 8, [ART.pal.star[3], ART.pal.star[2], '#ffffff'], 16);
   UI.toast(from === 0 ? "The star's thread, in your hand" : 'The thread, from the node', 'legendary');
@@ -193,7 +215,7 @@ function threadUpdate(d, dt) {
   const [lx, ly] = th.pts[th.pts.length - 1], m = dist(p.x, p.y, lx, ly);
   if (m >= Vn.step) {
     th.len += m;
-    th.pts.push([p.x, p.y]);
+    th.pts.push([p.x, p.y, d.layer | 0]);
     if (th.len > th.max) threadSnap(d, 'The thread ran out: it let go');
   }
   if ((th.waveT -= dt) <= 0) { th.waveT = Vn.wave; stirTheDark(d, Vn.waveN); }
@@ -216,8 +238,8 @@ function holdTime(d, x, y) {
 function plantHere(d) {
   const p = d.p, th = d.thread;
   if (!th || d.hold) return;
-  th.pts.push([p.x, p.y]);
-  d.hold = { x: p.x, y: p.y, t: 0, max: holdTime(d, p.x, p.y), light: T.veins.nodeLight, waveT: T.veins.holdWave, to: -1 };
+  th.pts.push([p.x, p.y, d.layer | 0]);
+  d.hold = { x: p.x, y: p.y, l: d.layer | 0, t: 0, max: holdTime(d, p.x, p.y), light: T.veins.nodeLight, waveT: T.veins.holdWave, to: -1 };
   // the light draws attention
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.leave.noise) wake(d, e, true);
   UI.toast('The node is set. Hold', 'legendary');
@@ -231,9 +253,9 @@ function joinNode(d, to) {
   const V = veinsState(), th = d.thread;
   if (!th || to < 0 || d.hold) return;
   const n = V.nodes[to];
-  th.pts.push([n.x, n.y]);
+  th.pts.push([n.x, n.y, n.l | 0]);
   if (d.vLive[to]) { holdSet(d, to); return; }
-  d.hold = { x: n.x, y: n.y, t: 0, max: T.veins.join, light: T.veins.nodeLight, waveT: T.veins.holdWave, to };
+  d.hold = { x: n.x, y: n.y, l: n.l | 0, t: 0, max: T.veins.join, light: T.veins.nodeLight, waveT: T.veins.holdWave, to };
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, n.x, n.y) < T.leave.noise) wake(d, e, true);
   UI.toast('Mending: hold', 'legendary');
   snd('beaconLand');
@@ -269,21 +291,21 @@ function holdSet(d, to) {
   d.hold = null;
   if (!th) return;
   let idx = to;
-  if (idx < 0) { V.nodes.push({ x: h.x, y: h.y }); idx = V.nodes.length - 1; }
+  if (idx < 0) { V.nodes.push({ x: h.x, y: h.y, l: h.l | 0 }); idx = V.nodes.length - 1; }
   // the thread's line, thinned to a point every few px
   const pts = [th.pts[0]];
   for (const q of th.pts.slice(1)) { const l = pts[pts.length - 1]; if (dist(q[0], q[1], l[0], l[1]) >= T.veins.step) pts.push(q); }
   const last = th.pts[th.pts.length - 1];
   if (pts[pts.length - 1] !== last) pts.push(last);
   let len = 0;
-  for (let i = 1; i < pts.length; i++) len += dist(pts[i][0], pts[i][1], pts[i - 1][0], pts[i - 1][1]);
+  for (let i = 1; i < pts.length; i++) if ((pts[i][2] | 0) === (pts[i - 1][2] | 0)) len += dist(pts[i][0], pts[i][1], pts[i - 1][0], pts[i - 1][1]);
   const joined = to >= 0 && d.vLive[to];
   // (a cut vein between the two, mended: its line laid again)
   const had = V.veins.find((v) => (v.a === th.from && v.b === idx) || (v.a === idx && v.b === th.from));
   if (had) { had.cut = false; had.pts = pts; had.len = len; } else V.veins.push({ a: th.from, b: idx, pts, len, cut: false });
   d.thread = null;
   const magWas = magnitudeOf();
-  veinsRebuild(d, veinBox(pts));
+  veinsRebuild(d, veinBox(pts, d.layer | 0));
   s.core = Math.min(T.star.core, (s.core || 0) + 1);
   Save.save();
   const [x, y] = last;
@@ -319,6 +341,7 @@ function veinsCutOnReturn(d) {
   // the Hollow at each cut's dark end (the end no longer living)
   for (const v of cut) {
     const end = d.vLive[v.a] ? V.nodes[v.b] : V.nodes[v.a];
+    if ((end.l | 0) !== (d.layer | 0)) continue;
     const h = makeEnemy('hollow', end.x, end.y - TILE, floorLevel(d), null);
     d.enemies.push(h);
   }
@@ -340,6 +363,8 @@ function veinsNext(d) {
 function veinsTravel(d, idx) {
   const V = veinsState(), n = V.nodes[idx];
   if (!n || !d.vLive[idx] || d.hold || d.thread) return false;
+  // (a node on the other layer: the Kindler goes to that floor, deep.js)
+  if ((n.l | 0) !== (d.layer | 0) && !layerSwitch(d, n.l | 0, n.x, n.y + TILE * 1.5)) return false;
   const f = d.floor;
   let x = n.x, y = n.y + TILE * 1.5;
   for (let k = 0; k < 12 && bodyHits(f, x, y, T.player.radius); k++) { x = n.x + Math.cos(k * 2.1) * TILE * 1.5; y = n.y + Math.sin(k * 2.1) * TILE * 1.5; }
@@ -367,7 +392,7 @@ function nodeSprite(lit) {
 // The nodes among the walkers, by their ground point.
 function veinProps(d) {
   const V = veinsState(), live = d.vLive, out = [];
-  for (let i = 1; i < V.nodes.length; i++) { const n = V.nodes[i]; out.push({ x: n.x, y: n.y, node: i, lit: !!live[i], draw: drawNode }); }
+  for (let i = 1; i < V.nodes.length; i++) { const n = V.nodes[i]; if ((n.l | 0) === (d.layer | 0)) out.push({ x: n.x, y: n.y, node: i, lit: !!live[i], draw: drawNode }); }
   if (d.hold && d.hold.to < 0) out.push({ x: d.hold.x, y: d.hold.y, node: -1, hold: true, draw: drawNode });
   return out;
 }
@@ -390,10 +415,11 @@ function drawNode(d, a, ox, oy, lights) {
 }
 // Under everyone: the set veins' lines on the ground, and the thread in hand.
 function drawVeinsUnder(d, ox, oy, lights) {
-  const V = veinsState(), live = d.vLive, G = ART.pal.star, t = Game.realT;
+  const V = veinsState(), live = d.vLive, G = ART.pal.star, t = Game.realT, LY = d.layer | 0;
   const vx0 = -ox - 40, vx1 = -ox + View.w + 40, vy0 = -oy - 40, vy1 = -oy + View.h + 40;
   const line = (pts, lit, alpha, moving) => {
     for (let i = 1; i < pts.length; i++) {
+      if (!veinSegOn(pts, i, LY)) continue;
       const [ax, ay] = pts[i - 1], [bx, by] = pts[i], x0 = ax * AP + ox, y0 = ay * AP + oy, x1 = bx * AP + ox, y1 = by * AP + oy;
       if (Math.max(x0, x1) < vx0 || Math.min(x0, x1) > vx1 || Math.max(y0, y1) < vy0 || Math.min(y0, y1) > vy1) continue;
       const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.round(L / AF)), nx = -(y1 - y0) / L, ny = (x1 - x0) / L;
@@ -411,7 +437,7 @@ function drawVeinsUnder(d, ox, oy, lights) {
   for (const v of V.veins) line(v.pts, veinLiving(live, v), v.cut ? 0.35 : 0.85, false);
   const th = d.thread;
   if (th) {
-    const pts = th.pts.concat([[d.p.x, d.p.y]]);
+    const pts = th.pts.concat([[d.p.x, d.p.y, LY]]);
     line(pts, true, 0.95, true);
     const [lx, ly] = pts[pts.length - 2];
     lights.push({ x: Math.round(d.p.x * AP) + ox, y: Math.round(d.p.y * AP) + oy, r: TILE * 1.4, i: 0.5, c: rgb01(G[2]) });

@@ -276,6 +276,8 @@ function paintTileArt(f, tx, ty) {
   paintUndergrowth(P, f, tx, ty, ox, oy, b);
   // (ore and veins are on the rock layer: paint.js)
   if (t === TILE_PAD) paintDish(P, ox, oy);
+  // (a shaft to the Deep, or the daylight down it: deep.js)
+  if (t === TILE_SHAFT) paintShaft(P, f, tx, ty, ox, oy, b);
 }
 
 // After mining: the wall line moves round tx, ty, and with it the rims,
@@ -315,7 +317,7 @@ function floorLights(f) {
     for (let tx = 0; tx < f.w; tx++)
       // (where the rock stands it up to, unshadowed: it glows from the rock)
       if (floorTile(f, tx, ty) === TILE_ORE) L.push({ x: (tx + 0.5) * TILE, y: (ty + 0.5) * TILE - pntLiftAt((tx + 0.5) * ATILE, (ty + 0.5) * ATILE) / AP, r: Lt.ore[0] * TILE, i: Lt.ore[1], c: rgb01(ART.ores[T.ores[f.ore[ty * f.w + tx] - 1].id][2]), inRock: true });
-  return f.clime || f.regions ? L.concat(hazardLights(f), climeLights(f)) : L;
+  return (f.clime || f.regions ? L.concat(hazardLights(f), climeLights(f)) : L).concat(shaftLights(f));
 }
 
 // ---------------------------------------------------------------------------

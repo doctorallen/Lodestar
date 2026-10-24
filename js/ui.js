@@ -204,7 +204,7 @@ const UI = {
     $('btn-map').classList.toggle('hot', !!(Save.data.shapes && Save.data.shapes.pending.length));
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
-    setTextIfChanged('btn-act', a ? ({ 'take up': 'TAKE UP THE THREAD', plant: 'PLANT', join: 'JOIN', mend: 'MEND' })[a] || String(a).toUpperCase() : '');
+    setTextIfChanged('btn-act', a ? ({ 'take up': 'TAKE UP THE THREAD', plant: 'PLANT', join: 'JOIN', mend: 'MEND', descend: 'GO DOWN', ascend: 'CLIMB UP' })[a] || String(a).toUpperCase() : '');
     if (btn.hidden !== !a) btn.hidden = !a;
     if (d.channel) { setTextIfChanged('hud-depth', `${d.channel.kind.toUpperCase()}…`); btn.classList.add('hold'); const v = Math.round((d.channel.t / d.channel.max) * 100) + '%'; if (btn.style.getPropertyValue('--fill') !== v) btn.style.setProperty('--fill', v); }
     else btn.classList.remove('hold');

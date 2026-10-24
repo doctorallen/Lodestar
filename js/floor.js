@@ -13,8 +13,9 @@
 // ---------------------------------------------------------------------------
 
 const TILE_FLOOR = 0, TILE_ROCK = 1, TILE_ORE = 2, TILE_EDGE = 3, TILE_PAD = 4, TILE_PORTAL = 5;
+// (6 is TILE_SHAFT, deep.js: a way down to the Deep, or up from it)
 // Indexed by tile type: does it stop a body?
-const TILE_SOLID = [false, true, true, true, false, false];
+const TILE_SOLID = [false, true, true, true, false, false, false];
 
 // Where each ore sits in T.ores, by id. A floor's ore array holds index + 1.
 const ORE_INDEX = Object.fromEntries(T.ores.map((o, i) => [o.id, i]));

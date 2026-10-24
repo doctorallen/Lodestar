@@ -128,6 +128,8 @@ const WICK = {
   // of old light; and the first time the build is turned
   firstShape: 'The star read that. A new Shape: face it at TURN, and it casts it.',
   firstMod: "It learned a Turn. Face it beside a Shape and the cast changes. Nothing to carry.",
+  firstDown: "Down, then. The sky can't follow you. The thread can.",
+  firstUp: 'Air. Keep going; the Deep keeps.',
   firstLegend: "Old light. Another star's. Face it and its power is yours, as long as it faces you.",
   firstTurn: 'Face it the other way and it is a different suit. Nothing to carry home.',
   // the Splinter's lattice thinning in the dark (facets.js latticeK)

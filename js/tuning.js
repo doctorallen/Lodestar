@@ -955,6 +955,12 @@ const T = {
   // border's wander [scale, tiles]; siteRooms: the caverns a site had, so a
   // region lays its hazards and critters in that proportion; surface and
   // deep: each layer's climes, the first the home one round the star.
+  // The Deep (deep.js): the floor under the surface. depth: its creatures'
+  // level; over: its generator's numbers over the world's; n shafts, each
+  // fromStar tiles from the star at least and apart from the others; reach:
+  // tiles from a shaft the Kindler can take it; light: the daylight down a
+  // shaft [reach below (tiles), strength, reach above, strength].
+  deep: { depth: 2, over: { roomR: [3, 6], tunnelR: [1.3, 2.0], meander: 0.4 }, n: 14, fromStar: 18, apart: 24, reach: 1.1, light: [3.2, 0.8, 1.2, 0.18] },
   regions: { area: 10816, meld: 7, warp: [16, 5], siteRooms: 8, surface: ['badlands', 'frost', 'cinder', 'bloomfen'], deep: ['caverns', 'grotto', 'magma', 'rootdeep'] },
   // The Veins (veins.js). band: the light either side of a living vein and
   // round a node (tiles), by magnitude; thread: how far a thread reaches

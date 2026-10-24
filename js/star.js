@@ -42,9 +42,9 @@ function magnitudeOf() { return Math.max(1, Math.floor((Save.data && Save.data.m
 // to 0 past its edge (T.star.lightR, lightFade, tiles).
 function starLight(d, x, y) {
   const f = d && d.floor, S = T.star;
+  // (the veins' grid, once it stands: veins.js; the Deep has only that)
+  if (f && d.litG) return clamp(1 - veinDistAt(d, x, y) / S.lightFade, 0, 1);
   if (!f || !f.star) return 0;
-  // (the veins' grid, once it stands: veins.js)
-  if (d.litG) return clamp(1 - veinDistAt(d, x, y) / S.lightFade, 0, 1);
   const dx = x / TILE - f.star.x - 0.5, dy = (y / TILE - f.star.y - 0.5) / S.squash;
   const R = S.lightR + S.lightPerMag * (magnitudeOf() - 1);
   return clamp(1 - (Math.hypot(dx, dy) - R) / S.lightFade, 0, 1);
