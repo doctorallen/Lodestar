@@ -23,7 +23,7 @@ function airColour(d) {
 // land (as dark as the floor was painted for), and never at home.
 function airHaze(d, ox, oy) {
   if (!Lab.on('air') || d.hub) return;
-  const A = T.air.haze, dark = View.pntLift || 0;
+  const A = T.air.haze, dark = View.darkHere || 0;
   if (dark < 0.05) return;
   const b = artBiome(d.floor), tone = pntLook(b).groundRgb, c = tone[tone.length - 1];
   const key = c.join(',');

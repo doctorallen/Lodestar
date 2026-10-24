@@ -642,11 +642,13 @@ function lightScene(cx, cy) {
   // step, 256ths), so a lamp shows the ground no busier than the sun does.
   // Only the ground's own pixels, nothing drawn over it: each matched
   // against its tone in the painted ramp (GL), and given the unlifted (GU).
-  const fCap = Math.max(1, ambI), gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone, unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === PWIN.w * PWIN.h);
+  // (measured from the dark the floor was painted for, so daylight itself
+  // takes the lift back where it falls)
+  const fCap = Math.max(1, ambI), ulB = View.pntLiftAmb !== undefined ? View.pntLiftAmb : ambI, gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone, unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === PWIN.w * PWIN.h);
   const GL = unl ? pntLook(gLook) : null, GU = unl ? pntLook(gLook, 0) : null, gHue = unl && GL.groundW ? View.groundHue : null, gW = unl ? PWIN.w : 0, gH = unl ? PWIN.h : 0, gX = PWIN.x, gY = PWIN.y, UL = new Int32Array(top + 2);
   for (let q = 0; q <= top + 1; q++) {
     const level = q * inv, lp = clamp((level - ambI) * lpK, 0, 1);
-    UL[q] = unl ? Math.round(clamp((level - ambI) / Math.max(0.05, fCap - ambI), 0, 1) * 256) : 0;
+    UL[q] = unl ? Math.round(clamp((level - ulB) / Math.max(0.05, fCap - ulB), 0, 1) * 256) : 0;
     ND[q] = nDark > 0 ? Math.round(Nc.amount * nDark * (1 - lp) * 256) : 0;
     for (let c = 0; c < 3; c++) TF[q * 3 + c] = 1 + (Vi.dark[c] - 1) * (1 - lp) * dark;
   }
@@ -869,12 +871,12 @@ function bloomSceneWorld(cx, cy) {
 // level (amb) and its tint, a clime's own sun or dark if it has one
 // (T.climes); and the lamp's strength (lamp, 0-1), reach (r, art px) and
 // light (i).
-function lampLevels(d) {
+function lampLevels(d, sunAt) {
   const f = d.floor, Lt = T.light;
   const cl = climeLight(f), zl0 = T.zones[d.zone] && T.zones[d.zone].light, zl = zl0 && cl ? Object.assign({}, zl0, cl) : zl0;
   // under the sky, the sun (sunOf: daylight in kindled land, a dim dusk in
   // the dark, darker still at the Edge; at home, as the star has grown)
-  const sun = sunOf(d);
+  const sun = sunAt !== undefined ? sunAt : sunOf(d);
   const amb = zl ? Math.max(0.2, lerp(zl.dusk, zl.day, Math.min(1, sun))) : cl && cl.ambient !== undefined ? cl.ambient : Lt.ambient;
   const tint = zl ? zl.tint.map((c, i) => lerp(Lt.tint[i], c, clamp(sun * 1.5, 0, 1))) : (cl && cl.tint) || Lt.tint;
   // the lamp gutters out as the diver dies, and dims as your light fades;
@@ -912,6 +914,7 @@ function renderFrameDraw() {
   const d = Game.dive;
   if (!d) { if (Gpu.on) { gpuBlank(); return; } View.emCtx.clearRect(0, 0, View.w, View.h); View.bloomCtx.clearRect(0, 0, View.w, View.h); return; }
   const f = d.floor, p = d.p, Lt = T.light, star = ART.pal.star;
+  View.darkHere = pntDarkHere(d);
   // (and the creatures it holds are painted now, not mid-fight). Just
   // arrived through a portal, behind its shut iris: a step a frame, the
   // last frame (all iris) left on the screen meanwhile
@@ -1440,7 +1443,7 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
   drawArtSprite(livePaint(spr), sx, sy);
   // in a dark place its lit rim holds over the light (foespaint.js fpReadable)
-  if (spr.rimEc && View.pntLift > 0.05) { const e = View.emCtx; e.globalAlpha = T.paint.foes.read.glow * View.pntLift; e.drawImage(spr.rimEc, sx, sy); e.globalAlpha = 1; }
+  if (spr.rimEc && View.darkHere > 0.05) { const e = View.emCtx; e.globalAlpha = T.paint.foes.read.glow * View.darkHere; e.drawImage(spr.rimEc, sx, sy); e.globalAlpha = 1; }
   // struck: a rim a pixel wide round it, white or in the hit's element, on
   // the unlit layer over the view, so it's never a light and never blooms,
   // and the enemy stays in sight inside it; a few at most at once

@@ -35,7 +35,7 @@ uniform ivec2 uCellsSize;
 uniform int uLC;
 uniform ivec2 uP;
 uniform ivec2 uCam, uWin;
-uniform float uTop, uInv, uMx, uLo, uDz, uAmbI, uLpK;
+uniform float uTop, uInv, uMx, uLo, uDz, uAmbI, uLpK, uUlB;
 uniform int uFit, uSoft, uNoct, uUnl, uHueOn, uWeaveOn, uWeaveN, uTones;
 uniform vec3 uViolet;
 uniform float uDark;
@@ -99,7 +99,7 @@ void main() {
     f = floor(f * 256.0 + 0.5) / 256.0;
     // the ground's own tone, taken back towards unlifted
     if (uUnl == 1 && wx >= uWin.x && wy >= uWin.y && wx < uWin.x + uFloor.x && wy < uWin.y + uFloor.y) {
-      float ul = clamp((level - uAmbI) * uUlK, 0.0, 1.0);
+      float ul = clamp((level - uUlB) * uUlK, 0.0, 1.0);
       if (ul > 0.0) {
         int t = int(texelFetch(uGT, ivec2(wx, wy) - uWin, 0).r * 255.0 + 0.5);
         int hu = uHueOn == 1 ? int(texelFetch(uHue, ivec2(wx, wy) - uWin, 0).r * 255.0 + 0.5) : 0;
@@ -136,7 +136,7 @@ function glLightInit() {
   if (!Gpu.on) return false;
   try {
     const gl = Gpu.gl;
-    const { p, u } = gpuProgram(gl, GPU_TRI_VS, GLIGHT_FS, ['uScene', 'uCells', 'uGT', 'uHue', 'uPal', 'uWeave', 'uSize', 'uCellsSize', 'uLC', 'uP', 'uCam', 'uWin', 'uTop', 'uInv', 'uMx', 'uLo', 'uDz', 'uAmbI', 'uLpK', 'uFit', 'uSoft', 'uNoct', 'uUnl', 'uHueOn', 'uWeaveOn', 'uWeaveN', 'uTones', 'uViolet', 'uDark', 'uNT', 'uNAmt', 'uNDark', 'uUlK', 'uFloor', 'uSfLen', 'uSfK']);
+    const { p, u } = gpuProgram(gl, GPU_TRI_VS, GLIGHT_FS, ['uScene', 'uCells', 'uGT', 'uHue', 'uPal', 'uWeave', 'uSize', 'uCellsSize', 'uLC', 'uP', 'uCam', 'uWin', 'uTop', 'uInv', 'uMx', 'uLo', 'uDz', 'uAmbI', 'uLpK', 'uFit', 'uSoft', 'uNoct', 'uUnl', 'uHueOn', 'uWeaveOn', 'uWeaveN', 'uTones', 'uViolet', 'uDark', 'uNT', 'uNAmt', 'uNDark', 'uUlK', 'uUlB', 'uFloor', 'uSfLen', 'uSfK']);
     G.prog = p; G.u = u;
     gl.useProgram(p);
     // the textures, each on its own unit from 5 (0-4 are the quads')
@@ -233,7 +233,7 @@ function glLightScene(cx, cy) {
   const ambI = View.lightAmbI || 0, lpK = 1 / Math.max(0.05, mx - ambI), Vi = Lt.violet;
   const dark = clamp((Vi.darkAt[0] - ambI) / (Vi.darkAt[0] - Vi.darkAt[1]), 0, 1);
   const noct = Lab.on('nocturne'), Nc = Lt.nocturne, nDark = noct ? clamp((Nc.darkAt[0] - ambI) / (Nc.darkAt[0] - Nc.darkAt[1]), 0, 1) : 0;
-  const fCap = Math.max(1, ambI), gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone;
+  const fCap = Math.max(1, ambI), ulB = View.pntLiftAmb !== undefined ? View.pntLiftAmb : ambI, gf = Game.dive && Game.dive.floor, gLook = View.groundLook, GT = View.groundTone;
   const unl = !!(gf && gLook && GT && View.pntLift > 0 && GT.length === PWIN.w * PWIN.h);
   const u = G.u;
   gl.uniform2i(u.uSize, w, h); gl.uniform2i(u.uCellsSize, L.w, L.h);
@@ -249,7 +249,7 @@ function glLightScene(cx, cy) {
     glLightGround(gl, G, GT, HUE, gW, gH);
     gl.uniform2i(u.uWin, PWIN.x, PWIN.y);
     glLightPal(gl, G, GL, GU, GL.ground.length);
-    gl.uniform1i(u.uUnl, 1); gl.uniform1i(u.uHueOn, HUE ? 1 : 0); gl.uniform2i(u.uFloor, gW, gH); gl.uniform1f(u.uUlK, 1 / Math.max(0.05, fCap - ambI)); gl.uniform1i(u.uTones, GL.ground.length);
+    gl.uniform1i(u.uUnl, 1); gl.uniform1i(u.uHueOn, HUE ? 1 : 0); gl.uniform2i(u.uFloor, gW, gH); gl.uniform1f(u.uUlK, 1 / Math.max(0.05, fCap - ulB)); gl.uniform1f(u.uUlB, ulB); gl.uniform1i(u.uTones, GL.ground.length);
   } else gl.uniform1i(u.uUnl, 0);
   if (Lab.on('canvas')) { gl.uniform1i(u.uWeaveOn, 1); gl.uniform1i(u.uWeaveN, glLightWeave(gl, G)); } else gl.uniform1i(u.uWeaveOn, 0);
   gl.drawArrays(gl.TRIANGLES, 0, 3);

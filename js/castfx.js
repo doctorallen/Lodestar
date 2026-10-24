@@ -1041,7 +1041,7 @@ function drawCastGround(d, ox, oy, tick, lights) {
     c.drawImage(m.pic.col.c, x - m.pic.col.cx, y - m.pic.col.cy);
     // (a death's splash in a dark place holds over the light a little, as
     // the floor there is painted lighter for the dark: it'd vanish in it)
-    if (m.pic.splat && View.pntLift > 0.05) { e.globalAlpha = cfxBand(k) * 0.55 * View.pntLift; e.drawImage(m.pic.col.c, x - m.pic.col.cx, y - m.pic.col.cy); }
+    if (m.pic.splat && View.darkHere > 0.05) { e.globalAlpha = cfxBand(k) * 0.55 * View.darkHere; e.drawImage(m.pic.col.c, x - m.pic.col.cx, y - m.pic.col.cy); }
     // what glows in it dies first
     const g = cfxBand(k * 2 - 1);
     if (g > 0) { c.globalAlpha = g; c.drawImage(m.pic.em.c, x - m.pic.em.cx, y - m.pic.em.cy); e.globalAlpha = g; e.drawImage(m.pic.em.c, x - m.pic.em.cx, y - m.pic.em.cy); }

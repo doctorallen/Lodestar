@@ -135,12 +135,23 @@ function pntRockUnder(rock, ground) {
 }
 // How dark the floor being painted will be lit, 0 (daylight) to 1 (a deep
 // cave): from the place's ambient light as the frame will work it out.
-function pntDarkness(f) {
-  const d = Game.dive, P = T.paint.rampEven.darkAt;
-  if (!d || d.floor !== f) return 0;
-  const lv = lampLevels(d), a = lv.amb * Math.max(lv.tint[0], lv.tint[1], lv.tint[2]);
-  return Math.max(0, Math.min(1, (P[0] - a) / (P[0] - P[1])));
+// The floor is painted for the world's dark, where most of it is seen,
+// whatever light the Kindler stands in: where a light (the star's, the
+// veins', the lamp) reaches, the ground's tones are taken back towards
+// unlifted (lightScene, from the same ambient, View.pntLiftAmb), so
+// crossing the light's edge never paints the floor again.
+function pntLiftAmb(f) {
+  const d = Game.dive;
+  if (!d || d.floor !== f) return 1;
+  const lv = lampLevels(d, T.world.sun.dark);
+  return lv.amb * Math.max(lv.tint[0], lv.tint[1], lv.tint[2]);
 }
+function pntDarkFrom(a) { const P = T.paint.rampEven.darkAt; return Math.max(0, Math.min(1, (P[0] - a) / (P[0] - P[1]))); }
+function pntDarkness(f) { return Game.dive && Game.dive.floor === f ? pntDarkFrom(pntLiftAmb(f)) : 0; }
+// How dark it is where the Kindler stands now (0 in daylight, 1 in the
+// deep dark), for what shows only in the dark: the haze, a splash held
+// over the light, a creature's rim.
+function pntDarkHere(d) { const lv = lampLevels(d); return pntDarkFrom(lv.amb * Math.max(lv.tint[0], lv.tint[1], lv.tint[2])); }
 
 // ---- noise -----------------------------------------------------------------
 // Value noise in 0..1 along a row, sx px across a bump and sy px down (so
@@ -964,7 +975,7 @@ function pntWindowMove(f, nx, ny) {
 function pntFloorStart(f) {
   const W = PWIN.w, Hp = PWIN.h;
   // (painted for the light it will be seen in: pntLook)
-  View.pntLift = pntDarkness(f);
+  View.pntLift = pntDarkness(f); View.pntLiftAmb = pntLiftAmb(f);
   View.rockH = new Uint8Array(W * Hp);
   View.rockHf = new Uint16Array(W * Hp);
   View.groundTone = new Uint8Array(W * Hp);
@@ -1087,7 +1098,7 @@ function pntEnsure(f, x0, y0, x1, y1, budget, at, only) {
 // the diver is heading) to paint out from first.
 function pntFrame(f, camX, camY, reveal, lead) {
   const L = T.paint.lazy, m1 = L.near * ATILE, m2 = L.far * ATILE;
-  // the place's light has changed a lot (kindled): painted again for it
+  // the place's light has changed a lot (the paint lab's numbers): painted again for it
   if (Math.abs(pntDarkness(f) - (View.pntLift || 0)) > 0.15) paintFloor(f);
   // the window moved along with the view
   pntWindowKeep(f, camX, camY);
