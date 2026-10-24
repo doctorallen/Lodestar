@@ -78,11 +78,18 @@ const KD_LOOKS = {
   tall: { form: 'tall', plates: 'dark', shard: 3, seams: 'veins', halo: false, lamp: 'head', scaleY: 1.3, h: 62, feet: 59 },
   drift: { form: 'drift', plates: 'dark', shard: 3, seams: 'veins', halo: false, lamp: 'shard', h: 52, feet: 49 },
   lantern: { form: 'lantern', plates: 'dark', shard: 0, seams: 'none', halo: false, lamp: 'head', h: 52, feet: 49 },
+  // the second pass: a crown of node-crystals for a head; a body of shards
+  // held apart by light; a monolith on three legs of light
+  crown: { form: 'crown', plates: 'dark', shard: 2, seams: 'veins', halo: false, lamp: 'head', scaleY: 1.2, h: 62, feet: 59 },
+  shards: { form: 'shards', plates: 'dark', shard: 0, seams: 'none', halo: false, lamp: 'head', scaleY: 1.15, h: 58, feet: 55 },
+  pillar: { form: 'pillar', plates: 'dark', shard: 0, seams: 'none', halo: false, lamp: 'shardfront', h: 58, feet: 55 },
   splinter: { form: 'human', helm: 'cowl', plates: 'dark', shard: 3, seams: 'veins', halo: false, lamp: 'shard' },
   hardlight: { form: 'human', helm: 'crystal', plates: 'glass', shard: 3, seams: 'lattice', halo: false, lamp: 'shard' },
   halo: { form: 'human', helm: 'cowl', plates: 'dark', shard: 2, seams: 'veins', halo: true, lamp: 'halo' },
 };
-let KD_LOOK = KD_LOOKS.charter;
+// The Kindler is the Shards (DECISIONS.md, 2026-10-24): his light leaves
+// the crystal that is his head, as a beam the way he's turned.
+let KD_LOOK = KD_LOOKS.shards;
 
 // The figure, in art px above the soles: the hip joints' height and half
 // spacing, the leg and arm bones, the shoulder joints, the spine from the
@@ -330,6 +337,7 @@ const KD_MAT = [null,
   [KP.glass, 1, 4, 1.2], // 11 the star's glass, hard light (glowing)
   [KP.cowl, 0, 4, 1.3], // 12 the cowl, matte
   [KP.cowl, 0, 3, 1.2], // 13 the veil of light's dark weave (with holes)
+  [KP.glass, 0, 3, 1.5], // 14 a crystal head that is the lamp: deeper gold, so its lens shows (glowing)
 ];
 // What a material is under the look: plates and the helm become one dark
 // suit or the star's glass.
@@ -547,7 +555,7 @@ function kdRender(face, key) {
 
   // the forms that aren't the figure: a floating crystal of the star for
   // a head; legs that end in points, or no legs; a veil
-  const crystalHead = (c, r) => { ball(c, r, J.head.yaw, () => 11, 0, 4, KD_HELM_TILT); };
+  const crystalHead = (c, r) => { ball(c, r, J.head.yaw, () => (LKK.lamp === 'head' ? 14 : 11), 0, 4, KD_HELM_TILT); };
   const legPoint = (i) => tube([J.hip[i], J.knee[i], kdAdd(J.ankle[i], [0, -1.2, 0.4])], [2.0, 1.3, 0.25], legMat, true);
   const armLight = (i) => {
     tube([J.shoulder[i], J.elbow[i]], [1.2, 0.9], () => 1, true);
@@ -576,6 +584,42 @@ function kdRender(face, key) {
     for (let i = 0; i < 2; i++) armLight(i);
     tube([J.neck, kdAdd(J.neck, [0, 1.4, 0])], [1.3, 0.9], () => 1, false);
     crystalHead(kdAdd(J.head.c, [0, 1.0, 0.1]), [2.3, 3.6, 2.3]);
+  } else if (form === 'crown') {
+    // the tall one, crowned: the head a fan of the star's crystals, the
+    // same that stand at a node
+    torso();
+    for (let i = 0; i < 2; i++) legPoint(i);
+    for (let i = 0; i < 2; i++) { tube([J.shoulder[i], J.elbow[i], J.wrist[i], kdAdd(J.wrist[i], kdNorm([J.wrist[i][0] - J.elbow[i][0], J.wrist[i][1] - J.elbow[i][1], J.wrist[i][2] - J.elbow[i][2]]), 1.8)], [1.2, 0.9, 0.8, 0.2], () => 1, true); }
+    tube([J.neck, kdAdd(J.neck, [0, 1.8, 0])], [1.3, 1.0], () => 1, false);
+    const base = kdAdd(J.neck, [0, 2.2, 0.1]);
+    for (const [sx, h, tilt] of [[0, 4.6, 0], [-1.4, 3.4, -0.5], [1.4, 3.4, 0.5], [-2.3, 2.2, -0.9], [2.3, 2.2, 0.9]]) {
+      const c = kdAdd(base, kdYaw([sx * 0.8 + Math.sin(tilt) * h * 0.35, h * 0.5 + 0.3, 0], J.head.yaw));
+      ball(c, [0.75, h * 0.5, 0.75], J.head.yaw + tilt * 0.3, () => 11, 0, 4, 0);
+    }
+  } else if (form === 'shards') {
+    // a body of shards of lodestone held apart by the star's light: the
+    // chest a prism, the limbs in pieces with a gap at each joint, the
+    // head a crystal floating clear of the shoulders
+    const C = J.spine(0.62), gap = (a, b, k0, k1) => [kdAdd(a, [b[0] - a[0], b[1] - a[1], b[2] - a[2]], k0), kdAdd(a, [b[0] - a[0], b[1] - a[1], b[2] - a[2]], k1)];
+    ball(kdAdd(C.c, [0, 0.3, 0]), [3.6, 5.6, 2.4], C.yaw, () => 12, 0, 4);
+    ball(kdAdd(J.spine(0.12).c, [0, 0.4, 0]), [2.6, 2.4, 1.9], J.spine(0.12).yaw, () => 12, 0, 4);
+    for (let i = 0; i < 2; i++) {
+      let g = gap(J.shoulder[i], J.elbow[i], 0.22, 0.86); tube(g, [1.1, 0.95], () => 12, true);
+      g = gap(J.elbow[i], J.wrist[i], 0.16, 1.0); tube([g[0], g[1], kdAdd(J.wrist[i], kdNorm([J.wrist[i][0] - J.elbow[i][0], J.wrist[i][1] - J.elbow[i][1], J.wrist[i][2] - J.elbow[i][2]]), 1.6)], [0.95, 0.8, 0.15], () => 12, true);
+      g = gap(J.hip[i], J.knee[i], 0.18, 0.84); tube(g, [1.9, 1.5], () => 12, true);
+      g = gap(J.knee[i], J.ankle[i], 0.16, 1.0); tube([g[0], g[1], kdAdd(J.ankle[i], [0, -1.0, 0.3])], [1.4, 1.0, 0.2], () => 12, true);
+    }
+    crystalHead(kdAdd(J.head.c, [0, 0.9, 0.1]), [1.8, 2.9, 1.8]);
+  } else if (form === 'pillar') {
+    // a monolith of lodestone with the star's crystal set in its face,
+    // walking on three thin legs of hard light
+    const P0 = J.spine(0.08).c, P1 = kdAdd(J.neck, [0, 3.5, 0]), mid = kdAdd(P0, [P1[0] - P0[0], P1[1] - P0[1], P1[2] - P0[2]], 0.5), yaw = J.spine(0.6).yaw;
+    ball(mid, [2.7, Math.hypot(P1[0] - P0[0], P1[1] - P0[1], P1[2] - P0[2]) * 0.5 + 0.5, 2.1], yaw, () => 12, 0, 4);
+    const face = kdAdd(J.spine(0.7).c, kdYaw([0, 0.5, 1.8], yaw));
+    ball(face, [1.5, 2.8, 1.3], yaw, () => 11, 0, 4);
+    // (the legs thin: threads of light, not limbs)
+    for (let i = 0; i < 2; i++) tube([kdAdd(J.hip[i], [0, 0.5, 0]), kdAdd(J.ankle[i], [i ? -1.0 : 1.0, -1.2, 0.6])], [0.3, 0.12], () => 11, true);
+    tube([kdAdd(J.spine(0.05).c, kdYaw([0, 0.5, -1.4], yaw)), kdAdd(J.spine(0).c, kdYaw([0, -(KR.crotch - 1.2), -4.5], yaw))], [0.3, 0.12], () => 11, true);
   } else if (form === 'lantern') {
     // a faceted crystal where the chest would be, a veil beneath it to the
     // knees, three tendrils of hard light
@@ -619,7 +663,7 @@ function kdRender(face, key) {
     // (the veil: a loose weave, a lit thread of the star's gold now and then)
     if (m === 13) { const hv = artHash(Math.floor(ia / 2), Math.floor(ib / 3), seed + 9); if (hv < 0.3) continue; if (hv > 0.9) { sp.px(i % W, (i / W) | 0, KP.amber[2], true); continue; } }
     const [ramp, lo, hi, g] = KD_MAT[m], t = lo + (hi - lo) * Math.pow(val[i], g) + jit * 0.3;
-    sp.px(i % W, (i / W) | 0, ramp[clamp(Math.round(t), lo, hi)], m === 11);
+    sp.px(i % W, (i / W) | 0, ramp[clamp(Math.round(t), lo, hi)], m === 11 || m === 14);
   }
   // the lattice of hard light, baked in: over the body below the neck, a
   // diamond lattice of gold with a brighter node where its lines cross
@@ -668,10 +712,15 @@ function kdRender(face, key) {
   if (LK.seams === 'veins') {
     for (let i = 0; i < 2; i++) {
       const line = (a, b, n, col, lift) => { for (let k = 0; k <= n; k++) { const t = k / n, c = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; dot(kdAdd(c, [0, 0, 1], lift), col, true, 0.7); } };
-      line(J.shoulder[i], J.elbow[i], 7, A[2], 1.3); line(J.elbow[i], J.wrist[i], 6, A[2], 1.05);
+      if (LK.form !== 'pillar') { line(J.shoulder[i], J.elbow[i], 7, A[2], 1.3); line(J.elbow[i], J.wrist[i], 6, A[2], 1.05); }
       if (LK.form !== 'drift') { line(J.hip[i], J.knee[i], 8, A[1], 2.1); line(J.knee[i], J.ankle[i], 8, A[1], 1.65); }
     }
     for (const u of [0.5, 0.72]) for (let k = 0; k <= 20; k++) { const T0 = torsoPt(u, front + (k / 20 - 0.5) * 1.6); dot(kdAdd(T0.p, T0.n, 0.2), A[shade(T0.n).s > 0.05 ? 2 : 1], true, 0.6); }
+  }
+  // the shards: a point of the star's light at each gap that holds them
+  if (LK.form === 'shards') {
+    for (let i = 0; i < 2; i++) for (const [a, b, k] of [[J.shoulder[i], J.elbow[i], 0.08], [J.elbow[i], J.wrist[i], 0.06], [J.hip[i], J.knee[i], 0.08], [J.knee[i], J.ankle[i], 0.06]]) { const c = kdAdd(a, [b[0] - a[0], b[1] - a[1], b[2] - a[2]], k); const q = seen(c, 3); if (q) { sp.px(q[0], q[1], DIVER_PAL.star[0], true); sp.px(q[0] + 1, q[1], A[2], true); } }
+    const nq = seen(kdAdd(J.neck, [0, 0.8, 0.2]), 3); if (nq) { sp.px(nq[0], nq[1], DIVER_PAL.star[0], true); sp.px(nq[0], nq[1] - 1, A[3], true); }
   }
   // the halo: a ring of the star's light behind the head, facing us
   let haloTop = null;
@@ -763,10 +812,17 @@ function kdRender(face, key) {
   // where the light he sees by comes from: the brow lamp, the shard, or
   // the halo's top
   // (a form with a crystal for a head: its light comes from the crystal)
-  const headC = LK.form === 'lantern' ? kdAdd(J.spine(0.72).c, [0, 2.0, 0.3]) : LK.form === 'tall' ? kdAdd(J.head.c, [0, 1.4, 0.1]) : LK.form === 'drift' ? kdAdd(J.head.c, [0, 1.0, 0.1]) : null;
-  const lq = LK.lamp === 'shard' ? proj(kdAdd(star.p, star.n, 0.3)) : LK.lamp === 'head' && headC ? proj(kdAdd(headC, [0, 0, 1.5])) : LK.lamp === 'halo' && haloTop ? [haloTop[0] + 0.5, haloTop[1], 0] : proj(lampP);
+  const headC = LK.form === 'lantern' ? kdAdd(J.spine(0.72).c, [0, 2.0, 0.3]) : LK.form === 'tall' ? kdAdd(J.head.c, [0, 1.4, 0.1]) : LK.form === 'drift' ? kdAdd(J.head.c, [0, 1.0, 0.1]) : LK.form === 'crown' ? kdAdd(J.neck, [0, 4.6, 0.1]) : LK.form === 'shards' ? kdAdd(J.head.c, [0, 0.9, 0.1]) : LK.form === 'pillar' ? kdAdd(J.spine(0.7).c, kdYaw([0, 0.5, 1.8], J.spine(0.6).yaw)) : null;
+  const headR = LK.form === 'lantern' ? [3.4, 5.0, 3.4] : LK.form === 'tall' ? [2.4, 4.2, 2.4] : LK.form === 'shards' ? [1.8, 2.9, 1.8] : LK.form === 'pillar' ? [1.5, 2.8, 1.3] : [2.3, 3.6, 2.3];
+  // a crystal head as the lamp: the face of it the way he's turned is the
+  // lens, and the beam leaves there
+  const lens = headC && LK.lamp === 'head' ? kdAdd(headC, kdYaw([0, headR[1] * 0.12, headR[2] * 0.98], J.head.yaw)) : null;
+  const lq = LK.lamp === 'shard' ? proj(kdAdd(star.p, star.n, 0.3)) : lens ? proj(lens) : LK.lamp === 'shardfront' && headC ? proj(kdAdd(headC, [0, 0, 1.5])) : LK.lamp === 'halo' && haloTop ? [haloTop[0] + 0.5, haloTop[1], 0] : proj(lampP);
   // a crystal head's facets: lit edges
-  if (headC) for (const [ux, uy] of [[0, 0.95], [-0.7, 0.5], [0.7, 0.5], [0, -0.95], [-0.5, -0.5], [0.5, -0.5]]) { const rr = LK.form === 'lantern' ? [3.4, 5.0, 3.4] : LK.form === 'tall' ? [2.4, 4.2, 2.4] : [2.3, 3.6, 2.3], uz = Math.sqrt(Math.max(0, 1 - ux * ux - uy * uy)), q = seen(kdAdd(headC, kdYaw([rr[0] * ux * 1.02, rr[1] * uy * 1.02, rr[2] * uz * 1.02], J.head.yaw)), 0.9); if (q) sp.px(q[0], q[1], DIVER_PAL.starHeart[0], true); }
+  if (headC && LK.form !== 'crown') for (const [ux, uy] of [[0, 0.95], [-0.7, 0.5], [0.7, 0.5], [0, -0.95], [-0.5, -0.5], [0.5, -0.5]]) { const rr = headR, uz = Math.sqrt(Math.max(0, 1 - ux * ux - uy * uy)), q = seen(kdAdd(headC, kdYaw([rr[0] * ux * 1.02, rr[1] * uy * 1.02, rr[2] * uz * 1.02], J.head.yaw)), 0.9); if (q) sp.px(q[0], q[1], DIVER_PAL.starHeart[0], true); }
+  // the lens: a warm-white spot, F px square, where the crystal faces
+  // (hidden when he's turned away, as a brow lamp would be)
+  if (lens) { const q = seen(lens, 1.3); if (q) for (let dy = 0; dy < F; dy++) for (let dx = -F; dx < F; dx++) sp.px(q[0] + dx + (F >> 1), q[1] + dy, DIVER_PAL.lamp[0], true); }
   if (ls) {
     const [x, y] = ls;
     sp.px(x, y, DIVER_PAL.lamp[0], true); sp.px(x + 1, y, DIVER_PAL.lamp[0], true); sp.px(x - 1, y, A[3], true); sp.px(x + 2, y, A[2], true); sp.px(x, y - 1, A[3], true);

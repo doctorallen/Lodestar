@@ -60,7 +60,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/terraform.js` | The land terraforming by the light: starstone along every living vein and round every node, gold veins running on through the land, the ground greening past the light's edge, lit motes |
 | `js/hubart.js` | The star and its halo, painted; the older outpost's pieces, kept for the opening |
 | `js/intro.js` | The opening: five painted scenes that play on their own, their captions, SKIP and tap to hurry, and the last shot drawn by the game itself |
-| `js/diver.js` | The Kindler's sprite, painted: posed and rendered in five facings, the bubble helm, the Splinter's lattice of hard light over the suit; Wick |
+| `js/diver.js` | The Kindler's sprite, painted: a figure rig posed and rendered in five facings, and the looks it can be drawn as (`KD_LOOKS`; the game's is the Shards, a body of lodestone pieces held apart by light with a crystal head for a lamp); Wick |
 | `js/circuits.js` | Spells: the Forms, Elements and Mods in words, the two spells, casting each Form; what's in flight and what lingers |
 | `js/art2.js`, `js/art3.js` | Art for the story and the sunlit surface; icons |
 | `js/foesart.js`, `js/foespaint.js` | Each clime's own creature: its frames drawn by hand, and its colours; the creatures painted |

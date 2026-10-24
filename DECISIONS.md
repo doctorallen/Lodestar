@@ -986,3 +986,9 @@ The world is one floor 320 tiles square (`T.worldgen`), the generator run large 
 
 - **Six dead nodes stand out in the dark**, one in each direction 50 to 120 tiles from the star, laid out once a save. A thread walked to one from a lit node relights it after a 30 s hold, and its shape (a reading of whoever planted it) waits at the star. This is the design's "shapes from the world", in place of glyph stones in ruins.
 - **Every kind takes every element alike now.** The weakness and resistance badges over creatures and the WEAK/RESIST verdicts are gone, ahead of the fight's rethink; the elements' statuses stay. The old reckoning is kept in `elementMultOld`.
+
+## 2026-10-24: the Kindler's form, the Shards
+
+- **The Kindler is not a person in a suit.** The designer: "the shape of the suit doesn't necessarily need to be human since the player you are playing as is created from the lodestar. It can look much more alien." Ten looks were built on the one figure rig behind a switch (`diver.js KD_LOOKS`) and shown side by side; the pick was the Shards: a body of lodestone shards held apart by the star's light, a prism for a chest, the limbs in pieces with a gap and a point of light at every joint, and a crystal of the star floating clear of the shoulders for a head. It keeps the human rig, so every walk, dash and cast frame carries over.
+- **The light comes out of the head, as a flashlight** ("let's have the light come out of the head, flashlight"). The crystal head is the lamp: it is drawn in a deeper gold than the other hard light with a warm-white lens on the face he's turned to, and the lamp's beam (`T.light.beam`, on by default) leaves that lens. So there is a plain reason the light comes from him.
+- **The overlay lattice is off for a non-human form.** It belonged to the suit; how the magnitude shows on the Shards (the joints' light, the gaps) is to be built. The other looks stay in the file, inert, for comparison.

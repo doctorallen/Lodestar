@@ -11,9 +11,9 @@ The design, settled 2026-10-24 after the interview in DECISIONS.md. The prune th
 
 ## The story
 
-The Charter's ship, the *Meridian*, brought a seed-star to a dead world and everyone aboard sleeps until the world can be lived on. One was woken: the Kindler, bonded to the star by a splinter of it set in his sternum; his suit is the hard light it throws. Wick, a drone, is awake with him, dry and kind. The Kindler's work is to lay the star's light across the world in veins until the world lives.
+The Charter's ship, the *Meridian*, brought a seed-star to a dead world and everyone aboard sleeps until the world can be lived on. One was woken: the Kindler, made of the star rather than merely bonded to it: a body of lodestone shards held apart by its light, with a point of light in every joint, and a crystal of the star for a head, which is the lamp he sees by, thrown as a beam the way he's turned. Wick, a drone, is awake with him, dry and kind. The Kindler's work is to lay the star's light across the world in veins until the world lives.
 
-What the player isn't told: the Kindler is the star's hand. When the veins are whole the star draws its light home, and him with it. The sleepers wake and come down to a living world, and no one meets them. Wick knows, and that is what his kindness is. Nothing before the ending may say it; the heart's glow in the Kindler's chest, the lattice closing over him as the star grows, and Wick's silences are allowed to show it.
+What the player isn't told: the Kindler is the star's hand. When the veins are whole the star draws its light home, and him with it. The sleepers wake and come down to a living world, and no one meets them. Wick knows, and that is what his kindness is. Nothing before the ending may say it; the heart's glow at the star, the light that holds the Kindler's shards together growing with it, and Wick's silences are allowed to show it.
 
 Old Kindlers came before. Their dead nodes stand out in the dark, and their shapes are in them.
 
@@ -71,7 +71,7 @@ A web with loops needs less mending. That is the strategy of the weeks.
 
 ## Magnitude
 
-The star's **magnitude** is how much of the world lives: living vein length in tiles, plus 20 a living node. It is never a number on the HUD; it is the heart's size, the lattice closing over the Kindler, and one line at the star ("the light reaches 640 strides").
+The star's **magnitude** is how much of the world lives: living vein length in tiles, plus 20 a living node. It is never a number on the HUD; it is the heart's size, the light in the Kindler's joints, and one line at the star ("the light reaches 640 strides").
 
 It gives, by thresholds (first guess 0, 150, 400, 800, 1400, 2200, 3200):
 
