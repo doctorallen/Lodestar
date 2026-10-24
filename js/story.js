@@ -134,6 +134,15 @@ const WICK = {
   firstTurn: 'Face it the other way and it is a different suit. Nothing to carry home.',
   // the Splinter's lattice thinning in the dark (facets.js latticeK)
   latticeThin: "You're going dim. The suit's only as hard as the light in it.",
+  // ore in the field (field.js): the first pocket planted, the first surge,
+  // a spire short of its ore
+  firstPlant: "A pocket of the star's light, out of the land's own ore. It won't last. Nothing out here does.",
+  firstSurge: 'Burning the ore in the cast. Wasteful. Effective.',
+  spireOre: "A spire is raised from the ground it stands on. Mine some of this land first.",
+  // night-glass, first carried (spectrum.js): the thing the spec never
+  // listed
+  nightglass: "That's not on the Charter's list. You don't have to give the star anything. Just so you know.",
+  umbra: "It took it. The spec never had a word for that one, and now the star does.",
   // ore given to the star (spectrum.js): the first time, a land it hasn't
   // tasted, and every band at the Meridian's mark
   // coming home with ore for the first time: what it's for
@@ -261,6 +270,7 @@ const STAR_TASTES = {
   aetherglass: '…clear all the way through, and cold. The cold keeps a shape in it. So can I…',
   sigilite: '…there is writing in this one. Not in a language. In a light. I nearly know it…',
   starmetal: '…I know this. Not from the Charter. From before I was lit…',
+  nightglass: "…I don't know this one. The Charter didn't give me a name for it. It is… quiet…",
 };
 // As each shard is set: another star's light, folded into its own.
 const SHARD_SPEAKS = [
@@ -354,7 +364,11 @@ function kindleLogLine(clime, name) {
 function playKindlerEnding(choice, done) {
   const key = choice === 'leave' ? 'leave' : 'kindle';
   Save.data.kindlerEnding = key; Save.save();
-  UI.openStory(KINDLER_ENDINGS[key], done);
+  const lines = KINDLER_ENDINGS[key].slice();
+  // leaving the night, with the seventh band fed: the star shines in all
+  // seven, the night kept in its light (spectrum.js)
+  if (key === 'leave' && bandDepth(NIGHTGLASS) >= 1) lines.splice(lines.length - 1, 0, 'And the seventh band, the one no spec ever drew, is the one the star keeps. It shines in all seven now, the night held in its light.');
+  UI.openStory(lines, done);
 }
 
 const Story = {

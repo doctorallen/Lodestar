@@ -34,6 +34,8 @@ const LIGHT_KINDS = {
 function isLight(id) { return !!LIGHT_KINDS[id]; }
 // (a drop of it on the ground, in its own colour: render.js drawDrop)
 for (const id of LIGHT_IDS) ART.exotics[id] = LIGHT_KINDS[id].ramp[2];
+// (and night-glass, the seventh band's: a dull violet)
+ART.exotics.nightglass = '#8f7bd6';
 
 // The light waiting at the altar (in the stash).
 function lightWaiting() { const s = Save.data.stash; return LIGHT_IDS.reduce((n, id) => n + (s[id] || 0), 0); }

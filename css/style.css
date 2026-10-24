@@ -80,6 +80,7 @@ body.home .hud-spec { display: flex; }
 .spec.small i { width: 6px; }
 .spec i.none { border-style: dashed; opacity: 0.6; }
 .spec i.mark { border-color: var(--gold); }
+.spec i.seventh { border-color: #5c47a8; margin-left: 3px; }
 .spec i b { position: absolute; left: 0; right: 0; bottom: 0; display: block; }
 .spec i u { position: absolute; left: -1px; right: -1px; height: 1px; background: var(--ink); opacity: 0.7; }
 .row.band .pip { display: inline-block; width: 8px; height: 8px; margin-right: 8px; flex: none; }

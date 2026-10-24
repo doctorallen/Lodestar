@@ -235,8 +235,12 @@ function killEnemy(e) {
     const lg = nextLegendToLearn(rng); if (lg) drop({ legend: lg });
     return;
   }
+  // the Hollow leave the dark's residue, the one thing the star has no band
+  // for (spectrum.js); elites now and then
+  if (e.type === 'hollow') { drop({ stuff: NIGHTGLASS, n: 1 }); return; }
   if (e.elite) {
     ore(rng.i(L.eliteOre[0], L.eliteOre[1]), rng.chance(0.5));
+    if (rng.chance(T.field.nightglass)) drop({ stuff: NIGHTGLASS, n: 1 });
     const taught = eliteCoreFor(e);
     if (taught && !(CIRCUIT_FORMS[taught] ? facetsState().shapes : facetsState().mods).includes(taught)) drop({ teach: taught, from: e.type });
     if (rng.chance(T.story.echoElite)) drop({ echo: true });
@@ -288,6 +292,7 @@ function updatePickups(dt) {
       const k = dr.n;
       d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k;
       snd('pickup');
+      if (dr.stuff === NIGHTGLASS) { Save.data.umbraSeen = true; Story.say('nightglass'); }
       // a small +n in the stuff's colour, not a toast: pickups are many
       d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : '#ffffff' });
       dr.gone = true;

@@ -16,8 +16,8 @@ const esc = escapeHtml;
 function stuffLines(stash) {
   return stuffIds().filter((id) => stash[id]).map((id) => `${stash[id]} ${stuffName(id)}`).join(', ');
 }
-const stuffIds = () => T.ores.map((o) => o.id).concat(LIGHT_IDS);
-const stuffName = (id) => (ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : isLight(id) ? LIGHT_KINDS[id].name : id);
+const stuffIds = () => T.ores.map((o) => o.id).concat(LIGHT_IDS, [NIGHTGLASS]);
+const stuffName = (id) => (ORE_INDEX[id] !== undefined ? T.ores[ORE_INDEX[id]].name : isLight(id) ? LIGHT_KINDS[id].name : id === NIGHTGLASS ? 'Night-glass' : id);
 
 // A cost that can't be missed: the material's icon, how many and what,
 // and how many there are, in red when it's short.
@@ -318,7 +318,7 @@ const UI = {
     const rh = a === 'rift' && riftHere(d);
     let way = '';
     if (a === 'way') { const wi = wayHere(d); way = inLat ? 'UP INTO THE DEEP' : d.ways[wi] === 'lattice' ? 'DOWN INTO THE LATTICE' : !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'CLIMB DOWN: ' + wayPlaceName(d, wi).toUpperCase(); }
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep && !inLat ? 'RISE TO THE SURFACE' : 'BANK', relight: 'RELIGHT THE SPIRE', stone: 'LIGHT THE WAYSTONE', plant: d.terr && spireBlock(d.terr) ? `SPIRE · ${spireBlockShort(spireBlock(d.terr))}` : 'PLANT THE SPIRE', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `HOLD TO FEED · ${lightWaiting()}` : 'THE STAR' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep && !inLat ? 'RISE TO THE SURFACE' : 'BANK', relight: 'RELIGHT THE SPIRE', stone: 'LIGHT THE WAYSTONE', plant: d.terr && spireBlock(d.terr) ? `SPIRE · ${spireBlockShort(spireBlock(d.terr))}` : spireOreShort(d) ? `SPIRE · ${spireOreCost(d).n} ${stuffName(spireOreCost(d).ore).toUpperCase()}` : 'PLANT THE SPIRE', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `HOLD TO FEED · ${lightWaiting()}` : 'THE STAR' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep && !inLat ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
     // feeding the star is a hold, not a tap: the button says so, pulses to
@@ -411,12 +411,13 @@ function drawCargo() {
     ${pack ? `<p class="note gold">Your old pack: ${esc(pack.where)}</p>` : ''}
     ${heart ? `<p class="note">+${heart} heartlight, safe</p>` : ''}
     <h3>ORE AND LIGHT</h3>${stuff || '<p class="note">None yet.</p>'}
+    ${fieldSpendHtml(d)}
     ${supplyMakeHtml(true)}
     <div class="menu"><button class="btn" data-act="recall">EMERGENCY RECALL</button></div>
     <p class="note center">It loses nothing. Stand still ${Math.round(T.leave.recall)} s.</p>`;
 }
 // What a stack in the cargo is, in a word or two.
-function stuffKindWord(id) { return ORE_INDEX[id] !== undefined ? `Ore · the ${bandName(id)} band` : isLight(id) ? 'Light for the star' : 'Material'; }
+function stuffKindWord(id) { return ORE_INDEX[id] !== undefined ? `Ore · the ${bandName(id)} band` : isLight(id) ? 'Light for the star' : id === NIGHTGLASS ? "The dark's residue · unlisted" : 'Material'; }
 
 // ---------------------------------------------------------------------------
 // The cards
@@ -431,7 +432,7 @@ function cardBar(where, extra = '') {
 // Ore or an exotic in the cargo: how much, and dropping some.
 function drawStuffCard(id) {
   const n = (Game.dive && Game.dive.cargo[id]) || 0;
-  const what = isLight(id) ? LIGHT_KINDS[id].text : `Tier ${T.ores[ORE_INDEX[id]].tier} ore. Given to the star, it deepens the ${bandName(id)} band${bandOpensWord(id) ? `; at depth 1 the star can light ${bandOpensWord(id)}` : ''}. The splinter makes supplies from it (MAKE).`;
+  const what = isLight(id) ? LIGHT_KINDS[id].text : id === NIGHTGLASS ? 'A dull violet crystal the Charter\'s spec doesn\'t list. The star can be given it. Nothing says what it is.' : `Tier ${T.ores[ORE_INDEX[id]].tier} ore. Given to the star, it deepens the ${bandName(id)} band${bandOpensWord(id) ? `; at depth 1 the star can light ${bandOpensWord(id)}` : ''}. The splinter makes supplies from it (MAKE).`;
   $('card-body').innerHTML = cardBar('IN YOUR CARGO') + `<div class="card-scroll">
     <div class="card-head"><img class="icon big" src="${stuffIconUrl(id)}" alt=""><div><div class="card-name">${esc(stuffName(id))} × ${n}</div><div class="row-sub">${esc(stuffKindWord(id))}</div></div></div>
     <p class="base">${esc(what)}</p>

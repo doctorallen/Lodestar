@@ -16,7 +16,7 @@ function cleanSave(s) {
   // the rig, the stash of gear and the cores into facets; parts and
   // exotics into ore
   migrateFacetSave(s);
-  for (const k of Object.keys(s.stash)) { const n = Math.floor(Number(s.stash[k]) || 0); if (!(ORE_INDEX.hasOwnProperty(k) || LIGHT_KINDS[k]) || n <= 0) delete s.stash[k]; else s.stash[k] = n; }
+  for (const k of Object.keys(s.stash)) { const n = Math.floor(Number(s.stash[k]) || 0); if (!(ORE_INDEX.hasOwnProperty(k) || LIGHT_KINDS[k] || k === NIGHTGLASS) || n <= 0) delete s.stash[k]; else s.stash[k] = n; }
   s.scans = surveyScans(s.scans && typeof s.scans === 'object' ? s.scans : {});
   // the lean rules (below)
   cleanLeanSave(s);

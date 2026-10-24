@@ -20,6 +20,8 @@
 // grow with the tier.
 const AFFIXES = {
   closeDmg: { family: 'close', text: '+{v}% close spell damage', lo: 8, hi: 15 },
+  // (the seventh band's Veil: facets.js UMBRA_FACETS; never rolled)
+  darkArmor: { family: 'suit', text: '+{v}% of the lattice held in the dark', lo: 15, hi: 35 },
   castSpeed: { family: 'close', text: '+{v}% cast speed', lo: 5, hi: 10 },
   crit: { family: 'close', text: '+{v}% critical chance', lo: 3, hi: 6 },
   spellDmg: { family: 'spell', text: '+{v}% spell damage', lo: 8, hi: 15 },
@@ -239,7 +241,7 @@ function freshStats() {
     maxHp: T.player.hp, armor: 0, regen: 0, closeDmg: 0, castSpeed: 0, crit: 0,
     spellDmg: 0, chargeRegen: 0, maxCharge: T.player.charge, moveSpeed: 0,
     magnet: T.player.magnet, mineSpeed: 0, oreLuck: 0,
-    shock: 0, leech: 0, chill: 0, chilledDmg: 0, burnDmg: 0, openDmg: 0, arcCharge: 0, litArmor: 0, powers: {},
+    shock: 0, leech: 0, chill: 0, chilledDmg: 0, burnDmg: 0, openDmg: 0, arcCharge: 0, litArmor: 0, darkArmor: 0, powers: {},
     // from recipes' implicits
     dashCd: 0, lamp: 0, pullSlow: 0, noisy: 0,
   };

@@ -78,7 +78,8 @@ function hubWelcome(report) {
 // grows (T.outpost.sun).
 function outpostSun() {
   const S = T.outpost, m = magnitudeOf(Save.data.star);
-  return lerp(S.sun[0], S.sun[1], clamp((m - 1) / (S.sunFull - 1), 0, 1));
+  // (each depth of the seventh band dims it a shade: spectrum.js)
+  return lerp(S.sun[0], S.sun[1], clamp((m - 1) / (S.sunFull - 1), 0, 1)) * (1 - T.field.umbraDim * bandDepth(NIGHTGLASS));
 }
 // Walking out of the outpost by an opening: into the land it faces, as
 // crossing a territory's edge does, with the tool last chosen at the portal.
@@ -225,6 +226,7 @@ function updateDive(dtReal, dt) {
   updateCombatFx(dt);
   if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); }
   else updateStarFeed(d, dtReal);
+  if (!d.hub) updatePockets(d, dt);
   if (!d.hub) updateWick(d, dt);
   updatePickups(dtReal);
   if (Input.consumeAct()) {
@@ -238,8 +240,9 @@ function updateDive(dtReal, dt) {
     else if (a === 'relight') startRelight(d);
     else if (a === 'plant') {
       // a spire holds only where the star's light reaches (deeds.js)
-      const blk = spireBlock(d.terr);
-      if (!blk) startChannel('plant');
+      const blk = spireBlock(d.terr), short = spireOreShort(d);
+      if (!blk && short) { const c = spireOreCost(d); UI.toast(`The spire is raised from this land's ore: ${c.n} ${stuffName(c.ore)} carried, ${short} more to mine`); Story.say('spireOre'); }
+      else if (!blk) startChannel('plant');
       else { UI.toast(blk.why === 'reach' ? `The star must reach magnitude ${blk.mag} before a spire can hold here` : `The star hasn't tasted ${stuffName(blk.ore)}: give it some at the altar, and it can light this land`); Story.say(blk.why === 'reach' ? 'starReach' : 'starBand'); }
     }
     else if (a === 'rift') useRift(d);
@@ -285,6 +288,7 @@ function actionHere() {
 // dark a sortie wears you down, and it's injectors and motes.
 function restingLight(d) {
   if (d.hub || (d.kindled && !d.deep)) return true;
+  if (inPocket(d)) return true;
   const p = d.p, f = d.floor, R = T.player.restLight, at = (t) => dist(p.x, p.y, (t.x + 0.5) * TILE, (t.y + 0.5) * TILE);
   if (f.pad && !d.padDark && at(f.pad) < R) return true;
   if (d.beacon && d.beacon.landed && at(d.beacon) < R) return true;

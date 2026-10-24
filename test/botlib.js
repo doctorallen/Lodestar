@@ -263,7 +263,7 @@ function installBot() {
           // the heart goal, while there's light and health for it (or
           // first, the Deep under it, if that's what it came for)
           // (not where a spire couldn't hold yet)
-          const fit = d.pull > 0.3 && p.hp > st.maxHp * 0.5 && !spireBlock(d.terr);
+          const fit = d.pull > 0.3 && p.hp > st.maxHp * 0.5 && !spireBlock(d.terr) && !spireOreShort(d);
           if (wantDeep && !deepTried && f.ways && f.ways[0] && deepZone(T0, T0.deep) !== 'lair' && d.pull > 0.7 && !full && p.hp > st.maxHp * 0.6) deepTried = 'go';
           if (deepTried === 'go') { /* below */ }
           else if (T0.goal === 'waystones' && !ts.done && fit) {

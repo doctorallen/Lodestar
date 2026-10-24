@@ -276,11 +276,16 @@ async function phone(browser) {
   check(await page.evaluate(() => terrState(Game.dive.terr).state === 'contested' && /Stay in its light/.test($('hud-goal').textContent)), 'phone: lighting a waystone did not contest the land, or the goal does not show the hold');
   await page.evaluate(() => { for (let i = 0; i < 60 * (T.world.waystone.hold + 0.5); i++) { Game.step(1 / 60); for (const e of Game.dive.enemies) e.dead = true; } });
   check(await page.evaluate(() => terrState(Game.dive.terr).done && !Game.dive.hold), 'phone: holding the last waystone did not finish the goal');
-  await page.evaluate(() => { const d = Game.dive, h = d.floor.heart; d.p.x = (h.x + 0.5) * TILE; d.p.y = (h.y + 0.8) * TILE; });
+  await page.evaluate(() => { const d = Game.dive, h = d.floor.heart; d.p.x = (h.x + 0.5) * TILE; d.p.y = (h.y + 0.8) * TILE; d.cargo.ferrite = 2; });
+  await run(page, 0.1);
+  // the spire is raised from the land's ore: short of it, the button says so (field.js)
+  check(await page.evaluate(() => $('btn-act').textContent === `SPIRE · ${T.field.spire} FERRITE`), `phone: a spire short of its ore does not say so (${await page.evaluate(() => $('btn-act').textContent)})`);
+  await page.evaluate(() => { Game.dive.cargo.ferrite = T.field.spire + 2; });
   await run(page, 0.1);
   check(await page.evaluate(() => $('btn-act').textContent === 'PLANT THE SPIRE'), 'phone: no PLANT THE SPIRE at the heart');
   await tap(page, '#btn-act');
   await page.evaluate(() => { for (let i = 0; i < 60 * (T.world.plant + 0.3); i++) { Game.step(1 / 60); for (const e of Game.dive.enemies) e.dead = true; } });
+  check(await page.evaluate(() => Game.dive.cargo.ferrite === 2), 'phone: raising the spire did not take its ore');
   const kindled = await page.evaluate(() => { const d = Game.dive; window._kid = d.terr; const raw = JSON.parse(localStorage.getItem('lodestar.save.v4')); return [d.kindled, terrState(d.terr).state, !!d.floor.pad, d.pull, raw.world.territories[d.terr].state, Save.data.lastSpire === d.terr]; });
   check(kindled.join() === 'true,kindled,true,1,kindled,true', `phone: planting the spire did not kindle the land, saved at once (${kindled})`);
   // its heart's light, bound to the Kindler and saved at once
@@ -411,8 +416,27 @@ async function phone(browser) {
   await page.evaluate((id) => UI.acts.setOutWalk(String(id)), await page.evaluate(ring1, null));
   const pulled = await page.evaluate(() => { sturdy(); const d = Game.dive; d.pull = 0.001; for (let i = 0; i < 30; i++) Game.step(1 / 60); return [d.pull, d.enemies.some((e) => e.type === 'hollow' && !e.dead), /out/.test($('toasts').textContent)]; });
   check(pulled[0] === 0 && pulled[1] && pulled[2], `phone: your light running out did not bring the Hollow (${pulled})`);
+  // ore in the field (field.js): a pocket of planted light fills the light
+  // meter and the lattice; a surge of the band's ore makes the next cast
+  // harder, once; night-glass carried shows the seventh band
+  const field = await page.evaluate(() => {
+    const d = Game.dive, F = T.field;
+    for (const e of d.enemies) e.dead = true;
+    d.cargo.ferrite = F.plant.cost + F.surge.cost; d.pull = 0.2;
+    const planted = plantLight(d), pocket = d.pockets && d.pockets.length === 1 && inPocket(d);
+    for (let i = 0; i < 60; i++) Game.step(1 / 60);
+    const filled = d.pull > 0.2 && latticeK(d) === 1, c0 = d.cargo.ferrite;
+    const surged = surgeCast(d, 'main') && d.surge.main === 1 && (d.cargo.ferrite || 0) === c0 - F.surge.cost;
+    const m1 = surgeTake(d, 'main'), m2 = surgeTake(d, 'main');
+    UI.openCargo(); const rows = /SPEND HERE/.test($('cargo-body').textContent) && !!document.querySelector('#cargo-body [data-act=fieldPlant]'); UI.close();
+    d.cargo.nightglass = 1; Save.data.umbraSeen = true;
+    const seven = shownBands().length === 7 && specBands().length === 6 && bandOf('nightglass').seventh && !spectrumComplete();
+    delete d.cargo.nightglass; Save.data.umbraSeen = false;
+    return { planted, pocket, filled, surged, m1, m2, rows, seven };
+  });
+  check(field.planted && field.pocket && field.filled && field.surged && field.m1 === await page.evaluate(() => T.field.surge.mult) && field.m2 === 1 && field.rows && field.seven, `phone: ore in the field did not work (${JSON.stringify(field)})`);
   // the Splinter: armour is light; the lattice thins to its floor with the light gone
-  const splint = await page.evaluate(() => { const d = Game.dive, k0 = latticeK(d); d.pull = 1; const k1 = latticeK(d); d.pull = 0; return [k0, k1, T.splinter.floor, !!(Save.data.said || {}).latticeThin]; });
+  const splint = await page.evaluate(() => { const d = Game.dive; d.pockets = []; d.pull = 0; const k0 = latticeK(d); d.pull = 1; const k1 = latticeK(d); d.pull = 0; return [k0, k1, T.splinter.floor, !!(Save.data.said || {}).latticeThin]; });
   check(Math.abs(splint[0] - splint[2]) < 1e-6 && splint[1] === 1 && splint[3], `phone: the lattice did not thin with the light (${splint})`);
   await run(page, 0.3);
   await shot(page, 'smoke-hollow');

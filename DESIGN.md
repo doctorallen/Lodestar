@@ -359,6 +359,17 @@ There is no forge, no rig frame, no cores, no stash of gear and no item loot (`j
   - Drawn in 8 facings, with a 4-frame walk.
   - Wick, a small drone, follows over its shoulder, bobbing, its teal eye turned the way the diver looks, clear of the brow lamp.
 
+## Ore in the field
+
+If ore is the world's body, the Kindler can use it before it's home, and the push-your-luck gets a new side: spend the world, or carry it up (`js/field.js`, `T.field`). Three uses, all from the cargo screen's SPEND HERE, all costing the ore of the land you stand in (the star's light here must be of here):
+- **Plant light.** Spend 4 of the land's ore and the splinter sets a pocket of the star's light where you stand, four tiles across, for 90 s: the light meter fills in it and the lattice is whole. It fades.
+- **Surge a band.** Spend 3 of the ore of the band a cast is in: the next cast of it is cast a depth above its band (35% harder). Ore as ammunition for the big moment, which also teaches what a deeper band will feel like before it's fed.
+- **Raise the spire.** A spire is raised from the land's own ore: 6 of its first ore carried to the heart, taken as it's planted. Kindling needs the player to have mined this land, not just crossed it; the button says what's short.
+
+## The seventh band
+
+Elites now and then, and the Hollow always, leave **night-glass**: the dark's residue, a dull violet crystal the Charter's spec doesn't list and the star has no band for. It can be given at GIVE like any ore, and nothing says what it is. Given, it opens a seventh band, **Umbra**, drawn beside the six once any has been carried, with no mark across it: nobody drew one. Its facets are of the dark's own kind, opened by its depth and faced as Readings are: Draw (depth 1: the hits you land heal you), Snare (2: your hits chill), Veil (3: the lattice holds in the dark instead of thinning). Each depth also dims the day at home a shade. The player can ignore it for the whole game and lose nothing on the Charter's spec; the star is whole on the six. At the Edge the two endings stand: leave the night with the seventh band fed, and the ending says the star shines in all seven, the night held in its light. Neither line says the dark is alive. The seventh bar says it. Wick, the first time it's carried: "That's not on the Charter's list. You don't have to give the star anything. Just so you know."
+
 ## Wick's facets
 
 Wick is the one thing at home that isn't the star, and stays a drone, dry and kind. His upgrades are facets the star lends him, each from a magnitude, on unless turned off at TURN:

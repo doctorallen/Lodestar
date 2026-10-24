@@ -26,7 +26,7 @@ The loop:
 1. Walk out of any of the star's openings into the land next to it, or GO from the star: the world map, to set out to a spire.
 2. Cross from territory to territory by the openings at their edges. Mine ore and fight what finds you.
 3. Watch the gold meter, your light: it lasts about three minutes in dark land and fills in kindled land. When it's gone, something hunts you.
-4. Light a territory's waystones or seal the tear at its heart, then plant a spire there, and it's kindled for good, and its heartlight is yours for the star. A spire holds only where the star's light reaches: ring 2 from magnitude 3, ring 3 from 5, the Edge from 7.
+4. Light a territory's waystones or seal the tear at its heart, then plant a spire there from its own ore, and it's kindled for good, and its heartlight is yours for the star. A spire holds only where the star's light reaches: ring 2 from magnitude 3, ring 3 from 5, the Edge from 7.
 5. Carry as much as you like. At a spire, BANK your cargo, or TRAVEL to another spire or home. An emergency recall works anywhere and loses nothing, but you stand still for a few seconds.
 6. If you fall, you wake at the last spire you touched. Your supplies are safe; all the cargo waits where you fell, in your pack, to go back for once. Fall again first and it's lost.
 7. Some territories have a hole down into a Deep: a short dungeon of richer ore. Its end, the first time, gives deeplight for the star, as do ancient forges and echoes.
@@ -38,6 +38,8 @@ Home is the inside of the star: the Lodestar's light opened where the seed came 
 - TURN: your build, which is the star's facets. Two casts, each a Shape (a Form: the Arc and the Bolt from the first day, the next at each Deep's end, and what elites teach), a Band (an Element: one for each ore tasted, as strong as its depth) and, as the star grows, a Turn (a Mod, learned from elites) or a Reading (a creature's pattern, read as it falls) or a shard of old light (a warden's or a Keeper's power). Turning is free. Everything faced casts at the star's magnitude; the splinter cuts ore of the magnitude as a tier. The suit is a lattice of hard light from a splinter of the star at the chest, and it is the armour: it thins with your light in the dark. Wick's upgrades are facets lent to him from a magnitude, turned off and on here; the attunements too;
 - ASK: what the star needs next, the *Meridian* and its sleepers against the Charter's spec, the shards set, the resonances known, the echoes and the log;
 - GO: the world map, to set out to a spire or walk out into the land beside the outpost; the star's senses (the tools), each open once a band is deep enough.
+
+Out in dark land the cargo screen's SPEND HERE spends the land's own ore through the splinter: PLANT a pocket of the star's light where you stand, SURGE a cast's band so its next cast hits a depth above, and a spire is raised from the land's first ore carried to its heart. Elites and the Hollow leave night-glass, which the spec doesn't list; given to the star it opens a seventh band with facets of its own.
 
 Where there's WebGL2 the whole frame is drawn by the GPU (`docs/RENDERING.md`): one canvas, nothing read back. `?nogpu` in the address keeps the 2D canvases and the JavaScript lighting, as a browser without WebGL2 gets; `?perf` shows a readout over the frame (which path draws, what a frame costs, how the frames are spaced, the first error) for seeing what a phone sees.
 
@@ -86,6 +88,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/portals.js` | The outpost's portal, and the ways in the field: a hole down into a Deep and on through its sites, the rope up from its last; going through, and the same moment crossing an edge or travelling |
 | `js/frontier.js` | Playing the world: sorties, entering territories, your light, spires (banking and travel), waystones and kindling, the Deeps, a fall waking at a spire; the spire and waystones drawn |
 | `js/storm.js` | The Lodestorm's strikes on the surface; rift-touched elites from open tears |
+| `js/field.js` | Ore in the field: a pocket of planted light, a band surged for the next cast, the spire raised from the land's ore; the cargo's SPEND HERE |
 | `js/facets.js` | Facets: the rig is the star. Shapes, Bands, Turns and Readings, learned from the world and faced at TURN; the Splinter they build (the rig, cutter and plate the combat reads), the senses opened by bands, Wick's lent facets; an older save's gear turned into facets |
 | `js/starui.js` | The star's screen: GIVE, TURN (the casts and the chooser), ASK, GO |
 | `js/spectrum.js` | The Spectrum: the star's light has a band for each ore, deepened by the ore given at the altar; a land's band at depth 1 lets the star kindle it; the Meridian's marks, which every band must reach before its sleepers wake; the bars in the top bar and on the screens |

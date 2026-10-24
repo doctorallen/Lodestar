@@ -1004,6 +1004,14 @@ const T = {
   // strongly it's drawn at full light. thinAt: the light at which Wick
   // first says it's thinning.
   splinter: { floor: 0.35, lines: [10, 6], alpha: 0.7, thinAt: 0.6 },
+  // Ore in the field (field.js): plant, a pocket of the star's light for
+  // `cost` of the land's ore, `r` tiles across, `time` s, filling your
+  // light `refill` a second in it; surge, `cost` of a cast's band's ore for
+  // the next cast `mult` harder; spire, the land's first ore a spire is
+  // raised from; nightglass, the chance an elite leaves night-glass (the
+  // Hollow always do); umbraDim, how much each depth of the seventh band
+  // dims the day at home.
+  field: { plant: { cost: 4, r: 4, time: 90, refill: 0.25 }, surge: { cost: 3, mult: 1.35 }, spire: 6, nightglass: 0.3, umbraDim: 0.05 },
   // Kindled land terraforming by the light (terraform.js): the starstone
   // spreading from a territory's spire, reach [tiles at magnitude 1, more
   // each magnitude], its shape as the outpost's ground's (T.outpost.ground),

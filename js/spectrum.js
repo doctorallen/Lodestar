@@ -32,11 +32,21 @@ const BANDS = [
   { id: 'glass', ore: 'aetherglass', name: 'Glass', opens: null },
   { id: 'sigil', ore: 'sigilite', name: 'Sigil', opens: 'underforge' },
   { id: 'star', ore: 'starmetal', name: 'Star', opens: 'edge' },
+  // the seventh: night-glass, the dark's residue, which the Charter's spec
+  // doesn't list and the star has no band for. It can be fed. Nothing says
+  // what it is. (Hidden until some is carried; never part of the spec.)
+  { id: 'umbra', ore: 'nightglass', name: 'Umbra', opens: null, seventh: true },
 ];
+const NIGHTGLASS = 'nightglass';
+// The seventh band shows once any night-glass has been carried home or given.
+function umbraSeen() { const s = Save.data; return bandGiven(NIGHTGLASS) > 0 || (s.stash[NIGHTGLASS] || 0) > 0 || !!s.umbraSeen; }
+// The bands the spec knows (the six), and those to show.
+function specBands() { return BANDS.filter((b) => !b.seventh); }
+function shownBands() { return BANDS.filter((b) => !b.seventh || umbraSeen()); }
 const BAND_BY_ORE = Object.fromEntries(BANDS.map((b) => [b.ore, b]));
 function bandOf(ore) { return BAND_BY_ORE[ore] || null; }
 // The band's colour: its ore's bright tone (art.js).
-function bandColor(ore) { return ART.ores[ore] ? ART.ores[ore][2] : '#f0c050'; }
+function bandColor(ore) { return ART.ores[ore] ? ART.ores[ore][2] : ore === NIGHTGLASS ? ART.exotics[NIGHTGLASS] || '#8f7bd6' : '#f0c050'; }
 
 function bandsState() { const s = Save.data; return s.bands || (s.bands = {}); }
 function bandGiven(ore) { return bandsState()[ore] || 0; }
@@ -55,7 +65,7 @@ function bandAtMark(ore) { return bandDepth(ore) >= bandMark(); }
 function bandToNext(ore) { const D = T.spectrum.depths, d = bandDepth(ore); return d >= D.length - 1 ? 0 : D[d + 1] - bandGiven(ore); }
 // How far through the marks the band is (0-1), for a bar.
 function bandFill(ore) { return Math.min(1, bandGiven(ore) / T.spectrum.depths[bandMark()]); }
-function spectrumComplete() { return BANDS.every((b) => bandAtMark(b.ore)); }
+function spectrumComplete() { return specBands().every((b) => bandAtMark(b.ore)); }
 
 // The ore whose band a territory's kindling needs: the Edge's is Starmetal,
 // the Choir's Resonite, the Underforge's Sigilite; the Rim's land needs
@@ -101,16 +111,17 @@ function giveOre(ore, n) {
   const d1 = bandDepth(ore), b = bandOf(ore);
   Story.say('firstGive');
   Story.starTaste(ore);
-  if (typeof snd === 'function') snd('starFeed', { n: k, tier: T.ores[ORE_INDEX[ore]].tier, rate: 8 });
+  if (typeof snd === 'function') snd('starFeed', { n: k, tier: ORE_INDEX[ore] !== undefined ? T.ores[ORE_INDEX[ore]].tier : 6, rate: 8 });
   if (typeof spawnSparks === 'function' && Game.dive && Game.dive.hub) {
-    const R = ART.ores[ore];
+    const R = ART.ores[ore] || [bandColor(ore), bandColor(ore), bandColor(ore), '#d8c8ff'];
     spawnSparks(STAR_AT.x * TILE, STAR_AT.y * TILE + 4, [R[2], R[3], '#ffffff'], Math.min(40, 8 + k));
   }
   if (d1 > d0) {
     const opens = d0 < 1 && d1 >= 1 ? bandOpensWord(ore) : '';
-    UI.toast(`${b.name.toUpperCase()} · DEPTH ${d1}${d1 >= bandMark() ? ' · AT THE MARK' : ''}${opens ? ` · ${opens} is open to the star` : ''}`, 'legendary');
+    UI.toast(`${b.name.toUpperCase()} · DEPTH ${d1}${!b.seventh && d1 >= bandMark() ? ' · AT THE MARK' : ''}${opens ? ` · ${opens} is open to the star` : ''}${b.seventh ? ' · the day at home a shade dimmer' : ''}`, 'legendary');
     if (typeof snd === 'function') snd('starGrow', { mag: 1 + d1 });
     if (spectrumComplete()) Story.say('spectrumWhole');
+    if (b.seventh && d1 === 1) Story.say('umbra');
   }
   Save.save();
   return k;
@@ -121,9 +132,10 @@ function giveOre(ore, n) {
 // bar's.
 function spectrumBarsHtml(small) {
   const D = T.spectrum.depths, mk = D[bandMark()], top = D[D.length - 1];
-  return `<span class="spec${small ? ' small' : ''}">${BANDS.map((b) => {
+  return `<span class="spec${small ? ' small' : ''}">${shownBands().map((b) => {
     const n = bandGiven(b.ore), h = Math.round(Math.min(1, n / top) * 100), mark = Math.round(mk / top * 100);
-    return `<i class="${n ? '' : 'none'}${bandAtMark(b.ore) ? ' mark' : ''}" title="${b.name}"><b style="height:${h}%;background:${bandColor(b.ore)}"></b><u style="bottom:${mark}%"></u></i>`;
+    // (the seventh bar carries no mark: nobody drew one)
+    return `<i class="${n ? '' : 'none'}${!b.seventh && bandAtMark(b.ore) ? ' mark' : ''}${b.seventh ? ' seventh' : ''}" title="${b.name}"><b style="height:${h}%;background:${bandColor(b.ore)}"></b>${b.seventh ? '' : `<u style="bottom:${mark}%"></u>`}</i>`;
   }).join('')}</span>`;
 }
 // The Spectrum as a list, for the star's screen and the uplink: each band,
@@ -131,10 +143,10 @@ function spectrumBarsHtml(small) {
 // the stash holds of its ore.
 function spectrumRowsHtml(give) {
   const s = Save.data;
-  return BANDS.map((b) => {
+  return shownBands().map((b) => {
     const n = bandGiven(b.ore), d = bandDepth(b.ore), have = s.stash[b.ore] || 0, next = bandToNext(b.ore), col = bandColor(b.ore);
     const opens = bandOpensWord(b.ore);
-    const sub = !n ? `not yet tasted${opens ? ` · ${opens} is dark to it` : ''}` : d >= bandMark() ? `depth ${d} · at the Meridian's mark` : `depth ${d} · ${next} more to depth ${d + 1}${d < 1 && opens ? ` · opens ${opens}` : ''}`;
+    const sub = b.seventh ? (!n ? 'unlisted · the star has no name for it' : `depth ${d} · unlisted${next ? ` · ${next} more to depth ${d + 1}` : ''}`) : !n ? `not yet tasted${opens ? ` · ${opens} is dark to it` : ''}` : d >= bandMark() ? `depth ${d} · at the Meridian's mark` : `depth ${d} · ${next} more to depth ${d + 1}${d < 1 && opens ? ` · opens ${opens}` : ''}`;
     const btn = give && have ? `<button class="mini give" data-act="giveOre" data-arg="${b.ore}">GIVE ${have}</button>` : '';
     return `<div class="row static band"><span class="pip" style="background:${col}"></span><span class="row-text"><span class="row-name">${b.name.toUpperCase()} <span class="dim">· ${esc(stuffName(b.ore))}</span></span><span class="row-sub">${esc(sub)}</span><span class="band-bar"><span style="width:${Math.round(bandFill(b.ore) * 100)}%;background:${col}"></span></span></span>${btn}</div>`;
   }).join('');

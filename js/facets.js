@@ -33,6 +33,16 @@ const SHAPE_ORDER = ['lance', 'orb', 'glaive', 'nova', 'well', 'ward'];
 const SHAPE_START = ['arc', 'bolt'];
 // The Element each band casts in (spectrum.js BANDS; Lumen casts nothing).
 const BAND_ELEMENT = { ferrite: 'force', resonite: 'shock', aetherglass: 'frost', sigilite: 'blight', starmetal: 'ember' };
+// The seventh band's facets (spectrum.js NIGHTGLASS), of the dark's own
+// kind, each opened at a depth of Umbra: Draw (leech), Snare (chill) and
+// Veil (the lattice holds in the dark instead of thinning). Faced as
+// Readings are. Their bonuses grow with the depth.
+const UMBRA_FACETS = {
+  draw: { depth: 1, name: 'Draw', text: 'the hits you land heal you', bonus: (d) => ({ id: 'leech', v: 3 + 2 * d }) },
+  snare: { depth: 2, name: 'Snare', text: 'your hits chill, as frost does', bonus: (d) => ({ id: 'chill', v: 10 + 5 * d }) },
+  veil: { depth: 3, name: 'Veil', text: 'the lattice holds in the dark instead of thinning', bonus: (d) => ({ id: 'darkArmor', v: 15 + 10 * d }) },
+};
+function umbraFacetsOpen() { const d = bandDepth(NIGHTGLASS); return Object.keys(UMBRA_FACETS).filter((id) => UMBRA_FACETS[id].depth <= d); }
 const ELEMENT_BAND = Object.fromEntries(Object.entries(BAND_ELEMENT).map(([o, e]) => [e, o]));
 
 function facetsState() {
@@ -62,6 +72,7 @@ function facetValid(x) {
   if (x.kind === 'mod') return (F.mods || []).includes(x.id);
   if (x.kind === 'reading') return patternKnown(x.id);
   if (x.kind === 'legend') return (F.legends || []).includes(x.id);
+  if (x.kind === 'umbra') return umbraFacetsOpen().includes(x.id);
   return false;
 }
 const facetSame = (a, b) => !!a && !!b && a.kind === b.kind && a.id === b.id;
@@ -78,7 +89,7 @@ function modsKnown() { return facetsState().mods.slice(); }
 function legendsKnown() { return facetsState().legends.slice(); }
 // Every extra facet the star has, as entries.
 function extraFacets() {
-  return modsKnown().map((id) => ({ kind: 'mod', id })).concat(knownPatterns().map((id) => ({ kind: 'reading', id })), legendsKnown().map((id) => ({ kind: 'legend', id })));
+  return modsKnown().map((id) => ({ kind: 'mod', id })).concat(knownPatterns().map((id) => ({ kind: 'reading', id })), legendsKnown().map((id) => ({ kind: 'legend', id })), umbraFacetsOpen().map((id) => ({ kind: 'umbra', id })));
 }
 // Is an extra facet faced in some cast already (facets are one of each)?
 function facetFacedBy(x) { return facetsState().casts.findIndex((c) => c.extra.some((e) => facetSame(e, x))); }
@@ -89,6 +100,7 @@ function facetName(x) {
   if (x.kind === 'mod') return CIRCUIT_GLYPHS[x.id].name;
   if (x.kind === 'reading') return PATTERNS[x.id].name;
   if (x.kind === 'legend') return LEGENDARIES[x.id].name;
+  if (x.kind === 'umbra') return UMBRA_FACETS[x.id].name;
   return x.id;
 }
 function facetText(x, tier = facetTier()) {
@@ -96,6 +108,7 @@ function facetText(x, tier = facetTier()) {
   if (x.kind === 'mod') return CIRCUIT_GLYPHS[x.id].text();
   if (x.kind === 'reading') return `${fmtAffix(patternBonus(x.id, tier))} · read from the ${foeWord(x.id)}`;
   if (x.kind === 'legend') return LEGENDARIES[x.id].text + ' · a shard of old light';
+  if (x.kind === 'umbra') return `${fmtAffix(UMBRA_FACETS[x.id].bonus(bandDepth(NIGHTGLASS)))} · ${UMBRA_FACETS[x.id].text} · of the seventh band`;
   return '';
 }
 const shapeName = (id) => CIRCUIT_FORMS[id].name;
@@ -191,6 +204,7 @@ function facetRig() {
       if (x.kind === 'mod') sp.mods.push(makeStone(x.id, tier));
       else if (x.kind === 'reading') rig.readings.push({ kind: 'stone', stone: 'reading', tier, bonus: patternBonus(x.id, tier), pattern: x.id, name: PATTERNS[x.id].name });
       else if (x.kind === 'legend') rig.readings.push({ kind: 'stone', stone: 'legend', tier, bonus: null, power: x.id, name: LEGENDARIES[x.id].name });
+      else if (x.kind === 'umbra') rig.readings.push({ kind: 'stone', stone: 'umbra', tier, bonus: UMBRA_FACETS[x.id].bonus(bandDepth(NIGHTGLASS)), name: UMBRA_FACETS[x.id].name });
     }
     while (sp.mods.length < 2) sp.mods.push(null);
     return sp;
@@ -219,7 +233,11 @@ function cutPower() { return facetTier(); }
 // meter, to T.splinter.floor with the light gone. Armour is light.
 function latticeK(d) {
   if (!d || d.hub) return 1;
-  return lerp(T.splinter.floor, 1, clamp(d.pull, 0, 1));
+  // (the Veil, of the seventh band: the floor rises; a pocket of planted
+  // light counts as light: field.js)
+  const floor = Math.min(1, T.splinter.floor + ((d.stats && d.stats.darkArmor) || 0) / 100);
+  if (typeof inPocket === 'function' && inPocket(d)) return 1;
+  return lerp(floor, 1, clamp(d.pull, 0, 1));
 }
 
 // --- the senses and Wick -------------------------------------------------------
@@ -267,6 +285,7 @@ function migrateFacetSave(s) {
   // two of the third
   const st = s.stash || (s.stash = {});
   for (const k of Object.keys(st)) {
+    if (k === NIGHTGLASS) continue;
     const m = /^([a-z]+)([123])$/.exec(k);
     if (m && !ORE_INDEX.hasOwnProperty(k) && !LIGHT_KINDS[k]) { const ore = T.biomes[Number(m[2]) - 1].ores[0]; st[ore] = (st[ore] || 0) + st[k]; delete st[k]; continue; }
     if (!ORE_INDEX.hasOwnProperty(k) && !LIGHT_KINDS[k]) { st.resonite = (st.resonite || 0) + 2 * st[k]; delete st[k]; }

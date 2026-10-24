@@ -130,6 +130,18 @@ for (let mag = 1; mag <= 8; mag++) {
   if (G.spectrumComplete()) fail('a fresh star is whole');
   for (const o of G.T.ores) s.bands[o.id] = D[G.bandMark()];
   if (!G.spectrumComplete()) fail('every band at the mark is not whole');
+  // the seventh band: hidden until night-glass is carried, never part of
+  // the spec, its facets opening with its depth
+  if (G.shownBands().length !== 6 || G.specBands().length !== 6 || G.BANDS.length !== 7) fail(`${G.shownBands().length} bands shown of ${G.BANDS.length}`);
+  s.stash.nightglass = D[2];
+  if (G.shownBands().length !== 7 || !G.umbraSeen()) fail('night-glass in the stash did not show the seventh band');
+  if (G.giveOre('nightglass', 999) !== D[2] || G.bandDepth('nightglass') !== 2 || !G.spectrumComplete()) fail(`giving night-glass: depth ${G.bandDepth('nightglass')}, whole ${G.spectrumComplete()}`);
+  if (G.umbraFacetsOpen().join() !== 'draw,snare') fail(`Umbra at depth 2 opens ${G.umbraFacetsOpen()}`);
+  s.star = G.T.star.levels[1];
+  if (!G.faceSet(0, 0, { kind: 'umbra', id: 'draw' }) || G.faceSet(0, 0, { kind: 'umbra', id: 'veil' })) fail('Umbra\'s facets did not face by their depth');
+  const stU = G.computeStats(s.equip, s.attune);
+  if (!(stU.leech > 0)) fail('Draw faced is not in the stats');
+  if (bad(G.facetText({ kind: 'umbra', id: 'draw' }))) fail('Draw has no words');
 }
 
 // --- old saves --------------------------------------------------------------------------

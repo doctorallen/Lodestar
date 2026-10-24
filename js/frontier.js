@@ -328,6 +328,8 @@ function riftSealedHere(d) {
 
 function kindleTerritory(d) {
   const id = d.terr, t = terrOf(id), ts = terrState(id), f = d.floor, h = f.heart;
+  // the spire is raised from the land's own ore (field.js)
+  { const c = spireOreCost(d), k = Math.min(c.n, d.cargo[c.ore] || 0); if (k) { d.cargo[c.ore] -= k; if (!d.cargo[c.ore]) delete d.cargo[c.ore]; } }
   Object.assign(ts, { state: 'kindled', done: true, spire: true });
   d.kindled = true; f.kindled = true; d.sun = T.world.sun.kindled; d.pull = 1; d.pullTime = T.world.light; d.padDark = false; d.hold = null;
   f.tiles[h.y * f.w + h.x] = TILE_PAD; f.pad = { x: h.x, y: h.y };
@@ -565,6 +567,7 @@ function drawFieldForge(d, a, ox, oy, lights) {
 function drawWorldUnder(d, ox, oy, lights) {
   if (!d.sortie || d.deep || !d.floor.heart) return;
   const f = d.floor, G = ART.pal.star;
+  drawPockets(d, ox, oy, lights);
   const ring = (x, y, rx, n, col, alpha, spin) => {
     for (let i = 0; i < n; i++) {
       if ((i + Math.floor(Game.realT * 6)) % 3 === 0) continue;
