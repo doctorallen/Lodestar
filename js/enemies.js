@@ -29,8 +29,7 @@ const ELITE_NAMES = Object.fromEntries(Object.keys(ELITE_AFFIX).map((id) => [id,
 
 // (in dark land, and under it, the dark has grown with the star: frontier.js)
 function floorLevel(d) {
-  const own = d.biome * T.levelPerBiome + d.depth + (d.zone === 'lair' ? 1 : 0);
-  return d.sortie && !d.kindled && typeof darkLevelFloor === 'function' ? Math.max(own, darkLevelFloor()) : own;
+  return d.biome * T.levelPerBiome + d.depth + (d.zone === 'lair' ? 1 : 0);
 }
 
 // The first levels' share of an enemy's health (T.enemies.hpEarly): the
@@ -126,8 +125,6 @@ function spawnEnemies(d) {
       d.enemies.push(e);
     }
   }
-  // a rift's graft brings a few of its own clime's creature with it
-  graftFoes(d, rng, level, eliteChance);
 }
 
 const roomHas = (r, t) => t.x >= r.x && t.x < r.x + r.w && t.y >= r.y && t.y < r.y + r.h;

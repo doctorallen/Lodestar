@@ -73,7 +73,7 @@ function compare(label) {
 }
 
 async function runAt(browser, grain, failures) {
-  const { page, errors } = await openGame(browser, { query: '?noload' + grain, onboard: 'all' });
+  const { page, errors } = await openGame(browser, { query: '?noload' + grain, intro: false });
   const ok = await page.evaluate(() => Gpu.on && glLightInit());
   if (!ok) { failures.push('no WebGL2 in the test browser'); return; }
   await page.evaluate(() => { if (Intro.on) Intro.skip(); });
@@ -93,18 +93,20 @@ async function runAt(browser, grain, failures) {
     if (r.mean > 0.2) failures.push(`${r.label}: mean difference ${r.mean}`);
     console.log(`  ${r.label}: worst ${r.worst}, over 2: ${r.over}, mean ${r.mean}`);
   };
-  check(await page.evaluate(compare, 'home'));
-  for (const lab of grain ? ['soft'] : ['nocturne', 'soft', 'canvas']) {
-    await page.evaluate((k) => Lab.set(k, true, { save: false }), lab);
-    check(await page.evaluate(compare, 'home ' + lab));
-    await page.evaluate((k) => Lab.set(k, false, { save: false }), lab);
-  }
-  // out on a floor, where the ground's own tones are lifted, the lamp's
-  // shadows fall and the rock stands in front of what walks behind it
-  await page.evaluate(() => { UI.close(); startSortie({ terr: 1, spire: true }); });
-  await new Promise((r) => setTimeout(r, 1500));
   // (the whole floor painted first, so neither frame paints a chunk the other hasn't: paint.js pntEnsure)
   const whole = () => page.evaluate(() => { const f = Game.dive.floor; renderFrame(); pntEnsure(f, 0, 0, f.w * ATILE, f.h * ATILE); for (let i = 0; i < 40; i++) renderFrame(); });
+  await whole();
+  // at the star, in its light
+  check(await page.evaluate(compare, 'star'));
+  for (const lab of grain ? ['soft'] : ['nocturne', 'soft', 'canvas']) {
+    await page.evaluate((k) => Lab.set(k, true, { save: false }), lab);
+    await whole();
+    check(await page.evaluate(compare, 'star ' + lab));
+    await page.evaluate((k) => Lab.set(k, false, { save: false }), lab);
+  }
+  // out in the dark, where the lamp's shadows fall and the rock stands in
+  // front of what walks behind it
+  await page.evaluate(() => { const d = Game.dive, f = d.floor; const far = f.rooms.slice(1).sort((a, b) => Math.hypot(b.cx - f.star.x, b.cy - f.star.y) - Math.hypot(a.cx - f.star.x, a.cy - f.star.y))[0]; d.p.x = (far.cx + 0.5) * TILE; d.p.y = (far.cy + 0.5) * TILE; });
   await whole();
   check(await page.evaluate(compare, 'floor'));
   await page.evaluate(() => Lab.set('broken', true, { save: false }));
@@ -114,14 +116,15 @@ async function runAt(browser, grain, failures) {
   await page.evaluate(() => Lab.set('broken', false, { save: false }));
   // (the floor painted whole again, as the option's change set it repainting lazily)
   await whole();
-  // a cast, with its hard light and sparks
-  await page.evaluate(() => { Input.bot = { x: 1, y: 0, main: true }; for (let i = 0; i < 40; i++) Game.step(1 / 60); Input.bot = { x: 0, y: 0, main: false }; });
+  // a cast, with its hard light and sparks (nothing to hit: a creature
+  // knocked about mid-compare would differ for its own reasons)
+  await page.evaluate(() => { Game.dive.enemies = []; Input.bot = { x: 1, y: 0, main: true }; for (let i = 0; i < 40; i++) Game.step(1 / 60); Input.bot = { x: 0, y: 0, main: false }; });
   check(await page.evaluate(compare, 'cast'));
   // a wader in a pool, cut at the surface (painthole.js phlWadeStart clips
   // the layers: the batcher's clip once threw here, and the frame froze)
   await page.evaluate(() => {
-    const d = Game.dive; d.deep = { site: 1, of: 1 }; d.zone = 'cave'; d.clime = 'grotto'; d.kindled = false; d.sun = undefined;
-    d.floor = generateFloor(1234, 2, 1, 1, 'cave', 1, 'grotto'); resetFloorState(d); d.ways = ['surface']; d.wayClimes = [null]; wayHoleSolids(d); d.enemies = [];
+    const d = Game.dive; d.zone = 'cave'; d.clime = 'grotto';
+    d.floor = generateFloor(1234, 2, 1, 1, 'cave', 1, 'grotto'); d.enemies = []; d.drops = []; d.fx = []; d.bolts = []; d.shots = []; d.puddles = []; d.globs = []; d.auras = []; d.flowAt = -1; d.life = null;
     paintFloor(d.floor);
     const f = d.floor; let at = null;
     for (let i = 0; i < f.haz.length && !at; i++) if (f.haz[i]) at = { x: ((i % f.w) + 0.5) * TILE, y: (Math.floor(i / f.w) + 0.5) * TILE };

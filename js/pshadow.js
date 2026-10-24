@@ -165,19 +165,15 @@ function pshBlocked(f, x0, y0, x1, y1) {
 // (its foot), h (how high it stands), lx, ly (where its light is), r, i }
 // (px).
 function pshHubStill(d) {
-  const out = [];
-  for (const a of hubProps(d)) {
-    if (a.lamp) out.push({ spr: hartLantern(a.lit), x: Math.round((a.at[0] + 0.5) * ATILE), y: Math.round((a.at[1] + 0.5) * ATILE), lamp: a });
-  }
-  return out;
+  return [];
 }
 // The star, as a light that casts at home: its foot on the ground under it
 // (the cradle's middle, where its share is measured from), how high it
 // hangs, its reach and strength, and how dark and how crisp its shadows
 // are, all growing with the magnitude (T.light.shadow.cast.star).
 function pshStarLight() {
-  const C = T.light.shadow.cast.star, mag = magnitudeOf(Save.data.star), k = clamp((mag - 1) / 7, 0, 1);
-  const x = Math.round(STAR_AT.x * ATILE), y = Math.round(OUTPOST_CRADLE.y * ATILE);
+  const C = T.light.shadow.cast.star, mag = magnitudeOf(), k = clamp((mag - 1) / 7, 0, 1);
+  const x = Math.round(STAR_AT.x * ATILE), y = Math.round((STAR_AT.y + T.star.hang) * ATILE);
   return { x, y, h: C.h, lx: x, ly: y, r: TILE * AP * (C.r[0] + C.r[1] * mag), i: C.i[0] + C.i[1] * mag, star: true, drop: lerp(C.drop[0], C.drop[1], k), spread: lerp(C.spread[0], C.spread[1], k) };
 }
 // The same, kept while the settlement and magnitude stay as they are (it's
@@ -305,7 +301,7 @@ function pshBake(f) {
 // What the plaza's baked shadows were made for: its settlement, its lit
 // lanterns and its buildings (if any changes, the outpost is painted
 // again).
-function pshHubSig() { return String(hubStarMag()); }
+function pshHubSig() { return String(magnitudeOf()); }
 
 // ---------------------------------------------------------------------------
 // Each frame: a mask of greys over the view, multiplied over the ground
@@ -487,12 +483,6 @@ function pshMovers(d) {
     if (FOE_NAMES[e.type]) { const look = foeLook(d, e); if (!look || look.hidden || look.noShadow) continue; out.push({ spr: look.spr, x: Math.round(e.x * AP), y: Math.round(e.y * AP), lift: look.lift || 0 }); continue; }
     out.push({ spr: enemySprite(d, e.type), x: Math.round(e.x * AP), y: Math.round(e.y * AP), lift: e.type === 'wisp' || e.type === 'hollow' ? 5 : 0 });
   }
-  for (const a of portalProps(d)) out.push({ spr: portalSprite(a.portal), x: Math.round((a.at.x + 0.5) * ATILE), y: Math.round(((a.at.y + 0.5) * TILE + 1) * AP) });
-  for (const a of worldProps(d)) {
-    if (a.wprop === 'spire') out.push({ spr: spireSprite(), x: Math.round((a.at.x + 0.5) * ATILE), y: Math.round(((a.at.y + 0.5) * TILE + 1) * AP) });
-    else { const ts = terrPeek(d.terr) || {}, lit = (ts.lit || []).includes(a.k) || ts.done; out.push({ spr: waystoneSprite(lit), x: Math.round((a.at.x + 0.5) * ATILE), y: Math.round(((a.at.y + 0.5) * TILE + 1) * AP) }); }
-  }
-  if (d.fieldForge) out.push({ spr: fieldForgeSprite(d), x: Math.round((d.fieldForge.x + 0.5) * ATILE), y: Math.round((d.fieldForge.y + 0.5) * ATILE + ap(6)) });
   return out;
 }
 

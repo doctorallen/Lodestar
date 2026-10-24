@@ -8,7 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Lodestar">
-<meta name="description" content="Carry a fallen star's light out into a dark world. Mine, loot, kindle the land, and get back to a spire before the dark takes your haul.">
+<meta name="description" content="Carry a fallen star's light out into a dark world, one vein at a time, and make it live.">
 <title>Lodestar</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -16,14 +16,9 @@
 <div id="app">
   <header id="topbar">
     <div class="bars">
-      <div id="hud-hp" class="bar hp"><div id="hp-fill" class="fill"></div><span id="hp-text" class="bar-text"></span></div>
-      <div id="hud-ch" class="bar ch"><div id="ch-fill" class="fill"></div></div>
-      <div id="hud-pull" class="bar pull" title="Your light, and the lattice's armour"><div id="pull-fill" class="fill"></div></div>
+      <div id="hud-hp" class="bar hp" title="Your light, which is your health"><div id="hp-fill" class="fill"></div><span id="hp-text" class="bar-text"></span></div>
     </div>
     <span id="hud-depth" class="hud-depth"></span>
-    <span id="hud-spec" class="hud-spec" title="The Spectrum"></span>
-    <button id="btn-cargo" class="icon-btn cargo" aria-label="Cargo"></button>
-    <button id="btn-help" class="icon-btn help" aria-label="How it works">?</button>
     <button id="btn-pause" class="icon-btn" aria-label="Pause">II</button>
   </header>
 
@@ -33,7 +28,6 @@
     <canvas id="bloom"></canvas>
     <canvas id="view-over"></canvas>
     <div id="hud-goal" class="hud-goal" hidden></div>
-    <div id="guide" class="guide" hidden><img class="tut-wick" alt=""><span class="guide-line"></span><button class="guide-stop" aria-label="Stop the walkthrough">✕</button></div>
   </main>
   <div id="toasts" class="toasts" aria-live="polite"></div>
   <div id="speech" class="speech" hidden aria-live="polite"></div>
@@ -43,74 +37,23 @@
   </div>
   <div id="deck-right" class="deck">
     <button id="btn-act" class="deck-btn act" hidden></button>
-    <button id="btn-act2" class="deck-btn act act2" hidden>TRAVEL</button>
-    <button id="btn-mend" class="deck-btn supply mend" hidden aria-label="Use a Mending Injector"></button>
-    <button id="btn-cell" class="deck-btn supply cell" hidden aria-label="Use a Lightcell"></button>
     <button id="btn-off" class="deck-btn off" hidden></button>
     <button id="btn-dash" class="deck-btn dash">DASH</button>
-    <button id="btn-mine" class="deck-btn mine">MINE</button>
     <button id="btn-main" class="deck-btn main">ARC</button>
   </div>
   <div id="stick-base" class="stick-base" hidden><div id="stick-knob" class="stick-knob"></div></div>
 
-  <!-- the screens; only one shows at a time. A panel's header holds its
-       title and its way out (✕), always in sight -->
+  <!-- the screens; only one shows at a time -->
   <section id="screen-story" class="screen story" hidden>
     <p id="story-text" class="story-text"></p>
     <div class="menu"><button class="btn primary" data-act="storyNext">CONTINUE</button></div>
     <p id="story-step" class="note center"></p>
   </section>
 
-  <!-- after the opening, the first time: Wick offers to walk you through (onboard.js) -->
-  <section id="screen-onboard" class="screen story" hidden>
-    <img id="onboard-wick" class="tut-wick big" alt="">
-    <p class="story-text">Your first landing. Want me to walk you through it?</p>
-    <div class="menu"><button class="btn primary" data-act="guideYes">WALK ME THROUGH IT</button><button class="btn" data-act="guideNo">I KNOW THE DRILL</button></div>
-  </section>
-
-  <section id="screen-resume" class="screen story" hidden>
-    <h2>OUT IN THE WORLD</h2>
-    <p id="resume-text" class="story-text"></p>
-    <div class="menu"><button class="btn primary" data-act="resumeRun">CARRY ON</button><button class="btn danger" data-act="dropRun" data-confirm="SURE? IT STAYS IN YOUR PACK">GIVE IT UP</button></div>
-  </section>
-
-
-  <section id="screen-report" class="screen" hidden>
-    <h2 id="report-title"></h2>
-    <div id="report-body" class="report"></div>
-    <div class="menu"><button class="btn primary" data-act="closeReport">CONTINUE</button></div>
-  </section>
-
-  <section id="screen-setout" class="screen panel" hidden>
-    <header class="screen-head"><div class="head-in"><h2 id="setout-title">SET OUT</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
-    <div class="map-wrap" id="map-wrap"><canvas id="world-map" class="world-map" aria-label="The world: the star in the middle, territories round it in rings"></canvas></div>
-    <div id="map-layers" class="chips map-layers" hidden></div>
-    <div id="map-card" class="list map-card"></div>
-    <div id="setout-body" class="list"></div>
-  </section>
-
-
-
-
-
-  <section id="screen-star" class="screen panel" hidden>
-    <header class="screen-head"><div class="head-in"><h2>THE STAR</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
-    <div id="star-body" class="list"></div>
-  </section>
-
-
-  <section id="screen-cargo" class="screen panel" hidden>
-    <header class="screen-head"><div class="head-in"><h2>CARGO</h2><button class="head-close" data-act="resume" aria-label="Back to the sortie">✕</button></div></header>
-    <div id="cargo-body" class="list"></div>
-  </section>
-
   <section id="screen-pause" class="screen" hidden>
     <h2>PAUSED</h2>
     <div class="menu">
       <button id="pause-resume" class="btn primary" data-act="resume">RESUME</button>
-      <button id="pause-cargo" class="btn" data-act="go" data-arg="screen-cargo">CARGO</button>
-      <button id="pause-beacon" class="btn" data-act="beacon" hidden>PLANT THE BEACON</button>
-      <button id="pause-recall" class="btn" data-act="recall">EMERGENCY RECALL</button>
     </div>
     <div class="menu sound-row">
       <button id="pause-music" class="btn" data-act="soundSet" data-arg="music">MUSIC: ON</button>
@@ -118,8 +61,7 @@
       <button id="pause-lab" class="btn" data-act="go" data-arg="screen-lab">PAINT LAB</button>
       <button id="pause-fine" class="btn" data-act="fineSet" hidden>FINE GRAIN: OFF</button>
     </div>
-    <p id="pause-note" class="note center">A recall loses nothing. You stand still a few seconds.</p>
-    <div class="menu"><button id="pause-restart" class="btn danger quiet" data-act="restartAsk">START OVER</button></div>
+    <div class="menu"><button class="btn quiet" data-act="replayIntro">THE LANDING AGAIN</button><button id="pause-restart" class="btn danger quiet" data-act="restartAsk">START OVER</button></div>
     <div class="build" id="build"></div>
   </section>
 
@@ -135,18 +77,14 @@
 
   <section id="screen-restart" class="screen" hidden>
     <h2>START OVER?</h2>
-    <p class="note center">Everything is lost: the star, the world, your gear and all you've banked. Sound and lamp settings are kept.</p>
+    <p class="note center">Everything is lost: the star, the world and all you've lit. Sound and lamp settings are kept.</p>
     <div class="menu">
       <button class="btn primary" data-act="restartBack">BACK</button>
       <button id="restart-go" class="btn danger" data-act="startOver" data-confirm="TAP AGAIN: ERASE IT ALL">START OVER</button>
     </div>
   </section>
 
-
-
-  <div id="card" class="card-wrap" hidden><div id="card-body" class="card"></div></div>
-
-  <!-- the opening: painted scenes over everything, then the outpost (intro.js) -->
+  <!-- the opening: painted scenes over everything, then the world (intro.js) -->
   <div id="intro" class="intro" hidden>
     <canvas id="intro-view"></canvas>
     <div id="intro-cap" class="intro-cap" aria-live="polite"></div>
@@ -156,8 +94,8 @@
 </div>
 
 <!-- the loading: the Charter's systems booting up (loader.js); its mark, the
-     Lodestar as the game draws it over its cradle (hubart.js hartStar), drawn
-     into the canvas as the screen opens -->
+     Lodestar as the game draws it (hubart.js hartStar), drawn into the
+     canvas as the screen opens -->
 <section id="loader" class="loader" aria-live="polite">
   <div class="ld-in">
     <div class="ld-head">
@@ -184,7 +122,6 @@
 <script src="js/music.js"></script>
 <script src="js/sndbank.js"></script>
 <script src="js/floor.js"></script>
-<script src="js/world.js"></script>
 <script src="js/art.js"></script>
 <script src="js/paint.js"></script>
 <script src="js/paintrock.js"></script>
@@ -197,21 +134,11 @@
 <script src="js/flora.js"></script>
 <script src="js/climes.js"></script>
 <script src="js/circuits.js"></script>
-<script src="js/blueprints.js"></script>
-<script src="js/items.js"></script>
-<script src="js/modules.js"></script>
-<script src="js/patterns.js"></script>
 <script src="js/game.js"></script>
 <script src="js/affixes.js"></script>
 <script src="js/enemies.js"></script>
 <script src="js/foes.js"></script>
 <script src="js/combat.js"></script>
-<script src="js/tools.js"></script>
-<script src="js/rifts.js"></script>
-<script src="js/portals.js"></script>
-<script src="js/frontier.js"></script>
-<script src="js/deeds.js"></script>
-<script src="js/lattice.js"></script>
 <script src="js/life.js"></script>
 <script src="js/storm.js"></script>
 <script src="js/hazards.js"></script>
@@ -221,31 +148,22 @@
 <script src="js/pshadow.js"></script>
 <script src="js/air.js"></script>
 <script src="js/gpu.js"></script>
-    <script src="js/render.js"></script>
-    <script src="js/perf.js"></script>
+<script src="js/render.js"></script>
+<script src="js/perf.js"></script>
 <script src="js/gllight.js"></script>
 <script src="js/castfx.js"></script>
 <script src="js/hardlight.js"></script>
 <script src="js/natures.js"></script>
 <script src="js/reactions.js"></script>
 <script src="js/resonance.js"></script>
-<script src="js/hub.js"></script>
 <script src="js/hubart.js"></script>
-<script src="js/hubground.js"></script>
-<script src="js/spectrum.js"></script>
+<script src="js/star.js"></script>
 <script src="js/terraform.js"></script>
-<script src="js/facets.js"></script>
 <script src="js/story.js"></script>
 <script src="js/input.js"></script>
 <script src="js/ui.js"></script>
-<script src="js/starui.js"></script>
-<script src="js/field.js"></script>
-<script src="js/worldmap.js"></script>
-<script src="js/supplies.js"></script>
 <script src="js/wick.js"></script>
 <script src="js/intro.js"></script>
-<script src="js/onboard.js"></script>
-<script src="js/tutor.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

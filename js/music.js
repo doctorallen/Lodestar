@@ -173,14 +173,14 @@ const Music = {
   state() {
     const P = T.sound.presence, s0 = typeof Save !== 'undefined' && Save.data, d = typeof Game !== 'undefined' && Game.dive;
     const echoes = ((s0 && s0.echoes) || []).length, U = T.sound.uneaseFrom;
-    const st = { mag: s0 ? magnitudeOf(s0.star) : 1, unease: sndClamp((echoes - U) / Math.max(1, T.story.turnEcho - U), 0, 1), s: 1, bed: 'hub', day: true, storm: false, dark: 0, dying: false };
+    const st = { mag: s0 ? magnitudeOf() : 1, unease: sndClamp((echoes - U) / Math.max(1, T.story.turnEcho - U), 0, 1), s: 1, bed: 'hub', day: true, storm: false, dark: 0, dying: false };
     if (!d || d.hub) return st;
     const pull = sndClamp(d.pull, 0, 1);
     if (d.deep) {
       const held = d.zone === 'lair' && d.keeper && !d.keeper.dead;
       st.s = held ? 0 : P.deep[0] + P.deep[1] * pull; st.bed = d.zone === 'lair' ? 'lair' : d.clime || 'caverns'; st.day = false;
       st.dark = held ? 0.7 : pull <= 0 ? 1 : 0;
-    } else if (d.kindled) { st.s = P.kindled; st.bed = d.clime || 'badlands'; }
+    } else if (typeof litAt === 'function' && litAt(d, d.p.x, d.p.y)) { st.s = P.kindled; st.bed = d.clime || 'badlands'; }
     else { st.s = P.dark[0] + P.dark[1] * pull; st.bed = d.clime || 'badlands'; st.day = false; st.dark = pull <= 0 ? 1 : 0; }
     st.storm = typeof stormHere === 'function' && stormHere(d);
     st.dying = d.dying > 0;
@@ -374,6 +374,6 @@ const Music = {
 
 // Where the outpost's forge stands (world px), at home.
 function musForgeAt() {
-  const d = typeof Game !== 'undefined' && Game.dive, f = d && d.hub && typeof HUB_STATIONS !== 'undefined' && HUB_STATIONS.find((s) => s.id === 'forge');
+  const d = typeof Game !== 'undefined' && Game.dive, f = null;
   return f ? { x: (f.x + 0.5) * TILE, y: (f.y + 0.5) * TILE } : { x: 1e9, y: 1e9 };
 }

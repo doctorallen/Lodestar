@@ -799,9 +799,7 @@ function pntPaintRock(f, x0, y0, x1, y1) {
       t = Math.round(t * tsc);
       // ink: soot hatched over the shadowed rock
       if (hatch && t <= hA && (x + sy) % 3 === 0) t = 0;
-      let rp = gRamp && Math.abs(x - gcx) < gR && Math.abs(sy - gcy) < gR && graftAt(f, (x + 0.5) / AP - 0.5, (sy + 0.5) / AP - 0.5) ? gRamp : ramp;
-      // (at the outpost, the rock of the land beyond where its meld reaches)
-      if (ml) { const mk = hgrMeldAt(f, x, sy); if (mk >= 0) rp = ml[mk]; }
+      let rp = ramp;
       // broken colour: the stroke (the run) warm or cool
       if (brk && rp === ramp) { const hu = runAt >= 0 ? pntHueOf(x, runId, seed + 9) : pntHueOf(cx0 + m, y, seed); if (hu) rp = hu === 1 ? LK.rockW : LK.rockC; }
       C32[y * W + x] = rp[t < 0 ? 0 : t > nt - 1 ? nt - 1 : t];
@@ -961,9 +959,6 @@ function pntPaintChunk(f, i, j) {
   pntGroundTones(f, x0, y0, x1, y1);
   const tx0 = Math.floor(x0 / ATILE), ty0 = Math.floor(y0 / ATILE), tx1 = Math.ceil(x1 / ATILE) - 1, ty1 = Math.ceil(y1 / ATILE) - 1;
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) paintTileArt(f, tx, ty);
-  paintGraft(f, tx0, ty0, tx1, ty1);
-  hgrPaintMeld(f, tx0, ty0, tx1, ty1);
-  tintRift(f, x0, y0, x1, y1);
   paintRockArea(f, x0, y0, x1, y1);
   pntComposite(f, x0, y0, x1, y1);
   View.pnrTiles = null;

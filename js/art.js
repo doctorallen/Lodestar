@@ -987,12 +987,6 @@ function stuffIconUrl(id) {
   if (url) return url;
   // (the light of deeds has its own: deeds.js)
   if (typeof isLight === 'function' && isLight(id)) return lightIconUrl(id);
-  const part = parsePart(id);
-  if (part) {
-    url = art2Sprite(PART_ROWS[part.kind], PART_PAL[part.kind][part.grade - 1], { fine: false }).c.toDataURL();
-    _iconCache.set(key, url);
-    return url;
-  }
   const r = ART.ores[id], col = r ? r[2] : ART.exotics[id];
   url = buildArtSprite(STUFF_ROWS, { crystal: [col], coreglow: [r ? r[3] : mix(col, '#ffffff', 0.6)] }, undefined, undefined, { fine: false }).c.toDataURL();
   _iconCache.set(key, url);

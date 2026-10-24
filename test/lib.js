@@ -34,10 +34,9 @@ const DESKTOP = { width: 1280, height: 800 };
 // Opens the game in a fresh page with an empty save (or with `save`, a save
 // object written before the game loads), and resolves once it's ready.
 // `errors` fills with page errors and console errors. A new game opens on
-// the opening, then Wick's offer to walk you through (onboard.js), with
-// only the essentials awake; `onboard: 'all'` wakes everything and skips
-// the offer and every tutorial, for tests that aren't about onboarding.
-async function openGame(browser, { width = 390, height = 844, mobile = true, save = null, query = '', onboard = null } = {}) {
+// the opening (intro.js); `intro: false` marks it seen first.
+async function openGame(browser, { width = 390, height = 844, mobile = true, save = null, query = '', intro = true } = {}) {
+  if (!intro) save = Object.assign({ introSeen: true }, save || {});
   const page = await browser.newPage();
   await page.setViewport(mobile ? { width, height, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } : { width, height });
   const errors = [];
@@ -47,7 +46,7 @@ async function openGame(browser, { width = 390, height = 844, mobile = true, sav
   // (first without the loading, which would go on writing the old save
   // after it's cleared)
   await page.goto(url + (query ? '&' : '?') + 'noload');
-  await page.evaluate((s) => { try { localStorage.clear(); if (s) localStorage.setItem('lodestar.save.v4', JSON.stringify(s)); } catch (e) {} }, save);
+  await page.evaluate((s) => { try { localStorage.clear(); if (s) localStorage.setItem('lodestar.save.v5', JSON.stringify(s)); } catch (e) {} }, save);
   await page.goto(url);
   // the loading screen (loader.js): once it's ready, the tap that begins
   await page.waitForFunction(() => typeof Loader !== 'undefined' && (Loader.state === 'ready' || Game.ready), { timeout: 120000, polling: 100 });
@@ -56,7 +55,6 @@ async function openGame(browser, { width = 390, height = 844, mobile = true, sav
     if (mobile) await page.touchscreen.tap(width / 2, height / 2); else await page.mouse.click(width / 2, height / 2);
   }
   await page.waitForFunction(() => typeof Game !== 'undefined' && Game.ready, { timeout: 30000 });
-  if (onboard === 'all') await page.evaluate(() => Onboard.testAll());
   return { page, errors };
 }
 

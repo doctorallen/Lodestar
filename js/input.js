@@ -14,14 +14,14 @@
 
 const STICK_R = 44; // CSS px
 const STICK_DEAD = 6;
-const HOLD_BUTTONS = { main: 'btn-main', off: 'btn-off', mine: 'btn-mine', act: 'btn-act' };
+const HOLD_BUTTONS = { main: 'btn-main', off: 'btn-off', act: 'btn-act' };
 const HOLD_KEYS = { main: ['KeyJ'], off: ['KeyK'], mine: ['Space', 'KeyL'], act: ['KeyE', 'Enter'] };
 const DASH_KEYS = ['ShiftLeft', 'ShiftRight', 'KeyU'];
 
 const Input = {
   move: { x: 0, y: 0 },
   stick: null, // { id, bx, by, x, y } in client px
-  held: { main: null, off: null, mine: null, act: null }, // the pointer holding each button
+  held: { main: null, off: null, act: null }, // the pointer holding each button
   actReq: false,
   dashReq: null, // true, or a direction from a flick
   keys: new Set(),
@@ -153,15 +153,11 @@ function setupInput() {
     if (GAME_KEYS.has(e.code) && !Game.modal) e.preventDefault();
     if (e.repeat) return;
     if ((e.code === 'Escape' || e.code === 'KeyP') && Game.dive) {
-      if (Game.modal === 'screen-report') UI.acts.closeReport();
-      // an item card closes first, back to the screen under it
-      else if (UI.card && Game.modal !== 'screen-reveal') UI.acts.closeCard();
-      else if (Game.modal === 'screen-anvil' || Game.modal === 'screen-reveal' || Game.modal === 'screen-story' || Game.modal === 'screen-resume') { /* these finish themselves, or need an answer */ }
+      if (Game.modal === 'screen-story') { /* it finishes itself */ }
       else if (Game.modal) UI.close();
       else UI.openPause();
       return;
     }
-    if (e.code === 'KeyI' && Game.dive && !Game.modal) { if (Game.dive.hub) UI.show('screen-gear'); else UI.openCargo(); return; }
     if ((e.code === 'KeyE' || e.code === 'Enter') && !Game.modal) Input.actReq = true;
     if (DASH_KEYS.includes(e.code) && !Game.modal) Input.dashReq = true;
     Input.keys.add(e.code);

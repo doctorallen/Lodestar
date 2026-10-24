@@ -948,3 +948,12 @@ The game had become more confusing with each stage of the star-provides work, no
 - **The Kindler is part of the star.** Magnitude is living vein length; power follows it; a fall dims the star's core, and the world can be lost. At the end the Kindler goes into the star and the sleepers come down: the sacrifice twist moves from the sleepers to the player.
 - **Spells are shapes read from creatures, the world and the star, shaped at the star into one of two readings.** No crafting benches, no parts; the choice is which reading, and it's final.
 - **Prune in place.** Main is unplayable until the first step lands. Four steps: the ground, the veins, the star, the dark and the words.
+
+## 2026-10-24: the prune: step one of the Veins, the ground
+
+Main moved onto the Veins (DESIGN.md) in one cut rather than system by system. Gone: mining, ore as a resource, cargo, the pack and banking; the Spectrum, light as a currency, shards, facets, casts' facets, supplies, field spending, the seventh band; rings, territories, heart goals, waystones, spires, Deeps, the Lattice tunnels, rifts, portals; the Hollow Star's inside, the star's four faces, the onboarding and tutorials, the tools, Wick's upgrades. Kept: the renderer and the painted style, the floor generator and its climes, the Kindler, the creatures and their patterns (the fight as it was, until the rethink), Wick, the opening, the heart's art.
+- **One site-sized floor stands in for the world** until the large map and its painting in a scrolling window land (the next commit). The star stands at its entry room with the ground opened round it.
+- **One bar.** `p.hp` is the light and the health; `d.pull` is derived from it so the lamp and music code keep working. A cast costs nothing but its cooldown.
+- **A fall wakes you at the star and takes a piece of its core** (7). At none the star goes out: a short story screen, then a fresh start.
+- **The old save is not read.** The save key moved to v5; what was under v4 stays in the browser untouched. A game this different has nothing to migrate.
+- **The two spells are a fixed Arc and Bolt** built as the cast code reads a rig, so circuits.js runs unchanged until the shapes replace it.

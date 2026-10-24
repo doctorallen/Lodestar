@@ -50,7 +50,9 @@ html, body {
 .bars { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 70px; max-width: 160px; }
 .bar { position: relative; height: 10px; background: #1a0e10; border: 1px solid #3a2226; }
 .bar.ch { height: 5px; background: #0c1420; border-color: #20324a; }
-.bar .fill { height: 100%; width: 100%; background: #c8463c; transition: width 0.12s; }
+.bar .fill { height: 100%; width: 100%; background: var(--gold); transition: width 0.12s; }
+.bar.hp.fading .fill { background: #e0904a; }
+.bar.hp { background: #1a1408; border-color: #3a2c10; }
 .bar.ch .fill { background: #62b8ff; }
 .bar.pull { height: 6px; background: #1a1408; border-color: #3a2c10; }
 .bar.pull .fill { background: var(--gold); }
@@ -58,7 +60,7 @@ html, body {
 .bar.pull.dark .fill { width: 0 !important; }
 .bar.pull.dark { border-color: var(--danger); }
 .bar.hp.warded { border-color: #8fb4ff; box-shadow: 0 0 6px #8fb4ff; }
-.bar.hp.hurt .fill { background: #ff8a70; }
+.bar.hp.hurt .fill { background: #fff0c0; }
 .bar.ch.low { border-color: var(--danger); }
 .bar-text { position: absolute; right: 3px; top: -2px; font-size: 10px; line-height: 12px; color: #fff; text-shadow: 0 1px 0 #000; }
 .hud-depth { color: var(--dim); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }

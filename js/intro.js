@@ -1134,7 +1134,7 @@ function introHubShot(d) {
   const walkable = (q) => !TILE_SOLID[floorTile(f, Math.floor(q.x / TILE), Math.floor(q.y / TILE))];
   // he stands in the light under the heart, and walks out from under it a
   // few steps towards the glass's middle
-  const from = { x: (OUTPOST_MIDDLE.x + 0.5) * TILE, y: (OUTPOST_MIDDLE.y + 0.5) * TILE };
+  const from = { x: (f.star.x + 0.5) * TILE, y: (f.star.y + 2.5) * TILE };
   const clear = (a, b) => { for (let k = 1, n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 3); k <= n; k++) { const q = { x: a.x + (b.x - a.x) * k / n, y: a.y + (b.y - a.y) * k / n }; if (!walkable(q)) return false; } return true; };
   const path = [from];
   for (let k = H.step; k > 0.3; k -= 0.2) { const q = { x: from.x, y: from.y + k * TILE }; if (clear(from, q)) { path.push(q); break; } }

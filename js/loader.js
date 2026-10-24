@@ -211,48 +211,20 @@ function loaderLateJobs() {
 // Builds the place the game will open on, without a word yet: the outpost
 // (enterHub, quiet), or the sortie under way (resumeRun, its toasts and
 // Wick's lines held until it's carried on: loaderReplay).
-function loaderLand(job) {
-  const s = Save.data;
-  if (s.run && !Save.unread) {
-    const held = [], keep = { toast: UI.toast, speak: UI.speak };
-    UI.toast = (...a) => held.push(['toast', a]);
-    UI.speak = (...a) => held.push(['speak', a]);
-    try {
-      resumeRun();
-      Loader.landed = { run: true, held };
-      const t = Game.dive && !Game.dive.deep && terrOf(Game.dive.terr);
-      job.say('SURVEYING TERRAIN · ' + (t ? t.name.toUpperCase() : 'THE DEEP'));
-      return;
-    } catch (e) {
-      noteError(e);
-      Game.dive = null;
-    } finally {
-      Object.assign(UI, keep);
-    }
-  }
-  enterHub(null, { quiet: true });
-  Loader.landed = { hub: true };
-}
-// Carrying on the sortie that was built while loading: what it would have
-// said on arriving, said now.
-function loaderCarryOn() {
-  const L = Loader.landed;
-  if (!L || !L.run || !Game.dive || Game.dive.hub) return false;
-  Loader.landed = null;
-  for (const [k, a] of L.held) UI[k](...a);
-  return true;
+function loaderLand() {
+  enterWorld({ quiet: true });
+  Loader.landed = { world: true };
 }
 
-// Paints every chunk of the floor (the outpost's all; a territory's within
-// a few views of where you stand), the nearest first.
+// Paints every chunk of the floor within a few views of where you stand,
+// the nearest first.
 function loaderPaint(job) {
   const d = Game.dive;
   if (!d) return;
   const f = d.floor;
-  const t = !d.hub && !d.deep && terrOf(d.terr);
-  job.say(d.hub ? 'PAINTING THE OUTPOST' : t ? 'PAINTING ' + t.name.toUpperCase() : d.lat !== null && d.lat !== undefined ? 'PAINTING THE LATTICE' : 'PAINTING THE DEEP');
+  job.say('PAINTING THE GROUND');
   paintFloor(f);
-  const S = View.pnt, cx = d.p.x * AP, cy = d.p.y * AP, reach = d.hub ? Infinity : 3.2 * Math.max(View.w, View.h);
+  const S = View.pnt, cx = d.p.x * AP, cy = d.p.y * AP, reach = 3.2 * Math.max(View.w, View.h);
   const todo = [];
   for (let j = 0; j < S.ny; j++) for (let i = 0; i < S.nx; i++) {
     const m = Math.hypot((i + 0.5) * PNT_CH - cx, (j + 0.5) * PNT_CH - cy);
@@ -268,9 +240,9 @@ function loaderPaint(job) {
 function loaderSweep(job) {
   const d = Game.dive;
   if (!d || !View.w) return;
-  job.say(d.hub ? 'LIGHTING THE OUTPOST' : 'LIGHTING THE LAND');
+  job.say('LIGHTING THE LAND');
   const p = d.p, home = { x: p.x, y: p.y }, f = d.floor, sw = (View.w * 0.8) / AP, sh = (View.h * 0.8) / AP;
-  const reach = d.hub ? Infinity : 2.2 * Math.max(View.w, View.h) / AP, pts = [];
+  const reach = 2.2 * Math.max(View.w, View.h) / AP, pts = [];
   for (let y = sh / 2; y < f.h * TILE; y += sh) for (let x = sw / 2; x < f.w * TILE; x += sw) if (Math.hypot(x - home.x, y - home.y) < reach) pts.push({ x, y });
   pts.sort((a, b) => Math.hypot(a.x - home.x, a.y - home.y) - Math.hypot(b.x - home.x, b.y - home.y));
   let i = 0;
@@ -283,21 +255,14 @@ function loaderSweep(job) {
   };
 }
 
-// The creatures and the plants of each clime in the first ring round the
-// outpost (and the sortie's own, if one is under way): every frame of
-// each, as fpWarm would build them on entering.
+// The creatures and the plants of the world's clime: every frame of each,
+// as fpWarm would build them on entering.
 function loaderClimes(job) {
-  const L = worldMap(), seen = new Set(), list = [];
-  const d = Game.dive, here = d && !d.hub && d.terr !== undefined ? [terrOf(d.terr)] : [];
-  for (const t of here.concat(L.terrs.filter((t) => t.ring === 1))) {
-    if (!t || t.home || seen.has(t.clime + '/' + t.biome)) continue;
-    seen.add(t.clime + '/' + t.biome);
-    list.push(t);
-  }
+  const d = Game.dive, list = d ? [{ clime: d.clime, biome: d.biome, depth: d.depth }] : [];
   // each clime's work, as many small pieces
   const work = [];
   for (const t of list) {
-    const fd = { hub: false, biome: t.biome, depth: t.depth, floor: { clime: t.clime } };
+    const fd = { biome: t.biome, depth: t.depth, floor: { clime: t.clime } };
     for (const type of ['crawler', 'snapjaw', 'spitter']) work.push(() => enemySprite(fd, type));
     const sig = foeOfClime(t.clime);
     if (sig && FOE_ROWS[sig]) for (const fr of Object.keys(FOE_ROWS[sig])) {

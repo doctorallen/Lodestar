@@ -16,7 +16,6 @@ function step(dtReal) {
   updateSparks(dtReal);
   UI.frame(dtReal);
   View.shake = (View.shake || 0) * Math.exp(-14 * dtReal);
-  if (Game.dive && Game.dive.feedT > 0) Game.dive.feedT = Math.max(0, Game.dive.feedT - dtReal);
   if (Game.modal) return;
   // a hit lands: everything holds still for a moment
   if (Game.hitstop > 0) { Game.hitstop -= dtReal; return; }
@@ -48,9 +47,8 @@ function frame(now) {
 
 // A frame: the game, and the opening over it while it plays (its first
 // scenes cover the screen, and the game isn't drawn under them). Nor is it
-// under a screen, which covers it too (a report left open would otherwise
-// go on drawing the world, and a portal's iris, unseen, every frame). The
-// paint lab's sheet is the exception: the room shows above it (lab.js).
+// under a screen, which covers it too. The paint lab's sheet is the
+// exception: the world shows above it (lab.js).
 function renderAll() {
   if (!introCovers() && !(UI.screen && Game.modal === UI.screen && UI.screen !== 'screen-lab')) renderFrame();
   introDraw();
@@ -92,29 +90,22 @@ function boot() {
   window.addEventListener('resize', onResize);
   window.addEventListener('orientationchange', onResize);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
-  // leaving the tab pauses a dive
+  // leaving the tab pauses the game
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && Game.dive && !Game.dive.hub) {
-      saveRun(Game.dive);
-      if (!Game.modal) UI.openPause();
-    }
+    if (document.hidden && Game.dive && !Game.modal) UI.openPause();
   });
   Game.step = step;
   Game.render = renderAll;
-  window.addEventListener('pagehide', () => { if (Game.dive && !Game.dive.hub) saveRun(Game.dive); });
   // the loading screen builds what play needs, then waits for a tap (loader.js)
   Loader.run(bootEnter);
 }
 
-// After the loading and its tap: where the game opens. The place was built
-// while loading (Loader.landed): the outpost, or the sortie under way,
-// behind the screen that asks whether to carry it on.
+// After the loading and its tap: where the game opens. The world was
+// built while loading (Loader.landed).
 function bootEnter() {
   requestAnimationFrame((t) => { _last = t; frame(t); });
-  const L = Loader.landed;
-  if (!L) enterHub();
-  else if (L.hub) hubWelcome();
-  if (Save.data.run && !Save.unread) UI.show('screen-resume');
+  if (!Loader.landed) enterWorld();
+  else worldWelcome({});
   if (Save.unread) UI.toast("The old save couldn't be read. It's been kept aside, and this is a new start");
   Game.ready = true;
   // what of the sound the loading left, in idle time (sndbank.js)

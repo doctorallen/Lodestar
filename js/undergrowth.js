@@ -274,7 +274,6 @@ function placeUndergrowth(f, set, o = {}) {
   if (f.entry) mark(f.entry.x, f.entry.y);
   for (const w of f.ways || []) for (let dy = -2; dy <= 0; dy++) for (let dx = -1; dx <= 1; dx++) mark(w.x + dx, w.y + dy);
   if (f.pad) mark(f.pad.x, f.pad.y);
-  if (f.hub) for (const s of HUB_STATIONS) for (let dy = -1; dy <= 1; dy++) for (let dx = -2; dx <= 2; dx++) mark(s.x + dx, s.y + dy);
   for (let i = 0; i < N; i++) if (f.haz && f.haz[i]) keep[i] = 1;
   for (const p of f.hazPts || []) mark(p.x, p.y);
   const open = (tx, ty) => tx > 0 && ty > 0 && tx < W - 1 && ty < H - 1 && f.tiles[ty * W + tx] === TILE_FLOOR && !keep[ty * W + tx] && (!mask || mask[ty * W + tx] > artHash(tx, ty, seed + 9));

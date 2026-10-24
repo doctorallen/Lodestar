@@ -89,7 +89,7 @@ function hurtPlayer(dmg, from) {
   const d = Game.dive, p = d.p, st = d.stats;
   if (p.invuln > 0 || d.dying) return;
   // (the lattice is the armour, and it's only as hard as the light in it:
-  // facets.js latticeK)
+  // game.js latticeK)
   const armor = st.armor * latticeK(d) + (st.litArmor && restingLight(d) ? st.litArmor : 0);
   dmg *= T.items.armorK / (T.items.armorK + armor);
   if (p.ward > 0) {
@@ -98,8 +98,6 @@ function hurtPlayer(dmg, from) {
     const soak = Math.min(p.ward, dmg); p.ward -= soak; dmg -= soak;
     if (p.ward <= 0) wardGone(p);
   }
-  // Wick's shield, once a fight, when it would leave you low (wick.js)
-  if (dmg > 0 && wickShieldBlocks(d, dmg)) { p.invuln = T.player.hurtInvuln; return; }
   p.hp -= dmg;
   shakeView(T.impact.hurtShake);
   d.nums.push({ x: p.x, y: p.y - 22, v: Math.max(1, Math.round(dmg)), t: 0.8, hurt: true });
@@ -197,68 +195,23 @@ function killEnemy(e) {
   const d = Game.dive, st = d.stats, L = T.loot, rng = d.rng;
   e.dead = true;
   d.kills++;
-  tallyKill(d, e);
-  // the suit reads its pattern (patterns.js)
-  scanKill(d, e);
+  // (counted by kind, for the shapes the star reads from the dark: the
+  // third step)
+  if (e.type !== 'dummy') { Save.data.kills++; const k = Save.data.killsOf || (Save.data.killsOf = {}); k[e.type] = (k[e.type] || 0) + (e.elite ? 2 : 1); }
   if (e.blight) for (const o of d.enemies) if (!o.dead && o !== e && dist(o.x, o.y, e.x, e.y) < T.elements.blightSpread) o.blight = { t: T.elements.blightTime, dps: e.blight.dps };
   castFxDeath(e.x, e.y - 5, ENEMY_PAL[T.biomes[d.biome].id].crystal[0], !!e.boss);
   snd('kill', { x: e.x, y: e.y, big: !!e.boss });
   if (hasAffix(e, 'volatile')) d.fx.push({ kind: 'volatile', x: e.x, y: e.y, t: T.enemies.volatileFuse, max: T.enemies.volatileFuse, dmg: e.dmg * T.enemies.volatileDmg });
-  if (st.powers.lodeheart) {
-    healPlayer(3);
-    for (const dr of d.drops) if (dist(dr.x, dr.y, d.p.x, d.p.y) < 6 * TILE) dr.home = true;
-  }
-  // scattered a little round where it fell, but never into the rock
-  const level = floorLevel(d), drop = (thing) => {
+  if (st.powers.lodeheart) healPlayer(3);
+  // nothing drops: a creature killed enough leaves its shape in you (the
+  // third step). A mote of light now and then, so the dark gives a little
+  // back.
+  if (!e.boss && e.type !== 'hollow' && rng.chance(L.mote)) {
     let x = e.x + rng.f(-6, 6), y = e.y + rng.f(-4, 4);
     if (TILE_SOLID[floorTile(d.floor, Math.floor(x / TILE), Math.floor(y / TILE))]) { x = e.x; y = e.y; }
-    d.drops.push(Object.assign({ x, y, t: 0 }, thing));
-  };
-  // what it leaves: ore (the dark is of the world, and carries the
-  // world's body in it), a Keeper its shard and an echo; and what it
-  // teaches the star (facets.js): an elite the Shape or Turn its nature
-  // names, a warden or a Keeper a shard of old light
-  const tier = dropTier(d), oreOf = (deep) => { const b = T.biomes[clamp(d.biome, 0, T.biomes.length - 1)]; return b.ores[deep ? 1 : 0]; };
-  const ore = (n, deep) => { if (n > 0) drop({ stuff: oreOf(deep), n }); };
-  if (e.type === 'keeper') {
-    // its lodeline lights, and the dark starts to come back: a short pull
-    if (d.zone === 'lair') { d.padDark = false; d.pull = 1; d.pullTime = T.enemies.keeper.afterPull; UI.toast("The star's light reaches down. Go, before the dark comes back", 'legendary'); }
-    // its heart-shard, and what it had gathered
-    drop({ shard: d.biome });
-    drop({ echo: true });
-    ore(L.bossOre, true); ore(L.bossOre, false);
-    const lg = nextLegendToLearn(rng); if (lg) drop({ legend: lg });
-    return;
+    d.drops.push({ x, y, t: 0, mote: Math.max(L.moteHeal, Math.round(st.maxHp * L.moteShare)) });
   }
-  if (e.boss) {
-    ore(L.bossOre, true); ore(L.bossOre, false);
-    const lg = nextLegendToLearn(rng); if (lg) drop({ legend: lg });
-    return;
-  }
-  // the Hollow leave the dark's residue, the one thing the star has no band
-  // for (spectrum.js); elites now and then
-  if (e.type === 'hollow') { drop({ stuff: NIGHTGLASS, n: 1 }); return; }
-  if (e.elite) {
-    ore(rng.i(L.eliteOre[0], L.eliteOre[1]), rng.chance(0.5));
-    if (rng.chance(T.field.nightglass)) drop({ stuff: NIGHTGLASS, n: 1 });
-    const taught = eliteCoreFor(e);
-    if (taught && !(CIRCUIT_FORMS[taught] ? facetsState().shapes : facetsState().mods).includes(taught)) drop({ teach: taught, from: e.type });
-    if (rng.chance(T.story.echoElite)) drop({ echo: true });
-    if (rng.chance(T.circuits.resonance.elite) && !codexAllWhole()) drop({ resStone: true });
-  } else {
-    // (a foe Wick calls up on the first landing always leaves one: onboard.js)
-    if (e.guide || rng.chance(L.part)) ore(1, false);
-  }
-  if (rng.chance(L.mote)) drop({ mote: Math.max(L.moteHeal, Math.round(st.maxHp * L.moteShare)) });
   affixOnDeath(e);
-}
-
-
-// The tier of loot on this floor: the biome's lower ore, or its deeper one
-// more often further down.
-function dropTier(d) {
-  const ores = T.biomes[d.biome].ores, deep = Math.min(T.oreDeep.max, T.oreDeep.base + T.oreDeep.perFloor * (d.depth - 1));
-  return T.ores[ORE_INDEX[ores[d.rng.chance(deep) ? 1 : 0]]].tier;
 }
 
 // ---------------------------------------------------------------------------
@@ -287,41 +240,8 @@ function updatePickups(dt) {
     if (dist(dr.x, dr.y, p.x, p.y) > reach) { dr.warned = false; dr.left = false; continue; }
     if (dr.left) continue;
     if (dr.mote) { healPlayer(dr.mote); dr.gone = true; snd('heal'); continue; }
-    // a pile of ore: all of it (there's no limit to what's carried)
-    if (dr.stuff) {
-      const k = dr.n;
-      d.cargo[dr.stuff] = (d.cargo[dr.stuff] || 0) + k;
-      snd('pickup');
-      if (dr.stuff === NIGHTGLASS) { Save.data.umbraSeen = true; Story.say('nightglass'); }
-      // a small +n in the stuff's colour, not a toast: pickups are many
-      d.nums.push({ x: p.x + 8, y: p.y - 30 - 7 * d.nums.filter((n) => n.plus && n.t > 0.6).length, v: k, t: 0.9, plus: true, col: ART.ores[dr.stuff] ? ART.ores[dr.stuff][3] : '#ffffff' });
-      dr.gone = true;
-      continue;
-    }
-    // a heart-shard binds to the diver: safe whatever happens now
-    if (dr.shard !== undefined) { Story.takeShard(dr.shard); d.gotShard = true; UI.toast('A shard, still warm', 'legendary'); dr.gone = true; snd('shard'); continue; }
-    if (dr.resStone) { resonanceStoneFound(d.rng); dr.gone = true; snd('resStone'); buzz(12); continue; }
-    if (dr.echo) { const ec = Story.findEcho(); if (ec) { d.echoes = (d.echoes || 0) + 1; UI.toast('Echo: ' + ec.title, 'magic'); snd('echo'); deedEcho(d); } dr.gone = true; continue; }
-    // what the star learns from a fall: a Shape or a Turn, or a shard of
-    // old light (facets.js)
-    if (dr.teach) {
-      if (CIRCUIT_FORMS[dr.teach]) learnShape(dr.teach, `read from the ${foeWord(dr.from)}`); else learnMod(dr.teach, `read from the ${foeWord(dr.from)}`);
-      coreTetherFx(d, dr.x, dr.y, stoneCol(dr.teach));
-      dr.gone = true; buzz(12);
-      continue;
-    }
-    if (dr.legend) { learnLegend(dr.legend, 'the old light, kept'); coreTetherFx(d, dr.x, dr.y, ART.rarity.legendary); dr.gone = true; buzz(12); continue; }
     dr.gone = true;
     buzz(12);
   }
   d.drops = d.drops.filter((dr) => !dr.gone);
-}
-
-// How many things are carried: ore, parts and exotics by the piece, gear
-// and blueprints one each (light isn't counted: deeds.js). There's no limit:
-// it's what a fall would leave in the pack.
-function cargoCount(d) {
-  let n = 0;
-  for (const k in d.cargo) if (!isLight(k)) n += d.cargo[k];
-  return n + ((d.items && d.items.length) || 0) + ((d.blueprints && d.blueprints.length) || 0);
 }

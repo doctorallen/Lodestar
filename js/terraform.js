@@ -17,16 +17,16 @@
 // How far the starstone has spread from the spire (tiles), 0 where the
 // land isn't kindled. (f.kindled: frontier.js enterTerritory, kindleTerritory.)
 function terraReach(f) {
-  if (!f || !f.kindled || f.hub || !f.pad) return 0;
+  if (!f || !f.star) return 0;
   const R = T.terraform.reach;
-  return R[0] + R[1] * Math.max(0, magnitudeOf(Save.data.star) - 1);
+  return R[0] + R[1] * Math.max(0, magnitudeOf() - 1);
 }
 // Is tile point (gx, gy) on the stone: 0 no, 1 yes, 2 a tendril; and how
 // far in from its edge it is (tiles), and how far from the spire, in
 // _terraStone.
 const _terraStone = { inset: 0, d: 0 };
 function terraStoneAt(f, gx, gy, R) {
-  const G = T.terraform, dx = gx - f.pad.x - 0.5, dy = (gy - f.pad.y - 0.5) / G.squash, d = Math.hypot(dx, dy);
+  const G = T.terraform, dx = gx - f.star.x - 0.5, dy = (gy - f.star.y - 0.5) / G.squash, d = Math.hypot(dx, dy);
   _terraStone.d = d;
   if (d > R + G.wander + G.tendril[0]) return 0;
   const x = gx * ATILE, y = gy * ATILE, seed = f.seed + 70;
@@ -42,7 +42,7 @@ function terraPaintGround(P, f, tx, ty, ox, oy) {
   const reach = terraReach(f);
   if (!reach) return;
   const G = T.terraform, Ps = T.paint.site, R = View.rockPx, tone = View.groundTone, W = P.w, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em;
-  const gx0 = tx + 0.5, gy0 = ty + 0.5, far = reach * G.bloom, d0 = Math.hypot(gx0 - f.pad.x - 0.5, (gy0 - f.pad.y - 0.5) / G.squash);
+  const gx0 = tx + 0.5, gy0 = ty + 0.5, far = reach * G.bloom, d0 = Math.hypot(gx0 - f.star.x - 0.5, (gy0 - f.star.y - 0.5) / G.squash);
   if (d0 > far + 1) return;
   const stoneNear = d0 < reach + G.wander + G.tendril[0] + 1;
   const LS = Ps.lodestone.map(rgbOf), V = Ps.vein.map((h) => pntU32(rgbOf(h))), VR = Ps.vein.map(rgbOf), green = rgbOf(G.green), gold = rgbOf(G.gold), goldU = pntU32(gold), seed = f.seed + 80;
@@ -73,7 +73,7 @@ function terraPaintGround(P, f, tx, ty, ox, oy) {
       }
       // past the stone: the star's gold veins running on out through the
       // land's own ground, fewer further out, lit near the stone
-      const d = Math.hypot(gx - f.pad.x - 0.5, (gy - f.pad.y - 0.5) / G.squash);
+      const d = Math.hypot(gx - f.star.x - 0.5, (gy - f.star.y - 0.5) / G.squash);
       if (d > far) continue;
       const k = Math.pow(1 - Math.max(0, d - reach) / Math.max(0.5, far - reach), G.bloomPow);
       const v1 = 1 - Math.abs(2 * pntNoise(x, y, G.vein[0], G.vein[1], seed + 3) - 1);

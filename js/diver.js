@@ -628,7 +628,7 @@ function kdRender(face, key) {
 // (T.splinter.lines). Built from the finished frame, once a spacing, and
 // drawn over him as faint as his light (render.js drawProspector).
 const KD_LAT = new Map();
-function kdLatticeSpacing() { const L = T.splinter.lines; return Math.max(L[1], L[0] - (magnitudeOf(Save.data.star) - 1)); }
+function kdLatticeSpacing() { const L = T.splinter.lines; return Math.max(L[1], L[0] - (magnitudeOf() - 1)); }
 function kdLattice(spr) {
   const sp = kdLatticeSpacing(), had = KD_LAT.get(spr);
   if (had && had.sp === sp) return had.lat;

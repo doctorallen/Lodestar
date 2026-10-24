@@ -643,6 +643,8 @@ function hartCradle() {
 // own, leaning to one side (side -1 left, 1 right, 0 up), v its variant.
 // Each a faceted shard lit on its upper left, the gold ones glowing at the
 // tip. Feet at its middle.
+// (the lodestone's tones, for the starstone)
+const LODESTONE = ['#111316', '#22262c', '#3a4048', '#5e6670'];
 function hartStarstone(n, v, side) {
   return hartKeep('stone' + n + '/' + v + '/' + side, () => {
     const W = 24, H = 20, FY = 18, cx = 12, s = new PntSpr(W, H, 1701 + v * 7 + n), G = HART.star, L = LODESTONE;

@@ -152,7 +152,6 @@ function facingIndex(fx, fy) { return (Math.round(Math.atan2(fy, fx) / (Math.PI 
 // region's, paved); else its region's caves.
 const _pavedArt = {};
 const artBiome = (f) => {
-  if (f.hub) return ART.biomes.outpost;
   const cl = climeArt(f);
   if (cl) return cl;
   const id = T.biomes[f.biome].id;
@@ -238,7 +237,7 @@ function paintFloorSteps(f) {
   const steps = [];
   for (let k = 0; k < n; k++) steps.push(() => fillRockField(f, 0, k * strip, P.w, (k + 1) * strip));
   // what grows here first: its beds are painted with the tiles
-  steps.push(() => { View.ugMeld = null; View.flora = f.hub ? hgrFlora(f) : placeFlora(f, floraSetOf(f)); });
+  steps.push(() => { View.ugMeld = null; View.flora = placeFlora(f, floraSetOf(f)); });
   // the ground and the rock standing up over it are painted in chunks as
   // the view comes near them (paint.js, pntFrame)
   steps.push(() => {
@@ -261,16 +260,14 @@ function tileRnd() {
 }
 
 function paintTileArt(f, tx, ty) {
-  const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, b = tileArt(f, tx, ty), t = floorTile(f, tx, ty), ox = tx * ATILE, oy = ty * ATILE;
+  const P = View.floorBuf, R = View.rockPx, W = P.w, H = P.h, b = artBiome(f), t = floorTile(f, tx, ty), ox = tx * ATILE, oy = ty * ATILE;
   _tileSeed = hashInts(f.seed, f.depth, tx, ty) | 0;
   const rnd = tileRnd;
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
   if (f.clime || f.meldPainting >= 0) paintClimeTile(P, f, tx, ty, ox, oy, b);
-  // (the outpost's deck, pads and paths: hubground.js; kindled land's
-  // starstone and green: terraform.js)
-  if (f.hub) hgrPaintGround(P, f, tx, ty, ox, oy);
-  else if (f.kindled) terraPaintGround(P, f, tx, ty, ox, oy);
+  // (the star's starstone and green round it: terraform.js)
+  terraPaintGround(P, f, tx, ty, ox, oy);
   paintUndergrowth(P, f, tx, ty, ox, oy, b);
   // (ore and veins are on the rock layer: paint.js)
   if (t === TILE_PAD) paintDish(P, ox, oy);
@@ -300,9 +297,6 @@ function repaintAround(f, tx, ty) {
   const below = artBiome(f).sun ? 2 : 1;
   pntGroundTones(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
   for (let y = ty - 3; y <= ty + below; y++) for (let x = tx - 1; x <= tx + 1; x++) if (x >= 0 && y >= 0 && x < f.w && y < f.h) paintTileArt(f, x, y);
-  paintGraft(f, tx - 1, ty - 3, tx + 1, ty + below);
-  hgrPaintMeld(f, tx - 1, ty - 3, tx + 1, ty + below);
-  tintRift(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
   pntRepaintRock(f, tx * T2, ty * T2, (tx + 1) * T2, (ty + 1) * T2, changed);
   // (the rock laid back over the ground's tiles too, where they're under it)
   pntComposite(f, (tx - 1) * T2, (ty - 3) * T2, (tx + 2) * T2, (ty + below + 1) * T2);
@@ -913,19 +907,7 @@ function renderFrameDraw() {
   // (and the creatures it holds are painted now, not mid-fight). Just
   // arrived through a portal, behind its shut iris: a step a frame, the
   // last frame (all iris) left on the screen meanwhile
-  if (View.floorFor !== f && !(View.stage && View.stage.f === f)) {
-    if (d.arrive && d.arrive.t < T.portal.arrive && !d.warp) { View.stage = { f, steps: paintFloorSteps(f) }; drawPortalIris(d, 0, 0); return; }
-    paintFloor(f); fpWarm(d);
-  }
-  if (View.stage) {
-    if (View.stage.f === f) {
-      View.stage.steps.shift()();
-      if (View.stage.steps.length) { drawPortalIris(d, 0, 0); return; }
-      // (the creatures it holds, a frame of their own)
-      if (!View.stage.warmed) { View.stage.warmed = true; View.stage.steps.push(() => fpWarm(d)); drawPortalIris(d, 0, 0); return; }
-    }
-    View.stage = null;
-  }
+  if (View.floorFor !== f) { paintFloor(f); fpWarm(d); }
   // the camera, in art px
   const fw = f.w * ATILE, fh = f.h * ATILE, pxA = p.x * AP, pyA = p.y * AP;
   // (T.art.steadyCam: from the diver's whole art px, so he stands on the
@@ -935,18 +917,16 @@ function renderFrameDraw() {
   const steady = T.art.steadyCam, cxA = steady ? Math.round(pxA) - (View.w >> 1) : pxA - View.w / 2, cyA = steady ? Math.round(pyA) - (View.h >> 1) : pyA - View.h / 2;
   const camX0 = Math.round(fw <= View.w ? (fw - View.w) / 2 : clamp(cxA, 0, fw - View.w));
   // (the opening's last shot starts over the star: intro.js)
-  const camX = (View.camX = d.hub && Intro.hub ? introCamX(camX0) : camX0);
-  // at home the camera looks further up, to keep the star in sight
-  const lookUp = ap(d.hub ? 56 : 8);
+  const camX = (View.camX = Intro.hub ? introCamX(camX0) : camX0);
+  const lookUp = ap(8);
   const camY0 = Math.round(fh <= View.h ? (fh - View.h) / 2 : clamp(cyA - lookUp, 0, fh - View.h));
   // (the opening's last shot comes down from higher: intro.js)
-  const camY = (View.camY = d.hub && Intro.hub ? introCamY(camY0) : camY0);
-  // the floor's painted chunks in view and near it (paint.js)
-  // (opening on arrival, only what shows; walking, out ahead of the diver
-  // first)
-  const lead = d.hub ? null : { x: Input.move.x * ap(T.paint.lazy.lead), y: Input.move.y * ap(T.paint.lazy.lead) };
+  const camY = (View.camY = Intro.hub ? introCamY(camY0) : camY0);
+  // the floor's painted chunks in view and near it (paint.js), out ahead
+  // of the Kindler first
+  const lead = { x: Input.move.x * ap(T.paint.lazy.lead), y: Input.move.y * ap(T.paint.lazy.lead) };
   const tp = performance.now();
-  pntFrame(f, camX, camY, portalRevealArt(d, camX, camY), lead);
+  pntFrame(f, camX, camY, null, lead);
   perfNote(Perf.pnt, performance.now() - tp);
   const sh = View.shake > 0.3 ? View.shake * AP : 0;
   // a world point x, y is drawn at Math.round(x * AP) + ox, Math.round(y * AP) + oy
@@ -964,11 +944,9 @@ function renderFrameDraw() {
   const lights = [];
   // what's drawn flat on the ground, then the rock in front of it laid
   // back over it all (paintrock.js; on the GPU, in the shader as it's drawn)
-  Gpu.feet = d.hub ? -2 : -1;
-  if (!d.hub) { drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights); }
-  drawWorldUnder(d, ox, oy, lights);
-  drawLatticeUnder(d, ox, oy, lights);
-  drawHolesUnder(d, ox, oy, lights);
+  Gpu.feet = -1;
+  drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights);
+  drawStarUnder(d, ox, oy, lights);
   drawCastGround(d, ox, oy, tick, lights);
   pnrOccludeGround(ox, oy);
   Gpu.feet = -2;
@@ -976,7 +954,7 @@ function renderFrameDraw() {
   // ore twinkles, so it's the one thing in the rock that catches the eye:
   // what the cutter can break, bright and often; what it can't, a slow
   // cold glint in its own colour, so the eye learns which is which
-  const tx0 = Math.max(0, Math.floor(camX / ATILE)), ty0 = Math.max(0, Math.floor(camY / ATILE)), pickPow = Save.data.equip.pick ? Save.data.equip.pick.base.power : 0;
+  const tx0 = Math.max(0, Math.floor(camX / ATILE)), ty0 = Math.max(0, Math.floor(camY / ATILE)), pickPow = 0;
   for (let ty = ty0; ty <= Math.min(f.h - 1, ty0 + Math.ceil(View.h / ATILE) + 1); ty++)
     for (let tx = tx0; tx <= Math.min(f.w - 1, tx0 + Math.ceil(View.w / ATILE) + 1); tx++) {
       if (f.tiles[ty * f.w + tx] !== TILE_ORE) continue;
@@ -1003,21 +981,13 @@ function renderFrameDraw() {
     }
   }
 
-  if (d.hub) drawHubUnder(d, ox, oy, tick, lights);
   // what stands up off the ground, each behind the rock by its feet
-  if (!d.hub) drawHazardsStanding(d, ox, oy, tick, lights);
+  drawHazardsStanding(d, ox, oy, tick, lights);
   cfxDrawGroundGhosts(d, ox, oy);
-  // an ancient forge's cold light on the ground before it (the forge
-  // itself stands among the actors: fieldForgeProps)
-  if (d.fieldForge) {
-    const fx = Math.round((d.fieldForge.x + 0.5) * ATILE) + ox, fy = Math.round((d.fieldForge.y + 0.5) * ATILE + ap(6)) + oy, sp = hartForgeSpill(Math.floor(Game.realT * 3) % 2, true);
-    drawArtSprite(sp, fx + HART_OLD.port.x - fieldForgeSprite(d).ax - sp.ax, fy + 1);
-  }
 
-  // loot on the floor, then everyone in order of their feet, then what flies
+  // what lies on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) { Gpu.feet = Math.round(dr.y * AP) + oy; drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8 * AF, Math.round(dr.y * AP) + oy - 16 * AF, 16 * AF, 18 * AF, Math.round(dr.y * AP) + oy, ox, oy); }
-  const props = (d.hub ? hubProps(d) : riftProps(d).concat(lifeActors(d), worldProps(d), latticeProps(d), fieldForgeProps(d))).concat(portalProps(d), ropeProps(d), deedProps(d));
-  if (!d.hub) graftLight(d, ox, oy, lights);
+  const props = lifeActors(d).concat(starProps(d));
   const actors = d.enemies.filter((e) => !e.dead).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
   Gpu.feet = -2;
   for (const a of actors) {
@@ -1026,11 +996,7 @@ function renderFrameDraw() {
     // (a walker in a pool stands down in it: painthole.js)
     const wade = phlWadeStart(d, a, ox, oy);
     if (a === p) drawProspector(d, ox, oy, tick, lights);
-    else if (a.hubDraw) a.hubDraw(d, a, ox, oy, lights);
-    else if (a.tear) drawRift(d, a, ox, oy, lights);
-    else if (a.portal) drawPortal(d, a, ox, oy, lights);
-    else if (a.rope) drawRope(d, a, ox, oy, lights);
-    else if (a.wprop) drawWorldProp(d, a, ox, oy, lights);
+    else if (a.draw) a.draw(d, a, ox, oy, lights);
     else if (a.piece || a.strip) drawFlora(d, a, ox, oy, lights);
     else if (a.crit) drawCritter(d, a, ox, oy);
     else drawEnemy(d, a, ox, oy, tick, lights);
@@ -1080,7 +1046,7 @@ function renderFrameDraw() {
   for (const fx of d.fx) drawCombatFx(fx, ox, oy, tick, lights);
   drawCastAir(d, ox, oy, tick, lights);
   drawResonanceAir(d, ox, oy, tick, lights);
-  if (d.hub) drawHubOver(d, ox, oy, lights);
+  drawStarOver(d, ox, oy, lights);
   // sparks: short streaks back along their way (castfx.js)
   for (const s of Sparks) cfxSpark(vx(s.x), vy(s.y), s.vx, s.vy, s.col, s.t);
   if (!d.hub) drawHazardsAir(d, ox, oy, lights);
@@ -1189,11 +1155,9 @@ function renderFrameDraw() {
       o.fillStyle = star[2]; o.fillRect(tx + 2 * AF, ty - 4 * AF, Math.round((ATILE - 4 * AF) * Math.min(1, p.mine.prog)), 2 * AF);
     }
   }
-  // the tools' marks and the outpost's labels too
+  // the storm's warning too
   View.ctx = o;
-  try { drawToolHud(d, ox, oy); drawWickHud(d, ox, oy); drawDeedsHud(d, ox, oy); drawGuideMarks(d, ox, oy); if (d.hub) { if (!Intro.hub) drawStationLabels(d, ox, oy); } else drawStormMark(d, ox, oy); if (!Intro.hub) drawExitMarks(d, ox, oy); } finally { View.ctx = x; }
-  // stepping through a portal, or just through one: over everything
-  drawPortalIris(d, ox, oy);
+  try { drawStormMark(d, ox, oy); } finally { View.ctx = x; }
 }
 
 // ---------------------------------------------------------------------------

@@ -918,10 +918,30 @@ const T = {
   // the altar's bowl. hum: how much each landing brightens the star (it
   // fades at humFade a second). lights: at most this many rising motes
   // carry a light of their own.
+  // The Lodestar in the world (star.js; docs/VEINS.md). clear: the ground
+  // opened round it (tiles, flattened by squash); hang: how high over its
+  // ground point the heart hangs (tiles); standOff: where the Kindler
+  // wakes, south of it (tiles). lightR: how far its light lies on the land
+  // (tiles), lightPerMag more each magnitude, fading out over lightFade
+  // tiles past that. core: the pieces of its core (a fall takes one; at
+  // none the star goes out). heart: how many times the seed's size the
+  // heart is drawn, small to magnitude bigFrom and big after. pool: its
+  // light on the ground [at magnitude 0, more each] (tiles) and strength;
+  // heartLight: the heart's own.
   star: {
-    levels: [0, 12, 40, 100, 200, 340, 520, 740], ringMag: [0, 1, 3, 5, 7], scale: 2,
-    feed: { rate0: 2.5, rateMax: 22, ramp: 2.2, beat: 0.35, beatRamp: 0.5, fly: 0.9, arc: 46, hum: 0.06, humFade: 2.5, lights: 14 },
+    clear: 7, squash: 0.82, hang: 2.4, standOff: 3,
+    lightR: 9, lightPerMag: 1.5, lightFade: 4, core: 7,
+    heart: { small: 3, big: 4, bigFrom: 4 },
+    pool: { r: [7, 0.8], i: 1.0 },
+    heartLight: { r: [6, 1.1], i: [1.1, 0.08] },
   },
+  // One bar (game.js updateBar): your light is your health. In light it
+  // fills from empty in `fill` seconds; in the dark it drains in
+  // T.world.light.
+  bar: { fill: 4 },
+  // The world's one map (game.js generateWorld): the generator's depth and
+  // clime, and overrides of its numbers.
+  worldgen: { depth: 1, clime: null, over: { rooms: [6, 8] } },
   // Deeds (deeds.js): the light each gives the star. heart: heartlight for
   // kindling a territory, by ring; bound to the Kindler the moment the spire
   // stands, safe from any fall. deepEnd: deeplight for first reaching a

@@ -187,7 +187,7 @@ function rigBase() {
 // ---------------------------------------------------------------------------
 // A frame's ore: the one it's named for (its tier's), or null (the fist).
 // (the Splinter has no ore: facets.js)
-function casterOre(it) { return it && !it.fist && !it.facet && it.tier >= 1 ? oreOfTier(it.tier).id : null; }
+function casterOre() { return null; }
 // Its ore's way (T.circuits.ores), or {}.
 const casterOreWay = (it) => (casterOre(it) && T.circuits.ores[casterOre(it)]) || {};
 // The element its ore favours, or null.
@@ -264,11 +264,7 @@ function fistCaster() { const sp = emptySpell(null); sp.form = { kind: 'stone', 
 function castHand(slot, item, h, charged) {
   const d = Game.dive, p = d.p, C = T.circuits, it = item || fistCaster(), R = rigBase();
   const sp = rigSpell(it, slot === 'off' ? 1 : 0), g = spellGroup(sp), res = spellResonance(sp);
-  let cost = it.fist ? 0 : spellCost(sp);
-  if (charged) cost *= C.chargedCost;
-  if (p.charge < cost) { p.lowCharge = 0.4; snd('noCharge'); return false; }
-  p.charge -= cost;
-  // (counted, for the first landing's walkthrough: onboard.js)
+  // (a cast costs nothing but its cooldown: one bar)
   const cn = d.casts || (d.casts = {});
   cn[slot] = (cn[slot] || 0) + 1;
   // an Arc's combo: a press soon after the last carries it on
@@ -280,8 +276,7 @@ function castHand(slot, item, h, charged) {
   const form = g ? (charged && g.form === 'arc' ? 'nova' : g.form) : 'spark';
   castFxStart(d, it, slot, charged, [form], g ? groupCol(g) : ART.forms.bolt);
   snd('cast', { form, els: g ? g.els : null, charged, step: h.step, res: !!res });
-  // (a surge of the band's ore: this cast a depth above: field.js)
-  const cx = { item: it, power: it.base.power, charged, step: h.step, from: null, aim: null, mult: (res ? resonanceMult(it) : 1) * surgeTake(d, slot), spread: 0, echo: false, res: res ? res.id : null };
+  const cx = { item: it, power: it.base.power, charged, step: h.step, from: null, aim: null, mult: res ? resonanceMult(it) : 1, spread: 0, echo: false, res: res ? res.id : null };
   if (res) resonanceCast(res, d);
   // the Twice-Told: everything again, fanned a little
   for (let k = 0; k < (d.stats.powers.echo ? 2 : 1); k++) {

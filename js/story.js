@@ -342,12 +342,13 @@ const KINDLE_LOG = {
 // a clime), read from the world's save: Save.data.world.territories[id]
 // .state === 'kindled' (frontier.js). The starter doesn't count, as the
 // outpost's own light reaches it; none while there's no world yet.
-function storyKindled() {
-  const W = Save.data && Save.data.world;
-  if (!W || !W.territories) return [];
-  const terrs = worldLayout(W.seed).terrs;
-  return Object.keys(W.territories).map(Number).filter((id) => { const s = W.territories[id]; return s && s.state === 'kindled' && !s.starter && terrs[id]; }).map((id) => terrs[id]);
-}
+function storyKindled() { return []; }
+// The star's core gone: the world is lost (game.js starGoesOut).
+const STAR_OUT_LINES = [
+  'The last of the light goes out of the heart. The veins go dark along their length, one after another, out to the furthest node.',
+  'Wick: …I have no line for this. The spec never had one.',
+  'Above, the Meridian waits for a star that will not call it down. The world keeps its night.',
+];
 function storyKindledCount() { return storyKindled().length; }
 
 // The log's line for a territory kindled: one of its clime's, the same one
@@ -365,9 +366,6 @@ function playKindlerEnding(choice, done) {
   const key = choice === 'leave' ? 'leave' : 'kindle';
   Save.data.kindlerEnding = key; Save.save();
   const lines = KINDLER_ENDINGS[key].slice();
-  // leaving the night, with the seventh band fed: the star shines in all
-  // seven, the night kept in its light (spectrum.js)
-  if (key === 'leave' && bandDepth(NIGHTGLASS) >= 1) lines.splice(lines.length - 1, 0, 'And the seventh band, the one no spec ever drew, is the one the star keeps. It shines in all seven now, the night held in its light.');
   UI.openStory(lines, done);
 }
 
@@ -382,7 +380,7 @@ const Story = {
   // The star, when it grows: a line for every magnitude it passed (a big
   // feed can pass two), and the attunement to spend. (mag: the magnitude
   // it has reached as drawn, when ore is still rising into it.)
-  starGrew(mag = magnitudeOf(Save.data.star)) {
+  starGrew(mag = magnitudeOf()) {
     const s = Save.data;
     if (s.magSeen === undefined) s.magSeen = mag;
     if (mag <= s.magSeen) return;
@@ -390,7 +388,7 @@ const Story = {
     for (let m = s.magSeen + 1; m <= mag; m++) {
       if (STAR_SPEAKS[m]) UI.speak('THE STAR', STAR_SPEAKS[m], 'star');
     }
-    UI.toast(`Magnitude ${mag}: ${mag - s.magSeen > 1 ? 'attunements' : 'an attunement'} to spend at the altar`);
+    UI.toast(`The star grows: magnitude ${mag}`, 'legendary');
     s.magSeen = mag;
     Save.save();
   },
@@ -408,7 +406,7 @@ const Story = {
   // ends, played out or skipped, it's seen.
   intro() {
     if (Save.data.introSeen) return false;
-    const seen = () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); if (!Onboard.offer()) UI.tip('hub', 'Walk out any opening, or take the portal'); };
+    const seen = () => { Save.data.introSeen = true; Save.data.freshStart = false; Save.save(); UI.tip('out', 'Walk out of the light. Your light drains in the dark; it fills back here'); };
     // a save from before circuits started over: one line to say why first
     if (Save.data.freshStart) UI.openStory([FRESH_START_LINE], () => Intro.play(seen));
     else Intro.play(seen);
