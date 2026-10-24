@@ -180,7 +180,8 @@ function floraSprite(set, piece, frame) {
 // surface's under the sky, or its biome's.
 function floraSetOf(f) { return f.hub ? 'surface' : f.clime && CLIME_FLORA[f.clime] ? f.clime : f.zone === 'surface' ? 'surface' : T.biomes[f.biome].id; }
 
-function placeFlora(f, set) { return placeUndergrowth(f, set); }
+// (kindled land grows thicker: terraform.js)
+function placeFlora(f, set) { return placeUndergrowth(f, set, f.kindled && !f.hub ? { dens: T.terraform.flora } : {}); }
 
 // One piece, drawn with its feet (or for a hanging one, its top) at x, y;
 // or a row of a stand. A piece on a wall that's been mined away is gone.
@@ -266,8 +267,10 @@ function paintTileArt(f, tx, ty) {
   const rock = (x, y) => x < 0 || y < 0 || x >= W || y >= H || R[y * W + x] === 1;
   paintCaveTile(P, rock, ox, oy, b, rnd, f.seed ^ f.depth, R);
   if (f.clime || f.meldPainting >= 0) paintClimeTile(P, f, tx, ty, ox, oy, b);
-  // (the outpost's deck, pads and paths: hubground.js)
+  // (the outpost's deck, pads and paths: hubground.js; kindled land's
+  // starstone and green: terraform.js)
   if (f.hub) hgrPaintGround(P, f, tx, ty, ox, oy);
+  else if (f.kindled) terraPaintGround(P, f, tx, ty, ox, oy);
   paintUndergrowth(P, f, tx, ty, ox, oy, b);
   // (ore and veins are on the rock layer: paint.js)
   if (t === TILE_PAD) paintDish(P, ox, oy);
@@ -1024,7 +1027,6 @@ function renderFrameDraw() {
     const wade = phlWadeStart(d, a, ox, oy);
     if (a === p) drawProspector(d, ox, oy, tick, lights);
     else if (a.hubDraw) a.hubDraw(d, a, ox, oy, lights);
-    else if (a.settler) drawSettler(d, a, ox, oy, lights);
     else if (a.tear) drawRift(d, a, ox, oy, lights);
     else if (a.portal) drawPortal(d, a, ox, oy, lights);
     else if (a.rope) drawRope(d, a, ox, oy, lights);

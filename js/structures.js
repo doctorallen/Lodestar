@@ -14,8 +14,9 @@
 //             refined up a grade there
 //   relay     the Forward Relay: a quicker recall, quicker banking and
 //             travel at a spire (game.js)
-//   quarters  the Settlers' Quarters: scavenged parts each time you come home,
-//             and settlers (story.js)
+//   quarters  the Settlers' Quarters, built ahead for the Meridian's
+//             sleepers: the survey drones roost there meanwhile, and bring
+//             scavenged parts each time you come home
 // They're painted in hubart.js (structureSprite), stand among the walkers
 // (hub.js hubProps), cast shadows from the star (pshadow.js) and grow
 // starstone with the star, as the stations do.
@@ -36,7 +37,7 @@ const STRUCTURES = {
   },
   quarters: {
     short: 'Quarters', label: 'QUARTERS', line: 'bld_quarters',
-    text: () => `Room for ${T.structures.quarters.settlers} more settlers. Each time you come home, they bring you ${T.structures.quarters.pay} creature parts they scavenged.`,
+    text: () => `Built ahead for the sleepers. Until they wake, the survey drones roost here, and each time you come home bring you ${T.structures.quarters.pay} creature parts they scavenged.`,
   },
 };
 
@@ -290,7 +291,7 @@ function refineHtml() {
 function relayRecallTime() { return T.leave.recall * (structureStands('relay') ? T.structures.relay.recall : 1); }
 function relayBankTime() { return T.leave.extract * (structureStands('relay') ? T.structures.relay.bank : 1); }
 
-// The Settlers' Quarters: creature parts the settlers scavenged, each time
+// The Settlers' Quarters: creature parts the drones scavenged, each time
 // you come home (frontier.js goHome). Returns what they brought: { id, n }
 // or null.
 function quartersPay() {

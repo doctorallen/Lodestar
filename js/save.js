@@ -178,6 +178,21 @@ function cleanSave(s) {
   s.scans = surveyScans(s.scans && typeof s.scans === 'object' ? s.scans : {});
   // the lean rules (above)
   cleanLeanSave(s);
+  // the Spectrum: ore given, by kind (none in an older save: the star knows
+  // Iron, and the band of any land already kindled, so nothing kindled is
+  // dark to it); the colony never comes down early any more
+  const bands = s.bands && typeof s.bands === 'object' ? s.bands : {};
+  s.bands = {};
+  for (const o of T.ores) if (Number.isFinite(bands[o.id]) && bands[o.id] > 0) s.bands[o.id] = Math.floor(bands[o.id]);
+  s.bands.ferrite = Math.max(s.bands.ferrite || 0, T.spectrum.startIron);
+  if (s.world && s.world.territories) {
+    const terrs = worldLayout(s.world.seed).terrs;
+    for (const id of Object.keys(s.world.territories)) {
+      const ts = s.world.territories[id], t = terrs[id], ore = t && ts && ts.state === 'kindled' && !ts.starter ? bandGateOre(t) : null;
+      if (ore) s.bands[ore] = Math.max(s.bands[ore] || 0, T.spectrum.depths[1]);
+    }
+  }
+  delete s.landersCalled;
   // the outpost's buildings and Wick's upgrades (none in an older save):
   // their recipes are known from the first day
   for (const id of BP_IDS) if ((BLUEPRINTS[id].kind === 'structure' || BLUEPRINTS[id].kind === 'wick') && !s.blueprints.includes(id)) s.blueprints.push(id);
@@ -226,6 +241,9 @@ const Save = {
       // come down to its plot; refineryLv: the Refinery's level once it
       // stands) and Wick's upgrades (wick.js; id: on)
       built: [], landing: null, refineryLv: 1, wickUps: {},
+      // the Spectrum (spectrum.js): ore given to the star by kind; the
+      // star lands knowing Iron
+      bands: { ferrite: T.spectrum.startIron }, oreGiven: 0,
       // what's awake yet, the walkthrough's step and the tutorials seen
       // (onboard.js, tutor.js)
       onboard: { mode: null, guide: null, open: {}, seen: {} },

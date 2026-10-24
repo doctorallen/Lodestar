@@ -117,14 +117,14 @@ const TUTORS = {
   uplink: {
     screen: 'screen-wreck', title: 'THE UPLINK',
     steps: [
-      { at: '#wreck-body .up-landers', say: 'Kindle land, and the Meridian sends settlers down.', next: true },
+      { at: '#wreck-body .up-meridian', say: 'The Meridian sleeps until the star is whole: every band at its mark.', next: true },
       { at: '#wreck-body .up-shards', say: 'Three Keepers hold shards. The star wants them.', next: true },
       { at: '#wreck-body .up-echoes', say: 'Logs found in the dark are kept here.', next: true },
     ],
     ref: [
-      'A lander comes down for every few territories kindled.',
+      'The Meridian\'s sleepers wait in orbit until every band of the star stands at the mark.',
       'A shard lies in the Keeper\'s Lair, under the furthest land of each ring.',
-      'With three shards set and land enough, call the colony down.',
+      'Ore given at the altar deepens its band; a land\'s band at depth 1 lets the star light it.',
     ],
   },
   hud: {

@@ -70,7 +70,26 @@ html, body {
 .icon-btn.cargo { color: var(--gold); font-weight: normal; white-space: nowrap; }
 body:not(.diving) #topbar > * { visibility: hidden; }
 body.home #topbar .bars { display: none; }
-body.home .hud-depth { flex: 1; text-align: center; }
+body.home .hud-depth { flex: 1 1 auto; text-align: right; }
+/* the Spectrum (spectrum.js): six bars, a band each, the Meridian's mark across them */
+.hud-spec { display: none; flex: 0 0 auto; }
+body.home .hud-spec { display: flex; }
+.spec { display: inline-flex; gap: 2px; align-items: flex-end; height: 16px; }
+.spec.small { height: 14px; }
+.spec i { display: block; width: 7px; height: 100%; position: relative; background: #1a1408; border: 1px solid #3a2c10; }
+.spec.small i { width: 6px; }
+.spec i.none { border-style: dashed; opacity: 0.6; }
+.spec i.mark { border-color: var(--gold); }
+.spec i b { position: absolute; left: 0; right: 0; bottom: 0; display: block; }
+.spec i u { position: absolute; left: -1px; right: -1px; height: 1px; background: var(--ink); opacity: 0.7; }
+.row.band .pip { display: inline-block; width: 8px; height: 8px; margin-right: 8px; flex: none; }
+.row.band .dim { color: var(--dim); }
+.band-bar { display: block; height: 3px; margin-top: 4px; background: #1a1408; border: 1px solid #3a2c10; }
+.band-bar > span { display: block; height: 100%; }
+.mini.give { color: var(--gold); border-color: var(--gold); }
+.spec-wrap { display: flex; justify-content: center; padding: 6px 0 10px; }
+.spec-wrap .spec { height: 28px; }
+.spec-wrap .spec i { width: 14px; }
 body.home #btn-mine { display: none; }
 
 #stage { grid-area: stage; position: relative; overflow: hidden; background: #000; }

@@ -105,6 +105,8 @@ function enterTerritory(id, how = {}) {
   d.seed = territorySeed(W.seed, id);
   const f = (d.floor = generateTerritory(W.seed, id));
   d.kindled = ts.state === 'kindled';
+  // (kindled land terraforms by the light: terraform.js)
+  f.kindled = d.kindled;
   d.sun = d.kindled ? X.sun.kindled : t.edge ? X.sun.edge : X.sun.dark;
   resetFloorState(d);
   if (hasSpire(id)) { f.tiles[f.heart.y * f.w + f.heart.x] = TILE_PAD; f.pad = { x: f.heart.x, y: f.heart.y }; }
@@ -148,7 +150,8 @@ function enterTerritory(id, how = {}) {
   // the story's first times (story.js; a key it doesn't know says nothing)
   Story.say([null, null, 'ring2', 'ring3', 'theEdge'][t.ring]);
   if (!d.kindled) UI.tip('darkLand', 'Dark land: your light runs down here');
-  if (!d.kindled && !starHoldsSpire(id)) UI.toast(`The star's light can't hold a spire here yet: magnitude ${spireMagFor(id)}`);
+  const blk = d.kindled ? null : spireBlock(id);
+  if (blk) UI.toast(blk.why === 'reach' ? `The star's light can't hold a spire here yet: magnitude ${blk.mag}` : `This land is dark to the star: it hasn't tasted ${stuffName(blk.ore)}`);
   else if (f.pad) { UI.tip('spire', 'A spire: BANK here, or TRAVEL'); Story.say('firstSpire'); }
   noticeRift(d);
   saveRun(d);
@@ -199,6 +202,12 @@ function updateFrontier(d, dt) {
       snd('waystonesBurn');
       buzz(40);
     }
+  }
+  // kindled land: sparks of the star's light rise off the starstone round
+  // the spire (terraform.js)
+  if (d.kindled && f.pad && FX_R.f() < T.terraform.sparks * dt) {
+    const r = terraReach(f), a = FX_R.f(Math.PI * 2), k = Math.sqrt(FX_R.f()) * r;
+    spawnSparks((f.pad.x + 0.5 + Math.cos(a) * k) * TILE, (f.pad.y + 0.5 + Math.sin(a) * k * T.terraform.squash) * TILE, [ART.pal.star[3], ART.pal.star[2]], 1);
   }
   // a landed beacon is a spire's light for a while
   const b = d.beacon;
@@ -324,7 +333,7 @@ function riftSealedHere(d) {
 function kindleTerritory(d) {
   const id = d.terr, t = terrOf(id), ts = terrState(id), f = d.floor, h = f.heart;
   Object.assign(ts, { state: 'kindled', done: true, spire: true });
-  d.kindled = true; d.sun = T.world.sun.kindled; d.pull = 1; d.pullTime = T.world.light; d.padDark = false; d.hold = null;
+  d.kindled = true; f.kindled = true; d.sun = T.world.sun.kindled; d.pull = 1; d.pullTime = T.world.light; d.padDark = false; d.hold = null;
   f.tiles[h.y * f.w + h.x] = TILE_PAD; f.pad = { x: h.x, y: h.y };
   repaintAround(f, h.x, h.y);
   // what the dark sent burns away in the light
@@ -630,15 +639,16 @@ function goalLines(d) {
   if (!d || !d.sortie || d.deep || d.kindled || !d.terr) return null;
   const t = terrOf(d.terr), ts = terrPeek(d.terr) || {}, out = [];
   // (the star's reach: a spire holds only where its light does)
-  const reach = starHoldsSpire(d.terr) ? null : `◇ The star must reach magnitude ${spireMagFor(d.terr)} to hold a spire here`;
-  if (ts.done) return reach ? [reach, 'Bring it light from your deeds'] : ['◇ Plant the spire at the heart'];
-  if (t.goal === 'rift') return ['◇ Seal the tear at the heart', reach ? `then the spire, at magnitude ${spireMagFor(d.terr)}` : 'then plant the spire'];
+  // (the star's reach, or a band it hasn't tasted: spectrum.js)
+  const blk = spireBlock(d.terr), reach = blk ? `◇ ${spireBlockLine(blk)}` : null, then = blk ? (blk.why === 'reach' ? `then the spire, at magnitude ${blk.mag}` : `then the spire, once it has tasted ${stuffName(blk.ore)}`) : 'then plant the spire';
+  if (ts.done) return reach ? [reach, blk.why === 'reach' ? 'Bring it light from your deeds' : `Carry ${stuffName(blk.ore)} home and give it at the altar`] : ['◇ Plant the spire at the heart'];
+  if (t.goal === 'rift') return ['◇ Seal the tear at the heart', then];
   const lit = ts.lit || [];
   for (let k = 0; k < 3; k++) {
     if (d.hold && d.hold.k === k) out.push(`◈ Stay in its light: ${Math.max(0, Math.ceil(T.world.waystone.hold - d.hold.t))} s`);
     else if (lit.includes(k)) out.push(`◆ Waystone ${k + 1} lit`);
     else out.push(lit.length === 2 ? '◇ Light the last, and hold it' : `◇ Light waystone ${k + 1}`);
   }
-  out.push(reach ? `then the spire, at magnitude ${spireMagFor(d.terr)}` : 'then plant the spire');
+  out.push(then);
   return out;
 }

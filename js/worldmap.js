@@ -213,7 +213,7 @@ function drawMapCard() {
     }
     if (s.visits && t.deep) h += row('A DEEP', `a hole down, ${t.deep} site${t.deep > 1 ? 's' : ''}${deepZone(t, t.deep) === 'lair' ? ", the Keeper's Lair at the bottom" : deepReached(t.id) && galleryUnder(t.id) >= 0 ? ', a cleft into the Lattice at the bottom' : ''}`);
     // what its deeds would give the star (deeds.js)
-    if (word !== 'kindled' && !s.starter) h += row('KINDLING IT', `+${heartLightFor(t)} heartlight${starHoldsSpire(t.id) ? '' : ` · its spire needs magnitude ${spireMagFor(t.id)}`}`);
+    if (word !== 'kindled' && !s.starter) { const blk = spireBlock(t.id); h += row('KINDLING IT', `+${heartLightFor(t)} heartlight${!blk ? '' : blk.why === 'reach' ? ` · its spire needs magnitude ${blk.mag}` : ` · the star must taste ${stuffName(blk.ore)} first`}`); }
     if (s.visits && t.deep) h += row('ITS DEEP\'S END', deepReached(t.id) ? 'reached' : `+${deepLightFor(t)} deeplight, the first time`);
   }
   // the pack a fall left here

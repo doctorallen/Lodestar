@@ -145,7 +145,7 @@ const Music = {
   magHeard: 1, magWait: -1, bloomed: 0, growAt: -99, liftAt: -99,
   feed: 0, feedHeld: false, pingAt: -9, lastNow: 0, lastUp: -9,
   nextPhrase: 0, nextEv: {}, gust: 1, gustAt: 0, breathAt: 0, bedId: '',
-  stepHalf: -1, heartAt: 0, stingAt: 0, seen: new WeakSet(), settlers: 0,
+  stepHalf: -1, heartAt: 0, stingAt: 0, seen: new WeakSet(),
 
   // The voices, built once on Snd's context and kept running (silent until
   // wanted), so nothing continuous is made while playing.
@@ -164,7 +164,6 @@ const Music = {
     this.magHeard = this.bloomed = st.mag;
     this.magWait = -1; this.feed = 0; this.feedHeld = false;
     this.lastNow = c.currentTime; this.nextPhrase = c.currentTime + 3; this.nextEv = {};
-    this.settlers = typeof settlerCount === 'function' ? settlerCount() : 0;
     this.built = true;
   },
 
@@ -357,13 +356,7 @@ const Music = {
       if (this.stepHalf >= 0 && half !== this.stepHalf) { const k = T.sound.stepAhead; snd('step', { ground: sndGroundAt(d, d.p.x + Math.cos(A.ang) * k, d.p.y + Math.sin(A.ang) * k), foot: half }); }
       this.stepHalf = half;
     } else this.stepHalf = -1;
-    if (d.hub) {
-      // more settlers than last time: a lander came down
-      const n = typeof settlerCount === 'function' ? settlerCount() : 0;
-      if (n > this.settlers) snd('lander');
-      this.settlers = n;
-      return;
-    }
+    if (d.hub) return;
     const p = d.p, hp = p.hp / d.stats.maxHp;
     if (!(d.dying > 0) && hp > 0 && hp < X.lowHp && now >= this.heartAt) { snd('heart'); this.heartAt = now + (hp < X.lowHp / 2 ? 0.7 : 0.95); }
     // something big comes into view: a sting, once for each

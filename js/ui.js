@@ -350,7 +350,10 @@ const UI = {
     Tutor.frame();
     if (!d) return;
     if (d.hub) {
-      setTextIfChanged('hud-depth', `THE LODESTAR · MAGNITUDE ${magnitudeOf(Save.data.star)}`);
+      setTextIfChanged('hud-depth', `MAGNITUDE ${magnitudeOf(Save.data.star)}`);
+      // the Spectrum beside it (spectrum.js), drawn again when a band moves
+      const key = BANDS.map((b) => bandGiven(b.ore)).join(','), sp = $('hud-spec');
+      if (sp.dataset.key !== key) { sp.dataset.key = key; sp.innerHTML = spectrumBarsHtml(true); }
     }
     const p = d.p, st = d.stats;
     const hp = Math.max(0, p.hp / st.maxHp), ch = p.charge / st.maxCharge;
@@ -398,7 +401,7 @@ const UI = {
     const rh = a === 'rift' && riftHere(d);
     let way = '';
     if (a === 'way') { const wi = wayHere(d); way = inLat ? 'UP INTO THE DEEP' : d.ways[wi] === 'lattice' ? 'DOWN INTO THE LATTICE' : !d.deep ? 'DOWN INTO THE DEEP' : d.deep.site >= d.deep.of ? 'BACK UP: ' + terrOf(d.terr).name.toUpperCase() : 'CLIMB DOWN: ' + wayPlaceName(d, wi).toUpperCase(); }
-    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep && !inLat ? 'RISE TO THE SURFACE' : 'BANK', relight: 'RELIGHT THE SPIRE', stone: 'LIGHT THE WAYSTONE', plant: d.terr && !starHoldsSpire(d.terr) ? `SPIRE · MAGNITUDE ${spireMagFor(d.terr)}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'TUNE', locker: 'OPEN LOCKER', bay: 'DRONE BAY', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `HOLD TO FEED · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
+    setTextIfChanged('btn-act', rh ? (rh.gate ? 'ENTER THE TEAR' : 'SEAL THE TEAR') : way || { setout: 'SET OUT', extract: d.deep && !inLat ? 'RISE TO THE SURFACE' : 'BANK', relight: 'RELIGHT THE SPIRE', stone: 'LIGHT THE WAYSTONE', plant: d.terr && spireBlock(d.terr) ? `SPIRE · ${spireBlockShort(spireBlock(d.terr))}` : 'PLANT THE SPIRE', forge: 'FORGE', runes: 'TUNE', locker: 'OPEN LOCKER', bay: 'DRONE BAY', altar: Story.shardsHeld() > Story.shardsSet() ? 'SET THE SHARD' : d.feed && d.feed.ore ? `GIVING ${stuffName(d.feed.ore).toUpperCase()} · ${Save.data.stash[d.feed.ore] || 0}` : lightWaiting() ? `HOLD TO FEED · ${lightWaiting()}` : 'FEED THE STAR', wreck: 'OPEN THE UPLINK' }[a] || '');
     if (d.channel) setTextIfChanged('hud-depth', { recall: 'RECALLING…', seal: 'SEALING…', stone: 'LIGHTING…', plant: 'PLANTING…', travel: 'TRAVELLING…', extract: d.deep && !inLat ? 'RISING…' : 'BANKING…' }[d.channel.kind] || 'RISING…');
     if (btn.hidden !== !a) btn.hidden = !a;
     // feeding the star is a hold, not a tap: the button says so, pulses to
@@ -434,28 +437,25 @@ function drawStory() {
   $('story-step').textContent = `${st.i + 1} / ${st.lines.length}`;
 }
 
-// The Meridian uplink (the station 'wreck'): the colony ship in orbit, the
-// landers it can send, the shards set, calling the colony down, and the
-// echoes found.
+// The Meridian uplink (the station 'wreck'): the colony ship in orbit and
+// its sleepers, the Spectrum against the Charter's spec (spectrum.js), the
+// shards set, and the echoes found.
 function drawUplink_() {
   const s = Save.data, set = Story.shardsSet();
   const shardRow = (b, i) => {
     const has = (s.shards || []).includes(i);
     return `<div class="row static"><img class="icon" src="${art2IconUrl('shard', has ? {} : { shardglow: ['#2a2a30'], shardwarm: ['#3a3a40'], star: ['#202024', '#2a2a30', '#34343c', '#40404a'] })}" alt=""><span class="row-text"><span class="row-name">${esc(b.name)}</span><span class="row-sub">${has ? ((s.shards || []).indexOf(i) < set ? 'Set in the star' : 'Set it at the altar') : `A Keeper holds it · ring ${i + 1}`}</span></span></div>`;
   };
-  // the landers: one for every few territories kindled
-  const kindled = storyKindledCount(), landers = storyLanders(), every = T.story.landerEvery, need = T.story.callLanders;
-  const landerNote = `${kindled} kindled${landers < need ? ` · ${(landers + 1) * every - kindled} more for the next` : ''}`;
-  const call = Story.landersCalled() ? '<p class="note">The colony is down.</p>'
-    : Story.canCall() ? '<div class="menu"><button class="btn primary" data-act="callLanders">CALL THE LANDERS</button></div>'
-    : `<p class="note">To call the colony: 3 shards set, ${need * every} kindled.</p>`;
+  // the Meridian: its sleepers, and the spec the star is held to
+  const kindled = storyKindledCount(), at = BANDS.filter((b) => bandAtMark(b.ore)).length;
+  const meridian = spectrumComplete() ? '<p class="note">Every band at the mark. The star is whole, by the spec.</p>'
+    : `<p class="note">${T.story.sleepers} sleepers in orbit. They wake when the star is whole: every band at the mark. ${at} of ${BANDS.length} stand there.</p>`;
   // the log: a line for each territory kindled
   const log = storyKindled().map((t) => `<div class="echo"><p>${esc(kindleLogLine(t.clime, t.name))}</p></div>`).join('');
   const echoes = (s.echoes || []).map((i) => `<div class="echo"><b>${esc(ECHOES[i].title)}</b><p>${esc(ECHOES[i].text)}</p></div>`).join('');
   $('wreck-body').innerHTML = `
-    <h3>LANDERS · ${landers}</h3><div class="up-landers"><p class="note">${esc(landerNote)}</p></div>
+    <h3>THE MERIDIAN</h3><div class="up-meridian">${meridian}<div class="spec-wrap">${spectrumBarsHtml(false)}</div>${spectrumRowsHtml(false)}</div>
     <h3>SHARDS SET · ${set}/3</h3><div class="up-shards">${T.biomes.map(shardRow).join('')}</div>
-    ${call}
     <h3>ECHOES · ${(s.echoes || []).length}/${ECHOES.length}</h3><div class="up-echoes">${echoes || '<p class="note">None yet.</p>'}</div>
     ${log ? `<h3>THE LOG · ${kindled} KINDLED</h3>${log}` : ''}
     <div class="menu"><button class="btn quiet" data-act="replayIntro">WATCH THE LANDING AGAIN</button></div>`;
@@ -490,7 +490,7 @@ function drawReport() {
   const learned = r.learned || [];
   if (learned.length) row('LEARNED', 'gold', learned.map((id) => BLUEPRINTS[id].name).join(', '));
   if (r.shard) row('SHARD', 'gold', 'Set it at the altar');
-  if (r.settlers) row('SETTLERS', 'good', `+${r.settlers.n} ${stuffName(r.settlers.id)}`);
+  if (r.settlers) row('THE QUARTERS', 'good', `+${r.settlers.n} ${stuffName(r.settlers.id)}`);
   if (r.echoes) row('ECHOES', 'gold', `${r.echoes} · at the uplink`);
   // the star: the light this sortie earned, what's waiting at the altar,
   // and how far to the next magnitude
@@ -517,8 +517,9 @@ function drawToolRows() {
   }).join('');
 }
 
-// The star's screen, at its altar: its magnitude, the light waiting, its
-// reach, and the attunements. (What grows it is behind the ?: tutor.js.)
+// The star's screen, at its altar: its magnitude, the light waiting, the
+// Spectrum (each band, and GIVE for the ore the stash holds: spectrum.js),
+// its reach, and the attunements. (What grows it is behind the ?: tutor.js.)
 function drawStar() {
   const s = Save.data, mag = magnitudeOf(s.star), next = T.star.levels[mag], lo = T.star.levels[mag - 1], pts = attunePointsLeft(s), wait = lightWaiting();
   const k = (v) => Math.round(Math.min(1, next ? (v - lo) / (next - lo) : 1) * 100);
@@ -534,6 +535,7 @@ function drawStar() {
     <div class="bar rep-bar star-bar"><div class="fill wait" style="width:${k(s.star + wait)}%"></div><div class="fill" style="width:${k(s.star)}%"></div></div>
     <h3>LIGHT WAITING · ${wait}${shards > 0 ? ` · ${shards} SHARD${shards > 1 ? 'S' : ''}` : ''}</h3>
     <div class="mats light-chips">${light}</div>
+    <h3>THE SPECTRUM · ${BANDS.filter((b) => bandAtMark(b.ore)).length}/${BANDS.length} AT THE MARK</h3><div class="spec-list">${spectrumRowsHtml(true)}</div>
     <h3>REACH</h3><div class="reach">${reach}</div>
     <h3>ATTUNEMENTS · ${pts} POINT${pts === 1 ? '' : 'S'}</h3><div class="att-list">${att}</div>`;
 }
@@ -630,8 +632,8 @@ UI.acts = {
   },
   // the opening again, from the uplink (intro.js)
   replayIntro: () => { UI.close(); Intro.play(null); },
-  // calling the colony down, at the uplink (story.js)
-  callLanders: () => { if (Story.canCall()) Story.callLanders(() => UI.useStation('wreck')); },
+  // ore into the star, from its screen (spectrum.js): all the stash holds
+  giveOre: (ore) => { if (giveOre(ore, Save.data.stash[ore] || 0)) afterChange(); },
   recall: () => {
     UI.close();
     const d = Game.dive;

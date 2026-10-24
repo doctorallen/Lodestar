@@ -314,7 +314,9 @@ function nextGoal() {
   if (!s.world) return 'Walk out into the land and kindle it.';
   const L = worldMap(), lit = (id) => isKindled(id);
   const front = L.terrs.filter((t) => !t.home && !lit(t.id) && t.nb.some(lit)).sort((a, b) => terrLevel(a) - terrLevel(b));
-  const open = front.find((t) => starHoldsSpire(t.id)), shut = front.filter((t) => !starHoldsSpire(t.id));
+  // (open: the star reaches it and has tasted its land's band; band: it
+  // hasn't tasted the band; shut: out of its reach. spectrum.js)
+  const open = front.find((t) => !spireBlock(t.id)), band = front.filter((t) => { const b = spireBlock(t.id); return b && b.why === 'band'; }), shut = front.filter((t) => { const b = spireBlock(t.id); return b && b.why === 'reach'; });
   const deep = L.terrs.filter((t) => t.deep && !deepReached(t.id) && (terrPeek(t.id) || {}).visits).sort((a, b) => terrLevel(a) - terrLevel(b))[0];
   const keep = L.terrs.find((t) => t.gate && regionReached(t.biome) && !(s.shards || []).includes(t.biome));
   if (open) return `Kindle ${open.name}: +${heartLightFor(open)} heartlight.`;
@@ -323,6 +325,7 @@ function nextGoal() {
   const cold = typeof latticeMap === 'function' && latticeKnown() ? latticeMap().nodes.find((n) => n.spire && !latLit(n.id) && (latPeek(n.id) || {}).visits) : null;
   if (cold) return `Relight the cold spire in ${cold.name}: +${T.deeds.coldSpire} deeplight.`;
   if (keep) return `Take the Keeper's shard, under ${keep.name}.`;
+  if (band.length) { const ore = bandGateOre(band[0]), have = s.stash[ore] || 0, need = T.spectrum.depths[1] - bandGiven(ore); return have >= need ? `Give the star ${stuffName(ore)} at the altar: ${bandOpensWord(ore)} is dark to it.` : `Bring the star ${need} ${stuffName(ore)}: ${bandOpensWord(ore)} is dark to it. Mine it in ${band[0].name}.`; }
   if (shut.length) { const r = Math.min(...shut.map((t) => t.ring)), m = T.star.ringMag[r]; return `Ring ${r} needs magnitude ${m}: ${lightToMag(m)} more light.`; }
   return 'Kindle the land, all the way to the Edge.';
 }

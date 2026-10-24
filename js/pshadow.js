@@ -173,7 +173,6 @@ function pshHubStill(d) {
     else if (a.gate) { const s = HUB_STATIONS.find((x) => x.id === 'setout'); out.push({ spr: hartGate(), x: Math.round((s.x + 0.5) * ATILE), y: Math.round((s.y + 0.5) * ATILE) + 1 }); }
     else if (a.cradle) out.push({ spr: hartCradle(), x: Math.round(OUTPOST_CRADLE.x * ATILE), y: Math.round(OUTPOST_CRADLE.y * ATILE), cradle: true });
     else if (a.pod) out.push({ spr: hartPod(a.look % 2), x: Math.round(a.pod.x * ATILE), y: Math.round(a.pod.y * ATILE) });
-    else if (a.lander) out.push({ spr: hartLander(), x: Math.round(a.lander.x * ATILE), y: Math.round(a.lander.y * ATILE + ap(4)) });
     else if (a.dress) out.push({ spr: hartProp(a.dress.kind), x: Math.round(a.dress.x * ATILE), y: Math.round(a.dress.y * ATILE) });
     else if (a.structure && !a.landing) { const at = plotAt(a.plot, 0, 0); out.push({ spr: structureSprite(a.structure), x: at.x, y: at.y }); }
   }
@@ -316,7 +315,7 @@ function pshBake(f) {
 // What the plaza's baked shadows were made for: its settlement, its lit
 // lanterns and its buildings (if any changes, the outpost is painted
 // again).
-function pshHubSig() { return settlementSize() + '/' + hubStarMag() + '/' + structuresStanding().join(); }
+function pshHubSig() { return hubStarMag() + '/' + structuresStanding().join(); }
 
 // ---------------------------------------------------------------------------
 // Each frame: a mask of greys over the view, multiplied over the ground
@@ -491,10 +490,6 @@ function pshMovers(d) {
   // (none while he's still in his pod, in the opening: intro.js)
   if (!(d.hub && Intro.hub && Intro.hub.hidden)) out.push({ spr: pshKindlerSpr(d), x: Math.round(p.x * AP), y: Math.round(p.y * AP), me: true });
   if (d.hub) {
-    for (const s of d.settlers || []) out.push({ spr: settlerSprite(s.look, s.walkT > 0 ? 1 + (Math.floor(s.walkT * 7) % 4) : 0, s.west), x: Math.round(s.x * AP), y: Math.round(s.y * AP) });
-    const n = settlementSize();
-    if (n >= 1) { const fg = HUB_STATIONS.find((s) => s.id === 'forge'), at = stationAt(fg, 0, 0), fs = hartForge(); out.push({ spr: hartPerson(1, 'smith', 0), x: at.x - fs.ax + hartPt(fs, HART_ANVIL).x - 14 * (fs.f || 1), y: at.y + 2 }); }
-    if (n >= 2) { const [sx, sy] = hubSitterAt(d.floor.site); out.push({ spr: hartPerson(2, 'sit', 0), x: Math.round(sx * ATILE), y: Math.round(sy * ATILE) }); }
     return out;
   }
   for (const e of d.enemies) {

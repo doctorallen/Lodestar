@@ -110,7 +110,7 @@ function phlNearLip(P, x, y, b, step) {
 // if it set the clip), phlWadeEnd after.
 function phlWadeOf(d, a) {
   const f = d.floor;
-  if (!f.haz || d.hub || a.piece || a.strip || a.crit || a.hubDraw || a.settler || a.tear || a.portal || a.wprop) return 0;
+  if (!f.haz || d.hub || a.piece || a.strip || a.crit || a.hubDraw || a.tear || a.portal || a.wprop) return 0;
   if (a !== d.p && (a.type === undefined || !hazardWalker(a))) return 0;
   const k = hazardAt(f, a.x, a.y), want = k ? phlDepth(f.hazKind) : 0;
   a._wade = a._wade === undefined ? want : a._wade + (want - a._wade) * T.paint.hole.wadeEase;

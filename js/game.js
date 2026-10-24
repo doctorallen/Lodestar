@@ -64,7 +64,6 @@ function enterHub(report, at = {}) {
   const dm = HUB_STATIONS.find((s) => s.id === 'dummy');
   const dummy = makeEnemy('dummy', (dm.x + 0.5) * TILE, (dm.y + 0.5) * TILE, 1, null);
   d.enemies = [dummy];
-  placeSettlers(d);
   Game.scene = 'hub';
   if (!at.quiet) hubWelcome(report);
 }
@@ -225,7 +224,7 @@ function updateDive(dtReal, dt) {
   updateAuras(dt);
   updateCombatFx(dt);
   if (!d.hub) { updateLife(d, dt); updateWorld(d, dt); }
-  else { updateSettlers(d, dt); updateStarFeed(d, dtReal); updateStructures(d, dtReal); }
+  else { updateStarFeed(d, dtReal); updateStructures(d, dtReal); }
   if (!d.hub) updateWick(d, dt);
   updatePickups(dtReal);
   if (Input.consumeAct()) {
@@ -238,8 +237,9 @@ function updateDive(dtReal, dt) {
     else if (a === 'relight') startRelight(d);
     else if (a === 'plant') {
       // a spire holds only where the star's light reaches (deeds.js)
-      if (starHoldsSpire(d.terr)) startChannel('plant');
-      else { UI.toast(`The star must reach magnitude ${spireMagFor(d.terr)} before a spire can hold here`); Story.say('starReach'); }
+      const blk = spireBlock(d.terr);
+      if (!blk) startChannel('plant');
+      else { UI.toast(blk.why === 'reach' ? `The star must reach magnitude ${blk.mag} before a spire can hold here` : `The star hasn't tasted ${stuffName(blk.ore)}: give it some at the altar, and it can light this land`); Story.say(blk.why === 'reach' ? 'starReach' : 'starBand'); }
     }
     else if (a === 'rift') useRift(d);
     else if (a === 'forge') UI.useStation('fieldForge');

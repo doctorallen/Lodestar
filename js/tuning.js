@@ -289,8 +289,8 @@ const T = {
   //     makes both supplies stronger (T.supplies).
   //   relay: an emergency recall takes `recall` of its time; banking and
   //     travelling at a spire, `bank`.
-  //   quarters: each time you come home the settlers bring `pay` creature
-  //     parts they scavenged, and `settlers` more live at the outpost.
+  //   quarters: built ahead for the sleepers; meanwhile the survey drones
+  //     roost there, and each time you come home bring `pay` creature parts.
   structures: {
     bay: { mag: 2, cost: { ferrite: 12, chitin: 2 } },
     refinery: {
@@ -298,7 +298,7 @@ const T = {
       levels: [{ mag: 3, cost: { resonite: 10, ether: 3 } }, { mag: 5, cost: { sigilite: 10, spore: 3 } }],
     },
     relay: { mag: 3, cost: { resonite: 10, chitin: 3, cog: 2 }, recall: 0.5, bank: 0.6 },
-    quarters: { mag: 4, cost: { aetherglass: 8, fiber: 4, lodeshard: 1 }, pay: 3, settlers: 2 },
+    quarters: { mag: 4, cost: { aetherglass: 8, fiber: 4, lodeshard: 1 }, pay: 3 },
     // the plots (tiles; floor.js outpostPlots): the footprint kept clear
     // [half width, behind, in front of the feet], how far from the middle
     // they'd best be, and how far from the tracks out (the lodelines)
@@ -953,19 +953,37 @@ const T = {
   // each shard set in the Lodestar adds shardStar points of light. An echo (a log of
   // the Kindlers before) turns up by an ancient forge, from an elite now and
   // then, and from every Keeper.
-  //   landerEvery: the Meridian can send a lander for every this many
-  //     territories kindled. callLanders: how many landers' worth of kindled
-  //     land it takes to call the colony down (with every shard set).
-  //   turnEcho: from this many echoes read, the settlers have heard.
-  //   settlers: figures at the outpost, perLander for each lander down (all
-  //     of them, most, once the colony's called); their pace (world px a
-  //     second), the pause between strolls (s), how near (tiles) the diver
-  //     comes before one speaks, and how long (s) before that one speaks
-  //     again.
+  //   turnEcho: from this many echoes read, the star's lines have heard.
+  // The Meridian's sleepers wait in orbit until the star is whole (the
+  // Spectrum, below); nobody comes down before.
+  //   sleepers: how many sleep aboard the Meridian (the uplink says so).
   story: {
-    shardStar: 40, echoForge: 0.5, echoElite: 0.05,
-    landerEvery: 3, callLanders: 5, turnEcho: 5,
-    settlers: { perLander: 1, most: 6, speed: 9, rest: [2, 6], talkR: 1.4, talkGap: 40 },
+    shardStar: 40, echoForge: 0.5, echoElite: 0.05, turnEcho: 5, sleepers: 4000,
+  },
+  // The Spectrum (spectrum.js): the star's light has a band for each ore,
+  // and a band's depth is how much of that ore has been given at the altar:
+  // depths[d] ore reaches depth d. Depth 1 of a land's band lets the star
+  // kindle that land (the Choir's is Resonite, the Underforge's Sigilite,
+  // the Edge's Starmetal; the Rim's land needs nothing it didn't land
+  // knowing). mark: the depth the Meridian's spec asks of every band, the
+  // light the colony can live under; the star is whole when all six stand
+  // there. startIron: the Iron the survey taught it, so it lands at depth 1.
+  spectrum: { depths: [0, 8, 24, 60, 120, 200], mark: 4, startIron: 8 },
+  // Kindled land terraforming by the light (terraform.js): the starstone
+  // spreading from a territory's spire, reach [tiles at magnitude 1, more
+  // each magnitude], its shape as the outpost's ground's (T.outpost.ground),
+  // stoneMix how far the land's ground goes to lodestone on it;
+  // bloom: how far past the stone the ground greens, as a multiple of the
+  // stone's reach, bloomK the share of strokes that take it at the stone's
+  // edge, bloomPow how it thins outward, greenMix how far a stroke goes to
+  // `green`; veinOut: the share of the gold veins that run on past the
+  // stone, at its edge; mote: the chance a greened pixel is a lit mote of
+  // `gold`;
+  // flora: how much thicker what grows there grows; sparks: sparks of light
+  // a second rising off the stone.
+  terraform: {
+    reach: [1.8, 0.55], squash: 0.82, stoneMix: 0.6, wander: 1.2, wobble: [60, 22], tendril: [2.8, 0.9, 34], vein: [30, 13, 11, 6], veinCut: [0.965, 0.975], front: 0.09, glint: [0.35, 0.5],
+    bloom: 3.2, bloomK: 0.6, bloomPow: 1.3, greenMix: 0.42, green: '#5c8a3c', gold: '#f0c050', veinOut: 0.9, mote: 0.012, flora: 1.4, sparks: 3,
   },
   // By an ancient forge, the chance a legendary core lies, left by whoever
   // worked it (how often one stands is the zone's).

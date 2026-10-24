@@ -448,53 +448,98 @@ function introTwinkle(c, w, h, seed, t) {
 }
 
 // ---------------------------------------------------------------------------
-// The Charter's craft, side on, going right: an engine block at the stern,
-// a long truss spine with the base modules clamped along it, and at the bow
-// a cradle of two arms round the seed-star. Painted at a size k (not
-// scaled, so its strokes stay a pixel): 1.6 close (scene 1), 0.75 far
-// (scene 2). Its points: star, nozzle.
+// The Charter's craft, side on, going right: a year-3000 ship, not a truss
+// of containers. A long needle of a hull in the Charter's deep blue, lit
+// along its back, a run of small cold windows down its flank; a spine of
+// hard light (the gold lattice the spells are made of) running its length
+// with a node every so often; two swept vanes of hard light above and
+// below, drawn as lines and a sparse fill, so they read as fields, not
+// metal; a ring drive at the stern, the thrust burning inside the ring; and
+// at the bow a short collar of steel whose emitters hold the seed-star in a
+// cage of gold light, three broken arcs, with no arms touching it. The base
+// modules ride inside. Painted at a size k (not scaled, so its strokes
+// stay a pixel): 1.6 close (scene 1), 0.75 far (scene 2). Its points:
+// star, nozzle.
 // ---------------------------------------------------------------------------
 function introCraft(k) {
   return introKeep('craft' + k, () => {
-    const X = (v) => Math.round(v * k), W = X(136), H = X(42), s = new PntSpr(W, H, 1201), P = INTRO_PAL, I = HART.iron, Hu = HART.hull, St = HART.steel;
-    const small = k < 1;
-    // the truss spine: a beam, and a lattice above and below it
-    introPanel(s, X(26), X(19), X(108), X(23), Hu, 1202, { seam: small ? 0 : X(9), base: 0.55 });
-    if (!small) for (let x = 28; x < 106; x += 6) {
-      s.limb([[X(x), X(17)], [X(x + 3), X(14)], [X(x + 6), X(17)]], 0.6, 0.6, (t, side) => I[side < 0 ? 4 : 2]);
-      s.limb([[X(x), X(25)], [X(x + 3), X(28)], [X(x + 6), X(25)]], 0.6, 0.6, (t, side) => I[side < 0 ? 3 : 1]);
+    const X = (v) => Math.round(v * k), W = X(136), H = X(42), s = new PntSpr(W, H, 1201), P = INTRO_PAL, Ch = HART.charter, St = HART.steel, Sr = HART.star, Th = P.thrust, Cd = HART.cold;
+    const small = k < 1, cy = X(21);
+    // the hull: a needle, its half-height swelling to a third of the way
+    // back and tapering to the bow, lit along its back and dark under
+    const half = (x) => { const u = (x / k - 14) / 90; return u < 0 || u > 1 ? -1 : 2.6 + 6 * Math.sin(Math.PI * Math.pow(u, 0.72)) * (1 - u * 0.35) + 1.4 * (1 - u); };
+    hartStrokes(s, X(14), X(10), X(104), X(32), (x, y) => {
+      const h = half(x) * k; if (h < 0) return null;
+      const v = (y - cy) / h; if (Math.abs(v) > 1) return null;
+      // (the back lit, a bright rim at the top edge, the belly dark; a
+      // darker canopy band a little above the middle)
+      let t = 0.72 - v * 0.42 - v * v * 0.2;
+      if (v < -0.82) t = 0.98;
+      if (v > 0.8) t = 0.06;
+      if (v > -0.55 && v < -0.2 && !small) t -= 0.12;
+      return t;
+    }, Ch, 1202, { jit: 0.09 });
+    // the glass canopy: a cold sheen along the band above the middle
+    if (!small) for (let x = X(34); x < X(96); x++) { const h = half(x) * k, y = Math.round(cy - h * 0.42); if (artHash(x, 3, 1203) < 0.5) s.px(x, y, Cd[2]); if (artHash(x, 4, 1203) < 0.3) s.px(x, y + 1, Cd[1]); }
+    // the windows down the flank, cold, a few dark
+    for (let x = X(30); x < X(98); x += small ? X(4) : X(5)) { const h = artHash(x, 5, 1204); s.px(x, cy - X(2), h < 0.8 ? '#7dffd8' : Ch[1], h < 0.8); if (!small && h < 0.4) s.px(x + 1, cy - X(2), Cd[3], true); }
+    // the spine of hard light along its length: a broken gold line with a
+    // node every so often
+    for (let x = X(18); x <= X(102); x++) {
+      const u = (x - X(18)) / Math.max(1, k);
+      if (!small && Math.floor(u) % 4 === 3) continue;
+      s.px(x, cy + X(1), Sr[4], true);
+      if (!small && Math.floor(u) % 14 === 7) { s.px(x, cy, Sr[6], true); s.px(x, cy + X(2), Sr[5], true); s.px(x - 1, cy + X(1), Sr[6], true); s.px(x + 1, cy + X(1), Sr[6], true); }
     }
-    // the base modules, clamped on: above the spine and below it, each with
-    // gunmetal end caps, an amber band, the mark and a hatch
-    for (const [x0, y0, x1, y1, sd] of [[33, 5, 52, 16, 1], [55, 4, 75, 16, 2], [78, 7, 95, 16, 3], [38, 26, 60, 35, 4], [64, 26, 88, 36, 5]]) {
-      const a0 = X(x0), b0 = X(y0), a1 = X(x1), b1 = X(y1), low = y0 > 20;
-      introPanel(s, a0, b0, a1, b1, P.plate, 1210 + sd, { seam: small ? 0 : X(11), base: low ? 0.45 : 0.62 });
-      if (small) continue;
-      introPanel(s, a0, b0, a0 + X(1.5), b1, St, 1220 + sd, { base: 0.5 });
-      introPanel(s, a1 - X(1.5), b0, a1, b1, St, 1230 + sd, { base: 0.3 });
-      const by = b0 + ((b1 - b0) >> 1) + 1;
-      for (let x = a0 + 3; x < a1 - 2; x++) if ((x >> 1) % 2 === 0) s.px(x, by, P.amber[low ? 1 : 2]);
-      introMark(s, a0 + X(5), b0 + X(3), k > 1.2);
-      // a hatch, and a status light
-      for (let y = b0 + X(3); y < b1 - X(2); y++) { s.px(a1 - X(5), y, Hu[1]); s.px(a1 - X(5) - 1, y, Hu[4]); }
-      s.px(a1 - X(4), b0 + X(3), sd % 2 ? '#7dffd8' : P.amber[3]);
+    // the vanes: two swept fins of hard light above and below, their edges
+    // as lines and a sparse fill, lit
+    for (const sg of [-1, 1]) {
+      const y0 = cy + sg * X(5), tip = cy + sg * X(17);
+      const pts = [[X(46), y0], [X(66), tip], [X(86), tip - sg * X(2)], [X(78), y0]];
+      if (!small) {
+        for (let y = Math.min(tip, y0); y <= Math.max(tip, y0); y++) {
+          const t = Math.abs(y - y0) / Math.max(1, Math.abs(tip - y0)), xa = X(46) + (X(66) - X(46)) * t, xb = X(78) + (X(86) - X(78)) * t;
+          for (let x = Math.round(xa); x <= Math.round(xb); x++) if (artHash(x, y, 1205) < 0.22 - t * 0.1) s.px(x, y, Th[1], true);
+        }
+      }
+      for (let i = 0; i < pts.length - 1; i++) s.limb([pts[i], pts[i + 1]], 0.4, 0.4, () => Th[i === 1 ? 3 : 2]);
+      for (let i = 0; i < pts.length - 1; i++) { const q = pts[i]; s.px(q[0], q[1], Th[4], true); }
     }
-    // the engine block at the stern, its bell, and a ring of struts
-    s.box(X(6), X(11), X(30), X(31), St, { lo: 0, hi: 4 });
-    introPanel(s, X(9), X(13), X(27), X(29), Hu, 1240, { seam: small ? 0 : X(6), base: 0.55 });
-    s.poly([[0, X(15)], [X(7), X(17)], [X(7), X(26)], [0, X(28)]], (x, y) => I[y < X(18) ? 4 : y > X(25) ? 0 : 2]);
-    for (let y = X(16); y <= X(27); y++) s.px(1, y, '#0a1424');
-    s.px(X(12), X(14), P.amber[3]); s.px(X(16), X(14), P.amber[2]); s.px(X(24), X(28), '#7dffd8');
-    // the bow's cradle: two arms reaching round the seed-star
-    s.limb([[X(106), X(19)], [X(113), X(9)], [X(121), X(7)], [X(126), X(11)]], 2.2 * k, 1.2 * k, (t, side) => St[side < 0 ? 4 : side > 0 ? 1 : 2]);
-    s.limb([[X(106), X(24)], [X(113), X(33)], [X(121), X(35)], [X(126), X(31)]], 2.2 * k, 1.2 * k, (t, side) => St[side < 0 ? 3 : side > 0 ? 0 : 1]);
-    s.box(X(102), X(17), X(109), X(26), St, { lo: 0, hi: 4 });
-    s.px(X(126), X(10), P.amber[4]); s.px(X(126), X(32), P.amber[3]);
-    introStarLight(s, X(120), X(21), X(30), 1250);
+    // the ring drive at the stern: a ring of steel, lit on top, the thrust
+    // burning inside it, and a short neck to the hull
+    s.box(X(11), cy - X(3), X(16), cy + X(3), St, { lo: 0, hi: 4 });
+    const rcx = X(7), rrx = Math.max(2, X(3)), rry = X(12);
+    for (let y = cy - rry - 1; y <= cy + rry + 1; y++)
+      for (let x = rcx - rrx - 1; x <= rcx + rrx + 1; x++) {
+        const u = (x - rcx) / rrx, v = (y - cy) / rry, d = u * u + v * v;
+        if (d > 1.05) continue;
+        if (d > 0.62) { s.px(x, y, St[clamp(Math.round(3.5 - v * 2 - u * 0.5), 0, 5)]); continue; }
+        if (artHash(x, y, 1206) < 0.55 - d * 0.3) s.px(x, y, Th[clamp(Math.round(4 - d * 3.5 + (artHash(x, y, 1207) - 0.5)), 0, 4)], true);
+      }
+    s.px(rcx, cy - rry, Th[4], true); s.px(rcx, cy + rry, Th[3], true);
+    // the bow's collar: steel, two emitter prongs, their tips lit; the
+    // seed-star held in a cage of gold light, three broken arcs, no arm
+    // touching it
+    s.box(X(100), cy - X(5), X(108), cy + X(5), St, { lo: 0, hi: 4 });
+    introPanel(s, X(101), cy - X(4), X(107), cy + X(4), HART.hull, 1208, { base: 0.5 });
+    s.limb([[X(107), cy - X(4)], [X(112), cy - X(9)]], 1.1 * k, 0.7 * k, (t, side) => St[side < 0 ? 4 : 2]);
+    s.limb([[X(107), cy + X(4)], [X(112), cy + X(9)]], 1.1 * k, 0.7 * k, (t, side) => St[side < 0 ? 3 : 1]);
+    s.px(X(112), cy - X(9), P.amber[4], true); s.px(X(112), cy + X(9), P.amber[3], true);
+    const scx = X(120), rx = X(13), ry = X(14);
+    for (let i = 0; i < 160; i++) {
+      const a = (i / 160) * Math.PI * 2, u = Math.floor(i / 160 * 24);
+      if (u % 4 === 3 || (u % 8 === 6 && !small)) continue;
+      const x = Math.round(scx + Math.cos(a) * rx), y = Math.round(cy + Math.sin(a) * ry);
+      s.px(x, y, Sr[u % 8 < 2 ? 5 : 4], true);
+    }
+    if (!small) for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + 0.3; s.px(Math.round(scx + Math.cos(a) * rx * 0.72), Math.round(cy + Math.sin(a) * ry * 0.72), Sr[6], true); }
+    introStarLight(s, X(104), cy, X(16), 1250);
     // the seed itself
-    hartCrystal(s, X(120), X(13), 0, X(30), 5.5 * k, 0.55);
-    for (let n = 0; n < X(4); n++) s.px(X(118) - n % 2, X(18) + n, HART.star[6], true);
-    return Object.assign(s.done(), { star: { x: X(120), y: X(21) }, nozzle: { x: 0, y: X(21) } });
+    hartCrystal(s, scx, X(13), 0, X(30), 5.5 * k, 0.55);
+    for (let n = 0; n < X(4); n++) s.px(X(118) - n % 2, X(18) + n, Sr[6], true);
+    // the Charter's mark on the hull
+    introMark(s, X(36), cy - X(1), k > 1.2);
+    return Object.assign(s.done(), { star: { x: scx, y: cy }, nozzle: { x: 0, y: cy } });
   });
 }
 

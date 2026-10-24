@@ -147,9 +147,11 @@ function installBot() {
     }
     // at its edge, as a player pushes: the hardest it's ready for (a level
     // more each time it comes home twice from its edge), else the gentlest;
-    // only where the star's light can hold a spire
+    // only where the star's light can hold a spire, and it has tasted the
+    // land's band (spectrum.js); a land dark to it for its band is still
+    // worth a sortie for its ore, which is what the star needs
     const best = Save.data.botBest || 1, edge = L.terrs.filter((t) => !t.home && !lit(t.id) && t.nb.some(lit)).sort((a, b) => terrLevel(a) - terrLevel(b) || a.id - b.id);
-    const front = edge.filter((t) => starHoldsSpire(t.id));
+    const front = edge.filter((t) => !spireBlock(t.id)), banded = edge.filter((t) => { const b = spireBlock(t.id); return b && b.why === 'band'; });
     // now and then (and whenever no land it can kindle is left), a Deep
     // under lit land, the ones not yet reached first: their light, and ore
     // (not one it has fallen in twice with the gear it has now)
@@ -164,7 +166,7 @@ function installBot() {
       const t = (fresh.length ? fresh : deeps).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
       return hasSpire(t.id) ? { target: t.id, spire: t.id, deep: true } : { target: t.id, walk: t.id, deep: true };
     }
-    const target = ready[ready.length - 1] || front.find(mineable) || front[0] || edge[0] || L.terrs.filter((t) => !t.home).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
+    const target = ready[ready.length - 1] || front.find(mineable) || front[0] || banded.find(mineable) || edge[0] || L.terrs.filter((t) => !t.home).sort((a, b) => terrLevel(b) - terrLevel(a))[0];
     if (target.nb.includes(0)) return { target: target.id, walk: target.id };
     const spire = target.nb.find((n) => hasSpire(n));
     if (spire !== undefined) return { target: target.id, spire };
@@ -263,7 +265,7 @@ function installBot() {
           // the heart goal, while there's light and health for it (or
           // first, the Deep under it, if that's what it came for)
           // (not where a spire couldn't hold yet)
-          const fit = d.pull > 0.3 && p.hp > st.maxHp * 0.5 && starHoldsSpire(d.terr);
+          const fit = d.pull > 0.3 && p.hp > st.maxHp * 0.5 && !spireBlock(d.terr);
           if (wantDeep && !deepTried && f.ways && f.ways[0] && deepZone(T0, T0.deep) !== 'lair' && d.pull > 0.7 && !full && p.hp > st.maxHp * 0.6) deepTried = 'go';
           if (deepTried === 'go') { /* below */ }
           else if (T0.goal === 'waystones' && !ts.done && fit) {
@@ -418,6 +420,7 @@ function installBot() {
     log.push(...makeSupplies());
     const fed = feedStar();
     if (fed) log.push(`fed the star ${fed}`);
+    log.push(...giveBands());
     for (const id of ['vitality', 'proximity', 'vitality', 'clarity', 'stride', 'proximity']) if (attunePointsLeft(s) > 0) acts.attune(id);
     Save.save();
     UI.close();
@@ -559,6 +562,22 @@ function installBot() {
     return s.star - had;
   }
 
+  // Ore into the star, as a player would (spectrum.js): the band a dark
+  // frontier land needs first, to depth 1; then, once its pick is past an
+  // ore, that ore towards the mark, keeping 30 back for gear and supplies.
+  function giveBands() {
+    const s = Save.data, out = [], L = worldMap(), lit = (id) => isKindled(id);
+    const need = new Set(L.terrs.filter((t) => !t.home && !lit(t.id) && t.nb.some(lit)).map((t) => { const b = spireBlock(t.id); return b && b.why === 'band' ? b.ore : null; }).filter(Boolean));
+    for (const ore of need) { const n = Math.min(s.stash[ore] || 0, Math.max(0, T.spectrum.depths[1] - bandGiven(ore))); if (n > 0 && giveOre(ore, n)) out.push(`gave the star ${n} ${ore}`); }
+    const power = s.equip.pick ? s.equip.pick.base.power : 1;
+    for (const o of T.ores) {
+      if (o.tier >= power || bandAtMark(o.id)) continue;
+      const n = Math.min(Math.max(0, (s.stash[o.id] || 0) - 30), Math.max(0, T.spectrum.depths[bandMark()] - bandGiven(o.id)));
+      if (n > 0 && giveOre(o.id, n)) out.push(`gave the star ${n} ${o.id}`);
+    }
+    return out;
+  }
+
   // Supplies from old ore, as a player might: the region's ore behind the
   // one its pick is working through is spare, the current one's is kept
   // back for gear (30 of it). Injectors most, then Lightcells.
@@ -657,6 +676,7 @@ function installBot() {
       r.modTiers = rigCores(s.equip.main).map((m) => m.tier); r.modRarities = mods.map((m) => m.rarity[0]).join('');
       r.found = s.coresFound || 0; r.merges = s.botMerges || 0; r.prints = s.botPrints || 0; r.patterns = knownPatterns().length;
       r.kindledAll = kindledCount();
+      r.bands = Object.assign({}, Save.data.bands);
       r.star = s.star;
       r.packs = JSON.parse(JSON.stringify(Bot.packs));
       r.rolled = JSON.parse(JSON.stringify(Bot.rolled));
