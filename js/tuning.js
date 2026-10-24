@@ -956,7 +956,9 @@ const T = {
   // many tiles) and at a node.
   veins: {
     band: [5, 5, 6, 6, 7, 8, 8], thread: [60, 80, 100, 120, 140, 170, 200], threadSpeed: 0.85, wave: 30, waveN: 1, step: 6,
-    reach: 2.2, joinReach: 1.6, nodeGap: 6, hold: [45, 90], join: 20, nodeLight: 100, bite: 0.4, biteReach: 14, holdWave: 12,
+    reach: 2.2, joinReach: 1.6, nodeGap: 6, hold: [45, 90], join: 20, relight: 30, nodeLight: 100, bite: 0.4, biteReach: 14, holdWave: 12,
+    // old: the old Kindlers' dead nodes, n of them, far [least, most] tiles from the star
+    old: { n: 6, far: [50, 120] },
     light: { every: 2, vein: 0.45, node: 0.9 },
   },
   // Magnitude (veins.js): the thresholds of the world's living light (vein

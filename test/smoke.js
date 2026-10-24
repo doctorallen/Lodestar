@@ -9,6 +9,7 @@
 const { launch, openGame, shot, finish, PHONE, DESKTOP } = require('./lib');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const T_OLD_N = 6; // T.veins.old.n
 // Steps the game n fixed steps with the bot's controls set.
 const steps = (page, bot, n) => page.evaluate((b, k) => { Input.bot = b; for (let i = 0; i < k; i++) Game.step(1 / 60); Input.bot = null; }, bot, n);
 // Skips the opening, however far it has got.
@@ -99,7 +100,7 @@ async function phone(browser, failures) {
   for (let k = 0; k < 95; k++) { await steps(page, { x: 0, y: 0 }, 60); await page.evaluate(() => { for (const e of Game.dive.enemies) if (!e.dead && e.type !== 'dummy') killEnemy(e); }); }
   await page.evaluate(() => { Game.dive.p.invuln = 0; });
   const set = await page.evaluate(() => { const d = Game.dive, V = veinsState(); return { nodes: V.nodes.length, veins: V.veins.length, hold: !!d.hold, thread: !!d.thread, lit: starLight(d, d.p.x, d.p.y), worth: d.vWorth, core: Save.data.core, saved: JSON.parse(localStorage.getItem('lodestar.save.v5') || '{}').veins }; });
-  if (set.nodes !== 2 || set.veins !== 1) fail(`the node did not set (${JSON.stringify(set)})`);
+  if (set.nodes !== T_OLD_N + 2 || set.veins !== 1) fail(`the node did not set (${JSON.stringify(set)})`);
   if (set.hold || set.thread) fail('the hold or the thread stayed after the set');
   if (set.lit < 1) fail('the ground by the new node is not lit');
   if (!(set.worth > 0)) fail('the vein counts for nothing');
@@ -132,21 +133,37 @@ async function phone(browser, failures) {
   await shot(page, 'smoke-shapes');
   // away nine hours: the dark cuts the vein, the node goes dark, the
   // Hollow stands at its end; mended with a thread from the star
-  const cut = await page.evaluate(() => { Save.data.lastSeen = Date.now() - 9 * 3600e3; enterWorld({}); const d = Game.dive, V = veinsState(); return { cut: V.veins.filter((v) => v.cut).length, live1: !!d.vLive[1], hollow: d.enemies.filter((e) => e.type === 'hollow').length, worth: d.vWorth }; });
+  const cut = await page.evaluate(() => { Save.data.lastSeen = Date.now() - 9 * 3600e3; enterWorld({}); const d = Game.dive, V = veinsState(), k = V.nodes.length - 1; return { cut: V.veins.filter((v) => v.cut).length, live1: !!d.vLive[k], hollow: d.enemies.filter((e) => e.type === 'hollow').length, worth: d.vWorth }; });
   if (cut.cut !== 1 || cut.live1) fail(`the vein was not cut while away (${JSON.stringify(cut)})`);
   if (cut.hollow !== 1) fail(`the Hollow does not stand at the cut (${cut.hollow})`);
   if (cut.worth !== 0) fail('a cut vein still counts');
   await page.evaluate(() => { const d = Game.dive; veinsTravel(d, 0); d.p.y -= TILE * 1.6; d.enemies = []; });
   await steps(page, { x: 0, y: 0, act: true }, 1);
   await steps(page, { x: 0, y: 0 }, 3);
-  const mend = await page.evaluate(() => { const d = Game.dive, n = veinsState().nodes[1]; d.p.x = n.x; d.p.y = n.y + TILE; for (let k = 0; k < 3; k++) Game.step(1 / 60); return actionHere(); });
+  const mend = await page.evaluate(() => { const d = Game.dive, N = veinsState().nodes, n = N[N.length - 1]; d.p.x = n.x; d.p.y = n.y + TILE; for (let k = 0; k < 3; k++) Game.step(1 / 60); return actionHere(); });
   if (mend !== 'mend') fail(`MEND is not offered at the dark node (${mend})`);
   await steps(page, { x: 0, y: 0, act: true }, 1);
   await page.evaluate(() => { Game.dive.p.invuln = 1e9; });
   for (let k = 0; k < 25; k++) { await steps(page, { x: 0, y: 0 }, 60); await page.evaluate(() => { for (const e of Game.dive.enemies) if (!e.dead && e.type !== 'dummy') killEnemy(e); }); }
   await page.evaluate(() => { Game.dive.p.invuln = 0; });
-  const mended = await page.evaluate(() => { const d = Game.dive, V = veinsState(); return { cut: V.veins.filter((v) => v.cut).length, veins: V.veins.length, live1: !!d.vLive[1], worth: d.vWorth }; });
+  const mended = await page.evaluate(() => { const d = Game.dive, V = veinsState(); return { cut: V.veins.filter((v) => v.cut).length, veins: V.veins.length, live1: !!d.vLive[V.nodes.length - 1], worth: d.vWorth }; });
   if (mended.cut || !mended.live1 || mended.veins !== 1) fail(`the vein was not mended (${JSON.stringify(mended)})`);
+  // the old Kindlers' nodes: six, dark, far out; a thread walked to one
+  // relights it after a hold, and its shape waits at the star
+  const olds = await page.evaluate(() => { const V = veinsState(), s = V.nodes[0]; return V.nodes.filter((n) => n.old).map((n) => Math.round(Math.hypot(n.x - s.x, n.y - s.y) / TILE)); });
+  if (olds.length !== T_OLD_N) fail(`${olds.length} old nodes laid, not ${T_OLD_N}`);
+  if (olds.some((m) => m < 35)) fail(`an old node lies too near the star (${olds})`);
+  await page.evaluate(() => { const d = Game.dive; veinsTravel(d, 0); d.p.y -= TILE * 1.6; d.enemies = []; });
+  await steps(page, { x: 0, y: 0, act: true }, 1);
+  const relit = await page.evaluate(() => { const d = Game.dive, V = veinsState(), k = V.nodes.findIndex((n) => n.old); d.thread.max = 1e9; d.p.x = V.nodes[k].x; d.p.y = V.nodes[k].y + TILE; d.enemies = []; for (let i = 0; i < 3; i++) Game.step(1 / 60); return { k, act: actionHere(), key: V.nodes[k].old }; });
+  if (relit.act !== 'relight') fail(`RELIGHT is not offered at the old node (${relit.act})`);
+  await steps(page, { x: 0, y: 0, act: true }, 1);
+  await page.evaluate(() => { Game.dive.p.invuln = 1e9; });
+  for (let k = 0; k < 35; k++) { await steps(page, { x: 0, y: 0 }, 60); await page.evaluate(() => { for (const e of Game.dive.enemies) if (!e.dead && e.type !== 'dummy') killEnemy(e); }); }
+  await page.evaluate(() => { Game.dive.p.invuln = 0; });
+  const oldDone = await page.evaluate((k) => { const d = Game.dive; return { live: !!d.vLive[k], pending: Save.data.shapes.pending.slice(), hold: !!d.hold }; }, relit.k);
+  if (!oldDone.live) fail(`the old node did not relight (${JSON.stringify(oldDone)})`);
+  if (!oldDone.pending.includes(relit.key)) fail(`the old node's shape does not wait (${oldDone.pending})`);
   // the pause screen, and back
   await page.evaluate(() => UI.openPause());
   await sleep(450);

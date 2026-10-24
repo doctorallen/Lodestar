@@ -981,3 +981,8 @@ The world is one floor 320 tiles square (`T.worldgen`), the generator run large 
 - **Two carried, not three yet.** The deck has two spell buttons; the third slot waits for the fight's rethink.
 - **Cuts are rolled on return, by real time.** One for each eight hours away, two at most, so a fortnight off costs the same as a day. The far veins go first, the Hollow stands at the cut's dark end and leaves when it's mended, and a mend lays the same vein again rather than a second one.
 - **The star's screen is the map first.** One button, THE STAR, opens on the map with the shapes and Wick's notes under it; it glows when a shape waits.
+
+## 2026-10-24: the old Kindlers' nodes, and the badges off
+
+- **Six dead nodes stand out in the dark**, one in each direction 50 to 120 tiles from the star, laid out once a save. A thread walked to one from a lit node relights it after a 30 s hold, and its shape (a reading of whoever planted it) waits at the star. This is the design's "shapes from the world", in place of glyph stones in ruins.
+- **Every kind takes every element alike now.** The weakness and resistance badges over creatures and the WEAK/RESIST verdicts are gone, ahead of the fight's rethink; the elements' statuses stay. The old reckoning is kept in `elementMultOld`.

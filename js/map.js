@@ -31,12 +31,17 @@ function drawMap() {
     v.pts.forEach(([x, y], i) => { const tx = x / TILE, ty = y / TILE; if (i) g.lineTo(tx, ty); else g.moveTo(tx, ty); });
     g.stroke();
   }
-  for (let i = 0; i < V.nodes.length; i++) { const n = V.nodes[i]; g.fillStyle = i === 0 ? '#fff7dc' : live[i] ? '#ffd34d' : '#7a6a4a'; g.fillRect(Math.round(n.x / TILE) - 1, Math.round(n.y / TILE) - 1, 3, 3); }
+  for (let i = 0; i < V.nodes.length; i++) {
+    const n = V.nodes[i], x = Math.round(n.x / TILE), y = Math.round(n.y / TILE);
+    if (n.old && !live[i]) { g.strokeStyle = '#8f7bd6'; g.strokeRect(x - 1.5, y - 1.5, 4, 4); continue; }
+    g.fillStyle = i === 0 ? '#fff7dc' : live[i] ? '#ffd34d' : '#7a6a4a'; g.fillRect(x - 1, y - 1, 3, 3);
+  }
   // the Kindler
   g.fillStyle = '#8fc4ff'; g.fillRect(Math.round(d.p.x / TILE) - 1, Math.round(d.p.y / TILE) - 1, 3, 3);
   const mag = magnitudeOf(), A = T.magnitude.at, next = A[mag] !== undefined ? ` · ${Math.max(0, Math.ceil(A[mag] - (d.vWorth || 0)))} strides to magnitude ${mag + 1}` : '';
   const cuts = V.veins.filter((v) => v.cut).length, S = T.story;
-  $('map-body').innerHTML = `<p class="note center">The light reaches ${Math.round(d.vWorth || 0)} strides · magnitude ${mag}${esc(next)}</p><p class="note center">Tap a lit node to stand there. ${V.nodes.length - 1} node${V.nodes.length === 2 ? '' : 's'} set${cuts ? `, ${cuts} vein${cuts > 1 ? 's' : ''} cut` : ''}.</p>`
+  const olds = V.nodes.filter((n, i) => n.old && !live[i]).length, set = V.nodes.filter((n, i) => i && !n.old).length;
+  $('map-body').innerHTML = `<p class="note center">The light reaches ${Math.round(d.vWorth || 0)} strides · magnitude ${mag}${esc(next)}</p><p class="note center">Tap a lit node to stand there. ${set} node${set === 1 ? '' : 's'} set${cuts ? `, ${cuts} vein${cuts > 1 ? 's' : ''} cut` : ''}${olds ? `, ${olds} old node${olds > 1 ? 's' : ''} dark (the violet marks)` : ''}.</p>`
     + shapesHtml()
     + `<h3>WICK</h3><p class="note">The star's core: ${Save.data.core} of ${T.star.core}. Above, the Meridian: ${S.sleepers} asleep until the world lives.</p><div class="menu"><button class="btn quiet" data-act="replayIntro">THE LANDING AGAIN</button></div>`;
 }

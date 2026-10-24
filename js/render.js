@@ -1113,7 +1113,6 @@ function renderFrameDraw() {
     if (e.type !== 'dummy') {
       const ex = vx(e.x);
       if (ex > -20 && ex < View.w + 20 && head > -10 && head < View.h + 10) {
-        drawNaturePips(o, e, ex, head - 2 * AF);
         // an elite's affixes, named over its badges in its colour
         const names = affixNames(e);
         if (names) drawPixelText(o, names, ex, head - 2 * AF - 14 * AF - 7 * AF, eliteCol(e), 1);
