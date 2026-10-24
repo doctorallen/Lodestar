@@ -1576,7 +1576,7 @@ const T = {
     // far out (× reach)], and motes drifting in it [how many a 100 × 100
     // art px of cone, alpha].
     beam: {
-      on: true, reach: 1.7, i: 1.75, core: 8, edge: 30, axis: 0.6, halo: [1.6, 0.16], ragged: 3, soften: 0.1, pow: 1.1, rise: 0.45, back: 10,
+      on: true, reach: 1.7, i: 1.75, core: 8, edge: 30, axis: 0.6, halo: [1.6, 0.16], ragged: 3, soften: 0.1, pow: 1.1, rise: 1, back: 4,
       spill: [0.36, 0.42], hot: [9, 0.7],
       low: { narrow: 0.7, flicker: 0.45 },
       sightSteps: 64, rays: 0.8,
