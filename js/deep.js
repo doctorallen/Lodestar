@@ -86,15 +86,18 @@ function layerSwitch(d, to, x, y) {
   d.litG = d.litGs ? d.litGs[to] : null;
   d.flowAt = -1; d.flow = null; d.regionAt = -1; d.wading = 0;
   d.p.x = x; d.p.y = y; d.p.vx = d.p.vy = 0; d.drone = null;
+  d.clime = climeHere(d);
   const had = d.layers[to];
   if (had) for (const k of LAYER_FIELDS) d[k] = had[k];
   else {
     for (const k of LAYER_FIELDS) d[k] = Array.isArray(keep[k]) ? [] : k === 'hazT' ? 0 : null;
     spawnEnemies(d);
     d.enemies = d.enemies.filter((e) => starLight(d, e.x, e.y) <= 0);
+    // (what waits for him here: the Hollow at a cut's dark end, veins.js)
+    for (const pf of d.pendingFoes || []) if (pf.l === to) d.enemies.push(makeEnemy(pf.type, pf.x, pf.y, floorLevel(d), null));
+    d.pendingFoes = (d.pendingFoes || []).filter((pf) => pf.l !== to);
     if (typeof placeLife === 'function') placeLife(d);
   }
-  d.clime = climeHere(d);
   return true;
 }
 // Down a shaft, or up it: the other floor's same tile, a step south of it.

@@ -188,6 +188,8 @@ function veinsAction(d) {
     return d.vLive[n] ? 'join' : 'mend';
   }
   if (veinsNodeNear(p.x, p.y, Vn.nodeGap * TILE) >= 0) return null;
+  // (not by a shaft, where the way down would hide the node's TAKE UP)
+  if ((d.floor.shafts || []).some((sh) => dist(p.x, p.y, (sh.x + 0.5) * TILE, (sh.y + 0.5) * TILE) < 3 * TILE)) return null;
   return bodyHits(d.floor, p.x, p.y, T.player.radius + 2) ? null : 'plant';
 }
 function veinsAct(d, a) {
@@ -347,7 +349,8 @@ function veinsCutOnReturn(d) {
   // the Hollow at each cut's dark end (the end no longer living)
   for (const v of cut) {
     const end = d.vLive[v.a] ? V.nodes[v.b] : V.nodes[v.a];
-    if ((end.l | 0) !== (d.layer | 0)) continue;
+    // (on the other layer: it waits there until he comes, deep.js)
+    if ((end.l | 0) !== (d.layer | 0)) { (d.pendingFoes = d.pendingFoes || []).push({ type: 'hollow', x: end.x, y: end.y - TILE, l: end.l | 0 }); continue; }
     const h = makeEnemy('hollow', end.x, end.y - TILE, floorLevel(d), null);
     d.enemies.push(h);
   }
@@ -497,7 +500,8 @@ function veinsLayThread(d, a, b) {
   const M = veinsIndex(d), seg = veinsIndexAdd(f, M, a, b, VEIN_THREAD, d.thread.pts.length - 1);
   if (View.floorFor !== f) return;
   const x0 = Math.floor(Math.min(seg.ax, seg.bx)) - 3, y0 = Math.floor(Math.min(seg.ay, seg.by)) - 3, x1 = Math.ceil(Math.max(seg.ax, seg.bx)) + 4, y1 = Math.ceil(Math.max(seg.ay, seg.by)) + 4;
-  if (!pntPainted(f, x0, y0) || !pntPainted(f, x1, y1)) return;
+  // (a chunk not painted yet paints it from the index when it is)
+  if (!pntPainted(f, x0, y0) && !pntPainted(f, x1, y1)) return;
   veinsPaintSeg(View.floorBuf, f, seg, x0, y0, x1, y1);
   pntComposite(f, x0, y0, x1, y1);
 }

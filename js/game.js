@@ -96,14 +96,16 @@ function enterWorld(at = {}) {
   // the veins as they stand (veins.js), and where he wakes: at the living
   // node nearest where he fell
   veinsLoad(d);
-  if (at.near) { const n = veinsNearestLiving(d, at.near.x, at.near.y, at.near.l | 0); if (n.i > 0) veinsTravel(d, n.i); }
   spawnEnemies(d);
   // nothing hunts in the light
   d.enemies = d.enemies.filter((e) => starLight(d, e.x, e.y) <= 0);
   // while you were away, the dark cut (not on waking from a fall)
   if (!at.fell) veinsCutOnReturn(d);
   s.lastSeen = Date.now();
+  d.clime = climeHere(d);
   if (typeof placeLife === 'function') placeLife(d);
+  // (after the surface is peopled: a node in the Deep takes him down to it)
+  if (at.near) { const n = veinsNearestLiving(d, at.near.x, at.near.y, at.near.l | 0); if (n.i > 0) veinsTravel(d, n.i); }
   Game.scene = 'world';
   if (!at.quiet) worldWelcome(at);
 }
