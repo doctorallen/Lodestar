@@ -5,12 +5,14 @@
 // ground in each region's own colour, the rock, the lit land in gold, the
 // veins, the nodes as marks you can read, the shafts once seen, the
 // regions' names once walked, the Kindler. Pinch (or the wheel) to zoom,
-// drag to pan; tap a node and a card names it, with STAND THERE to go.
-// From THE STAR in the top bar. And the minimap, always, in the view's
+// drag to pan; tap a node and a card names it, with TRAVEL THERE to go:
+// the light is seen running the veins from where he stands to the node
+// (mapGo, MapView.trip, T.map.trip), and then he stands there. From THE
+// STAR in the top bar. And the minimap, always, in the view's
 // corner (miniDraw, at the end).
 // ---------------------------------------------------------------------------
 
-const MapView = { z: 1, cx: 0, cy: 0, layer: 0, sel: -1, bases: null, pointers: new Map(), tap: null, raf: 0, inited: false, opened: 0 };
+const MapView = { z: 1, cx: 0, cy: 0, layer: 0, sel: -1, bases: null, pointers: new Map(), tap: null, raf: 0, inited: false, opened: 0, trip: null };
 
 // The floor the map shows (and a layer's floor).
 function mapFloorOf(L) { const d = Game.dive; return L && d.world ? d.world.deep : d.floor.layer ? d.world.surface : d.floor; }
@@ -82,6 +84,7 @@ function mapPointer(e, kind) {
 // A tap: the node nearest it, if one is near; a card names it.
 function mapTapAt(x, y) {
   const d = Game.dive, V = veinsState(), { s, ox, oy } = mapOrigin(), L = MapView.layer, k = $('map-cv').width / 360;
+  if (MapView.trip) return;
   let best = -1, bd = 18 * k;
   for (let i = 0; i < V.nodes.length; i++) {
     const n = V.nodes[i];
@@ -153,6 +156,8 @@ function mapDrawCanvas() {
     for (const q of d.thread.pts.concat(d.hold ? [] : [[d.p.x, d.p.y, d.layer | 0]])) { if ((q[2] | 0) !== L) { pen = false; continue; } const [x, y] = at(q[0], q[1]); if (pen) g.lineTo(x, y); else g.moveTo(x, y); pen = true; }
     g.stroke(); g.setLineDash([]);
   }
+  // the light running the veins to the node he's travelling to
+  if (MapView.trip) mapDrawTrip(g, at, k, s);
   // the regions' names, once walked
   const seen = Save.data.regionsSeen || {};
   g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -211,8 +216,10 @@ function mapBody() {
     const n = V.nodes[i], f = mapFloor(), far = Math.round(dist(n.x, n.y, V.nodes[0].x, V.nodes[0].y) / TILE), where = f.regions ? climeName(climeAtPx(f, n.x, n.y)) : '';
     const name = i === 0 ? 'The star' : `Node ${i}`, here = (d.layer | 0) === (n.l | 0) && dist(d.p.x, d.p.y, n.x, n.y) < TILE * 3;
     const why = d.thread ? 'Not with the thread in hand' : d.hold ? 'Not while the hold runs' : !live[i] ? 'Dark: mend the vein to it' : here ? 'You stand here' : '';
-    card = `<div class="row static on map-card"><span class="row-text"><span class="row-name">${esc(name)}${where ? ` <span class="r-legendary">· ${esc(where)}</span>` : ''}</span><span class="row-sub">${i === 0 ? 'The middle of the world' : `${far} strides from the star · ${n.l ? 'the Deep' : 'the surface'}`}${why ? ` · ${esc(why)}` : ''}</span></span><button class="mini" data-act="mapCancel">BACK</button><button class="mini${why ? '' : ' primary'}" data-act="mapGo"${why ? ' disabled' : ''}>STAND THERE</button></div>`;
-  } else card = `<p class="note center">Tap a lit node to stand there. Pinch to zoom.</p>`;
+    const sub = i === 0 ? 'The middle of the world' : `${far} strides from the star · ${n.l ? 'the Deep' : 'the surface'}`;
+    if (MapView.trip && MapView.trip.to === i) card = `<div class="row static on map-card"><span class="row-text"><span class="row-name">${esc(name)}</span><span class="row-sub">The light carries you along the veins…</span></span></div>`;
+    else card = `<div class="row static on map-card"><span class="row-text"><span class="row-name">${esc(name)}${where ? ` <span class="r-legendary">· ${esc(where)}</span>` : ''}</span><span class="row-sub">${esc(sub)}${why ? ` · ${esc(why)}` : ''}</span></span><button class="mini" data-act="mapCancel">BACK</button><button class="mini go${why ? '' : ' primary'}" data-act="mapGo"${why ? ' disabled' : ''}>TRAVEL THERE ➜</button></div>`;
+  } else card = `<p class="note center">Tap a lit node to travel there along the veins. Pinch to zoom.</p>`;
   $('map-body').innerHTML = tabs + card
     + `<p class="note center">The light reaches ${Math.round(d.vWorth || 0)} strides · magnitude ${mag}${esc(next)} · ${set} node${set === 1 ? '' : 's'} set${cuts ? `, ${cuts} vein${cuts > 1 ? 's' : ''} cut` : ''}.</p>`
     + shapesHtml()
@@ -227,7 +234,7 @@ function drawMap() {
   mapInit();
   if (MapView.opened !== UI.openedAt) {
     MapView.opened = UI.openedAt;
-    MapView.layer = d.layer | 0; MapView.sel = -1;
+    MapView.layer = d.layer | 0; MapView.sel = -1; MapView.trip = null;
     if (!MapView.z || MapView.z === 1) { const f = mapFloor(); MapView.cx = f.w / 2; MapView.cy = f.h / 2; }
   }
   mapDrawCanvas();
@@ -235,11 +242,128 @@ function drawMap() {
 }
 // The tabs and the card's buttons (ui.js UI.acts).
 function mapLayerSet(l) { MapView.layer = +l; MapView.sel = -1; const f = mapFloor(); MapView.cx = clamp(MapView.cx, 0, f.w); MapView.cy = clamp(MapView.cy, 0, f.h); mapDrawCanvas(); mapBody(); }
+// TRAVEL THERE: the light runs the veins from where he stands to the node
+// (mapTripPath), over the map, and when it arrives so does he.
 function mapGo() {
-  const d = Game.dive, i = MapView.sel;
+  const d = Game.dive, i = MapView.sel, V = veinsState();
+  if (i < 0 || MapView.trip) return;
+  const n = V.nodes[i];
+  if (!n || !d.vLive[i] || d.thread || d.hold) { UI.toast(d.thread ? 'Not with the thread in hand' : d.hold ? 'Not while the hold runs' : "Can't stand there"); return; }
+  const pts = mapTripPath(d, i), M = T.map.trip;
+  let len = 0;
+  const cum = [0];
+  for (let k = 1; k < pts.length; k++) { len += (pts[k][2] | 0) === (pts[k - 1][2] | 0) ? Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]) : 0; cum.push(len); }
+  MapView.trip = { to: i, pts, cum, len, t0: performance.now(), dur: clamp(len / TILE / M.speed, M.min, M.max) * 1000 };
+  // the map framed on the way
+  const f = mapFloor();
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of pts) { x0 = Math.min(x0, x / TILE); y0 = Math.min(y0, y / TILE); x1 = Math.max(x1, x / TILE); y1 = Math.max(y1, y / TILE); }
+  MapView.z = clamp(Math.min(f.w / (x1 - x0 + 24), f.h / (y1 - y0 + 24)), 1, 8);
+  MapView.cx = (x0 + x1) / 2; MapView.cy = (y0 + y1) / 2;
+  mapClampView();
+  snd('starFeedStart', {});
+  mapBody();
+  mapTripFrame();
+}
+// The light's way: from where he stands to the nearest point of the living
+// light on his layer (a node, or a point along a vein), then the shortest
+// way through the living veins to the node. [[x, y, l]…].
+function mapTripPath(d, to) {
+  const V = veinsState(), live = d.vLive, L = d.layer | 0, p = d.p;
+  // the nearest living node, or point on a living vein, on his layer
+  let near = { d: Infinity, node: -1, vein: null, i: 0, u: 0, x: p.x, y: p.y };
+  for (let i = 0; i < V.nodes.length; i++) { const n = V.nodes[i]; if (!live[i] || (n.l | 0) !== L) continue; const m = dist(p.x, p.y, n.x, n.y); if (m < near.d) near = { d: m, node: i, vein: null, i: 0, u: 0, x: n.x, y: n.y }; }
+  for (const v of V.veins) {
+    if (!veinLiving(live, v)) continue;
+    for (let i = 1; i < v.pts.length; i++) {
+      if (!veinSegOn(v.pts, i, L)) continue;
+      const [ax, ay] = v.pts[i - 1], [bx, by] = v.pts[i], dx = bx - ax, dy = by - ay, LL = dx * dx + dy * dy || 1;
+      const u = clamp(((p.x - ax) * dx + (p.y - ay) * dy) / LL, 0, 1), x = ax + dx * u, y = ay + dy * u, m = dist(p.x, p.y, x, y);
+      if (m < near.d - 0.01) near = { d: m, node: -1, vein: v, i, u, x, y };
+    }
+  }
+  // the shortest way through the graph: from the node he's at, or from
+  // both ends of the vein he's by
+  const N = V.nodes.length, best = new Array(N).fill(Infinity), via = new Array(N).fill(null), done = new Array(N).fill(false);
+  const segLen = (P, a, b) => { let m = 0; for (let k = a + 1; k <= b; k++) if ((P[k][2] | 0) === (P[k - 1][2] | 0)) m += Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]); return m; };
+  let head = [];
+  if (near.node >= 0) { best[near.node] = 0; head = [[near.x, near.y, L]]; }
+  else if (near.vein) {
+    const v = near.vein, P = v.pts, at = [near.x, near.y, L], toA = P.slice(0, near.i).reverse(), toB = P.slice(near.i);
+    const la = segLen([at].concat(toA), 0, toA.length), lb = segLen([at].concat(toB), 0, toB.length);
+    best[v.a] = la; via[v.a] = { from: -1, pts: [at].concat(toA) };
+    best[v.b] = lb; via[v.b] = { from: -1, pts: [at].concat(toB) };
+    head = [[p.x, p.y, L]];
+  } else return [[p.x, p.y, L], [V.nodes[to].x, V.nodes[to].y, V.nodes[to].l | 0]];
+  for (;;) {
+    let k = -1;
+    for (let i = 0; i < N; i++) if (!done[i] && best[i] < Infinity && (k < 0 || best[i] < best[k])) k = i;
+    if (k < 0 || k === to) break;
+    done[k] = true;
+    for (const v of V.veins) {
+      if (!veinLiving(live, v) || (v.a !== k && v.b !== k)) continue;
+      const o = v.a === k ? v.b : v.a, m = best[k] + v.len;
+      if (m < best[o]) { best[o] = m; via[o] = { from: k, pts: v.a === k ? v.pts : v.pts.slice().reverse() }; }
+    }
+  }
+  if (best[to] === Infinity) return [[p.x, p.y, L], [V.nodes[to].x, V.nodes[to].y, V.nodes[to].l | 0]];
+  const legs = [];
+  for (let i = to; via[i]; i = via[i].from) legs.unshift(via[i].pts);
+  legs.unshift([[p.x, p.y, L], [near.x, near.y, L]]);
+  return legs.flat();
+}
+function mapTripFrame() {
+  const R = MapView.trip;
+  if (!R) return;
+  if (UI.screen !== 'screen-map') { MapView.trip = null; return; }
+  const u = clamp((performance.now() - R.t0) / R.dur, 0, 1);
+  // the view follows the light when zoomed in, and the layer it's on
+  const at = mapTripAt(R, u);
+  if ((at[2] | 0) !== MapView.layer) { MapView.layer = at[2] | 0; mapClampView(); }
+  mapDrawCanvas();
+  if (u >= 1) { mapTripArrive(); return; }
+  requestAnimationFrame(mapTripFrame);
+}
+// Where along the way the light is at u (0..1, eased in and out).
+function mapTripAt(R, u) {
+  const e = u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u), m = e * R.len, P = R.pts, C = R.cum;
+  let i = 1;
+  while (i < P.length - 1 && C[i] < m) i++;
+  const a = P[i - 1], b = P[i], seg = C[i] - C[i - 1], t = seg > 0 ? clamp((m - C[i - 1]) / seg, 0, 1) : 1;
+  return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), b[2] | 0];
+}
+function mapTripArrive() {
+  const d = Game.dive, R = MapView.trip, i = R ? R.to : -1;
+  MapView.trip = null;
   if (i < 0) return;
   if (veinsTravel(d, i)) { UI.close(); UI.toast(i === 0 ? 'At the star' : 'At the node'); MapView.sel = -1; }
-  else UI.toast(d.thread ? 'Not with the thread in hand' : d.hold ? 'Not while the hold runs' : "Can't stand there");
+  else { UI.toast("Can't stand there"); mapBody(); }
+}
+// The light on the map: the way behind it brightened, a head with a tail
+// of a few beads, and a glow.
+function mapDrawTrip(g, at, k, s) {
+  const R = MapView.trip, L = MapView.layer, u = clamp((performance.now() - R.t0) / R.dur, 0, 1), head = mapTripAt(R, u), m = (u < 0.5 ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u)) * R.len;
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath();
+  let pen = false;
+  for (let i = 0; i < R.pts.length && R.cum[i] <= m; i++) { const q = R.pts[i]; if ((q[2] | 0) !== L) { pen = false; continue; } const [x, y] = at(q[0], q[1]); if (pen) g.lineTo(x, y); else g.moveTo(x, y); pen = true; }
+  if ((head[2] | 0) === L) { const [x, y] = at(head[0], head[1]); if (pen) g.lineTo(x, y); }
+  // (a glow under a white core, so it reads over a lit vein)
+  g.strokeStyle = 'rgba(255,211,77,0.45)'; g.lineWidth = Math.max(5 * k, s * 1.2); g.stroke();
+  g.strokeStyle = '#ffffff'; g.lineWidth = Math.max(1.8 * k, s * 0.4); g.stroke();
+  if ((head[2] | 0) !== L) return;
+  // the tail: beads back along the way
+  for (let n = 1; n <= 6; n++) {
+    const b = mapTripAt(R, Math.max(0, u - n * 0.012));
+    if ((b[2] | 0) !== L) break;
+    const [x, y] = at(b[0], b[1]);
+    g.fillStyle = `rgba(255,226,138,${0.8 - n * 0.11})`; g.beginPath(); g.arc(x, y, (4 - n * 0.4) * k, 0, Math.PI * 2); g.fill();
+  }
+  const [x, y] = at(head[0], head[1]), r = 14 * k;
+  const gr = g.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, 'rgba(255,240,200,0.9)'); gr.addColorStop(0.35, 'rgba(255,211,77,0.45)'); gr.addColorStop(1, 'rgba(255,211,77,0)');
+  g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x, y, 3.2 * k, 0, Math.PI * 2); g.fill();
 }
 // A shaft seen: within T.deep.seen tiles of the Kindler (regions.js
 // regionsStep calls it each step).

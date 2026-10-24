@@ -174,7 +174,7 @@ function pshHubStill(d) {
 // are, all growing with the magnitude (T.light.shadow.cast.star).
 function pshStarLight() {
   const C = T.light.shadow.cast.star, mag = magnitudeOf(), k = clamp((mag - 1) / 7, 0, 1);
-  const x = Math.round(STAR_AT.x * ATILE), y = Math.round((STAR_AT.y + T.star.hang) * ATILE);
+  const x = Math.round(STAR_AT.x * ATILE), y = Math.round(STAR_AT.gy * ATILE);
   return { x, y, h: C.h, lx: x, ly: y, r: TILE * AP * (C.r[0] + C.r[1] * mag), i: C.i[0] + C.i[1] * mag, star: true, drop: lerp(C.drop[0], C.drop[1], k), spread: lerp(C.spread[0], C.spread[1], k) };
 }
 // The same, kept while the settlement and magnitude stay as they are (it's

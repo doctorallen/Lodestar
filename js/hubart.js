@@ -645,12 +645,17 @@ function hartCradle() {
 // tip. Feet at its middle.
 // (the lodestone's tones, for the starstone)
 const LODESTONE = ['#111316', '#22262c', '#3a4048', '#5e6670'];
-function hartStarstone(n, v, side) {
-  return hartKeep('stone' + n + '/' + v + '/' + side, () => {
+// grow (0..1): how far it has risen from the ground, the middle crystal
+// first and the outer ones after it, each from a point to its height.
+function hartStarstone(n, v, side, grow = 1) {
+  return hartKeep('stone' + n + '/' + v + '/' + side + (grow < 1 ? '/' + grow : ''), () => {
     const W = 24, H = 20, FY = 18, cx = 12, s = new PntSpr(W, H, 1701 + v * 7 + n), G = HART.star, L = LODESTONE;
     const order = [2, 0, 4, 1, 3].slice(0, n).sort((a, b) => Math.abs(b - 2) - Math.abs(a - 2));
     for (const i of order) {
-      const h = 6 + (5 - Math.abs(i - 2) * 1.6) * (0.5 + n * 0.12) + artHash(i, v, 1702) * 3, rx = 2.2 + artHash(i, v, 1703) * 1.2 + (n - Math.abs(i - 2)) * 0.15;
+      const g = clamp((grow - Math.abs(i - 2) * 0.22) / 0.5, 0, 1);
+      if (g <= 0) continue;
+      const h = (6 + (5 - Math.abs(i - 2) * 1.6) * (0.5 + n * 0.12) + artHash(i, v, 1702) * 3) * g, rx = (2.2 + artHash(i, v, 1703) * 1.2 + (n - Math.abs(i - 2)) * 0.15) * (0.45 + 0.55 * g);
+      if (h < 1.5) continue;
       const bx = cx + (i - 2) * 3 + side * 1.5, tx = bx + side * (1.5 + Math.abs(i - 2)) * 0.7 + (i - 2) * 0.8, ty = FY - h, gold = (i + v) % 3 !== 1;
       const R = gold ? G : [L[0], L[1], L[2], L[3], G[3], G[4], G[5]];
       s.poly([[bx - rx, FY], [bx - rx * 0.7 + (tx - bx) * 0.5, FY - h * 0.55], [tx, ty], [bx + rx * 0.8 + (tx - bx) * 0.5, FY - h * 0.5], [bx + rx, FY]], (x, y) => {

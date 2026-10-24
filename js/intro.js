@@ -1130,6 +1130,7 @@ function introDrawOrbit(c, t) {
 // ---------------------------------------------------------------------------
 function introHubShot(d) {
   const f = d.floor, H = T.intro.hub;
+  starAnchorSync();
   const star = { x: Math.round(STAR_AT.x * ATILE), y: Math.round(STAR_AT.y * ATILE) };
   const walkable = (q) => !TILE_SOLID[floorTile(f, Math.floor(q.x / TILE), Math.floor(q.y / TILE))];
   // he stands in the light under the heart, and walks out from under it a

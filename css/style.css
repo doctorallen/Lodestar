@@ -547,6 +547,8 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 .world-map { display: block; image-rendering: pixelated; image-rendering: crisp-edges; border: 1px solid #0c0a14; touch-action: none; user-select: none; -webkit-user-select: none; }
 .map-card { margin-top: 8px; }
 .map-card .mini { margin-left: 6px; }
+.map-card .mini.go { font-weight: bold; letter-spacing: 0.04em; padding: 4px 12px; }
+.map-card .mini.go.primary { box-shadow: 0 0 10px rgba(232, 180, 74, 0.55); }
 .mini.primary { background: var(--gold); border-color: var(--gold); color: #111; }
 .mini:disabled { opacity: 0.35; }
 .map-layers { margin-top: 8px; justify-content: center; }

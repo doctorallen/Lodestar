@@ -15,9 +15,11 @@
 // Numbers are in T.star.
 // ---------------------------------------------------------------------------
 
-// Where the heart hangs (tiles): over the star's ground point, its anchor
-// (hartStar's, about half its height) above it.
-const STAR_AT = { x: 0, y: 0 };
+// Where the heart hangs (tiles): its anchor (hartStar's, about half its
+// height) over the star's ground point (gx, gy), its tip T.star.hang
+// tiles clear of the ground (starAnchorSync, as the heart is drawn at its
+// magnitude's size).
+const STAR_AT = { x: 0, y: 0, gx: 0, gy: 0 };
 
 // Opens a disc of ground round the star's point and marks it on the floor.
 function placeStar(f, tx, ty) {
@@ -31,7 +33,15 @@ function placeStar(f, tx, ty) {
     }
   if (f.hazPts) f.hazPts = f.hazPts.filter((p) => Math.hypot(p.x - tx, p.y - ty) > R + 1);
   f.star = { x: tx, y: ty };
-  STAR_AT.x = tx + 0.5; STAR_AT.y = ty + 0.5 - S.hang;
+  STAR_AT.gx = STAR_AT.x = tx + 0.5; STAR_AT.gy = ty + 0.5;
+  // (a guess until the heart's sprite is made: starAnchorSync)
+  STAR_AT.y = STAR_AT.gy - S.hang - 4;
+}
+// The anchor from the heart's size: the tip T.star.hang tiles over the ground.
+function starAnchorSync() {
+  if (typeof document === 'undefined') return;
+  const spr = starHeartSprite('star', starHeartScale());
+  STAR_AT.y = STAR_AT.gy - T.star.hang - spr.tip / ATILE;
 }
 
 // The star's magnitude: how much of the world lives. (The veins, in the
@@ -71,6 +81,8 @@ function starHeartSprite(kind, k, frame = 0) {
   const spr = kind === 'halo' ? hartHalo(3, frame) : hartStar(3);
   const up = (c) => { const n = document.createElement('canvas'); n.width = c.width * k; n.height = c.height * k; const g = n.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(c, 0, 0, n.width, n.height); return n; };
   const out = Object.assign({}, spr, { c: up(spr.c), ec: spr.ec ? up(spr.ec) : null, ax: spr.ax * k, ay: spr.ay * k, w: spr.w * k, h: spr.h * k });
+  // (how far its lowest pixel, the tip, lies under the anchor)
+  if (kind === 'star') { const g = spr.c.getContext('2d'), D = g.getImageData(0, 0, spr.c.width, spr.c.height).data; let low = spr.ay; for (let i = D.length - 1; i >= 0; i -= 4) if (D[i]) { low = Math.floor(i / 4 / spr.c.width) + 1; break; } out.tip = (low - spr.ay) * k; }
   _starHeart.set(key, out);
   return out;
 }
@@ -79,20 +91,26 @@ function starHeartSprite(kind, k, frame = 0) {
 function drawStarUnder(d, ox, oy, lights) {
   const f = d.floor;
   if (!f.star) return;
+  starAnchorSync();
   const S = T.star, mag = magnitudeOf(), cx = Math.round((f.star.x + 0.5) * ATILE) + ox, cy = Math.round((f.star.y + 0.5) * ATILE) + oy;
   const k = 0.92 + 0.08 * Math.sin(Game.realT * 1.7), lit = Intro.hub ? Intro.hub.lit : 1;
   lights.push({ x: cx, y: cy, r: TILE * (S.pool.r[0] + S.pool.r[1] * mag), i: S.pool.i * k * lit, c: rgb01(HART.star[5]) });
 }
-// The heart of the star, colossal, in its halo, with its own light. It
-// stands among the walkers by its ground point, so the Kindler walks
-// behind it to the north and before it to the south.
+// The heart of the star, colossal, in its halo, with its own light,
+// hanging clear of the ground with its shadow under it. It stands among
+// the walkers by a point T.star.under tiles south of its ground point, so
+// the Kindler walks behind it to the north and under it close by, and
+// before it further south.
 function drawStarHeart(d, a, ox, oy, lights) {
   const S = T.star, mag = magnitudeOf(), k = starHeartScale(mag);
+  starAnchorSync();
   // (in the opening's last shot it comes down and lights: intro.js Intro.hub)
   const ih = Intro.hub, lit = ih ? ih.lit : 1, drop = ih ? Math.round(ih.starDY) : 0;
   const sx = Math.round(STAR_AT.x * ATILE) + ox, sy = Math.round(STAR_AT.y * ATILE + Math.sin(Game.realT * 0.8) * 3 * AP) + oy + drop;
   if (sx < -200 * AF || sx > View.w + 200 * AF || sy < -200 * AF || sy > View.h + 200 * AF) return;
   const halo = starHeartSprite('halo', k, Math.floor(Game.realT * 3) % 2), st = starHeartSprite('star', k);
+  // its shadow on the ground under it, a little smaller as it bobs up
+  if (!ih) drawShadow(sx, Math.round(STAR_AT.gy * ATILE) + oy, 9 * k, 6 + Math.sin(Game.realT * 0.8) * 1.5);
   View.ctx.globalAlpha = 0.7 * lit;
   View.ctx.drawImage(halo.c, sx - halo.ax, sy - halo.ay - 4 * k);
   View.ctx.globalAlpha = View.emCtx.globalAlpha = 0.35 + 0.65 * lit;
@@ -105,7 +123,7 @@ function drawStarHeart(d, a, ox, oy, lights) {
 function starProps(d) {
   const f = d.floor;
   if (!f.star) return [];
-  return [{ x: (f.star.x + 0.5) * TILE, y: (f.star.y + 0.5) * TILE, top: true, draw: drawStarHeart }];
+  return [{ x: (f.star.x + 0.5) * TILE, y: (f.star.y + 0.5 + T.star.under) * TILE, top: true, draw: drawStarHeart }];
 }
 // Over everything: nothing of the star now (the heart stands among the walkers).
 function drawStarOver() {}

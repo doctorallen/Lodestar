@@ -157,6 +157,7 @@ function updateDive(dtReal, dt) {
   updateChannel(dtReal);
   threadUpdate(d, dtReal);
   holdUpdate(d, dt);
+  veinsFxUpdate(d, dtReal);
   if (Game.dive !== d) return;
   updateEnemies(dt);
   updateBolts(dt);

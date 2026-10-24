@@ -927,8 +927,9 @@ const T = {
   // carry a light of their own.
   // The Lodestar in the world (star.js; docs/VEINS.md). clear: the ground
   // opened round it (tiles, flattened by squash); hang: how high over its
-  // ground point the heart hangs (tiles); standOff: where the Kindler
-  // wakes, south of it (tiles). lightR: how far its light lies on the land
+  // ground point the heart's tip hangs (tiles); under: whoever stands
+  // within this many tiles south of its ground point is under it, and it's
+  // drawn over them; standOff: where the Kindler wakes, south of it (tiles). lightR: how far its light lies on the land
   // (tiles), lightPerMag more each magnitude, fading out over lightFade
   // tiles past that. core: the pieces of its core (a fall takes one; at
   // none the star goes out). heart: how many times the seed's size the
@@ -936,7 +937,7 @@ const T = {
   // light on the ground [at magnitude 0, more each] (tiles) and strength;
   // heartLight: the heart's own.
   star: {
-    clear: 7, squash: 0.82, hang: 2.4, standOff: 3,
+    clear: 7, squash: 0.82, hang: 1.2, under: 1.8, standOff: 3,
     lightR: 9, lightPerMag: 1.5, lightFade: 4, core: 7,
     heart: { small: 3, big: 4, bigFrom: 4 },
     pool: { r: [7, 0.8], i: 1.0 },
@@ -978,7 +979,12 @@ const T = {
     band: [5, 5, 6, 6, 7, 8, 8], thread: [60, 80, 100, 120, 140, 170, 200], threadSpeed: 0.85, wave: 30, waveN: 1, step: 6,
     reach: 2.2, joinReach: 1.6, nodeGap: 6, hold: [18, 30], join: 12, nodeLight: 100, bite: 0.4, biteReach: 14, holdWave: 9,
     light: { every: 2, vein: 0.45, node: 0.9, thread: 0.3 },
+    setRamp: 3,
   },
+  // The map's travel (map.js mapGo): the light seen running the veins from
+  // where he stands to the node, `speed` tiles a second, between min and
+  // max seconds; then he stands there.
+  map: { trip: { speed: 70, min: 0.6, max: 1.8 } },
   // The minimap (map.js miniDraw): the land round the Kindler, two px a
   // tile, `tiles` square, drawn as it's walked: what's within `sight` tiles
   // is seen, looked at every `every` s, and the save keeps it every `save` s.

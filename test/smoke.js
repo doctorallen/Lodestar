@@ -187,8 +187,12 @@ async function phone(browser, failures) {
   if (card.sel !== 1 || !card.go) fail(`the map's card did not offer the node (${JSON.stringify(card)})`);
   if (card.tabs !== 2) fail('the map has no layer tabs');
   await shot(page, 'smoke-map-card');
-  const stood = await page.evaluate(() => { UI.acts.mapGo(); const d = Game.dive, n = veinsState().nodes[1]; return { modal: Game.modal, near: dist(d.p.x, d.p.y, n.x, n.y) < TILE * 3 }; });
-  if (stood.modal || !stood.near) fail(`STAND THERE did not stand him at the node (${JSON.stringify(stood)})`);
+  // TRAVEL THERE: the light runs the veins over the map, then he stands there
+  const trip = await page.evaluate(() => { UI.acts.mapGo(); const R = MapView.trip; return R ? { to: R.to, pts: R.pts.length, len: Math.round(R.len / TILE), dur: R.dur } : null; });
+  if (!trip || trip.to !== 1 || trip.pts < 2 || !(trip.len > 0)) fail(`TRAVEL THERE did not send the light along the veins (${JSON.stringify(trip)})`);
+  await sleep(trip.dur + 400);
+  const stood = await page.evaluate(() => { const d = Game.dive, n = veinsState().nodes[1]; return { modal: Game.modal, trip: !!MapView.trip, near: dist(d.p.x, d.p.y, n.x, n.y) < TILE * 3 }; });
+  if (stood.modal || stood.trip || !stood.near) fail(`TRAVEL THERE did not stand him at the node (${JSON.stringify(stood)})`);
   // the pause screen, and back
   await page.evaluate(() => UI.openPause());
   await sleep(450);

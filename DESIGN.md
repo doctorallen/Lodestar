@@ -23,7 +23,7 @@ One continuous map, generated once a save from the seed and kept; the save holds
 
 **The Deep.** Under the surface lies a second floor the same size (`deep.js`): caverns in the cave climes (the Caverns under the star, then the Flooded Grotto, the Magma Tubes, the Rootdeep), with no sun and no star of its own. Shafts join the two where open ground lies over open ground: a hole in the surface the Kindler goes down (GO DOWN) and climbs back up, thread in hand if he has it, so a vein can run down a shaft and light the Deep, and its nodes are stood at from the map like any other. The map shows one layer at a time.
 
-The star stands in the open at the middle, its heart hanging large over the ground as the Hollow Star's did, and the ground round it is lit from the start: the first node is the star.
+The star stands in the open at the middle, its heart hanging large over the ground as the Hollow Star's did, its tip clear of the ground with its shadow under it, so the Kindler walks under it and it's drawn over him there; the ground round it is lit from the start: the first node is the star.
 
 Painting a map this size is done in a window of the floor that moves with the view (64 tiles square, 48 at fine grain; `paint.js PWIN`), not as one buffer: the buffers hold the window, the overlap is copied along when it moves, and the strip exposed is painted in chunks as the view comes to it.
 
@@ -57,11 +57,11 @@ While threading:
 - the dark is drawn to the thread: every 30 s of threading a wave wakes along it behind you, so a long thread is a long fight;
 - a fall loses the thread.
 
-**Planting.** Where you stand, on open ground 6 tiles or more from any node: hold PLANT (1 s) and the node is set in the ground, dim, and **the hold** begins: 18 s near the star, to 30 s at the far reaches, never longer. The node has its own light, which is its health; the dark comes in waves for it and for you, and a creature within reach of the node bites it. If the node's light goes out the shard shatters, the thread snaps back to its start, and nothing is lit; take up again. If it stands when the hold ends it **sets**: the vein lights along the whole thread, the land along it begins to turn, your bar fills, the core gains a piece, and Wick says a word.
+**Planting.** Where you stand, on open ground 6 tiles or more from any node: hold PLANT (1 s) and a shard of the star takes root in the ground, and **the hold** begins: 18 s near the star, to 30 s at the far reaches, never longer. Over the hold the node rises out of the ground where the thread ends, a small star of its own, the middle crystal first and the others round it, the thread's light running into it a mote at a time. The node has its own light, which is its health; the dark comes in waves for it and for you, and a creature within reach of the node bites it. If the node's light goes out the shard shatters, the thread snaps back to its start, and nothing is lit; take up again. If it stands when the hold ends it **sets**: its light comes up along the whole thread over three seconds, from the thread's glow to a vein's, the node's with it, the land along it begins to turn, your bar fills, the core gains a piece, and Wick says a word.
 
 **Joining.** A thread walked to an existing node, dark or living, joins it: to a dark one with a shorter hold (12 s), to a living one at once. So the map can be made a web, not just a tree. A node joined two ways survives one cut.
 
-**Travel.** The map screen lets you stand at any living node: tap it, its card names it and where it is, and STAND THERE takes you (on either layer). Veins are lit and quiet, so walking them is safe and dull, and the tap saves it. Set out from the node nearest the dark you want.
+**Travel.** The map screen lets you stand at any living node: tap it, its card names it and where it is, and TRAVEL THERE sends the light running the veins over the map from where you stand to it, the shortest way through the living web (the map framed on the way, and turned to the other layer where the way goes down a shaft), and when it arrives so do you, set down in a flare of it. Veins are lit and quiet, so walking them is safe and dull, and the tap saves it. Set out from the node nearest the dark you want.
 
 ## The dark cuts
 
@@ -126,7 +126,7 @@ Two spells are carried out (A and B, three from magnitude 3), swapped at the sta
 
 One screen, from the star (walk into the heart's light) or the MAP button anywhere, which opens it on the map. Three parts, scrolled:
 
-1. **THE WORLD.** The map, a layer at a time (THE SURFACE, THE DEEP), pinched to zoom: the regions in their own colours and their names as they're walked, veins in gold, nodes as marks, cuts marked red, shafts once seen, the Kindler. Tap a node for its card; STAND THERE to go.
+1. **THE WORLD.** The map, a layer at a time (THE SURFACE, THE DEEP), pinched to zoom: the regions in their own colours and their names as they're walked, veins in gold, nodes as marks, cuts marked red, shafts once seen, the Kindler. Tap a node for its card; TRAVEL THERE to go, and the light is seen running the veins to it.
 2. **SHAPES.** Shapes waiting to be read, each with its two readings and PICK; then the spells shaped, with A and B set by tapping.
 3. **WICK.** His log, the *Meridian* overhead (how many sleep), the core's pieces, and the opening again.
 
