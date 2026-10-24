@@ -224,7 +224,7 @@ function loaderPaint(job) {
   const f = d.floor;
   job.say('PAINTING THE GROUND');
   paintFloor(f);
-  const S = View.pnt, cx = d.p.x * AP, cy = d.p.y * AP, reach = 3.2 * Math.max(View.w, View.h);
+  const S = View.pnt, cx = d.p.x * AP, cy = d.p.y * AP, reach = 2.4 * Math.max(View.w, View.h);
   const todo = [];
   for (let j = 0; j < S.ny; j++) for (let i = 0; i < S.nx; i++) {
     const m = Math.hypot(PWIN.x + (i + 0.5) * PNT_CH - cx, PWIN.y + (j + 0.5) * PNT_CH - cy);

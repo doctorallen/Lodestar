@@ -48,7 +48,41 @@ const KP = {
   boot: ['#050405', '#0b0909', '#18120e', '#281e16'],
   amber: ['#8a4a16', '#d88c30', '#ffb030', '#ffe48a'],
   pane: ['#030409', '#05070d', '#0b1020'], glint: '#c6dcff',
+  // the star's own glass: hard light, gold to white (the hard-light looks)
+  glass: ['#8a5a14', '#c48a2a', '#f0c050', '#ffe48a', '#fff7dc'],
+  cowl: ['#05060c', '#0a0b16', '#12142a', '#1a1e3a', '#262c52'],
 };
+// The suit's look: what of the star shows on him (DESIGN.md, the Splinter).
+//   helm     'bubble' (the space-suit glass), 'cowl' (a dark hood with a lit
+//            visor slit), 'crystal' (a faceted helm of the star's glass)
+//   plates   'blue' (the Charter's plate), 'dark' (matte, all one suit),
+//            'glass' (plates of hard light, glowing)
+//   shard    the shard at the sternum: 1 a point, 2 a small crystal, 3 a
+//            large faceted one
+//   seams    'none', 'veins' (the star's gold seams run the limbs and the
+//            torso, from the shard), 'lattice' (a lattice of hard light
+//            over the whole body, baked in)
+//   halo     a ring of the star's light behind the head
+//   lamp     where the light he sees by comes from: 'brow', 'shard', 'halo'
+// The overlay lattice (kdLattice) is drawn only over a look without baked
+// seams.
+//   form     'human' (the figure as it is), or a being of the star's own:
+//            'tall' (no head: a crystal floats over the shoulders, the body
+//            long and the legs ending in points), 'drift' (no legs: the
+//            body tapers to a point and hovers, long arms of hard light),
+//            'lantern' (a faceted crystal in a veil of light with tendrils
+//            for arms). h, feet: the sprite's box and its feet row for a
+//            form taller than the figure.
+const KD_LOOKS = {
+  charter: { form: 'human', helm: 'bubble', plates: 'blue', shard: 1, seams: 'none', halo: false, lamp: 'brow' },
+  tall: { form: 'tall', plates: 'dark', shard: 3, seams: 'veins', halo: false, lamp: 'head', scaleY: 1.3, h: 62, feet: 59 },
+  drift: { form: 'drift', plates: 'dark', shard: 3, seams: 'veins', halo: false, lamp: 'shard', h: 52, feet: 49 },
+  lantern: { form: 'lantern', plates: 'dark', shard: 0, seams: 'none', halo: false, lamp: 'head', h: 52, feet: 49 },
+  splinter: { form: 'human', helm: 'cowl', plates: 'dark', shard: 3, seams: 'veins', halo: false, lamp: 'shard' },
+  hardlight: { form: 'human', helm: 'crystal', plates: 'glass', shard: 3, seams: 'lattice', halo: false, lamp: 'shard' },
+  halo: { form: 'human', helm: 'cowl', plates: 'dark', shard: 2, seams: 'veins', halo: true, lamp: 'halo' },
+};
+let KD_LOOK = KD_LOOKS.charter;
 
 // The figure, in art px above the soles: the hip joints' height and half
 // spacing, the leg and arm bones, the shoulder joints, the spine from the
@@ -293,7 +327,18 @@ const KD_MAT = [null,
   [KP.plate, 0, 2, 1.2], // 8 belt, the visor's rim
   [KP.plate, 1, 3, 1.3], // 9 the plates on the legs
   [KP.plate, 2, 4, 1.1], // 10 the glass's rim, the neck ring
+  [KP.glass, 1, 4, 1.2], // 11 the star's glass, hard light (glowing)
+  [KP.cowl, 0, 4, 1.3], // 12 the cowl, matte
+  [KP.cowl, 0, 3, 1.2], // 13 the veil of light's dark weave (with holes)
 ];
+// What a material is under the look: plates and the helm become one dark
+// suit or the star's glass.
+function kdLookMat(m, L) {
+  if (L.plates === 'dark' && (m === 2 || m === 9 || m === 10 || m === 6)) return 1;
+  if (L.plates === 'glass' && (m === 2 || m === 9 || m === 10)) return 11;
+  if (m === 5) return L.helm === 'cowl' ? 12 : L.helm === 'crystal' ? 11 : L.plates === 'dark' ? 12 : 5;
+  return m;
+}
 
 // One frame: face, a drawn facing; key, a pose's key. Returns the sprite's
 // parts: { spr (PntSpr), hand, offHand, lamp, castHand, restHand,
@@ -306,7 +351,14 @@ function kdRender(face, key) {
   o.chestYaw += cheat * 0.35; o.headYaw = (o.headYaw || 0) + cheat * 0.65;
   // (at fine grain, KD_F pixels to each of the figure's: the picture that
   // much bigger, the surface sampled that much closer)
-  const F = KD_F, J = kdRig(o), W = KINDLER_W * F, H = KINDLER_H * F, ox = W / 2, by = (KINDLER_FEET + 0.5) * F;
+  const F = KD_F, J = kdRig(o), LKK = KD_LOOK, W = KINDLER_W * F, H = (LKK.h || KINDLER_H) * F, ox = W / 2, by = ((LKK.feet || KINDLER_FEET) + 0.5) * F;
+  // a taller form: the figure's heights stretched above the feet
+  if (LKK.scaleY) {
+    const k = LKK.scaleY, up = (p) => [p[0], p[1] * k, p[2]], spine0 = J.spine;
+    J.spine = (u) => { const S = spine0(u); return Object.assign({}, S, { c: up(S.c) }); };
+    for (const key of ['shoulder', 'hip', 'knee', 'ankle', 'elbow', 'wrist', 'hand']) J[key] = J[key].map(up);
+    J.neck = up(J.neck); J.head = Object.assign({}, J.head, { c: up(J.head.c) }); J.chest = Object.assign({}, J.chest, { c: up(J.chest.c) });
+  }
   const ang = KD_FACE[face], fx = Math.cos(ang), fy = Math.sin(ang), rx = -fy, ry = fx, st = o.stretch || 1;
   const N = W * H, zb = new Float32Array(N).fill(-1e9), mat = new Uint8Array(N), val = new Float32Array(N), part = new Uint8Array(N);
   const seed = hashInts(77, face.charCodeAt(0), face.length);
@@ -472,6 +524,20 @@ function kdRender(face, key) {
     const Hd = J.head, r = KR.head;
     tube([J.neck, kdAdd(Hd.c, [0, -2.6, 0])], [1.45, 1.35], () => 1, false);
     ball(kdAdd(Hd.c, [0, -3.3, 0.15]), [2.7, 0.75, 2.4], Hd.yaw, () => 10, 0, 4);
+    const L = KD_LOOK;
+    if (L.helm === 'cowl') {
+      // a dark hood, close to the head, with a visor slit across the eyes
+      ball(Hd.c, [r[0] * 0.98, r[1] * 1.02, r[2] * 0.98], Hd.yaw, (nx, ny, nz, lx, ly, lz) => {
+        const fz = lz / r[2], up = ly / r[1], sd = Math.abs(lx / r[0]);
+        return fz > 0.3 && up > -0.06 && up < 0.16 && sd < 0.82 ? 4 : 5;
+      }, 0, 2, KD_HELM_TILT);
+      return;
+    }
+    if (L.helm === 'crystal') {
+      // a faceted helm of the star's glass, squared off like the heart
+      ball(Hd.c, [r[0] * 1.02, r[1] * 1.08, r[2] * 1.02], Hd.yaw, () => 5, 0, 4, KD_HELM_TILT);
+      return;
+    }
     ball(Hd.c, r, Hd.yaw, (nx, ny, nz, lx, ly, lz) => {
       const fz = lz / r[2], up = ly / r[1], sd = Math.abs(lx / r[0]);
       if (fz > 0.08 && up > -0.56 && up < 0.6 && sd < 0.97) return fz > 0.2 && up > -0.46 && up < 0.5 && sd < 0.9 ? 4 : 10;
@@ -479,12 +545,47 @@ function kdRender(face, key) {
     }, 0, 2, KD_HELM_TILT);
   };
 
+  // the forms that aren't the figure: a floating crystal of the star for
+  // a head; legs that end in points, or no legs; a veil
+  const crystalHead = (c, r) => { ball(c, r, J.head.yaw, () => 11, 0, 4, KD_HELM_TILT); };
+  const legPoint = (i) => tube([J.hip[i], J.knee[i], kdAdd(J.ankle[i], [0, -1.2, 0.4])], [2.0, 1.3, 0.25], legMat, true);
+  const armLight = (i) => {
+    tube([J.shoulder[i], J.elbow[i]], [1.2, 0.9], () => 1, true);
+    const el = J.elbow[i], wr = J.wrist[i], dv = kdNorm([wr[0] - el[0], wr[1] - el[1], wr[2] - el[2]]), tip = kdAdd(wr, dv, 2.2);
+    tube([el, wr, tip], [0.9, 0.7, 0.2], () => 11, true);
+  };
   // (the depth sorts what's in front)
-  torso();
-  for (let i = 0; i < 2; i++) leg(i);
-  for (let i = 0; i < 2; i++) arm(i);
-  pack();
-  helm();
+  const form = LKK.form || 'human';
+  if (form === 'human') {
+    torso();
+    for (let i = 0; i < 2; i++) leg(i);
+    for (let i = 0; i < 2; i++) arm(i);
+    pack();
+    helm();
+  } else if (form === 'tall') {
+    torso();
+    for (let i = 0; i < 2; i++) legPoint(i);
+    for (let i = 0; i < 2; i++) arm(i);
+    tube([J.neck, kdAdd(J.neck, [0, 1.6, 0])], [1.3, 0.9], () => 1, false);
+    crystalHead(kdAdd(J.head.c, [0, 1.4, 0.1]), [2.4, 4.2, 2.4]);
+  } else if (form === 'drift') {
+    torso();
+    // the body on down to a point, hovering
+    const S0 = J.spine(0), pt = kdAdd(S0.c, [0, -(KR.crotch - 3.5), 0.4]);
+    tube([S0.c, kdAdd(S0.c, [0, -5, 0.2]), pt], [3.2, 2.3, 0.3], () => 1, true);
+    for (let i = 0; i < 2; i++) armLight(i);
+    tube([J.neck, kdAdd(J.neck, [0, 1.4, 0])], [1.3, 0.9], () => 1, false);
+    crystalHead(kdAdd(J.head.c, [0, 1.0, 0.1]), [2.3, 3.6, 2.3]);
+  } else if (form === 'lantern') {
+    // a faceted crystal where the chest would be, a veil beneath it to the
+    // knees, three tendrils of hard light
+    const C = J.spine(0.72), cc = kdAdd(C.c, [0, 2.0, 0.3]);
+    crystalHead(cc, [3.4, 5.0, 3.4]);
+    const S0 = J.spine(0.15);
+    tube([kdAdd(cc, [0, -4.2, 0]), kdAdd(S0.c, [0, 0.5, 0]), kdAdd(S0.c, [0, -7.5, 0.3])], [2.4, 5.2, 3.0], () => 13, false);
+    for (let i = 0; i < 2; i++) { const hd = J.hand[i], wr = J.wrist[i], dv = kdNorm([hd[0] - wr[0], hd[1] - wr[1], hd[2] - wr[2]]); tube([kdAdd(cc, [i ? -2.4 : 2.4, -1.5, 1.5]), J.elbow[i], kdAdd(hd, dv, 1.5)], [0.6, 0.45, 0.2], () => 11, true); }
+    tube([kdAdd(cc, [0, -4.5, 1.6]), kdAdd(J.spine(0).c, [0, -3, 2.2]), kdAdd(J.spine(0).c, [0, -10, 1.6])], [0.5, 0.4, 0.15], () => 11, true);
+  }
 
   // a pixel the samples missed, inside a part: its neighbour's
   for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
@@ -511,11 +612,26 @@ function kdRender(face, key) {
   // laid in strokes: each pixel the tone of its material at its light,
   // moved by its stroke's jitter
   const sp = new PntSpr(W, H, seed);
+  const LK = KD_LOOK;
   for (let i = 0; i < N; i++) {
     if (!mat[i]) continue;
-    const ia = cellA[i], ib = cellB[i], pt = part[i], jit = artHash(ia * 31 + pt, ib, seed) + artHash(ib, ia * 7 + pt, seed + 1) - 1;
-    const [ramp, lo, hi, g] = KD_MAT[mat[i]], t = lo + (hi - lo) * Math.pow(val[i], g) + jit * 0.3;
-    sp.px(i % W, (i / W) | 0, ramp[clamp(Math.round(t), lo, hi)]);
+    const m = kdLookMat(mat[i], LK), ia = cellA[i], ib = cellB[i], pt = part[i], jit = artHash(ia * 31 + pt, ib, seed) + artHash(ib, ia * 7 + pt, seed + 1) - 1;
+    // (the veil: a loose weave, a lit thread of the star's gold now and then)
+    if (m === 13) { const hv = artHash(Math.floor(ia / 2), Math.floor(ib / 3), seed + 9); if (hv < 0.3) continue; if (hv > 0.9) { sp.px(i % W, (i / W) | 0, KP.amber[2], true); continue; } }
+    const [ramp, lo, hi, g] = KD_MAT[m], t = lo + (hi - lo) * Math.pow(val[i], g) + jit * 0.3;
+    sp.px(i % W, (i / W) | 0, ramp[clamp(Math.round(t), lo, hi)], m === 11);
+  }
+  // the lattice of hard light, baked in: over the body below the neck, a
+  // diamond lattice of gold with a brighter node where its lines cross
+  if (LK.seams === 'lattice') {
+    const top = Math.round((KINDLER_FEET - KR.neck + 1.5) * F), S = 6 * F;
+    for (let i = 0; i < N; i++) {
+      const x = i % W, y = (i / W) | 0;
+      if (!mat[i] || y < top || kdLookMat(mat[i], LK) === 11) continue;
+      const a = (x + 2 * y) % S, b = (x - 2 * y + 8192) % S;
+      if (a >= F && b >= F) continue;
+      sp.px(x, y, a < F && b < F ? DIVER_PAL.star[0] : KP.amber[2], true);
+    }
   }
   // features, by hand: a point on the body is drawn if nothing's nearer
   const seen = (p, slack = 0.9) => {
@@ -526,26 +642,58 @@ function kdRender(face, key) {
   const A = KP.amber, done = new Set();
   const dot = (p, col, glow, slack) => { const s = seen(p, slack); if (s && !done.has(s[1] * W + s[0])) { done.add(s[1] * W + s[0]); sp.px(s[0], s[1], col, glow); } return s; };
   // the chest's V of circuits, down to the seed-star
-  const starU = 0.6, front = Math.PI / 2;
-  for (const sd of [-1, 1]) for (let k = 0; k <= 24; k++) {
+  const starU = 0.6, front = Math.PI / 2, human = (LK.form || 'human') === 'human';
+  if (human || LK.form === 'tall' || LK.form === 'drift') for (const sd of [-1, 1]) for (let k = 0; k <= 24; k++) {
     const t = k / 24, T0 = torsoPt(lerp(0.85, starU + 0.03, t), front + sd * lerp(0.95, 0.12, t));
     dot(kdAdd(T0.p, T0.n, 0.2), A[shade(T0.n).s > 0.05 ? 2 : 1], true);
   }
-  const star = torsoPt(starU, front), sc = seen(kdAdd(star.p, star.n, 0.3));
+  const star = torsoPt(starU, front), sc = LK.shard ? seen(kdAdd(star.p, star.n, 0.3)) : null;
   if (sc) {
-    const [x, y] = sc;
-    for (const [dx, dy, c] of [[-1, 0, DIVER_PAL.star[0]], [1, 0, DIVER_PAL.star[0]], [0, -1, DIVER_PAL.star[0]], [0, 1, DIVER_PAL.star[0]], [0, 0, DIVER_PAL.starHeart[0]]]) sp.px(x + dx, y + dy, c, true);
+    const [x, y] = sc, SZ = LK.shard || 1, S0 = DIVER_PAL.star[0], SH = DIVER_PAL.starHeart[0];
+    if (SZ >= 3) {
+      // a large faceted shard set in the sternum: a diamond, white at its
+      // heart, gold at its edges, lit all through
+      const rows = [[0, -2, 1], [-1, -1, 3], [-2, 0, 5], [-1, 1, 3], [0, 2, 1]];
+      for (const [x0, dy, n] of rows) for (let k = 0; k < n; k++) { const dx = x0 + k, edge = Math.abs(dx) + Math.abs(dy) >= 2; sp.px(x + dx, y + dy, edge ? S0 : SH, true); }
+      for (const [dx, dy] of [[-3, 0], [3, 0], [0, -3], [0, 3]]) sp.px(x + dx, y + dy, A[3], true);
+    } else if (SZ === 2) {
+      for (const [dx, dy, c] of [[-1, 0, S0], [1, 0, S0], [0, -1, S0], [0, 1, S0], [0, 0, SH], [-1, -1, A[3]], [1, -1, A[3]], [-1, 1, A[3]], [1, 1, A[3]]]) sp.px(x + dx, y + dy, c, true);
+    } else {
+      for (const [dx, dy, c] of [[-1, 0, S0], [1, 0, S0], [0, -1, S0], [0, 1, S0], [0, 0, SH]]) sp.px(x + dx, y + dy, c, true);
+    }
+  }
+  // the seams: the star's gold runs from the shard out along the limbs
+  // (the arms from the shoulders to the wrists, the legs from the hips to
+  // the ankles) and round the torso's rings, as its veins run the land
+  if (LK.seams === 'veins') {
+    for (let i = 0; i < 2; i++) {
+      const line = (a, b, n, col, lift) => { for (let k = 0; k <= n; k++) { const t = k / n, c = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; dot(kdAdd(c, [0, 0, 1], lift), col, true, 0.7); } };
+      line(J.shoulder[i], J.elbow[i], 7, A[2], 1.3); line(J.elbow[i], J.wrist[i], 6, A[2], 1.05);
+      if (LK.form !== 'drift') { line(J.hip[i], J.knee[i], 8, A[1], 2.1); line(J.knee[i], J.ankle[i], 8, A[1], 1.65); }
+    }
+    for (const u of [0.5, 0.72]) for (let k = 0; k <= 20; k++) { const T0 = torsoPt(u, front + (k / 20 - 0.5) * 1.6); dot(kdAdd(T0.p, T0.n, 0.2), A[shade(T0.n).s > 0.05 ? 2 : 1], true, 0.6); }
+  }
+  // the halo: a ring of the star's light behind the head, facing us
+  let haloTop = null;
+  if (LK.halo) {
+    const Hd0 = J.head, R = KR.head[1] * 1.55, sx2 = [rx, 0, fx], bk = [-ry * 0.8, 0, -fy * 0.8];
+    for (let k = 0; k < 40; k++) {
+      const th = (k / 40) * kdTau, c = kdAdd(kdAdd(kdAdd(Hd0.c, sx2, Math.cos(th) * R), [0, 1, 0], Math.sin(th) * R * 0.92), bk, 1);
+      const s2 = seen(c, 0.2);
+      if (s2) { sp.px(s2[0], s2[1], Math.sin(th) > 0.5 ? DIVER_PAL.star[0] : A[2], true); if (Math.sin(th) > 0.85) haloTop = s2; }
+    }
+    if (!haloTop) haloTop = seen(kdAdd(Hd0.c, [0, 1, 0], R), 9) || null;
   }
   // a stripe on down from the star to the buckle; the buckle; a clip at
   // each hip
-  for (let k = 2; k <= 14; k++) { const T0 = torsoPt(lerp(starU, 0.42, k / 14), front); dot(kdAdd(T0.p, T0.n, 0.2), A[shade(T0.n).s > 0.05 ? 2 : 1], true); }
+  if (human) for (let k = 2; k <= 14; k++) { const T0 = torsoPt(lerp(starU, 0.42, k / 14), front); dot(kdAdd(T0.p, T0.n, 0.2), A[shade(T0.n).s > 0.05 ? 2 : 1], true); }
   const bk = torsoPt(0.39, front);
-  dot(kdAdd(bk.p, bk.n, 0.3), A[2], true);
-  for (const s of [-1, 1]) { const T0 = torsoPt(0.39, front + s * 0.85); dot(kdAdd(T0.p, T0.n, 0.25), A[1], true); }
+  if (human) dot(kdAdd(bk.p, bk.n, 0.3), A[2], true);
+  if (human) for (const s of [-1, 1]) { const T0 = torsoPt(0.39, front + s * 0.85); dot(kdAdd(T0.p, T0.n, 0.25), A[1], true); }
   // the cuffs: a ring of amber round each wrist; the gloves' fingers; an
   // arc across each shoulder cap; the thighs and shins: a line down the
   // outer front
-  for (let i = 0; i < 2; i++) {
+  if (human) for (let i = 0; i < 2; i++) {
     const el = J.elbow[i], wr = J.wrist[i], dv = [wr[0] - el[0], wr[1] - el[1], wr[2] - el[2]], cuff = kdAdd(el, dv, 0.84), u = kdNorm(dv), sd = i ? -1 : 1;
     const e1 = kdNorm(Math.abs(u[1]) < 0.9 ? [u[2], 0, -u[0]] : [1, 0, 0]), e2 = [u[1] * e1[2] - u[2] * e1[1], u[2] * e1[0] - u[0] * e1[2], u[0] * e1[1] - u[1] * e1[0]];
     let top = null, best = -9;
@@ -578,33 +726,51 @@ function kdRender(face, key) {
     }
   }
   // the pack's air port, from behind: a lit ring and a light
-  const pp = seen(kdAdd(J.packC, kdYaw([0, 0.6, -1.3], J.packYaw)), 0.6);
+  const pp = J.packC ? seen(kdAdd(J.packC, kdYaw([0, 0.6, -1.3], J.packYaw)), 0.6) : null;
   if (pp) { sp.px(pp[0], pp[1], A[2], true); sp.px(pp[0] + 1, pp[1], A[1], true); sp.px(pp[0], pp[1] - 1, KP.plate[2]); sp.px(pp[0] + 1, pp[1] + 1, KP.plate[1]); }
   // the helm: the crown stripe, amber over it from above the lamp to the
   // nape; the glass's glint, upper left, and its reflection, an arc down
   // its upper left; the brow lamp over the glass
   const Hd = J.head, r = KR.head, tl = (l) => { const c2 = Math.cos(KD_HELM_TILT), s2 = Math.sin(KD_HELM_TILT); return [l[0], l[1] * c2 - l[2] * s2, l[1] * s2 + l[2] * c2]; };
-  for (let k = 0; k <= 24; k++) {
+  if (human && LK.helm === 'bubble') for (let k = 0; k <= 24; k++) {
     const th = lerp(-0.22, 0.7, k / 24) * Math.PI, l = [0, r[1] * Math.cos(th) * 1.02, -r[2] * Math.sin(th) * 1.02];
     const q = seen(kdAdd(Hd.c, kdYaw(tl(l), Hd.yaw)), 0.7);
     if (q && mat[q[1] * W + q[0]] === 5) sp.px(q[0], q[1], A[th < 0.25 * Math.PI ? 2 : 1], true);
+  }
+  // the cowl's visor: a line of the shard's light across the slit
+  if (human && LK.helm === 'cowl') for (let k = 0; k <= 12; k++) {
+    const ux = -0.75 + 1.5 * (k / 12), uy = 0.05, uz = Math.sqrt(Math.max(0, 1 - ux * ux - uy * uy));
+    const q = seen(kdAdd(Hd.c, kdYaw(tl([r[0] * ux, r[1] * uy, r[2] * uz]), Hd.yaw)), 0.9);
+    if (q && mat[q[1] * W + q[0]] === 4) sp.px(q[0], q[1], Math.abs(ux) < 0.3 ? DIVER_PAL.star[0] : A[2], true);
+  }
+  // the crystal helm's facets: lit edges where the squared faces meet
+  if (human && LK.helm === 'crystal') for (const [ux, uy] of [[0, 0.95], [-0.7, 0.55], [0.7, 0.55], [-0.95, 0], [0.95, 0], [0, -0.1]]) {
+    const uz = Math.sqrt(Math.max(0, 1 - ux * ux - uy * uy)), q = seen(kdAdd(Hd.c, kdYaw(tl([r[0] * ux * 1.02, r[1] * uy * 1.08, r[2] * uz * 1.02]), Hd.yaw)), 0.9);
+    if (q) sp.px(q[0], q[1], DIVER_PAL.starHeart[0], true);
   }
   let gl = null;
   for (let k = 0; k < W + H && !gl; k++) for (let y = Math.max(0, k - W + 2); y <= Math.min(H - 2, k); y++) {
     const x = k - y, i = y * W + x;
     if (x < W - 1 && mat[i] === 4 && mat[i + 1] === 4 && mat[i + W] === 4 && mat[i + W + 1] === 4) { gl = [x, y]; break; }
   }
-  if (gl) { sp.px(gl[0], gl[1], KP.glint); sp.px(gl[0] + 1, gl[1], '#5f8cf0'); }
-  for (let k = 0; k <= 10; k++) {
+  if (gl && human && LK.helm === 'bubble') { sp.px(gl[0], gl[1], KP.glint); sp.px(gl[0] + 1, gl[1], '#5f8cf0'); }
+  if (human && LK.helm === 'bubble') for (let k = 0; k <= 10; k++) {
     const u = k / 10, ux = -0.6 + 0.22 * u, uy = 0.34 - 0.78 * u, uz = Math.sqrt(Math.max(0, 1 - ux * ux - uy * uy));
     const q = seen(kdAdd(Hd.c, kdYaw(tl([r[0] * ux, r[1] * uy, r[2] * uz]), Hd.yaw)), 0.9);
     if (q && mat[q[1] * W + q[0]] === 4) sp.px(q[0], q[1], k < 4 ? '#3d64c0' : KP.pane[2]);
   }
-  const lampP = kdAdd(Hd.c, kdYaw(tl([0, r[1] * 0.62, r[2] * 0.85]), Hd.yaw)), lq = proj(lampP), ls = seen(lampP, 0.8);
+  const lampP = kdAdd(Hd.c, kdYaw(tl([0, r[1] * 0.62, r[2] * 0.85]), Hd.yaw)), ls = LK.lamp === 'brow' ? seen(lampP, 0.8) : null;
+  // where the light he sees by comes from: the brow lamp, the shard, or
+  // the halo's top
+  // (a form with a crystal for a head: its light comes from the crystal)
+  const headC = LK.form === 'lantern' ? kdAdd(J.spine(0.72).c, [0, 2.0, 0.3]) : LK.form === 'tall' ? kdAdd(J.head.c, [0, 1.4, 0.1]) : LK.form === 'drift' ? kdAdd(J.head.c, [0, 1.0, 0.1]) : null;
+  const lq = LK.lamp === 'shard' ? proj(kdAdd(star.p, star.n, 0.3)) : LK.lamp === 'head' && headC ? proj(kdAdd(headC, [0, 0, 1.5])) : LK.lamp === 'halo' && haloTop ? [haloTop[0] + 0.5, haloTop[1], 0] : proj(lampP);
+  // a crystal head's facets: lit edges
+  if (headC) for (const [ux, uy] of [[0, 0.95], [-0.7, 0.5], [0.7, 0.5], [0, -0.95], [-0.5, -0.5], [0.5, -0.5]]) { const rr = LK.form === 'lantern' ? [3.4, 5.0, 3.4] : LK.form === 'tall' ? [2.4, 4.2, 2.4] : [2.3, 3.6, 2.3], uz = Math.sqrt(Math.max(0, 1 - ux * ux - uy * uy)), q = seen(kdAdd(headC, kdYaw([rr[0] * ux * 1.02, rr[1] * uy * 1.02, rr[2] * uz * 1.02], J.head.yaw)), 0.9); if (q) sp.px(q[0], q[1], DIVER_PAL.starHeart[0], true); }
   if (ls) {
     const [x, y] = ls;
     sp.px(x, y, DIVER_PAL.lamp[0], true); sp.px(x + 1, y, DIVER_PAL.lamp[0], true); sp.px(x - 1, y, A[3], true); sp.px(x + 2, y, A[2], true); sp.px(x, y - 1, A[3], true);
-  } else if (fy < 0 && Math.abs(fx) > 0.3) {
+  } else if (LK.lamp === 'brow' && fy < 0 && Math.abs(fx) > 0.3) {
     // turned away, the lamp's glow just shows past the helm
     const side = seen(kdAdd(Hd.c, kdYaw([r[0] * 0.75 * (fx >= 0 ? -1 : 1), r[1] * 0.55, r[2] * 0.55], Hd.yaw)), 0.8);
     if (side) sp.px(side[0] + (fx > 0 ? 1 : -1), side[1], A[2], true);
@@ -635,7 +801,7 @@ function kdLattice(spr) {
   const w = spr.c.width, h = spr.c.height, F = KD_F, [c, x] = makeCanvas(w, h), [ec, ex] = makeCanvas(w, h);
   const src = spr.c.getContext('2d').getImageData(0, 0, w, h).data, em = spr.ec ? spr.ec.getContext('2d').getImageData(0, 0, w, h).data : null;
   const img = x.createImageData(w, h), D = img.data, eimg = ex.createImageData(w, h), E = eimg.data;
-  const top = Math.round((KINDLER_FEET - KR.neck + 1.5) * F), S = sp * F, gold = rgbOf(KP.amber[1]), bright = rgbOf(DIVER_PAL.star[0]);
+  const top = Math.round(((KD_LOOK.feet || KINDLER_FEET) - KR.neck + 1.5) * F), S = sp * F, gold = rgbOf(KP.amber[1]), bright = rgbOf(DIVER_PAL.star[0]);
   for (let j = top; j < h; j++)
     for (let i = 0; i < w; i++) {
       const q = (j * w + i) * 4;
@@ -657,7 +823,7 @@ const KD = { faces: null, mirror: null, base: new Map(), spr: new Map(), queue: 
 
 function kdMake(r) {
   const sp = r.spr.done();
-  sp.ax = (KINDLER_W / 2) * KD_F; sp.ay = KINDLER_FEET * KD_F;
+  sp.ax = (KINDLER_W / 2) * KD_F; sp.ay = (KD_LOOK.feet || KINDLER_FEET) * KD_F;
   sp.hand = r.hand; sp.offHand = r.offHand; sp.lamp = r.lamp;
   if (r.castHand) { sp.castHand = r.castHand; sp.restHand = r.restHand; sp.restBehind = r.restBehind; }
   sp.flash = tinted(sp.c, '#ffffff');

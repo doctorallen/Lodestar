@@ -51,7 +51,8 @@ async function openGame(browser, { width = 390, height = 844, mobile = true, sav
   await page.evaluate((s) => { try { localStorage.clear(); if (s) localStorage.setItem('lodestar.save.v5', JSON.stringify(s)); } catch (e) {} }, save);
   await page.goto(url);
   // the loading screen (loader.js): once it's ready, the tap that begins
-  await page.waitForFunction(() => typeof Loader !== 'undefined' && (Loader.state === 'ready' || Game.ready), { timeout: 120000, polling: 100 });
+  // (a slow runner painting a desktop-sized view in software takes a while)
+  await page.waitForFunction(() => typeof Loader !== 'undefined' && (Loader.state === 'ready' || Game.ready), { timeout: 420000, polling: 100 });
   if (!(await page.evaluate(() => Game.ready))) {
     await new Promise((r) => setTimeout(r, 100));
     if (mobile) await page.touchscreen.tap(width / 2, height / 2); else await page.mouse.click(width / 2, height / 2);
