@@ -47,7 +47,7 @@ You wake at the nearest living node. The thread you were laying is gone. And the
 
 ## Veins and nodes
 
-A **node** is a shard of the star planted in the ground: a standing crystal the star's colour, small when set and growing with the light's age. It is **living** if a chain of living veins joins it to the star, and **dark** if not.
+A **node** is a shard of the star planted in the ground: the lodestar small, a crystal the star's colour hanging over the spot, dim and bare when dark. It is **living** if a chain of living veins joins it to the star, and **dark** if not.
 
 **Laying a vein.** At the star or any living node, hold TAKE UP (1 s) and the thread is in your hand: a line of the star's light from the node to you. Walk. The thread pays out behind you along the path you walk, pressed into the ground as a seam of the star's gold where your feet went, lit as it's laid (a shade under a vein that's set, with a small light every couple of tiles): it is in the world, not drawn over it, and when the node sets the seam brightens along its whole length.
 
@@ -57,7 +57,7 @@ While threading:
 - the dark is drawn to the thread: every 30 s of threading a wave wakes along it behind you, so a long thread is a long fight;
 - a fall loses the thread.
 
-**Planting.** Where you stand, on open ground 6 tiles or more from any node: hold PLANT (1 s) and a shard of the star takes root in the ground, and **the hold** begins: 18 s near the star, to 30 s at the far reaches, never longer. Over the hold the node rises out of the ground where the thread ends, a small star of its own, the middle crystal first and the others round it, the thread's light running into it a mote at a time. The node has its own light, which is its health; the dark comes in waves for it and for you, and a creature within reach of the node bites it. If the node's light goes out the shard shatters, the thread snaps back to its start, and nothing is lit; take up again. If it stands when the hold ends it **sets**: its light comes up along the whole thread over three seconds, from the thread's glow to a vein's, the node's with it, the land along it begins to turn, your bar fills, the core gains a piece, and Wick says a word.
+**Planting.** Where you stand, on open ground 6 tiles or more from any node: hold PLANT (1 s) and a shard of the star takes root in the ground, and **the hold** begins: 18 s near the star, to 30 s at the far reaches, never longer. Over the hold the node forms in the air where the thread ends, a lodestar small: one faceted crystal of the star growing from a point to its height, hanging over its shadow in a halo of its own, the thread's light running into it a mote at a time. The node has its own light, which is its health; the dark comes in waves for it and for you, and a creature within reach of the node bites it. If the node's light goes out the shard shatters, the thread snaps back to its start, and nothing is lit; take up again. If it stands when the hold ends it **sets**: its light comes up along the whole thread over three seconds, from the thread's glow to a vein's, the node's with it, the land along it begins to turn, your bar fills, the core gains a piece, and Wick says a word.
 
 **Joining.** A thread walked to an existing node, dark or living, joins it: to a dark one with a shorter hold (12 s), to a living one at once. So the map can be made a web, not just a tree. A node joined two ways survives one cut.
 

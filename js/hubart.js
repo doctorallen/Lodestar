@@ -523,6 +523,41 @@ function hartHalo(k, frame) {
     return hartDone(s, c, c);
   });
 }
+// A node (veins.js): the lodestar small, a faceted crystal of the star
+// hanging over its ground point (the anchor), its halo apart
+// (hartNodeHalo). grow (0..1): how far it has formed, from a point at its
+// middle (mid) to its height. Dark: the stone dim, nothing glowing.
+function hartNodeStar(lit, grow = 1) {
+  const g = Math.max(1, Math.round(clamp(grow, 0, 1) * 16)) / 16;
+  return hartKeep('nodestar' + (lit ? 'L' : 'D') + '/' + g, () => {
+    const h = 30, w = Math.round(h * 0.6), W = 32, H = 50, FY = 48, MY = 20, s = new PntSpr(W, H, 960), cx = W >> 1, St = HART.star;
+    const hh = Math.max(2, Math.round(h * g)), ww = Math.max(1.5, (w / 2) * (0.25 + 0.75 * g)), y0 = MY - Math.round(hh * 0.56);
+    hartCrystal(s, cx, y0, 0, y0 + hh, ww, 0.56);
+    // facets within the faces, a few strokes lighter and darker, and its hot heart
+    for (let n = 0; n < hh; n++) {
+      const y = y0 + 2 + Math.floor(artHash(n, 1, 965) * Math.max(1, hh - 4)), x = cx - ww + Math.floor(artHash(n, 2, 965) * ww * 2), len = 2 + Math.floor(artHash(n, 3, 965) * 3);
+      const base = s.get(x, y);
+      if (!base) continue;
+      const i = St.indexOf(base), j = clamp(i + (artHash(n, 4, 965) < 0.5 ? 1 : -1), 1, 6);
+      for (let q = 0; q < len; q++) if (s.get(x + q, y)) s.px(x + q, y, St[j], true);
+    }
+    if (g > 0.5) for (let n = 0; n < 4; n++) s.px(cx - 1 - Math.round(artHash(n, 7, 966) * 3), y0 + Math.round(hh * (0.3 + artHash(n, 8, 966) * 0.25)), St[6], true);
+    if (!lit) for (let i = 0; i < s.c.length; i++) if (s.c[i]) { s.c[i] = mix(s.c[i], '#2a241e', 0.72); s.g[i] = 0; }
+    return hartDone(s, cx, FY, { mid: { x: cx, y: MY } });
+  });
+}
+// Its halo: a few loose pixels of amber round the middle, two frames.
+function hartNodeHalo(frame) {
+  return hartKeep('nodehalo' + frame, () => {
+    const R = 19, W = R * 2 + 4, s = new PntSpr(W, W, 970 + frame), c = W >> 1, cols = ['#5a3c18', '#8a6430', '#b88a44'];
+    for (let n = 0; n < 150; n++) {
+      const a = artHash(n, 1, 971 + frame) * Math.PI * 2, r = R * (0.4 + 0.6 * artHash(n, 2, 971 + frame) ** 1.4);
+      if (artHash(n, 3, 971 + frame) > 0.7 * (1 - (r / R - 0.4) / 0.6)) continue;
+      s.px(Math.round(c + Math.cos(a) * r * 0.75), Math.round(c + Math.sin(a) * r), cols[r < R * 0.55 ? 2 : r < R * 0.75 ? 1 : 0]);
+    }
+    return hartDone(s, c, c);
+  });
+}
 // ---------------------------------------------------------------------------
 // The Meridian uplink: a lattice mast of dark steel on a slab, a dish turned
 // to the sky, a console at its foot with a screen; the tip's lamp is drawn

@@ -574,7 +574,8 @@ function bakeFloorLights(f) {
   const inWin = (s) => { const x = s.x * AP, y = s.y * AP, r = s.r * AP; return x + r >= PWIN.x && x - r <= PWIN.x + PWIN.w && y + r >= PWIN.y && y - r <= PWIN.y + PWIN.h; };
   // (each stopped by the rock: shadow.js)
   bakedSightsFor(f);
-  for (const s of View.lights) if (inWin(s)) addBakedLight(f, View.bake, s);
+  // (a light whose share is still coming up is drawn each frame: veins.js)
+  for (const s of View.lights) if (inWin(s) && !(s.ramp && Game.dive && Game.dive.ramp)) addBakedLight(f, View.bake, s);
   for (const s of View.floraLights) if (inWin(s)) addBakedLight(f, View.bake, s);
 }
 

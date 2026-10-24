@@ -222,14 +222,18 @@ function pshBake(f) {
   const d = Game.dive, P = T.paint.shade, C = T.light.shadow.cast, W = PWIN.w, Hp = PWIN.h;
   if (!d || d.floor !== f) return null;
   const A = new Uint8Array(W * Hp), U = View.ug, sky = !!artBiome(f).sun;
-  // the sun's strength (daylight in kindled land, a dusk in the dark)
-  const sun = sky ? clamp(sunOf(d), 0, 1) : 0, G = T.paint.ground, szx = G.sunDir[0] / G.sunSlope, szy = G.sunDir[1] / G.sunSlope;
+  // the sun's strength where each caster stands (daylight in kindled land,
+  // a dusk in the dark: the veins' grid as it is, veins.js), so the shade
+  // is the same however he comes to it
+  const sunAt = sky ? (x, y) => clamp(lerp(T.world.sun.dark, T.world.sun.kindled, d.litG ? clamp(1 - veinDistRaw(d, x / AP, y / AP) / T.star.lightFade, 0, 1) : starLight(d, x / AP, y / AP)), 0, 1) : () => 0;
+  const sun = sky ? 1 : 0, G = T.paint.ground, szx = G.sunDir[0] / G.sunSlope, szy = G.sunDir[1] / G.sunSlope;
   const lv = lampLevels(d), amb = lv.amb * (lv.tint[0] + lv.tint[1] + lv.tint[2]) / 3;
   // the fixed lights that cast (lava, vents, glowing plants), in floor px
   const lights = [];
   if (!d.hub) for (const s of (View.lights || []).concat(View.floraLights || [])) if (!s.inRock && s.i > 0) lights.push({ x: s.x * AP, y: s.y * AP, h: C.fixedH, lx: s.x * AP, ly: s.y * AP, r: s.r * AP, i: s.i });
   const cast = (S, ax, ay, fx, fy, h) => {
-    if (sun > 0) pshBakeCast(A, f, S, ax, ay, fx, fy, 1, 0, szx, szy, 0, P.sun * sun, null);
+    const su = sunAt(fx, fy);
+    if (su > 0) pshBakeCast(A, f, S, ax, ay, fx, fy, 1, 0, szx, szy, 0, P.sun * su, null);
     // the strongest fixed light that sees its foot
     let best = null, bs = C.fixedMin;
     for (const L of lights) {
@@ -256,7 +260,8 @@ function pshBake(f) {
       if (S.foot < 0) continue;
       const fy = it.by0 + S.foot;
       pshBakeContact(A, f, it.bx0 + (S.l + S.r + 1) / 2, fy + 0.5, (S.r - S.l + 1) / 2 + P.coverPad, P.coverRy + 0.5, P.cover);
-      if (sun > 0) pshBakeCast(A, f, S, 0, S.foot, it.bx0, fy + 0.5, 1, 0, szx, szy, 0, P.sun * sun * P.stand, null);
+      const su = sunAt(it.bx0 + (S.l + S.r + 1) / 2, fy);
+      if (su > 0) pshBakeCast(A, f, S, 0, S.foot, it.bx0, fy + 0.5, 1, 0, szx, szy, 0, P.sun * su * P.stand, null);
       continue;
     }
     const spr = floraSprite(it.set, it.piece, 0), S = pshSil(spr), fx = Math.round(it.x * AP), fy = Math.round(it.y * AP), sx = Math.round(fx - spr.w / 2);
@@ -285,7 +290,8 @@ function pshBake(f) {
     for (const s of still) {
       const spr = s.spr, S = pshSil(spr), hw = (S.r - S.l + 1) / 2, cx = s.x - spr.ax + (S.l + S.r + 1) / 2;
       pshBakeContact(A, f, cx + P.contactAt[0], s.y + 0.5 + P.contactAt[1], hw + P.contactPad[2], Math.min(P.contactRy[1], P.contactRy[0] + hw * 0.15), P.contact[2]);
-      if (sun > 0 && !s.flat) pshBakeCast(A, f, S, spr.ax, spr.ay, s.x, s.y + 0.5, 1, 0, szx, szy, 0, P.sun * sun, null);
+      const su = sunAt(s.x, s.y);
+      if (su > 0 && !s.flat) pshBakeCast(A, f, S, spr.ax, spr.ay, s.x, s.y + 0.5, 1, 0, szx, szy, 0, P.sun * su, null);
       const sa = s.cradle ? null : pshAxes(SL.x, SL.y, SL.h, s.x, s.y + 0.5, SC.k);
       // (as dark as the star's share of the light at its foot: worked out
       // once a thing, not a pixel)
