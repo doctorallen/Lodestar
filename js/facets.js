@@ -214,6 +214,13 @@ function facetsApply() {
 }
 // The cutter's power now (what tier of ore it breaks).
 function cutPower() { return facetTier(); }
+// The Splinter: how much of the lattice is there (0-1), by your light. At
+// home and in kindled land all of it; in the dark it thins with the light
+// meter, to T.splinter.floor with the light gone. Armour is light.
+function latticeK(d) {
+  if (!d || d.hub) return 1;
+  return lerp(T.splinter.floor, 1, clamp(d.pull, 0, 1));
+}
 
 // --- the senses and Wick -------------------------------------------------------
 // The tools are the star's senses, each opened by a band's depth

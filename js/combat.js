@@ -88,7 +88,9 @@ function shakeView(n) { View.shake = Math.max(View.shake || 0, n); }
 function hurtPlayer(dmg, from) {
   const d = Game.dive, p = d.p, st = d.stats;
   if (p.invuln > 0 || d.dying) return;
-  const armor = st.armor + (st.litArmor && restingLight(d) ? st.litArmor : 0);
+  // (the lattice is the armour, and it's only as hard as the light in it:
+  // facets.js latticeK)
+  const armor = st.armor * latticeK(d) + (st.litArmor && restingLight(d) ? st.litArmor : 0);
   dmg *= T.items.armorK / (T.items.armorK + armor);
   if (p.ward > 0) {
     // what strikes a ward is struck back, with its element

@@ -411,6 +411,9 @@ async function phone(browser) {
   await page.evaluate((id) => UI.acts.setOutWalk(String(id)), await page.evaluate(ring1, null));
   const pulled = await page.evaluate(() => { sturdy(); const d = Game.dive; d.pull = 0.001; for (let i = 0; i < 30; i++) Game.step(1 / 60); return [d.pull, d.enemies.some((e) => e.type === 'hollow' && !e.dead), /out/.test($('toasts').textContent)]; });
   check(pulled[0] === 0 && pulled[1] && pulled[2], `phone: your light running out did not bring the Hollow (${pulled})`);
+  // the Splinter: armour is light; the lattice thins to its floor with the light gone
+  const splint = await page.evaluate(() => { const d = Game.dive, k0 = latticeK(d); d.pull = 1; const k1 = latticeK(d); d.pull = 0; return [k0, k1, T.splinter.floor, !!(Save.data.said || {}).latticeThin]; });
+  check(Math.abs(splint[0] - splint[2]) < 1e-6 && splint[1] === 1 && splint[3], `phone: the lattice did not thin with the light (${splint})`);
   await run(page, 0.3);
   await shot(page, 'smoke-hollow');
   // an emergency recall brings all of it home
@@ -558,7 +561,9 @@ async function phone(browser) {
     // bank there, and TRAVEL is offered
     d.p.x = (d.floor.pad.x + 0.5) * TILE; d.p.y = (d.floor.pad.y + 0.5) * TILE; d.cargo.ferrite = 3; Game.step(1 / 60); UI.frame && UI.frame();
     out.bankBtn = $('btn-act').textContent; out.travel = !$('btn-act2').hidden;
-    startChannel('extract'); for (let i = 0; i < 60 * 6; i++) Game.step(1 / 60);
+    // (the dark keeps coming in the Lattice, and a hit breaks the channel: the floor is kept clear while it runs)
+    for (const e of d.enemies) e.dead = true; d.shots = []; Game.hitstop = 0;
+    startChannel('extract'); for (let i = 0; i < 60 * 6; i++) { Game.step(1 / 60); for (const e of d.enemies) e.dead = true; if (i > 0 && !d.channel) break; }
     out.banked = !d.cargo.ferrite && (Save.data.stash.ferrite || 0) >= 3;
     // a fall wakes at the relit spire
     d.p.invuln = 0; hurtPlayer(1e9, null); for (let i = 0; i < 60 * 4; i++) Game.step(1 / 60);

@@ -77,7 +77,7 @@ function starTurnHtml() {
   const st = Save.data.equip, armor = st.armor ? st.armor.base.armor : 0;
   return `
     <div class="mag">THE SPLINTER · MAGNITUDE ${mag}</div>
-    <p class="note center">Everything faced casts as the star does: at magnitude ${tier}. Cuts ore to tier ${cutPower()}. Armour ${armor}.</p>
+    <p class="note center">Everything faced casts as the star does: at magnitude ${tier}. Cuts ore to tier ${cutPower()}. The lattice is armour ${armor} in the light, and thins with your light to ${Math.round(armor * T.splinter.floor)} in the dark.</p>
     ${F.casts.map(castHtml).join('')}
     ${spare}${unknown}
     <h3>WICK · FACETS LENT</h3><div class="wick-list">${wick}</div>

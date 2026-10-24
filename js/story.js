@@ -132,6 +132,8 @@ const WICK = {
   firstMod: "It learned a Turn. Face it beside a Shape and the cast changes. Nothing to carry.",
   firstLegend: "Old light. Another star's. Face it and its power is yours, as long as it faces you.",
   firstTurn: 'Face it the other way and it is a different suit. Nothing to carry home.',
+  // the Splinter's lattice thinning in the dark (facets.js latticeK)
+  latticeThin: "You're going dim. The suit's only as hard as the light in it.",
   // ore given to the star (spectrum.js): the first time, a land it hasn't
   // tasted, and every band at the Meridian's mark
   // coming home with ore for the first time: what it's for

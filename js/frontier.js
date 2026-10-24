@@ -149,7 +149,7 @@ function enterTerritory(id, how = {}) {
   UI.toast(`${t.name} · ring ${t.ring} · ${terrStateWord(id)}`);
   // the story's first times (story.js; a key it doesn't know says nothing)
   Story.say([null, null, 'ring2', 'ring3', 'theEdge'][t.ring]);
-  if (!d.kindled) UI.tip('darkLand', 'Dark land: your light runs down here');
+  if (!d.kindled) UI.tip('darkLand', 'Dark land: your light runs down here, and the lattice with it');
   const blk = d.kindled ? null : spireBlock(id);
   if (blk) UI.toast(blk.why === 'reach' ? `The star's light can't hold a spire here yet: magnitude ${blk.mag}` : `This land is dark to the star: it hasn't tasted ${stuffName(blk.ore)}`);
   else if (f.pad) { UI.tip('spire', 'A spire: BANK here, or TRAVEL'); Story.say('firstSpire'); }

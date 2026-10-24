@@ -620,6 +620,38 @@ function kdRender(face, key) {
   return out;
 }
 
+// ---- the Splinter's lattice --------------------------------------------------
+// The suit is a lattice of hard light projected from the splinter at the
+// sternum (facets.js): over a frame's body (below the neck; not the glass,
+// not what already glows), a diamond lattice of the circuits' gold with a
+// brighter node where its lines cross, closer as the star grows
+// (T.splinter.lines). Built from the finished frame, once a spacing, and
+// drawn over him as faint as his light (render.js drawProspector).
+const KD_LAT = new Map();
+function kdLatticeSpacing() { const L = T.splinter.lines; return Math.max(L[1], L[0] - (magnitudeOf(Save.data.star) - 1)); }
+function kdLattice(spr) {
+  const sp = kdLatticeSpacing(), had = KD_LAT.get(spr);
+  if (had && had.sp === sp) return had.lat;
+  const w = spr.c.width, h = spr.c.height, F = KD_F, [c, x] = makeCanvas(w, h), [ec, ex] = makeCanvas(w, h);
+  const src = spr.c.getContext('2d').getImageData(0, 0, w, h).data, em = spr.ec ? spr.ec.getContext('2d').getImageData(0, 0, w, h).data : null;
+  const img = x.createImageData(w, h), D = img.data, eimg = ex.createImageData(w, h), E = eimg.data;
+  const top = Math.round((KINDLER_FEET - KR.neck + 1.5) * F), S = sp * F, gold = rgbOf(KP.amber[1]), bright = rgbOf(DIVER_PAL.star[0]);
+  for (let j = top; j < h; j++)
+    for (let i = 0; i < w; i++) {
+      const q = (j * w + i) * 4;
+      if (src[q + 3] === 0 || (em && em[q + 3] > 0)) continue;
+      const a = (i + 2 * j) % S, b = (i - 2 * j + 8192) % S;
+      if (a >= F && b >= F) continue;
+      const node = a < F && b < F, col = node ? bright : gold;
+      D[q] = col[0]; D[q + 1] = col[1]; D[q + 2] = col[2]; D[q + 3] = 255;
+      E[q] = col[0]; E[q + 1] = col[1]; E[q + 2] = col[2]; E[q + 3] = node ? 220 : 90;
+    }
+  x.putImageData(img, 0, 0); ex.putImageData(eimg, 0, 0);
+  const lat = { c, ec, ax: spr.ax, ay: spr.ay, w, h };
+  KD_LAT.set(spr, { sp, lat });
+  return lat;
+}
+
 // ---- the frames, cached ------------------------------------------------------
 const KD = { faces: null, mirror: null, base: new Map(), spr: new Map(), queue: [], built: 0 };
 

@@ -1276,7 +1276,14 @@ function drawProspector(d, ox, oy, tick, lights) {
   const behind = (slot) => (cast ? slot !== cast.slot && spr.restBehind : away || (side && slot === 'off'));
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => behind(slot), face);
   // blink while hurt; fall still while dying
-  if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) drawArtSprite(livePaint(spr), sx, sy);
+  if (!(p.invuln > 0 && p.dashT <= 0 && tick % 2) && !(d.dying > 0 && tick % 3 === 0)) {
+    drawArtSprite(livePaint(spr), sx, sy);
+    // the Splinter's lattice over him, as faint as his light (diver.js)
+    const lk = latticeK(d);
+    if (lk > 0.02) { View.ctx.globalAlpha = View.emCtx.globalAlpha = lk * T.splinter.alpha; drawArtSprite(kdLattice(spr), sx, sy); View.ctx.globalAlpha = View.emCtx.globalAlpha = 1; }
+    // and the splinter itself, a light at the chest
+    if (!d.hub) lights.push({ x: fx, y: fy - ap(22), r: TILE * (0.5 + 0.6 * lk), i: 0.35 * lk, c: rgb01(DIVER_PAL.star[0]) });
+  }
   drawHeld(d, spr, sx, sy, tick, lights, (slot) => !behind(slot), face);
   if (p.ward > 0) cfxDrawWard(p, fx, fy, lights);
   // a charging wrist gathers light, and flashes when it's full (its circle

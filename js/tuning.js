@@ -995,6 +995,15 @@ const T = {
   // Facets (facets.js): extraAt, the magnitude at which each of a cast's
   // two extra facets opens (a Turn or a Reading beside its Shape and Band).
   facets: { extraAt: [2, 4] },
+  // The Splinter (facets.js latticeK, diver.js kdLattice): the suit is a
+  // lattice of hard light projected from a shard of the star at the
+  // sternum, and armour is light: the lattice (the plate's armour) holds
+  // `floor` of itself with your light gone, all of itself in the light.
+  // lines: the lattice's spacing (px of the figure) at magnitude 1, and the
+  // least it closes to as the star grows a line a magnitude; alpha, how
+  // strongly it's drawn at full light. thinAt: the light at which Wick
+  // first says it's thinning.
+  splinter: { floor: 0.35, lines: [10, 6], alpha: 0.7, thinAt: 0.6 },
   // Kindled land terraforming by the light (terraform.js): the starstone
   // spreading from a territory's spire, reach [tiles at magnitude 1, more
   // each magnitude], its shape as the outpost's ground's (T.outpost.ground),

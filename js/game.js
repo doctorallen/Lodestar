@@ -314,6 +314,8 @@ function updatePull(dt) {
   else if (H && heat >= H.said[0] && !d.heatSaid) { d.heatSaid = true; Story.say('heat1'); }
   if (d.pull <= P.dimAt && (d.waveT -= dt) <= 0) { const r = Math.min(d.biome || 0, P.wave.length - 1); d.waveT = P.waveEvery[r] * (1 - (H ? H.quicker : 0) * heat); stirTheDark(d, P.wave[r] + Math.round((H ? H.wave : 0) * heat)); }
   if (d.pull <= 0) theDarkComes(d);
+  // the lattice thinning with the light, said once (facets.js latticeK)
+  if (!d.hub && !d.kindled && d.pull < T.splinter.thinAt) Story.say('latticeThin');
 }
 
 // Your light is out: a Deep's lodeline goes dark, and the Hollow comes.
