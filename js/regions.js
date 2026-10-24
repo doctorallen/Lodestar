@@ -201,6 +201,7 @@ function ugAll(f) {
 // time he walks into it.
 function regionsStep(d) {
   const f = d.floor;
+  mapSeeShafts(d);
   if (!f.regions) return;
   const k = regionHere(d);
   d.clime = f.regions[k].clime;

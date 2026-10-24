@@ -544,8 +544,11 @@ h3 .dim { color: var(--dim); font-weight: normal; }
 
 /* the world map (worldmap.js): whole device pixels to a map pixel */
 .map-wrap { width: 100%; max-width: 420px; display: flex; justify-content: center; flex: none; }
-.world-map { display: block; image-rendering: pixelated; image-rendering: crisp-edges; border: 1px solid #0c0a14; touch-action: manipulation; }
+.world-map { display: block; image-rendering: pixelated; image-rendering: crisp-edges; border: 1px solid #0c0a14; touch-action: none; user-select: none; -webkit-user-select: none; }
 .map-card { margin-top: 8px; }
+.map-card .mini { margin-left: 6px; }
+.mini.primary { background: var(--gold); border-color: var(--gold); color: #111; }
+.mini:disabled { opacity: 0.35; }
 .map-layers { margin-top: 8px; justify-content: center; }
 .tcard { background: #0f0d17; border: 2px solid #2c2840; padding: 10px 12px; }
 .tcard .nm { color: var(--gold); font-size: 15px; letter-spacing: 0.08em; }

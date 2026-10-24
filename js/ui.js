@@ -20,7 +20,6 @@ const UI = {
     $('btn-pause').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.openPause(); });
     $('btn-map').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.show('screen-map'); });
     $('btn-map').classList.toggle('hot', false);
-    $('map-cv').addEventListener('pointerdown', (e) => { e.preventDefault(); mapTap(e); });
     $('build').textContent = BUILD_INFO;
   },
 
@@ -243,6 +242,10 @@ UI.acts = {
   // the star's screen: a shape read, a spell carried (shapes.js)
   shapePick: (arg) => { const [kind, w] = arg.split(':'); if (shapePick(kind, w)) UI.redraw(); },
   carrySet: (arg) => { const [slot, id] = arg.split(':'); carrySet(slot, id); UI.redraw(); },
+  // the map: a layer, the picked node stood at, the card put away (map.js)
+  mapLayer: (l) => mapLayerSet(l),
+  mapGo: () => mapGo(),
+  mapCancel: () => { MapView.sel = -1; mapDrawCanvas(); mapBody(); },
 
   // the pause screen's sound settings: on, soft, off, round again
   soundSet: (kind) => {
