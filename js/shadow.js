@@ -370,7 +370,7 @@ function bakedSightsFor(f) {
 function addBakedLight(f, L, s) {
   const x = s.x * AP, y = s.y * AP, r = s.r * AP, cx = Math.floor(x / LC), cy = Math.floor(y / LC), R = View.rockPx, WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX;
   const px = cx * LC + (LC >> 1), py = cy * LC + (LC >> 1);
-  if (!T.light.shadow.baked || s.inRock || px < WX || py < WY || px >= X1 || py >= Y1 || R[py * W + px + OFF]) { addLight(L, x, y, r, s.i, s.c); return; }
+  if (!T.light.shadow.baked || s.inRock || s.plain || px < WX || py < WY || px >= X1 || py >= Y1 || R[py * W + px + OFF]) { addLight(L, x, y, r, s.i, s.c); return; }
   const key = cx + ',' + cy + ',' + Math.ceil(r), M = _bakedSights.map;
   let e = M.get(key);
   if (!e) {

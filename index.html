@@ -17,8 +17,10 @@
   <header id="topbar">
     <div class="bars">
       <div id="hud-hp" class="bar hp" title="Your light, which is your health"><div id="hp-fill" class="fill"></div><span id="hp-text" class="bar-text"></span></div>
+      <div id="hud-thread" class="bar thread" title="The thread left in your hand" hidden><div id="thread-fill" class="fill"></div></div>
     </div>
     <span id="hud-depth" class="hud-depth"></span>
+    <button id="btn-map" class="icon-btn map" aria-label="The map">MAP</button>
     <button id="btn-pause" class="icon-btn" aria-label="Pause">II</button>
   </header>
 
@@ -48,6 +50,12 @@
     <p id="story-text" class="story-text"></p>
     <div class="menu"><button class="btn primary" data-act="storyNext">CONTINUE</button></div>
     <p id="story-step" class="note center"></p>
+  </section>
+
+  <section id="screen-map" class="screen panel" hidden>
+    <header class="screen-head"><div class="head-in"><h2>THE MAP</h2><button class="head-close" data-act="back" aria-label="Close">✕</button></div></header>
+    <div class="map-wrap" id="map-wrap"><canvas id="map-cv" class="world-map" aria-label="The world: the star in the middle, the veins of its light, the nodes"></canvas></div>
+    <div id="map-body" class="list"></div>
   </section>
 
   <section id="screen-pause" class="screen" hidden>
@@ -158,10 +166,12 @@
 <script src="js/resonance.js"></script>
 <script src="js/hubart.js"></script>
 <script src="js/star.js"></script>
+<script src="js/veins.js"></script>
 <script src="js/terraform.js"></script>
 <script src="js/story.js"></script>
 <script src="js/input.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/map.js"></script>
 <script src="js/wick.js"></script>
 <script src="js/intro.js"></script>
 <script src="js/main.js"></script>

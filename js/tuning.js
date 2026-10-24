@@ -943,6 +943,25 @@ const T = {
   // The world's one map (game.js generateWorld): the generator's depth and
   // clime, and overrides of its numbers.
   worldgen: { depth: 1, clime: null, over: { w: 320, h: 320, rooms: [230, 270] } },
+  // The Veins (veins.js). band: the light either side of a living vein and
+  // round a node (tiles), by magnitude; thread: how far a thread reaches
+  // (tiles), by magnitude; threadSpeed: the step with it in hand; wave: s
+  // of threading between the dark waking along it, waveN each; step: px
+  // between the thread's points; reach: how near a node to take up (tiles),
+  // joinReach to join one, nodeGap the least between nodes; hold: the
+  // hold's seconds [by the star, at the far reaches], join a dark node's;
+  // nodeLight: a held node's own light, bitten `bite` of a creature's
+  // damage a second within biteReach px of it; holdWave: s between the
+  // dark's waves at a hold; light: the baked light along a vein (every so
+  // many tiles) and at a node.
+  veins: {
+    band: [5, 5, 6, 6, 7, 8, 8], thread: [60, 80, 100, 120, 140, 170, 200], threadSpeed: 0.85, wave: 30, waveN: 1, step: 6,
+    reach: 2.2, joinReach: 1.6, nodeGap: 6, hold: [45, 90], join: 20, nodeLight: 100, bite: 0.4, biteReach: 14, holdWave: 12,
+    light: { every: 2, vein: 0.45, node: 0.9 },
+  },
+  // Magnitude (veins.js): the thresholds of the world's living light (vein
+  // tiles, plus nodeWorth a living node), and what a cast hits at each.
+  magnitude: { at: [0, 150, 400, 800, 1400, 2200, 3200], power: [1, 1.25, 1.5, 1.8, 2.1, 2.5, 3], nodeWorth: 20 },
   // Deeds (deeds.js): the light each gives the star. heart: heartlight for
   // kindling a territory, by ring; bound to the Kindler the moment the spire
   // stands, safe from any fall. deepEnd: deeplight for first reaching a
@@ -1046,7 +1065,7 @@ const T = {
   // flora: how much thicker what grows there grows; sparks: sparks of light
   // a second rising off the stone.
   terraform: {
-    reach: [1.8, 0.55], squash: 0.82, stoneMix: 0.6, wander: 1.2, wobble: [60, 22], tendril: [2.8, 0.9, 34], vein: [30, 13, 11, 6], veinCut: [0.965, 0.975], front: 0.09, glint: [0.35, 0.5],
+    stoneW: 2.5, bloomOut: 3, stoneMix: 0.6, wander: 1.2, wobble: [60, 22], tendril: [2.8, 0.9, 34], vein: [30, 13, 11, 6], veinCut: [0.965, 0.975], front: 0.09, glint: [0.35, 0.5],
     bloom: 3.2, bloomK: 0.6, bloomPow: 1.3, greenMix: 0.42, green: '#5c8a3c', gold: '#f0c050', veinOut: 0.9, mote: 0.012, flora: 1.4, sparks: 3,
   },
   // By an ancient forge, the chance a legendary core lies, left by whoever

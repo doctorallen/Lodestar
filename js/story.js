@@ -136,7 +136,7 @@ const WICK = {
   latticeThin: "You're going dim. The suit's only as hard as the light in it.",
   // ore in the field (field.js): the first pocket planted, the first surge,
   // a spire short of its ore
-  firstPlant: "A pocket of the star's light, out of the land's own ore. It won't last. Nothing out here does.",
+  firstPlant: "Stand by it. The dark wants it more than it wants you.",
   firstSurge: 'Burning the ore in the cast. Wasteful. Effective.',
   spireOre: "A spire is raised from the ground it stands on. Mine some of this land first.",
   // night-glass, first carried (spectrum.js): the thing the spec never
@@ -163,6 +163,11 @@ const WICK = {
   // the world's (see the list at the top)
   firstSpire: "Our first spire. Kindlers don't conquer. We just carry the light further.",
   firstKindled: "Kindled. The ground's warming already. Funny how quiet it went.",
+  // the veins (veins.js)
+  firstThread: "That's the star's own light in your hand. Walk it out. Don't run: it doesn't like being pulled.",
+  firstSet: 'It took. The ground will turn along it, give it a few nights.',
+  firstJoin: 'Two ways to a place. Now the dark has to cut twice.',
+  holdLost: "It didn't hold. Take up another, and plant it nearer next time.",
   firstTide: "The dark's coming back in, like a tide. Hold the spire and it'll go out again. It always has.",
   firstDeep: "A Deep. Down here the star can't see us at all. Quick in, quicker out.",
   // the Lattice (lattice.js): the cleft seen, the first gallery, a cold

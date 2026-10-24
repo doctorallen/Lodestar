@@ -18,6 +18,8 @@ const UI = {
   init() {
     for (const s of document.querySelectorAll('.screen')) s.addEventListener('click', (e) => UI.onTap(e));
     $('btn-pause').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.openPause(); });
+    $('btn-map').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.show('screen-map'); });
+    $('map-cv').addEventListener('pointerdown', (e) => { e.preventDefault(); mapTap(e); });
     $('build').textContent = BUILD_INFO;
   },
 
@@ -60,7 +62,7 @@ const UI = {
   },
 
   redraw() {
-    const r = { 'screen-story': drawStory, 'screen-lab': drawLab }[UI.screen];
+    const r = { 'screen-story': drawStory, 'screen-lab': drawLab, 'screen-map': drawMap }[UI.screen];
     if (r) r();
     UI.placeToasts();
   },
@@ -171,7 +173,11 @@ const UI = {
     $('hud-hp').classList.toggle('hurt', p.hurtT > 0);
     $('hud-hp').classList.toggle('fading', hp < T.pull.dimAt);
     $('hud-hp').classList.toggle('lit', restingLight(d));
-    setTextIfChanged('hud-depth', restingLight(d) ? 'IN THE LIGHT' : 'THE DARK');
+    setTextIfChanged('hud-depth', d.hold ? `HOLD · ${Math.ceil(d.hold.max - d.hold.t)} s · NODE ${Math.max(0, Math.round((d.hold.light / T.veins.nodeLight) * 100))}%` : d.thread ? 'THE THREAD' : restingLight(d) ? 'IN THE LIGHT' : 'THE DARK');
+    // the thread's length left, a thin line under the bar
+    const th = $('hud-thread');
+    if (th.hidden !== !d.thread) th.hidden = !d.thread;
+    if (d.thread) { const v = Math.round(Math.max(0, 1 - d.thread.len / d.thread.max) * 100) + '%'; if ($('thread-fill').style.width !== v) $('thread-fill').style.width = v; }
     const rig = Save.data.equip.main;
     // the foe the spells would reach: each button says whether it fears or
     // shrugs off that spell's element (natures.js)
@@ -194,7 +200,7 @@ const UI = {
     if ($('btn-off').hidden) $('btn-off').hidden = false;
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
-    setTextIfChanged('btn-act', a ? String(a).toUpperCase() : '');
+    setTextIfChanged('btn-act', a ? ({ 'take up': 'TAKE UP THE THREAD', plant: 'PLANT', join: 'JOIN', mend: 'MEND' })[a] || String(a).toUpperCase() : '');
     if (btn.hidden !== !a) btn.hidden = !a;
     if (d.channel) { setTextIfChanged('hud-depth', `${d.channel.kind.toUpperCase()}…`); btn.classList.add('hold'); const v = Math.round((d.channel.t / d.channel.max) * 100) + '%'; if (btn.style.getPropertyValue('--fill') !== v) btn.style.setProperty('--fill', v); }
     else btn.classList.remove('hold');

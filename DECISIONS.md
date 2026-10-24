@@ -965,3 +965,12 @@ The world is one floor 320 tiles square (`T.worldgen`), the generator run large 
 - **A move copies the overlap and clears the rest**, then the exposed strip is painted lazily like any unpainted chunk; the light bake, the sights and the GPU's textures are taken again. The window steps in multiples of the heights' chunk (96 px) so the chunk grids stay aligned.
 - **Far creatures rest.** An unaware creature more than 40 tiles off isn't stepped, and the frame leaves out those off the view; a large world holds a few hundred.
 - **The stands' atlas is paged** at 2048 px, the first thing a large world broke on the GPU.
+
+## 2026-10-24: the Veins, step two: the thread, the nodes, the map
+
+- **The graph is the save.** Nodes and veins (each vein the thread's own line, thinned) in world px; everything else (who lives, the magnitude, the light grid) is worked out from it on entering the world and whenever it changes, so nothing can disagree with it.
+- **The light is a grid.** For every tile, how far it lies past the edge of the nearest living light; the bar, the daylight, the enemies' spawning, the map and the land's turning all read the one grid. Stamped in discs along each vein, cheap to rebuild.
+- **The hold is the node's fight, not a channel.** The Kindler may move; the node's own light is what the dark bites, and what fails. Moving or being hit never breaks it. The hold's waves come every 12 s, and the hold is longer further from the star.
+- **The thread is the seed.** One at a time; it snaps on a fall, when its length runs out, or when a hold fails; no inventory. A pair of nodes is joined once: a loop needs a third.
+- **A node set mends a piece of the core**, so a trip that goes right pays back a fall.
+- **Spells hit at the magnitude** (T.magnitude.power), the first thing the star gives back.

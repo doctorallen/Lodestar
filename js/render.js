@@ -247,7 +247,7 @@ function paintFloorSteps(f) {
   // the view comes near them (paint.js, pntFrame)
   steps.push(() => {
     pntFloorStart(f);
-    View.lights = floorLights(f);
+    View.lights = floorLights(f).concat(Game.dive && Game.dive.floor === f ? veinLights(Game.dive) : []);
     View.floraLights = floraLights(View.flora);
     View.bakedFrom = null;
   });
@@ -955,6 +955,7 @@ function renderFrameDraw() {
   Gpu.feet = -1;
   drawHazardsUnder(d, ox, oy, tick, lights); drawFoesUnder(d, ox, oy, tick, lights);
   drawStarUnder(d, ox, oy, lights);
+  drawVeinsUnder(d, ox, oy, lights);
   drawCastGround(d, ox, oy, tick, lights);
   pnrOccludeGround(ox, oy);
   Gpu.feet = -2;
@@ -995,7 +996,7 @@ function renderFrameDraw() {
 
   // what lies on the floor, then everyone in order of their feet, then what flies
   for (const dr of d.drops) { Gpu.feet = Math.round(dr.y * AP) + oy; drawDrop(dr, ox, oy, lights); paintOcclude(Math.round(dr.x * AP) + ox - 8 * AF, Math.round(dr.y * AP) + oy - 16 * AF, 16 * AF, 18 * AF, Math.round(dr.y * AP) + oy, ox, oy); }
-  const props = lifeActors(d).concat(starProps(d));
+  const props = lifeActors(d).concat(starProps(d), veinProps(d));
   // (creatures far off the view are left out of the frame)
   const ax0 = (-ox - 80 * AF) / AP, ax1 = (-ox + View.w + 80 * AF) / AP, ay0 = (-oy - 120 * AF) / AP, ay1 = (-oy + View.h + 60 * AF) / AP;
   const actors = d.enemies.filter((e) => !e.dead && e.x > ax0 && e.x < ax1 && e.y > ay0 && e.y < ay1).concat([p], floraInView(d, ox, oy), props).sort((a, b) => a.y - b.y);
@@ -1575,7 +1576,7 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
     }
   } else if (fx.kind === 'mote') {
     // a shard set in the star, its light rising from the altar into it
-    const t = 1 - k, sx = STAR_AT.x * ATILE + ox, sy = STAR_AT.y * ATILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * AP * (1 - t);
+    const t = 1 - k, sx = fx.to ? Math.round(fx.to.x * AP) + ox : STAR_AT.x * ATILE + ox, sy = fx.to ? Math.round(fx.to.y * AP) + oy : STAR_AT.y * ATILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * AP * (1 - t);
     dot(Math.round(lerp(cx, sx, t * t) + wob), Math.round(lerp(cy, sy, t)), ART.pal.star[t > 0.8 ? 3 : 2], true);
   } else if (fx.kind === 'nova') {
     // (its ring is swept over the ground: castFxBig)

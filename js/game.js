@@ -87,8 +87,12 @@ function enterWorld(at = {}) {
   const d = (Game.dive = newWorld({ floor: f, clime: f.clime, seed: f.seed, depth: f.depth, rng: new Rng(hashInts(s.seed, 0x5eed, s.falls)) }));
   d.p.x = (f.star.x + 0.5) * TILE; d.p.y = (f.star.y + 0.5) * TILE + T.star.standOff * TILE; d.p.fy = 1;
   d.drone = null;
+  // the veins as they stand (veins.js), and where he wakes: at the living
+  // node nearest where he fell
+  veinsLoad(d);
+  if (at.near) { const n = veinsNearestLiving(d, at.near.x, at.near.y); if (n.i > 0) veinsTravel(d, n.i); }
   spawnEnemies(d);
-  // nothing hunts in the star's light
+  // nothing hunts in the light
   d.enemies = d.enemies.filter((e) => starLight(d, e.x, e.y) <= 0);
   if (typeof placeLife === 'function') placeLife(d);
   Game.scene = 'world';
@@ -127,7 +131,7 @@ function updateDive(dtReal, dt) {
     let vx = 0, vy = 0;
     if (m > 0.05) {
       // slower mid-strike, so an Arc commits
-      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.strikeT > 0 ? 0.45 : 1) * (p.frostSlow || 1);
+      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.strikeT > 0 ? 0.45 : 1) * (p.frostSlow || 1) * (d.thread ? T.veins.threadSpeed : 1);
       vx = (mv.x / m) * sp; vy = (mv.y / m) * sp;
       if (!(p.strikeT > 0)) { p.fx = mv.x / m; p.fy = mv.y / m; }
       p.walkT += dtReal;
@@ -140,6 +144,8 @@ function updateDive(dtReal, dt) {
   updateHands(dtReal);
   updateBar(dt);
   updateChannel(dtReal);
+  threadUpdate(d, dtReal);
+  holdUpdate(d, dt);
   if (Game.dive !== d) return;
   updateEnemies(dt);
   updateBolts(dt);
@@ -163,14 +169,14 @@ function startDying() {
   snd('death');
 }
 
-// What the contextual button does where the Kindler stands: nothing yet
-// (the thread, the planting and the mending come with the veins).
+// What the contextual button does where the Kindler stands: the thread
+// taken up, planted, joined or mended (veins.js).
 function actionHere() {
   const d = Game.dive;
-  if (!d || d.dying) return null;
-  return null;
+  if (!d || d.dying || !d.litG) return null;
+  return veinsAction(d);
 }
-function actHere() {}
+function actHere(a) { veinsAct(Game.dive, a); }
 
 // ---------------------------------------------------------------------------
 // One bar: your light is your health. It drains in the dark, fills in light.
@@ -295,12 +301,12 @@ function moveBody(f, b, dx, dy, r) {
 // pieces the star goes out, and the world with it.
 // ---------------------------------------------------------------------------
 function loseDive() {
-  const s = Save.data;
+  const s = Save.data, d = Game.dive, near = d ? { x: d.p.x, y: d.p.y } : null;
   s.falls++;
   s.core = Math.max(0, s.core - 1);
   Save.save();
   if (s.core <= 0) { starGoesOut(); return; }
-  enterWorld({ fell: true });
+  enterWorld({ fell: true, near });
 }
 function starGoesOut() {
   UI.openStory(STAR_OUT_LINES, () => { Save.startOver(); location.reload(); });

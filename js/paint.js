@@ -1050,6 +1050,16 @@ function pntPaintChunk(f, i, j) {
 // true once they're all painted.
 // at: where to start from (floor px), else the middle; only: a circle
 // { x, y, r } outside which nothing is painted.
+// The chunks over floor px x0..x1, y0..y1 to be painted again (the ground
+// there has changed: a vein lit), as the view comes to them.
+function pntInvalidate(f, x0, y0, x1, y1) {
+  const S = View.pnt;
+  if (!S || S.f !== f) return;
+  const WX = PWIN.x, WY = PWIN.y;
+  const i0 = Math.max(0, Math.floor((x0 - WX) / PNT_CH)), i1 = Math.min(S.nx - 1, Math.floor((x1 - 1 - WX) / PNT_CH)), j0 = Math.max(0, Math.floor((y0 - WY) / PNT_CH)), j1 = Math.min(S.ny - 1, Math.floor((y1 - 1 - WY) / PNT_CH));
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (S.done[j * S.nx + i]) { S.done[j * S.nx + i] = 0; S.left++; }
+  View.occCache = new Map(); View.pnrTiles = null;
+}
 function pntEnsure(f, x0, y0, x1, y1, budget, at, only) {
   const S = View.pnt;
   if (!S || S.f !== f || !S.left) return true;

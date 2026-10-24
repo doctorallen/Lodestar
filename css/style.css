@@ -53,6 +53,10 @@ html, body {
 .bar .fill { height: 100%; width: 100%; background: var(--gold); transition: width 0.12s; }
 .bar.hp.fading .fill { background: #e0904a; }
 .bar.hp { background: #1a1408; border-color: #3a2c10; }
+.bar.thread { height: 3px; background: #1a1408; border-color: #3a2c10; margin-top: 2px; }
+.bar.thread .fill { background: #fff0c0; }
+.icon-btn.map { font-size: 11px; letter-spacing: 0.08em; }
+.world-map { width: 100%; max-width: 420px; aspect-ratio: 1; }
 .bar.ch .fill { background: #62b8ff; }
 .bar.pull { height: 6px; background: #1a1408; border-color: #3a2c10; }
 .bar.pull .fill { background: var(--gold); }

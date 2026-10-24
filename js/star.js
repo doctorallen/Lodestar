@@ -43,10 +43,14 @@ function magnitudeOf() { return Math.max(1, Math.floor((Save.data && Save.data.m
 function starLight(d, x, y) {
   const f = d && d.floor, S = T.star;
   if (!f || !f.star) return 0;
+  // (the veins' grid, once it stands: veins.js)
+  if (d.litG) return clamp(1 - veinDistAt(d, x, y) / S.lightFade, 0, 1);
   const dx = x / TILE - f.star.x - 0.5, dy = (y / TILE - f.star.y - 0.5) / S.squash;
   const R = S.lightR + S.lightPerMag * (magnitudeOf() - 1);
   return clamp(1 - (Math.hypot(dx, dy) - R) / S.lightFade, 0, 1);
 }
+// What a cast hits at the star's magnitude (T.magnitude.power).
+function magnitudePower() { const P = T.magnitude.power; return P[Math.min(P.length - 1, magnitudeOf() - 1)]; }
 // Lit ground: where the light is all but full.
 function litAt(d, x, y) { return starLight(d, x, y) >= 0.85; }
 // The daylight where the Kindler stands: day in the star's light, the
