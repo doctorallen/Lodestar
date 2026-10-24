@@ -777,7 +777,7 @@ async function phone(browser) {
     const s = Save.data; s.built = (s.built || []).concat('quarters'); s.landing = null;
     const th = partsHave(s.stash, 'any');
     startSortie({ terr: ring1(null), from: 0 }); goHome('walk');
-    const paid = partsHave(s.stash, 'any') === th + T.structures.quarters.pay && /SETTLERS/.test($('report-body').textContent);
+    const paid = partsHave(s.stash, 'any') === th + T.structures.quarters.pay && /THE QUARTERS/.test($('report-body').textContent);
     UI.acts.closeReport();
     s.built = s.built.filter((id) => id !== 'quarters');
     return { hud, portal, goal, paid };
