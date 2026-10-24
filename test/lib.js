@@ -24,6 +24,8 @@ async function launch({ gl = false } = {}) {
   return puppeteer.launch({
     executablePath: chromePath(),
     headless: 'new',
+    // (a frame painted whole in software can take a while on a slow runner)
+    protocolTimeout: 900000,
     args: ['--allow-file-access-from-files', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'].concat(gl ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--disable-gpu']),
   });
 }

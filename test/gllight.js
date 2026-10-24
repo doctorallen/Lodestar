@@ -94,7 +94,10 @@ async function runAt(browser, grain, failures) {
     console.log(`  ${r.label}: worst ${r.worst}, over 2: ${r.over}, mean ${r.mean}`);
   };
   // (the whole floor painted first, so neither frame paints a chunk the other hasn't: paint.js pntEnsure)
-  const whole = () => page.evaluate(() => { const f = Game.dive.floor; renderFrame(); pntEnsure(f, 0, 0, f.w * ATILE, f.h * ATILE); for (let i = 0; i < 40; i++) renderFrame(); });
+  // (the chunks the frame would paint, in view and as far out as its lazy
+  // reach, painted first, so neither render paints one the other hasn't;
+  // the whole window would take minutes in software at fine grain)
+  const whole = () => page.evaluate(() => { const f = Game.dive.floor; renderFrame(); const m = T.paint.lazy.far * ATILE + PNT_CH; pntEnsure(f, View.camX - m, View.camY - m, View.camX + View.w + m, View.camY + View.h + m); for (let i = 0; i < 40; i++) renderFrame(); });
   await whole();
   // at the star, in its light
   check(await page.evaluate(compare, 'star'));
