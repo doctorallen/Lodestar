@@ -71,6 +71,7 @@ function veinsRebuild(d, box) {
   const f = d.floor, V = veinsState(), live = (d.vLive = veinsLiving(V)), G = (d.litG = new Float32Array(f.w * f.h).fill(1e9));
   const worth = veinsWorth(V, live), mag = veinsMagnitude(worth);
   Save.data.magnitude = mag; d.vWorth = worth;
+  if (typeof shapesStarOffer === 'function' && Save.data.spells) shapesStarOffer(mag);
   const band = veinBand(mag), fade = T.star.lightFade;
   const stamp = (x, y, r) => {
     const cx = x / TILE - 0.5, cy = y / TILE - 0.5, R = r + fade + 1;
@@ -147,9 +148,14 @@ function veinsAction(d) {
     return n >= 0 && d.vLive[n] ? 'take up' : null;
   }
   const n = veinsNodeNear(p.x, p.y, Vn.joinReach * TILE);
-  if (n >= 0) return n !== d.thread.from && !veinsJoined(V, d.thread.from, n) ? (d.vLive[n] ? 'join' : 'mend') : null;
+  if (n >= 0) {
+    if (n === d.thread.from) return null;
+    const had = V.veins.find((v) => (v.a === d.thread.from && v.b === n) || (v.a === n && v.b === d.thread.from));
+    if (had && !had.cut) return null;
+    return d.vLive[n] ? 'join' : 'mend';
+  }
   if (veinsNodeNear(p.x, p.y, Vn.nodeGap * TILE) >= 0) return null;
-  return bodyHits(d.floor, p.x, p.y, TILE * 0.6) ? null : 'plant';
+  return bodyHits(d.floor, p.x, p.y, T.player.radius + 2) ? null : 'plant';
 }
 function veinsAct(d, a) {
   if (a === 'take up') threadTake(d, veinsNodeNear(d.p.x, d.p.y, T.veins.reach * TILE));
@@ -260,7 +266,9 @@ function holdSet(d, to) {
   let len = 0;
   for (let i = 1; i < pts.length; i++) len += dist(pts[i][0], pts[i][1], pts[i - 1][0], pts[i - 1][1]);
   const joined = to >= 0 && d.vLive[to];
-  V.veins.push({ a: th.from, b: idx, pts, len, cut: false });
+  // (a cut vein between the two, mended: its line laid again)
+  const had = V.veins.find((v) => (v.a === th.from && v.b === idx) || (v.a === idx && v.b === th.from));
+  if (had) { had.cut = false; had.pts = pts; had.len = len; } else V.veins.push({ a: th.from, b: idx, pts, len, cut: false });
   d.thread = null;
   const magWas = magnitudeOf();
   veinsRebuild(d, veinBox(pts));
@@ -273,7 +281,36 @@ function holdSet(d, to) {
   Story.say(joined ? 'firstJoin' : 'firstSet');
   snd('starFeed', { tier: 4, rate: 6, n: 12, stream: true });
   buzz(40);
-  if (magnitudeOf() > magWas) Story.starGrew();
+  if (magnitudeOf() > magWas) { Story.starGrew(); shapesStarOffer(magnitudeOf()); }
+  // a mend sends the Hollow at the cut off
+  if (to >= 0 && !joined) d.enemies = d.enemies.filter((e) => !(e.type === 'hollow' && dist(e.x, e.y, x, y) < 14 * TILE));
+}
+
+// ---------------------------------------------------------------------------
+// The dark cuts
+// ---------------------------------------------------------------------------
+// On coming back to the world: for every T.cuts.every hours away a living
+// vein is cut, the far ones first, and the Hollow stands at each cut's dark
+// end. The map shows it; Wick says it.
+function veinsCutOnReturn(d) {
+  const s = Save.data, V = veinsState(), C = T.cuts, away = s.lastSeen ? (Date.now() - s.lastSeen) / 3600e3 : 0;
+  const n = Math.min(C.most, Math.floor(away / C.every));
+  if (n <= 0 || !V.veins.length) return;
+  const star = V.nodes[0], far = (v) => Math.max(dist(V.nodes[v.a].x, V.nodes[v.a].y, star.x, star.y), dist(V.nodes[v.b].x, V.nodes[v.b].y, star.x, star.y));
+  const live = d.vLive, cands = V.veins.filter((v) => veinLiving(live, v)).sort((a, b) => far(b) - far(a));
+  const cut = cands.slice(0, n);
+  if (!cut.length) return;
+  for (const v of cut) v.cut = true;
+  veinsRebuild(d);
+  // the Hollow at each cut's dark end (the end no longer living)
+  for (const v of cut) {
+    const end = d.vLive[v.a] ? V.nodes[v.b] : V.nodes[v.a];
+    const h = makeEnemy('hollow', end.x, end.y - TILE, floorLevel(d), null);
+    d.enemies.push(h);
+  }
+  Save.save();
+  UI.toast(`The dark cut ${cut.length === 1 ? 'a vein' : cut.length + ' veins'} while you were away`, 'legendary');
+  Story.say('firstCut');
 }
 // Standing at a living node (the map): there.
 function veinsTravel(d, idx) {
@@ -297,7 +334,9 @@ function nodeSprite(lit) {
   if (_nodeSpr.has(key)) return _nodeSpr.get(key);
   const spr = hartStarstone(5, lit ? 0 : 1, 0), k = 2;
   const up = (c) => { const n = document.createElement('canvas'); n.width = c.width * k; n.height = c.height * k; const g = n.getContext('2d'); g.imageSmoothingEnabled = false; g.drawImage(c, 0, 0, n.width, n.height); return n; };
-  const out = Object.assign({}, spr, { c: up(spr.c), ec: spr.ec && lit ? up(spr.ec) : null, ax: spr.ax * k, ay: spr.ay * k, w: spr.w * k, h: spr.h * k });
+  // (a dark node's glow layer is kept but empty: drawArtSprite always draws one)
+  const blank = () => { const n = document.createElement('canvas'); n.width = spr.c.width * k; n.height = spr.c.height * k; return n; };
+  const out = Object.assign({}, spr, { c: up(spr.c), ec: lit && spr.ec ? up(spr.ec) : blank(), ax: spr.ax * k, ay: spr.ay * k, w: spr.w * k, h: spr.h * k });
   _nodeSpr.set(key, out);
   return out;
 }

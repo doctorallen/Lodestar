@@ -35,7 +35,10 @@ function drawMap() {
   // the Kindler
   g.fillStyle = '#8fc4ff'; g.fillRect(Math.round(d.p.x / TILE) - 1, Math.round(d.p.y / TILE) - 1, 3, 3);
   const mag = magnitudeOf(), A = T.magnitude.at, next = A[mag] !== undefined ? ` · ${Math.max(0, Math.ceil(A[mag] - (d.vWorth || 0)))} strides to magnitude ${mag + 1}` : '';
-  $('map-body').innerHTML = `<p class="note center">The light reaches ${Math.round(d.vWorth || 0)} strides · magnitude ${mag}${esc(next)}</p><p class="note center">Tap a lit node to stand there. ${V.nodes.length - 1} node${V.nodes.length === 2 ? '' : 's'} set.</p>`;
+  const cuts = V.veins.filter((v) => v.cut).length, S = T.story;
+  $('map-body').innerHTML = `<p class="note center">The light reaches ${Math.round(d.vWorth || 0)} strides · magnitude ${mag}${esc(next)}</p><p class="note center">Tap a lit node to stand there. ${V.nodes.length - 1} node${V.nodes.length === 2 ? '' : 's'} set${cuts ? `, ${cuts} vein${cuts > 1 ? 's' : ''} cut` : ''}.</p>`
+    + shapesHtml()
+    + `<h3>WICK</h3><p class="note">The star's core: ${Save.data.core} of ${T.star.core}. Above, the Meridian: ${S.sleepers} asleep until the world lives.</p><div class="menu"><button class="btn quiet" data-act="replayIntro">THE LANDING AGAIN</button></div>`;
 }
 
 // A tap on the map: the living node nearest it, if one is near.

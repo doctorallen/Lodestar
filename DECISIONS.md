@@ -974,3 +974,10 @@ The world is one floor 320 tiles square (`T.worldgen`), the generator run large 
 - **The thread is the seed.** One at a time; it snaps on a fall, when its length runs out, or when a hold fails; no inventory. A pair of nodes is joined once: a loop needs a third.
 - **A node set mends a piece of the core**, so a trip that goes right pays back a fall.
 - **Spells hit at the magnitude** (T.magnitude.power), the first thing the star gives back.
+
+## 2026-10-24: the Veins, step three: shapes, the star's screen, the cuts
+
+- **A reading is an old spell under the hood.** Each creature's two readings are a Form with an Element and a Mod of the cast code as it stands, so the shapes work now and the fight's rethink (step four) can replace the casts one at a time without touching the learning.
+- **Two carried, not three yet.** The deck has two spell buttons; the third slot waits for the fight's rethink.
+- **Cuts are rolled on return, by real time.** One for each eight hours away, two at most, so a fortnight off costs the same as a day. The far veins go first, the Hollow stands at the cut's dark end and leaves when it's mended, and a mend lays the same vein again rather than a second one.
+- **The star's screen is the map first.** One button, THE STAR, opens on the map with the shapes and Wick's notes under it; it glows when a shape waits.

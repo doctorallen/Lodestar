@@ -167,7 +167,7 @@ Pruning in place: main is unplayable until the first step lands.
 
 1. **The ground** (done 2026-10-24). One large map, painted in a window, the star in the open, one bar, movement, dash and a two-spell fight with placeholder spells; everything cut is deleted. Playable: walk out, fight, go dim, come back.
 2. **The veins** (done 2026-10-24, but for the land's turning spreading with age). The thread, planting, the hold, the set, veins lighting, the map screen with travel, the save of nodes and veins, terraforming along veins, the core and falling.
-3. **The star.** Shapes from creatures and the world, the two readings, the star's screen, magnitude and its thresholds, cutting on return, mending, the Hollow at a cut.
+3. **The star** (done 2026-10-24, with the readings as the old Forms and Mods until the fight is rethought; shapes from the world's ruins and old nodes still to come). Shapes from creatures and the star, the two readings, the star's screen, magnitude and its thresholds, cutting on return, mending, the Hollow at a cut.
 4. **The dark and the words.** Creatures retuned to tells and windows, elites, Keepers at the old nodes, Wick's lines, the onboarding, the opening's home scene, the ending; the smoke test and the bot rewritten round the trip.
 
 ## First numbers for `T`

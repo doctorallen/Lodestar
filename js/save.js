@@ -16,6 +16,7 @@ function cleanSave(s) {
   if (!Number.isFinite(s.core)) s.core = T.star.core;
   if (!Number.isFinite(s.kills)) s.kills = 0;
   if (!Number.isFinite(s.falls)) s.falls = 0;
+  if (!s.killsOf || typeof s.killsOf !== 'object') s.killsOf = {};
 }
 
 const Save = {
@@ -24,7 +25,7 @@ const Save = {
     return {
       v: 11, uid: 100, seed: null,
       magnitude: 1, core: T.star.core, kills: 0, falls: 0,
-      said: {}, tips: {}, settings: { haptics: true },
+      said: {}, tips: {}, settings: { haptics: true }, killsOf: {}, lastSeen: 0,
       introSeen: false,
     };
   },

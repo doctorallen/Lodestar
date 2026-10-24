@@ -199,7 +199,7 @@ function killEnemy(e) {
   d.kills++;
   // (counted by kind, for the shapes the star reads from the dark: the
   // third step)
-  if (e.type !== 'dummy') { Save.data.kills++; const k = Save.data.killsOf || (Save.data.killsOf = {}); k[e.type] = (k[e.type] || 0) + (e.elite ? 2 : 1); }
+  if (e.type !== 'dummy') { Save.data.kills++; const k = Save.data.killsOf || (Save.data.killsOf = {}); k[e.type] = (k[e.type] || 0) + (e.elite ? 2 : 1); shapesKill(d, e); }
   if (e.blight) for (const o of d.enemies) if (!o.dead && o !== e && dist(o.x, o.y, e.x, e.y) < T.elements.blightSpread) o.blight = { t: T.elements.blightTime, dps: e.blight.dps };
   castFxDeath(e.x, e.y - 5, ENEMY_PAL[T.biomes[d.biome].id].crystal[0], !!e.boss);
   snd('kill', { x: e.x, y: e.y, big: !!e.boss });

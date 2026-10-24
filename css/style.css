@@ -56,6 +56,8 @@ html, body {
 .bar.thread { height: 3px; background: #1a1408; border-color: #3a2c10; margin-top: 2px; }
 .bar.thread .fill { background: #fff0c0; }
 .icon-btn.map { font-size: 11px; letter-spacing: 0.08em; }
+.icon-btn.map.hot { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 8px rgba(232, 180, 74, 0.5); }
+.row.on { border-color: var(--gold); }
 .world-map { width: 100%; max-width: 420px; aspect-ratio: 1; }
 .bar.ch .fill { background: #62b8ff; }
 .bar.pull { height: 6px; background: #1a1408; border-color: #3a2c10; }

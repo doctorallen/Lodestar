@@ -962,6 +962,13 @@ const T = {
   // Magnitude (veins.js): the thresholds of the world's living light (vein
   // tiles, plus nodeWorth a living node), and what a cast hits at each.
   magnitude: { at: [0, 150, 400, 800, 1400, 2200, 3200], power: [1, 1.25, 1.5, 1.8, 2.1, 2.5, 3], nodeWorth: 20 },
+  // Shapes (shapes.js): kills of a kind before its shape is read (an elite
+  // counts two), and the magnitudes at which the star offers one of its own.
+  shapes: { kills: 6, starAt: [2, 4, 6] },
+  // The dark cuts veins while you're away (veins.js veinsCutOnReturn): one
+  // for each `every` hours, at most `most` waiting; it picks veins far from
+  // the star for choice. The Hollow stands at a cut's dark end.
+  cuts: { every: 8, most: 2 },
   // Deeds (deeds.js): the light each gives the star. heart: heartlight for
   // kindling a territory, by ring; bound to the Kindler the moment the spire
   // stands, safe from any fall. deepEnd: deeplight for first reaching a

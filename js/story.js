@@ -168,6 +168,10 @@ const WICK = {
   firstSet: 'It took. The ground will turn along it, give it a few nights.',
   firstJoin: 'Two ways to a place. Now the dark has to cut twice.',
   holdLost: "It didn't hold. Take up another, and plant it nearer next time.",
+  firstShape: "The suit's been reading them as they fall. The star has a shape to shape: its screen, when you're back.",
+  firstRead: 'Read. Face it at the star, and the wrist casts it.',
+  firstCut: "The dark cut a vein while we were away. The node past it has gone dark. Two ways to a place, and it can't.",
+  hollowAtCut: "That's what cuts them. It follows into the light. Slowly.",
   firstTide: "The dark's coming back in, like a tide. Hold the spire and it'll go out again. It always has.",
   firstDeep: "A Deep. Down here the star can't see us at all. Quick in, quicker out.",
   // the Lattice (lattice.js): the cleft seen, the first gallery, a cold

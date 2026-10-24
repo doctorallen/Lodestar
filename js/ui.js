@@ -19,6 +19,7 @@ const UI = {
     for (const s of document.querySelectorAll('.screen')) s.addEventListener('click', (e) => UI.onTap(e));
     $('btn-pause').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.openPause(); });
     $('btn-map').addEventListener('click', () => { if (Game.dive && !Game.modal) UI.show('screen-map'); });
+    $('btn-map').classList.toggle('hot', false);
     $('map-cv').addEventListener('pointerdown', (e) => { e.preventDefault(); mapTap(e); });
     $('build').textContent = BUILD_INFO;
   },
@@ -187,7 +188,8 @@ const UI = {
       const sp = rigSpell(rig, slot === 'off' ? 1 : 0), form = spellForm(sp), btn = $('btn-' + slot), key = `${rig.uid}:${form}`;
       if (btn.dataset.key !== key) {
         btn.dataset.key = key;
-        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt')}" alt=""><span>${form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
+        const own = spellOf(Save.data.carry[slot === 'off' ? 1 : 0]);
+        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt')}" alt=""><span>${own ? own.name.toUpperCase() : form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
       }
       const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
       btn.classList.toggle('charging', lv > 0 && lv < 1);
@@ -198,6 +200,8 @@ const UI = {
       btn.classList.toggle('resist', m < 0.99);
     }
     if ($('btn-off').hidden) $('btn-off').hidden = false;
+    // the star has a shape to read: its button says so
+    $('btn-map').classList.toggle('hot', !!(Save.data.shapes && Save.data.shapes.pending.length));
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     setTextIfChanged('btn-act', a ? ({ 'take up': 'TAKE UP THE THREAD', plant: 'PLANT', join: 'JOIN', mend: 'MEND' })[a] || String(a).toUpperCase() : '');
@@ -236,6 +240,9 @@ UI.acts = {
   },
   // the opening again (intro.js)
   replayIntro: () => { UI.close(); Intro.play(null); },
+  // the star's screen: a shape read, a spell carried (shapes.js)
+  shapePick: (arg) => { const [kind, w] = arg.split(':'); if (shapePick(kind, w)) UI.redraw(); },
+  carrySet: (arg) => { const [slot, id] = arg.split(':'); carrySet(slot, id); UI.redraw(); },
 
   // the pause screen's sound settings: on, soft, off, round again
   soundSet: (kind) => {

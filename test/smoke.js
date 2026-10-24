@@ -73,14 +73,21 @@ async function phone(browser, failures) {
   await steps(page, { x: 0, y: 0 }, 5);
   if (!(await page.evaluate(() => !!Game.dive.thread))) fail('the thread was not taken up');
   const walked = await page.evaluate(() => {
+    // out along the caverns to a dark, open tile 20 to 40 steps off, until
+    // planting is offered there
     const d = Game.dive, f = d.floor, tx0 = Math.floor(d.p.x / TILE), ty0 = Math.floor(d.p.y / TILE), S = floorDistances(f.tiles, f.w, f.h, tx0, ty0);
-    let goal = -1;
-    for (let i = 0; i < S.length && goal < 0; i++) if (S[i] === 18) goal = i;
-    if (goal < 0) return 'no goal';
-    const B = floorDistances(f.tiles, f.w, f.h, goal % f.w, Math.floor(goal / f.w));
-    let i = ty0 * f.w + tx0, n = 0;
-    while (B[i] > 0 && n++ < 200) { let next = i; for (const j of [i + 1, i - 1, i + f.w, i - f.w]) if (B[j] >= 0 && B[j] < B[next]) next = j; if (next === i) break; i = next; d.p.x = ((i % f.w) + 0.5) * TILE; d.p.y = (Math.floor(i / f.w) + 0.5) * TILE; for (let k = 0; k < 3; k++) Game.step(1 / 60); }
-    return { n, pts: d.thread && d.thread.pts.length, act: actionHere() };
+    const goals = [];
+    for (let i = 0; i < S.length; i++) if (S[i] >= 20 && S[i] <= 40 && starLight(d, ((i % f.w) + 0.5) * TILE, (Math.floor(i / f.w) + 0.5) * TILE) <= 0 && !bodyHits(f, ((i % f.w) + 0.5) * TILE, (Math.floor(i / f.w) + 0.5) * TILE, T.player.radius + 3)) goals.push(i);
+    goals.sort((a, b) => S[a] - S[b]);
+    let n = 0, act = null;
+    for (const goal of goals.slice(0, 6)) {
+      const B = floorDistances(f.tiles, f.w, f.h, goal % f.w, Math.floor(goal / f.w));
+      let i = Math.floor(d.p.y / TILE) * f.w + Math.floor(d.p.x / TILE);
+      while (B[i] > 0 && n++ < 400) { let next = i; for (const j of [i + 1, i - 1, i + f.w, i - f.w]) if (B[j] >= 0 && B[j] < B[next]) next = j; if (next === i) break; i = next; d.p.x = ((i % f.w) + 0.5) * TILE; d.p.y = (Math.floor(i / f.w) + 0.5) * TILE; for (let k = 0; k < 3; k++) Game.step(1 / 60); }
+      act = actionHere();
+      if (act === 'plant') break;
+    }
+    return { n, goals: goals.length, pts: d.thread && d.thread.pts.length, act };
   });
   if (!walked.pts || walked.pts < 10) fail(`the thread did not pay out (${JSON.stringify(walked)})`);
   if (walked.act !== 'plant') fail(`PLANT is not offered out there (${walked.act})`);
@@ -105,6 +112,41 @@ async function phone(browser, failures) {
   await shot(page, 'smoke-map');
   const went = await page.evaluate(() => { UI.close(); const d = Game.dive, ok = veinsTravel(d, 0); return { ok, lit: starLight(d, d.p.x, d.p.y), near: dist(d.p.x, d.p.y, veinsState().nodes[0].x, veinsState().nodes[0].y) < TILE * 3 }; });
   if (!went.ok || !went.near) fail(`travel by the map did not stand him at the star (${JSON.stringify(went)})`);
+  // the shapes: six crawlers read, the star has a shape; picked at its
+  // screen, carried in slot A, the wrist casts it
+  await page.evaluate(() => { Save.data.killsOf.crawler = 5; const d = Game.dive, e = makeEnemy('crawler', d.p.x + 40, d.p.y, 1, null); d.enemies.push(e); killEnemy(e); });
+  const pend = await page.evaluate(() => Save.data.shapes.pending.slice());
+  if (!pend.includes('crawler')) fail(`the crawler's shape is not waiting (${pend})`);
+  await page.evaluate(() => UI.show('screen-map'));
+  await sleep(450);
+  if (!(await page.evaluate(() => !!document.querySelector('#map-body [data-act=shapePick][data-arg="crawler:a"]')))) fail('the screen does not offer the reading');
+  await page.evaluate(() => UI.acts.shapePick('crawler:a'));
+  await page.evaluate(() => UI.acts.carrySet('a:lunge'));
+  const carried = await page.evaluate(() => ({ carry: Save.data.carry.slice(), spells: Save.data.spells.map((x) => x.id), rig: Save.data.equip.main.spells.map((sp) => [sp.form.stone, (sp.mods[0] || {}).stone || null]), pending: Save.data.shapes.pending.length }));
+  if (!carried.spells.includes('lunge') || carried.carry[0] !== 'lunge') fail(`Lunge was not read and carried (${JSON.stringify(carried)})`);
+  if (carried.rig[0][0] !== 'arc' || carried.rig[0][1] !== 'quicken') fail(`the rig does not cast the reading (${JSON.stringify(carried.rig)})`);
+  if (carried.pending) fail('the shape still waits after the pick');
+  await page.evaluate(() => UI.close());
+  await steps(page, { x: 0, y: 0 }, 2);
+  if ((await page.evaluate(() => document.getElementById('btn-main').textContent.trim())) !== 'LUNGE') fail('the A button does not say LUNGE');
+  await shot(page, 'smoke-shapes');
+  // away nine hours: the dark cuts the vein, the node goes dark, the
+  // Hollow stands at its end; mended with a thread from the star
+  const cut = await page.evaluate(() => { Save.data.lastSeen = Date.now() - 9 * 3600e3; enterWorld({}); const d = Game.dive, V = veinsState(); return { cut: V.veins.filter((v) => v.cut).length, live1: !!d.vLive[1], hollow: d.enemies.filter((e) => e.type === 'hollow').length, worth: d.vWorth }; });
+  if (cut.cut !== 1 || cut.live1) fail(`the vein was not cut while away (${JSON.stringify(cut)})`);
+  if (cut.hollow !== 1) fail(`the Hollow does not stand at the cut (${cut.hollow})`);
+  if (cut.worth !== 0) fail('a cut vein still counts');
+  await page.evaluate(() => { const d = Game.dive; veinsTravel(d, 0); d.p.y -= TILE * 1.6; d.enemies = []; });
+  await steps(page, { x: 0, y: 0, act: true }, 1);
+  await steps(page, { x: 0, y: 0 }, 3);
+  const mend = await page.evaluate(() => { const d = Game.dive, n = veinsState().nodes[1]; d.p.x = n.x; d.p.y = n.y + TILE; for (let k = 0; k < 3; k++) Game.step(1 / 60); return actionHere(); });
+  if (mend !== 'mend') fail(`MEND is not offered at the dark node (${mend})`);
+  await steps(page, { x: 0, y: 0, act: true }, 1);
+  await page.evaluate(() => { Game.dive.p.invuln = 1e9; });
+  for (let k = 0; k < 25; k++) { await steps(page, { x: 0, y: 0 }, 60); await page.evaluate(() => { for (const e of Game.dive.enemies) if (!e.dead && e.type !== 'dummy') killEnemy(e); }); }
+  await page.evaluate(() => { Game.dive.p.invuln = 0; });
+  const mended = await page.evaluate(() => { const d = Game.dive, V = veinsState(); return { cut: V.veins.filter((v) => v.cut).length, veins: V.veins.length, live1: !!d.vLive[1], worth: d.vWorth }; });
+  if (mended.cut || !mended.live1 || mended.veins !== 1) fail(`the vein was not mended (${JSON.stringify(mended)})`);
   // the pause screen, and back
   await page.evaluate(() => UI.openPause());
   await sleep(450);

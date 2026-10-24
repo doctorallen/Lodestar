@@ -92,8 +92,11 @@ function boot() {
   if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
   // leaving the tab pauses the game
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && Game.dive && !Game.modal) UI.openPause();
+    if (!document.hidden) return;
+    Save.data.lastSeen = Date.now(); Save.saveField('lastSeen');
+    if (Game.dive && !Game.modal) UI.openPause();
   });
+  window.addEventListener('pagehide', () => { Save.data.lastSeen = Date.now(); Save.saveField('lastSeen'); });
   Game.step = step;
   Game.render = renderAll;
   // the loading screen builds what play needs, then waits for a tap (loader.js)

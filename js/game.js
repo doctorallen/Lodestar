@@ -43,6 +43,7 @@ const KINDLER_RIG = {
 // What the cast and draw code reads as worn (never saved).
 function kindlerGear() {
   if (!Save.data.equip) Object.defineProperty(Save.data, 'equip', { value: { main: KINDLER_RIG, pick: null, armor: null, charm: null }, enumerable: false, configurable: true, writable: true });
+  spellsApply();
   return Save.data.equip;
 }
 
@@ -94,6 +95,9 @@ function enterWorld(at = {}) {
   spawnEnemies(d);
   // nothing hunts in the light
   d.enemies = d.enemies.filter((e) => starLight(d, e.x, e.y) <= 0);
+  // while you were away, the dark cut (not on waking from a fall)
+  if (!at.fell) veinsCutOnReturn(d);
+  s.lastSeen = Date.now();
   if (typeof placeLife === 'function') placeLife(d);
   Game.scene = 'world';
   if (!at.quiet) worldWelcome(at);
