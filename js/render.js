@@ -1246,7 +1246,7 @@ function drawProspector(d, ox, oy, tick, lights) {
   const { spr, face } = kindlerPick(d, cast);
   const fx = Math.round(p.x * AP) + ox, fy = Math.round(p.y * AP) + oy, lean = cast ? castFxLean(cast) : { x: 0, y: 0 };
   const sx = Math.round(fx - spr.ax) + lean.x, sy = Math.round(fy - spr.ay) + lean.y;
-  drawShadow(fx, fy, 5);
+  // (no contact shadow: his cast shadow grounds him, pshadow.js)
   // a hand on the far side, or both facing away, is drawn behind the body;
   // casting, the other hand is where the pose puts it
   const side = Math.abs(face.x) > Math.abs(face.y) + 0.2, away = face.y < -0.3;
@@ -1420,6 +1420,48 @@ function spriteRim(spr, col) {
   return cv;
 }
 
+// The sprite a creature is drawn as now (drawEnemy; null while it hides).
+function enemySpriteNow(d, e) {
+  const look = FOE_NAMES[e.type] ? foeLook(d, e) : null;
+  if (look) return look.hidden ? null : look.spr;
+  return T.enemies[e.type].rooted ? ugMelted(enemySprite(d, e.type)) : fpPose(enemySprite(d, e.type), e);
+}
+// A creature taken by the star (castfx.js castFxAbsorb): its pixels, each
+// in its own colour, draw in to a knot over where it stood, going gold as
+// they near; then the knot streams off towards the star in a string of
+// motes that thin and fade, with a warm light over the spot going with it.
+function drawAbsorbFx(fx, cx, cy, k, lights, ox, oy) {
+  const A = T.castFx.absorb, star = ART.pal.star, t = 1 - k, u = clamp(t / A.gather, 0, 1), eu = u * u * (3 - 2 * u);
+  const kx = cx, ky = cy - Math.round(fx.h * 0.5), sx = STAR_AT.x * ATILE + ox, sy = STAR_AT.y * ATILE + oy;
+  let ddx = sx - kx, ddy = sy - ky;
+  const L = Math.hypot(ddx, ddy) || 1, reach = Math.min(L, A.reach * AP);
+  ddx /= L; ddy /= L;
+  const v = clamp((t - A.gather) / (1 - A.gather), 0, 1);
+  for (let i = 0; i < fx.pts.length; i++) {
+    const q = fx.pts[i], h1 = artHash(i, 3, fx.seed), h2 = artHash(i, 4, fx.seed);
+    if (t < A.gather) {
+      // the star's light takes hold of it at once: its own colours gone
+      // gold, drawing in
+      const x = lerp(cx + q.dx, kx + (h1 - 0.5) * 4 * AF, eu), y = lerp(cy + q.dy, ky + (h2 - 0.5) * 4 * AF, eu);
+      dot(Math.round(x), Math.round(y), eu > 0.7 ? star[3] : mix(q.col, star[2], 0.4 + 0.6 * eu), true, 1);
+    } else {
+      // each sets off a little behind the one before, so they string out;
+      // a mote, with a short tail back along its way
+      const lag = h1 * A.spread, s = clamp((v - lag) / (1 - lag), 0, 1);
+      if (s >= 1) continue;
+      const s2 = s * s, wob = Math.sin(h2 * 20 + s * 9) * 2 * AF * (1 - s), x = kx + ddx * reach * s2 - ddy * wob, y = ky + ddy * reach * s2 + ddx * wob, al = 1 - s2;
+      dot(Math.round(x), Math.round(y), s > 0.6 ? star[3] : star[2], true, al);
+      if (AF > 1 || h2 < 0.5) dot(Math.round(x) + 1, Math.round(y), star[2], true, al);
+      for (let b = 1; b <= 2; b++) dot(Math.round(x - ddx * b * 2 * AF), Math.round(y - ddy * b * 2 * AF), star[1], true, al * (0.6 - b * 0.2));
+    }
+  }
+  // the knot itself: a small bright heart, swelling as the pixels arrive
+  // and going out as they leave
+  const kr = t < A.gather ? 3 * AF * eu : 3 * AF * (1 - v) * (1 - v);
+  for (let j = -Math.ceil(kr); j <= Math.ceil(kr); j++) for (let i = -Math.ceil(kr); i <= Math.ceil(kr); i++) if (i * i + j * j <= kr * kr) dot(kx + i, ky + j, i * i + j * j <= kr * kr * 0.3 ? '#ffffff' : star[3], true, 0.9);
+  const li = t < A.gather ? 0.4 + 1 * eu : 1.4 * (1 - v);
+  lights.push({ x: kx, y: ky, r: TILE * (fx.big ? 1.8 : 1.2), i: li, c: rgb01(star[2]) });
+}
 function drawEnemy(d, e, ox, oy, tick, lights) {
   // a clime's own creature has frames of its own, and out of sight (under
   // the sand or the water) only its sign shows (foes.js)
@@ -1439,7 +1481,7 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   const jx = e.hitT > 0 ? Math.sign(Math.round(e.kvx / 20)) * (e.hitT > T.impact.targetStop ? 2 : 1) : 0, jy = e.hitT > 0 ? Math.sign(Math.round(e.kvy / 20)) : 0;
   const fx = Math.round(e.x * AP) + ox + jx, fy = Math.round(e.y * AP) + oy + jy;
   if (fx < -60 * AF || fy < -15 * AF || fx > View.w + 60 * AF || fy > View.h + 75 * AF) return;
-  if (!rooted && !(look && look.noShadow)) drawShadow(fx, fy, Math.max(3, e.r), lift > 2 ? lift : 0);
+  // (no contact shadow: its cast shadow grounds it, pshadow.js)
   const sx = Math.round(fx - spr.ax) + shake, sy = Math.round(fy - spr.ay - lift * AP);
   drawArtSprite(livePaint(spr), sx, sy);
   // in a dark place its lit rim holds over the light (foespaint.js fpReadable)
@@ -1576,7 +1618,8 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
       const h = artHash(i, Math.floor(fx.seed * 97), 0xd5), s = (h - 0.5) * 6;
       dot(Math.round(cx + fx.dx * t * (4 + i * 3) * AP + s * (1 - t)), Math.round(cy - t * (3 + i * 2 + h * 3) * AP), '#8a8298', false, 0.65 * k);
     }
-  } else if (fx.kind === 'mote') {
+  } else if (fx.kind === 'absorb') drawAbsorbFx(fx, cx, cy, k, lights, ox, oy);
+  else if (fx.kind === 'mote') {
     // a shard set in the star, its light rising from the altar into it
     const t = 1 - k, sx = fx.to ? Math.round(fx.to.x * AP) + ox : STAR_AT.x * ATILE + ox, sy = fx.to ? Math.round(fx.to.y * AP) + oy : STAR_AT.y * ATILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * AP * (1 - t);
     dot(Math.round(lerp(cx, sx, t * t) + wob), Math.round(lerp(cy, sy, t)), ART.pal.star[t > 0.8 ? 3 : 2], true);

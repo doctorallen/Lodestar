@@ -613,6 +613,12 @@ const T = {
   //     lance's beam reaches, world px; swarm: how long Blight's nanites
   //     cling to what it struck.
   castFx: {
+    // A creature's death, taken by the star (castfx.js castFxAbsorb): its
+    // pixels draw in to a knot over where it stood for the first `gather`
+    // of t seconds, and the knot streams off towards the star, as far as
+    // `reach` world px (or to the star, if nearer), each mote setting off
+    // up to `spread` of the way through behind the first.
+    absorb: { t: 0.95, gather: 0.3, reach: 90, spread: 0.55 },
     pose: 0.2, thrust: 0.45,
     lean: [2, 1], reach: 2,
     flash: [0.14, 2.2, 1.4], streaks: 7, streakSpeed: [50, 110],

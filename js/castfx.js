@@ -459,25 +459,26 @@ function castFxSpot(x, y, el, size = 1) {
   if (size >= 1) cfxDecal(x, y + 4, cfxEl(el).decal, size > 1.4);
 }
 
-// Something killed: a splash of its colour thrown up and falling back, a
-// burst of streaks, a puff of dark dust, a few sparks, and a dark splash on
-// the ground that fades (not a confetti of pixels).
-function castFxDeath(x, y, col, big) {
-  const d = Game.dive;
-  if (!d) return;
-  if (CFX.dive !== d) cfxReset(d);
-  const R = cfxRamp(col), n = big ? 28 : 16;
-  for (let k = 0; k < n; k++) {
-    const a = FX_R.f(-Math.PI * 0.95, -Math.PI * 0.05) + (k % 4 === 0 ? FX_R.f(-0.4, 0.4) + Math.PI * 0.5 : 0), s = FX_R.f(40, 100) * (big ? 1.4 : 1), dk = k % 4 === 1;
-    const q = cfxPart(k % 2 ? CFX_GOB : CFX_SPARK, x + FX_R.f(-2, 2), y, Math.cos(a) * s, Math.sin(a) * s * 0.8 - 15, FX_R.f(0.35, 0.6), dk ? R[0] : R[k % 3 ? 2 : 3], dk ? R[0] : R[1]);
-    if (q) { q.g = 230; q.drag = 2.2; q.dark = dk; }
+// A creature's death: the star takes it. The body goes out at once and
+// nothing is left on the ground; its pixels, sampled from the frame it was
+// drawn as, draw in to a knot of the star's light over where it stood,
+// and the knot streams off the way the star lies (render.js drawAbsorbFx).
+function castFxAbsorb(d, e) {
+  const A = T.castFx.absorb, spr = enemySpriteNow(d, e), pts = [];
+  if (spr && spr.c) {
+    const w = spr.c.width, h = spr.c.height, D = spr.c.getContext('2d').getImageData(0, 0, w, h).data, all = [];
+    // (one authored pixel each way; the picture is AF× at fine grain)
+    const st = AF;
+    for (let j = 0; j < h; j += st) for (let i = 0; i < w; i += st) {
+      const o = (j * w + i) * 4;
+      if (D[o + 3] < 128) continue;
+      all.push({ dx: i - spr.ax, dy: j - spr.ay, col: '#' + ((D[o] << 16) | (D[o + 1] << 8) | D[o + 2]).toString(16).padStart(6, '0') });
+    }
+    const cap = e.boss ? 360 : 220, step = Math.max(1, all.length / cap);
+    for (let k = 0; k < all.length; k += step) pts.push(all[Math.floor(k)]);
   }
-  const dust = [mix(R[0], '#0a0806', 0.45), mix(R[0], '#0a0806', 0.2)];
-  for (let k = 0; k < (big ? 8 : 4); k++) { const q = cfxPart(CFX_SMOKE, x + FX_R.f(-5, 5), y + FX_R.f(0, 4), FX_R.f(-10, 10), FX_R.f(-14, -4), FX_R.f(0.4, 0.7), dust[0], dust[1]); if (q) q.drag = 1.5; }
-  CFX.rings.push({ kind: 'burst', x, y, r0: 2, r1: big ? 16 : 10, col, t: 0.16, max: 0.16, f: false });
-  cfxDecal(x, y + 5, 'splat:' + col, big);
-  cfxFlare(x, y, TILE * (big ? 2 : 1.2), 0.8, col, 0.2);
-  spawnSparks(x, y, [R[3], '#ffffff'], big ? 10 : 4);
+  d.fx.push({ kind: 'absorb', x: e.x, y: e.y, t: A.t, max: A.t, pts, h: spr ? spr.ay : 10 * AF, big: !!e.boss, seed: (FX_R.f(0, 1) * 1000) | 0 });
+  cfxFlare(e.x, e.y - 5, TILE * (e.boss ? 2 : 1.2), 0.7, ART.pal.star[2], 0.3);
 }
 
 // A spark (render.js's Sparks), at x, y on the view: a hot head and a
