@@ -977,8 +977,12 @@ const T = {
   veins: {
     band: [5, 5, 6, 6, 7, 8, 8], thread: [60, 80, 100, 120, 140, 170, 200], threadSpeed: 0.85, wave: 30, waveN: 1, step: 6,
     reach: 2.2, joinReach: 1.6, nodeGap: 6, hold: [18, 30], join: 12, nodeLight: 100, bite: 0.4, biteReach: 14, holdWave: 9,
-    light: { every: 2, vein: 0.45, node: 0.9 },
+    light: { every: 2, vein: 0.45, node: 0.9, thread: 0.3 },
   },
+  // The minimap (map.js miniDraw): the land round the Kindler, two px a
+  // tile, `tiles` square, drawn as it's walked: what's within `sight` tiles
+  // is seen, looked at every `every` s, and the save keeps it every `save` s.
+  mini: { tiles: 40, sight: 8, every: 0.25, save: 10 },
   // Magnitude (veins.js): the thresholds of the world's living light (vein
   // tiles, plus nodeWorth a living node), and what a cast hits at each.
   magnitude: { at: [0, 150, 400, 800, 1400, 2200, 3200], power: [1, 1.25, 1.5, 1.8, 2.1, 2.5, 3], nodeWorth: 20 },

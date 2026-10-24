@@ -49,10 +49,10 @@ You wake at the nearest living node. The thread you were laying is gone. And the
 
 A **node** is a shard of the star planted in the ground: a standing crystal the star's colour, small when set and growing with the light's age. It is **living** if a chain of living veins joins it to the star, and **dark** if not.
 
-**Laying a vein.** At the star or any living node, hold TAKE UP (1 s) and the thread is in your hand: a line of the star's light from the node to you. Walk. The thread pays out behind you along the path you walk, pressed into the ground as a seam of faint gold where your feet went: it is in the world, not drawn over it, and when the node sets the seam lights along its whole length.
+**Laying a vein.** At the star or any living node, hold TAKE UP (1 s) and the thread is in your hand: a line of the star's light from the node to you. Walk. The thread pays out behind you along the path you walk, pressed into the ground as a seam of the star's gold where your feet went, lit as it's laid (a shade under a vein that's set, with a small light every couple of tiles): it is in the world, not drawn over it, and when the node sets the seam brightens along its whole length.
 
 While threading:
-- no DASH, and your step is 85%;
+- no DASH, and your step is 85% (until you plant: from then the thread ends at the node, and you fight round it on your own feet, dash and all);
 - the thread has a length, your magnitude's reach (60 tiles at first); the HUD shows what's left as a second thin line under the bar;
 - the dark is drawn to the thread: every 30 s of threading a wave wakes along it behind you, so a long thread is a long fight;
 - a fall loses the thread.
@@ -134,7 +134,7 @@ Nothing else at home. No making, no stash, no feeding.
 
 ## The HUD
 
-The bar at the top, and under it the thread's remaining length while threading. The MAP button and pause. Under the right thumb: A, B (and later C), DASH (dim while threading), and ACT, which reads TAKE UP, PLANT, JOIN or MEND as the ground allows, with the hold's ring over the node while it runs. The joystick under the left. One goal line under the bar at all times: what the ground in front of you is for ("Take up a thread here", "The dark cut the vein to Ashfall", "Six crawlers read: the star has a shape to shape").
+The bar at the top, and under it the thread's remaining length while threading. The MAP button and pause. In the view's top right corner, always, the **minimap**: the forty tiles round you, two pixels a tile, drawn as you walk them (what you've seen of each layer is kept in the save) and wherever the living light lies; the ground in its region's colour, the lit land gold, the veins, the thread, the nodes, the shafts seen, you blinking at the middle, and at the edge a mark for the way to the nearest living light when it's off the map. Under the right thumb: A, B (and later C), DASH (dim while threading, free once the node is planted), and ACT, which reads TAKE UP, PLANT, JOIN or MEND as the ground allows, with the hold's ring over the node while it runs. The joystick under the left. One goal line under the bar at all times: what the ground in front of you is for ("Take up a thread here", "The dark cut the vein to Ashfall", "Six crawlers read: the star has a shape to shape").
 
 ## A session
 

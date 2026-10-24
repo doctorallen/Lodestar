@@ -93,8 +93,15 @@ async function phone(browser, failures) {
   if (!walked.pts || walked.pts < 10) fail(`the thread did not pay out (${JSON.stringify(walked)})`);
   if (walked.act !== 'plant') fail(`PLANT is not offered out there (${walked.act})`);
   await shot(page, 'smoke-thread');
+  // the minimap is there, and the ground walked is seen
+  const mini = await page.evaluate(() => { const d = Game.dive, S = miniSeen(d), i = Math.floor(d.p.y / TILE) * d.floor.w + Math.floor(d.p.x / TILE); return { cv: !!Mini.cv, here: miniSeenAt(S, i) }; });
+  if (!mini.cv || !mini.here) fail(`the minimap did not draw or see the ground (${JSON.stringify(mini)})`);
   await steps(page, { x: 0, y: 0, act: true }, 1);
   if (!(await page.evaluate(() => !!Game.dive.hold))) fail('the hold did not begin');
+  // planted, the thread stays at the node while he moves and dashes
+  const held = await page.evaluate(() => { const d = Game.dive, n = d.thread.pts.length; Input.bot = { x: 1, y: 0 }; for (let k = 0; k < 20; k++) Game.step(1 / 60); Input.bot = { x: 1, y: 0, dash: true }; Game.step(1 / 60); Input.bot = null; return { grew: d.thread.pts.length - n, dashT: d.p.dashT }; });
+  if (held.grew) fail('the thread paid out during the hold');
+  if (!(held.dashT > 0)) fail('the dash is barred during the hold');
   const core1 = await page.evaluate(() => { Save.data.core = 5; Game.dive.p.invuln = 1e9; return Save.data.core; });
   // (each wave the dark sends is put down, as a fighting Kindler would)
   for (let k = 0; k < 95; k++) { await steps(page, { x: 0, y: 0 }, 60); await page.evaluate(() => { for (const e of Game.dive.enemies) if (!e.dead && e.type !== 'dummy') killEnemy(e); }); }

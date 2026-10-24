@@ -1113,6 +1113,8 @@ function renderFrameDraw() {
   // on top, unlit: enemies' health, the ore being aimed at, and how far
   // through it the pick is
   const o = View.overCtx;
+  // the minimap, in the corner (map.js)
+  miniDraw(d, o);
   for (const e of d.enemies) {
     if (e.dead || e.hid) continue;
     // over each foe in sight: what it fears and shrugs off (natures.js),

@@ -214,6 +214,8 @@ function threadTake(d, from) {
 function threadUpdate(d, dt) {
   const th = d.thread, p = d.p, Vn = T.veins;
   if (!th) return;
+  // (planted, it ends at the node: he fights round it on his own feet)
+  if (d.hold) return;
   const [lx, ly] = th.pts[th.pts.length - 1], m = dist(p.x, p.y, lx, ly);
   if (m >= Vn.step) {
     th.len += m;
@@ -465,8 +467,9 @@ function veinsPaintSeg(P, f, sg, x0, y0, x1, y1) {
   const L = Math.hypot(sg.bx - sg.ax, sg.by - sg.ay);
   if (L < 0.5) return;
   const n = Math.ceil(L), nx = -(sg.by - sg.ay) / L, ny = (sg.bx - sg.ax) / L, kind = sg.kind;
-  const core = kind === VEIN_LIVE ? [pntU32(rgbOf(G[2])), pntU32(rgbOf(G[3])), pntU32(rgbOf(G[1]))] : kind === VEIN_THREAD ? [pntU32(rgbOf(G[1])), pntU32(rgbOf(G[2])), pntU32(rgbOf('#5a4420'))] : [pntU32(rgbOf('#6a5a3a')), pntU32(rgbOf('#7a6a44')), pntU32(rgbOf('#4a3e2a'))];
-  const glow = kind === VEIN_LIVE ? rgbOf(G[2]) : kind === VEIN_THREAD ? rgbOf(G[1]) : null, ga = kind === VEIN_LIVE ? 230 : 110;
+  // (the thread in hand is lit as it's laid, a shade under a vein that's set)
+  const core = kind !== VEIN_DARK ? [pntU32(rgbOf(G[2])), pntU32(rgbOf(G[3])), pntU32(rgbOf(G[1]))] : [pntU32(rgbOf('#6a5a3a')), pntU32(rgbOf('#7a6a44')), pntU32(rgbOf('#4a3e2a'))];
+  const glow = kind !== VEIN_DARK ? rgbOf(G[2]) : null, ga = kind === VEIN_LIVE ? 230 : 190;
   const soot = [0, 0, 0];
   const put = (x, y, c, g) => {
     if (x < x0 || y < y0 || x >= x1 || y >= y1 || x < P.ox || y < P.oy || x >= P.ox + W || y >= P.oy + P.h) return;
@@ -507,11 +510,13 @@ function veinsLayThread(d, a, b) {
 }
 // Under everyone: what moves on the lines, which are in the ground: along
 // the thread in hand, motes of the star's light running back to its
-// start, and its light at his heel.
+// start, its light along it (lit as it's laid, T.veins.light.thread) and
+// at his heel. Planted, the thread ends at the node.
 function drawVeinsUnder(d, ox, oy, lights) {
-  const G = ART.pal.star, t = Game.realT, LY = d.layer | 0, th = d.thread;
+  const G = ART.pal.star, t = Game.realT, LY = d.layer | 0, th = d.thread, Vn = T.veins;
   if (!th) return;
-  const pts = th.pts.concat([[d.p.x, d.p.y, LY]]);
+  const pts = d.hold ? th.pts : th.pts.concat([[d.p.x, d.p.y, LY]]);
+  const band = veinBand(), every = TILE * Vn.light.every, gold = rgb01(G[2]), m0 = band * ATILE;
   let run = 0;
   for (let i = 1; i < pts.length; i++) {
     if (!veinSegOn(pts, i, LY)) continue;
@@ -523,9 +528,16 @@ function drawVeinsUnder(d, ox, oy, lights) {
       if (x < -4 || y < -4 || x > View.w + 4 || y > View.h + 4) continue;
       dot(x, y, G[3], true, 0.9); dot(x - 1, y, G[2], true, 0.6); dot(x + 1, y, G[2], true, 0.6);
     }
+    // its light, one every couple of tiles (those that reach the view)
+    for (let m = Math.ceil(run / every) * every; m < run + L; m += every) {
+      const u = (m - run) / L, x = Math.round((ax + (bx - ax) * u) * AP) + ox, y = Math.round((ay + (by - ay) * u) * AP) + oy;
+      if (x < -m0 || y < -m0 || x > View.w + m0 || y > View.h + m0) continue;
+      lights.push({ x, y, r: TILE * band, i: Vn.light.thread, c: gold });
+    }
     run += L;
   }
+  if (d.hold) return;
   const [lx, ly] = pts[pts.length - 2];
-  lights.push({ x: Math.round(d.p.x * AP) + ox, y: Math.round(d.p.y * AP) + oy, r: TILE * 1.4, i: 0.5, c: rgb01(G[2]) });
-  lights.push({ x: Math.round(lx * AP) + ox, y: Math.round(ly * AP) + oy, r: TILE, i: 0.3, c: rgb01(G[2]) });
+  lights.push({ x: Math.round(d.p.x * AP) + ox, y: Math.round(d.p.y * AP) + oy, r: TILE * 1.4, i: 0.5, c: gold });
+  lights.push({ x: Math.round(lx * AP) + ox, y: Math.round(ly * AP) + oy, r: TILE, i: 0.3, c: gold });
 }

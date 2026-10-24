@@ -61,8 +61,8 @@ function updateDash(dt) {
   const d = Game.dive, p = d.p, D = T.dash;
   p.dashCd = Math.max(0, p.dashCd - dt);
   const req = Input.consumeDash();
-  // (not with the thread in hand: veins.js)
-  if (req && d.thread) { UI.toast('Not with the thread in hand'); return false; }
+  // (not while walking the thread out: veins.js; planted, he's free to fight)
+  if (req && d.thread && !d.hold) { UI.toast('Not with the thread in hand'); return false; }
   if (req && p.dashCd <= 0 && !d.dying) {
     const mv = typeof req === 'object' ? req : Input.move;
     const dir = Math.hypot(mv.x, mv.y) > 0.2 ? norm(mv.x, mv.y) : norm(p.fx, p.fy);

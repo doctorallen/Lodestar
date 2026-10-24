@@ -57,7 +57,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/story.js` | The story: the opening's captions, Wick's lines, the star's words, the echoes, the endings |
 | `js/star.js` | The Lodestar in the world: where it stands, its light on the land (`starLight`, `litAt`), the daylight by it, the heart drawn colossal |
 | `js/veins.js` | The Veins: the thread taken up and walked out (pressed into the ground as it goes), planting, the hold, the set, joining and mending; the graph in the save (each node and point on its layer), who lives, the magnitude, a light grid a layer; the nodes drawn, the lines painted into the floor |
-| `js/map.js` | The star's screen: the map (a layer at a time, pinch to zoom, the regions' colours and names, the shafts seen; tap a node for its card and STAND THERE), the shapes, Wick's notes |
+| `js/map.js` | The star's screen: the map (a layer at a time, pinch to zoom, the regions' colours and names, the shafts seen; tap a node for its card and STAND THERE), the shapes, Wick's notes; the minimap in the view's corner, drawn as the land is walked (the seen tiles kept in the save) |
 | `js/shapes.js` | Shapes: each creature kind's two readings, the star's own, the kills that read them, the pick, the spells carried into the rig |
 | `js/terraform.js` | The land terraforming by the light: starstone along every living vein and round every node, gold veins running on through the land, the ground greening past the light's edge, lit motes |
 | `js/hubart.js` | The star and its halo, painted; the older outpost's pieces, kept for the opening |
