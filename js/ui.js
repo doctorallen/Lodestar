@@ -243,7 +243,8 @@ UI.acts = {
   replayIntro: () => { UI.close(); Intro.play(null); },
   // the star's screen: a shape read, a spell carried (shapes.js)
   moteLearn: (arg) => { if (moteLearn(arg)) UI.redraw(); },
-  castCycle: (arg) => { const [i, part] = arg.split(':'); castCycle(Number(i), part); UI.redraw(); },
+  castPick: (arg) => { const [i, part] = arg.split(':'); castPick(Number(i), part); UI.redraw(); },
+  castSet: (arg) => { const [i, part, id] = arg.split(':'); castSet(Number(i), part, id || null); UI.redraw(); },
   // the map: a layer, the picked node stood at, the card put away (map.js)
   mapLayer: (l) => mapLayerSet(l),
   mapGo: () => mapGo(),

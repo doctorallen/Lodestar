@@ -10,7 +10,7 @@
 // be in), its mods, a form or two (opened by the star's magnitude), and a
 // passive at the end. Nothing is ever lost or used up, so there's no
 // inventory: a cast is a form, an element and the mods it has slots for,
-// set from everything learned (castCycle), and the wrist casts it as the
+// set from everything learned (castPick, castSet), and the wrist casts it as the
 // old cast code reads a rig's spells (circuits.js; game.js KINDLER_RIG).
 //
 // The save: Save.data.motes { nature: banked }, Save.data.learned [node
@@ -176,17 +176,29 @@ function moteLearn(id) {
   }
   return false;
 }
-// A cast's part cycled to the next learned one: part form, el, or m0, m1…
-// (an element or a mod can be none; a mod once in a cast).
-function castCycle(i, part) {
+// A cast's part tapped (castPick): a menu of what fits it opens under the
+// cast (MotesUI.pick; the screen's redraw draws it), and one of those
+// tapped (castSet) goes in: part form, el, or m0, m1… (an element or a mod
+// can be none; a mod once in a cast).
+const MotesUI = { pick: null, opened: null };
+function castPick(i, part) {
+  const P = MotesUI.pick;
+  MotesUI.pick = P && P.i === i && P.part === part ? null : { i, part };
+}
+// What fits a cast's part: [{ id, name, line }], id null for none.
+function castChoices(c, part) {
+  if (part === 'form') return motesLearned('form').map((id) => ({ id, name: CIRCUIT_FORMS[id].name, line: CIRCUIT_FORMS[id].text() }));
+  if (part === 'el') return [{ id: null, name: 'No element', line: 'force: knocks back; two heavy hits stun' }].concat(motesLearned('el').map((id) => ({ id, name: CIRCUIT_ELEMENTS[id].name, line: CIRCUIT_ELEMENTS[id].status })));
+  const k = Number(part.slice(1));
+  return [{ id: null, name: 'No mod', line: 'the cast as it is' }].concat(motesLearned('mod').filter((m) => !c.mods.some((x, j) => x === m && j !== k)).map((id) => ({ id, name: CIRCUIT_GLYPHS[id].name, line: CIRCUIT_GLYPHS[id].text() })));
+}
+function castSet(i, part, id) {
   const s = motesState(), c = s.casts[i];
   if (!c) return;
-  if (part === 'form') { const L = motesLearned('form'); c.form = L[(L.indexOf(c.form) + 1) % L.length]; }
-  else if (part === 'el') { const L = [null].concat(motesLearned('el')); c.el = L[(L.indexOf(c.el) + 1) % L.length]; }
-  else {
-    const k = Number(part.slice(1)), L = [null].concat(motesLearned('mod').filter((m) => !c.mods.some((x, j) => x === m && j !== k)));
-    c.mods[k] = L[(L.indexOf(c.mods[k] || null) + 1) % L.length];
-  }
+  const ok = castChoices(c, part).some((o) => o.id === id);
+  if (!ok) return;
+  if (part === 'form') c.form = id; else if (part === 'el') c.el = id; else c.mods[Number(part.slice(1))] = id;
+  MotesUI.pick = null;
   Save.saveField('casts');
   spellsApply();
 }
@@ -203,11 +215,22 @@ function spellsApply() {
 // The CASTS and the trees on the star's screen (map.js mapBody).
 function motesHtml(d) {
   const s = motesState(), mag = magnitudeOf(), slots = castModSlots(), rows = [], C = motesCarried(d);
-  rows.push('<h3>CASTS</h3><p class="note">A form, an element and the mods it has slots for, from everything the star has learned. Tap a part for the next.</p>');
+  if (MotesUI.opened !== UI.openedAt) { MotesUI.opened = UI.openedAt; MotesUI.pick = null; }
+  const P = MotesUI.pick;
+  rows.push('<h3>CASTS</h3><p class="note">A form, an element and the mods it has slots for, from everything the star has learned. Tap a part to choose.</p>');
   s.casts.slice(0, carrySlots()).forEach((c, i) => {
-    const parts = [`<button class="mini part" data-act="castCycle" data-arg="${i}:form">${esc((CIRCUIT_FORMS[c.form] || { name: '?' }).name.toUpperCase())}</button>`, `<button class="mini part" data-act="castCycle" data-arg="${i}:el">${c.el ? esc(CIRCUIT_ELEMENTS[c.el].name.toUpperCase()) : 'NO ELEMENT'}</button>`];
-    for (let k = 0; k < slots; k++) parts.push(`<button class="mini part" data-act="castCycle" data-arg="${i}:m${k}">${c.mods[k] ? esc(CIRCUIT_GLYPHS[c.mods[k]].name.toUpperCase()) : 'NO MOD'}</button>`);
+    const part = (key, label) => `<button class="mini part${P && P.i === i && P.part === key ? ' on' : ''}" data-act="castPick" data-arg="${i}:${key}">${label}</button>`;
+    const parts = [part('form', esc((CIRCUIT_FORMS[c.form] || { name: '?' }).name.toUpperCase())), part('el', c.el ? esc(CIRCUIT_ELEMENTS[c.el].name.toUpperCase()) : 'NO ELEMENT')];
+    for (let k = 0; k < slots; k++) parts.push(part('m' + k, c.mods[k] ? esc(CIRCUIT_GLYPHS[c.mods[k]].name.toUpperCase()) : 'NO MOD'));
     rows.push(`<div class="row static on cast"><img class="icon" src="${stoneIconUrl(c.form)}" alt=""><span class="row-text"><span class="row-name"><span class="r-legendary">${i ? 'B' : 'A'}</span> · ${esc(castName(c))}</span><span class="row-parts">${parts.join('')}</span></span></div>`);
+    if (P && P.i === i) {
+      // the menu: what fits the part picked
+      const cur = P.part === 'form' ? c.form : P.part === 'el' ? c.el : c.mods[Number(P.part.slice(1))] || null;
+      const what = P.part === 'form' ? 'FORM' : P.part === 'el' ? 'ELEMENT' : 'MOD';
+      rows.push(`<div class="cast-menu"><p class="note">${what} for ${esc(i ? 'B' : 'A')}:</p>`);
+      for (const o of castChoices(c, P.part)) rows.push(`<button class="row${o.id === cur ? ' on' : ''}" data-act="castSet" data-arg="${i}:${P.part}:${o.id || ''}">${o.id ? `<img class="icon" src="${stoneIconUrl(o.id)}" alt="">` : '<span class="icon none"></span>'}<span class="row-text"><span class="row-name">${esc(o.name)}</span><span class="row-sub">${esc(o.line)}</span></span>${o.id === cur ? '<span class="row-tag r-legendary">SET</span>' : ''}</button>`);
+      rows.push('</div>');
+    }
   });
   const nextSlot = T.motes.modSlotsAt.find((m) => m > mag);
   if (nextSlot) rows.push(`<p class="note">Another mod slot at magnitude ${nextSlot}.</p>`);

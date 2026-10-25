@@ -99,6 +99,10 @@ body.home .hud-spec { display: flex; }
 .mini[disabled] { opacity: 0.45; }
 .row-parts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .mini.part { font-size: 10px; letter-spacing: 0.06em; padding: 3px 7px; }
+.mini.part.on { color: var(--gold); border-color: var(--gold); }
+.cast-menu { margin: -2px 0 10px 12px; padding-left: 10px; border-left: 1px solid var(--line); }
+.cast-menu .row { min-height: 44px; }
+.row .icon.none { display: inline-block; width: 28px; height: 28px; border-radius: 50%; border: 1px dashed var(--line); flex: none; }
 h4.tree { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; font-size: 12px; letter-spacing: 0.1em; }
 h4.tree .pip { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
 h4.tree .tree-line { flex-basis: 100%; color: var(--dim); font-weight: normal; letter-spacing: 0; font-size: 12px; }

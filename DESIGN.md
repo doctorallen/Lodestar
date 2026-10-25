@@ -113,14 +113,14 @@ Creatures hunt the Kindler, and during a hold the node; they never attack a set 
 
 Twenty-three nodes, a few hours of the dark, and it never runs dry: the trees are the Kindler's growth, the magnitude the world's, and a form needs both.
 
-**Casts.** Two casts, A and B. Each is a **form**, an **element** (or none) and the **mods** it has slots for (one at the start, a second at magnitude 3, a third at 5), set from everything learned by tapping a part for the next. Nothing is used up or lost, so there is no inventory and nothing to sort: the longest list on the screen is a tree's five nodes. Each button says its cast (EMBER ARC) and whether the nearest creature fears or shrugs off it.
+**Casts.** Two casts, A and B. Each is a **form**, an **element** (or none) and the **mods** it has slots for (one at the start, a second at magnitude 3, a third at 5), set from everything learned: tap a part and a menu of what fits it opens under the cast. Nothing is used up or lost, so there is no inventory and nothing to sort: the longest list on the screen is a tree's five nodes. Each button says its cast (EMBER ARC) and whether the nearest creature fears or shrugs off it.
 
 ## The star's screen
 
 One screen, from the star (walk into the heart's light) or the MAP button anywhere, which opens it on the map. Three parts, scrolled:
 
 1. **THE WORLD.** The map, a layer at a time (THE SURFACE, THE DEEP), pinched to zoom: the regions in their own colours and their names as they're walked, veins in gold, nodes as marks, cuts marked red, shafts once seen, the Kindler. Tap a node for its card; TRAVEL THERE to go, and the light is seen running the veins to it.
-2. **CASTS and THE TREES.** The two casts, each part tapped for the next; then the five trees, each with its motes banked and carried, its nodes in order with LEARN and the cost.
+2. **CASTS and THE TREES.** The two casts, each part tapped for a menu of what fits; then the five trees, each with its motes banked and carried, its nodes in order with LEARN and the cost.
 3. **WICK.** His log, the *Meridian* overhead (how many sleep), the core's pieces, and the opening again.
 
 Nothing else at home. No making, no stash, no feeding.

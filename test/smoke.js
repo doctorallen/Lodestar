@@ -132,7 +132,9 @@ async function phone(browser, failures) {
   await sleep(450);
   if (!(await page.evaluate(() => !!document.querySelector('#map-body [data-act=moteLearn][data-arg="amplify"]')))) fail('the screen does not offer Amplify');
   await page.evaluate(() => UI.acts.moteLearn('amplify'));
-  await page.evaluate(() => UI.acts.castCycle('0:m0'));
+  await page.evaluate(() => UI.acts.castPick('0:m0'));
+  if (!(await page.evaluate(() => !!document.querySelector('#map-body [data-act=castSet][data-arg="0:m0:amplify"]')))) fail('the mod menu does not offer Amplify');
+  await page.evaluate(() => UI.acts.castSet('0:m0:amplify'));
   const cast = await page.evaluate(() => ({ learned: Save.data.learned.slice(), casts: Save.data.casts.map((c) => [c.form, c.el, c.mods[0] || null]), rig: Save.data.equip.main.spells.map((sp) => [sp.form.stone, (sp.mods[0] || {}).stone || null]), grit: Save.data.motes.grit, locked: !!document.querySelector('#map-body [data-act=moteLearn][data-arg="glaive"]') }));
   if (!cast.learned.includes('amplify') || cast.casts[0][2] !== 'amplify') fail(`Amplify was not learned and set (${JSON.stringify(cast)})`);
   if (cast.rig[0][0] !== 'arc' || cast.rig[0][1] !== 'amplify') fail(`the rig does not cast it (${JSON.stringify(cast.rig)})`);
