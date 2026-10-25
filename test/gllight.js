@@ -112,6 +112,15 @@ async function runAt(browser, grain, failures) {
   await page.evaluate(() => { const d = Game.dive, f = d.floor; const far = f.rooms.slice(1).sort((a, b) => Math.hypot(b.cx - f.star.x, b.cy - f.star.y) - Math.hypot(a.cx - f.star.x, a.cy - f.star.y))[0]; d.p.x = (far.cx + 0.5) * TILE; d.p.y = (far.cy + 0.5) * TILE; });
   await whole();
   check(await page.evaluate(compare, 'floor'));
+  // the painted window moved (south and west, then north and east): its
+  // textures shifted on the GPU (gpu.js gpuFloorShift, gllight.js
+  // glGroundShift) must hold what the 2D path's canvases do
+  for (const [dx, dy, lab] of [[-28, 24, 'moved sw'], [30, -26, 'moved ne']]) {
+    const mv = await page.evaluate((dx, dy) => { const d = Game.dive, f = d.floor, w0 = PWIN.x + ',' + PWIN.y; let x = d.p.x + dx * TILE, y = d.p.y + dy * TILE; x = clamp(x, TILE * 8, (f.w - 8) * TILE); y = clamp(y, TILE * 8, (f.h - 8) * TILE); d.p.x = x; d.p.y = y; d.p.invuln = 1e9; d.enemies = []; for (let i = 0; i < 3; i++) { Game.step(1 / 60); renderFrame(); } return w0 !== PWIN.x + ',' + PWIN.y; }, dx, dy);
+    if (!mv) failures.push(`${lab}${tag}: the window did not move`);
+    await whole();
+    check(await page.evaluate(compare, lab));
+  }
   await page.evaluate(() => Lab.set('broken', true, { save: false }));
   await new Promise((r) => setTimeout(r, 1500));
   await whole();

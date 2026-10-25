@@ -227,7 +227,7 @@ function mapBody() {
 }
 
 // The screen opening (ui.js UI.redraw): the layer he's on, the view kept
-// from last time (whole world the first).
+// from last time (T.map.openZoom the first), centred on the Kindler.
 function drawMap() {
   const d = Game.dive;
   if (!d) return;
@@ -235,7 +235,10 @@ function drawMap() {
   if (MapView.opened !== UI.openedAt) {
     MapView.opened = UI.openedAt;
     MapView.layer = d.layer | 0; MapView.sel = -1; MapView.trip = null;
-    if (!MapView.z || MapView.z === 1) { const f = mapFloor(); MapView.cx = f.w / 2; MapView.cy = f.h / 2; }
+    // on the Kindler, at the zoom from last time (T.map.openZoom the first)
+    if (!MapView.z || MapView.z === 1) MapView.z = T.map.openZoom;
+    MapView.cx = d.p.x / TILE; MapView.cy = d.p.y / TILE;
+    mapClampView();
   }
   mapDrawCanvas();
   mapBody();

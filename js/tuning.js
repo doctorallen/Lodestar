@@ -988,10 +988,12 @@ const T = {
     light: { every: 2, vein: 0.45, node: 0.9, thread: 0.3 },
     holdPaint: 6,
   },
-  // The map's travel (map.js mapGo): the light seen running the veins from
+  // The map (map.js): openZoom, the zoom it opens at the first time (then
+  // the last zoom, centred on the Kindler); trip, the travel (mapGo): the
+  // light seen running the veins from
   // where he stands to the node, `speed` tiles a second, between min and
   // max seconds; then he stands there.
-  map: { trip: { speed: 70, min: 0.6, max: 1.8 } },
+  map: { trip: { speed: 70, min: 0.6, max: 1.8 }, openZoom: 4 },
   // The minimap (map.js miniDraw): the land round the Kindler, two px a
   // tile, `tiles` square, drawn as it's walked: what's within `sight` tiles
   // is seen, looked at every `every` s, and the save keeps it every `save` s.
