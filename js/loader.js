@@ -310,6 +310,8 @@ function loaderUIStart() {
   const U = LoaderUI, el = Loader.el;
   U.log = el.querySelector('.ld-log'); U.fill = el.querySelector('.ld-fill'); U.pctEl = el.querySelector('.ld-pct');
   U.now = el.querySelector('.ld-now'); U.halo = el.querySelector('.ld-halo'); U.mark = el.querySelector('.ld-mark');
+  // the build, at the foot (version.js)
+  const bd = el.querySelector('.ld-build'); if (bd) bd.textContent = BUILD_INFO;
   const segs = el.querySelector('.ld-segs');
   segs.textContent = '';
   U.segs = [];

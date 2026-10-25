@@ -754,6 +754,7 @@ body.intro-out #topbar > *, body.intro-out .deck > * { transition: opacity 0.9s;
 .ld-pct { color: var(--ld-gold); font-variant-numeric: tabular-nums; white-space: pre; }
 .ld-go { margin: 10px 0 0; text-align: center; font-size: 15px; letter-spacing: 0.42em; padding-left: 0.42em; color: var(--ld-hi); text-shadow: 0 0 10px rgba(240, 192, 80, 0.6); animation: ld-pulse 1.8s ease-in-out infinite; }
 .ld-go[hidden] { display: block; visibility: hidden; }
+.ld-build { margin: 4px 0 0; text-align: center; font-size: 10px; letter-spacing: 0.18em; color: var(--ld-blue); }
 @keyframes ld-pulse { 50% { opacity: 0.45; } }
 .loader.ready .ld-star-cv { opacity: 1; }
 /* sideways: the mark on the left, the log beside it */
