@@ -16,6 +16,9 @@ const TILE_FLOOR = 0, TILE_ROCK = 1, TILE_ORE = 2, TILE_EDGE = 3, TILE_PAD = 4, 
 // (6 is TILE_SHAFT, deep.js: a way down to the Deep, or up from it)
 // Indexed by tile type: does it stop a body?
 const TILE_SOLID = [false, true, true, true, false, false, false];
+// What stands up as rock when it's painted: the world's edge (TILE_EDGE)
+// is solid but doesn't rise; it's painted as the land's end (paint.js).
+const TILE_RISES = [false, true, true, false, false, false, false];
 
 // Where each ore sits in T.ores, by id. A floor's ore array holds index + 1.
 const ORE_INDEX = Object.fromEntries(T.ores.map((o, i) => [o.id, i]));
@@ -383,9 +386,9 @@ function wallNoise(x, y, scale) {
 
 // Is the world pixel x, y rock? The four nearest tiles' solidity blended,
 // with a little noise, cut at a half.
-function rockAt(f, x, y) {
+function rockAt(f, x, y, S = TILE_SOLID) {
   const gx = x / TILE - 0.5, gy = y / TILE - 0.5, tx = Math.floor(gx), ty = Math.floor(gy), u = gx - tx, v = gy - ty;
-  const s = (i, j) => (TILE_SOLID[floorTile(f, i, j)] ? 1 : 0);
+  const s = (i, j) => (S[floorTile(f, i, j)] ? 1 : 0);
   const a = s(tx, ty), b = s(tx + 1, ty), c = s(tx, ty + 1), d = s(tx + 1, ty + 1);
   if (a === b && b === c && c === d) return a === 1;
   let blend = lerp(lerp(a, b, u), lerp(c, d, u), v);

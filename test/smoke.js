@@ -143,6 +143,18 @@ async function phone(browser, failures) {
   await steps(page, { x: 0, y: 0 }, 2);
   if ((await page.evaluate(() => document.getElementById('btn-main').textContent.trim())) !== 'ARC') fail('the A button does not say ARC');
   await shot(page, 'smoke-motes');
+  // a creature casts what it teaches: a wisp's shock orbs, split in three,
+  // fly at the Kindler and strike him (foecast.js)
+  const fc = await page.evaluate(() => {
+    const d = Game.dive, p = d.p, e = makeEnemy('wisp', p.x + 60, p.y, 1, null); d.enemies = [e]; e.aggro = true; e.castCd = 0; p.invuln = 0; p.hp = d.stats.maxHp;
+    let bolts = 0, hp0 = p.hp;
+    for (let i = 0; i < 240; i++) { Game.step(1 / 60); bolts = Math.max(bolts, d.bolts.filter((b) => b.foe).length); if (p.hp < hp0) break; }
+    const r = { state: e.state, bolts, hurt: p.hp < hp0, shock: p.shockT > 0 };
+    d.enemies = []; d.bolts = []; p.hp = d.stats.maxHp; p.shockT = 0;
+    return r;
+  });
+  if (fc.bolts < 3) fail(`the wisp's cast did not split in three (${JSON.stringify(fc)})`);
+  if (!fc.hurt) fail(`the wisp's cast did not strike him (${JSON.stringify(fc)})`);
   // away nine hours: the dark cuts the vein, the node goes dark, the
   // Hollow stands at its end; mended with a thread from the star
   const cut = await page.evaluate(() => { Save.data.lastSeen = Date.now() - 9 * 3600e3; enterWorld({}); const d = Game.dive, V = veinsState(), k = V.nodes.length - 1; return { cut: V.veins.filter((v) => v.cut).length, live1: !!d.vLive[k], hollow: d.enemies.filter((e) => e.type === 'hollow').length, worth: d.vWorth }; });

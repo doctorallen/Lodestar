@@ -289,11 +289,15 @@ function castHand(slot, item, h, charged) {
   return true;
 }
 
+// What a cast of group state s can strike: the foes, or the Kindler for a
+// creature's cast (foecast.js).
+function circuitFoes(s) { const d = Game.dive; return s.cx.foe ? foeCastTargets(d) : d.enemies; }
 // Where a cast aims from `from` (null: the diver), within `range`: the
 // angle to the nearest enemy in sight, else `aim`, else the way the diver
-// faces. Returns { a, target }.
-function circuitAim(from, range, exclude, aim) {
+// faces; a creature's cast aims at the Kindler. Returns { a, target }.
+function circuitAim(from, range, exclude, aim, foe) {
   const d = Game.dive, p = d.p;
+  if (foe) { const o = from || foe, t = foeCastTargets(d)[0]; return { target: t, a: Math.atan2(t.y - 6 - (o.y - 6), t.x - o.x) }; }
   const o = from || p, target = nearestEnemy(d, range, o, exclude);
   if (target) return { target, a: Math.atan2(target.y - 4 - (o.y - (from ? 6 : 8)), target.x - o.x) };
   return { target: null, a: aim !== null && aim !== undefined ? aim : Math.atan2(p.fy, p.fx) };
@@ -350,7 +354,7 @@ function circuitInstance(s, mult) {
 // A Linger's field: the group's element on the ground, hurting what's in it.
 function lingerField(s, x, y, mult) {
   const Gl = T.circuits.glyphs.linger, t = Gl.time * s.linger;
-  Game.dive.puddles.push({ x, y, r: s.F.field * s.area, t, max: t, dps: s.dmg * mult * Gl.dps, mine: true, els: s.els, att: s.att, col: s.col, every: Gl.every });
+  Game.dive.puddles.push({ x, y, r: s.F.field * s.area, t, max: t, dps: s.dmg * mult * Gl.dps, mine: !s.cx.foe, els: s.els, att: s.att, col: s.col, every: Gl.every });
 }
 
 // A foe struck by a group: crits, its elements, knockback (more for Force),
@@ -358,6 +362,8 @@ function lingerField(s, x, y, mult) {
 function circuitHit(s, e, dmg, opts = {}) {
   const d = Game.dive, st = d.stats, p = d.p;
   if (e.dead || e.hid) return;
+  // (a creature's cast: it's the Kindler it strikes, foecast.js)
+  if (e.isPlayer) { foeCastHit(s, dmg, opts); return; }
   const way = casterOreWay(s.cx.item), heavy = !!opts.heavy || !!s.cx.charged;
   // the frame's ore: heavy hits harder, knocks and staggers harder
   if (heavy && way.heavy) dmg *= way.heavy;
@@ -381,6 +387,7 @@ function circuitHit(s, e, dmg, opts = {}) {
 // a little weaker, a crackle of the group's colour between them.
 function circuitLeap(s, from, dmg) {
   const d = Game.dive, G = T.circuits.glyphs.chain, hit = [from];
+  if (s.cx.foe) return;
   let cur = from, k = dmg;
   for (let j = 0; j < G.jumps * s.chain; j++) {
     let next = null, bd = G.range * s.area;
@@ -399,7 +406,7 @@ function circuitLeap(s, from, dmg) {
 function castArc(s, off, mult, inst, centre) {
   const d = Game.dive, p = d.p, F = s.F, cx = s.cx, A = F.combo[cx.step % F.combo.length], heavy = cx.step % F.combo.length === F.combo.length - 1;
   const from = cx.from, range = F.range * s.area;
-  const aim = circuitAim(from, T.hands.autoAim, cx.exclude, cx.aim), a = aim.a + off + cx.spread;
+  const aim = circuitAim(from, T.hands.autoAim, cx.exclude, cx.aim, cx.foe), a = aim.a + off + cx.spread;
   const dir = { x: Math.cos(a), y: Math.sin(a) };
   let x0 = from ? from.x : p.x, y0 = from ? from.y : p.y;
   if (!from && centre) {
@@ -407,7 +414,7 @@ function castArc(s, off, mult, inst, centre) {
     p.strikeT = Math.max(p.strikeT || 0, A[1] * F.slow);
   }
   let first = null, fd = 1e9, n = 0;
-  for (const e of d.enemies) {
+  for (const e of circuitFoes(s)) {
     if (e.dead) continue;
     const dx = e.x - x0, dy = e.y - y0, m = Math.hypot(dx, dy);
     const touching = m <= e.r + T.player.radius + 3 || (!from && dist(e.x, e.y, p.x, p.y) <= e.r + T.player.radius + 3);
@@ -428,12 +435,12 @@ function castArc(s, off, mult, inst, centre) {
 // k), set evenly round it from the aim.
 function castNova(s, i, k, mult, inst) {
   const d = Game.dive, p = d.p, cx = s.cx, F = s.F, r = F.radius * s.area * (cx.charged && s.g.form !== 'arc' ? F.chargedR : 1);
-  const o = cx.from || p, aim = circuitAim(cx.from, T.circuits.aimRange, cx.exclude, cx.aim).a, b = aim + (i / k) * Math.PI * 2, out = k > 1 ? r * F.splitOut : 0;
+  const o = cx.from || p, aim = circuitAim(cx.from, T.circuits.aimRange, cx.exclude, cx.aim, cx.foe).a, b = aim + (i / k) * Math.PI * 2, out = k > 1 ? r * F.splitOut : 0;
   const x = o.x + Math.cos(b) * out, y = o.y + Math.sin(b) * out;
   d.fx.push({ kind: 'nova', x, y: y - 6, r, t: 0.3, max: 0.3, col: s.col });
   castFxFor(T.castFx.shapeOf.nova, s.g.els[0] || null, { x, y }, 0, { r, col: s.col });
   let first = null, fd = 1e9;
-  for (const e of d.enemies) {
+  for (const e of circuitFoes(s)) {
     if (e.dead) continue;
     const m = dist(e.x, e.y, x, y);
     if (m >= r + e.r) continue;
@@ -450,12 +457,15 @@ function castNova(s, i, k, mult, inst) {
 // then drags and grinds what's in it until it fades (circuitAuras).
 function castWell(s, off, mult, inst) {
   const d = Game.dive, p = d.p, cx = s.cx, F = s.F, r = F.radius * s.area;
-  const aim = circuitAim(cx.from, rigBase().aim, cx.exclude, cx.aim), a = aim.a + off;
+  const aim = circuitAim(cx.from, rigBase().aim, cx.exclude, cx.aim, cx.foe), a = aim.a + off;
   let x, y;
-  if (cx.from) { x = cx.from.x + Math.cos(a) * (off ? r * F.splitOut : 0); y = cx.from.y + Math.sin(a) * (off ? r * F.splitOut : 0); }
+  // (a creature's well is set at the Kindler's feet)
+  if (cx.foe && aim.target && !off) { x = aim.target.x; y = aim.target.y; }
+  else if (cx.from) { x = cx.from.x + Math.cos(a) * (off ? r * F.splitOut : 0); y = cx.from.y + Math.sin(a) * (off ? r * F.splitOut : 0); }
   else if (aim.target && !off) { x = aim.target.x; y = aim.target.y; }
   else { x = p.x + Math.cos(a) * F.ahead; y = p.y + Math.sin(a) * F.ahead; }
-  for (const e of d.enemies) {
+  for (const e of circuitFoes(s)) {
+    if (e.isPlayer) continue;
     if (e.dead || e.hid || e.boss || e.type === 'hollow' || T.enemies[e.type].rooted || T.enemies[e.type].anchored) continue;
     const m = dist(e.x, e.y, x, y);
     if (m > r || m < 1) continue;
@@ -473,8 +483,9 @@ function castGlaive(s, k, mult) {
   const d = Game.dive, p = d.p, cx = s.cx, F = s.F, o = cx.from || p;
   const mine = d.auras.filter((au) => au.kind === 'glaive');
   if (mine.length >= F.most) d.auras.splice(d.auras.indexOf(mine[0]), 1);
-  const a = circuitAim(cx.from, T.hands.autoAim, cx.exclude, cx.aim).a;
-  d.auras.push({ kind: 'glaive', follow: !cx.from, x: o.x, y: o.y, r: F.radius * s.area, t: F.time, max: F.time, age: 0, n: F.blades * k, a, spin: F.spin, reach: F.reach * Math.sqrt(s.area), dmg: s.dmg * mult, s, inst: circuitInstance(s, mult), seen: new Map(), col: s.col, storm: cx.res === 'stormglaive', stormT: 0 });
+  const a = circuitAim(cx.from, T.hands.autoAim, cx.exclude, cx.aim, cx.foe).a;
+  // (follow: the diver, or the creature that cast it)
+  d.auras.push({ kind: 'glaive', follow: cx.foe || !cx.from, x: o.x, y: o.y, r: F.radius * s.area, t: F.time, max: F.time, age: 0, n: F.blades * k, a, spin: F.spin, reach: F.reach * Math.sqrt(s.area), dmg: s.dmg * mult, s, inst: circuitInstance(s, mult), seen: new Map(), col: s.col, storm: cx.res === 'stormglaive', stormT: 0 });
   castFxFor(T.castFx.shapeOf.glaive, s.g.els[0] || null, o, a, { r: F.radius * s.area, col: s.col });
 }
 
@@ -482,8 +493,8 @@ function castGlaive(s, k, mult) {
 // back with its element. When it breaks or fades, it leaves its Linger's
 // field.
 function castWard(s, k) {
-  const d = Game.dive, p = d.p, cx = s.cx, F = s.F;
-  p.ward = Math.max(p.ward, cx.power * F.soak * s.area * k * cx.mult * (cx.charged ? T.circuits.chargedMult : 1));
+  const d = Game.dive, cx = s.cx, F = s.F, p = cx.foe || d.p;
+  p.ward = Math.max(p.ward || 0, cx.power * F.soak * s.area * k * cx.mult * (cx.charged ? T.circuits.chargedMult : 1));
   p.wardT = F.time;
   p.wardS = s; p.wardHit = cx.power * F.thorns * cx.mult * (1 + d.stats.spellDmg / 100); p.wardEnd = circuitInstance(s, 1);
   d.fx.push({ kind: 'ward', x: p.x, y: p.y - 6, t: 0.3, max: 0.3 });
@@ -501,7 +512,7 @@ function wardGone(p) {
 // bigger and passes through more.
 function castShot(s, off, mult, inst) {
   const d = Game.dive, cx = s.cx, F = s.F, form = s.form, C = T.circuits;
-  const aim = circuitAim(cx.from, rigBase().aim, cx.exclude, cx.aim), a = aim.a + off + cx.spread;
+  const aim = circuitAim(cx.from, rigBase().aim, cx.exclude, cx.aim, cx.foe), a = aim.a + off + cx.spread;
   const o = cx.from || d.p, big = cx.charged && form !== 'orb';
   const n = (id) => s.g.glyphs[id] || 0;
   d.bolts.push({
@@ -510,7 +521,7 @@ function castShot(s, off, mult, inst) {
     wild: cx.res === 'wildfire' && form === 'orb', trailD: 0, shatter: cx.res === 'shatterglass' && form === 'lance' && cx.echo,
     chain: form === 'bolt' ? (d.stats.powers.stormcaller ? 2 : 0) + n('chain') * C.glyphs.chain.jumps : 0,
     pierce: (F.pierce || 0) + n('pierce') * C.glyphs.pierce.more + (big ? C.chargedPierce : 0),
-    hitIds: cx.exclude ? [cx.exclude] : [], big, element: s.g.els[0] || null, col: s.col, s, inst,
+    hitIds: cx.exclude ? [cx.exclude] : [], big, element: s.g.els[0] || null, col: s.col, s, inst, foe: !!cx.foe,
     orb: form === 'orb' ? { r: F.radius * s.area, every: F.every, tick: F.every * 0.4, pulse: 0 } : null,
   });
 }
@@ -535,11 +546,11 @@ function updateBolts(dt) {
       // an orb drifts through, pulsing
       if ((b.orb.tick -= dt) <= 0) {
         b.orb.tick = b.orb.every; b.orb.pulse = Game.realT;
-        for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, b.x, b.y + 6) < b.orb.r + e.r) circuitHit(b.s, e, b.dmg, { knock: norm(e.x - b.x, e.y - b.y - 6), proj: true });
+        for (const e of circuitFoes(b.s)) if (!e.dead && dist(e.x, e.y, b.x, b.y + 6) < b.orb.r + e.r) circuitHit(b.s, e, b.dmg, { knock: norm(e.x - b.x, e.y - b.y - 6), proj: true });
       }
       continue;
     }
-    for (const e of d.enemies) {
+    for (const e of circuitFoes(b.s)) {
       if (e.dead || e.hid || b.hitIds.includes(e) || dist(b.x, b.y, e.x, e.y - 5) > e.r + (b.big ? 7 : 4)) continue;
       const sp0 = Math.hypot(b.vx, b.vy) || 1, kb = T.impact.shotKnock[b.big ? 1 : 0];
       // Shatterglass: the echo's lance shatters the chilled
@@ -552,7 +563,7 @@ function updateBolts(dt) {
       b.inst.hit(e.x, e.y, e, Math.atan2(b.vy, b.vx));
       if (b.pierce > 0) { b.pierce--; continue; }
       // a bolt's Chain (and the Stormcaller's): on to the next nearest
-      const next = b.chain > 0 && d.enemies.filter((o) => !o.dead && !o.hid && !b.hitIds.includes(o) && dist(o.x, o.y, e.x, e.y) < T.circuits.glyphs.chain.range * 1.5).sort((o1, o2) => dist(o1.x, o1.y, e.x, e.y) - dist(o2.x, o2.y, e.x, e.y))[0];
+      const next = b.chain > 0 && !b.foe && d.enemies.filter((o) => !o.dead && !o.hid && !b.hitIds.includes(o) && dist(o.x, o.y, e.x, e.y) < T.circuits.glyphs.chain.range * 1.5).sort((o1, o2) => dist(o1.x, o1.y, e.x, e.y) - dist(o2.x, o2.y, e.x, e.y))[0];
       if (next) {
         b.chain--;
         const a = norm(next.x - b.x, next.y - 4 - b.y), sp = Math.hypot(b.vx, b.vy);
@@ -570,12 +581,13 @@ function updateAuras(dt) {
   const d = Game.dive, p = d.p;
   for (const au of d.auras) {
     au.t -= dt;
-    if (au.follow) { au.x = p.x; au.y = p.y; }
+    // (it follows the diver, or the creature that cast it, and dies with it)
+    if (au.follow) { const o = au.follow === true ? p : au.follow; au.x = o.x; au.y = o.y; if (o.dead) au.t = 0; }
     if (au.kind === 'glaive') {
       au.age += dt; au.a += au.spin * dt;
       for (let k = 0; k < au.n; k++) {
         const b = au.a + (k / au.n) * Math.PI * 2, bx = au.x + Math.cos(b) * au.r, by = au.y + Math.sin(b) * au.r;
-        for (const e of d.enemies) {
+        for (const e of circuitFoes(au.s)) {
           if (e.dead || dist(e.x, e.y, bx, by) > au.reach + e.r || (au.seen.get(e) || 0) > au.age) continue;
           au.seen.set(e, au.age + T.circuits.forms.glaive.again);
           const kb = T.circuits.forms.glaive.knock;
@@ -587,14 +599,14 @@ function updateAuras(dt) {
     } else if (au.kind === 'cloud') thunderheadTick(au, dt);
     else if (au.kind === 'well') {
       const W = T.circuits.forms.well;
-      for (const e of d.enemies) {
-        if (e.dead || e.hid || e.boss || e.type === 'hollow' || T.enemies[e.type].rooted || T.enemies[e.type].anchored) continue;
+      for (const e of circuitFoes(au.s)) {
+        if (e.dead || e.hid || (!e.isPlayer && (e.boss || e.type === 'hollow' || T.enemies[e.type].rooted || T.enemies[e.type].anchored))) continue;
         const m = dist(e.x, e.y, au.x, au.y);
-        if (m < au.r && m > 3) moveBody(d.floor, e, ((au.x - e.x) / m) * W.pull * dt, ((au.y - e.y) / m) * W.pull * dt, e.r);
+        if (m < au.r && m > 3) moveBody(d.floor, e.isPlayer ? p : e, ((au.x - e.x) / m) * W.pull * dt, ((au.y - e.y) / m) * W.pull * dt, e.r);
       }
       if ((au.tick -= dt) <= 0) {
         au.tick = W.every;
-        for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, au.x, au.y) < au.r + e.r) circuitHit(au.s, e, au.dmg, {});
+        for (const e of circuitFoes(au.s)) if (!e.dead && dist(e.x, e.y, au.x, au.y) < au.r + e.r) circuitHit(au.s, e, au.dmg, {});
       }
     }
     if (au.t <= 0 && au.inst) au.inst.end(au.x, au.y, au.a || 0);

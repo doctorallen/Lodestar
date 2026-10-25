@@ -174,7 +174,7 @@ function norm(x, y) { const m = Math.hypot(x, y) || 1; return { x: x / m, y: y /
 // ---------------------------------------------------------------------------
 // Each step
 // ---------------------------------------------------------------------------
-const ATTACKING = new Set(['windup', 'lunge', 'charge', 'slide', 'sweep']);
+const ATTACKING = new Set(['windup', 'lunge', 'charge', 'slide', 'sweep', 'casting']);
 // the kinds that close in to fight, and so take turns pressing the attack
 const PRESSING_KINDS = new Set(['crawler', 'dropper', 'crab', 'construct']);
 
@@ -225,6 +225,8 @@ function updateEnemies(dt) {
     if (e.dead) continue;
     e.cd = Math.max(0, e.cd - dt);
     e.bob += dt;
+    // a ward it cast (foecast.js), fading
+    if (e.wardS && e.ward > 0 && (e.wardT -= dt) <= 0) { e.ward = 0; wardGone(e); }
     // knocked back
     if (T.enemies[e.type].rooted || T.enemies[e.type].anchored || e.hid) e.kvx = e.kvy = 0;
     if (Math.abs(e.kvx) + Math.abs(e.kvy) > 1) { moveBody(f, e, e.kvx * dt, e.kvy * dt, e.r); e.kvx *= knockFade; e.kvy *= knockFade; }
@@ -254,6 +256,8 @@ function updateEnemies(dt) {
     const slow = (e.slowT > 0 ? 1 - T.onHit.chillSlow : 1) * hazardSlow(f, e);
     const sp = e.speed * slow * dt, free = attackers < most || ATTACKING.has(e.state);
     const was = ATTACKING.has(e.state);
+    // a cast of its nature's, now and then (foecast.js)
+    if (foeCastUpdate(d, e, pd, dt, free)) { if (!was) attackers++; continue; }
     if (e.type === 'crawler') updateCrawler(d, e, pd, sp, dt, free);
     else if (e.type === 'wisp') updateWisp(d, e, pd, sp, dt, free);
     else if (e.type === 'snapjaw' || e.type === 'spitter') updatePlant(d, e, pd, dt);

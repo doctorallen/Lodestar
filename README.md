@@ -58,6 +58,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/star.js` | The Lodestar in the world: where it stands, its light on the land (`starLight`, `litAt`), the daylight by it, the heart drawn colossal |
 | `js/veins.js` | The Veins: the thread taken up and walked out (pressed into the ground as it goes), planting, the hold, the set, joining and mending; the graph in the save (each node and point on its layer), who lives, the magnitude, a light grid a layer; the nodes drawn, the lines painted into the floor |
 | `js/map.js` | The star's screen: the map (a layer at a time, pinch to zoom, the regions' colours and names, the shafts seen; tap a node for its card and TRAVEL THERE), the casts and the trees, Wick's notes; the minimap in the view's corner, drawn as the land is walked (the seen tiles kept in the save) |
+| `js/foecast.js` | The creatures' casts: each kind casting a spell of its nature's tree through the Kindler's cast code, the tell, what its elements do to him |
 | `js/motes.js` | Motes: what a kill leaves and the Kindler carries, banked at a set; the five trees learned at the star; the casts set from what's learned, into the rig |
 | `js/terraform.js` | The land terraforming by the light: starstone along every living vein and round every node, gold veins running on through the land, the ground greening past the light's edge, lit motes |
 | `js/hubart.js` | The star and its halo, painted; the older outpost's pieces, kept for the opening |

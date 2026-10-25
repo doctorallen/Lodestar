@@ -173,6 +173,7 @@ const WICK = {
   firstBank: "Banked. The star's screen has five trees: each kind of mote buys its own.",
   firstLearn: 'Learned. Put it in a cast, at CASTS, and the wrist casts it.',
   firstPassive: "That one's in you now, whatever you cast.",
+  firstFoeCast: "See that? It casts what it is. What it leaves when it dies, the star can learn that from.",
   firstCut: "The dark cut a vein while we were away. The node past it has gone dark. Two ways to a place, and it can't.",
   hollowAtCut: "That's what cuts them. It follows into the light. Slowly.",
   holdWave: 'Here they come. Stand by it.',

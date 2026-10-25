@@ -142,7 +142,7 @@ function updateDive(dtReal, dt) {
     let vx = 0, vy = 0;
     if (m > 0.05) {
       // slower mid-strike, so an Arc commits
-      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.strikeT > 0 ? 0.45 : 1) * (p.frostSlow || 1) * (d.thread && !d.hold ? T.veins.threadSpeed : 1);
+      const sp = T.player.speed * (1 + st.moveSpeed / 100) * Math.min(1, m) * (p.strikeT > 0 ? 0.45 : 1) * (p.frostSlow || 1) * (p.shockT > 0 ? 0 : 1) * (d.thread && !d.hold ? T.veins.threadSpeed : 1);
       vx = (mv.x / m) * sp; vy = (mv.y / m) * sp;
       if (!(p.strikeT > 0)) { p.fx = mv.x / m; p.fy = mv.y / m; }
       p.walkT += dtReal;
@@ -162,6 +162,7 @@ function updateDive(dtReal, dt) {
   updateEnemies(dt);
   updateBolts(dt);
   updateAuras(dt);
+  foeStatusTick(d, dt);
   updateCombatFx(dt);
   updateLife(d, dt);
   updateWorld(d, dt);

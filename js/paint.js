@@ -958,6 +958,22 @@ function pntShift(a, W, H, dx, dy, epp) {
   if (dy > 0) a.fill(0, rows * rw, H * rw); else if (dy < 0) a.fill(0, 0, ady * rw);
   if (dx) for (let y = 0; y < H; y++) { if (dx > 0) a.fill(0, y * rw + cw, (y + 1) * rw); else a.fill(0, y * rw, y * rw + adx * epp); }
 }
+// The world's edge (TILE_EDGE): the land ends in a drop into the dark. The
+// edge tile is the void, black; the ground that meets it catches the light
+// on its lip, a couple of rows; and the rock that meets it shows its face
+// over it (the edge doesn't rise: floor.js TILE_RISES). So a wall of the
+// world reads as an edge and not as more ground.
+function paintEdgeVoid(P, f, tx, ty, ox, oy, t) {
+  const W = P.w, OFF = -P.oy * W - P.ox, C32 = P.col32 || (P.col32 = new Uint32Array(P.col.buffer)), E = P.em, V = T.paint.edgeVoid;
+  if (t === TILE_EDGE) {
+    const c = pntU32(rgbOf(V.col));
+    for (let y = oy; y < oy + ATILE; y++) for (let x = ox; x < ox + ATILE; x++) { const k = y * W + x + OFF; C32[k] = c; E[k * 4 + 3] = 0; }
+    return;
+  }
+  if (floorTile(f, tx, ty + 1) !== TILE_EDGE) return;
+  const R = View.rockPx, lip = rgbOf(V.lip);
+  for (let y = oy + ATILE - V.rows; y < oy + ATILE; y++) for (let x = ox; x < ox + ATILE; x++) { const k = y * W + x + OFF; if (!R[k]) C32[k] = ugMix(C32[k], lip, V.mix); }
+}
 // Moves the window to nx, ny (floor px, multiples of PNT_HCH).
 function pntWindowMove(f, nx, ny) {
   const dx = nx - PWIN.x, dy = ny - PWIN.y, W = PWIN.w, H = PWIN.h, P = View.floorBuf, Q = View.rockBuf;

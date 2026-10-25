@@ -215,13 +215,14 @@ function floraLights(list) {
 function fillRockField(f, x0, y0, x1, y1) {
   const WX = PWIN.x, WY = PWIN.y, W = PWIN.w, X1 = WX + W, Y1 = WY + PWIN.h, OFF = -WY * W - WX, R = View.rockPx, H = ATILE / 2, at = (v) => (v + 0.5) / AP - 0.5;
   x0 = Math.max(WX, x0); y0 = Math.max(WY, y0); x1 = Math.min(X1, x1); y1 = Math.min(Y1, y1);
-  const solid = (i, j) => (TILE_SOLID[floorTile(f, i, j)] ? 1 : 0);
+  // (the world's edge doesn't rise: it's painted as the land's end, paint.js paintEdgeVoid)
+  const solid = (i, j) => (TILE_RISES[floorTile(f, i, j)] ? 1 : 0);
   for (let ty = Math.floor((y0 - H) / ATILE); ty * ATILE + H < y1; ty++)
     for (let tx = Math.floor((x0 - H) / ATILE); tx * ATILE + H < x1; tx++) {
       const bx0 = Math.max(x0, tx * ATILE + H), bx1 = Math.min(x1, tx * ATILE + H + ATILE), by0 = Math.max(y0, ty * ATILE + H), by1 = Math.min(y1, ty * ATILE + H + ATILE);
       const a = solid(tx, ty);
       if (a === solid(tx + 1, ty) && a === solid(tx, ty + 1) && a === solid(tx + 1, ty + 1)) { for (let y = by0; y < by1; y++) R.fill(a, y * W + bx0 + OFF, y * W + bx1 + OFF); continue; }
-      for (let y = by0; y < by1; y++) { const wy = at(y); for (let x = bx0; x < bx1; x++) R[y * W + x + OFF] = rockAt(f, at(x), wy) ? 1 : 0; }
+      for (let y = by0; y < by1; y++) { const wy = at(y); for (let x = bx0; x < bx1; x++) R[y * W + x + OFF] = rockAt(f, at(x), wy, TILE_RISES) ? 1 : 0; }
     }
 }
 
@@ -281,6 +282,8 @@ function paintTileArt(f, tx, ty) {
   if (t === TILE_PAD) paintDish(P, ox, oy);
   // (a shaft to the Deep, or the daylight down it: deep.js)
   if (t === TILE_SHAFT) paintShaft(P, f, tx, ty, ox, oy, b);
+  // (the world's edge: the land ends, paint.js)
+  paintEdgeVoid(P, f, tx, ty, ox, oy, t);
 }
 
 // After mining: the wall line moves round tx, ty, and with it the rims,
@@ -1544,7 +1547,7 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   const pal = ENEMY_PAL[T.biomes[d.biome].id];
   // their eyes and cores light the floor round them, brighter as they wind up
   const glow = look ? look.glow : e.type === 'crawler' ? ART.pal.eyeglow[0] : e.type === 'wisp' ? pal.crystal[0] : e.type === 'hollow' ? '#ff2a6a' : e.type === 'keeper' ? ART.pal.star[3] : T.enemies[e.type].rooted ? PLANT_GLOW : pal.rune[0];
-  const winding = e.state === 'windup' || e.state === 'weave';
+  const winding = e.state === 'windup' || e.state === 'weave' || e.state === 'casting';
   if (!look || look.light) lights.push({ x: fx, y: fy - spr.h / 2, r: (look ? look.light : e.type === 'keeper' ? 3.5 : e.boss ? 2.4 : e.type === 'wisp' ? 1.5 : 0.9) * TILE, i: winding ? 1.2 : 0.5, c: rgb01(glow) });
   // tells: a crawler's line before it lunges, a construct's charge line,
   // stars round anything dazed
@@ -1558,6 +1561,9 @@ function drawEnemy(d, e, ox, oy, tick, lights) {
   }
   if (e.state === 'dazed' || e.state === 'stagger' || FOE_EXPOSED.has(e.state) || (e.stunT > 0 && !(e.frozenT > 0)))
     for (let k = 0; k < 3; k++) { const a = Game.realT * 6 + (k * Math.PI * 2) / 3; dot(Math.round(fx + Math.cos(a) * 6 * AP), Math.round(sy - ap(2) + Math.sin(a) * 2 * AP), '#fff2c8', true); }
+  // a cast of its own winding up, and a ward it cast (foecast.js)
+  if (e.state === 'casting') drawFoeCastTell(d, e, fx, fy, tick, lights);
+  if (e.wardS && e.ward > 0) cfxDrawWard(e, fx, fy - Math.round(lift * AP), lights);
   // its statuses and its elite affix (natures.js, reactions.js)
   drawEnemyStatus(d, e, spr, sx, sy, fx, fy, tick, lights);
   // an elite wears a pip of its affix's colour, and its lit rim glows in

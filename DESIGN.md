@@ -27,6 +27,9 @@ The star stands in the open at the middle, its heart hanging large over the grou
 
 Painting a map this size is done in a window of the floor that moves with the view (64 tiles square, 48 at fine grain; `paint.js PWIN`), not as one buffer: the buffers hold the window, the overlap is copied along when it moves, and the strip exposed is painted in chunks as the view comes to it.
 
+
+**The world's edge.** The land ends in a drop into the dark: the outermost tiles are the void, black, the ground meets it with a lit lip, and rock that meets it shows its face over it, so the edge never reads as more ground to walk on.
+
 ## The light
 
 - **Sources.** The star, every living node, and the veins between living nodes. A vein lights a band along it, 5 tiles to each side at first. The daylight is of the place, not of where you stand: kindled land has its day and the dark its dusk, cell by cell, so from inside the light you see it fading out at the edge before you walk into the dark.
@@ -104,6 +107,8 @@ Creatures hunt the Kindler, and during a hold the node; they never attack a set 
 
 **What the dark leaves.** When a creature dies in your light the star takes what it was: a few motes of its **nature**, flown to you and counted on the HUD. Five natures, one for each element: **rime** (frost: the tusker, the eel, the idol), **cinder** (ember: the wraith, the crab, the skink), **spore** (blight: the spitter, the snapjaw, the lurker, the weaver), **spark** (shock: the wisp, the sentinel, the dropper, the hound), **grit** (force: the crawler, the stalker). A boss's and the Hollow's is its region's. An elite leaves three, a boss forty. You carry them: a fall loses them, and **a node setting banks them** at the star, so planting is how the dark's leavings come home. A creature resists its own nature's element and fears another's, so the Cinder Waste pays out what you'll use against the Frost Steppe, and the other way: the world pulls you across itself.
 
+**The creatures cast what they teach.** Besides its own attack, each kind casts a spell of its nature's tree now and then, through the same cast code as the Kindler's, with a tell as it winds up: the wisp its shock orbs split in three, the crawler a glaive about itself, the stalker an amplified nova, the tusker a frost lance that pierces, the idol a frost ward, the wraith an ember burst cast twice, the crab an ember lance, the spitter a blight orb that lingers, the lurker a blight well, the sentinel a shock bolt. Its elements touch the Kindler in kind: frost chills his step, ember burns, blight eats at his light, shock holds him a moment, force shoves. So every node of a tree says which creature casts it, and what the star learns from a kind's motes is what the kind was seen to do.
+
 **Five trees.** At the star (any time, from THE STAR), five trees, one a nature, each bought with its own motes and nothing else, a node at a time in order, the costs rising (3, 6, 10, 16, 24, 34). Every node is a thing for a cast:
 
 - an **element**: the band a cast can be in, with its own touch (frost chills, ember burns and spreads, blight poisons and spreads, shock arcs, force knocks back; force is what a cast is with no element, so grit has no element node);
@@ -120,7 +125,7 @@ Twenty-three nodes, a few hours of the dark, and it never runs dry: the trees ar
 One screen, from the star (walk into the heart's light) or the MAP button anywhere, which opens it on the map. Three parts, scrolled:
 
 1. **THE WORLD.** The map, a layer at a time (THE SURFACE, THE DEEP), pinched to zoom: the regions in their own colours and their names as they're walked, veins in gold, nodes as marks, cuts marked red, shafts once seen, the Kindler. Tap a node for its card; TRAVEL THERE to go, and the light is seen running the veins to it.
-2. **CASTS and THE TREES.** The two casts, each part tapped for a menu of what fits; then the five trees, each with its motes banked and carried, its nodes in order with LEARN and the cost.
+2. **CASTS and THE TREES.** The two casts, each part tapped for a menu of what fits; the map opens on the Kindler, at the zoom from last time; then the five trees, each with its motes banked and carried, its nodes in order with LEARN and the cost.
 3. **WICK.** His log, the *Meridian* overhead (how many sleep), the core's pieces, and the opening again.
 
 Nothing else at home. No making, no stash, no feeding.

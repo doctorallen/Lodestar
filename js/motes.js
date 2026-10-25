@@ -36,35 +36,35 @@ const NATURE_OF_EL = { frost: 'rime', ember: 'cinder', blight: 'spore', shock: '
 // by its place in the tree (T.motes.cost).
 const MOTE_TREES = {
   grit: [
-    { id: 'amplify', kind: 'mod', name: 'Amplify', line: 'a cast wider and harder' },
-    { id: 'glaive', kind: 'form', name: 'Glaive', line: 'two blades circle you, biting what comes close', mag: 1 },
-    { id: 'quicken', kind: 'mod', name: 'Quicken', line: 'a cast a third quicker' },
-    { id: 'nova', kind: 'form', name: 'Nova', line: 'a burst all round you', mag: 3 },
+    { id: 'amplify', kind: 'mod', name: 'Amplify', line: 'a cast wider and harder', by: 'the stalker' },
+    { id: 'glaive', kind: 'form', name: 'Glaive', line: 'two blades circle you, biting what comes close', mag: 1, by: 'the crawler' },
+    { id: 'quicken', kind: 'mod', name: 'Quicken', line: 'a cast a third quicker', by: 'the crawler' },
+    { id: 'nova', kind: 'form', name: 'Nova', line: 'a burst all round you', mag: 3, by: 'the stalker' },
     { id: 'heavy', kind: 'passive', name: 'Heavy hand', line: 'every cast hits harder' },
   ],
   spark: [
-    { id: 'shock', kind: 'el', name: 'Shock', line: 'a cast that arcs to the next foe; five overload' },
-    { id: 'split', kind: 'mod', name: 'Split', line: 'three casts at once, each lighter' },
-    { id: 'orb', kind: 'form', name: 'Orb', line: 'a slow orb that pulses as it drifts', mag: 1 },
-    { id: 'chain', kind: 'mod', name: 'Chain', line: 'hits leap to more' },
+    { id: 'shock', kind: 'el', name: 'Shock', line: 'a cast that arcs to the next foe; five overload', by: 'the wisp' },
+    { id: 'split', kind: 'mod', name: 'Split', line: 'three casts at once, each lighter', by: 'the wisp' },
+    { id: 'orb', kind: 'form', name: 'Orb', line: 'a slow orb that pulses as it drifts', mag: 1, by: 'the wisp' },
+    { id: 'chain', kind: 'mod', name: 'Chain', line: 'hits leap to more', by: 'the sentinel' },
     { id: 'wrist', kind: 'passive', name: 'Quick wrist', line: 'every cast comes back sooner' },
   ],
   rime: [
-    { id: 'frost', kind: 'el', name: 'Frost', line: 'a cast that chills; three freeze solid' },
-    { id: 'pierce', kind: 'mod', name: 'Pierce', line: 'a bolt or lance passes through more' },
-    { id: 'ward', kind: 'form', name: 'Ward', line: 'a shell of light that hurts what hits it', mag: 2 },
+    { id: 'frost', kind: 'el', name: 'Frost', line: 'a cast that chills; three freeze solid', by: 'the tusker' },
+    { id: 'pierce', kind: 'mod', name: 'Pierce', line: 'a bolt or lance passes through more', by: 'the tusker' },
+    { id: 'ward', kind: 'form', name: 'Ward', line: 'a shell of light that hurts what hits it', mag: 2, by: 'the idol' },
     { id: 'coldblood', kind: 'passive', name: 'Cold blood', line: 'your light drains slower in the dark' },
   ],
   cinder: [
-    { id: 'ember', kind: 'el', name: 'Ember', line: 'a cast that burns, and burns spread' },
-    { id: 'lance', kind: 'form', name: 'Lance', line: 'a spear through a line of them', mag: 1 },
-    { id: 'echo', kind: 'mod', name: 'Echo', line: 'a cast cast again as it lands' },
+    { id: 'ember', kind: 'el', name: 'Ember', line: 'a cast that burns, and burns spread', by: 'the wraith' },
+    { id: 'lance', kind: 'form', name: 'Lance', line: 'a spear through a line of them', mag: 1, by: 'the crab' },
+    { id: 'echo', kind: 'mod', name: 'Echo', line: 'a cast cast again as it lands', by: 'the wraith' },
     { id: 'kindled', kind: 'passive', name: 'Kindled', line: 'your light fills faster in the light' },
   ],
   spore: [
-    { id: 'blight', kind: 'el', name: 'Blight', line: 'a cast that poisons, and poison spreads' },
-    { id: 'linger', kind: 'mod', name: 'Linger', line: 'a cast leaves a field behind' },
-    { id: 'well', kind: 'form', name: 'Well', line: 'drags them in and holds them', mag: 2 },
+    { id: 'blight', kind: 'el', name: 'Blight', line: 'a cast that poisons, and poison spreads', by: 'the spitter' },
+    { id: 'linger', kind: 'mod', name: 'Linger', line: 'a cast leaves a field behind', by: 'the spitter' },
+    { id: 'well', kind: 'form', name: 'Well', line: 'drags them in and holds them', mag: 2, by: 'the lurker' },
     { id: 'thickskin', kind: 'passive', name: 'Thick skin', line: 'what hits you hurts less' },
   ],
 };
@@ -234,7 +234,7 @@ function motesHtml(d) {
   });
   const nextSlot = T.motes.modSlotsAt.find((m) => m > mag);
   if (nextSlot) rows.push(`<p class="note">Another mod slot at magnitude ${nextSlot}.</p>`);
-  rows.push('<h3>THE TREES</h3><p class="note">What the dark leaves when it dies in your light, banked when a node sets. Each tree is bought with its own.</p>');
+  rows.push('<h3>THE TREES</h3><p class="note">What the dark leaves when it dies in your light, banked when a node sets. Each tree is bought with its own, and holds what its creatures cast.</p>');
   for (const t in MOTE_TREES) {
     const N = NATURES[t], tree = MOTE_TREES[t];
     rows.push(`<h4 class="tree"><span class="pip" style="background:${N.col}"></span>${esc(N.name.toUpperCase())} · ${s.motes[t]} banked${C[t] ? ` · ${C[t]} carried` : ''}<span class="tree-line">${esc(N.line)}</span></h4>`);
@@ -246,7 +246,7 @@ function motesHtml(d) {
       else if (!open) act = '<span class="row-tag dim">· · ·</span>';
       else if (n.mag > mag) act = `<span class="row-tag dim">MAGNITUDE ${n.mag}</span>`;
       else act = `<button class="mini${s.motes[t] >= cost ? ' give' : ''}" data-act="moteLearn" data-arg="${n.id}"${s.motes[t] >= cost ? '' : ' disabled'}>LEARN · ${cost}</button>`;
-      rows.push(`<div class="row static${had ? ' on' : ''}${!had && !open ? ' empty' : ''}">${n.kind === 'form' || n.kind === 'el' || n.kind === 'mod' ? `<img class="icon" src="${stoneIconUrl(n.id)}" alt="">` : '<span class="icon pass"></span>'}<span class="row-text"><span class="row-name">${esc(n.name)} <span class="dim">· ${kind}</span></span><span class="row-sub">${esc(n.line)}</span></span>${act}</div>`);
+      rows.push(`<div class="row static${had ? ' on' : ''}${!had && !open ? ' empty' : ''}">${n.kind === 'form' || n.kind === 'el' || n.kind === 'mod' ? `<img class="icon" src="${stoneIconUrl(n.id)}" alt="">` : '<span class="icon pass"></span>'}<span class="row-text"><span class="row-name">${esc(n.name)} <span class="dim">· ${kind}</span></span><span class="row-sub">${esc(n.line)}${n.by ? ` · as ${esc(n.by)} casts it` : ''}</span></span>${act}</div>`);
       if (!had) open = false;
     }
   }

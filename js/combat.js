@@ -161,6 +161,8 @@ function hurtEnemy(e, dmg, opts = {}) {
   }
   // Force cracks a warded shell
   if (els && els.includes('force') && e.ward > 0) crackWard(e, opts.heavy);
+  // a ward it cast (foecast.js) soaks the blow
+  if (e.wardS && e.ward > 0) { const soak = Math.min(e.ward, dmg); e.ward -= soak; dmg -= soak; if (e.ward <= 0) wardGone(e); }
   e.hp -= dmg;
   e.flash = T.enemies.hurtFlash;
   // the struck enemy's rim takes the hit's element (Force's is white)

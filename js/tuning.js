@@ -1001,6 +1001,35 @@ const T = {
   // Magnitude (veins.js): the thresholds of the world's living light (vein
   // tiles, plus nodeWorth a living node), and what a cast hits at each.
   magnitude: { at: [0, 150, 400, 800, 1400, 2200, 3200], power: [1, 1.25, 1.5, 1.8, 2.1, 2.5, 3], nodeWorth: 20 },
+  // The creatures' casts (foecast.js): casts, each kind's spell of its
+  // nature's tree (form, el, mods; every s, from range px, not nearer than
+  // near; windup s, power a share more or less); power, a cast's power as a
+  // share of the kind's blow (times T.enemies.shotScale); windup if a kind
+  // names none; firstAt, the share of `every` before the first; shove, px
+  // a cast's knock moves the Kindler (times forceShove for Force); chill
+  // s, and how slow (chillSlow); burn and blight [s, dps as a share of the
+  // blow]; shock, s held still.
+  foecast: {
+    power: 0.7, windup: 0.7, firstAt: 0.5, shove: 7, forceShove: 2, chill: 1.6, chillSlow: 0.55, burn: [2, 0.25], blight: [3, 0.18], shock: 0.3,
+    casts: {
+      crawler: { form: 'glaive', mods: ['quicken'], every: 9, range: 70, windup: 0.5 },
+      construct: { form: 'nova', mods: ['amplify'], every: 8, range: 46, windup: 0.9 },
+      wisp: { form: 'orb', el: 'shock', mods: ['split'], every: 7, range: 120, windup: 0.8 },
+      sentinel: { form: 'bolt', el: 'shock', mods: ['chain'], every: 6, range: 120 },
+      dropper: { form: 'bolt', el: 'shock', every: 8, range: 90 },
+      hound: { form: 'bolt', el: 'shock', mods: ['split'], every: 7, range: 100 },
+      tusker: { form: 'lance', el: 'frost', mods: ['pierce'], every: 8, range: 110, windup: 0.8 },
+      eel: { form: 'bolt', el: 'frost', mods: ['pierce'], every: 7, range: 100 },
+      idol: { form: 'ward', el: 'frost', every: 12, range: 90, windup: 0.4 },
+      wraith: { form: 'nova', el: 'ember', mods: ['echo'], every: 9, range: 48, windup: 0.9 },
+      crab: { form: 'lance', el: 'ember', every: 8, range: 100 },
+      skink: { form: 'nova', el: 'ember', mods: ['quicken'], every: 9, range: 44 },
+      spitter: { form: 'orb', el: 'blight', mods: ['linger'], every: 8, range: 110 },
+      snapjaw: { form: 'nova', el: 'blight', every: 9, range: 40 },
+      lurker: { form: 'well', el: 'blight', every: 10, range: 90 },
+      weaver: { form: 'bolt', el: 'blight', mods: ['linger'], every: 8, range: 110 },
+    },
+  },
   // Motes (motes.js): what a kill leaves (kill; an elite, a boss), the cost
   // of each tree's nodes by their place in it, the magnitudes a cast gains
   // a mod slot at, and each passive's share (a multiplier: of a cast's
@@ -1244,6 +1273,9 @@ const T = {
     // out); cover: under a tuft or a stand's blade, coverPad, coverRy.
     shade: { mul: 0.75, sun: 0.32, stand: 0.6, light: 0.3, home: 0.6, edge: [1.5, 0.05], contact: [0.16, 0.24, 0.3], contactPad: [1, 2, 3], contactRy: [2.5, 4.5], contactAt: [0.5, 0.5], contactFall: 0.7, cover: 0.14, coverPad: 0.5, coverRy: 1.6 },
     lazy: { near: 2, far: 7, budget: 3, arrive: 12, lead: 96, refresh: 4 },
+    // edgeVoid: the world's edge (paintEdgeVoid): the void's colour, the lip
+    // the ground meets it with (rows, its colour, how far towards it)
+    edgeVoid: { col: '#05040a', lip: '#d8c8a8', rows: 2, mix: 0.3 },
     // window: the part of the floor whose painted pixels are kept (paint.js
     // PWIN), tiles square at [the coarse grain, FINE GRAIN]; it moves when
     // the view comes within `margin` tiles of its edge.
