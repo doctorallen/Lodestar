@@ -69,15 +69,20 @@ function veinsWorth(V, live) {
   return w;
 }
 function veinsMagnitude(worth) { const A = T.magnitude.at; let m = 1; while (m < A.length && worth >= A[m]) m++; return m; }
-// Points every `step` px along a vein's line, each with its layer; the
-// step between two layers (down a shaft) is no line.
+// Points every `step` px along a vein's line (measured along it, whatever
+// its points' spacing), each with its layer, and its ends; the step
+// between two layers (down a shaft) is no line.
 function veinWalk(v, step, fn) {
   const P = v.pts;
+  let run = 0, next = 0;
   for (let i = 1; i < P.length; i++) {
     const [ax, ay, al] = P[i - 1], [bx, by, bl] = P[i], l = al | 0;
-    if (l !== (bl | 0)) continue;
-    const L = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.ceil(L / step));
-    for (let k = i === 1 || (P[i - 2][2] | 0) !== l ? 0 : 1; k <= n; k++) fn(ax + ((bx - ax) * k) / n, ay + ((by - ay) * k) / n, l);
+    if (l !== (bl | 0)) { next = run; continue; }
+    const L = Math.hypot(bx - ax, by - ay);
+    if (i === 1 || (P[i - 2][2] | 0) !== l) { fn(ax, ay, l); next = run + step; }
+    for (; next <= run + L; next += step) { const u = L > 0 ? (next - run) / L : 0; fn(ax + (bx - ax) * u, ay + (by - ay) * u, l); }
+    run += L;
+    if (i === P.length - 1 || (P[i + 1][2] | 0) !== l) fn(bx, by, l);
   }
 }
 // Whether a thread's segment lies on layer l.
@@ -87,17 +92,12 @@ function veinBand(mag = magnitudeOf()) { const B = T.veins.band; return B[Math.m
 // How far the star's own light reaches (tiles).
 function starRadius(mag = magnitudeOf()) { return T.star.lightR + T.star.lightPerMag * (mag - 1); }
 
-// The graph read again: who lives, the magnitude, the light grid; and the
-// floor's lights and painted ground follow where it's painted.
-function veinsRebuild(d, box) {
-  const V = veinsState(), live = (d.vLive = veinsLiving(V));
-  // a grid a layer (deep.js): the surface's and the Deep's
+// The light grid of a graph V with its living nodes, at magnitude mag: a
+// grid a layer (deep.js: the surface's and the Deep's), each tile how far
+// it lies past the edge of the nearest living light (tiles; negative in).
+function veinsGrids(d, V, live, mag) {
   const floors = d.world ? [d.world.surface, d.world.deep] : [d.floor];
-  const Gs = (d.litGs = floors.map((f) => new Float32Array(f.w * f.h).fill(1e9)));
-  d.litG = Gs[d.layer | 0];
-  const worth = veinsWorth(V, live), mag = veinsMagnitude(worth);
-  Save.data.magnitude = mag; d.vWorth = worth;
-  if (typeof shapesStarOffer === 'function' && Save.data.spells) shapesStarOffer(mag);
+  const Gs = floors.map((f) => new Float32Array(f.w * f.h).fill(1e9));
   const band = veinBand(mag), fade = T.star.lightFade;
   const stamp = (x, y, r, l) => {
     const f = floors[l | 0], G = Gs[l | 0];
@@ -109,27 +109,65 @@ function veinsRebuild(d, box) {
   stamp(V.nodes[0].x, V.nodes[0].y, starRadius(mag), 0);
   for (let i = 1; i < V.nodes.length; i++) if (live[i]) stamp(V.nodes[i].x, V.nodes[i].y, band, V.nodes[i].l);
   for (const v of V.veins) if (veinLiving(live, v)) veinWalk(v, TILE * 0.5, (x, y, l) => stamp(x, y, band, l));
+  return Gs;
+}
+// The graph read again: who lives, the magnitude, the light grid; and the
+// floor's lights and painted ground follow where it's painted (box, in
+// tiles): at once, or as time allows where the ground was painted for the
+// light as it grew (soft: a node's set, pntRefresh).
+function veinsRebuild(d, box, soft) {
+  const V = veinsState(), live = (d.vLive = veinsLiving(V));
+  const worth = veinsWorth(V, live), mag = veinsMagnitude(worth);
+  Save.data.magnitude = mag; d.vWorth = worth;
+  if (typeof shapesStarOffer === 'function' && Save.data.spells) shapesStarOffer(mag);
+  const Gs = (d.litGs = veinsGrids(d, V, live, mag));
+  d.litG = Gs[d.layer | 0];
   d.vSig = (d.vSig || 0) + 1;
   const f = d.floor;
   if (View.floorFor === f) {
     View.lights = floorLights(f).concat(veinLights(d));
     View.bakedFrom = null;
-    if (box) pntInvalidate(f, box.x0 * ATILE, box.y0 * ATILE, box.x1 * ATILE, box.y1 * ATILE);
+    if (box) (soft ? pntRefresh : pntInvalidate)(f, box.x0 * ATILE, box.y0 * ATILE, box.x1 * ATILE, box.y1 * ATILE, soft ? { x: (box.x0 + box.x1) * TILE / 2, y: (box.y0 + box.y1) * TILE / 2 } : undefined);
   }
 }
-// Each step: a set's light coming up (d.ramp), and the flare of an arrival
-// (d.arrive). When the light is up its lights are baked.
+// Each step: the flare of an arrival (d.arrive) dying down.
 function veinsFxUpdate(d, dt) {
   if (d.arrive > 0) d.arrive = Math.max(0, d.arrive - dt);
-  const R = d.ramp;
-  if (!R) return;
-  R.t += dt;
-  if (R.t < R.max) return;
-  d.ramp = null;
-  const f = d.floor;
-  if (View.floorFor !== f) return;
-  View.lights = floorLights(f).concat(veinLights(d));
-  View.bakedFrom = null;
+}
+// The thread's line thinned to a point every few px, and its length on
+// one layer.
+function threadLine(th) {
+  const pts = [th.pts[0]];
+  for (const q of th.pts.slice(1)) { const l = pts[pts.length - 1]; if (dist(q[0], q[1], l[0], l[1]) >= T.veins.step) pts.push(q); }
+  const last = th.pts[th.pts.length - 1];
+  if (pts[pts.length - 1] !== last) pts.push(last);
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) if ((pts[i][2] | 0) === (pts[i - 1][2] | 0)) len += dist(pts[i][0], pts[i][1], pts[i - 1][0], pts[i - 1][1]);
+  return { pts, len };
+}
+// A hold begun (plantHere, joinNode): the light to come, as the grid will
+// stand when the node sets (d.ramp.next), so the light grows into it over
+// the hold with the node: the edge of what it adds moves out from its line
+// as the node grows, to the band at the set (veinDistAt). The ground is
+// painted again for it along the way (holdUpdate), and the set is instant.
+function holdRampStart(d) {
+  const h = d.hold, th = d.thread, V = veinsState();
+  if (!h || !th) return;
+  const nodes = V.nodes.slice(), veins = V.veins.slice();
+  let idx = h.to;
+  if (idx < 0) { nodes.push({ x: h.x, y: h.y, l: h.l | 0 }); idx = nodes.length - 1; }
+  const { pts, len } = threadLine(th), v = { a: th.from, b: idx, pts, len, cut: false };
+  const had = veins.findIndex((w) => (w.a === th.from && w.b === idx) || (w.a === idx && w.b === th.from));
+  if (had >= 0) veins[had] = v; else veins.push(v);
+  const W = { nodes, veins }, live = veinsLiving(W), mag = veinsMagnitude(veinsWorth(W, live));
+  d.ramp = { next: veinsGrids(d, W, live, mag)[h.l | 0], layer: h.l | 0, band: veinBand(mag), box: veinBox(pts, h.l | 0), k: 0, painted: 0 };
+}
+// The ground under a hold's light painted again as it stands now, as time
+// allows (paint.js pntRefresh), out from the node.
+function holdRepaint(d) {
+  const R = d.ramp, h = d.hold, f = d.floor, box = R && R.box;
+  if (!box || View.floorFor !== f || R.layer !== (d.layer | 0)) return;
+  pntRefresh(f, box.x0 * ATILE, box.y0 * ATILE, box.x1 * ATILE, box.y1 * ATILE, h ? { x: h.x, y: h.y } : null);
 }
 // The box of tiles a vein's light and the ground's turning reach, on
 // layer l (null where none of it lies there).
@@ -141,42 +179,43 @@ function veinBox(pts, l = 0) {
   return { x0: Math.floor(x0 / TILE) - m, y0: Math.floor(y0 / TILE) - m, x1: Math.ceil(x1 / TILE) + m + 1, y1: Math.ceil(y1 / TILE) + m + 1 };
 }
 // How far world px (x, y) lies past the edge of the nearest living light
-// (tiles; negative inside, so -1 is a tile in).
-// (while a set's light comes up, between what the grid was and what it is;
-// veinDistRaw is the grid as it stands, for what's painted)
-function veinDistRaw(d, x, y) {
-  const f = d.floor, G = d.litG;
-  if (!G) return 1e9;
-  return G[clamp(Math.round(y / TILE - 0.5), 0, f.h - 1) * f.w + clamp(Math.round(x / TILE - 0.5), 0, f.w - 1)];
-}
+// (tiles; negative inside, so -1 is a tile in). While a hold's light grows
+// (d.ramp), the light to come counts as far as it has grown: its edge
+// band * (1 - k) tiles short of where it will stand.
 function veinDistAt(d, x, y) {
   const f = d.floor, G = d.litG;
   if (!G) return 1e9;
-  const tx = clamp(Math.round(x / TILE - 0.5), 0, f.w - 1), ty = clamp(Math.round(y / TILE - 0.5), 0, f.h - 1), i = ty * f.w + tx, R = d.ramp;
-  if (R && R.was && R.wasLayer === (d.layer | 0) && R.was.length === G.length) { const was = Math.min(R.was[i], G[i] + T.star.lightFade * 2.2); return lerp(was, G[i], veinsRampK(d)); }
-  return G[i];
+  return veinCell(d, G, clamp(Math.round(y / TILE - 0.5), 0, f.h - 1) * f.w + clamp(Math.round(x / TILE - 0.5), 0, f.w - 1));
 }
-// How far up a set's light is, 0..1 (eased), 1 when none is coming up.
-function veinsRampK(d) { const R = d.ramp; if (!R) return 1; const u = clamp(R.t / R.max, 0, 1); return u * u * (3 - 2 * u); }
+// (the same: what's painted follows the light as it stands)
+function veinDistRaw(d, x, y) { return veinDistAt(d, x, y); }
+// Grid cell i of G as the light stands now.
+function veinCell(d, G, i) {
+  const R = d.ramp;
+  if (!R || R.layer !== (d.layer | 0) || R.next.length !== G.length) return G[i];
+  return Math.min(G[i], R.next[i] + R.band * (1 - R.k));
+}
+// Whether a hold's light is growing on this layer (startLight reads it).
+function veinsRampOn(d) { const R = d.ramp; return !!R && R.layer === (d.layer | 0) && !!d.litG && R.next.length === d.litG.length; }
+// How far up a hold's light is, 0..1, 1 when none is growing.
+function veinsRampK(d) { const R = d.ramp; return R ? R.k : 1; }
 // The same, smoothly, for tile point (gx, gy) (tiles, with fractions).
 function veinDistTile(d, gx, gy) {
   const f = d.floor, G = d.litG;
   if (!G) return 1e9;
-  const x = clamp(gx - 0.5, 0, f.w - 1.001), y = clamp(gy - 0.5, 0, f.h - 1.001), i = x | 0, j = y | 0, u = x - i, v = y - j, k = j * f.w + i;
-  const a = G[k], b = G[k + 1 < f.w * f.h ? k + 1 : k], c = G[k + f.w < f.w * f.h ? k + f.w : k], e = G[k + f.w + 1 < f.w * f.h ? k + f.w + 1 : k];
+  const x = clamp(gx - 0.5, 0, f.w - 1.001), y = clamp(gy - 0.5, 0, f.h - 1.001), i = x | 0, j = y | 0, u = x - i, v = y - j, k = j * f.w + i, N = f.w * f.h;
+  const a = veinCell(d, G, k), b = veinCell(d, G, k + 1 < N ? k + 1 : k), c = veinCell(d, G, k + f.w < N ? k + f.w : k), e = veinCell(d, G, k + f.w + 1 < N ? k + f.w + 1 : k);
   return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + e * u) * v;
 }
 // The living veins' light, for the floor's baked lights (render.js): a
 // light at each living node, and one every couple of tiles along each
 // living vein. (plain: unstopped by the rock, as there are many.)
-// (a vein just set is marked `ramp` while its light comes up: the bake
-// leaves those out, drawVeinsUnder carries them each frame until then, and
-// veinsFxUpdate bakes them after; the painted shade counts them from the
-// start, so nothing under them changes when they're baked)
+// (a hold's light is carried each frame until the set, grown to these by
+// then: drawVeinsUnder, drawNode)
 function veinLights(d) {
-  const V = veinsState(), live = d.vLive || veinsLiving(V), band = veinBand(), L = [], gold = rgb01(ART.pal.star[2]), Vn = T.veins, l = d.layer | 0, R = d.ramp;
-  for (let i = 1; i < V.nodes.length; i++) if (live[i] && (V.nodes[i].l | 0) === l) L.push({ x: V.nodes[i].x, y: V.nodes[i].y, r: TILE * band * 1.3, i: Vn.light.node, c: gold, plain: true, ramp: !!R && R.node === i });
-  for (const v of V.veins) if (veinLiving(live, v)) veinWalk(v, TILE * Vn.light.every, (x, y, pl) => { if (pl === l) L.push({ x, y, r: TILE * band, i: Vn.light.vein, c: gold, plain: true, ramp: !!R && R.vein === v }); });
+  const V = veinsState(), live = d.vLive || veinsLiving(V), band = veinBand(), L = [], gold = rgb01(ART.pal.star[2]), Vn = T.veins, l = d.layer | 0;
+  for (let i = 1; i < V.nodes.length; i++) if (live[i] && (V.nodes[i].l | 0) === l) L.push({ x: V.nodes[i].x, y: V.nodes[i].y, r: TILE * band * 1.3, i: Vn.light.node, c: gold, plain: true });
+  for (const v of V.veins) if (veinLiving(live, v)) veinWalk(v, TILE * Vn.light.every, (x, y, pl) => { if (pl === l) L.push({ x, y, r: TILE * band, i: Vn.light.vein, c: gold, plain: true }); });
   return L;
 }
 // The living node nearest a point on layer l, and its distance (px); one
@@ -281,6 +320,7 @@ function plantHere(d) {
   if (!th || d.hold) return;
   th.pts.push([p.x, p.y, d.layer | 0]);
   d.hold = { x: p.x, y: p.y, l: d.layer | 0, t: 0, max: holdTime(d, p.x, p.y), light: T.veins.nodeLight, waveT: T.veins.holdWave, to: -1, feedT: 0 };
+  holdRampStart(d);
   // the light draws attention
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, p.x, p.y) < T.leave.noise) wake(d, e, true);
   UI.toast('The shard takes root. Hold', 'legendary');
@@ -297,6 +337,7 @@ function joinNode(d, to) {
   th.pts.push([n.x, n.y, n.l | 0]);
   if (d.vLive[to]) { holdSet(d, to); return; }
   d.hold = { x: n.x, y: n.y, l: n.l | 0, t: 0, max: T.veins.join, light: T.veins.nodeLight, waveT: T.veins.holdWave, to };
+  holdRampStart(d);
   for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, n.x, n.y) < T.leave.noise) wake(d, e, true);
   UI.toast('Mending: hold', 'legendary');
   snd('beaconLand');
@@ -306,6 +347,10 @@ function holdUpdate(d, dt) {
   const h = d.hold, Vn = T.veins;
   if (!h) return;
   h.t += dt;
+  // the light grows with the node; the ground under it painted again for
+  // it every so far along
+  const R = d.ramp;
+  if (R) { R.k = clamp(h.t / h.max, 0, 1); const st = Math.floor(R.k * Vn.holdPaint); if (st > R.painted && st < Vn.holdPaint) { R.painted = st; holdRepaint(d); } }
   if ((h.waveT -= dt) <= 0) { h.waveT = Vn.holdWave; stirTheDark(d, Vn.waveN); Story.say('holdWave'); }
   // the thread's light runs into the rising node, a mote at a time
   if (h.to < 0 && d.thread && (h.feedT -= dt) <= 0) {
@@ -324,6 +369,8 @@ function holdUpdate(d, dt) {
 function holdLost(d) {
   const h = d.hold;
   d.hold = null;
+  // (what was painted for the light growing, painted back)
+  if (d.ramp) { const R = d.ramp; d.ramp = null; if (R.box && View.floorFor === d.floor && R.layer === (d.layer | 0)) pntRefresh(d.floor, R.box.x0 * ATILE, R.box.y0 * ATILE, R.box.x1 * ATILE, R.box.y1 * ATILE, { x: h.x, y: h.y }); }
   spawnSparks(h.x, h.y - 6, ['#6a5a40', ART.pal.star[1], '#ffffff'], 30);
   threadSnap(d, null);
   UI.toast('The node shattered. The thread is lost', 'legendary');
@@ -335,33 +382,27 @@ function holdLost(d) {
 // land turns, the core mends a piece.
 function holdSet(d, to) {
   const V = veinsState(), th = d.thread, h = d.hold, s = Save.data;
-  d.hold = null;
+  d.hold = null; d.ramp = null;
   if (!th) return;
   let idx = to;
   if (idx < 0) { V.nodes.push({ x: h.x, y: h.y, l: h.l | 0 }); idx = V.nodes.length - 1; }
   // the thread's line, thinned to a point every few px
-  const pts = [th.pts[0]];
-  for (const q of th.pts.slice(1)) { const l = pts[pts.length - 1]; if (dist(q[0], q[1], l[0], l[1]) >= T.veins.step) pts.push(q); }
-  const last = th.pts[th.pts.length - 1];
-  if (pts[pts.length - 1] !== last) pts.push(last);
-  let len = 0;
-  for (let i = 1; i < pts.length; i++) if ((pts[i][2] | 0) === (pts[i - 1][2] | 0)) len += dist(pts[i][0], pts[i][1], pts[i - 1][0], pts[i - 1][1]);
+  const { pts, len } = threadLine(th), last = pts[pts.length - 1];
   const joined = to >= 0 && d.vLive[to];
   // (a cut vein between the two, mended: its line laid again)
   const had = V.veins.find((v) => (v.a === th.from && v.b === idx) || (v.a === idx && v.b === th.from));
   if (had) { had.cut = false; had.pts = pts; had.len = len; } else V.veins.push({ a: th.from, b: idx, pts, len, cut: false });
   d.thread = null;
-  const magWas = magnitudeOf(), box = veinBox(pts, d.layer | 0), was = d.litG, wasLayer = d.layer | 0;
-  // its light comes up over a few seconds (veinsFxUpdate): the vein's
-  // lights carried each frame until then
-  d.ramp = { t: 0, max: T.veins.setRamp, vein: had || V.veins[V.veins.length - 1], node: joined ? -1 : idx, was, wasLayer };
-  veinsRebuild(d, box);
+  const magWas = magnitudeOf(), box = veinBox(pts, d.layer | 0);
+  // (its light grew with the node over the hold: the grid stands as it was
+  // seen to, and the ground is painted for it as time allows)
+  veinsRebuild(d, box, true);
   s.core = Math.min(T.star.core, (s.core || 0) + 1);
   Save.save();
   const [x, y] = last;
   spawnSparks(x, y - 8, [ART.pal.star[3], ART.pal.star[2], '#ffffff'], 40);
   for (let i = 0; i < 12; i++) d.fx.push({ kind: 'mote', x: x + (i % 3 - 1) * 6, y: y - 4, t: 1 + i * 0.05, max: 1 + i * 0.05, seed: i, to: { x, y: y - 14 } });
-  UI.toast(joined ? 'Joined: two ways to it now' : to >= 0 ? 'Mended: the light runs again' : 'The node set. The light comes up', 'legendary');
+  UI.toast(joined ? 'Joined: two ways to it now' : to >= 0 ? 'Mended: the light runs again' : 'The node set. Its light holds', 'legendary');
   Story.say(joined ? 'firstJoin' : 'firstSet');
   snd('starFeed', { tier: 4, rate: 6, n: 12, stream: true });
   buzz(40);
@@ -446,32 +487,34 @@ function nodeSprite(lit, grow = 1) {
 // The nodes among the walkers, by their ground point.
 function veinProps(d) {
   const V = veinsState(), live = d.vLive, out = [];
-  for (let i = 1; i < V.nodes.length; i++) { const n = V.nodes[i]; if ((n.l | 0) === (d.layer | 0)) out.push({ x: n.x, y: n.y, node: i, lit: !!live[i], up: d.ramp && d.ramp.node === i ? veinsRampK(d) : 1, draw: drawNode }); }
+  for (let i = 1; i < V.nodes.length; i++) { const n = V.nodes[i]; if ((n.l | 0) === (d.layer | 0)) out.push({ x: n.x, y: n.y, node: i, lit: !!live[i], draw: drawNode }); }
   if (d.hold && d.hold.to < 0) out.push({ x: d.hold.x, y: d.hold.y, node: -1, hold: true, draw: drawNode });
   return out;
 }
 function drawNode(d, a, ox, oy, lights) {
   const fx = Math.round(a.x * AP) + ox, fy = Math.round(a.y * AP) + oy;
   if (fx < -60 * AF || fx > View.w + 60 * AF || fy < -80 * AF || fy > View.h + 40 * AF) return;
-  const h = a.hold ? d.hold : null, k = h ? clamp(h.t / h.max, 0, 1) : 1, up = a.up === undefined ? 1 : a.up, lit = a.lit || !!h;
+  const h = a.hold ? d.hold : null, k = h ? clamp(h.t / h.max, 0, 1) : 1, lit = a.lit || !!h, gold = rgb01(ART.pal.star[2]);
   // (over the hold it forms in the air where the thread ends, from a point
   // to a small star of its own; it hangs, bobbing a little, over its shadow)
   const spr = nodeSprite(lit, h ? k : 1), bob = Math.round(Math.sin(Game.realT * 1.1 + (a.node | 0) * 1.7) * 1.5 * AP);
   if (!h || k > 0.15) drawShadow(fx, fy, 5 + 2 * k, 6 + bob / AP);
   if (lit) {
     const halo = hartNodeHalo(Math.floor(Game.realT * 3) % 2), my = fy - spr.ay + spr.mid.y + bob;
-    View.ctx.globalAlpha = (h ? 0.3 + 0.4 * k : 0.7) * (0.6 + 0.4 * up);
+    View.ctx.globalAlpha = 0.3 + 0.4 * k;
     View.ctx.drawImage(halo.c, fx - halo.ax, my - halo.ay);
   }
-  View.ctx.globalAlpha = View.emCtx.globalAlpha = a.lit ? 0.7 + 0.3 * up : h ? 0.6 + 0.4 * k : 0.6;
+  View.ctx.globalAlpha = View.emCtx.globalAlpha = lit ? 0.6 + 0.4 * k : 0.6;
   drawArtSprite(spr, fx - spr.ax, fy - spr.ay + bob);
   View.ctx.globalAlpha = View.emCtx.globalAlpha = 1;
-  if (a.lit) lights.push({ x: fx, y: fy - ap(8), r: TILE * 2.5 * (0.6 + 0.4 * up), i: (0.5 + 0.1 * Math.sin(Game.realT * 2 + a.node)) * (0.4 + 0.6 * up), c: rgb01(ART.pal.star[2]) });
+  // its glimmer (grown with it over a hold)
+  if (lit) lights.push({ x: fx, y: fy - ap(8), r: TILE * 2.5 * (0.6 + 0.4 * k), i: (0.5 + 0.1 * Math.sin(Game.realT * 2 + (a.node | 0))) * (0.4 + 0.6 * k), c: gold });
   if (h) {
     // the hold: its ring filling, and the node's own light left in it
     const col = ART.pal.star[3], n = Math.round(28 * AP), lk = clamp(h.light / T.veins.nodeLight, 0, 1);
     for (let i = 0; i < n * k; i++) { const ang = -Math.PI / 2 + (i / n) * Math.PI * 2; dot(Math.round(fx + Math.cos(ang) * 14 * AP), Math.round(fy + Math.sin(ang) * 9 * AP), col, true); }
-    lights.push({ x: fx, y: fy - ap(6), r: TILE * (1.5 + k * 2) * (0.4 + 0.6 * lk), i: (0.4 + k * 0.8) * lk, c: rgb01(col) });
+    // (grown to the node's baked light by the set: veinLights)
+    lights.push({ x: fx, y: fy, r: TILE * veinBand() * 1.3 * (0.3 + 0.7 * k), i: T.veins.light.node * (0.15 + 0.85 * k) * lk, c: gold, plain: true });
   }
 }
 // ---------------------------------------------------------------------------
@@ -565,10 +608,11 @@ function veinsLayThread(d, a, b) {
 function drawVeinsUnder(d, ox, oy, lights) {
   const G = ART.pal.star, t = Game.realT, LY = d.layer | 0, th = d.thread, Vn = T.veins;
   if (d.arrive > 0) { const a = d.arrive * d.arrive; lights.push({ x: Math.round(d.p.x * AP) + ox, y: Math.round(d.p.y * AP) + oy - ap(6), r: TILE * (2 + 3 * (1 - d.arrive)), i: 1.2 * a, c: rgb01(G[3]) }); }
-  if (d.ramp) drawVeinRamp(d, ox, oy, lights);
   if (!th) return;
   const pts = d.hold ? th.pts : th.pts.concat([[d.p.x, d.p.y, LY]]);
-  const band = veinBand(), every = TILE * Vn.light.every, gold = rgb01(G[2]), m0 = band * ATILE;
+  // (at a hold its light grows from the thread's share to a vein's, as the
+  // baked lights will be at the set: veinLights)
+  const band = veinBand(), every = TILE * Vn.light.every, gold = rgb01(G[2]), m0 = band * ATILE, hk = d.hold ? veinsRampK(d) : 0, li = d.hold ? lerp(Vn.light.thread, Vn.light.vein, hk) : Vn.light.thread;
   let run = 0;
   for (let i = 1; i < pts.length; i++) {
     if (!veinSegOn(pts, i, LY)) continue;
@@ -584,7 +628,7 @@ function drawVeinsUnder(d, ox, oy, lights) {
     for (let m = Math.ceil(run / every) * every; m < run + L; m += every) {
       const u = (m - run) / L, x = Math.round((ax + (bx - ax) * u) * AP) + ox, y = Math.round((ay + (by - ay) * u) * AP) + oy;
       if (x < -m0 || y < -m0 || x > View.w + m0 || y > View.h + m0) continue;
-      lights.push({ x, y, r: TILE * band, i: Vn.light.thread, c: gold });
+      lights.push({ x, y, r: TILE * band, i: li, c: gold, plain: !!d.hold });
     }
     run += L;
   }
@@ -592,21 +636,4 @@ function drawVeinsUnder(d, ox, oy, lights) {
   const [lx, ly] = pts[pts.length - 2];
   lights.push({ x: Math.round(d.p.x * AP) + ox, y: Math.round(d.p.y * AP) + oy, r: TILE * 1.4, i: 0.5, c: gold });
   lights.push({ x: Math.round(lx * AP) + ox, y: Math.round(ly * AP) + oy, r: TILE, i: 0.3, c: gold });
-}
-// A vein just set: its light coming up along it over T.veins.setRamp s,
-// from the thread's share to a vein's, and the node's with it (the baked
-// lights take over when it's up: veinsFxUpdate).
-function drawVeinRamp(d, ox, oy, lights) {
-  const R = d.ramp, Vn = T.veins, LY = d.layer | 0, k = veinsRampK(d), band = veinBand(), gold = rgb01(ART.pal.star[2]), m0 = band * ATILE * 1.5;
-  const v = R.vein, V = veinsState();
-  if (!v) return;
-  const i = lerp(Vn.light.thread, Vn.light.vein, k), r = TILE * band * (0.7 + 0.3 * k);
-  veinWalk(v, TILE * Vn.light.every, (x, y, l) => {
-    if (l !== LY) return;
-    const fx = Math.round(x * AP) + ox, fy = Math.round(y * AP) + oy;
-    if (fx < -m0 || fy < -m0 || fx > View.w + m0 || fy > View.h + m0) return;
-    lights.push({ x: fx, y: fy, r, i, c: gold });
-  });
-  const n = R.node >= 0 ? V.nodes[R.node] : null;
-  if (n && (n.l | 0) === LY) lights.push({ x: Math.round(n.x * AP) + ox, y: Math.round(n.y * AP) + oy, r: TILE * band * 1.3 * (0.5 + 0.5 * k), i: Vn.light.node * k, c: gold });
 }

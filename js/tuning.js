@@ -980,12 +980,13 @@ const T = {
   // nodeLight: a held node's own light, bitten `bite` of a creature's
   // damage a second within biteReach px of it; holdWave: s between the
   // dark's waves at a hold; light: the baked light along a vein (every so
-  // many tiles) and at a node.
+  // many tiles) and at a node; holdPaint: how many times over a hold the
+  // ground is painted again for the light growing (veins.js holdUpdate).
   veins: {
     band: [5, 5, 6, 6, 7, 8, 8], thread: [60, 80, 100, 120, 140, 170, 200], threadSpeed: 0.85, wave: 30, waveN: 1, step: 6,
     reach: 2.2, joinReach: 1.6, nodeGap: 6, hold: [18, 30], join: 12, nodeLight: 100, bite: 0.4, biteReach: 14, holdWave: 9,
     light: { every: 2, vein: 0.45, node: 0.9, thread: 0.3 },
-    setRamp: 3,
+    holdPaint: 6,
   },
   // The map's travel (map.js mapGo): the light seen running the veins from
   // where he stands to the node, `speed` tiles a second, between min and
@@ -1224,7 +1225,9 @@ const T = {
   //     the margin (tiles) round the view painted before a frame; far, the
   //     margin painted as time allows, budget ms a frame, out from lead
   //     world px ahead of where the diver is heading; arrive, the budget
-  //     a frame for the view still behind the iris while it opens.
+  //     a frame for the view still behind the iris while it opens;
+  //     refresh, the budget a frame for chunks painted again under what
+  //     they show (pntRefresh: the light growing at a hold), nearest first.
   paint: {
     // shade (pshadow.js): the shadows baked into the ground's tones, as how
     // far each lowers its light value (0-1, as ground.sunDark): sun, by day
@@ -1235,7 +1238,7 @@ const T = {
     // most] its depth, at [x, y] from the foot, fall (how softly it fades
     // out); cover: under a tuft or a stand's blade, coverPad, coverRy.
     shade: { mul: 0.75, sun: 0.32, stand: 0.6, light: 0.3, home: 0.6, edge: [1.5, 0.05], contact: [0.16, 0.24, 0.3], contactPad: [1, 2, 3], contactRy: [2.5, 4.5], contactAt: [0.5, 0.5], contactFall: 0.7, cover: 0.14, coverPad: 0.5, coverRy: 1.6 },
-    lazy: { near: 2, far: 7, budget: 3, arrive: 12, lead: 96 },
+    lazy: { near: 2, far: 7, budget: 3, arrive: 12, lead: 96, refresh: 4 },
     // window: the part of the floor whose painted pixels are kept (paint.js
     // PWIN), tiles square at [the coarse grain, FINE GRAIN]; it moves when
     // the view comes within `margin` tiles of its edge.

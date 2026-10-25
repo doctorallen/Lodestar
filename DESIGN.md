@@ -57,7 +57,7 @@ While threading:
 - the dark is drawn to the thread: every 30 s of threading a wave wakes along it behind you, so a long thread is a long fight;
 - a fall loses the thread.
 
-**Planting.** Where you stand, on open ground 6 tiles or more from any node: hold PLANT (1 s) and a shard of the star takes root in the ground, and **the hold** begins: 18 s near the star, to 30 s at the far reaches, never longer. Over the hold the node forms in the air where the thread ends, a lodestar small: one faceted crystal of the star growing from a point to its height, hanging over its shadow in a halo of its own, the thread's light running into it a mote at a time. The node has its own light, which is its health; the dark comes in waves for it and for you, and a creature within reach of the node bites it. If the node's light goes out the shard shatters, the thread snaps back to its start, and nothing is lit; take up again. If it stands when the hold ends it **sets**: its light comes up along the whole thread over three seconds, from the thread's glow to a vein's, the node's with it, the land along it begins to turn, your bar fills, the core gains a piece, and Wick says a word.
+**Planting.** Where you stand, on open ground 6 tiles or more from any node: hold PLANT (1 s) and a shard of the star takes root in the ground, and **the hold** begins: 18 s near the star, to 30 s at the far reaches, never longer. Over the hold the node forms in the air where the thread ends, a lodestar small: one faceted crystal of the star growing from a point to its height, hanging over its shadow in a halo of its own, the thread's light running into it a mote at a time. The node has its own light, which is its health; the dark comes in waves for it and for you, and a creature within reach of the node bites it. If the node's light goes out the shard shatters, the thread snaps back to its start, and nothing is lit; take up again. Its light grows with it: from the moment the shard takes root, the light the vein will cast spreads out from the thread's line and round the node, a little further as the node grows, and the land under it begins to turn, so that when the node is whole its light is at its height. If it stands when the hold ends it **sets**: the light holds as it stands, the stone finishes turning under it, your bar fills, the core gains a piece, and Wick says a word.
 
 **Joining.** A thread walked to an existing node, dark or living, joins it: to a dark one with a shorter hold (12 s), to a living one at once. So the map can be made a web, not just a tree. A node joined two ways survives one cut.
 
@@ -121,6 +121,24 @@ A raw shape is carried home in you (not as cargo; a fall doesn't lose it). At th
 | The star's own | **Ward**: a shell of the star's light, 3 s | **Mote**: a slow seeking light that heals the node or you |
 
 Two spells are carried out (A and B, three from magnitude 3), swapped at the star from everything shaped; none is ever lost. Each has a cooldown (1.5 to 8 s), no cost, and hits at the star's power. Holding a button still charges: a longer window for a bigger hit.
+
+## Spells: learned from the dark **(proposed)**
+
+*A replacement for the shapes above, not yet built. The shapes stop paying out after the first hour and never say what they are; the old facets were liked for their combining but buried the player in loot. This keeps the combining and drops the loot.*
+
+**What the dark leaves.** When a creature dies in your light the star takes what it was: a few motes of its **nature**, flown to the bar and counted at once (nothing to carry, nothing to pick up, nothing lost in a fall). Five natures, one for each element: **rime** (frost: the tusker, the eel, the choir's things), **cinder** (ember: the wraith, the crab, the Cinder's things), **spore** (blight: the spitter, the lurker, the weaver), **spark** (shock: the wisp, the sentinel, the hound), **grit** (force: the crawler, the stalker, the snapjaw, the skink). An elite leaves three times as much and a boss a hundredfold. Each creature's nature is also what it is weak to the opposite of, so the Cinder Waste pays out cinder you'll use against the Frost Steppe, and the other way: the world pulls you across itself.
+
+**Five trees.** At the star (any time, from THE STAR), five trees, one a nature, each bought with its own motes and nothing else. Every node is a thing you can put in a cast:
+
+- The first node of each tree is its **element**: the band a spell can be cast in, with its own touch (frost chills, ember burns the ground, blight sours and spreads, shock jumps, force knocks back).
+- Then that element's **mods**, in order of cost: for rime, say, *Chill* (what's hit slows), *Shatter* (a chilled thing takes a third more), *Glacier* (the cast lingers as a wall), *Needle* (a thin fast form). Each tree has a form or two of its own, so forms come from the natures too, and about ten nodes, the last ones dear.
+- **Affixes** sit at the ends of the trees: the elites' own words (*Frosted*, *Blink*, *Fireproof*) turned to the Kindler's, a passive that holds whatever is cast.
+
+A tree never runs out before the game does: ten nodes at rising cost is a few hours of one nature, and the dark pays out as long as it lives. The star's own magnitude still opens the frame: the cast's **slots** (two casts at the start, a third at magnitude 3; a mod slot each at magnitude 2 and 4), so the world's growth and the Kindler's stay two things.
+
+**The casting screen.** Two or three casts, each a **form**, an **element** and the mods it has slots for, set from everything learned; each thing in one cast at a time. Nothing is ever lost or used up, so there is no inventory and nothing to sort: the longest list on the screen is a tree's ten nodes. Wick says what motes are the first time one lands, and the tree says what the next node costs, so it's never unclear why the star learned something.
+
+**What this cuts.** The two readings and the pick, the star's offered shapes, and the kills-of-a-kind count. The creatures' movements can come back as the trees' forms (Lunge in grit, Glob in spore), so nothing drawn is wasted.
 
 ## The star's screen
 

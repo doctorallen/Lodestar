@@ -575,8 +575,7 @@ function bakeFloorLights(f) {
   const inWin = (s) => { const x = s.x * AP, y = s.y * AP, r = s.r * AP; return x + r >= PWIN.x && x - r <= PWIN.x + PWIN.w && y + r >= PWIN.y && y - r <= PWIN.y + PWIN.h; };
   // (each stopped by the rock: shadow.js)
   bakedSightsFor(f);
-  // (a light whose share is still coming up is drawn each frame: veins.js)
-  for (const s of View.lights) if (inWin(s) && !(s.ramp && Game.dive && Game.dive.ramp)) addBakedLight(f, View.bake, s);
+  for (const s of View.lights) if (inWin(s)) addBakedLight(f, View.bake, s);
   for (const s of View.floraLights) if (inWin(s)) addBakedLight(f, View.bake, s);
 }
 
@@ -585,7 +584,7 @@ function bakeFloorLights(f) {
 // the kindled land's ambient { rgb, d } where there is one: each cell then
 // has the ambient of where it lies, the dark's to the day's by the veins'
 // light grid, so the light is seen fading out before the Kindler walks
-// into the dark (and a set's light coming up: veinDistAt).
+// into the dark (and a hold's light growing: veinDistAt).
 function startLight(cx, cy, r, g, b, day) {
   const L = View.light, B = View.bake, a = L.a, s = T.art.lightSteps;
   L.x0 = Math.floor(cx / LC); L.y0 = Math.floor(cy / LC);
@@ -593,7 +592,7 @@ function startLight(cx, cy, r, g, b, day) {
   // one flat step and never sits on a step's dithered edge
   const snap = (c) => { const I = Math.max(c[0], c[1], c[2]) * s, k = I > 0 ? Math.max(1, Math.round(I)) / I : 0; return [c[0] * s * k, c[1] * s * k, c[2] * s * k]; };
   [r, g, b] = snap([r, g, b]);
-  const D = day && day.d.litG ? day : null, f = D && D.d.floor, G = D && D.d.litG, fade = T.star.lightFade, rk = D ? veinsRampK(D.d) : 1, R = D && D.d.ramp && D.d.ramp.was && D.d.ramp.wasLayer === (D.d.layer | 0) && D.d.ramp.was.length === G.length ? D.d.ramp.was : null;
+  const D = day && day.d.litG ? day : null, f = D && D.d.floor, G = D && D.d.litG, fade = T.star.lightFade, R = D && veinsRampOn(D.d) ? D.d.ramp.next : null, rg = R ? D.d.ramp.band * (1 - D.d.ramp.k) : 0;
   const [dr, dg, db] = D ? snap(D.rgb) : [r, g, b], wk = TILE * AP;
   let ty = 0, tx = 0;
   for (let j = 0; j < L.h; j++) {
@@ -604,7 +603,7 @@ function startLight(cx, cy, r, g, b, day) {
       if (D) {
         tx = Math.min(f.w - 1, Math.max(0, Math.round(((n + L.x0) * LC + (LC >> 1)) / wk - 0.5)));
         let dd = G[ty + tx];
-        if (R) { const was = Math.min(R[ty + tx], dd + fade * 2.2); dd = was + (dd - was) * rk; }
+        if (R) dd = Math.min(dd, R[ty + tx] + rg);
         const t = dd <= 0 ? 1 : dd >= fade ? 0 : 1 - dd / fade;
         ar = r + (dr - r) * t; ag = g + (dg - g) * t; ab = b + (db - b) * t;
       }

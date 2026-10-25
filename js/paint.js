@@ -966,6 +966,8 @@ function pntWindowMove(f, nx, ny) {
   for (const [a, epp] of [[P.col, 4], [P.em, 4], [Q.col, 4], [Q.em, 4], [View.rockPx, 1], [View.rockH, 1], [View.rockHf, 1], [View.groundTone, 1], [View.rockLift, 1], [View.groundHue, 1], [bakeA, 1]]) if (a) pntShift(a, W, H, dx, dy, epp);
   const S = View.pnt;
   pntShift(S.done, S.nx, S.ny, dx / PNT_CH, dy / PNT_CH, 1);
+  pntShift(S.redo, S.nx, S.ny, dx / PNT_CH, dy / PNT_CH, 1);
+  S.redoN = 0; for (let i = 0; i < S.redo.length; i++) if (S.redo[i]) S.redoN++;
   pntShift(S.hdone, S.hnx, S.hny, dx / PNT_HCH, dy / PNT_HCH, 1);
   S.left = 0; for (let i = 0; i < S.done.length; i++) if (!S.done[i]) S.left++;
   pntShift(View.rockBlk, Math.ceil(W / PNT_BLK), Math.ceil(H / PNT_BLK), dx / PNT_BLK, dy / PNT_BLK, 1);
@@ -999,7 +1001,7 @@ function pntFloorStart(f) {
   View.rockBuf.col32 = new Uint32Array(View.rockBuf.col.buffer);
   View.occCache = new Map(); View.pnrTiles = null;
   const nx = Math.ceil(W / PNT_CH), ny = Math.ceil(Hp / PNT_CH), hx = Math.ceil(W / PNT_HCH), hy = Math.ceil(Hp / PNT_HCH);
-  View.pnt = { f, nx, ny, done: new Uint8Array(nx * ny), hnx: hx, hny: hy, hdone: new Uint8Array(hx * hy), left: nx * ny, stale: false };
+  View.pnt = { f, nx, ny, done: new Uint8Array(nx * ny), hnx: hx, hny: hy, hdone: new Uint8Array(hx * hy), left: nx * ny, stale: false, redo: new Uint8Array(nx * ny), redoN: 0, redoAt: null };
   let x;
   const P = View.floorBuf;
   View.floorImgs = [new ImageData(P.col, W, Hp), new ImageData(P.em, W, Hp)];
@@ -1051,8 +1053,9 @@ function pntEnsureHeights(f, x0, y0, x1, y1) {
 // tiles (paintTileArt: the ground, the clime's hazards, the beds), a
 // graft and a tear's tint, then the rock standing over it.
 function pntPaintChunk(f, i, j) {
-  const S = View.pnt, WX = PWIN.x, WY = PWIN.y, X1 = WX + PWIN.w, Y1 = WY + PWIN.h, maxH = pntMaxLift(), G = T.paint.ground;
-  S.done[j * S.nx + i] = 1; S.left--;
+  const S = View.pnt, WX = PWIN.x, WY = PWIN.y, X1 = WX + PWIN.w, Y1 = WY + PWIN.h, maxH = pntMaxLift(), G = T.paint.ground, ck = j * S.nx + i;
+  if (!S.done[ck]) { S.done[ck] = 1; S.left--; }
+  if (S.redo[ck]) { S.redo[ck] = 0; S.redoN--; }
   const x0 = WX + i * PNT_CH, y0 = WY + j * PNT_CH, x1 = Math.min(X1, x0 + PNT_CH), y1 = Math.min(Y1, y0 + PNT_CH), back = G.sunSteps * Math.max(G.sunDir[0], G.sunDir[1]);
   const sm = T.paint.facet.smooth + 3;
   const cm = pntCellMax();
@@ -1089,8 +1092,38 @@ function pntInvalidate(f, x0, y0, x1, y1) {
   if (!S || S.f !== f) return;
   const WX = PWIN.x, WY = PWIN.y;
   const i0 = Math.max(0, Math.floor((x0 - WX) / PNT_CH)), i1 = Math.min(S.nx - 1, Math.floor((x1 - 1 - WX) / PNT_CH)), j0 = Math.max(0, Math.floor((y0 - WY) / PNT_CH)), j1 = Math.min(S.ny - 1, Math.floor((y1 - 1 - WY) / PNT_CH));
-  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (S.done[j * S.nx + i]) { S.done[j * S.nx + i] = 0; S.left++; }
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * S.nx + i; if (S.done[k]) { S.done[k] = 0; S.left++; } if (S.redo[k]) { S.redo[k] = 0; S.redoN--; } }
   View.occCache = new Map(); View.pnrTiles = null;
+}
+// The painted chunks over floor px x0..x1, y0..y1 to be painted again as
+// time allows (pntRefreshFrame), what they show kept until then: for a
+// change under them that can wait a moment, as the light growing at a
+// hold (veins.js), so none of it lands in one frame. at: the world px
+// (optional) to paint out from; else the view's middle.
+function pntRefresh(f, x0, y0, x1, y1, at) {
+  const S = View.pnt;
+  if (!S || S.f !== f) return;
+  const WX = PWIN.x, WY = PWIN.y;
+  const i0 = Math.max(0, Math.floor((x0 - WX) / PNT_CH)), i1 = Math.min(S.nx - 1, Math.floor((x1 - 1 - WX) / PNT_CH)), j0 = Math.max(0, Math.floor((y0 - WY) / PNT_CH)), j1 = Math.min(S.ny - 1, Math.floor((y1 - 1 - WY) / PNT_CH));
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * S.nx + i; if (S.done[k] && !S.redo[k]) { S.redo[k] = 1; S.redoN++; } }
+  S.redoAt = at ? { x: at.x * AP, y: at.y * AP } : null;
+}
+// A frame's share of the chunks to paint again (pntRefresh): those the
+// view shows first, out from redoAt, T.paint.lazy.refresh ms a frame (one
+// at the least).
+function pntRefreshFrame(f, camX, camY) {
+  const S = View.pnt;
+  if (!S || S.f !== f || !S.redoN) return;
+  const WX = PWIN.x, WY = PWIN.y, m = T.paint.lazy.near * ATILE, at = S.redoAt || { x: camX + View.w / 2, y: camY + View.h / 2 };
+  const vi0 = Math.floor((camX - m - WX) / PNT_CH), vi1 = Math.floor((camX + View.w + m - WX) / PNT_CH), vj0 = Math.floor((camY - m - WY) / PNT_CH), vj1 = Math.floor((camY + View.h + m - WY) / PNT_CH);
+  const ci = (at.x - WX) / PNT_CH - 0.5, cj = (at.y - WY) / PNT_CH - 0.5, todo = [];
+  for (let j = 0; j < S.ny; j++) for (let i = 0; i < S.nx; i++) if (S.redo[j * S.nx + i]) todo.push([(i >= vi0 && i <= vi1 && j >= vj0 && j <= vj1 ? 0 : 1e6) + (i - ci) ** 2 + (j - cj) ** 2, i, j]);
+  todo.sort((a, b) => a[0] - b[0]);
+  const t0 = performance.now(), budget = T.paint.lazy.refresh;
+  for (const [, i, j] of todo) {
+    pntPaintChunk(f, i, j);
+    if (performance.now() - t0 > budget) break;
+  }
 }
 function pntEnsure(f, x0, y0, x1, y1, budget, at, only) {
   const S = View.pnt;
@@ -1129,6 +1162,7 @@ function pntFrame(f, camX, camY, reveal, lead) {
     return;
   }
   pntEnsure(f, camX - m1, camY - m1, camX + View.w + m1, camY + View.h + m1);
+  pntRefreshFrame(f, camX, camY);
   const moving = lead && (lead.x || lead.y), mid = moving ? { x: camX + View.w / 2 + lead.x, y: camY + View.h / 2 + lead.y } : null;
   const all = pntEnsure(f, camX - m2, camY - m2, camX + View.w + m2, camY + View.h + m2, L.budget, mid);
   const S = View.pnt;
