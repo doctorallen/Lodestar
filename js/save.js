@@ -17,6 +17,7 @@ function cleanSave(s) {
   if (!Number.isFinite(s.kills)) s.kills = 0;
   if (!Number.isFinite(s.falls)) s.falls = 0;
   if (!s.killsOf || typeof s.killsOf !== 'object') s.killsOf = {};
+  if (typeof motesMigrate === 'function') motesMigrate(s);
 }
 
 const Save = {

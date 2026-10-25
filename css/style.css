@@ -96,6 +96,16 @@ body.home .hud-spec { display: flex; }
 .band-bar { display: block; height: 3px; margin-top: 4px; background: #1a1408; border: 1px solid #3a2c10; }
 .band-bar > span { display: block; height: 100%; }
 .mini.give { color: var(--gold); border-color: var(--gold); }
+.mini[disabled] { opacity: 0.45; }
+.row-parts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.mini.part { font-size: 10px; letter-spacing: 0.06em; padding: 3px 7px; }
+h4.tree { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; font-size: 12px; letter-spacing: 0.1em; }
+h4.tree .pip { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+h4.tree .tree-line { flex-basis: 100%; color: var(--dim); font-weight: normal; letter-spacing: 0; font-size: 12px; }
+.row .icon.pass { display: inline-block; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--gold); flex: none; }
+.row .dim, .row-tag.dim { color: var(--dim); }
+.hud-motes { font-size: 11px; letter-spacing: 0.05em; color: var(--dim); white-space: nowrap; }
+.hud-motes b { font-weight: bold; margin-right: 3px; }
 .spec-wrap { display: flex; justify-content: center; padding: 6px 0 10px; }
 .spec-wrap .spec { height: 28px; }
 .spec-wrap .spec i { width: 14px; }

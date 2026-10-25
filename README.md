@@ -15,13 +15,13 @@ A top-down pixel-art game for the phone browser, upright or sideways. A seed-sta
 | Spell B, from the left wrist (a Bolt) | The blue button | K |
 | Dash | DASH, or flick the move thumb | Shift / U |
 | Take up the thread at the star or a lit node; plant it where you stand; join or mend a node | The button that appears | E / Enter |
-| The star's screen: the map (tap a lit node to stand there), the shapes waiting to be read and the spells carried, Wick's notes | THE STAR | |
+| The star's screen: the map (tap a lit node to travel there), the casts and the five trees of motes, Wick's notes | THE STAR | |
 | Pause (MUSIC, SOUNDS, FINE GRAIN, the landing again, START OVER) | II | Esc / P |
 
 - **One bar.** Your light is your health. In the star's light it fills; in the dark it drains, full to empty in three minutes, and a hit knocks a piece out of it. Below 40% the lamp dims and the dark stirs more creatures. At nothing you fall.
 - **The veins.** At the star or any lit node, TAKE UP THE THREAD: the star's light pays out behind you as you walk (slower, no dash, and the dark wakes along it now and then). PLANT where you stand, six tiles or more from any node, and the hold begins: the node has a light of its own that creatures bite at; stand it off for the hold (45 s near the star, 90 at the far reaches) and it sets, the vein lights along the whole thread, the land along it turns to starstone and green, and your light fills. Walk the thread to another node and JOIN it (at once if it's lit; MEND, a 20 s hold, if it's dark). A node joined two ways survives one cut.
 - **A fall** wakes you at the nearest lit node, the thread is lost, and the star's core loses one of its seven pieces; a node set gives one back. At no pieces the star goes out, and the world with it.
-- **Shapes.** Kill six of a kind (an elite counts two) and its shape is in you; the star's own come at magnitudes 2, 4 and 6. At the star's screen a shape is read two ways and you pick one; the other is gone. Two spells are carried, A and B, swapped there from everything shaped.
+- **Motes.** A creature killed in your light leaves motes of its nature (rime, cinder, spore, spark, grit), carried on the HUD and lost in a fall; a node setting banks them. At the star's screen five trees, one a nature, each bought with its own: an element, mods, forms (opened by magnitude) and a passive. A cast is a form, an element and mods, set from everything learned.
 - **Old nodes.** Six dead nodes of Kindlers before you stand far out in the dark (violet marks on the map). Thread one from a lit node and RELIGHT it: a hold of 30 s, then it lives, and the shape of whoever planted it waits at the star.
 - **While you're away** the dark cuts a vein for every eight hours (two at most), the far ones first; the nodes past a cut go dark and the Hollow stands at its end. Walk a thread from a lit node to the dark one and MEND it.
 - **Magnitude** is the living light: a stride for each tile of lit vein, twenty a node. It widens the light's band, lengthens the thread and hardens the casts (MAP says how far to the next).
@@ -57,8 +57,8 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/story.js` | The story: the opening's captions, Wick's lines, the star's words, the echoes, the endings |
 | `js/star.js` | The Lodestar in the world: where it stands, its light on the land (`starLight`, `litAt`), the daylight by it, the heart drawn colossal |
 | `js/veins.js` | The Veins: the thread taken up and walked out (pressed into the ground as it goes), planting, the hold, the set, joining and mending; the graph in the save (each node and point on its layer), who lives, the magnitude, a light grid a layer; the nodes drawn, the lines painted into the floor |
-| `js/map.js` | The star's screen: the map (a layer at a time, pinch to zoom, the regions' colours and names, the shafts seen; tap a node for its card and STAND THERE), the shapes, Wick's notes; the minimap in the view's corner, drawn as the land is walked (the seen tiles kept in the save) |
-| `js/shapes.js` | Shapes: each creature kind's two readings, the star's own, the kills that read them, the pick, the spells carried into the rig |
+| `js/map.js` | The star's screen: the map (a layer at a time, pinch to zoom, the regions' colours and names, the shafts seen; tap a node for its card and TRAVEL THERE), the casts and the trees, Wick's notes; the minimap in the view's corner, drawn as the land is walked (the seen tiles kept in the save) |
+| `js/motes.js` | Motes: what a kill leaves and the Kindler carries, banked at a set; the five trees learned at the star; the casts set from what's learned, into the rig |
 | `js/terraform.js` | The land terraforming by the light: starstone along every living vein and round every node, gold veins running on through the land, the ground greening past the light's edge, lit motes |
 | `js/hubart.js` | The star and its halo, painted; the older outpost's pieces, kept for the opening |
 | `js/intro.js` | The opening: five painted scenes that play on their own, their captions, SKIP and tap to hurry, and the last shot drawn by the game itself |

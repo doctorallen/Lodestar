@@ -1672,8 +1672,8 @@ function drawCombatFx(fx, ox, oy, tick, lights) {
   } else if (fx.kind === 'absorb') drawAbsorbFx(fx, cx, cy, k, lights, ox, oy);
   else if (fx.kind === 'mote') {
     // a shard set in the star, its light rising from the altar into it
-    const t = 1 - k, sx = fx.to ? Math.round(fx.to.x * AP) + ox : STAR_AT.x * ATILE + ox, sy = fx.to ? Math.round(fx.to.y * AP) + oy : STAR_AT.y * ATILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * AP * (1 - t);
-    dot(Math.round(lerp(cx, sx, t * t) + wob), Math.round(lerp(cy, sy, t)), ART.pal.star[t > 0.8 ? 3 : 2], true);
+    const t = 1 - k, to = fx.at ? { x: fx.at.x, y: fx.at.y - 14 } : fx.to, sx = to ? Math.round(to.x * AP) + ox : STAR_AT.x * ATILE + ox, sy = to ? Math.round(to.y * AP) + oy : STAR_AT.y * ATILE + oy, wob = Math.sin(fx.seed * 2.3 + t * 6) * 8 * AP * (1 - t);
+    dot(Math.round(lerp(cx, sx, t * t) + wob), Math.round(lerp(cy, sy, t)), fx.col && t < 0.8 ? fx.col : ART.pal.star[t > 0.8 ? 3 : 2], true);
   } else if (fx.kind === 'nova') {
     // (its ring is swept over the ground: castFxBig)
     cfxLight(lights, cx, cy, fx.r * 1.3, k, rgb01(fx.col || ART.forms.nova));

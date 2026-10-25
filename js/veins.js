@@ -119,7 +119,6 @@ function veinsRebuild(d, box, soft) {
   const V = veinsState(), live = (d.vLive = veinsLiving(V));
   const worth = veinsWorth(V, live), mag = veinsMagnitude(worth);
   Save.data.magnitude = mag; d.vWorth = worth;
-  if (typeof shapesStarOffer === 'function' && Save.data.spells) shapesStarOffer(mag);
   const Gs = (d.litGs = veinsGrids(d, V, live, mag));
   d.litG = Gs[d.layer | 0];
   d.vSig = (d.vSig || 0) + 1;
@@ -398,6 +397,7 @@ function holdSet(d, to) {
   // seen to, and the ground is painted for it as time allows)
   veinsRebuild(d, box, true);
   s.core = Math.min(T.star.core, (s.core || 0) + 1);
+  motesBank(d);
   Save.save();
   const [x, y] = last;
   spawnSparks(x, y - 8, [ART.pal.star[3], ART.pal.star[2], '#ffffff'], 40);
@@ -406,7 +406,7 @@ function holdSet(d, to) {
   Story.say(joined ? 'firstJoin' : 'firstSet');
   snd('starFeed', { tier: 4, rate: 6, n: 12, stream: true });
   buzz(40);
-  if (magnitudeOf() > magWas) { Story.starGrew(); shapesStarOffer(magnitudeOf()); }
+  if (magnitudeOf() > magWas) Story.starGrew();
   // the world lives: the last magnitude reached, the ending told once
   if (magnitudeOf() >= T.magnitude.at.length && !Save.data.worldLives) playWorldLives(() => UI.toast('The world lives. The light holds', 'legendary'));
   // a mend sends the Hollow at the cut off

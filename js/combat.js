@@ -90,6 +90,7 @@ function shakeView(n) { View.shake = Math.max(View.shake || 0, n); }
 function hurtPlayer(dmg, from) {
   const d = Game.dive, p = d.p, st = d.stats;
   if (p.invuln > 0 || d.dying) return;
+  dmg *= motesPassive('thickskin');
   // (the lattice is the armour, and it's only as hard as the light in it:
   // game.js latticeK)
   const armor = st.armor * latticeK(d) + (st.litArmor && restingLight(d) ? st.litArmor : 0);
@@ -199,7 +200,7 @@ function killEnemy(e) {
   d.kills++;
   // (counted by kind, for the shapes the star reads from the dark: the
   // third step)
-  if (e.type !== 'dummy') { Save.data.kills++; const k = Save.data.killsOf || (Save.data.killsOf = {}); k[e.type] = (k[e.type] || 0) + (e.elite ? 2 : 1); shapesKill(d, e); }
+  if (e.type !== 'dummy') { Save.data.kills++; const k = Save.data.killsOf || (Save.data.killsOf = {}); k[e.type] = (k[e.type] || 0) + (e.elite ? 2 : 1); motesKill(d, e); }
   if (e.blight) for (const o of d.enemies) if (!o.dead && o !== e && dist(o.x, o.y, e.x, e.y) < T.elements.blightSpread) o.blight = { t: T.elements.blightTime, dps: e.blight.dps };
   castFxAbsorb(d, e);
   snd('kill', { x: e.x, y: e.y, big: !!e.boss });

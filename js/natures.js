@@ -94,11 +94,8 @@ function elementMultFor(e, el) {
   return v ? T.circuits.resist[v] : 1;
 }
 // A hit of one or two elements, its damage split between them.
-// (every kind takes every element alike now: the badges and verdicts went
-// with the fight's rethink, DESIGN.md step four; the old reckoning is kept
-// under elementMultOld for it)
-function elementMult() { return 1; }
-function elementMultOld(e, els) {
+// (the verdicts are back with the elements learned from the dark, motes.js)
+function elementMult(e, els) {
   if (!els || !els.length) return 1;
   let m = 0;
   for (const el of els) m += elementMultFor(e, el);

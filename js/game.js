@@ -204,10 +204,10 @@ function latticeK(d) { return lerp(T.splinter.floor, 1, clamp(d.pull, 0, 1)); }
 function updateBar(dt) {
   const d = Game.dive, p = d.p, st = d.stats, P = T.pull, B = T.bar;
   const lit = starLight(d, p.x, p.y);
-  if (lit > 0) p.hp = Math.min(st.maxHp, p.hp + (st.maxHp / B.fill) * lit * dt);
+  if (lit > 0) p.hp = Math.min(st.maxHp, p.hp + (st.maxHp / B.fill) * lit * dt * motesPassive('kindled'));
   if (lit < 1) {
     const was = p.hp / st.maxHp;
-    p.hp = Math.max(0, p.hp - (st.maxHp / T.world.light) * (1 - lit) * dt);
+    p.hp = Math.max(0, p.hp - (st.maxHp / T.world.light) * (1 - lit) * dt * motesPassive('coldblood'));
     const now = p.hp / st.maxHp;
     if (was > P.dimAt && now <= P.dimAt) { UI.toast('Your light is fading', 'legendary'); Story.say('pullFading'); snd('lightLow'); }
     if (now <= P.dimAt && (d.waveT -= dt) <= 0) { d.waveT = P.waveEvery[0]; stirTheDark(d, P.wave[0]); }
@@ -318,6 +318,7 @@ function loseDive() {
   const s = Save.data, d = Game.dive, near = d ? { x: d.p.x, y: d.p.y, l: d.layer } : null;
   s.falls++;
   s.core = Math.max(0, s.core - 1);
+  motesLost(d);
   Save.save();
   if (s.core <= 0) { starGoesOut(); return; }
   enterWorld({ fell: true, near });

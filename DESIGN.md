@@ -100,52 +100,27 @@ The roster stays as patterns, retuned to tells and windows and stripped of eleme
 
 Creatures hunt the Kindler, and during a hold the node; they never attack a set vein (cutting is what the dark does between sessions, so the player never watches the world come apart).
 
-## Spells: shaped at the star
+## Spells: learned from the dark
 
-A spell is a **shape** the star has read into a cast. Shapes are raw, and come from two places:
+**What the dark leaves.** When a creature dies in your light the star takes what it was: a few motes of its **nature**, flown to you and counted on the HUD. Five natures, one for each element: **rime** (frost: the tusker, the eel, the idol), **cinder** (ember: the wraith, the crab, the skink), **spore** (blight: the spitter, the snapjaw, the lurker, the weaver), **spark** (shock: the wisp, the sentinel, the dropper, the hound), **grit** (force: the crawler, the stalker). A boss's and the Hollow's is its region's. An elite leaves three, a boss forty. You carry them: a fall loses them, and **a node setting banks them** at the star, so planting is how the dark's leavings come home. A creature resists its own nature's element and fears another's, so the Cinder Waste pays out what you'll use against the Frost Steppe, and the other way: the world pulls you across itself.
 
-- **From the creatures.** Kill six of a kind (an elite counts two, a Keeper all) and its shape is in you, once a kind: the suit has read how it moves.
-- **From the star.** At magnitudes 2, 4 and 6 the star offers a shape of its own.
+**Five trees.** At the star (any time, from THE STAR), five trees, one a nature, each bought with its own motes and nothing else, a node at a time in order, the costs rising (3, 6, 10, 16, 24, 34). Every node is a thing for a cast:
 
-A raw shape is carried home in you (not as cargo; a fall doesn't lose it). At the star, each waiting shape is read **two ways**, and you pick one; the other is gone. Both are the creature's movement turned to light:
+- an **element**: the band a cast can be in, with its own touch (frost chills, ember burns and spreads, blight poisons and spreads, shock arcs, force knocks back; force is what a cast is with no element, so grit has no element node);
+- that nature's **mods** (amplify and quicken in grit; split and chain in spark; pierce in rime; echo in cinder; linger in spore);
+- a **form** or two, opened by the star's magnitude (glaive at 1 and nova at 3 in grit; orb at 1 in spark; ward at 2 in rime; lance at 1 in cinder; well at 2 in spore; arc and bolt are yours from the first day);
+- a **passive** at the end, in you whatever you cast: heavy hand (grit: every cast harder), quick wrist (spark: every cast sooner), cold blood (rime: your light drains slower), kindled (cinder: your light fills faster), thick skin (spore: what hits you hurts less).
 
-| Shape | Reading A | Reading B |
-|---|---|---|
-| Crawler | **Lunge**: close the gap and bite; a dash that hits | **Circle**: two lights orbit you for 4 s, biting what comes close |
-| Wisp | **Orbs**: three slow orbs that drift at the nearest | **Drift**: a step that leaves your light where you were as a decoy for 2 s |
-| Stalker | **Reach**: a long thrust through a line of foes | **Stalk**: your next hit from behind or on a tell does triple |
-| Snapjaw | **Snap**: a ring round you that staggers everything in it | **Wait**: stand still 1 s and the next thing to close is bitten hard |
-| Spitter | **Glob**: a lobbed burst that leaves slowing ground | **Mark**: mark a spot; what stands on it after 1.5 s takes a burst |
-| Tusker | **Charge**: a straight run that knocks everything aside | **Brace**: the next hit on you is shrugged, and knocks back |
-| Keeper (legendary) | **Faultline**: the ground splits along a line | **Lodeheart**: your light doesn't drain for 10 s |
-| The star's own | **Ward**: a shell of the star's light, 3 s | **Mote**: a slow seeking light that heals the node or you |
+Twenty-three nodes, a few hours of the dark, and it never runs dry: the trees are the Kindler's growth, the magnitude the world's, and a form needs both.
 
-Two spells are carried out (A and B, three from magnitude 3), swapped at the star from everything shaped; none is ever lost. Each has a cooldown (1.5 to 8 s), no cost, and hits at the star's power. Holding a button still charges: a longer window for a bigger hit.
-
-## Spells: learned from the dark **(proposed)**
-
-*A replacement for the shapes above, not yet built. The shapes stop paying out after the first hour and never say what they are; the old facets were liked for their combining but buried the player in loot. This keeps the combining and drops the loot.*
-
-**What the dark leaves.** When a creature dies in your light the star takes what it was: a few motes of its **nature**, flown to the bar and counted at once (nothing to carry, nothing to pick up, nothing lost in a fall). Five natures, one for each element: **rime** (frost: the tusker, the eel, the choir's things), **cinder** (ember: the wraith, the crab, the Cinder's things), **spore** (blight: the spitter, the lurker, the weaver), **spark** (shock: the wisp, the sentinel, the hound), **grit** (force: the crawler, the stalker, the snapjaw, the skink). An elite leaves three times as much and a boss a hundredfold. Each creature's nature is also what it is weak to the opposite of, so the Cinder Waste pays out cinder you'll use against the Frost Steppe, and the other way: the world pulls you across itself.
-
-**Five trees.** At the star (any time, from THE STAR), five trees, one a nature, each bought with its own motes and nothing else. Every node is a thing you can put in a cast:
-
-- The first node of each tree is its **element**: the band a spell can be cast in, with its own touch (frost chills, ember burns the ground, blight sours and spreads, shock jumps, force knocks back).
-- Then that element's **mods**, in order of cost: for rime, say, *Chill* (what's hit slows), *Shatter* (a chilled thing takes a third more), *Glacier* (the cast lingers as a wall), *Needle* (a thin fast form). Each tree has a form or two of its own, so forms come from the natures too, and about ten nodes, the last ones dear.
-- **Affixes** sit at the ends of the trees: the elites' own words (*Frosted*, *Blink*, *Fireproof*) turned to the Kindler's, a passive that holds whatever is cast.
-
-A tree never runs out before the game does: ten nodes at rising cost is a few hours of one nature, and the dark pays out as long as it lives. The star's own magnitude still opens the frame: the cast's **slots** (two casts at the start, a third at magnitude 3; a mod slot each at magnitude 2 and 4), so the world's growth and the Kindler's stay two things.
-
-**The casting screen.** Two or three casts, each a **form**, an **element** and the mods it has slots for, set from everything learned; each thing in one cast at a time. Nothing is ever lost or used up, so there is no inventory and nothing to sort: the longest list on the screen is a tree's ten nodes. Wick says what motes are the first time one lands, and the tree says what the next node costs, so it's never unclear why the star learned something.
-
-**What this cuts.** The two readings and the pick, the star's offered shapes, and the kills-of-a-kind count. The creatures' movements can come back as the trees' forms (Lunge in grit, Glob in spore), so nothing drawn is wasted.
+**Casts.** Two casts, A and B. Each is a **form**, an **element** (or none) and the **mods** it has slots for (one at the start, a second at magnitude 3, a third at 5), set from everything learned by tapping a part for the next. Nothing is used up or lost, so there is no inventory and nothing to sort: the longest list on the screen is a tree's five nodes. Each button says its cast (EMBER ARC) and whether the nearest creature fears or shrugs off it.
 
 ## The star's screen
 
 One screen, from the star (walk into the heart's light) or the MAP button anywhere, which opens it on the map. Three parts, scrolled:
 
 1. **THE WORLD.** The map, a layer at a time (THE SURFACE, THE DEEP), pinched to zoom: the regions in their own colours and their names as they're walked, veins in gold, nodes as marks, cuts marked red, shafts once seen, the Kindler. Tap a node for its card; TRAVEL THERE to go, and the light is seen running the veins to it.
-2. **SHAPES.** Shapes waiting to be read, each with its two readings and PICK; then the spells shaped, with A and B set by tapping.
+2. **CASTS and THE TREES.** The two casts, each part tapped for the next; then the five trees, each with its motes banked and carried, its nodes in order with LEARN and the cost.
 3. **WICK.** His log, the *Meridian* overhead (how many sleep), the core's pieces, and the opening again.
 
 Nothing else at home. No making, no stash, no feeding.
@@ -199,7 +174,7 @@ veins: { band: [5,5,6,6,7,8,8], thread: [60,80,100,120,140,170,200], threadSpeed
          nodeLight: 100, core: 7, cutEvery: 8 * 3600, cutMax: 2 }
 bar:   { max: 100, drain: 180, fill: 4 }
 magnitude: { at: [0,150,400,800,1400,2200,3200], power: [1,1.25,1.5,1.8,2.1,2.5,3], nodeWorth: 20 }
-shapes: { kills: 6, elite: 2 }
+motes: { kill: 1, elite: 3, boss: 40, cost: [3, 6, 10, 16, 24, 34], modSlotsAt: [1, 3, 5] }
 world: { tiles: 320, chunk: 32, reaches: 1 }
 regions: { area: 10816, meld: 7 }   deep: { n: 14, fromStar: 18, apart: 24 }
 ```

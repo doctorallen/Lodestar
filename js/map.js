@@ -204,7 +204,7 @@ function mapDrawCanvas() {
 }
 
 // The words under the map: the layer tabs, the picked node's card, the
-// light's reach, then the shapes and Wick (shapes.js).
+// light's reach, then the casts, the trees and Wick (motes.js).
 function mapBody() {
   const d = Game.dive, V = veinsState(), live = d.vLive, L = MapView.layer, S = T.story;
   const mag = magnitudeOf(), A = T.magnitude.at, next = A[mag] !== undefined ? ` · ${Math.max(0, Math.ceil(A[mag] - (d.vWorth || 0)))} strides to magnitude ${mag + 1}` : '';
@@ -222,7 +222,7 @@ function mapBody() {
   } else card = `<p class="note center">Tap a lit node to travel there along the veins. Pinch to zoom.</p>`;
   $('map-body').innerHTML = tabs + card
     + `<p class="note center">The light reaches ${Math.round(d.vWorth || 0)} strides · magnitude ${mag}${esc(next)} · ${set} node${set === 1 ? '' : 's'} set${cuts ? `, ${cuts} vein${cuts > 1 ? 's' : ''} cut` : ''}.</p>`
-    + shapesHtml()
+    + motesHtml(d)
     + `<h3>WICK</h3><p class="note">The star's core: ${Save.data.core} of ${T.star.core}. Above, the Meridian: ${S.sleepers} asleep until the world lives.</p><div class="menu"><button class="btn quiet" data-act="replayIntro">THE LANDING AGAIN</button></div>`;
 }
 

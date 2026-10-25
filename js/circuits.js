@@ -221,9 +221,9 @@ function spellCost(sp) {
 // combo), by Quicken and the frame.
 function spellWait(g, step) {
   const C = T.circuits, R = rigBase();
-  if (!g) return C.spark.cd * R.cd;
+  if (!g) return C.spark.cd * R.cd * motesPassive('wrist');
   const F = C.forms[g.form], cd = g.form === 'arc' ? F.combo[step % F.combo.length][1] : F.cd;
-  return cd * Math.pow(C.glyphs.quicken.cd, g.glyphs.quicken || 0) * R.cd;
+  return cd * Math.pow(C.glyphs.quicken.cd, g.glyphs.quicken || 0) * R.cd * motesPassive('wrist');
 }
 // How much harder a spell hits for its cores' tiers.
 function stonePower(g) {
@@ -276,7 +276,7 @@ function castHand(slot, item, h, charged) {
   const form = g ? (charged && g.form === 'arc' ? 'nova' : g.form) : 'spark';
   castFxStart(d, it, slot, charged, [form], g ? groupCol(g) : ART.forms.bolt);
   snd('cast', { form, els: g ? g.els : null, charged, step: h.step, res: !!res });
-  const cx = { item: it, power: it.base.power * magnitudePower(), charged, step: h.step, from: null, aim: null, mult: res ? resonanceMult(it) : 1, spread: 0, echo: false, res: res ? res.id : null };
+  const cx = { item: it, power: it.base.power * magnitudePower() * motesPassive('heavy'), charged, step: h.step, from: null, aim: null, mult: res ? resonanceMult(it) : 1, spread: 0, echo: false, res: res ? res.id : null };
   if (res) resonanceCast(res, d);
   // the Twice-Told: everything again, fanned a little
   for (let k = 0; k < (d.stats.powers.echo ? 2 : 1); k++) {

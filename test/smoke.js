@@ -120,24 +120,27 @@ async function phone(browser, failures) {
   await shot(page, 'smoke-map');
   const went = await page.evaluate(() => { UI.close(); const d = Game.dive, ok = veinsTravel(d, 0); return { ok, lit: starLight(d, d.p.x, d.p.y), near: dist(d.p.x, d.p.y, veinsState().nodes[0].x, veinsState().nodes[0].y) < TILE * 3 }; });
   if (!went.ok || !went.near) fail(`travel by the map did not stand him at the star (${JSON.stringify(went)})`);
-  // the shapes: six crawlers read, the star has a shape; picked at its
-  // screen, carried in slot A, the wrist casts it
-  await page.evaluate(() => { Save.data.killsOf.crawler = 5; const d = Game.dive, e = makeEnemy('crawler', d.p.x + 40, d.p.y, 1, null); d.enemies.push(e); killEnemy(e); });
-  const pend = await page.evaluate(() => Save.data.shapes.pending.slice());
-  if (!pend.includes('crawler')) fail(`the crawler's shape is not waiting (${pend})`);
+  // the motes: a crawler killed leaves grit, carried; banked at a set;
+  // the star's screen learns Amplify from it, into cast A, the wrist casts it
+  await page.evaluate(() => { const d = Game.dive, e = makeEnemy('crawler', d.p.x + 40, d.p.y, 1, null); d.enemies.push(e); killEnemy(e); });
+  const left = await page.evaluate(() => Object.assign({}, Game.dive.motes));
+  if (!(left.grit >= 1)) fail(`the crawler left no grit (${JSON.stringify(left)})`);
+  await page.evaluate(() => { Game.dive.motes.grit = 9; motesBank(Game.dive); });
+  const banked = await page.evaluate(() => ({ banked: Save.data.motes.grit, carried: Game.dive.motes.grit || 0 }));
+  if (banked.banked < 9 || banked.carried) fail(`the grit was not banked (${JSON.stringify(banked)})`);
   await page.evaluate(() => UI.show('screen-map'));
   await sleep(450);
-  if (!(await page.evaluate(() => !!document.querySelector('#map-body [data-act=shapePick][data-arg="crawler:a"]')))) fail('the screen does not offer the reading');
-  await page.evaluate(() => UI.acts.shapePick('crawler:a'));
-  await page.evaluate(() => UI.acts.carrySet('a:lunge'));
-  const carried = await page.evaluate(() => ({ carry: Save.data.carry.slice(), spells: Save.data.spells.map((x) => x.id), rig: Save.data.equip.main.spells.map((sp) => [sp.form.stone, (sp.mods[0] || {}).stone || null]), pending: Save.data.shapes.pending.length }));
-  if (!carried.spells.includes('lunge') || carried.carry[0] !== 'lunge') fail(`Lunge was not read and carried (${JSON.stringify(carried)})`);
-  if (carried.rig[0][0] !== 'arc' || carried.rig[0][1] !== 'quicken') fail(`the rig does not cast the reading (${JSON.stringify(carried.rig)})`);
-  if (carried.pending) fail('the shape still waits after the pick');
+  if (!(await page.evaluate(() => !!document.querySelector('#map-body [data-act=moteLearn][data-arg="amplify"]')))) fail('the screen does not offer Amplify');
+  await page.evaluate(() => UI.acts.moteLearn('amplify'));
+  await page.evaluate(() => UI.acts.castCycle('0:m0'));
+  const cast = await page.evaluate(() => ({ learned: Save.data.learned.slice(), casts: Save.data.casts.map((c) => [c.form, c.el, c.mods[0] || null]), rig: Save.data.equip.main.spells.map((sp) => [sp.form.stone, (sp.mods[0] || {}).stone || null]), grit: Save.data.motes.grit, locked: !!document.querySelector('#map-body [data-act=moteLearn][data-arg="glaive"]') }));
+  if (!cast.learned.includes('amplify') || cast.casts[0][2] !== 'amplify') fail(`Amplify was not learned and set (${JSON.stringify(cast)})`);
+  if (cast.rig[0][0] !== 'arc' || cast.rig[0][1] !== 'amplify') fail(`the rig does not cast it (${JSON.stringify(cast.rig)})`);
+  if (cast.grit !== banked.banked - 3) fail(`the motes were not spent (${banked.banked} then ${cast.grit})`);
   await page.evaluate(() => UI.close());
   await steps(page, { x: 0, y: 0 }, 2);
-  if ((await page.evaluate(() => document.getElementById('btn-main').textContent.trim())) !== 'LUNGE') fail('the A button does not say LUNGE');
-  await shot(page, 'smoke-shapes');
+  if ((await page.evaluate(() => document.getElementById('btn-main').textContent.trim())) !== 'ARC') fail('the A button does not say ARC');
+  await shot(page, 'smoke-motes');
   // away nine hours: the dark cuts the vein, the node goes dark, the
   // Hollow stands at its end; mended with a thread from the star
   const cut = await page.evaluate(() => { Save.data.lastSeen = Date.now() - 9 * 3600e3; enterWorld({}); const d = Game.dive, V = veinsState(), k = V.nodes.length - 1; return { cut: V.veins.filter((v) => v.cut).length, live1: !!d.vLive[k], hollow: d.enemies.filter((e) => e.type === 'hollow').length, worth: d.vWorth }; });

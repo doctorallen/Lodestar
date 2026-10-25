@@ -828,8 +828,8 @@ const T = {
       hollow: { force: 'R', shock: 'R', frost: 'R', ember: 'R', blight: 'R' }, // the living dark
       // each clime's own creature (foes.js)
       skink: { frost: 'W', ember: 'R' }, tusker: { ember: 'W', blight: 'W', frost: 'R' }, wraith: { frost: 'W', ember: 'R' }, lurker: { ember: 'W', blight: 'R' },
-      dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', blight: 'W', ember: 'R' }, crab: { frost: 'W', ember: 'R' }, weaver: { ember: 'W', blight: 'R' }, // (the crab's shell stands in for a Force resistance)
-      sentinel: { shock: 'W', blight: 'R' }, idol: { force: 'W', frost: 'R' }, hound: { shock: 'W', force: 'R' },
+      dropper: { force: 'W', shock: 'R' }, eel: { shock: 'W', ember: 'W', frost: 'R' }, crab: { frost: 'W', ember: 'R' }, weaver: { ember: 'W', blight: 'R' }, // (the crab's shell stands in for a Force resistance)
+      sentinel: { force: 'W', shock: 'R' }, idol: { force: 'W', frost: 'R' }, hound: { frost: 'W', shock: 'R' },
     },
     // the warden and the Keepers: one weakness and one resistance, by region
     regionResist: {
@@ -999,9 +999,12 @@ const T = {
   // Magnitude (veins.js): the thresholds of the world's living light (vein
   // tiles, plus nodeWorth a living node), and what a cast hits at each.
   magnitude: { at: [0, 150, 400, 800, 1400, 2200, 3200], power: [1, 1.25, 1.5, 1.8, 2.1, 2.5, 3], nodeWorth: 20 },
-  // Shapes (shapes.js): kills of a kind before its shape is read (an elite
-  // counts two), and the magnitudes at which the star offers one of its own.
-  shapes: { kills: 6, starAt: [2, 4, 6] },
+  // Motes (motes.js): what a kill leaves (kill; an elite, a boss), the cost
+  // of each tree's nodes by their place in it, the magnitudes a cast gains
+  // a mod slot at, and each passive's share (a multiplier: of a cast's
+  // power, its wait, the bar's drain in the dark, its fill in the light,
+  // the damage taken).
+  motes: { kill: 1, elite: 3, boss: 40, cost: [3, 6, 10, 16, 24, 34], modSlotsAt: [1, 3, 5], passive: { heavy: 1.15, wrist: 0.85, coldblood: 0.75, kindled: 1.4, thickskin: 0.85 } },
   // The dark cuts veins while you're away (veins.js veinsCutOnReturn): one
   // for each `every` hours, at most `most` waiting; it picks veins far from
   // the star for choice. The Hollow stands at a cut's dark end.

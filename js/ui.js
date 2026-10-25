@@ -187,8 +187,8 @@ const UI = {
       const sp = rigSpell(rig, slot === 'off' ? 1 : 0), form = spellForm(sp), btn = $('btn-' + slot), key = `${rig.uid}:${form}`;
       if (btn.dataset.key !== key) {
         btn.dataset.key = key;
-        const own = spellOf(Save.data.carry[slot === 'off' ? 1 : 0]);
-        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt')}" alt=""><span>${own ? own.name.toUpperCase() : form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
+        const own = Save.data.casts && Save.data.casts[slot === 'off' ? 1 : 0];
+        btn.innerHTML = `<img class="btn-icon" src="${stoneIconUrl(form || 'bolt')}" alt=""><span>${own ? castName(own).toUpperCase() : form ? CIRCUIT_FORMS[form].name.toUpperCase() : 'SPARK'}</span>`;
       }
       const h = p.hands[slot], lv = h.holding ? chargeLevel(h) : 0;
       btn.classList.toggle('charging', lv > 0 && lv < 1);
@@ -199,8 +199,10 @@ const UI = {
       btn.classList.toggle('resist', m < 0.99);
     }
     if ($('btn-off').hidden) $('btn-off').hidden = false;
-    // the star has a shape to read: its button says so
-    $('btn-map').classList.toggle('hot', !!(Save.data.shapes && Save.data.shapes.pending.length));
+    // the star could learn something: its button says so; and the motes carried
+    $('btn-map').classList.toggle('hot', motesAffordable());
+    const mh = motesHudHtml(d), me = $('hud-motes');
+    if (me.dataset.v !== mh) { me.dataset.v = mh; me.innerHTML = mh; me.hidden = !mh; }
     $('btn-dash').classList.toggle('cooling', p.dashCd > 0);
     const a = !Game.modal ? actionHere() : null, btn = $('btn-act');
     setTextIfChanged('btn-act', a ? ({ 'take up': 'TAKE UP THE THREAD', plant: 'PLANT', join: 'JOIN', mend: 'MEND', descend: 'GO DOWN', ascend: 'CLIMB UP' })[a] || String(a).toUpperCase() : '');
@@ -240,8 +242,8 @@ UI.acts = {
   // the opening again (intro.js)
   replayIntro: () => { UI.close(); Intro.play(null); },
   // the star's screen: a shape read, a spell carried (shapes.js)
-  shapePick: (arg) => { const [kind, w] = arg.split(':'); if (shapePick(kind, w)) UI.redraw(); },
-  carrySet: (arg) => { const [slot, id] = arg.split(':'); carrySet(slot, id); UI.redraw(); },
+  moteLearn: (arg) => { if (moteLearn(arg)) UI.redraw(); },
+  castCycle: (arg) => { const [i, part] = arg.split(':'); castCycle(Number(i), part); UI.redraw(); },
   // the map: a layer, the picked node stood at, the card put away (map.js)
   mapLayer: (l) => mapLayerSet(l),
   mapGo: () => mapGo(),
