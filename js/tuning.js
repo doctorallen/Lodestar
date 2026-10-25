@@ -374,7 +374,13 @@ const T = {
   hands: { autoAim: 52, comboWindow: 0.6, chargeStart: 0.25, chargeFull: 0.7, fist: 3 },
   // The HUD: the spell buttons read the nearest foe within verdictReach px
   // (in sight) and say whether it fears or shrugs off each spell's element.
-  hud: { verdictReach: 140 },
+  hud: {
+    // threadY: how high over the Kindler's feet (world px) the thread's
+    // length left stands while he lays it (render.js)
+    // holdY: how high over the node forming (world px) the hold's seconds
+    // left are counted down (the node sprite stands about 32 high)
+    threadY: 36, holdY: 34, verdictReach: 140,
+  },
   retiredThreads: 4,
   // A dash: a burst of speed with a moment of untouchability. A flick of
   // the move thumb (flickPx in flickMs) dashes too.
@@ -1346,7 +1352,9 @@ const T = {
       padR: 2.2, pathW: 0.9, trod: 0.72,
     },
     // hole (painthole.js): what lies below the floor. depth: how far down a
-    // hazard's surface lies (art px), shade how far (a share of it) its
+    // hazard's surface lies (art px; ice at 0 lies flat on the ground: cut
+    // in with a bank and a lit lip it read as a slab of rock you could
+    // walk through), shade how far (a share of it) its
     // banks shade it from the light. A far wall: bank (a pool's, cut in
     // the ground, on the ground's ramp): [its tone at the lip, at the foot,
     // how much lighter turned to the light]; wallPow how fast it darkens; jitter, strata,
@@ -1358,7 +1366,7 @@ const T = {
     // lavaLick: how much lava lights its bank, and the share of the bank's
     // foot laid in its colour's strokes; vent: how tall a vent's throat's far wall (px); wade: how much of a walker in a pool
     // or lava is under its surface (art px), wadeEase how fast it steps down.
-    hole: { depth: { pool: 12, burn: 11, slick: 7 }, shade: 0.6, bank: [3.6, 1.2, 1.2], wet: 2, wallPow: 0.9, jitter: 0.45, strata: 0.45, strataAmt: 1.3, plane: [9, 0.7], crack: [0.3, 16], lipTone: [6.5, 5.5], foot: 0.5, lip: 3, lavaLift: 2, lavaLick: 0.75, vent: 5, wade: 6, wadeEase: 0.25 },
+    hole: { depth: { pool: 12, burn: 11, slick: 0 }, shade: 0.6, bank: [3.6, 1.2, 1.2], wet: 2, wallPow: 0.9, jitter: 0.45, strata: 0.45, strataAmt: 1.3, plane: [9, 0.7], crack: [0.3, 16], lipTone: [6.5, 5.5], foot: 0.5, lip: 3, lavaLift: 2, lavaLick: 0.75, vent: 5, wade: 6, wadeEase: 0.25 },
     // flora, props, ore and drops (pflora.js). ramp: a material's stroke
     // ramp (as ramp above); tones: [lo, hi] of the ramp's eight a form's
     // light is laid on; base, light, shade, fall, crease, rim, under: its

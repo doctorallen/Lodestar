@@ -29,7 +29,7 @@ Painting a map this size is done in a window of the floor that moves with the vi
 
 ## The light
 
-- **Sources.** The star, every living node, and the veins between living nodes. A vein lights a band along it, 5 tiles to each side at first.
+- **Sources.** The star, every living node, and the veins between living nodes. A vein lights a band along it, 5 tiles to each side at first. The daylight is of the place, not of where you stand: kindled land has its day and the dark its dusk, cell by cell, so from inside the light you see it fading out at the edge before you walk into the dark.
 - **Lit ground.** Your bar fills (full in about 4 s). Nothing hunts there. The land terraforms by the light's age: starstone along the vein, then green, then growth, then the clime's own life, spreading a tile or two a session (the terraforming code already written, keyed to veins instead of spires).
 - **Dark ground.** Your bar drains, full to empty in 180 s, and the dark is awake. The drain is the same everywhere; distance from the star changes what lives there, not how fast you go dim.
 
@@ -134,7 +134,7 @@ Nothing else at home. No making, no stash, no feeding.
 
 ## The HUD
 
-The bar at the top, and under it the thread's remaining length while threading. The MAP button and pause. In the view's top right corner, always, the **minimap**: the forty tiles round you, two pixels a tile, drawn as you walk them (what you've seen of each layer is kept in the save) and wherever the living light lies; the ground in its region's colour, the lit land gold, the veins, the thread, the nodes, the shafts seen, you blinking at the middle, and at the edge a mark for the way to the nearest living light when it's off the map. Under the right thumb: A, B (and later C), DASH (dim while threading, free once the node is planted), and ACT, which reads TAKE UP, PLANT, JOIN or MEND as the ground allows, with the hold's ring over the node while it runs. The joystick under the left. One goal line under the bar at all times: what the ground in front of you is for ("Take up a thread here", "The dark cut the vein to Ashfall", "Six crawlers read: the star has a shape to shape").
+The bar at the top, and under it the thread's remaining length while threading; the same stands over the Kindler's head while he lays it, a bar and the strides left in digits, red when it's nearly out. The MAP button and pause. In the view's top right corner, always, the **minimap**: the forty tiles round you, two pixels a tile, drawn as you walk them (what you've seen of each layer is kept in the save) and wherever the living light lies; the ground in its region's colour, the lit land gold, the veins, the thread, the nodes, the shafts seen, you blinking at the middle, and at the edge a mark for the way to the nearest living light when it's off the map. Under the right thumb: A, B (and later C), DASH (dim while threading, free once the node is planted), and ACT, which reads TAKE UP, PLANT, JOIN or MEND as the ground allows, with the hold's ring over the node while it runs and the seconds left counted down over the node forming, large. The joystick under the left. One goal line under the bar at all times: what the ground in front of you is for ("Take up a thread here", "The dark cut the vein to Ashfall", "Six crawlers read: the star has a shape to shape").
 
 ## A session
 

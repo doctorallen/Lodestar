@@ -979,8 +979,10 @@ function pntWindowMove(f, nx, ny) {
   // what was worked out from the buffers as they lay: the light, the sights, the GPU's textures
   View.bakedFrom = null; View.occCache = new Map(); View.pnrTiles = null; S.stale = false;
   pntSightsForget();
-  gpuFloorDirty(0, 0, W, H);
-  glGroundDirty(0, H);
+  // (shifted on the GPU where there is one; the exposed strips go up as
+  // they're painted, chunk by chunk)
+  if (!gpuFloorShift(dx, dy)) gpuFloorDirty(0, 0, W, H);
+  if (!glGroundShift(dx, dy)) glGroundDirty(0, H);
 }
 
 function pntFloorStart(f) {

@@ -359,11 +359,39 @@ function gpuFloorStart(f, W, H) {
   if (G.floorW !== W || G.floorH !== H) {
     for (const [unit, name, fmt] of [[1, 'floorCol', gl.RGBA8], [2, 'floorEm', gl.RGBA8], [3, 'rockLift', gl.R8]]) {
       gl.deleteTexture(G[name]); G[name] = gpuTex(gl, unit); gl.texStorage2D(gl.TEXTURE_2D, 1, fmt, W, H);
+      if (G[name + 'Spare']) { gl.deleteTexture(G[name + 'Spare']); G[name + 'Spare'] = null; }
     }
     G.floorW = W; G.floorH = H;
   }
   G.floorFor = f;
   G.dirty = [[0, 0, W, H]];
+}
+// The painted window moved (paint.js pntWindowMove): the textures shifted
+// on the GPU, so that what was at (x + dx, y + dy) is at (x, y), and only
+// the strips exposed are uploaded as they're painted, not the whole lot
+// again. (Each kind has a spare texture to copy into; they swap.)
+function gpuFloorShift(dx, dy) {
+  const G = Gpu, gl = G.gl, W = G.floorW, H = G.floorH;
+  if (!G.on || !W || !G.floorFor) return false;
+  const adx = Math.abs(dx), ady = Math.abs(dy);
+  if (adx >= W || ady >= H) return false;
+  // (the buffers have moved already: what's still to go up goes up from
+  // its new place, after the shift)
+  for (const b of G.dirty) { b[0] -= dx; b[1] -= dy; b[2] -= dx; b[3] -= dy; }
+  if (!G.shiftFb) G.shiftFb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, G.shiftFb); G.boundFb = G.shiftFb;
+  for (const [unit, name, fmt] of [[1, 'floorCol', gl.RGBA8], [2, 'floorEm', gl.RGBA8], [3, 'rockLift', gl.R8]]) {
+    const spare = name + 'Spare';
+    if (!G[spare]) { G[spare] = gpuTex(gl, unit); gl.texStorage2D(gl.TEXTURE_2D, 1, fmt, W, H); }
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, G[name], 0);
+    gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, G[spare]);
+    gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, Math.max(0, -dx), Math.max(0, -dy), Math.max(0, dx), Math.max(0, dy), W - adx, H - ady);
+    const t = G[name]; G[name] = G[spare]; G[spare] = t;
+  }
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+  gpuBind(null);
+  G.stats.uploads++;
+  return true;
 }
 function gpuFloorDirty(x0, y0, x1, y1) {
   const G = Gpu;
@@ -641,7 +669,7 @@ class GpuCtx {
     // texture of its own)
     else if (img.gpuOwn || img.width > GPU_ATLAS || img.height > GPU_ATLAS) { const t = Gpu.dynTexs.get(img); dyn = t && t.tex ? { tex: t.tex } : gpuOwnTex(img, img.getContext('2d').getImageData(0, 0, img.width, img.height), 0, img.height); flags |= GPU_F.DYN; u0 = sx; v0 = sy; }
     else { const e = gpuPic(img); if (!e) return; u0 = e.x + sx; v0 = e.y + sy; page = e.page; if (flags & GPU_F.SMOOTH) { flags &= ~GPU_F.SMOOTH; if (dw !== sw || dh !== sh) flags |= GPU_F.SMOOTH; } }
-    this._state(dyn);
+    if (dyn && this.over) Gpu.odyn = dyn; else this._state(dyn);
     gpuPush(this.over, dx + this.tx, dy + this.ty, dw, dh, u0, v0, u0 + sw, v0 + sh, page, alpha, alpha, alpha, alpha, flags);
   }
   // Pixels rewritten each frame (an ImageData), the box sx, sy, sw, sh of

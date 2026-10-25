@@ -481,7 +481,9 @@ function miniPaint(d, x0, y0) {
   }
   // the frame
   g.fillStyle = '#4a4438'; g.fillRect(0, 0, W, 1); g.fillRect(0, W - 1, W, 1); g.fillRect(0, 0, 1, W); g.fillRect(W - 1, 0, 1, W);
-  gpuDirty(Mini.cv);
+  // (on the GPU, a texture of its own, uploaded now: painted this often it
+  // would fill the atlas with dead pictures and have it rebuilt)
+  if (Gpu.on) { Mini.cv.gpuOwn = true; gpuOwnTex(Mini.cv, g.getImageData(0, 0, W, W), 0, W); } else gpuDirty(Mini.cv);
 }
 // Each frame, on the overlay (render.js): the picture, and the Kindler
 // blinking at its middle.

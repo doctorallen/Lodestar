@@ -50,6 +50,7 @@ function setupView() {
   View.bloomCtx = View.bloom.getContext('2d');
   View.over = $('view-over');
   View.overCtx = View.over.getContext('2d');
+  View.overCtx.imageSmoothingEnabled = false;
 }
 
 function resizeView() {
@@ -580,22 +581,36 @@ function bakeFloorLights(f) {
 }
 
 // Starts the view's light for a frame: ambient (r, g, b), plus what's
-// baked, on the grid under a camera at cx, cy (art px in the world).
-function startLight(cx, cy, r, g, b) {
+// baked, on the grid under a camera at cx, cy (art px in the world). day:
+// the kindled land's ambient { rgb, d } where there is one: each cell then
+// has the ambient of where it lies, the dark's to the day's by the veins'
+// light grid, so the light is seen fading out before the Kindler walks
+// into the dark (and a set's light coming up: veinDistAt).
+function startLight(cx, cy, r, g, b, day) {
   const L = View.light, B = View.bake, a = L.a, s = T.art.lightSteps;
   L.x0 = Math.floor(cx / LC); L.y0 = Math.floor(cy / LC);
   // ambient snapped to a whole band (its colour kept), so flat light is
   // one flat step and never sits on a step's dithered edge
-  r *= s; g *= s; b *= s;
-  const I = Math.max(r, g, b), k = I > 0 ? Math.max(1, Math.round(I)) / I : 0;
-  r *= k; g *= k; b *= k;
+  const snap = (c) => { const I = Math.max(c[0], c[1], c[2]) * s, k = I > 0 ? Math.max(1, Math.round(I)) / I : 0; return [c[0] * s * k, c[1] * s * k, c[2] * s * k]; };
+  [r, g, b] = snap([r, g, b]);
+  const D = day && day.d.litG ? day : null, f = D && D.d.floor, G = D && D.d.litG, fade = T.star.lightFade, rk = D ? veinsRampK(D.d) : 1, R = D && D.d.ramp && D.d.ramp.was && D.d.ramp.wasLayer === (D.d.layer | 0) && D.d.ramp.was.length === G.length ? D.d.ramp.was : null;
+  const [dr, dg, db] = D ? snap(D.rgb) : [r, g, b], wk = TILE * AP;
+  let ty = 0, tx = 0;
   for (let j = 0; j < L.h; j++) {
     const by = j + L.y0 - (B ? B.y0 : 0), row = B && by >= 0 && by < B.h;
-    let o = j * L.w * 3;
+    if (D) ty = Math.min(f.h - 1, Math.max(0, Math.round(((j + L.y0) * LC + (LC >> 1)) / wk - 0.5))) * f.w;
+    let o = j * L.w * 3, ar = r, ag = g, ab = b;
     for (let n = 0; n < L.w; n++, o += 3) {
+      if (D) {
+        tx = Math.min(f.w - 1, Math.max(0, Math.round(((n + L.x0) * LC + (LC >> 1)) / wk - 0.5)));
+        let dd = G[ty + tx];
+        if (R) { const was = Math.min(R[ty + tx], dd + fade * 2.2); dd = was + (dd - was) * rk; }
+        const t = dd <= 0 ? 1 : dd >= fade ? 0 : 1 - dd / fade;
+        ar = r + (dr - r) * t; ag = g + (dg - g) * t; ab = b + (db - b) * t;
+      }
       const bx = n + L.x0 - (B ? B.x0 : 0);
-      if (row && bx >= 0 && bx < B.w) { const k = (by * B.w + bx) * 3; a[o] = r + B.a[k]; a[o + 1] = g + B.a[k + 1]; a[o + 2] = b + B.a[k + 2]; }
-      else { a[o] = r; a[o + 1] = g; a[o + 2] = b; }
+      if (row && bx >= 0 && bx < B.w) { const k = (by * B.w + bx) * 3; a[o] = ar + B.a[k]; a[o + 1] = ag + B.a[k + 1]; a[o + 2] = ab + B.a[k + 2]; }
+      else { a[o] = ar; a[o + 1] = ag; a[o + 2] = ab; }
     }
   }
 }
@@ -1088,7 +1103,14 @@ function renderFrameDraw() {
   // (the ambient's brightness, for the violet in the dark: lightScene)
   View.lightAmbI = ambLevel * Math.max(tint[0], tint[1], tint[2]);
   if (View.bakedFrom !== View.lights) bakeFloorLights(f);
-  startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
+  // the ambient of the dark everywhere, and the kindled land's day where
+  // the veins' light lies (startLight: a cell at a time)
+  let day = null;
+  if (d.litG && !d.hub) {
+    const S = T.world.sun, lk = lampLevels(d, S.dark), ld = lampLevels(d, S.kindled), ak = lk.amb * (Intro.hub ? Intro.hub.amb : 1), ad = ld.amb * (Intro.hub ? Intro.hub.amb : 1);
+    day = { d, rgb: [ad * ld.tint[0], ad * ld.tint[1], ad * ld.tint[2]] };
+    startLight(-ox, -oy, ak * lk.tint[0], ak * lk.tint[1], ak * lk.tint[2], day);
+  } else startLight(-ox, -oy, ambLevel * tint[0], ambLevel * tint[1], ambLevel * tint[2]);
   // a channel home: a ring filling round the diver, the light swelling
   if (d.channel) {
     const k = d.channel.t / d.channel.max, col = d.channel.kind === 'recall' ? '#c9a2ff' : d.channel.kind === 'seal' ? RIFT_PAL.riftedge[0] : ART.pal.star[3];
@@ -1116,6 +1138,28 @@ function renderFrameDraw() {
   const o = View.overCtx;
   // the minimap, in the corner (map.js)
   miniDraw(d, o);
+  // the thread in hand: what's left of it, over the Kindler's head, as a
+  // bar and the strides (veins.js), red when it's nearly out
+  if (d.thread && !d.hold && !Game.modal) {
+    const left = Math.max(0, d.thread.max - d.thread.len), k = left / d.thread.max, w = 36 * AF, h = 4 * AF, bx = Math.round(fx - w / 2), by = vy(p.y) - ap(T.hud.threadY);
+    const col = k < 0.2 ? '#ff6a4a' : ART.pal.star[2];
+    o.globalAlpha = 0.85;
+    o.fillStyle = '#0a0806'; o.fillRect(bx - AF, by - AF, w + 2 * AF, h + 2 * AF);
+    o.fillStyle = '#3a3024'; o.fillRect(bx, by, w, h);
+    o.fillStyle = col; o.fillRect(bx, by, Math.round(w * k), h);
+    o.globalAlpha = 1;
+    drawPixelText(o, `${Math.round(left / TILE)}`, fx, by - 9 * AF, col, 1);
+  }
+  // the hold: the seconds left to hold, counted down over the node forming
+  if (d.hold && !Game.modal && (d.hold.l | 0) === (d.layer | 0)) {
+    // (the digits twice the label hand's size, so they read from across the fight)
+    const h = d.hold, hx = vx(h.x), hy = vy(h.y) - ap(T.hud.holdY), pic = pixelTextPic(`${Math.ceil(Math.max(0, h.max - h.t))}`, ART.pal.star[2]), s = 2, w = pic.width * s, th = pic.height * s;
+    if (hx > -20 && hx < View.w + 20 && hy > -10 && hy < View.h + 10) {
+      const bx = Math.round(hx - w / 2);
+      o.globalAlpha = 0.7; o.fillStyle = '#0a0806'; o.fillRect(bx - 2 * AF, hy - th - AF, w + 4 * AF, th + 2 * AF);
+      o.globalAlpha = 1; o.drawImage(pic, bx, hy - th, w, th);
+    }
+  }
   for (const e of d.enemies) {
     if (e.dead || e.hid) continue;
     // over each foe in sight: what it fears and shrugs off (natures.js),

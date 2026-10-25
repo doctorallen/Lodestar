@@ -163,6 +163,29 @@ function glGroundDirty(y0, y1) {
   else { if (y0 < G.gtDirty[0]) G.gtDirty[0] = y0; if (y1 > G.gtDirty[1]) G.gtDirty[1] = y1; }
 }
 
+// The painted window moved (paint.js pntWindowMove): the tones and hues
+// shifted on the GPU as the floor's textures are (gpu.js gpuFloorShift).
+function glGroundShift(dx, dy) {
+  const G = GLight, gl = Gpu.gl, W = G.gtW, H = G.gtH;
+  if (!Gpu.on || !G.ok || !G.gt || !W) return false;
+  const adx = Math.abs(dx), ady = Math.abs(dy);
+  if (adx >= W || ady >= H) return false;
+  if (G.gtDirty) { G.gtDirty[0] -= dy; G.gtDirty[1] -= dy; }
+  if (!G.shiftFb) G.shiftFb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, G.shiftFb); Gpu.boundFb = G.shiftFb;
+  for (const name of ['uGT', 'uHue']) {
+    if (name === 'uHue' && !G.hue) continue;
+    const spare = name + 'Spare';
+    if (!G.tex[spare]) { G.tex[spare] = gpuTex(gl, 11); gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, W, H, 0, gl.RED, gl.UNSIGNED_BYTE, null); }
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, G.tex[name], 0);
+    gl.activeTexture(glUnit(name)); gl.bindTexture(gl.TEXTURE_2D, G.tex[spare]);
+    gl.copyTexSubImage2D(gl.TEXTURE_2D, 0, Math.max(0, -dx), Math.max(0, -dy), Math.max(0, dx), Math.max(0, dy), W - adx, H - ady);
+    const t = G.tex[name]; G.tex[name] = G.tex[spare]; G.tex[spare] = t;
+  }
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+  gpuBind(null);
+  return true;
+}
 // The ground's tones and hues up to date on the GPU (the whole floor on a
 // new one, else the rows that changed).
 function glLightGround(gl, G, GT, HUE, gW, gH) {
