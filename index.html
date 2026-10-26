@@ -10,6 +10,9 @@
 <meta name="apple-mobile-web-app-title" content="Lodestar">
 <meta name="description" content="Carry a fallen star's light out into a dark world, one vein at a time, and make it live.">
 <title>Lodestar</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -71,6 +74,7 @@
       <button id="pause-fine" class="btn" data-act="fineSet" hidden>FINE GRAIN: OFF</button>
     </div>
     <div class="menu"><button class="btn quiet" data-act="replayIntro">THE LANDING AGAIN</button><button id="pause-restart" class="btn danger quiet" data-act="restartAsk">START OVER</button></div>
+    <div id="pause-app" class="pause-app"></div>
     <div class="build" id="build"></div>
   </section>
 
@@ -90,6 +94,15 @@
     <div class="menu">
       <button class="btn primary" data-act="restartBack">BACK</button>
       <button id="restart-go" class="btn danger" data-act="startOver" data-confirm="TAP AGAIN: ERASE IT ALL">START OVER</button>
+    </div>
+  </section>
+
+  <section id="screen-update" class="screen" hidden>
+    <h2>A NEW VERSION</h2>
+    <p id="update-text" class="note center"></p>
+    <div class="menu">
+      <button class="btn primary" data-act="pwaLater">LATER</button>
+      <button class="btn danger" data-act="pwaLoad">LOAD IT NOW</button>
     </div>
   </section>
 
@@ -180,6 +193,7 @@
 <script src="js/map.js"></script>
 <script src="js/wick.js"></script>
 <script src="js/intro.js"></script>
+<script src="js/pwa.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

@@ -31,6 +31,10 @@ Where there's WebGL2 the whole frame is drawn by the GPU (`docs/RENDERING.md`): 
 
 FINE GRAIN, on the pause screen, draws the world at twice the art's pixels (3 to a world pixel, so the painted ground, the rock and the Kindler come out sharper). It needs WebGL2, costs about twice the frame, and reloads the game; it's meant for a desktop or a strong phone. `?fine` or `?coarse` in the address overrides it.
 
+## Install
+
+On Android the browser offers to install it the first time you tap; after that, INSTALL LODESTAR on the pause screen (or the browser's menu). On iPhone, Share, then Add to Home Screen. Installed, it plays offline and keeps itself current: each launch loads the latest version, and a game left open looks for one whenever it comes back to the foreground. If loading it now would lose nothing it loads at once; if you carry motes or the thread, it asks whether to load it now or later, and later it loads by itself once there's nothing to lose. The loading screen and the pause screen show the build.
+
 ## Files
 
 Every file is a classic script sharing one global scope, loaded in order by `index.html`.
@@ -79,8 +83,10 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
 | `js/ui.js` | The screens (the story's panels, pause, the paint lab, start over), the top bar, toasts and speech |
 | `js/wick.js` | Wick, the drone at the Kindler's shoulder |
+| `js/pwa.js` | Installing, and loading onto a new deploy: at once if nothing would be lost, else asking now or later |
+| `sw.js`, `manifest.webmanifest`, `icons/` | The service worker (network first, the cache only offline), the app manifest, the icons |
 | `js/main.js` | Boot, then the loading (`bootEnter` after its tap), the fixed-step loop, the upright and sideways layouts |
-| `test/` | Static checks, floor generation with golden hashes, the GPU's frame against the 2D path's, and a headless smoke run |
+| `test/` | Static checks, floor generation with golden hashes, the GPU's frame against the 2D path's, the installed game's updates over http, and a headless smoke run; `test/icons.js` draws the icons |
 
 ## Tests
 

@@ -322,6 +322,8 @@ body.home #btn-mine { display: none; }
 .btn.primary { background: var(--gold); border-color: var(--gold); color: #111; }
 .btn.danger { border-color: var(--danger); color: var(--danger); }
 .btn:disabled, .mini:disabled, .row:disabled { opacity: 0.35; }
+.pause-app { max-width: 320px; margin: 4px auto 0; }
+.pause-app .note { margin: 10px 0 0; }
 .build { position: absolute; right: 10px; bottom: calc(8px + env(safe-area-inset-bottom)); font-size: 10px; color: var(--dim); }
 
 /* rows in lists: an icon, a name and a line under it, and maybe a tag */

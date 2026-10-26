@@ -83,6 +83,8 @@ function boot() {
   setupView();
   setupInput();
   UI.init();
+  // installing, and loading onto a new deploy (pwa.js)
+  Pwa.init();
   fitLayout();
   resizeView();
   let rt = 0;
@@ -111,6 +113,7 @@ function bootEnter() {
   else worldWelcome({});
   if (Save.unread) UI.toast("The old save couldn't be read. It's been kept aside, and this is a new start");
   Game.ready = true;
+  Pwa.entered();
   // what of the sound the loading left, in idle time (sndbank.js)
   if (SndBank.started) SndBank.idle();
 }

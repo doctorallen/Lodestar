@@ -4,12 +4,14 @@
   "private": true,
   "description": "Lodestar, a top-down pixel-art mining and looting game for the phone browser, in plain JavaScript. The game itself needs nothing installed: these are the test tools only.",
   "scripts": {
-    "test": "sh test/check.sh && node test/gen.js && node test/gllight.js && node test/smoke.js",
+    "test": "sh test/check.sh && node test/gen.js && node test/gllight.js && node test/pwa.js && node test/smoke.js",
     "gllight": "node test/gllight.js",
     "check": "sh test/check.sh",
     "gen": "node test/gen.js",
     "gen:update": "node test/gen.js --update",
-    "smoke": "node test/smoke.js"
+    "smoke": "node test/smoke.js",
+    "pwa": "node test/pwa.js",
+    "icons": "node test/icons.js"
   },
   "devDependencies": {
     "puppeteer-core": "^25.13.0"

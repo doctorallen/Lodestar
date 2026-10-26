@@ -69,6 +69,7 @@ const UI = {
 
   openPause() {
     drawSoundButtons();
+    Pwa.drawPause();
     UI.show('screen-pause');
   },
 
@@ -280,6 +281,12 @@ UI.acts = {
   labSet: (key) => { Lab.cycle(key); drawLab(); },
   labReset: () => { Lab.reset(); drawLab(); },
   labBack: () => UI.close(),
+  // installing, and a new version now or later (pwa.js: the pause screen's
+  // lines, the screen that asks)
+  pwaInstall: () => Pwa.install(),
+  pwaLoad: () => Pwa.reload(),
+  pwaLater: () => Pwa.later(),
+  pwaAsk: () => Pwa.ask(),
 };
 
 // The pause screen's sound settings, as they stand.
