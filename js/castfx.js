@@ -712,17 +712,11 @@ function updateCastFx(dt) {
       // drawn into the focus
       const to = CFX.focusAt[q.slot] || { x: 0, y: -12 }, k = 1 - Math.exp(-dt * 9);
       q.x += (p.x + to.x - q.x) * k; q.y += (p.y + to.y - q.y) * k;
-    } else {
-      if (q.drag) { const k = Math.exp(-q.drag * dt); q.vx *= k; q.vy *= k; }
-      q.vy += q.g * dt;
-      q.x += q.vx * dt; q.y += q.vy * dt;
-      // (it bounces off the ground under where it was thrown from)
-      if (q.y > q.floor && q.vy > 0) { q.y = q.floor; q.vy *= -0.35; q.vx *= 0.6; }
-    }
+    } else Tycho.fx.move(q, dt); // drag, gravity, and a bounce off the ground under where it was thrown from
     P[n++] = q;
   }
   P.length = n;
-  const tick = (list) => { let m = 0; for (const o of list) if ((o.t -= dt) > 0) list[m++] = o; list.length = m; };
+  const tick = (list) => Tycho.fx.tick(list, dt);
   tick(CFX.rings); tick(CFX.decals); tick(CFX.ghosts); tick(CFX.flares); tick(CFX.waves); tick(CFX.locks); tick(CFX.scars); tick(CFX.swarms);
   // bolts: leaving the fist, and what they shed
   const o = CFX.origin, fresh = o && Game.realT - o.t < 0.05;

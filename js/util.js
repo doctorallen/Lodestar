@@ -36,69 +36,23 @@ const sign = (x) => (x > 0 ? '+' : x < 0 ? '−' : '');
 const { hexToRgb, rgbToHex, shade, mix } = Tycho.color;
 
 // ---------------------------------------------------------------------------
-// Canvases
+// Canvases and sprites (Tycho's sprite part, the same functions this file
+// used to hold, bit for bit): every canvas is kept in memory (a picture is
+// built once, then copied to the GPU's atlas or drawn, and a canvas the GPU
+// rasterises costs a wait each time it's read) and at least a pixel square.
 // ---------------------------------------------------------------------------
-function makeCanvas(w, h) {
-  const c = document.createElement('canvas');
-  c.width = Math.max(1, w); c.height = Math.max(1, h);
-  // (kept in memory: a picture is built once, then copied to the GPU's
-  // atlas or drawn, and a canvas the GPU rasterises costs a wait each time
-  // it's read)
-  const x = c.getContext('2d', { willReadFrequently: true });
-  x.imageSmoothingEnabled = false;
-  return [c, x];
-}
-
+const LS_CANVAS = { read: true, min: 1 };
+function makeCanvas(w, h) { return Tycho.sprite.canvas(w, h, LS_CANVAS); }
 // Renders a list of strings into a canvas using a palette map. '.' and ' '
 // are transparent.
-function spriteFrom(rows, pal) {
-  const h = rows.length, w = Math.max(...rows.map((r) => r.length));
-  const [c, x] = makeCanvas(w, h);
-  for (let j = 0; j < h; j++)
-    for (let i = 0; i < rows[j].length; i++) {
-      const ch = rows[j][i];
-      if (ch === '.' || ch === ' ' || !pal[ch]) continue;
-      x.fillStyle = pal[ch];
-      x.fillRect(i, j, 1, 1);
-    }
-  return c;
-}
-
+function spriteFrom(rows, pal) { return Tycho.sprite.spriteFrom(rows, pal, LS_CANVAS); }
 // A 1px outline round every opaque pixel, in one ink colour. The canvas grows
 // by a pixel each side so the outline is never clipped.
-function outlined(src, ink = '#000000') {
-  const w = src.width + 2, h = src.height + 2;
-  const [c, x] = makeCanvas(w, h);
-  x.drawImage(src, 1, 1);
-  const img = x.getImageData(0, 0, w, h), d = img.data;
-  const solid = (i, j) => i >= 0 && j >= 0 && i < w && j < h && d[(j * w + i) * 4 + 3] > 100;
-  const mark = [];
-  for (let j = 0; j < h; j++)
-    for (let i = 0; i < w; i++)
-      if (!solid(i, j) && (solid(i - 1, j) || solid(i + 1, j) || solid(i, j - 1) || solid(i, j + 1))) mark.push(j * w + i);
-  const [r, g, b] = hexToRgb(ink);
-  for (const k of mark) { d[k * 4] = r; d[k * 4 + 1] = g; d[k * 4 + 2] = b; d[k * 4 + 3] = 255; }
-  x.putImageData(img, 0, 0);
-  return c;
-}
-
+function outlined(src, ink = '#000000') { return Tycho.sprite.outline(src, { ink }); }
 // A copy of a sprite with every opaque pixel one colour (hit flashes,
 // silhouettes, elite rims).
-function tinted(src, col) {
-  const [c, x] = makeCanvas(src.width, src.height);
-  x.drawImage(src, 0, 0);
-  x.globalCompositeOperation = 'source-in';
-  x.fillStyle = col;
-  x.fillRect(0, 0, c.width, c.height);
-  return c;
-}
-
-function flipped(src) {
-  const [c, x] = makeCanvas(src.width, src.height);
-  x.translate(src.width, 0); x.scale(-1, 1);
-  x.drawImage(src, 0, 0);
-  return c;
-}
+function tinted(src, col) { return Tycho.sprite.tinted(src, col, LS_CANVAS); }
+function flipped(src) { return Tycho.sprite.flipped(src, LS_CANVAS); }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
