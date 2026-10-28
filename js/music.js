@@ -98,63 +98,28 @@ const MUS_EVENTS = {
   fire(S, o, t, g) { sndCrackle(S, o, t, 1 + Math.floor(sndRand() * 3), 0.2, g, 1800); },
 };
 
-// The last target set on each param, so an unchanged one isn't set again.
-const _musLast = new WeakMap();
-function musSet(p, v, now, tc) {
-  const was = _musLast.get(p);
-  if (was !== undefined && Math.abs(was - v) < 1e-4) return;
-  _musLast.set(p, v);
-  p.setTargetAtTime(v, now, tc);
-}
-// How much of a layer the star's presence s lets through: it fades in
-// round its `at`.
-function musPresence(s, at) { const k = sndClamp((s - at + 0.1) / 0.2, 0, 1); return k * k * (3 - 2 * k); }
+// The machinery is Tycho's (Tycho.audio.Music): the layers' drones built
+// once and kept running, targets set on a param only when they change
+// (Music.set), the music's own tick ten times a second, events now and then
+// (Music.due) and the dip (Music.duck). A continuous voice: its notes into
+// its filters, a slow swell, and its level (musVoice); a band of noise,
+// looped, for a place's own sound (musBand); how much of a layer the star's
+// presence s lets through, fading in round its `at` (musPresence).
+const musVoice = Tycho.audio.drone, musBand = Tycho.audio.band, musPresence = Tycho.audio.presence;
 
-// A continuous voice: its notes into its filters, a slow swell, and its level.
-function musVoice(S, L, dest) {
-  const c = S.ctx, out = c.createGain(), trem = c.createGain(), lp = c.createBiquadFilter();
-  out.gain.value = 0; trem.gain.value = 1;
-  lp.type = 'lowpass'; lp.frequency.value = L.lp; lp.Q.value = 0.6;
-  lp.connect(trem); trem.connect(out); out.connect(dest);
-  let head = lp;
-  if (L.bp) { const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = L.bp; bp.Q.value = 0.7; bp.connect(lp); head = bp; }
-  const lfo = (rate, depth, param) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = rate; g.gain.value = depth; o.connect(g); g.connect(param); o.start(); };
-  if (L.trem) lfo(L.trem[0], L.trem[1], trem.gain);
-  if (L.lfo) lfo(L.lfo[0], L.lfo[1], lp.frequency);
-  const oscs = L.notes.map(([s, det]) => {
-    const o = c.createOscillator();
-    if (S.waves[L.w]) o.setPeriodicWave(S.waves[L.w]); else o.type = L.w;
-    o.frequency.value = sndHz(s); o.detune.value = det; o.connect(head); o.start();
-    return o;
-  });
-  return { out, lp, oscs, L };
-}
-// A band of noise, looped, for a place's own sound.
-function musBand(S, dest, type) {
-  const c = S.ctx, src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
-  src.buffer = S.noise; src.loop = true;
-  f.type = type || 'bandpass'; f.frequency.value = 500; f.Q.value = 0.8; g.gain.value = 0;
-  src.connect(f); f.connect(g); g.connect(dest);
-  src.start(0, sndRand() * 1.8);
-  return { f, g };
-}
-
-const Music = {
-  S: null, built: false,
-  v: {}, bands: null, master: null, chan: null,
+const Music = Object.assign(new Tycho.audio.Music({ layers: MUS_LAYERS, every: 0.1 }), {
+  bands: null, chan: null,
   magHeard: 1, magWait: -1, bloomed: 0, growAt: -99, liftAt: -99,
-  feed: 0, feedHeld: false, pingAt: -9, lastNow: 0, lastUp: -9,
-  nextPhrase: 0, nextEv: {}, gust: 1, gustAt: 0, breathAt: 0, bedId: '',
+  feed: 0, feedHeld: false, pingAt: -9, lastNow: 0,
+  nextPhrase: 0, gust: 1, gustAt: 0, breathAt: 0, bedId: '',
   stepHalf: -1, heartAt: 0, stingAt: 0, seen: new WeakSet(),
 
   // The voices, built once on Snd's context and kept running (silent until
-  // wanted), so nothing continuous is made while playing.
-  build(S) {
-    this.S = S;
+  // wanted), so nothing continuous is made while playing: the layers'
+  // (Tycho's Music.build, into the music's own master on Snd's music bus),
+  // then these.
+  setup(S) {
     const c = S.ctx;
-    this.master = c.createGain(); this.master.gain.value = 1; this.master.connect(S.music);
-    this.v = {};
-    for (const id of Object.keys(MUS_LAYERS)) this.v[id] = musVoice(S, MUS_LAYERS[id], this.master);
     // the bands of a place's sound, and the breath after the turn
     this.bands = { a: musBand(S, this.master), b: musBand(S, this.master), breath: musBand(S, this.master) };
     this.bands.breath.f.frequency.value = 650; this.bands.breath.f.Q.value = 0.6;
@@ -164,7 +129,6 @@ const Music = {
     this.magHeard = this.bloomed = st.mag;
     this.magWait = -1; this.feed = 0; this.feedHeld = false;
     this.lastNow = c.currentTime; this.nextPhrase = c.currentTime + 3; this.nextEv = {};
-    this.built = true;
   },
 
   // What the music is doing now, read from the game: mag; unease (0–1,
@@ -187,16 +151,8 @@ const Music = {
     return st;
   },
 
-  // Every frame (real time): what the game doesn't call itself, then the
-  // music ten times a second.
-  tick(dt) {
-    if (!this.built) return;
-    const now = this.S.ctx.currentTime;
-    this.listen(now);
-    if (now - this.lastUp < 0.1) return;
-    this.lastUp = now;
-    this.update(now, this.state());
-  },
+  // Every frame (real time, Tycho's Music.tick): what the game doesn't call
+  // itself (listen), then the music ten times a second (update).
 
   // The music at `now` for state st (the tests call this straight, with
   // their own times and states, on an OfflineAudioContext).
@@ -216,11 +172,11 @@ const Music = {
       if (id === 'hum') g *= 1 + X.feedSwell * f;
       if (id === 'pad') g *= 1 + f;
       if (id === 'shimmer') g = Math.max(g, L.g * f * 0.8);
-      musSet(V.out.gain, g, now, tc);
+      this.set(V.out.gain, g, now, tc);
     }
-    musSet(this.v.hum.lp.frequency, MUS_LAYERS.hum.lp + X.feedOpen * f, now, 0.4);
-    musSet(this.v.unease.out.gain, MUS_LAYERS.unease.g * st.unease * (0.4 + 0.6 * musPresence(s, 0.3)), now, 3);
-    musSet(this.v.dread.out.gain, MUS_LAYERS.dread.g * st.dark, now, 2);
+    this.set(this.v.hum.lp.frequency, MUS_LAYERS.hum.lp + X.feedOpen * f, now, 0.4);
+    this.set(this.v.unease.out.gain, MUS_LAYERS.unease.g * st.unease * (0.4 + 0.6 * musPresence(s, 0.3)), now, 3);
+    this.set(this.v.dread.out.gain, MUS_LAYERS.dread.g * st.dark, now, 2);
     this.bed(now, st, s);
     // the call, or the figure, when there's star enough for it
     const fig = musPresence(s, X.figureAt);
@@ -258,47 +214,37 @@ const Music = {
     if (now >= this.gustAt) { this.gust = 1 + sndRange(-B.gust, B.gust * 0.5); this.gustAt = now + sndRange(0.5, 1.5) / Math.max(0.05, B.rate * 4); }
     const tc = st.bed !== this.bedId ? 1 : 0.6 / Math.max(0.1, B.rate * 2), b = st.storm ? MUS_RAIN.b : B.b;
     this.bedId = st.bed;
-    musSet(bd.a.f.frequency, B.a[0] * (1 + 0.25 * (this.gust - 1)), now, tc);
-    musSet(bd.a.f.Q, B.a[1], now, 1);
-    musSet(bd.a.g.gain, B.a[2] * k * this.gust, now, tc);
-    musSet(bd.b.f.frequency, b[0], now, 1);
-    musSet(bd.b.f.Q, b[1], now, 1);
-    musSet(bd.b.g.gain, b[2] * (st.storm ? 1 : k * (0.7 + 0.3 * this.gust)), now, tc);
+    this.set(bd.a.f.frequency, B.a[0] * (1 + 0.25 * (this.gust - 1)), now, tc);
+    this.set(bd.a.f.Q, B.a[1], now, 1);
+    this.set(bd.a.g.gain, B.a[2] * k * this.gust, now, tc);
+    this.set(bd.b.f.frequency, b[0], now, 1);
+    this.set(bd.b.f.Q, b[1], now, 1);
+    this.set(bd.b.g.gain, b[2] * (st.storm ? 1 : k * (0.7 + 0.3 * this.gust)), now, tc);
     // the breath, in the dark after the turn
     if (now >= this.breathAt) {
       const g = X.breath * st.unease * (1 - s) * (st.day ? 0 : 1), p = this.bands.breath.g.gain;
       this.breathAt = now + sndRange(7, 9.5);
-      _musLast.delete(p);
+      this.forget(p);
       p.setTargetAtTime(g, now, 0.9); p.setTargetAtTime(0, now + 2.8, 1.1);
     }
     // its events, and birds in kindled land by day, thunder in a storm
     const evs = B.ev.slice();
     if (st.day && st.bed !== 'hub') evs.push(['chirp', 4, 12, 0.5]);
     if (st.storm) evs.push(MUS_RAIN.ev);
-    for (const [kind, lo, hi, g0] of evs) {
-      if (this.nextEv[kind] === undefined) this.nextEv[kind] = now + sndRange(lo, hi);
-      if (now < this.nextEv[kind]) continue;
-      this.nextEv[kind] = now + sndRange(lo, hi);
+    this.due(now, evs, ([kind, , , g0]) => {
       let g = g0 * k * X.events, pan = sndRange(-0.6, 0.6);
       // the forge's fire is where the forge is
       if (kind === 'fire') { const w = S.where(musForgeAt()); g = g0 * X.events * w.g; pan = w.pan; }
       if (kind === 'tick' || kind === 'chirp') g = g0 * X.events;
-      if (g < 0.01) continue;
+      if (g < 0.01) return;
       const o = S.cueOut(now, g, pan, this.master);
       MUS_EVENTS[kind](S, o, now + sndRand() * 0.1, 1);
       S.cueDone(o);
-    }
-    for (const kind of Object.keys(this.nextEv)) if (!evs.some((e) => e[0] === kind)) delete this.nextEv[kind];
+    });
   },
 
-  // The music dips a moment (a hit, a fall): to k, back after hold.
-  duck(t, k, hold) {
-    const p = this.master && this.master.gain;
-    if (!p) return;
-    p.cancelScheduledValues(t);
-    p.setTargetAtTime(k, t, 0.04);
-    p.setTargetAtTime(1, t + hold, 0.6);
-  },
+  // (The music dips a moment, a hit or a fall: Music.duck(t, k, hold), to
+  // k and back after hold.)
   // A territory kindled: the star's whole chord, for a while.
   lift(t) { this.liftAt = t; },
 
@@ -345,8 +291,8 @@ const Music = {
   listen(now) {
     const d = typeof Game !== 'undefined' && Game.dive, X = T.sound;
     const C = this.chan, ch = d && !Game.modal && d.channel;
-    musSet(C.out.gain, ch ? X.channel : 0, now, ch ? 0.15 : 0.08);
-    if (ch) musSet(C.oscs[0].frequency, sndHz(-5) * (1 + sndClamp(ch.t / ch.max, 0, 1)), now, 0.1);
+    this.set(C.out.gain, ch ? X.channel : 0, now, ch ? 0.15 : 0.08);
+    if (ch) this.set(C.oscs[0].frequency, sndHz(-5) * (1 + sndClamp(ch.t / ch.max, 0, 1)), now, 0.1);
     if (!d || Game.modal) { this.stepHalf = -1; return; }
     // a footstep each time a heel comes down (the walk's own phase, diver.js)
     const A = d.kAnim;
@@ -370,7 +316,8 @@ const Music = {
       }
     }
   },
-};
+});
+Snd.score = Music;
 
 // Where the outpost's forge stands (world px), at home.
 function musForgeAt() {

@@ -6,7 +6,8 @@
 // star with the core a piece down; the pause screen opens and closes; and
 // held sideways the layout turns; the thread, a node planted and held,
 // the vein lit and saved, the regions and the Deep, a shaft taken down and
-// up, the map and travel by its card. Screenshots go to test/out.
+// up, the map and travel by its card; the sound made on the tap, with the
+// bank rendered while it loaded. Screenshots go to test/out.
 const { launch, openGame, shot, finish, PHONE, DESKTOP } = require('./lib');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -33,6 +34,11 @@ async function phone(browser, failures) {
   if (!st.foes) fail('nothing lives in the dark');
   if (!st.introSeen) fail('the opening was not marked seen');
   await shot(page, 'smoke-star');
+  // the sound (on Tycho.audio): made on the tap, the music built, the fight's
+  // sounds rendered while it loaded, and a cue made live and one from the
+  // bank both play
+  const sound = await page.evaluate(() => ({ ready: Snd.ready, failed: Snd.failed, music: Music.built, bank: SndBank.has('hit.force') && SndBank.has('step.dirt'), live: Snd.play('bank', {}, Snd.ctx.currentTime + 0.05), banked: Snd.play('hit', { el: 'frost' }, Snd.ctx.currentTime + 0.1), ready2: sndReady('cast', { form: 'arc', els: ['shock'] }) }));
+  if (!sound.ready || sound.failed || !sound.music || !sound.bank || !sound.live || !sound.banked || !sound.ready2) fail('the sound did not start ' + JSON.stringify(sound));
   // the bar: hurt, it fills in the light; in the dark it drains
   await page.evaluate(() => { Game.dive.p.hp = 40; });
   await steps(page, { x: 0, y: 0 }, 60);

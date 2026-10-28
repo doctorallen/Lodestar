@@ -10,6 +10,9 @@
 // times over (BANK_N variants, each a little different) into buffers with
 // an OfflineAudioContext, one at a time between frames; a play is then just a buffer, a level, a pan and a
 // slightly different speed. Until a sound's buffers are ready it's silent.
+// The rendering (the queue, the chain, the reverbs' impulses, the trim) is
+// Tycho's (Tycho.audio.Bank); the recipes, the reverbs' rooms and the order
+// are the sound's own.
 //
 // The elements each have their own character: Force a concussive pressure
 // wave, Shock an arc's snap and crackle, Frost a crystalline shatter and a
@@ -26,76 +29,13 @@ const BANK_GAP = 40;
 // The idle time (ms) a frame must have spare to render a buffer in play.
 const BANK_IDLE_MS = 12;
 
-// A soft saturation: tanh, so loud parts round off and gain harmonics.
-function bkCurve(k) {
-  const n = 1025, a = new Float32Array(n), m = Math.tanh(k); // (odd, so silence stays silent)
-  for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; a[i] = Math.tanh(k * x) / m; }
-  return a;
-}
-// A reverb's impulse: decaying noise, darker as it goes, with a few faint
-// metal resonances ringing in it (room: a short hard space; hall: a long one).
-function bkImpulse(rate, secs, metal) {
-  const n = Math.floor(rate * secs), chs = [new Float32Array(n), new Float32Array(n)];
-  const modes = metal ? [431, 1173, 1777, 2390] : [];
-  for (let ch = 0; ch < 2; ch++) {
-    let lp = 0;
-    const d = chs[ch];
-    for (let i = 0; i < n; i++) {
-      const t = i / rate, env = Math.exp(-t * 6.5 / secs), k = 0.15 + 0.8 * Math.exp(-t * 4 / secs);
-      lp += (sndRand() * 2 - 1 - lp) * k;
-      let v = lp * env;
-      for (let m = 0; m < modes.length; m++) v += Math.sin(2 * Math.PI * modes[m] * (1 + ch * 0.003) * t) * 0.05 * Math.exp(-t * (9 + m * 4));
-      d[i] = t < 0.004 ? v * (t / 0.004) : v;
-    }
-  }
-  return chs;
-}
-
 // --- the layers (on R, an offline render: { ctx, waves, noise }) -----------
 // A carrier frequency-modulated by another at `ratio` times it: index i0
 // (in multiples of f) falling to i1 with time constant id. Metal, a
-// discharge, a roar, by its ratio and index. trem: [rate, depth].
-function bkFM(R, o, t, v) {
-  const c = R.ctx, car = c.createOscillator(), mod = c.createOscillator(), mg = c.createGain(), g = c.createGain(), gl = v.glide || 0.1;
-  car.frequency.setValueAtTime(v.f, t); mod.frequency.setValueAtTime(v.f * v.ratio, t);
-  if (v.f2) { car.frequency.exponentialRampToValueAtTime(v.f2, t + gl); mod.frequency.exponentialRampToValueAtTime(v.f2 * v.ratio, t + gl); }
-  mg.gain.setValueAtTime(v.f * v.i0, t); mg.gain.setTargetAtTime(v.f * (v.i1 || 0), t, v.id || 0.05);
-  mod.connect(mg); mg.connect(car.frequency);
-  let node = car;
-  if (v.lp) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = v.lp; f.Q.value = 0.7; node.connect(f); node = f; }
-  node = bkTrem(R, node, t, v.trem);
-  node.connect(g);
-  const end = sndEnv(g.gain, t, v.a || 0.002, v.g === undefined ? 1 : v.g, v.d || 0.1, v.hold);
-  sndVoiceOut(R, o, v, g);
-  car.start(t); mod.start(t); car.stop(end); mod.stop(end); car.stopAt = end;
-  o.srcs.push(car); o.end = Math.max(o.end, end);
-}
-// A slow or fast swell on whatever passes (a whirr, a throb).
-function bkTrem(R, node, t, trem) {
-  if (!trem) return node;
-  const c = R.ctx, g = c.createGain(), l = c.createOscillator(), lg = c.createGain();
-  g.gain.value = 1 - trem[1] / 2; l.frequency.value = trem[0]; lg.gain.value = trem[1] / 2;
-  l.connect(lg); lg.connect(g.gain); node.connect(g); l.start(t);
-  return g;
-}
-// Several voices of one wave, spread over `spread` cents, through a filter
-// sweeping lp to lp2: a wide, thick tone.
-function bkStack(R, o, t, v) {
-  const c = R.ctx, f = c.createBiquadFilter(), g = c.createGain(), n = v.n || 3, gl = v.glide || 0.2;
-  f.type = 'lowpass'; f.Q.value = v.q || 0.9; f.frequency.setValueAtTime(v.lp, t);
-  if (v.lp2) f.frequency.exponentialRampToValueAtTime(v.lp2, t + (v.sweep || 0.2));
-  bkTrem(R, f, t, v.trem).connect(g);
-  const end = sndEnv(g.gain, t, v.a || 0.01, (v.g === undefined ? 1 : v.g) / Math.sqrt(n), v.d || 0.2, v.hold);
-  for (let i = 0; i < n; i++) {
-    const osc = c.createOscillator(), k = Math.pow(2, ((n > 1 ? i / (n - 1) : 0.5) - 0.5) * (v.spread || 10) / 1200);
-    if (R.waves[v.w]) osc.setPeriodicWave(R.waves[v.w]); else osc.type = v.w || 'sine';
-    osc.frequency.setValueAtTime(v.f * k, t);
-    if (v.f2) osc.frequency.exponentialRampToValueAtTime(v.f2 * k, t + gl);
-    osc.connect(f); osc.start(t); osc.stop(end); osc.stopAt = end; o.srcs.push(osc);
-  }
-  sndVoiceOut(R, o, v, g);
-  o.end = Math.max(o.end, end);
-}
+// discharge, a roar, by its ratio and index. trem: [rate, depth]. And
+// several voices of one wave, spread over `spread` cents, through a filter
+// sweeping lp to lp2: a wide, thick tone. (Both Tycho's.)
+const bkFM = Tycho.audio.fm, bkStack = Tycho.audio.stack;
 // A sub thump, through the saturation so it carries harmonics.
 // (A phone plays only its harmonics, so it's kept under the rest, and
 // never falls under 45 Hz.)
@@ -481,139 +421,29 @@ const BANK_N = 4;
 const BANK_MANY = new Set(['hit.force', 'hit.shock', 'hit.frost', 'hit.ember', 'hit.blight', 'form.arc', 'cast.force', 'cast.shock', 'cast.frost', 'cast.ember', 'cast.blight', 'form.bolt', 'dash', 'kill', 'hurt', 'form.arcHeavy']);
 const BANK_ORDER = ['hit.force', 'hit.shock', 'hit.frost', 'hit.ember', 'hit.blight', 'form.arc', 'cast.force', 'cast.shock', 'cast.frost', 'cast.ember', 'cast.blight', 'form.bolt', 'form.spark', 'dash', 'kill', 'hurt', ...Object.keys(BANK_STEPS).map((m) => 'step.' + m), 'hit.heavy', 'hit.crit', 'hit.resist', 'hit.weak', 'form.arcHeavy', 'form.nova', 'form.lance', 'form.orb', 'form.well', 'form.ward', 'form.glaive', 'form.charged', 'react', 'noCharge', 'heal', 'kill.big', 'res', 'sting.elite', 'sting.boss', 'sting.hollow'];
 
-const SndBank = {
-  bufs: {}, started: false, done: false, bytes: 0, rate: BANK_RATE, irs: null, noises: null, ms: 0,
-  has(k) { const b = this.bufs[k]; return !!(b && b !== 'busy' && b.length); },
-  // a variant, not the one just played
-  pick(k) {
-    const b = this.bufs[k];
-    let i = Math.floor(sndRand() * b.length);
-    if (b.length > 1 && i === b.last) i = (i + 1) % b.length;
-    b.last = i;
-    return b[i];
-  },
-  // Renders everything, a buffer at a time, yielding between them: every
-  // sound's first variant (the commonest first), then each one's second,
-  // and so on, so each can play as soon as possible. While the game loads
-  // (loader.js) that's before any tap: an offline context needs none, and
-  // its buffers play in the live one the tap makes (resampled, if its rate
-  // differs). Otherwise it starts a moment after the first tap, so the tap
-  // itself isn't slowed, with BANK_GAP between buffers.
-  // o.pace(k, n): awaited between buffers instead of the gap (the loading's
-  // slices). o.enough(): asked once every sound has a variant; true leaves
-  // the rest for idle time (idle()). o.intro: the opening's first sounds
-  // first (a new game, whose opening plays on the tap).
-  async start(rate, wait = 0, o = {}) {
-    if (this.started) return;
-    this.started = true;
-    if (wait) await new Promise((r) => setTimeout(r, wait));
-    this.rate = Math.min(BANK_RATE, rate || BANK_RATE);
-    const t0 = performance.now(), per = [];
-    this.irs = {};
-    // (the opening's own first, while it plays; while a new game loads,
-    // o.intro, its first scene's, and the rest as it plays)
-    if (o.intro) await this.want(BANK_INTRO.slice(0, 2), () => true, o.pace);
-    else if (typeof Intro !== 'undefined' && Intro.on) await this.want(BANK_INTRO, () => Intro.on);
-    for (const k of BANK_ORDER) {
-      const B = BANK[k], n = B.n || (B.dur > 1.5 ? 1 : BANK_MANY.has(k) ? BANK_N : 2);
-      this.bufs[k] = this.bufs[k] || [];
-      per.push([k, B, n]);
-    }
-    const q = (this.queue = []);
-    for (let v = 0; v < BANK_N + 1; v++) for (const [k, B, n] of per) if (v < n) q.push([k, B, v]);
-    this.total = q.length; this.first = per.length; this.made = 0;
-    while (q.length) {
-      if (this.made >= this.first && o.enough && o.enough()) break;
-      await this.renderNext();
-      if (o.pace) await o.pace(this.made, this.total);
-      else if (q.length) await new Promise((r) => setTimeout(r, BANK_GAP));
-    }
-    this.ms = performance.now() - t0;
-    this.done = !q.length;
-  },
-  async renderNext() {
-    const [k, B, v] = this.queue.shift(), b = await this.renderOne(B, v);
-    if (b) { this.bufs[k].push(b); this.bytes += b.length * b.numberOfChannels * 4; }
-    this.made++;
-  },
-  // What the loading left, a buffer at a time, only when it can't be felt:
-  // while a screen is open (the world stands still), or when the browser
-  // says it's idle with time to spare. On a phone too busy for either, the
-  // sounds play their first variants (at a slightly different speed each
-  // time) until it isn't.
-  idle() {
-    if (this.idling || this.done || !this.queue || !this.queue.length) return;
-    this.idling = true;
-    const ric = typeof requestIdleCallback === 'function';
-    const go = async () => {
-      await this.renderNext();
-      if (!this.queue.length) { this.done = true; this.idling = false; return; }
-      wait();
-    };
-    const wait = () => {
-      const free = () => typeof Game !== 'undefined' && (!!Game.modal || !Game.dive);
-      if (ric) requestIdleCallback((dl) => (free() || dl.timeRemaining() >= BANK_IDLE_MS ? go() : wait()), { timeout: 1000 });
-      else setTimeout(() => (free() ? go() : wait()), 250);
-    };
-    wait();
-  },
-  // Renders those of keys not yet rendered, in turn, while still() (the
-  // opening's, while it plays); drop lets them go again. pace, if given,
-  // is awaited between them instead of the gap.
-  async want(keys, still = () => true, pace = null) {
-    if (!this.rate || !this.irs) return;
-    for (const k of keys) {
-      if (!still()) return;
-      if (this.has(k) || this.bufs[k] === 'busy') continue;
-      this.bufs[k] = 'busy';
-      const b = await this.renderOne(BANK[k], 0);
-      this.bufs[k] = b ? [b] : [];
-      if (b) this.bytes += b.length * b.numberOfChannels * 4;
-      if (pace) await pace(0, 0); else await new Promise((r) => setTimeout(r, BANK_GAP));
-    }
-  },
-  drop(keys) {
-    for (const k of keys) { const b = this.bufs[k]; if (b && b.length && b !== 'busy') for (const x of b) this.bytes -= x.length * x.numberOfChannels * 4; delete this.bufs[k]; }
-  },
-  async renderOne(B, v) {
-    const rate = Math.min(this.rate, B.rate || this.rate), ch = B.ch || 1, c = new OfflineAudioContext(ch, Math.ceil(B.dur * rate), rate);
-    // (a noise buffer kept for each rate)
-    const nz = this.noises || (this.noises = {});
-    if (!nz[rate]) { const n = rate * 2, nb = c.createBuffer(1, n, rate), d = nb.getChannelData(0); for (let i = 0; i < n; i++) d[i] = sndRand() * 2 - 1; nz[rate] = nb; }
-    const R = { ctx: c, waves: sndWaves(c), noise: nz[rate] };
-    // the chain: the voices, the saturation, a high pass under the sub's
-    // own, a low pass over what a phone makes harsh; the reverb beside it
-    const out = c.createGain(), lp = c.createBiquadFilter(), hp = c.createBiquadFilter(), sh = c.createWaveShaper(), dry = c.createGain();
-    out.connect(c.destination);
-    lp.type = 'lowpass'; lp.frequency.value = 8000; lp.Q.value = 0.5; lp.connect(out);
-    hp.type = 'highpass'; hp.frequency.value = 35; hp.connect(lp);
-    sh.curve = bkCurve(B.drive || 1.4); sh.oversample = '2x'; sh.connect(hp);
-    dry.connect(sh);
-    let verbIn = dry;
-    if (B.verb) {
-      const ir = this.irs[B.verb + rate] || (this.irs[B.verb + rate] = bkImpulse(rate, B.verb === 'room' ? 0.45 : 1.4, B.verb === 'room')), ib = c.createBuffer(2, ir[0].length, rate);
-      ib.copyToChannel(ir[0], 0); ib.copyToChannel(ir[1], 1);
-      const cv = c.createConvolver(), vl = c.createBiquadFilter(), vg = c.createGain();
-      cv.buffer = ib; vl.type = 'lowpass'; vl.frequency.value = 5000; vg.gain.value = B.wet || 0.2;
-      verbIn = c.createGain(); verbIn.gain.value = 1; dry.connect(verbIn);
-      verbIn.connect(cv); cv.connect(vl); vl.connect(vg); vg.connect(out);
-    }
-    const o = { node: dry, sendTo: verbIn, level: 1, srcs: [], end: 0, send: null };
-    B.fn(R, o, 0.004, v);
-    const buf = await c.startRendering();
-    return bkTrim(c, buf);
-  },
-};
-
-// A rendered sound, its peak brought to 1 and its end cut off once it's 46
-// dB down (with a short fade).
-function bkTrim(c, buf) {
-  const chs = [];
-  let peak = 0, last = 0;
-  for (let k = 0; k < buf.numberOfChannels; k++) { const d = buf.getChannelData(k); chs.push(d); for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); if (a > peak) peak = a; } }
-  if (peak < 1e-5) return null;
-  for (const d of chs) for (let i = d.length - 1; i > last; i--) if (Math.abs(d[i]) > peak * 5e-3) { last = i; break; }
-  const n = Math.min(buf.length, last + 1), fade = Math.floor(buf.sampleRate * 0.03), out = c.createBuffer(chs.length, n, buf.sampleRate);
-  chs.forEach((d, k) => { const a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = (d[i] / peak) * Math.min(1, (n - i) / fade); out.copyToChannel(a, k); });
-  return out;
-}
+// The bank (Tycho.audio.Bank). While the game loads (loader.js) it renders
+// before any tap: an offline context needs none, and its buffers play in
+// the live one the tap makes (resampled, if its rate differs). Otherwise it
+// starts a moment after the first tap, so the tap itself isn't slowed, with
+// BANK_GAP between buffers. What the loading left is rendered a buffer at
+// a time only when it can't be felt (SndBank.idle): while a screen is open
+// (the world stands still), or when the browser says it's idle with time to
+// spare; on a phone too busy for either, the sounds play their first
+// variants (at a slightly different speed each time) until it isn't. The
+// opening's own come first while it plays (and while a new game loads, the
+// start's `intro`, its first scene's, and the rest as it plays).
+const SndBank = new Tycho.audio.Bank({
+  recipes: BANK, order: BANK_ORDER, rate: BANK_RATE, gap: BANK_GAP, idleMs: BANK_IDLE_MS, rand: SND_RAND, waves: SND_WAVE_AMPS,
+  count: (k, B) => B.n || (B.dur > 1.5 ? 1 : BANK_MANY.has(k) ? BANK_N : 2),
+  // the reverbs: a short hard room with a few faint metal resonances
+  // ringing in it, and a long hall
+  verbs: { room: { secs: 0.45, modes: [431, 1173, 1777, 2390] }, hall: { secs: 1.4 } },
+  // the chain: the voices, the saturation, a high pass under the sub's
+  // own, a low pass over what a phone makes harsh; the reverb beside it
+  chain: { lp: 8000, lpQ: 0.5, hp: 35, drive: 1.4, oversample: '2x', verbLp: 5000, wet: 0.2 },
+  // a rendered sound is cut off once it's 46 dB down (with a short fade)
+  trim: { floor: 5e-3, fade: 0.03 },
+  free: () => typeof Game !== 'undefined' && (!!Game.modal || !Game.dive),
+  first: (bank, o) => (o.intro ? bank.want(BANK_INTRO.slice(0, 2), () => true, o.pace) : typeof Intro !== 'undefined' && Intro.on ? bank.want(BANK_INTRO, () => Intro.on) : null),
+});
+Snd.bank = SndBank;

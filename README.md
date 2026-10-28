@@ -47,9 +47,9 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/save.js` | The save in localStorage: the world's seed, the star's magnitude and core, the said lines, the settings |
 | `js/lab.js` | The paint lab: the painted look's toggles, from the pause screen or the address |
 | `js/loader.js` | The loading screen, the Charter's systems booting up: a list of tasks run in slices with an honest bar, building ahead what play would otherwise build mid-fight (the sound bank, every Kindler frame, the world painted and drawn once, the clime's creatures and plants), then TAP TO BEGIN |
-| `js/audio.js` | Sound, made in code with Web Audio: the engine, the effects, and `snd(name, opts)`, the hook the game calls |
-| `js/music.js` | The music that grows with the star and thins in the dark, each place's own sound; footsteps, heartbeat, stings |
-| `js/sndbank.js` | The fight's sounds and the footsteps, layered and rendered ahead into a few variants each with an OfflineAudioContext |
+| `js/audio.js` | Sound, made in code with Web Audio on Tycho's engine (`Tycho.audio`): the mix, the chain and the space, the waves, the effects' recipes, and `snd(name, opts)`, the hook the game calls |
+| `js/music.js` | The music that grows with the star and thins in the dark, each place's own sound; footsteps, heartbeat, stings (on Tycho's music machinery) |
+| `js/sndbank.js` | The fight's sounds and the footsteps, layered and rendered ahead into a few variants each with an OfflineAudioContext (Tycho's bank) |
 | `js/floor.js` | Seeded floor generation: rooms, corridors, veins |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, icons, cave painting |
 | `js/paint.js` | The painted style (docs/PAINTED.md): stroke ramps and strokes, the ground's tones, the rock rising as a heightfield from a steep three-quarter camera, occlusion, lazy painting in chunks within a window of the floor that moves with the view (`PWIN`), and the painted sprite builder |
