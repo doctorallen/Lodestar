@@ -3,12 +3,13 @@
 // Motes (DESIGN.md, Spells: learned from the dark). When a creature dies
 // in the Kindler's light it leaves a few motes of its nature, one of five,
 // one for each element: rime (frost), cinder (ember), spore (blight), spark
-// (shock) and grit (force). He carries them (d.motes: the HUD counts them;
-// a fall loses them), and they're banked at the star when a node sets
-// (veins.js holdSet: motesBank). At the star's screen, five trees, one a
-// nature, each bought with its own motes: an element (the band a cast can
-// be in), its mods, a form or two (opened by the star's magnitude), and a
-// passive at the end. Nothing is ever lost or used up, so there's no
+// (shock) and grit (force). He carries them (d.motes, a bag of counts on
+// Tycho.items.bag: the HUD counts them; a fall loses them), and they're
+// banked at the star when a node sets (veins.js holdSet: motesBank). At
+// the star's screen, five trees, one a nature, each bought with its own
+// motes: an element (the band a cast can be in), its mods, a form or two
+// (opened by the star's magnitude), and a passive at the end. Nothing is
+// ever lost or used up, so there's no
 // inventory: a cast is a form, an element and the mods it has slots for,
 // set from everything learned (castPick, castSet), and the wrist casts it as the
 // old cast code reads a rig's spells (circuits.js; game.js KINDLER_RIG).
@@ -112,7 +113,7 @@ function carrySlots() { return 2; }
 
 // What the Kindler carries (lost in a fall).
 function motesCarried(d) { return d.motes || (d.motes = {}); }
-function motesCarriedN(d) { let n = 0; const M = motesCarried(d); for (const k in M) n += M[k]; return n; }
+function motesCarriedN(d) { return bag.total(motesCarried(d)); }
 // A creature's nature: its own, or its region's for a boss or the Hollow.
 function natureOfEnemy(d, e) {
   const n = NATURE_OF[e.type];
@@ -123,16 +124,15 @@ function natureOfEnemy(d, e) {
 // A kill (combat.js killEnemy): its motes fly to the Kindler.
 function motesKill(d, e) {
   if (e.type === 'dummy') return;
-  const M = T.motes, n = e.boss ? M.boss : e.elite ? M.elite : M.kill, nat = natureOfEnemy(d, e), C = motesCarried(d);
-  C[nat] = (C[nat] || 0) + n;
+  const M = T.motes, n = e.boss ? M.boss : e.elite ? M.elite : M.kill, nat = natureOfEnemy(d, e);
+  bag.add(motesCarried(d), nat, n);
   for (let i = 0; i < Math.min(n, 6); i++) d.fx.push({ kind: 'mote', x: e.x + (i % 3 - 1) * 5, y: e.y - 4 - i * 2, t: 0.8 + i * 0.06, max: 0.8 + i * 0.06, seed: i + e.x, col: NATURES[nat].col, at: d.p });
   if (!Save.data.said.firstMotes) UI.toast(`${NATURES[nat].name}: carry it to a node`, 'legendary');
   Story.say('firstMotes');
 }
 // A node set (veins.js holdSet): what's carried is banked at the star.
 function motesBank(d) {
-  const C = motesCarried(d), s = motesState(), parts = [];
-  for (const n in NATURES) if (C[n] > 0) { s.motes[n] += C[n]; parts.push(`${C[n]} ${n}`); C[n] = 0; }
+  const parts = bag.move(motesCarried(d), motesState().motes, Object.keys(NATURES)).map(([n, k]) => `${k} ${n}`);
   if (!parts.length) return;
   Save.saveField('motes');
   UI.toast(`Banked: ${parts.join(', ')}`, 'legendary');

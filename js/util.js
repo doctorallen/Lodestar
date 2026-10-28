@@ -26,6 +26,8 @@ const TILE = 16;
 const { mulberry32, hashInts, hashString, Rng } = Tycho.seed;
 const FX_R = Tycho.seed.fxRand;
 const { clamp, lerp, dist, dist2, angleTo, approach } = Tycho.math;
+// Counts by kind (the motes carried and banked) on Tycho's items.
+const { bag } = Tycho.items;
 const fmtTime = (s) => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const pct = (x) => Math.round(x * 100) + '%';
 const sign = (x) => (x > 0 ? '+' : x < 0 ? '−' : '');

@@ -3,7 +3,8 @@
 // The screens (the story's panels, the pause screen, the paint lab, start
 // over), the top bar, the deck's button labels, toasts and speech. Opening
 // a screen sets Game.modal, which stops the simulation, and calls
-// Input.block(); a screen's buttons ignore taps for its first 400 ms.
+// Input.block(); a screen's buttons ignore taps for its first 400 ms (the
+// controls' guard: Input.guard, Input.guarded).
 // Buttons say what they do with data-act (and data-arg); one handler per
 // screen runs them, and the screen redraws.
 // ---------------------------------------------------------------------------
@@ -23,20 +24,12 @@ const UI = {
     $('build').textContent = BUILD_INFO;
   },
 
-  onTap(e) {
-    const el = e.target.closest('[data-act]');
-    if (!el || el.disabled || Game.realT - UI.openedAt < T.ui.tapGuard) return;
-    // a destructive button asks once: the first tap arms it
-    if (el.dataset.confirm && !el.classList.contains('armed')) {
-      for (const o of document.querySelectorAll('.armed')) { o.classList.remove('armed'); o.textContent = o.dataset.label; }
-      el.dataset.label = el.textContent;
-      el.classList.add('armed'); el.textContent = el.dataset.confirm;
-      UI.openedAt = Game.realT - T.ui.tapGuard + 0.25;
-      return;
-    }
-    const fn = UI.acts[el.dataset.act];
-    if (fn) { snd('tap'); fn(el.dataset.arg); }
-  },
+  // A screen's buttons, on Tycho's interface kit (Tycho.ui.Acts): data-act
+  // names the act (UI.acts), data-arg its argument, and none counts while
+  // the controls' guard is up; a destructive button (data-confirm) asks
+  // once: the first tap arms it, and the guard goes up a moment.
+  buttons: new Tycho.ui.Acts({ acts: () => UI.acts, guard: () => Input.guarded(), armed: () => Input.guard(0.25), onAct: () => snd('tap') }),
+  onTap(e) { UI.buttons.tap(e); },
 
   show(id) {
     // a hint showing goes away with the world; one only just shown comes
@@ -47,6 +40,7 @@ const UI = {
     Game.modal = id;
     UI.openedAt = Game.realT;
     Input.block();
+    Input.guard();
     UI.redraw();
   },
 
