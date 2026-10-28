@@ -73,7 +73,8 @@ function compare(label) {
 }
 
 async function runAt(browser, grain, failures) {
-  const { page, errors } = await openGame(browser, { query: '?noload' + grain, intro: false });
+  // (one world, so the walk below always takes the painted window past its edges: a random one sometimes didn't)
+  const { page, errors } = await openGame(browser, { query: '?noload' + grain, intro: false, save: { seed: 42 } });
   const ok = await page.evaluate(() => Gpu.on && glLightInit());
   if (!ok) { failures.push('no WebGL2 in the test browser'); return; }
   await page.evaluate(() => { if (Intro.on) Intro.skip(); });
