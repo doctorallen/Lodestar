@@ -12,7 +12,7 @@
 // corner (miniDraw, at the end).
 // ---------------------------------------------------------------------------
 
-const MapView = { z: 1, cx: 0, cy: 0, layer: 0, sel: -1, bases: null, pointers: new Map(), tap: null, raf: 0, inited: false, opened: 0, trip: null };
+const MapView = { z: 1, cx: 0, cy: 0, layer: 0, sel: -1, bases: null, gestures: null, raf: 0, inited: false, opened: 0, trip: null };
 
 // The floor the map shows (and a layer's floor).
 function mapFloorOf(L) { const d = Game.dive; return L && d.world ? d.world.deep : d.floor.layer ? d.world.surface : d.floor; }
@@ -25,10 +25,18 @@ function mapInit() {
   if (MapView.inited) return;
   MapView.inited = true;
   const cv = $('map-cv');
-  cv.addEventListener('pointerdown', (e) => { e.preventDefault(); cv.setPointerCapture(e.pointerId); mapPointer(e, 'down'); });
-  cv.addEventListener('pointermove', (e) => mapPointer(e, 'move'));
-  cv.addEventListener('pointerup', (e) => mapPointer(e, 'up'));
-  cv.addEventListener('pointercancel', (e) => mapPointer(e, 'cancel'));
+  // drag, pinch and tap (Tycho's gestures), in the canvas's pixels: a tap is
+  // a lone finger lifted within 10 CSS px of where it landed, inside 400 ms,
+  // once the screen's guard is down
+  const k = () => cv.width / cv.getBoundingClientRect().width;
+  MapView.gestures = new Tycho.input.Gestures({
+    near: () => 10 * k(), ms: 400, pinchPan: true, pinchMin: 8,
+    onPan: (dx, dy) => { const { s } = mapOrigin(); MapView.cx -= dx / s; MapView.cy -= dy / s; mapClampView(); mapQueue(); },
+    // two fingers: the view follows their middle, and zooms about it
+    onPinch: (z, x, y, dx, dy) => { const { s } = mapOrigin(); MapView.cx -= dx / s; MapView.cy -= dy / s; if (z !== null) mapZoomAt(z, x, y); else { mapClampView(); mapQueue(); } },
+    onTap: (x, y) => { if (!Input.guarded()) mapTapAt(x, y); },
+  });
+  MapView.gestures.listen(cv, (e) => { const r = cv.getBoundingClientRect(), s = cv.width / r.width; return [(e.clientX - r.left) * s, (e.clientY - r.top) * s]; }, { prevent: true });
   cv.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv.getBoundingClientRect(), k = cv.width / r.width; mapZoomAt(Math.exp(-e.deltaY * 0.0015), (e.clientX - r.left) * k, (e.clientY - r.top) * k); }, { passive: false });
 }
 // The canvas at the screen's pixels, so a tile's pixels stay whole.
@@ -51,35 +59,6 @@ function mapClampView() {
   const f = mapFloor(), cv = $('map-cv'), s = mapScale(), half = cv.width / 2 / s;
   MapView.cx = clamp(MapView.cx, Math.min(half, f.w - half), Math.max(half, f.w - half));
   MapView.cy = clamp(MapView.cy, Math.min(half, f.h - half), Math.max(half, f.h - half));
-}
-function mapPointer(e, kind) {
-  const cv = $('map-cv'), r = cv.getBoundingClientRect(), k = cv.width / r.width, x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k, P = MapView.pointers;
-  if (kind === 'down') { P.set(e.pointerId, { x, y }); if (P.size === 1) MapView.tap = { x, y, t: performance.now() }; else MapView.tap = null; return; }
-  if (kind === 'move') {
-    const p = P.get(e.pointerId);
-    if (!p) return;
-    if (P.size === 1) {
-      const { s } = mapOrigin();
-      MapView.cx -= (x - p.x) / s; MapView.cy -= (y - p.y) / s;
-      if (MapView.tap && Math.hypot(x - MapView.tap.x, y - MapView.tap.y) > 10 * k) MapView.tap = null;
-      p.x = x; p.y = y;
-      mapClampView(); mapQueue();
-    } else if (P.size === 2) {
-      const [a, b] = [...P.values()], other = a === p ? b : a;
-      const d0 = Math.hypot(p.x - other.x, p.y - other.y), d1 = Math.hypot(x - other.x, y - other.y);
-      const mx0 = (p.x + other.x) / 2, my0 = (p.y + other.y) / 2;
-      p.x = x; p.y = y;
-      const mx1 = (p.x + other.x) / 2, my1 = (p.y + other.y) / 2, { s } = mapOrigin();
-      MapView.cx -= (mx1 - mx0) / s; MapView.cy -= (my1 - my0) / s;
-      if (d0 > 8) mapZoomAt(d1 / d0, mx1, my1); else { mapClampView(); mapQueue(); }
-    }
-    return;
-  }
-  // up or cancel
-  const was = P.size;
-  P.delete(e.pointerId);
-  if (kind === 'up' && was === 1 && MapView.tap && performance.now() - MapView.tap.t < 400 && Game.realT - UI.openedAt >= T.ui.tapGuard) mapTapAt(x, y);
-  MapView.tap = null;
 }
 // A tap: the node nearest it, if one is near; a card names it.
 function mapTapAt(x, y) {

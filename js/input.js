@@ -10,79 +10,48 @@
 // U to dash, Space or L to mine, E or Enter to act (held, to feed the star
 // at its altar), I for cargo, Esc to
 // pause, or to close the card or screen that's open. The tests drive the same interface through Input.bot.
+// The controls are Tycho's (Tycho.input.Controls): this keeps the names the
+// game reads. A screen opening lets go of every thumb (Input.block) and
+// starts the guard that keeps its buttons from taps for a moment
+// (Input.guard, Input.guarded; T.ui.tapGuard).
 // ---------------------------------------------------------------------------
 
 const STICK_R = 44; // CSS px
 const STICK_DEAD = 6;
-const HOLD_BUTTONS = { main: 'btn-main', off: 'btn-off', act: 'btn-act' };
-const HOLD_KEYS = { main: ['KeyJ'], off: ['KeyK'], mine: ['Space', 'KeyL'], act: ['KeyE', 'Enter'] };
-const DASH_KEYS = ['ShiftLeft', 'ShiftRight', 'KeyU'];
 
 const Input = {
-  move: { x: 0, y: 0 },
-  stick: null, // { id, bx, by, x, y } in client px
-  held: { main: null, off: null, act: null }, // the pointer holding each button
-  actReq: false,
-  dashReq: null, // true, or a direction from a flick
-  keys: new Set(),
-  bot: null, // { x, y, main, off, mine, act, actHeld, dash } from the tests (act: a press; actHeld: still down)
-  // each hand's button: down now, and a press or release since the game
-  // last looked (they wait to be seen, so a hit's pause doesn't eat them)
-  hands: { main: { down: false, pressed: false, released: false }, off: { down: false, pressed: false, released: false } },
-
-  isHeld(k) {
-    if (this.bot) return !!this.bot[k === 'act' ? 'actHeld' : k];
-    return this.held[k] !== null || HOLD_KEYS[k].some((c) => this.keys.has(c));
-  },
+  C: new Tycho.input.Controls({
+    keys: {
+      KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right',
+      KeyJ: 'main', KeyK: 'off', Space: 'mine', KeyL: 'mine', KeyE: 'act', Enter: 'act', ShiftLeft: 'dash', ShiftRight: 'dash', KeyU: 'dash',
+    },
+    axes: { left: 'left', right: 'right', up: 'up', down: 'down', round: true },
+    // act and dash wait to be taken; each hand's press and release since the game last looked
+    presses: ['act', 'dash'],
+    edges: ['main', 'off'],
+    stick: { radius: STICK_R, dead: STICK_DEAD, inside: true, flick: { action: 'dash', get ms() { return T.dash.flickMs; }, get px() { return T.dash.flickPx; } }, onChange: () => drawStick() },
+    // the tests' bot: { x, y, main, off, mine, act, actHeld, dash } (act: a press; actHeld: still down)
+    bot: { held: { act: 'actHeld' }, press: { act: 'act', dash: 'dash' } },
+    blocked: () => !!Game.modal,
+    get guard() { return T.ui.tapGuard; },
+    clock: () => Game.realT,
+  }),
+  get move() { return this.C.move; },
+  get stick() { return this.C.stick; },
+  get bot() { return this.C.bot; },
+  set bot(b) { this.C.bot = b; },
+  isHeld(k) { return this.C.held(k); },
   mining() { return this.isHeld('mine'); },
   // A hand's button for the game to read; reading clears its press and release.
-  hand(slot) {
-    const h = this.hands[slot], out = { down: h.down, pressed: h.pressed, released: h.released };
-    h.pressed = false; h.released = false;
-    return out;
-  },
-  consumeDash() {
-    if (this.bot) { const a = !!this.bot.dash; this.bot.dash = false; return a; }
-    const r = this.dashReq; this.dashReq = null; return r;
-  },
-  consumeAct() {
-    if (this.bot) { const a = !!this.bot.act; this.bot.act = false; return a; }
-    const a = this.actReq; this.actReq = false; return a;
-  },
-  update() {
-    for (const k of ['main', 'off']) {
-      const h = this.hands[k], now = this.isHeld(k);
-      if (now && !h.down) h.pressed = true;
-      if (!now && h.down) h.released = true;
-      h.down = now;
-    }
-    if (this.bot) { this.move.x = this.bot.x || 0; this.move.y = this.bot.y || 0; return; }
-    const s = this.stick;
-    if (s) {
-      let dx = (s.x - s.bx) / STICK_R, dy = (s.y - s.by) / STICK_R;
-      const m = Math.hypot(dx, dy);
-      if (m * STICK_R < STICK_DEAD) dx = dy = 0;
-      else if (m > 1) { dx /= m; dy /= m; }
-      this.move.x = dx; this.move.y = dy;
-      return;
-    }
-    const k = this.keys;
-    const kx = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
-    const ky = (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) - (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0);
-    const m = Math.hypot(kx, ky) || 1;
-    this.move.x = kx / m; this.move.y = ky / m;
-  },
+  hand(slot) { return this.C.edges(slot); },
+  consumeDash() { return this.C.take('dash'); },
+  consumeAct() { return this.C.take('act'); },
+  update() { this.C.update(); },
   // A screen opened: whatever thumbs were down let go, so they can't press
   // anything on it or carry on walking afterwards.
-  block() {
-    this.stick = null;
-    this.actReq = false;
-    for (const k in this.held) { this.held[k] = null; $(HOLD_BUTTONS[k]).classList.remove('held'); }
-    for (const k in this.hands) Object.assign(this.hands[k], { down: false, pressed: false, released: false });
-    this.dashReq = null;
-    this.keys.clear();
-    drawStick();
-  },
+  block() { this.C.block(); },
+  guard(s) { this.C.guard(s); },
+  guarded() { return this.C.guarded(); },
 };
 
 function drawStick() {
@@ -98,70 +67,21 @@ function drawStick() {
 }
 
 function setupInput() {
-  const left = $('deck-left');
-  left.addEventListener('pointerdown', (e) => {
-    if (Game.modal || Input.stick) return;
-    e.preventDefault();
-    // the whole stick stays inside the deck
-    const r = left.getBoundingClientRect();
-    const bx = clamp(e.clientX, r.left + STICK_R, Math.max(r.left + STICK_R, r.right - STICK_R));
-    const by = clamp(e.clientY, r.top + STICK_R, Math.max(r.top + STICK_R, r.bottom - STICK_R));
-    Input.stick = { id: e.pointerId, bx, by, x: e.clientX, y: e.clientY, t0: performance.now(), x0: e.clientX, y0: e.clientY, flicked: false };
-    try { left.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ }
-    drawStick();
+  Input.C.listen({
+    stick: $('deck-left'),
+    buttons: { main: $('btn-main'), off: $('btn-off'), act: $('btn-act') },
+    taps: { dash: $('btn-dash') },
+    prevent: ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'],
+    preventUp: true,
   });
-  left.addEventListener('pointermove', (e) => {
-    const s = Input.stick;
-    if (!s || s.id !== e.pointerId) return;
-    s.x = e.clientX; s.y = e.clientY;
-    // a quick flick as the thumb lands dashes that way
-    const fx = s.x - s.x0, fy = s.y - s.y0;
-    if (!s.flicked && performance.now() - s.t0 < T.dash.flickMs && Math.hypot(fx, fy) > T.dash.flickPx) { s.flicked = true; Input.dashReq = norm(fx, fy); }
-    drawStick();
-  });
-  const endStick = (e) => { if (Input.stick && Input.stick.id === e.pointerId) { Input.stick = null; drawStick(); } };
-  left.addEventListener('pointerup', endStick);
-  left.addEventListener('pointercancel', endStick);
-
-  for (const [k, id] of Object.entries(HOLD_BUTTONS)) {
-    const btn = $(id);
-    btn.addEventListener('pointerdown', (e) => {
-      if (Game.modal) return;
-      e.preventDefault();
-      Input.held[k] = e.pointerId;
-      try { btn.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ }
-      btn.classList.add('held');
-    });
-    const end = (e) => { if (Input.held[k] === e.pointerId) { Input.held[k] = null; btn.classList.remove('held'); } };
-    btn.addEventListener('pointerup', end);
-    btn.addEventListener('pointercancel', end);
-  }
-
-  $('btn-dash').addEventListener('pointerdown', (e) => {
-    if (Game.modal) return;
-    e.preventDefault();
-    Input.dashReq = true;
-  });
-  $('btn-act').addEventListener('pointerdown', (e) => {
-    if (Game.modal) return;
-    e.preventDefault();
-    Input.actReq = true;
-  });
-
-  const GAME_KEYS = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
   window.addEventListener('keydown', (e) => {
-    if (GAME_KEYS.has(e.code) && !Game.modal) e.preventDefault();
     if (e.repeat) return;
     if ((e.code === 'Escape' || e.code === 'KeyP') && Game.dive) {
       if (Game.modal === 'screen-story') { /* it finishes itself */ }
       else if (Game.modal) UI.close();
       else UI.openPause();
-      return;
     }
-    if ((e.code === 'KeyE' || e.code === 'Enter') && !Game.modal) Input.actReq = true;
-    if (DASH_KEYS.includes(e.code) && !Game.modal) Input.dashReq = true;
-    Input.keys.add(e.code);
   });
-  window.addEventListener('keyup', (e) => { if (GAME_KEYS.has(e.code)) e.preventDefault(); Input.keys.delete(e.code); });
-  window.addEventListener('blur', () => Input.keys.clear());
+  // (taps in the game's first moments count for nothing, as on a screen just opened)
+  Input.guard();
 }

@@ -3,7 +3,8 @@
 // The screens (the story's panels, the pause screen, the paint lab, start
 // over), the top bar, the deck's button labels, toasts and speech. Opening
 // a screen sets Game.modal, which stops the simulation, and calls
-// Input.block(); a screen's buttons ignore taps for its first 400 ms.
+// Input.block(); a screen's buttons ignore taps for its first 400 ms (the
+// controls' guard: Input.guard, Input.guarded).
 // Buttons say what they do with data-act (and data-arg); one handler per
 // screen runs them, and the screen redraws.
 // ---------------------------------------------------------------------------
@@ -25,13 +26,13 @@ const UI = {
 
   onTap(e) {
     const el = e.target.closest('[data-act]');
-    if (!el || el.disabled || Game.realT - UI.openedAt < T.ui.tapGuard) return;
+    if (!el || el.disabled || Input.guarded()) return;
     // a destructive button asks once: the first tap arms it
     if (el.dataset.confirm && !el.classList.contains('armed')) {
       for (const o of document.querySelectorAll('.armed')) { o.classList.remove('armed'); o.textContent = o.dataset.label; }
       el.dataset.label = el.textContent;
       el.classList.add('armed'); el.textContent = el.dataset.confirm;
-      UI.openedAt = Game.realT - T.ui.tapGuard + 0.25;
+      Input.guard(0.25);
       return;
     }
     const fn = UI.acts[el.dataset.act];
@@ -51,6 +52,7 @@ const UI = {
     Game.modal = id;
     UI.openedAt = Game.realT;
     Input.block();
+    Input.guard();
     UI.redraw();
   },
 

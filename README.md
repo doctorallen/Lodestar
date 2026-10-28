@@ -80,7 +80,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/gpu.js`, `js/gllight.js`, `js/perf.js` | The frame on the GPU, its light pass, the `?perf` readout |
 | `js/render.js` | The pixel view (art px, 1.5 to a world px), the frame drawn in order, the JavaScript lighting and bloom for the 2D path, sparks |
 | `js/castfx.js`, `js/hardlight.js` | How a cast looks, and the hard-light shapes the spells are built from |
-| `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests |
+| `js/input.js` | Joystick, buttons, keyboard, and `Input.bot` for the tests, on Tycho's controls (`Tycho.input`) |
 | `js/ui.js` | The screens (the story's panels, pause, the paint lab, start over), the top bar, toasts and speech |
 | `js/wick.js` | Wick, the drone at the Kindler's shoulder |
 | `js/pwa.js` | Installing, and loading onto a new deploy: at once if nothing would be lost, else asking now or later |
