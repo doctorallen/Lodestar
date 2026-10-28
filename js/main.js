@@ -7,7 +7,9 @@
 // ---------------------------------------------------------------------------
 
 const STEP = 1 / 60;
-let _acc = 0, _last = 0, _resizeT = 0;
+// (Tycho's stepper: at most five steps a frame, the rest dropped)
+const Steps = new Tycho.loop.Stepper({ dt: STEP, max: 5 });
+let _resizeT = 0;
 
 function step(dtReal) {
   Game.realT += dtReal;
@@ -28,13 +30,9 @@ function step(dtReal) {
 
 function frame(now) {
   perfGap(now);
-  const dt = Math.min(0.1, (now - _last) / 1000 || 0);
-  _last = now;
+  const dt = Steps.since(now);
   try {
-    _acc += dt;
-    let n = 0;
-    while (_acc >= STEP && n < 5) { step(STEP); _acc -= STEP; n++; }
-    if (n === 5) _acc = 0;
+    Steps.advance(dt, step);
     _resizeT -= dt;
     if (_resizeT <= 0) { _resizeT = 0.5; fitLayout(); resizeView(); }
     Snd.tick(dt);
@@ -108,7 +106,7 @@ function boot() {
 // After the loading and its tap: where the game opens. The world was
 // built while loading (Loader.landed).
 function bootEnter() {
-  requestAnimationFrame((t) => { _last = t; frame(t); });
+  requestAnimationFrame((t) => { Steps.last = t; frame(t); });
   if (!Loader.landed) enterWorld();
   else worldWelcome({});
   if (Save.unread) UI.toast("The old save couldn't be read. It's been kept aside, and this is a new start");

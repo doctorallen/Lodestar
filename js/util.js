@@ -16,94 +16,24 @@ window.addEventListener('unhandledrejection', (ev) => { ScriptErrors.push({ msg:
 const TILE = 16;
 
 // ---------------------------------------------------------------------------
-// Seeded randomness. Anything generated from a run's seed (floors, ore,
-// loot, combat rolls) draws from an Rng, never Math.random, so a seed always
-// rebuilds the same floor and the tests can pin it.
+// Seeded randomness, math and colors: Tycho's core (vendor/tycho/dist/
+// tycho.js, loaded first), the same functions this file used to hold, bit for
+// bit. Anything generated from a run's seed (floors, ore, loot, combat rolls)
+// draws from an Rng, never Math.random, so a seed always rebuilds the same
+// floor and the tests can pin it. FX_R is for cosmetic randomness that never
+// touches game state (rain, sparks).
 // ---------------------------------------------------------------------------
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-// Mixes any number of integers into one 32-bit seed.
-function hashInts(...xs) {
-  let h = 0x811c9dc5 | 0;
-  for (const x of xs) {
-    h = Math.imul(h ^ (x | 0), 0x01000193);
-    h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12;
-  }
-  return h >>> 0;
-}
-function hashString(s) {
-  let h = 0x811c9dc5 | 0;
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
-  return h >>> 0;
-}
-
-class Rng {
-  constructor(seed) { this.seed = seed >>> 0; this.next = mulberry32(this.seed); }
-  f(a = 1, b) { return b === undefined ? this.next() * a : a + this.next() * (b - a); }
-  i(a, b) { return Math.floor(a + this.next() * (b - a + 1)); }
-  pick(arr) { return arr[Math.floor(this.next() * arr.length)]; }
-  chance(p) { return this.next() < p; }
-  // weighted pick from [[weight, value], ...]
-  weighted(list) {
-    let total = 0;
-    for (const [w] of list) total += Math.max(0, w);
-    let r = this.next() * total;
-    for (const [w, v] of list) { r -= Math.max(0, w); if (r < 0) return v; }
-    return list[list.length - 1][1];
-  }
-  shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(this.next() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
-    return arr;
-  }
-  // a fresh 32-bit seed for a child generator
-  fork() { return Math.floor(this.next() * 4294967296) >>> 0; }
-}
-
-// For cosmetic randomness that never touches game state (rain, sparks).
-const FX_R = {
-  f: (a = 1, b) => (b === undefined ? Math.random() * a : a + Math.random() * (b - a)),
-  i: (a, b) => Math.floor(a + Math.random() * (b - a + 1)),
-  pick: (arr) => arr[Math.floor(Math.random() * arr.length)],
-};
-
-// ---------------------------------------------------------------------------
-// Maths
-// ---------------------------------------------------------------------------
-const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-const lerp = (a, b, t) => a + (b - a) * t;
-const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
-const dist2 = (ax, ay, bx, by) => (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
-const angleTo = (ax, ay, bx, by) => Math.atan2(by - ay, bx - ax);
-const approach = (v, target, step) => (v < target ? Math.min(target, v + step) : Math.max(target, v - step));
+const { mulberry32, hashInts, hashString, Rng } = Tycho.seed;
+const FX_R = Tycho.seed.fxRand;
+const { clamp, lerp, dist, dist2, angleTo, approach } = Tycho.math;
 const fmtTime = (s) => { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 const pct = (x) => Math.round(x * 100) + '%';
 const sign = (x) => (x > 0 ? '+' : x < 0 ? '−' : '');
 
 // ---------------------------------------------------------------------------
-// Colours
+// Colors (Tycho's): hex to [r, g, b] and back, darker or lighter, mixed
 // ---------------------------------------------------------------------------
-function hexToRgb(h) {
-  h = h.replace('#', '');
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
-}
-function rgbToHex(r, g, b) {
-  return '#' + [r, g, b].map((v) => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('');
-}
-function shade(hex, amt) {
-  const [r, g, b] = hexToRgb(hex);
-  if (amt < 0) return rgbToHex(r * (1 + amt), g * (1 + amt), b * (1 + amt));
-  return rgbToHex(r + (255 - r) * amt, g + (255 - g) * amt, b + (255 - b) * amt);
-}
-function mix(h1, h2, t) {
-  const a = hexToRgb(h1), b = hexToRgb(h2);
-  return rgbToHex(lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t));
-}
+const { hexToRgb, rgbToHex, shade, mix } = Tycho.color;
 
 // ---------------------------------------------------------------------------
 // Canvases

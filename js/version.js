@@ -1,4 +1,4 @@
 'use strict';
 // The build stamp shown on the home screen. Written by .githooks/pre-commit
 // on every commit: v<day of the year>.<build that day> and the date.
-const BUILD_INFO = 'v300.1 · 2026-10-27';
+const BUILD_INFO = 'v301.1 · 2026-10-28';

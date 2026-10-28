@@ -23,7 +23,8 @@ function sandbox(files) {
   // const/let declarations are visible to each other, then expose what the
   // tests need
   Object.assign(ctx, { Game: { dive: null, realT: 0 }, UI: { acts: {}, toast() {}, speak() {}, tip() {}, redraw() {} }, Story: { say() {}, starTaste() {} }, ART: { ores: {}, exotics: {}, rarity: {}, forms: {}, pal: { star: [] } }, Intro: { on: false, hub: null }, snd() {} });
-  const src = files.map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n');
+  // (Tycho, the engine, first, as index.html loads it)
+  const src = ['vendor/tycho/dist/tycho.js'].concat(files).map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n');
   const expose = '\n;globalThis.__game = { T, Rng, hashInts, generateFloor, floorHash, floorDistances, floorTile, ORE_INDEX, TILE_FLOOR, TILE_ROCK, TILE_ORE, TILE_EDGE, TILE_PAD, TILE_PORTAL, TILE_SOLID, TILE,'
     + ' };';
   vm.runInContext(src + expose, ctx, { filename: 'lodestar-sandbox.js' });

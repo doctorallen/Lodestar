@@ -13,6 +13,11 @@ done
 for f in js/*.js; do
   grep -q "src=\"$f\"" index.html || { echo "$f is not loaded by index.html"; exit 1; }
 done
+# Tycho, the engine, is a git submodule: it must be checked out, and what the
+# page loads from it there
+for f in $(grep -o 'src="vendor/tycho/dist/[^"]*"' index.html | cut -d'"' -f2); do
+  test -f "$f" || { echo "index.html loads a missing file: $f (git submodule update --init)"; exit 1; }
+done
 for f in $(grep -o 'href="[^"]*"' index.html | cut -d'"' -f2 | grep -v '^http' | grep -v '^#'); do
   test -f "$f" || { echo "index.html links a missing file: $f"; exit 1; }
 done
