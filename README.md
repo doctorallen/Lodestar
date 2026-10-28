@@ -41,7 +41,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 
 | File | What's in it |
 |---|---|
-| `js/util.js` | DOM shortcut, error capture, seeded `Rng`, maths, colours, sprite helpers |
+| `js/util.js` | DOM shortcut, error capture, seeded `Rng`, maths, colours (Tycho's core), sprite helpers (Tycho's sprite part) |
 | `js/version.js` | The build stamp, written by `.githooks/pre-commit` |
 | `js/tuning.js` | Every gameplay number, the ores and biomes, the star, the bar |
 | `js/save.js` | The save in localStorage: the world's seed, the star's magnitude and core, the said lines, the settings |
