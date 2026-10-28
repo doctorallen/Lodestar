@@ -22,6 +22,9 @@ function cleanSave(s) {
 
 const Save = {
   data: null,
+  // (Tycho's save store: a save that can't be read is kept aside, never
+  // written over; private mode or a full disk is said once, and play goes on)
+  store: null,
   fresh() {
     return {
       v: 11, uid: 100, seed: null,
@@ -30,51 +33,25 @@ const Save = {
       introSeen: false,
     };
   },
+  get wiped() { return !!(this.store && this.store.wiped); },
+  get unread() { return !!(this.store && this.store.unread); },
   load() {
-    let raw = null;
-    try {
-      raw = localStorage.getItem(SAVE_KEY);
-      this.data = raw ? Object.assign(this.fresh(), JSON.parse(raw)) : this.fresh();
-      cleanSave(this.data);
-    } catch (e) {
-      // keep what couldn't be read aside, so a fresh game never writes over it
-      try { if (raw && !localStorage.getItem(SAVE_KEY + '.unread')) localStorage.setItem(SAVE_KEY + '.unread', raw); } catch (e2) { /* nowhere to keep it */ }
-      this.unread = !!raw;
-      this.data = this.fresh();
-      cleanSave(this.data);
-    }
+    this.store = new Tycho.save.Store({
+      key: SAVE_KEY, fresh: () => this.fresh(), clean: cleanSave, keepUnread: true,
+      onRefused: () => { if (typeof UI !== 'undefined') UI.toast("Progress can't be saved in this browser"); },
+    });
+    this.data = this.store.load();
   },
-  save() {
-    if (this.wiped) return;
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) {
-      // private mode or full: play on, but say so once
-      if (!this.warned && typeof UI !== 'undefined') { this.warned = true; UI.toast("Progress can't be saved in this browser"); }
-    }
-  },
+  save() { if (this.store) this.store.write(this.data); },
   // Writes one field into the stored save straight away, leaving the rest
   // as last saved.
-  saveField(key) {
-    if (this.wiped) return;
-    try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) { this.save(); return; }
-      const stored = JSON.parse(raw);
-      stored[key] = this.data[key];
-      localStorage.setItem(SAVE_KEY, JSON.stringify(stored));
-    } catch (e) { /* saved later instead */ }
-  },
+  saveField(key) { if (this.store) this.store.writeField(key); },
   // START OVER (the pause screen): every save this game has kept is wiped
   // but the settings (sound, lamp), and the page starts again from the
   // top, at the opening. Nothing is written after (wiped stops save()).
   startOver() {
     const keep = Object.assign({}, (this.data && this.data.settings) || {});
-    this.wiped = true;
-    try {
-      const gone = [];
-      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('lodestar.')) gone.push(k); }
-      for (const k of gone) localStorage.removeItem(k);
-      localStorage.setItem(SAVE_KEY, JSON.stringify(Object.assign(this.fresh(), { settings: keep })));
-    } catch (e) { /* nothing more to do */ }
+    (this.store || new Tycho.save.Store({ key: SAVE_KEY, fresh: () => this.fresh() })).startOver('lodestar.', Object.assign(this.fresh(), { settings: keep }));
   },
   // A generator for the next seeded roll at the star.
   rng() { this.data.rolls = (this.data.rolls || 0) + 1; return new Rng(hashInts(this.data.uid, this.data.rolls, 0xf0e)); },

@@ -33,7 +33,7 @@ jobs:
           cp -r index.html css js icons manifest.webmanifest sw.js _site/
           # Tycho, the engine (a git submodule): only the built scripts the page loads
           mkdir -p _site/vendor/tycho/dist
-          for f in $(grep -o 'src="vendor/tycho/dist/[^"]*"' index.html | cut -d'"' -f2); do cp "$f" _site/vendor/tycho/dist/; done
+          for f in $(grep -o 'src="vendor/tycho/dist/[^"]*"' index.html | cut -d'"' -f2) $(grep -o "importScripts('vendor/tycho/dist/[^']*')" sw.js | cut -d"'" -f2); do cp "$f" _site/vendor/tycho/dist/; done
           touch _site/.nojekyll
           # stamp this deploy: a new service worker each time (the commit),
           # and version.json naming the build it carries (js/version.js),

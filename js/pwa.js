@@ -24,51 +24,32 @@
 const PWA_ASKED = 'lodestar.installAsked', PWA_UPDATED = 'lodestar.updated';
 
 const Pwa = {
-  reg: null, prompt: null, newer: null, reloading: false, asked: false, askedFrom: null,
+  app: null, asked: false, askedFrom: null,
+  get newer() { return this.app && this.app.newer; },
+  get prompt() { return this.app && this.app.prompt; },
 
+  // (Tycho's installable app does the looking, the worker and the install
+  // pop-up; what a new build waits for, and the asking, are the game's)
   init() {
     if (!/^https?:$/.test(location.protocol)) return;
-    addEventListener('beforeinstallprompt', (e) => { this.prompt = e; if (UI.screen === 'screen-pause') this.drawPause(); });
-    const ask = () => {
-      if (!this.prompt || this.installed() || Intro.on || (Game.ready && !Game.modal)) return;
-      let last = 0;
-      try { last = +localStorage.getItem(PWA_ASKED) || 0; } catch (e) { /* storage unavailable */ }
-      if (Date.now() - last < 3 * 864e5) return;
-      try { localStorage.setItem(PWA_ASKED, String(Date.now())); } catch (e) { /* storage unavailable */ }
-      this.install();
-    };
-    addEventListener('pointerup', ask);
-    addEventListener('keyup', ask);
-    addEventListener('appinstalled', () => { this.prompt = null; UI.toast('Installed. Lodestar is on your home screen'); });
-    if (!('serviceWorker' in navigator)) return;
-    // (on a first visit the first worker taking over is this build)
-    let claimed = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!claimed) { claimed = true; return; }
-      // a new version took over
-      if (this.reloading || this.newer) return;
-      fetch('version.json', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null).then((v) => {
-        if (v && v.build === BUILD_INFO) return; // already running it
-        this.newer = (v && v.build) || 'a new version';
+    this.app = Tycho.pwa.start({
+      build: BUILD_INFO, askedKey: PWA_ASKED, updatedKey: PWA_UPDATED,
+      canAsk: () => !(Intro.on || (Game.ready && !Game.modal)),
+      onInstallable: () => { if (UI.screen === 'screen-pause') this.drawPause(); },
+      onInstalled: () => UI.toast('Installed. Lodestar is on your home screen'),
+      onNewer: () => {
         if (this.tryLoad()) return;
         setInterval(() => this.tryLoad(), 1000);
         if (UI.screen === 'screen-pause') this.drawPause();
-      });
+      },
     });
-    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((reg) => {
-      this.reg = reg;
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) this.check(); });
-      setInterval(() => this.check(), 15 * 60 * 1000);
-    }).catch(() => {});
   },
-  check() { if (this.reg) this.reg.update().catch(() => {}); },
+  check() { if (this.app) this.app.check(); },
 
   // Once in the world (main.js bootEnter): say what was loaded, if it was
   // an update.
   entered() {
-    let was = null;
-    try { was = sessionStorage.getItem(PWA_UPDATED); sessionStorage.removeItem(PWA_UPDATED); } catch (e) { /* storage unavailable */ }
-    if (was) UI.toast('Updated to ' + BUILD_INFO);
+    if (this.app && this.app.updated()) UI.toast('Updated to ' + BUILD_INFO);
   },
 
   // What a reload now would lose, in words, or null if nothing.
@@ -91,7 +72,7 @@ const Pwa = {
   // Looked at once a second while a new build waits: it loads if nothing
   // would be lost, and the first time something would, the game asks.
   tryLoad() {
-    if (!this.newer || this.reloading || this.busy()) return false;
+    if (!this.newer || (this.app && this.app.reloading) || this.busy()) return false;
     const loss = this.loss();
     if (!loss) { this.reload(); return true; }
     if (!this.asked) this.ask();
@@ -111,20 +92,11 @@ const Pwa = {
   },
   // 'A new version, v298.8, ' (the build's number, as the loading shows it)
   named() { return this.newer.startsWith('v') ? `A new version, ${this.newer.split(' ')[0]}, ` : 'A new version '; },
-  reload() {
-    this.reloading = true;
-    try { sessionStorage.setItem(PWA_UPDATED, this.newer || '1'); } catch (e) { /* storage unavailable */ }
-    location.reload();
-  },
+  reload() { if (this.app) this.app.reload(); },
 
-  installed() { return matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || navigator.standalone === true; },
-  ios() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); },
-  install() {
-    if (!this.prompt) return;
-    const p = this.prompt;
-    p.prompt();
-    p.userChoice.finally(() => { this.prompt = null; if (UI.screen === 'screen-pause') this.drawPause(); });
-  },
+  installed() { return this.app ? this.app.installed() : false; },
+  ios() { return this.app ? this.app.ios() : /iphone|ipad|ipod/i.test(navigator.userAgent); },
+  install() { if (this.app) this.app.install(); },
 
   // The pause screen's lines: a new version waiting, installing.
   drawPause() {

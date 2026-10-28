@@ -25,9 +25,13 @@
 // ---------------------------------------------------------------------------
 
 const LOADER_SLICE = 12; // ms of work a frame
+// (Tycho's loader runs the tasks a slice at a time; the screen is this file's)
+const LoaderTasks = new Tycho.loader.Tasks({ slice: LOADER_SLICE, onError: (e) => noteError(e) });
 
 const Loader = {
-  extra: [], jobs: [], state: null, ms: 0, t0: 0, sliceAt: 0,
+  extra: [], state: null, ms: 0, t0: 0,
+  get jobs() { return LoaderTasks.jobs; },
+  get mainDone() { return LoaderTasks.mainDone; },
   // what the loading left ready for the start: { hub }, or { run, held }
   // (the sortie under way, and what it would have said on arriving)
   landed: null,
@@ -36,13 +40,16 @@ const Loader = {
   run(done) {
     const el = typeof document !== 'undefined' && document.getElementById('loader');
     if (!el || /[?&]noload\b/.test(location.search)) { if (el) el.hidden = true; done(); return; }
+    let work;
     try {
       this.el = el; this.done = done;
       this.state = 'loading'; this.t0 = performance.now();
       el.hidden = false;
       // (nothing opens under it: the pause a hidden page asks for, say)
       Game.modal = 'loader';
-      this.jobs = loaderCoreJobs().concat(this.extra, loaderLateJobs()).filter(Boolean).map((j) => Object.assign({ k: 0, n: 0, f: 0, line: j.label, state: 'wait', ms: 0 }, j));
+      // The side lane (the sound bank: mostly waiting on another thread)
+      // starts at once; the main lane runs its tasks one after another.
+      work = LoaderTasks.run(loaderCoreJobs().concat(this.extra, loaderLateJobs()));
       loaderUIStart();
     } catch (e) {
       noteError(e);
@@ -50,59 +57,15 @@ const Loader = {
       done();
       return;
     }
-    this.work().catch((e) => { noteError(e); this.ready(); });
-  },
-
-  // The side lane (the sound bank: mostly waiting on another thread) starts
-  // at once; the main lane runs its tasks one after another.
-  async work() {
-    const side = this.jobs.filter((j) => j.side).map((j) => this.runJob(j));
-    for (const j of this.jobs) if (!j.side) await this.runJob(j);
-    this.mainDone = true;
-    await Promise.all(side);
-    this.ready();
-  },
-
-  async runJob(j) {
-    const t0 = performance.now();
-    j.state = 'run';
-    const job = loaderJobFor(j);
-    try {
-      await this.yield(true);
-      const r = j.fn(job);
-      if (typeof r === 'function') {
-        for (;;) {
-          if (r(job) === true) break;
-          await this.yield();
-        }
-      } else if (r && typeof r.then === 'function') await r;
-      j.state = 'ok';
-    } catch (e) {
-      j.state = 'skip';
-      noteError(e);
-    }
-    j.f = 1;
-    j.ms = performance.now() - t0;
+    work.then(() => this.ready(), (e) => { noteError(e); this.ready(); });
   },
 
   // Waits for the next frame once this slice's time is spent (or at once,
   // if now): the bar is drawn, and a frame shown, between slices.
-  yield(now) {
-    if (!now && performance.now() - this.sliceAt < LOADER_SLICE) return Promise.resolve();
-    return new Promise((res) => {
-      const go = () => { this.sliceAt = performance.now(); res(); };
-      // (after the frame is drawn; a hidden page has no frames)
-      if (document.hidden) setTimeout(go, 0);
-      else requestAnimationFrame(() => loaderAfterPaint(go));
-    });
-  },
+  yield(now) { return LoaderTasks.yield(now); },
 
   // How far, 0..1: each task's share by its weight.
-  progress() {
-    let w = 0, d = 0;
-    for (const j of this.jobs) { w += j.weight; d += j.weight * (j.state === 'ok' || j.state === 'skip' ? 1 : j.f); }
-    return w ? d / w : 1;
-  },
+  progress() { return LoaderTasks.progress(); },
 
   ready() {
     if (this.state !== 'loading') return;
@@ -131,33 +94,8 @@ function loaderAdd(label, weight, fn, opts) {
 }
 
 // A task's handle: how far it's got, and its line.
-function loaderJobFor(j) {
-  return {
-    // (f: how far, if it isn't k of n)
-    at(k, n, f) { j.k = k; j.n = n; j.f = f !== undefined ? f : n ? Math.min(1, k / n) : 0; },
-    say(text) { j.line = text; },
-    yield: (now) => Loader.yield(now),
-  };
-}
-// Runs fn once the frame now being drawn is on screen (a message posted
-// from the frame's callback arrives after it's painted).
-const _ldChan = typeof MessageChannel !== 'undefined' ? new MessageChannel() : null, _ldQ = [];
-if (_ldChan) _ldChan.port1.onmessage = () => { const q = _ldQ.splice(0); for (const f of q) f(); };
-function loaderAfterPaint(fn) {
-  if (!_ldChan) { setTimeout(fn, 0); return; }
-  _ldQ.push(fn);
-  _ldChan.port2.postMessage(0);
-}
 // Runs fn on each of a list, a slice at a time: a step function for a task.
-function loaderEach(job, list, fn) {
-  let i = 0;
-  return () => {
-    const t0 = performance.now();
-    while (i < list.length && performance.now() - t0 < LOADER_SLICE) fn(list[i++], i - 1);
-    job.at(i, list.length);
-    return i >= list.length;
-  };
-}
+function loaderEach(job, list, fn) { return LoaderTasks.each(job, list, fn); }
 
 // ---------------------------------------------------------------------------
 // The built-in tasks

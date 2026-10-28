@@ -26,6 +26,8 @@ done
 # keeps its stamp for the deploy, and every icon the manifest names is there
 node --check sw.js
 grep -q "'__BUILD__'" sw.js || { echo "sw.js lost its __BUILD__ stamp"; exit 1; }
+grep -q "importScripts('vendor/tycho/dist/tycho-sw.js')" sw.js || { echo "sw.js does not import Tycho's worker"; exit 1; }
+test -f vendor/tycho/dist/tycho-sw.js || { echo "vendor/tycho/dist/tycho-sw.js is missing (git submodule update --init)"; exit 1; }
 node -e "const m = JSON.parse(require('fs').readFileSync('manifest.webmanifest', 'utf8')); for (const i of m.icons) if (!require('fs').existsSync(i.src)) { console.log('manifest.webmanifest names a missing icon: ' + i.src); process.exit(1); }"
 for f in $(grep -o "'icons/[^']*'" sw.js | tr -d "'"); do test -f "$f" || { echo "sw.js caches a missing file: $f"; exit 1; }; done
 
