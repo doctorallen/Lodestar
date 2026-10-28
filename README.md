@@ -50,7 +50,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/audio.js` | Sound, made in code with Web Audio: the engine, the effects, and `snd(name, opts)`, the hook the game calls |
 | `js/music.js` | The music that grows with the star and thins in the dark, each place's own sound; footsteps, heartbeat, stings |
 | `js/sndbank.js` | The fight's sounds and the footsteps, layered and rendered ahead into a few variants each with an OfflineAudioContext |
-| `js/floor.js` | Seeded floor generation: rooms, corridors, veins |
+| `js/floor.js` | Seeded floor generation: rooms, corridors, veins; the floor's place in Tycho's world (its grid, wall line and space) |
 | `js/art.js` | The art style: palettes, sprite builder, enemies, icons, cave painting |
 | `js/paint.js` | The painted style (docs/PAINTED.md): stroke ramps and strokes, the ground's tones, the rock rising as a heightfield from a steep three-quarter camera, occlusion, lazy painting in chunks within a window of the floor that moves with the view (`PWIN`), and the painted sprite builder |
 | `js/paintrock.js`, `js/painthole.js`, `js/pflora.js` | The rock's growth and tint, pools and the wading cut, the painted plants |
@@ -86,12 +86,13 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/pwa.js` | Installing, and loading onto a new deploy: at once if nothing would be lost, else asking now or later |
 | `sw.js`, `manifest.webmanifest`, `icons/` | The service worker (network first, the cache only offline), the app manifest, the icons |
 | `js/main.js` | Boot, then the loading (`bootEnter` after its tap), the fixed-step loop, the upright and sideways layouts |
-| `test/` | Static checks, floor generation with golden hashes, the GPU's frame against the 2D path's, the installed game's updates over http, and a headless smoke run; `test/icons.js` draws the icons |
+| `test/` | Static checks, floor generation with golden hashes, walking replayed against traces recorded before it moved onto Tycho (`test/traces.js`, bit for bit), the GPU's frame against the 2D path's, the installed game's updates over http, and a headless smoke run; `test/icons.js` draws the icons |
 
 ## Tests
 
 ```sh
 npm ci       # test tools only
 npm test     # everything CI runs
+node test/traces.js                       # walking, the wall line and the flow field against traces from before they moved onto Tycho (--record to record them again, only when a change is meant)
 node test/gllight.js                      # the GPU's frame against the 2D path's, pixel for pixel, with WebGL in software
 ```

@@ -10,6 +10,13 @@
 // smooth line: rockAt(f, x, y) blends the four nearest tiles' solidity and
 // adds a little noise, so corners round off and edges wander by a few
 // pixels. Bodies collide with that line, not with the tiles' squares.
+//
+// Both are Tycho's world (vendor/tycho/docs/world.md), as this file and
+// game.js had them, bit for bit: a floor's tiles and ore are the layers of
+// a Tycho grid (f.grid, wrapping f.tiles and f.ore as they are), the wall
+// line is its tiles felt smooth (f.rock, Tycho.collide.Tiles) and bodies
+// ask f.space (a Tycho.collide.Space); the steps on foot are
+// Tycho.path.distances.
 // ---------------------------------------------------------------------------
 
 const TILE_FLOOR = 0, TILE_ROCK = 1, TILE_ORE = 2, TILE_EDGE = 3, TILE_PAD = 4, TILE_PORTAL = 5;
@@ -26,7 +33,19 @@ const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 // The tile at tx, ty; outside the floor counts as the unbreakable edge.
 function floorTile(f, tx, ty) {
-  return tx < 0 || ty < 0 || tx >= f.w || ty >= f.h ? TILE_EDGE : f.tiles[ty * f.w + tx];
+  return f.grid.get(0, tx, ty);
+}
+
+// A floor's place in Tycho's world, made as soon as its tiles are: its grid
+// (the tiles and the ore, their arrays wrapped, the edge outside), its wall
+// line (the tiles felt smooth, with the floor's noise) and the space bodies
+// move in (the wall line, and any round solids on f.solids).
+const NO_SOLIDS = [];
+function floorSpace(f) {
+  f.grid = new Tycho.grid.Grid({ w: f.w, h: f.h, layers: [{ name: 'tiles', data: f.tiles, edge: TILE_EDGE }, { name: 'ore', data: f.ore }] });
+  f.rock = new Tycho.collide.Tiles(f.grid, 0, { size: TILE, solid: TILE_SOLID, smooth: { noise: (x, y) => wallNoise(x, y, 7), amp: f.wallNoise !== undefined ? f.wallNoise : T.floor.wallNoise, pinch: 0.55 } });
+  f.space = new Tycho.collide.Space().tiles(f.rock).ellipses(() => f.solids || NO_SOLIDS);
+  return f;
 }
 
 // A site of an expedition. depth: which site (1–4); padChance: the chance
@@ -157,7 +176,7 @@ function generateFloor(seed, depth, biome, padChance = 1, zone = 'cave', ways = 
     }
   }
 
-  return placeHazards({ seed, depth, biome, zone, clime, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: portals, portal: portals[0] || null, pad, arena: rooms.find((r) => r.arena) || null });
+  return placeHazards(floorSpace({ seed, depth, biome, zone, clime, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: portals, portal: portals[0] || null, pad, arena: rooms.find((r) => r.arena) || null }));
 }
 
 // A clime's overrides of the generator, if any.
@@ -237,7 +256,7 @@ function generateRuin(seed, depth, biome, padChance, ways, clime) {
       i = rng.pick(next);
     }
   }
-  return placeHazards({ seed, depth, biome, zone: 'ruin', clime, wallNoise: 0.03, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: portals, portal: portals[0] || null, pad, arena: null });
+  return placeHazards(floorSpace({ seed, depth, biome, zone: 'ruin', clime, wallNoise: 0.03, w, h, tiles, ore, rooms, entry: { x: rooms[0].cx, y: rooms[0].cy }, ways: portals, portal: portals[0] || null, pad, arena: null }));
 }
 
 // ---------------------------------------------------------------------------
@@ -357,19 +376,11 @@ function hazardAt(f, x, y) {
   return lerp(lerp(a, b, u), lerp(c, d, u), v) + 0.16 * wallNoise(x + 131, y + 57, 5) > 0.5 ? code : 0;
 }
 
-// Steps on foot from x, y to every open tile (-1 where it can't be reached).
-// avoid: tiles not to step on (non-zero), if any.
+// Steps on foot from x, y to every open tile (-1 where it can't be reached),
+// four ways round, as an Int16Array (Tycho.path.distances). avoid: tiles not
+// to step on (non-zero), if any.
 function floorDistances(tiles, w, h, x, y, avoid) {
-  const d = new Int16Array(w * h).fill(-1), q = [y * w + x];
-  d[q[0]] = 0;
-  for (let qi = 0; qi < q.length; qi++) {
-    const i = q[qi], cx = i % w, cy = (i - cx) / w;
-    for (const [dx, dy] of DIRS4) {
-      const j = (cy + dy) * w + cx + dx;
-      if (d[j] < 0 && !TILE_SOLID[tiles[j]] && !(avoid && avoid[j])) { d[j] = d[i] + 1; q.push(j); }
-    }
-  }
-  return d;
+  return Tycho.path.distances(tiles, w, h, x, y, TILE_SOLID, avoid);
 }
 
 // ---------------------------------------------------------------------------
@@ -384,18 +395,13 @@ function wallNoise(x, y, scale) {
   return lerp(lerp(n(x0, y0), n(x0 + 1, y0), su), lerp(n(x0, y0 + 1), n(x0 + 1, y0 + 1), su), sv);
 }
 
-// Is the world pixel x, y rock? The four nearest tiles' solidity blended,
-// with a little noise, cut at a half.
+// Is the world pixel x, y rock? The four nearest tiles' solidity (by S,
+// TILE_SOLID unless it's another table, such as which tiles rise) blended,
+// with a little noise, cut at a half; two open tiles that meet only at a
+// corner (a vein mined on the diagonal) would pinch shut there, so the
+// corner is opened wide enough to walk (f.rock: floorSpace).
 function rockAt(f, x, y, S = TILE_SOLID) {
-  const gx = x / TILE - 0.5, gy = y / TILE - 0.5, tx = Math.floor(gx), ty = Math.floor(gy), u = gx - tx, v = gy - ty;
-  const s = (i, j) => (S[floorTile(f, i, j)] ? 1 : 0);
-  const a = s(tx, ty), b = s(tx + 1, ty), c = s(tx, ty + 1), d = s(tx + 1, ty + 1);
-  if (a === b && b === c && c === d) return a === 1;
-  let blend = lerp(lerp(a, b, u), lerp(c, d, u), v);
-  // two open tiles that meet only at a corner (a vein mined on the
-  // diagonal) would pinch shut there: open the corner wide enough to walk
-  if (a === d && b === c) blend *= 0.55;
-  return blend + (f.wallNoise !== undefined ? f.wallNoise : T.floor.wallNoise) * wallNoise(x, y, 7) > 0.5;
+  return f.rock.at(x, y, S);
 }
 
 // One number for a floor's layout, for the golden tests.

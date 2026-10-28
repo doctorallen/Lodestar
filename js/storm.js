@@ -53,7 +53,7 @@ function updateStorm(d, dt) {
       const i = s.vein.y * f.w + s.vein.x, pick = Save.data.equip.pick ? Save.data.equip.pick.base.power : 1;
       const best = T.biomes[d.biome].ores.map((id) => T.ores[ORE_INDEX[id]]).filter((o) => o.tier <= pick).pop();
       if (best && best.tier > T.ores[f.ore[i] - 1].tier) {
-        f.ore[i] = ORE_INDEX[best.id] + 1;
+        f.grid.set(1, s.vein.x, s.vein.y, ORE_INDEX[best.id] + 1);
         repaintAround(f, s.vein.x, s.vein.y);
         UI.toast(`The strike charged a vein into ${best.name}`, 'legendary');
       }

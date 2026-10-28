@@ -266,50 +266,24 @@ function updateChannel(dt) {
 
 // ---------------------------------------------------------------------------
 // Walking: a circle against the floor's smooth wall line (rockAt), felt at
-// its centre and eight points round its edge. Enemies use it too.
+// its centre and eight points round its edge. Enemies use it too. It's
+// Tycho's (vendor/tycho/docs/world.md) as it was here, bit for bit: the
+// floor's space (f.space, floor.js floorSpace) feels the body, and
+// Tycho.move.topdown slides it.
 // ---------------------------------------------------------------------------
+// (the same eight points, for what feels them itself: foes.js)
 const BODY_RING = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [Math.cos((k * Math.PI) / 4), Math.sin((k * Math.PI) / 4)]);
-function bodyHits(f, x, y, r) {
-  if (rockAt(f, x, y)) return true;
-  for (const [c, s] of BODY_RING) if (rockAt(f, x + c * r, y + s * r)) return true;
-  if (f.solids) for (const o of f.solids) { const u = (x - o.x) / (o.rx + r), v = (y - o.y) / (o.ry + r); if (u * u + v * v < 1) return true; }
-  return false;
-}
+// Does a body of radius r at x, y touch rock (or a round solid, f.solids)?
+function bodyHits(f, x, y, r) { return f.space.circleHits(x, y, r); }
 // How far into rock a body is: its ring points in rock, its centre double.
-function bodyInRock(f, x, y, r) {
-  let n = rockAt(f, x, y) ? 2 : 0;
-  for (const [c, s] of BODY_RING) if (rockAt(f, x + c * r, y + s * r)) n++;
-  return n;
-}
+function bodyInRock(f, x, y, r) { return f.space.circleDepth(x, y, r); }
 
-function moveBody(f, b, dx, dy, r) {
-  if (!dx && !dy) return;
-  if (!bodyHits(f, b.x + dx, b.y + dy, r)) { b.x += dx; b.y += dy; return; }
-  // already wedged in rock (pushed onto a ragged edge): it may work its way
-  // out, or along the edge, but never deeper in
-  if (bodyHits(f, b.x, b.y, r)) {
-    const was = bodyInRock(f, b.x, b.y, r), now = bodyInRock(f, b.x + dx, b.y + dy, r);
-    if (now < was || (now === was && !rockAt(f, b.x + dx, b.y + dy))) { b.x += dx; b.y += dy; }
-    return;
-  }
-  // blocked: slide along the wall, one axis at a time, as far as each goes
-  const x0 = b.x, y0 = b.y;
-  for (const [mx, my] of [[dx, 0], [0, dy]]) {
-    if (!mx && !my) continue;
-    let lo = 0, hi = 1;
-    if (!bodyHits(f, b.x + mx, b.y + my, r)) lo = 1;
-    else for (let k = 0; k < 4; k++) { const mid = (lo + hi) / 2; if (bodyHits(f, b.x + mx * mid, b.y + my * mid, r)) hi = mid; else lo = mid; }
-    b.x += mx * lo; b.y += my * lo;
-  }
-  // head-on into a curve: try the way round it, half a turn either side
-  const m = Math.hypot(dx, dy);
-  if (Math.hypot(b.x - x0, b.y - y0) < m * 0.3) {
-    for (const turn of [0.7, -0.7, 1.2, -1.2]) {
-      const c = Math.cos(turn), s = Math.sin(turn), tx = (dx * c - dy * s) * 0.8, ty = (dx * s + dy * c) * 0.8;
-      if (!bodyHits(f, x0 + tx, y0 + ty, r)) { b.x = x0 + tx; b.y = y0 + ty; return; }
-    }
-  }
-}
+// Moves b by dx, dy: clear, it goes; already wedged in rock (pushed onto a
+// ragged edge), it may work its way out, or along the edge, but never
+// deeper in; blocked, it slides along the wall, one axis at a time, as far
+// as each goes, and head-on into a curve it tries the way round it, half a
+// turn either side.
+function moveBody(f, b, dx, dy, r) { Tycho.move.topdown(f.space, b, dx, dy, r); }
 
 // ---------------------------------------------------------------------------
 // A fall: you wake at the star, and it dims a piece of its core. At no
