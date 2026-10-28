@@ -6,7 +6,7 @@
 // Run it again if the star's art changes: node test/icons.js
 const path = require('path');
 const fs = require('fs');
-const { ROOT, launch } = require('./lib');
+const { ROOT, launch, tk } = require('./lib');
 
 const SIZES = [
   { file: 'icon-512.png', n: 512, k: 5 },
@@ -17,9 +17,9 @@ const SIZES = [
 (async () => {
   const browser = await launch();
   try {
-    const page = await browser.newPage();
+    const page = await browser.page();
     await page.goto('file://' + path.join(ROOT, 'index.html') + '?noload');
-    await page.waitForFunction(() => typeof Game !== 'undefined' && Game.ready, { timeout: 120000 });
+    await tk.waitFor(page, () => typeof Game !== 'undefined' && Game.ready, { timeout: 120000 });
     const out = await page.evaluate((sizes) => {
       const el = document.getElementById('loader');
       el.hidden = false;

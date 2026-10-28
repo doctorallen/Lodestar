@@ -8,7 +8,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { ROOT, launch, finish } = require('./lib');
+const { ROOT, launch, finish, until, viewport, tk } = require('./lib');
 
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 // what the server deploys: the worker's stamp, the build version.json names
@@ -40,14 +40,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 (async () => {
   const server = await serve(), base = `http://127.0.0.1:${server.address().port}/`;
   const browser = await launch(), failures = [];
-  const page = await browser.newPage();
+  const page = await browser.page(viewport({ width: 390, height: 844, mobile: true, scale: 1 }));
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   // (the world isn't drawn: drawn in software, as here with no GPU, it
   // holds the browser's look for a new worker back by up to a minute)
-  await page.evaluateOnNewDocument(() => addEventListener('DOMContentLoaded', () => { window.renderFrame = () => {}; }));
-  await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
-  const ready = () => page.waitForFunction(() => typeof Game !== 'undefined' && Game.ready, { timeout: 120000 });
+  const noDraw = () => addEventListener('DOMContentLoaded', () => { window.renderFrame = () => {}; });
+  await (page.addInitScript ? page.addInitScript(noDraw) : page.evaluateOnNewDocument(noDraw));
+  const ready = () => tk.waitFor(page, () => typeof Game !== 'undefined' && Game.ready, { timeout: 120000 });
   // reloads are seen as the mark left on the window going
   const mark = () => page.evaluate(() => { window.__same = 1; });
   const same = () => page.evaluate(() => window.__same === 1).catch(() => false);
@@ -66,7 +66,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await page.evaluate(() => { localStorage.clear(); localStorage.setItem('lodestar.save.v5', JSON.stringify({ introSeen: true })); });
     await page.goto(base + '?noload');
     await ready();
-    await page.waitForFunction(() => !!navigator.serviceWorker.controller, { timeout: 30000 });
+    await tk.waitFor(page, () => !!navigator.serviceWorker.controller, { timeout: 30000 });
     const cached = await page.evaluate(async () => { const c = await caches.open((await caches.keys())[0]); return (await c.keys()).map((r) => new URL(r.url).pathname); });
     for (const f of ['/js/main.js', '/js/pwa.js', '/css/style.css', '/manifest.webmanifest', '/icons/icon-512.png']) if (!cached.includes(f)) failures.push('the worker did not cache ' + f);
 
@@ -74,11 +74,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await mark();
     await bump('a2', 'v900.2 · test');
     if (!(await reloaded(15000))) failures.push('a new deploy did not load with nothing to lose');
-    else if (!(await page.waitForFunction(() => [...document.querySelectorAll('.toast')].some((t) => /^Updated to/.test(t.textContent)), { timeout: 5000 }).catch(() => null))) failures.push('no "Updated to" toast after an update');
+    else if (!(await until(page, () => [...document.querySelectorAll('.toast')].some((t) => /^Updated to/.test(t.textContent)), 5000))) failures.push('no "Updated to" toast after an update');
 
     // motes carried: it asks; LATER, and it waits till they're gone
     const asked = async (what) => {
-      if (!(await page.waitForFunction(() => UI.screen === 'screen-update', { timeout: 15000 }).catch(() => null))) { failures.push(`${what}: no screen asked`); return false; }
+      if (!(await until(page, () => UI.screen === 'screen-update', 15000))) { failures.push(`${what}: no screen asked`); return false; }
       const text = await page.evaluate(() => $('update-text').textContent);
       if (!/v900\.\d/.test(text) || !/motes you carry/.test(text)) failures.push(`${what}: the screen said: ${text}`);
       if (!(await same())) { failures.push(`${what}: it reloaded while asking`); return false; }
