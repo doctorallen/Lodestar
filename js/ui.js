@@ -41,11 +41,7 @@ const UI = {
   show(id) {
     // a hint showing goes away with the world; one only just shown comes
     // back after, and the rest count as read
-    for (const t of [...$('toasts').children]) {
-      if (!t.classList.contains('r-tip')) { t.remove(); continue; }
-      if (Date.now() - t.dataset.born < 800) { UI.hintsSeen.delete(t.textContent); UI.hintQ.unshift({ msg: t.textContent, at: t.dataset.at }); }
-      t.remove();
-    }
+    UI.toasts.clear(0.8);
     for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id;
     UI.screen = id;
     Game.modal = id;
@@ -116,45 +112,30 @@ const UI = {
     UI.toast(msg, 'tip');
   },
 
-  // Toasts: at most T.ui.toasts on screen at once. News (any toast but a
-  // hint) shows at once and pushes the oldest out. A hint waits its turn in
-  // hintQ, and while a screen is open, so none lies over a panel or crowds
-  // the news; a hint is never shown twice in a world.
-  hintQ: [], hintsSeen: new Set(), hintsFor: null,
+  // Toasts (Tycho.ui.Toasts): at most T.ui.toasts on screen at once. News
+  // (any toast but a hint) shows at once and pushes the oldest out, and the
+  // same words already showing give way to it. A hint waits its turn, and
+  // while a screen is open, so none lies over a panel or crowds the news; a
+  // hint is never shown twice in a world. Each stays long enough to read (a
+  // hint longer than news, and long lines longer), faded out by the CSS.
+  toasts: new Tycho.ui.Toasts({
+    box: () => $('toasts'), most: () => T.ui.toasts, replace: true, animate: true, once: true,
+    cls: (kind) => 'toast' + (kind ? ' r-' + kind : ''),
+    life: (msg, kind) => clamp(msg.length * (kind === 'tip' ? 0.05 : 0.035), kind === 'tip' ? 2.6 : 1.8, 4.5),
+    waits: (kind) => kind === 'tip', held: () => !!Game.modal, after: () => UI.placeToasts(),
+  }),
+  hintsFor: null,
   toast(msg, kind) {
-    if (kind !== 'tip') { UI.showToast(msg, kind); return; }
-    if (UI.hintsFor !== Game.dive) { UI.hintsFor = Game.dive; UI.hintsSeen.clear(); }
-    if (UI.hintsSeen.has(msg) || UI.hintQ.some((h) => h.msg === msg)) return;
-    UI.hintQ.push({ msg });
-    UI.pumpToasts();
+    if (kind === 'tip' && UI.hintsFor !== Game.dive) { UI.hintsFor = Game.dive; UI.toasts.forget(); }
+    UI.toasts.show(msg, kind);
   },
-  showToast(msg, kind) {
-    const box = $('toasts'), most = T.ui.toasts;
-    // the same words twice at once read as a stutter: the newer one only
-    for (const o of [...box.children]) if (o.textContent === msg) o.remove();
-    const el = document.createElement('div');
-    el.className = 'toast' + (kind ? ' r-' + kind : '');
-    el.textContent = msg;
-    el.dataset.born = Date.now();
-    // long enough to read: a hint longer than news, and long lines longer
-    const secs = clamp(msg.length * (kind === 'tip' ? 0.05 : 0.035), kind === 'tip' ? 2.6 : 1.8, 4.5);
-    el.style.animationDuration = secs + 's';
-    box.appendChild(el);
-    while (box.children.length > most) box.firstChild.remove();
-    UI.placeToasts();
-    if (kind === 'tip') UI.hintsSeen.add(msg);
-    setTimeout(() => { el.remove(); UI.pumpToasts(); }, secs * 1000);
-  },
+  showToast(msg, kind) { UI.toasts.put(msg, kind); },
   placeToasts() {
     const box = $('toasts');
     if (box.style.top !== '') box.style.top = '';
   },
   // Every step: a waiting hint shows if there's room for it.
-  pumpToasts() {
-    const box = $('toasts');
-    if (Game.modal) return;
-    while (UI.hintQ.length && box.children.length < T.ui.toasts) { const h = UI.hintQ.shift(); UI.showToast(h.msg, 'tip'); }
-  },
+  pumpToasts() { UI.toasts.pump(); },
 
   // the top bar and the deck, every step
   frame(dt) {
