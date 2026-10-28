@@ -86,7 +86,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/pwa.js` | Installing, and loading onto a new deploy: at once if nothing would be lost, else asking now or later |
 | `sw.js`, `manifest.webmanifest`, `icons/` | The service worker (network first, the cache only offline), the app manifest, the icons |
 | `js/main.js` | Boot, then the loading (`bootEnter` after its tap), the fixed-step loop, the upright and sideways layouts |
-| `test/` | Static checks, floor generation with golden hashes, walking replayed against traces recorded before it moved onto Tycho (`test/traces.js`, bit for bit), the GPU's frame against the 2D path's, the installed game's updates over http, and a headless smoke run; `test/icons.js` draws the icons |
+| `test/` | Static checks, floor generation with golden hashes, walking replayed against traces recorded before it moved onto Tycho (`test/traces.js`, bit for bit), fights replayed against fights recorded before they moved onto Tycho's harm part (`test/fights.js`: the whole game in Node, every frame's combat state hashed), the GPU's frame against the 2D path's, the installed game's updates over http, and a headless smoke run; `test/icons.js` draws the icons |
 
 ## Tests
 
@@ -94,5 +94,6 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 npm ci       # test tools only
 npm test     # everything CI runs
 node test/traces.js                       # walking, the wall line and the flow field against traces from before they moved onto Tycho (--record to record them again, only when a change is meant)
+node test/fights.js                       # fights played in Node against fights recorded before they moved onto Tycho.harm, every frame's combat state (--record to record them again, only when a change is meant)
 node test/gllight.js                      # the GPU's frame against the 2D path's, pixel for pixel, with WebGL in software
 ```

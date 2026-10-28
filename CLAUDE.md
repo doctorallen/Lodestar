@@ -12,6 +12,7 @@ npm ci                          # test tools only
 npm test                        # everything CI runs
 node test/gen.js --update       # re-record golden hashes after an intended generation change
 node test/traces.js --record    # re-record the walking traces after an intended change to how bodies move
+node test/fights.js --record    # re-record the fights after an intended change to how fighting goes
 git config core.hooksPath .githooks
 ```
 
