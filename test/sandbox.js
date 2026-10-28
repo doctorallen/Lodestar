@@ -1,14 +1,15 @@
 'use strict';
 // Loads some of the game's classic scripts into a Node VM context with just
 // enough of a browser stubbed in (window, localStorage, a few no-ops) to run
-// the pure parts, such as floor generation. Much faster than Chrome, so the
-// tests that sweep hundreds of seeds use it.
+// the pure parts, such as floor generation (and, for test/traces.js, the
+// walking in game.js; `extra` names more of their globals to hand back).
+// Much faster than Chrome, so the tests that sweep hundreds of seeds use it.
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const ROOT = path.resolve(__dirname, '..');
 
-function sandbox(files) {
+function sandbox(files, extra = []) {
   const store = new Map();
   const ctx = {
     console, Math, JSON, Date, Map, Set, Uint8Array, Int8Array, Int16Array, Int32Array, Float64Array, Array, Object, Number, String, Boolean, Error,
@@ -26,7 +27,7 @@ function sandbox(files) {
   // (Tycho, the engine, first, as index.html loads it)
   const src = ['vendor/tycho/dist/tycho.js'].concat(files).map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n');
   const expose = '\n;globalThis.__game = { T, Rng, hashInts, generateFloor, floorHash, floorDistances, floorTile, ORE_INDEX, TILE_FLOOR, TILE_ROCK, TILE_ORE, TILE_EDGE, TILE_PAD, TILE_PORTAL, TILE_SOLID, TILE,'
-    + ' };';
+    + extra.map((n) => ' ' + n + ',').join('') + ' };';
   vm.runInContext(src + expose, ctx, { filename: 'lodestar-sandbox.js' });
   return ctx.__game;
 }
