@@ -7,6 +7,8 @@
 // ---------------------------------------------------------------------------
 
 const STEP = 1 / 60;
+// The view's shake, dying away (Tycho's: View.shake; combat.js shakeView).
+const VIEW_SHAKE = new Tycho.harm.Shake(View, 14);
 // (Tycho's stepper: at most five steps a frame, the rest dropped)
 const Steps = new Tycho.loop.Stepper({ dt: STEP, max: 5 });
 let _resizeT = 0;
@@ -17,10 +19,10 @@ function step(dtReal) {
   introUpdate(dtReal);
   updateSparks(dtReal);
   UI.frame(dtReal);
-  View.shake = (View.shake || 0) * Math.exp(-14 * dtReal);
+  VIEW_SHAKE.step(dtReal);
   if (Game.modal) return;
-  // a hit lands: everything holds still for a moment
-  if (Game.hitstop > 0) { Game.hitstop -= dtReal; return; }
+  // a hit lands: everything holds still for a moment (combat.js HITSTOP)
+  if (HITSTOP.hold(dtReal)) return;
   if (!Game.dive) return;
   updateCastFx(dtReal);
   const dt = dtReal * Game.timeScale;

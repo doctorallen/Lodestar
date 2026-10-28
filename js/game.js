@@ -134,8 +134,8 @@ function updateDive(dtReal, dt) {
   // (no charge: a cast costs nothing but its cooldown)
   p.charge = st.maxCharge; p.lowCharge = 0;
   if (p.cast && (p.cast.t -= dtReal) <= 0) p.cast = null;
-  for (const n of d.nums) { n.t -= dtReal; n.y -= 14 * dtReal; }
-  d.nums = d.nums.filter((n) => n.t > 0);
+  // the numbers and words risen over what was struck rise on and run out
+  Tycho.harm.rise(d.nums, dtReal, 14);
 
   if (!updateDash(dtReal)) {
     const mv = Input.move, m = Math.hypot(mv.x, mv.y);

@@ -85,6 +85,10 @@ function affixStart(e) {
   if (hasAffix(e, 'blink')) e.blinkT = A.blink.every * 0.7;
 }
 
+// A blinker's landing: shown for its wind (e.blinkAt.t, set as it's
+// marked), then it lands, striking within its reach.
+const BLINK = new Tycho.harm.Trigger({ tell: () => T.enemies.affix.blink.wind, zone: { get r() { return T.enemies.affix.blink.reach; } }, once: true });
+
 // Each step (world time), for an awake elite.
 function affixTick(d, e, dt) {
   if (!e.affixes || !e.affixes.length || e.dead) return;
@@ -121,13 +125,14 @@ function affixTick(d, e, dt) {
     }
     d.fx.push({ kind: 'mark', x: e.x, y: e.y, r: 14, t: 0.4, max: 0.4, col: ELITE_AFFIX.brood.col });
   }
-  // a blink: a flash where it will land, then it's there
+  // a blink: a flash where it will land (a mark, Tycho's trigger), then
+  // it's there, and strikes what's within reach
   if (hasAffix(e, 'blink')) {
     if (e.blinkAt) {
-      if ((e.blinkAt.t -= dt) <= 0) {
+      if (BLINK.down(e.blinkAt, dt)) {
         const to = e.blinkAt;
         if (!bodyHits(f, to.x, to.y, e.r)) { e.x = to.x; e.y = to.y; }
-        if (dist(e.x, e.y, p.x, p.y) < A.blink.reach && !d.dying) hurtPlayer(e.dmg * A.blink.dmg, e);
+        if (Tycho.harm.inZone(BLINK.def.zone, e.x, e.y, p.x, p.y, 0) && !d.dying) hurtPlayer(e.dmg * A.blink.dmg, e);
         d.fx.push({ kind: 'mark', x: e.x, y: e.y, r: A.blink.reach, t: 0.25, max: 0.25, col: ELITE_AFFIX.blink.col, burst: true });
         snd('dash', { x: e.x, y: e.y });
         e.blinkAt = null; e.cd = Math.max(e.cd, 0.5);
@@ -153,12 +158,14 @@ function affixTick(d, e, dt) {
   }
 }
 
-// A hit on the foe (hurtEnemy, before the damage lands): what its affixes
-// make of it. opts.proj: a bolt, lance, orb or shard; opts.close: a close
-// Form. Returns the damage to take (0: turned).
-function affixOnHit(e, dmg, opts) {
+// A hit on the foe (a stage of hurtEnemy's, before the damage lands):
+// what its affixes make of it. h.blow.proj: a bolt, lance, orb or shard;
+// h.blow.close: a close Form. Thorns cut the Kindler back, and a chain
+// shares the hit with its partner: blows of their own, sent on from the hit
+// (Tycho's h.send). Returns the damage to take (0: turned).
+function affixOnHit(e, dmg, h) {
   if (!e.affixes || !e.affixes.length) return dmg;
-  const A = T.enemies.affix, d = Game.dive;
+  const A = T.enemies.affix, d = Game.dive, opts = h.blow;
   if (e.shell > 0 && opts.proj) {
     e.shellHit = 0.2;
     if (Game.realT - (e.blockedAt || -9) > 0.6) { e.blockedAt = Game.realT; reactWord(e, 'BLOCKED', ELITE_AFFIX.bulwark.col); }
@@ -166,17 +173,23 @@ function affixOnHit(e, dmg, opts) {
   }
   if (opts.close && hasAffix(e, 'thorns') && opts.spell && !d.dying) {
     const p = d.p;
-    if (p.invuln <= 0) { hurtPlayer(e.dmg * A.thorns.back, e); d.fx.push({ kind: 'mark', x: p.x, y: p.y, r: 8, t: 0.2, max: 0.2, col: ELITE_AFFIX.thorns.col, burst: true }); }
+    if (p.invuln <= 0) { h.send(p, { amount: e.dmg * A.thorns.back, by: e }, KINDLER_HIT); d.fx.push({ kind: 'mark', x: p.x, y: p.y, r: 8, t: 0.2, max: 0.2, col: ELITE_AFFIX.thorns.col, burst: true }); }
   }
   if (hasAffix(e, 'chained') && e.chain && !e.chain.dead && !e.chain.hid) {
     const share = dmg * A.chained.share;
-    e.chain.hp -= share; e.chain.flash = T.enemies.hurtFlash;
-    d.nums.push({ x: e.chain.x, y: e.chain.y - 16, v: Math.max(1, Math.round(share)), t: 0.6, foe: e.chain, col: ELITE_AFFIX.chained.col });
-    if (e.chain.hp <= 0 && e.chain.type !== 'dummy') killEnemy(e.chain);
+    h.send(e.chain, { amount: share }, CHAIN_SHARE);
     return dmg - share;
   }
   return dmg;
 }
+// What a chained foe's partner takes of its hit: straight to its health,
+// through nothing.
+const CHAIN_SHARE = new Tycho.harm.Pipeline([(h) => {
+  const o = h.to, share = h.amount;
+  o.hp -= share; Tycho.harm.flash(o, T.enemies.hurtFlash);
+  Game.dive.nums.push({ x: o.x, y: o.y - 16, v: Math.max(1, Math.round(share)), t: 0.6, foe: o, col: ELITE_AFFIX.chained.col });
+  if (o.hp <= 0 && o.type !== 'dummy') killEnemy(o);
+}]);
 // Whether a hit can stagger, flinch or knock it (hurtEnemy).
 const affixSteady = (e) => hasAffix(e, 'hulking');
 const affixKnock = (e) => (hasAffix(e, 'hulking') ? T.enemies.affix.hulking.knock : 1);

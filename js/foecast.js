@@ -65,32 +65,37 @@ function foeCastHit(s, dmg, opts) {
   if (opts.knock) { const n = norm(opts.knock.x, opts.knock.y), k = F.shove * (s.els.includes('force') ? F.forceShove : 1); moveBody(d.floor, p, n.x * k, n.y * k, T.player.radius); }
   for (const el of s.els) foeElementOnPlayer(d, el, dmg);
 }
+// What a creature's elements leave on the Kindler (Tycho's statuses, where
+// he keeps them): a chill (p.chillT) that slows him, a jolt (p.shockT) that
+// holds him, a burn and a blight (p.burn, p.blight) that eat at his light.
+const KINDLER_STATUS = new Tycho.harm.Statuses([
+  { id: 'chill', at: 'chillT', wear: 'down' },
+  { id: 'shock', at: 'shockT', wear: 'down' },
+  { id: 'burn', dose: 'dps', every: 0.5 },
+  { id: 'poison', at: 'blight', dose: 'dps', every: 0.5 },
+]);
 function foeElementOnPlayer(d, el, dmg) {
-  const p = d.p, F = T.foecast;
-  if (el === 'frost') p.chillT = Math.max(p.chillT || 0, F.chill);
-  else if (el === 'ember') p.burn = { t: F.burn[0], dps: Math.max(1, dmg * F.burn[1]), tick: 0 };
-  else if (el === 'blight') p.blight = { t: F.blight[0], dps: Math.max(1, dmg * F.blight[1]), tick: 0 };
-  else if (el === 'shock') p.shockT = Math.max(p.shockT || 0, F.shock);
+  const p = d.p, F = T.foecast, S = KINDLER_STATUS;
+  if (el === 'frost') S.give(p, 'chill', { time: F.chill });
+  else if (el === 'ember') S.put(p, 'burn', { t: F.burn[0], dps: Math.max(1, dmg * F.burn[1]), tick: 0 });
+  else if (el === 'blight') S.put(p, 'poison', { t: F.blight[0], dps: Math.max(1, dmg * F.blight[1]), tick: 0 });
+  else if (el === 'shock') S.give(p, 'shock', { time: F.shock });
 }
 // Each step (game.js): what a creature's elements left on the Kindler,
 // wearing off: a chill slows him, a jolt holds him, a burn and a blight
-// eat at his light (past the armour, as a spore puddle does).
+// eat at his light (past the armour, as a spore puddle does), a number every
+// half second, while he isn't falling.
+const KINDLER_DOTS = {
+  bites: () => !Game.dive.dying,
+  bite: (p, id, n) => { p.hp -= Tycho.harm.armored(n, T.items.armorK, Game.dive.stats.armor); p.restT = 0; },
+  show: (p, id, s) => { Game.dive.nums.push({ x: p.x, y: p.y - 22, v: Math.max(1, Math.round(s.dps * 0.5)), t: 0.5, hurt: true, elem: KINDLER_STATUS.def(id).at || id }); },
+  after: (p) => { if (!Game.dive.dying && p.hp <= 0) { p.hp = 0; startDying(); } },
+};
 function foeStatusTick(d, dt) {
-  const p = d.p, F = T.foecast, st = d.stats;
-  if (p.chillT > 0) { p.chillT -= dt; p.frostSlow = Math.min(p.frostSlow || 1, F.chillSlow); }
-  if (p.shockT > 0) p.shockT -= dt;
-  for (const k of ['burn', 'blight']) {
-    const dot = p[k];
-    if (!dot) continue;
-    dot.t -= dt;
-    if (!d.dying) {
-      p.hp -= dot.dps * dt * T.items.armorK / (T.items.armorK + st.armor);
-      p.restT = 0;
-      if ((dot.tick -= dt) <= 0) { dot.tick = 0.5; d.nums.push({ x: p.x, y: p.y - 22, v: Math.max(1, Math.round(dot.dps * 0.5)), t: 0.5, hurt: true, elem: k }); }
-      if (p.hp <= 0) { p.hp = 0; startDying(); }
-    }
-    if (dot.t <= 0) p[k] = null;
-  }
+  const p = d.p, F = T.foecast;
+  if (KINDLER_STATUS.has(p, 'chill')) p.frostSlow = Math.min(p.frostSlow || 1, F.chillSlow);
+  KINDLER_STATUS.wear(p, dt);
+  KINDLER_STATUS.tick(p, dt, KINDLER_DOTS);
 }
 // The tell while a creature casts (render.js drawEnemy): a ring of the
 // cast's colour closing on it, and its light rising.

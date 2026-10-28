@@ -17,8 +17,11 @@
 //   hollow: what comes when the star's pull on a floor is gone; it hunts.
 // And each clime's own creature, a share of what's met there (foes.js).
 // Only a couple wind up at once; the rest circle, waiting their turn. Hits
-// knock them back, and heavy ones stagger them out of an attack. All of
-// them run on world time (dt × Game.timeScale).
+// knock them back, and heavy ones stagger them out of an attack. Their
+// attacks are moves on Tycho's harm part (foeMove: a wind-up, a strike
+// that bites once, a recovery), their knock fades on it (FOE_KNOCK), and
+// their burns and poison bite through its statuses (FOE_STATUS, FOE_DOTS).
+// All of them run on world time (dt × Game.timeScale).
 // ---------------------------------------------------------------------------
 
 // Elites' affixes (T.enemies.elites: how often each). Insulated and
@@ -201,35 +204,26 @@ function updateEnemies(dt) {
   const most = E.attackers + Math.floor(E.attackersPerDepth * d.depth + E.attackersPerBiome * d.biome);
   choosePressers(d);
   updateFoeWorld(d, dt);
-  const knockFade = Math.exp(-T.impact.knockDecay * dt), cull2 = (E.cull * TILE) * (E.cull * TILE);
+  const knockFade = FOE_KNOCK.fade(dt), cull2 = (E.cull * TILE) * (E.cull * TILE);
   for (const e of d.enemies) {
     if (e.dead) continue;
     // (one far off and unaware rests: a large world holds many)
     if (!e.aggro && (e.x - p.x) * (e.x - p.x) + (e.y - p.y) * (e.y - p.y) > cull2) continue;
-    e.flash = Math.max(0, e.flash - dt);
-    e.slowT = Math.max(0, e.slowT - dt);
+    Tycho.harm.fade(e, dt);
     // statuses wearing off (reactions.js), a shifting weakness (natures.js)
     reactTick(e, dt);
     natureAffixTick(e, dt);
     affixTick(d, e, dt);
     // burning and blight eat at them, a number now and then
-    for (const k of ['burn', 'blight']) {
-      const dot = e[k];
-      if (!dot) continue;
-      dot.t -= dt; e.hp -= dot.dps * dt; dot.tick = (dot.tick || 0) - dt;
-      if (dot.tick <= 0) { dot.tick = 0.5; d.nums.push({ x: e.x, y: e.y - 16, v: Math.max(1, Math.round(dot.dps * 0.5)), t: 0.5, elem: k }); }
-      if (dot.t <= 0) e[k] = null;
-      if (e.hp <= 0 && e.type !== 'dummy') { killEnemy(e); break; }
-      if (e.type === 'dummy' && e.hp <= 0) e.hp = e.maxHp;
-    }
+    FOE_STATUS.tick(e, dt, FOE_DOTS);
     if (e.dead) continue;
     e.cd = Math.max(0, e.cd - dt);
     e.bob += dt;
     // a ward it cast (foecast.js), fading
     if (e.wardS && e.ward > 0 && (e.wardT -= dt) <= 0) { e.ward = 0; wardGone(e); }
     // knocked back
-    if (T.enemies[e.type].rooted || T.enemies[e.type].anchored || e.hid) e.kvx = e.kvy = 0;
-    if (Math.abs(e.kvx) + Math.abs(e.kvy) > 1) { moveBody(f, e, e.kvx * dt, e.kvy * dt, e.r); e.kvx *= knockFade; e.kvy *= knockFade; }
+    if (T.enemies[e.type].rooted || T.enemies[e.type].anchored || e.hid) FOE_KNOCK.stop(e);
+    FOE_KNOCK.step(e, dt, foeKnocked, knockFade);
     const pd = dist(e.x, e.y, p.x, p.y);
     const sees = pd < E.aggro && clearLine(f, e.x, e.y, p.x, p.y - 6);
     if (!e.aggro && !d.dying && sees) wake(d, e);
@@ -283,6 +277,21 @@ function updateEnemies(dt) {
   updateGlobs(dt);
 }
 
+// A foe's knock (Tycho's): it moves while it's knocked, fading at
+// T.impact.knockDecay a second.
+const FOE_KNOCK = new Tycho.harm.Knock({ decay: () => T.impact.knockDecay });
+function foeKnocked(e, dx, dy) { moveBody(Game.dive.floor, e, dx, dy, e.r); }
+// What burning and blight do as they eat at a foe (FOE_STATUS.tick): its
+// health, a number every half second, and the fall.
+const FOE_DOTS = {
+  bite: (e, id, n) => { e.hp -= n; },
+  show: (e, id, s) => { Game.dive.nums.push({ x: e.x, y: e.y - 16, v: Math.max(1, Math.round(s.dps * 0.5)), t: 0.5, elem: FOE_STATUS.def(id).at || id }); },
+  after: (e) => {
+    if (e.hp <= 0 && e.type !== 'dummy') { killEnemy(e); return true; }
+    if (e.type === 'dummy' && e.hp <= 0) e.hp = e.maxHp;
+  },
+};
+
 // Waking one wakes the others nearby, each after a moment of its own
 // (T.enemies.wakeStagger), so a pack comes in ones and twos. `heard`: woken
 // by a noise, not by seeing the diver, so it waits too.
@@ -308,23 +317,47 @@ function orbitMove(d, e, r, sp) {
   if (Math.hypot(e.x - ox, e.y - oy) < sp * 0.3) e.orbit = -e.orbit;
 }
 
+// The foes' moves (Tycho's: Tycho.harm.Move), each phase's name and time on
+// the foe (e.state, e.t), from its kind's numbers (def): a lunge (a wind-up,
+// the lunge that bites once, a recovery: the crawler's, the dropper's, the
+// crab's, the idol's, the eel's); a charge (the construct's, the warden's,
+// the Keepers', the tusker's, the hound's run); the sentinel's sweep; and a
+// wind-up alone, that ends in a strike of the kind's own (a wisp's orbs, a
+// plant's snap or glob, the skink's burst, the wraith's, the lurker's lash,
+// the weaver's spit, the dropper's fall). A strike up close reaches the
+// Kindler within both their radii and 3 px more.
+const FOE_MOVE_SHAPES = {
+  lunge: (def) => ({ windup: () => def.windup, active: () => def.lungeTime, recover: def.recover === undefined ? undefined : () => def.recover, names: { active: 'lunge' }, once: 'hitDone', area: { touch: 3 } }),
+  charge: (def) => ({ windup: () => def.windup, active: () => (def.dashTime !== undefined ? def.dashTime : def.chargeTime), names: { active: 'charge' }, once: 'hitDone', area: { touch: 3 } }),
+  sweep: (def) => ({ windup: () => def.windup, active: () => def.sweep, names: { active: 'sweep' }, once: 'hitDone' }),
+  windup: (def) => ({ windup: () => def.windup }),
+  // (a dropper's wind-up is its fall from the roof)
+  fall: (def) => ({ windup: () => def.fall }),
+};
+const FOE_MOVES = new Map();
+function foeMove(def, shape) {
+  let by = FOE_MOVES.get(def);
+  if (!by) FOE_MOVES.set(def, (by = {}));
+  return by[shape] || (by[shape] = new Tycho.harm.Move(FOE_MOVE_SHAPES[shape](def)));
+}
+
 // (a Ceiling Dropper and a Slag Crab fight this way too, with their own
 // numbers: def; side, how fast they circle)
 function updateCrawler(d, e, pd, sp, dt, free, def = T.enemies.crawler) {
-  const p = d.p, f = d.floor;
+  const p = d.p, f = d.floor, M = foeMove(def, 'lunge');
   e.t -= dt;
   if (e.state === 'windup') {
     if (e.t <= 0) {
       const a = norm(e.aimX - e.x, e.aimY - e.y);
       e.vx = a.x * def.lungeSpeed; e.vy = a.y * def.lungeSpeed;
-      e.state = 'lunge'; e.t = def.lungeTime; e.hitDone = false;
+      M.next(e);
     }
     return;
   }
   if (e.state === 'lunge') {
     moveBody(f, e, e.vx * dt, e.vy * dt, e.r);
-    if (!e.hitDone && dist(e.x, e.y, p.x, p.y) < e.r + T.player.radius + 3) { e.hitDone = true; hurtPlayer(e.dmg, e); }
-    if (e.t <= 0) { e.state = 'recover'; e.t = def.recover; }
+    if (M.hits(e, p, p.x, p.y, T.player.radius)) hurtPlayer(e.dmg, e);
+    if (e.t <= 0) M.next(e);
     return;
   }
   if (e.state === 'recover') {
@@ -338,7 +371,7 @@ function updateCrawler(d, e, pd, sp, dt, free, def = T.enemies.crawler) {
   if (pd > ring + 14 || !sees) { e.state = 'chase'; const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); return; }
   if (e.state !== 'circle') { e.state = 'circle'; e.t = 0.4 + (e.bob % 0.8); }
   orbitMove(d, e, ring, sp * (def.side || 0.8));
-  if (e.t <= 0 && free && !held && e.cd <= 0) { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; }
+  if (e.t <= 0 && free && !held && e.cd <= 0) { M.start(e); e.aimX = p.x; e.aimY = p.y; }
 }
 
 function updateWisp(d, e, pd, sp, dt, free) {
@@ -357,13 +390,13 @@ function updateWisp(d, e, pd, sp, dt, free) {
   e.state = 'drift';
   if (!sees || pd > def.keep + 30) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
   else orbitMove(d, e, def.keep, sp);
-  if (sees && pd < def.range && e.cd <= 0 && free) { e.state = 'windup'; e.t = def.windup; }
+  if (sees && pd < def.range && e.cd <= 0 && free) foeMove(def, 'windup').start(e);
 }
 
 // Constructs and the warden: wind up showing their line, then charge where
 // the diver was. Into a wall, they're dazed.
 function updateCharger(d, e, pd, sp, dt, free) {
-  const def = T.enemies[e.type], p = d.p, f = d.floor;
+  const def = T.enemies[e.type], p = d.p, f = d.floor, M = foeMove(def, 'charge');
   e.t -= dt;
   if (e.state === 'windup') {
     if (e.t <= 0) {
@@ -378,7 +411,7 @@ function updateCharger(d, e, pd, sp, dt, free) {
       } else {
         const a = norm(e.aimX - e.x, e.aimY - e.y);
         e.vx = a.x * def.chargeSpeed; e.vy = a.y * def.chargeSpeed;
-        e.state = 'charge'; e.t = def.chargeTime; e.hitDone = false;
+        M.next(e);
       }
       e.burst = !e.burst;
     }
@@ -388,7 +421,7 @@ function updateCharger(d, e, pd, sp, dt, free) {
     const ox = e.x, oy = e.y;
     moveBody(f, e, e.vx * dt, e.vy * dt, e.r);
     const blocked = Math.abs(e.x - ox) + Math.abs(e.y - oy) < Math.hypot(e.vx, e.vy) * dt * 0.3;
-    if (!e.hitDone && dist(e.x, e.y, p.x, p.y) < e.r + T.player.radius + 3) { e.hitDone = true; hurtPlayer(e.dmg, e); }
+    if (M.hits(e, p, p.x, p.y, T.player.radius)) hurtPlayer(e.dmg, e);
     if (blocked) { e.state = 'dazed'; e.t = def.dazed; e.cd = def.cooldown; shakeView(T.impact.heavyShake); }
     else if (e.t <= 0) { e.state = 'chase'; e.cd = def.cooldown; }
     return;
@@ -402,7 +435,7 @@ function updateCharger(d, e, pd, sp, dt, free) {
     return;
   }
   if (pd < def.range && e.cd <= 0 && free && clearLine(f, e.x, e.y, p.x, p.y)) {
-    e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y;
+    M.start(e); e.aimX = p.x; e.aimY = p.y;
     return;
   }
   if (pd > e.r + 6) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
@@ -477,7 +510,7 @@ function updatePlant(d, e, pd, dt) {
   if (e.state === 'windup') {
     if (e.t > 0) return;
     if (e.type === 'snapjaw') {
-      if (pd < def.reach + T.player.radius) hurtPlayer(e.dmg, e);
+      if (Tycho.harm.reaches({ r: def.reach }, e.x, e.y, e.r, 0, 0, p.x, p.y, T.player.radius)) hurtPlayer(e.dmg, e);
       d.fx.push({ kind: 'snap', x: e.x, y: e.y - 6, dx: e.aimX - e.x, dy: e.aimY - e.y, t: 0.18, max: 0.18 });
     } else {
       // a glob, lobbed to where the diver stood
@@ -488,7 +521,7 @@ function updatePlant(d, e, pd, dt) {
   }
   e.state = 'rest';
   const reach = e.type === 'snapjaw' ? def.reach + 6 : def.range;
-  if (e.cd <= 0 && pd < reach && clearLine(d.floor, e.x, e.y, p.x, p.y)) { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; }
+  if (e.cd <= 0 && pd < reach && clearLine(d.floor, e.x, e.y, p.x, p.y)) { foeMove(def, 'windup').start(e); e.aimX = p.x; e.aimY = p.y; }
 }
 
 // Spitters' globs fly in an arc and burst into a patch of spores that
@@ -502,27 +535,28 @@ function updateGlobs(dt) {
     if (k >= 1) {
       g.done = true;
       // a mortar's burst (affixes.js): a blow where it lands, no spores
-      if (g.burst) { d.fx.push({ kind: 'mark', x: g.x1, y: g.y1, r: g.burst, t: 0.3, max: 0.3, col: g.col, burst: true }); if (!d.dying && dist(g.x1, g.y1, p.x, p.y) < g.burst + T.player.radius) hurtPlayer(g.dmg, g); shakeView(T.impact.heavyShake); }
+      if (g.burst) { d.fx.push({ kind: 'mark', x: g.x1, y: g.y1, r: g.burst, t: 0.3, max: 0.3, col: g.col, burst: true }); if (!d.dying && Tycho.harm.inZone({ r: g.burst }, g.x1, g.y1, p.x, p.y, T.player.radius)) hurtPlayer(g.dmg, g); shakeView(T.impact.heavyShake); }
       else d.puddles.push({ x: g.x1, y: g.y1, r: def.puddle / 2, t: def.puddleTime, max: def.puddleTime, dps: def.puddleDps * (g.dmg / def.dmg) });
     }
   }
   d.globs = d.globs.filter((g) => !g.done);
   p.frostSlow = 1;
+  // (each patch is a zone round where it lies, Tycho's: Tycho.harm.inZone)
+  const inPatch = (pu, b, r) => Tycho.harm.inZone(pu, pu.x, pu.y, b.x, b.y, r);
   for (const pu of d.puddles) {
     pu.t -= dt;
     // chilling ground (a frosted elite's): it slows the step, nothing more;
     // a dash crosses it
-    if (pu.slow) { if (!d.dying && p.dashT <= 0 && dist(pu.x, pu.y, p.x, p.y) < pu.r + T.player.radius) p.frostSlow = Math.min(p.frostSlow, pu.slow); continue; }
+    if (pu.slow) { if (!d.dying && p.dashT <= 0 && inPatch(pu, p, T.player.radius)) p.frostSlow = Math.min(p.frostSlow, pu.slow); continue; }
     if (pu.mine) {
-      // a Linger's field the diver left: its element eats at enemies, not
-      // the diver
-      pu.tick = (pu.tick || 0) - dt;
-      if (pu.tick <= 0) { pu.tick = pu.every; for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, pu.x, pu.y) < pu.r + e.r) hurtEnemy(e, pu.dps * pu.every, { spell: true, els: pu.els }); }
+      // a Linger's field the diver left (it's his, so it bites them): its
+      // element eats at enemies, not the diver, on its beat
+      if (Tycho.harm.beat(pu, dt)) for (const e of d.enemies) if (!e.dead && inPatch(pu, e, e.r)) hurtEnemy(e, pu.dps * pu.every, { spell: true, els: pu.els });
       continue;
     }
-    if (!d.dying && dist(pu.x, pu.y, p.x, p.y) < pu.r + T.player.radius && p.invuln <= 0 && p.dashT <= 0) {
+    if (!d.dying && inPatch(pu, p, T.player.radius) && p.invuln <= 0 && p.dashT <= 0) {
       // spores eat at you without the flinch of a blow
-      p.hp -= pu.dps * dt * T.items.armorK / (T.items.armorK + d.stats.armor);
+      p.hp -= Tycho.harm.armored(pu.dps * dt, T.items.armorK, d.stats.armor);
       p.restT = 0;
       if (p.hp <= 0) { p.hp = 0; startDying(); }
     }

@@ -95,11 +95,6 @@ function foeRay(f, x, y, ux, uy, max) {
   for (let s = 2; s <= max; s += 2) if (rockAt(f, x + ux * s, y + uy * s)) return s - 2;
   return max;
 }
-// The distance from px, py to the segment x0, y0 – x1, y1.
-function foeSegDist(px, py, x0, y0, x1, y1) {
-  const dx = x1 - x0, dy = y1 - y0, L = dx * dx + dy * dy || 1, k = clamp(((px - x0) * dx + (py - y0) * dy) / L, 0, 1);
-  return Math.hypot(px - x0 - dx * k, py - y0 - dy * k);
-}
 const foeAngleNear = (a, ref) => a + Math.round((ref - a) / (2 * Math.PI)) * 2 * Math.PI;
 
 // Each step, before the enemies: snares fade, and a lurker's catch is
@@ -119,7 +114,8 @@ function updateFoeWorld(d, dt) {
 function snareSlow(d, p) {
   if (!d.snares || !d.snares.length) return 1;
   const W = T.enemies.weaver;
-  for (const s of d.snares) if (foeSegDist(p.x, p.y, s.x0, s.y0, s.x1, s.y1) < W.snareWidth + T.player.radius) return W.snareSlow;
+  // (a snare is a line, a zone of Tycho's: Tycho.harm.segDist)
+  for (const s of d.snares) if (Tycho.harm.segDist(p.x, p.y, s.x0, s.y0, s.x1, s.y1) < W.snareWidth + T.player.radius) return W.snareSlow;
   return 1;
 }
 
@@ -144,7 +140,7 @@ function updateSkink(d, e, pd, sp, dt, free) {
     if (e.t <= 0) {
       if (!bodyHits(f, e.aimX, e.aimY, e.r)) { e.x = e.aimX; e.y = e.aimY; }
       e.hid = false;
-      if (dist(e.aimX, e.aimY, p.x, p.y) < def.burst + T.player.radius) hurtPlayer(e.dmg, e);
+      if (Tycho.harm.reaches({ r: def.burst }, e.aimX, e.aimY, 0, 0, 0, p.x, p.y, T.player.radius)) hurtPlayer(e.dmg, e);
       d.fx.push({ kind: 'foeBurst', x: e.aimX, y: e.aimY, r: def.burst, t: 0.35, max: 0.35, col: FOE_PAL.skink.sand[3] });
       e.state = 'up'; e.t = def.up;
     }
@@ -162,29 +158,29 @@ function updateSkink(d, e, pd, sp, dt, free) {
   e.state = 'buried';
   if (!e.aggro) return;
   if (pd > def.strike) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
-  else if (free && e.cd <= 0) { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; }
+  else if (free && e.cd <= 0) { foeMove(def, 'windup').start(e); e.aimX = p.x; e.aimY = p.y; }
   else orbitMove(d, e, def.strike, sp * 0.5);
 }
 
 // The Tusker: shows its whole run, charges along it, and slides on; it
 // can't turn, and the rock stops it dazed (longer after a slide on ice).
 function updateTusker(d, e, pd, sp, dt, free) {
-  const def = T.enemies.tusker, p = d.p, f = d.floor;
+  const def = T.enemies.tusker, p = d.p, f = d.floor, M = foeMove(def, 'charge');
   if (e.state === 'charge' || e.state === 'slide') {
     const r = tuskerStep(f, e, dt);
-    if (!e.hitDone && dist(e.x, e.y, p.x, p.y) < e.r + T.player.radius + 3) { e.hitDone = true; hurtPlayer(e.dmg, e); }
+    if (M.hits(e, p, p.x, p.y, T.player.radius)) hurtPlayer(e.dmg, e);
     if (r === 'wall') { e.state = 'dazed'; e.t = e.slid ? def.slam : def.dazed; e.cd = def.cooldown; d.fx.push({ kind: 'foeBurst', x: e.x, y: e.y, r: 14, t: 0.3, max: 0.3, col: '#e8f0ff' }); }
     else if (r === 'stop') { e.state = 'chase'; e.cd = def.cooldown; }
     return;
   }
   e.t -= dt;
   if (e.state === 'windup') {
-    if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.chargeSpeed; e.vy = a.y * def.chargeSpeed; e.state = 'charge'; e.t = def.chargeTime; e.hitDone = false; e.slid = false; }
+    if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.chargeSpeed; e.vy = a.y * def.chargeSpeed; M.next(e); e.slid = false; }
     return;
   }
   e.state = 'chase';
   if (pd < def.range && e.cd <= 0 && free && clearLine(f, e.x, e.y, p.x, p.y)) {
-    e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y;
+    M.start(e); e.aimX = p.x; e.aimY = p.y;
     e.path = tuskerPath(f, e);
     return;
   }
@@ -232,7 +228,7 @@ function updateWraith(d, e, pd, sp, dt, free) {
   if (e.state === 'rise') { if (e.t <= 0) { e.state = 'drift'; e.cd = Math.max(e.cd, 0.4); } return; }
   if (e.state === 'windup') {
     if (e.t <= 0) {
-      if (dist(e.x, e.y, p.x, p.y) < def.burst + T.player.radius) hurtPlayer(e.dmg, e);
+      if (Tycho.harm.reaches({ r: def.burst }, e.x, e.y, e.r, 0, 0, p.x, p.y, T.player.radius)) hurtPlayer(e.dmg, e);
       d.puddles.push({ x: e.x, y: e.y, r: def.ashR, t: def.ashTime, max: def.ashTime, dps: e.dmg * def.ash, col: FOE_PAL.wraith.core[0] });
       d.fx.push({ kind: 'foeBurst', x: e.x, y: e.y, r: def.burst, t: 0.4, max: 0.4, col: FOE_PAL.wraith.flame[0], glow: true });
       e.state = 'spent'; e.t = def.spent;
@@ -242,7 +238,7 @@ function updateWraith(d, e, pd, sp, dt, free) {
   if (e.state === 'spent') { if (e.t <= 0) { e.state = 'drift'; e.cd = def.cooldown; } return; }
   e.state = 'drift';
   if (pd > def.burstAt * 0.6) { const w = wayToPlayer(d, e); moveBody(f, e, w.x * sp, w.y * sp, e.r); }
-  if (pd < def.burstAt && free && e.cd <= 0) { e.state = 'windup'; e.t = def.windup; }
+  if (pd < def.burstAt && free && e.cd <= 0) foeMove(def, 'windup').start(e);
 }
 
 // The Bog Lurker: marks a line, then its tongue lashes along it and drags
@@ -254,7 +250,7 @@ function updateLurker(d, e, pd, sp, dt, free) {
     if (e.t > 0) return;
     const a = norm(e.aimX - e.x, e.aimY - e.y), x1 = e.x + a.x * e.reach, y1 = e.y + a.y * e.reach;
     d.fx.push({ kind: 'foeTongue', x: e.x, y: e.y, x2: x1, y2: y1, t: 0.25, max: 0.25 });
-    if (p.invuln <= 0 && !d.dying && foeSegDist(p.x, p.y, e.x, e.y, x1, y1) < def.width + T.player.radius) {
+    if (p.invuln <= 0 && !d.dying && Tycho.harm.reaches({ ahead: e.reach, w: def.width }, e.x, e.y, e.r, a.x, a.y, p.x, p.y, T.player.radius)) {
       hurtPlayer(e.dmg, e);
       const m = dist(p.x, p.y, e.x, e.y), pull = clamp(m - e.r - T.player.radius - 4, 0, def.drag), b = norm(e.x - p.x, e.y - p.y);
       d.drag = { vx: (b.x * pull) / def.dragTime, vy: (b.y * pull) / def.dragTime, t: def.dragTime };
@@ -266,7 +262,7 @@ function updateLurker(d, e, pd, sp, dt, free) {
   e.lashT = Math.max(0, (e.lashT || 0) - dt);
   if (e.aggro && e.cd <= 0 && free && pd < def.range && clearLine(f, e.x, e.y, p.x, p.y)) {
     const a = norm(p.x - e.x, p.y - e.y);
-    e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y;
+    foeMove(def, 'windup').start(e); e.aimX = p.x; e.aimY = p.y;
     e.reach = foeRay(f, e.x, e.y, a.x, a.y, def.range);
   }
 }
@@ -283,14 +279,14 @@ function updateDropper(d, e, pd, sp, dt, free) {
       if (e.t <= 0) {
         if (!bodyHits(f, e.aimX, e.aimY, e.r)) { e.x = e.aimX; e.y = e.aimY; }
         e.hid = false;
-        if (dist(e.aimX, e.aimY, p.x, p.y) < def.drop + T.player.radius) hurtPlayer(e.dmg, e);
+        if (Tycho.harm.reaches({ r: def.drop }, e.aimX, e.aimY, 0, 0, 0, p.x, p.y, T.player.radius)) hurtPlayer(e.dmg, e);
         d.fx.push({ kind: 'foeBurst', x: e.x, y: e.y, r: def.drop, t: 0.3, max: 0.3, col: FOE_PAL.dropper.belly[3] });
         e.state = 'landed'; e.t = def.landed;
       }
       return;
     }
     e.state = 'roof';
-    if (e.aggro && free && pd < def.notice && clearLine(f, e.x, e.y, p.x, p.y)) { e.state = 'windup'; e.t = def.fall; e.aimX = p.x; e.aimY = p.y; }
+    if (e.aggro && free && pd < def.notice && clearLine(f, e.x, e.y, p.x, p.y)) { foeMove(def, 'fall').start(e); e.aimX = p.x; e.aimY = p.y; }
     return;
   }
   if (e.state === 'landed') { if ((e.t -= dt) <= 0) { e.state = 'chase'; e.cd = Math.max(e.cd, 0.3); } return; }
@@ -301,16 +297,16 @@ function updateDropper(d, e, pd, sp, dt, free) {
 // line, and lunges. Ending on dry ground without a bite, it lies stranded,
 // then crawls back to the water.
 function updateEel(d, e, pd, sp, dt, free) {
-  const def = T.enemies.eel, p = d.p, f = d.floor, wet = (x, y) => hazardAt(f, x, y) === HAZ_CODES.pool;
+  const def = T.enemies.eel, p = d.p, f = d.floor, wet = (x, y) => hazardAt(f, x, y) === HAZ_CODES.pool, M = foeMove(def, 'lunge');
   e.t -= dt;
   if (e.state === 'windup') {
-    if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.lungeSpeed; e.vy = a.y * def.lungeSpeed; e.state = 'lunge'; e.t = def.lungeTime; e.hitDone = false; }
+    if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.lungeSpeed; e.vy = a.y * def.lungeSpeed; M.next(e); }
     return;
   }
   if (e.state === 'lunge') {
     const ox = e.x, oy = e.y;
     moveBody(f, e, e.vx * dt, e.vy * dt, e.r);
-    if (!e.hitDone && dist(e.x, e.y, p.x, p.y) < e.r + T.player.radius + 3) { e.hitDone = true; hurtPlayer(e.dmg, e); }
+    if (M.hits(e, p, p.x, p.y, T.player.radius)) hurtPlayer(e.dmg, e);
     const blocked = Math.abs(e.x - ox) + Math.abs(e.y - oy) < def.lungeSpeed * dt * 0.3;
     if (e.t <= 0 || blocked) {
       if (wet(e.x, e.y)) { e.state = 'surface'; e.t = def.surface; }
@@ -333,7 +329,7 @@ function updateEel(d, e, pd, sp, dt, free) {
   e.state = 'swim';
   e.homeX = e.x; e.homeY = e.y;
   if (!e.aggro) return;
-  if (pd < def.range && free && e.cd <= 0 && clearLine(f, e.x, e.y, p.x, p.y)) { e.hid = false; e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; return; }
+  if (pd < def.range && free && e.cd <= 0 && clearLine(f, e.x, e.y, p.x, p.y)) { e.hid = false; M.start(e); e.aimX = p.x; e.aimY = p.y; return; }
   // round its pool towards the diver, never out of it
   const a = norm(p.x - e.x, p.y - e.y), dx = a.x * sp, dy = a.y * sp;
   for (const [mx, my] of [[dx, dy], [dx, 0], [0, dy]]) if ((mx || my) && wet(e.x + mx, e.y + my)) { moveBody(f, e, mx, my, e.r); break; }
@@ -386,7 +382,7 @@ function updateWeaver(d, e, pd, sp, dt, free) {
   if (!e.aggro || !sees || pd > def.range || !free || e.cd > 0) return;
   const sn = e.snareT <= 0 && foeSnareLine(f, p, e);
   if (sn) { e.state = 'weave'; e.t = def.weave; e.snare = sn; }
-  else { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y - 6; }
+  else { foeMove(def, 'windup').start(e); e.aimX = p.x; e.aimY = p.y - 6; }
 }
 // A line through the diver from wall to wall, across the way from the
 // weaver (or near it), each end within snareReach; null if there's none.
@@ -404,18 +400,18 @@ function foeSnareLine(f, p, e) {
 // The Sentinel Eye: holds off, shows the arc it will sweep, and sweeps its
 // beam through it. Rock stops the beam; it strikes once a sweep.
 function updateSentinel(d, e, pd, sp, dt, free) {
-  const def = T.enemies.sentinel, p = d.p, f = d.floor;
+  const def = T.enemies.sentinel, p = d.p, f = d.floor, M = foeMove(def, 'sweep');
   e.t -= dt;
-  if (e.state === 'windup') { if (e.t <= 0) { e.state = 'sweep'; e.t = def.sweep; e.beamA = e.a0; e.hitDone = false; } return; }
+  if (e.state === 'windup') { if (e.t <= 0) { M.next(e); e.beamA = e.a0; } return; }
   if (e.state === 'sweep') {
     const was = e.beamA;
     e.beamA = lerp(e.a0, e.a1, 1 - Math.max(0, e.t) / def.sweep);
     e.beamL = foeRay(f, e.x, e.y, Math.cos(e.beamA), Math.sin(e.beamA), def.range);
-    if (!e.hitDone && p.invuln <= 0 && !d.dying) {
+    if (!M.struck(e) && p.invuln <= 0 && !d.dying) {
       // has the beam passed over the diver since the last step?
       const m = Math.max(1, dist(e.x, e.y, p.x, p.y)), tol = Math.atan2(T.player.radius + 2, m);
       const lo = Math.min(was, e.beamA) - tol, hi = Math.max(was, e.beamA) + tol, a = foeAngleNear(Math.atan2(p.y - e.y, p.x - e.x), (lo + hi) / 2);
-      if (a >= lo && a <= hi && m < def.range && foeRay(f, e.x, e.y, (p.x - e.x) / m, (p.y - e.y) / m, m) >= m - 2) { e.hitDone = true; hurtPlayer(e.dmg * T.enemies.shotScale, e); }
+      if (a >= lo && a <= hi && m < def.range && foeRay(f, e.x, e.y, (p.x - e.x) / m, (p.y - e.y) / m, m) >= m - 2) { M.mark(e); hurtPlayer(e.dmg * T.enemies.shotScale, e); }
     }
     if (e.t <= 0) { e.state = 'hover'; e.cd = def.cooldown; }
     return;
@@ -427,27 +423,27 @@ function updateSentinel(d, e, pd, sp, dt, free) {
   if (e.aggro && sees && pd < def.range && free && e.cd <= 0) {
     const a = Math.atan2(p.y - e.y, p.x - e.x);
     e.a0 = a - e.orbit * def.arc; e.a1 = a + e.orbit * def.arc;
-    e.state = 'windup'; e.t = def.windup;
+    M.start(e);
   }
 }
 
 // The Moss Idol: stone while it's lit (foeLit); out of the light it comes
 // on, and close enough, pounces. A pounce begun is never stopped.
 function updateIdol(d, e, pd, sp, dt, free) {
-  const def = T.enemies.idol, p = d.p, f = d.floor;
+  const def = T.enemies.idol, p = d.p, f = d.floor, M = foeMove(def, 'lunge');
   e.t -= dt;
   e.lit = foeLit(d, e);
-  if (e.state === 'windup') { if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.lungeSpeed; e.vy = a.y * def.lungeSpeed; e.state = 'lunge'; e.t = def.lungeTime; e.hitDone = false; } return; }
+  if (e.state === 'windup') { if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.lungeSpeed; e.vy = a.y * def.lungeSpeed; M.next(e); } return; }
   if (e.state === 'lunge') {
     moveBody(f, e, e.vx * dt, e.vy * dt, e.r);
-    if (!e.hitDone && dist(e.x, e.y, p.x, p.y) < e.r + T.player.radius + 3) { e.hitDone = true; hurtPlayer(e.dmg, e); }
-    if (e.t <= 0) { e.state = 'recover'; e.t = def.recover; }
+    if (M.hits(e, p, p.x, p.y, T.player.radius)) hurtPlayer(e.dmg, e);
+    if (e.t <= 0) M.next(e);
     return;
   }
   if (e.state === 'recover') { if (e.t <= 0) { e.state = 'still'; e.cd = def.cooldown; } return; }
   if (e.lit || !e.aggro) { e.state = 'still'; return; }
   e.state = 'creep';
-  if (pd < def.pounce && free && e.cd <= 0 && clearLine(f, e.x, e.y, p.x, p.y)) { e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y; return; }
+  if (pd < def.pounce && free && e.cd <= 0 && clearLine(f, e.x, e.y, p.x, p.y)) { M.start(e); e.aimX = p.x; e.aimY = p.y; return; }
   const w = wayToPlayer(d, e);
   moveBody(f, e, w.x * sp, w.y * sp, e.r);
 }
@@ -470,23 +466,23 @@ function foeLit(d, e) {
 // The Gear Hound: winds its key (its whole run shows, bounces and all),
 // runs, glances off the walls, and runs down, spent.
 function updateHound(d, e, pd, sp, dt, free) {
-  const def = T.enemies.hound, p = d.p, f = d.floor;
+  const def = T.enemies.hound, p = d.p, f = d.floor, M = foeMove(def, 'charge');
   if (e.state === 'charge') {
     const r = houndStep(f, e, dt);
     if (r === 'bounce') d.fx.push({ kind: 'foeBurst', x: e.x, y: e.y, r: 6, t: 0.2, max: 0.2, col: FOE_PAL.hound.horn[3], glow: true });
-    if (!e.hitDone && dist(e.x, e.y, p.x, p.y) < e.r + T.player.radius + 3) { e.hitDone = true; hurtPlayer(e.dmg, e); }
+    if (M.hits(e, p, p.x, p.y, T.player.radius)) hurtPlayer(e.dmg, e);
     if (r === 'done') { e.state = 'spent'; e.t = def.spent; }
     return;
   }
   e.t -= dt;
   if (e.state === 'windup') {
-    if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.dashSpeed; e.vy = a.y * def.dashSpeed; e.bounces = 0; e.state = 'charge'; e.t = def.dashTime; e.hitDone = false; }
+    if (e.t <= 0) { const a = norm(e.aimX - e.x, e.aimY - e.y); e.vx = a.x * def.dashSpeed; e.vy = a.y * def.dashSpeed; e.bounces = 0; M.next(e); }
     return;
   }
   if (e.state === 'spent') { if (e.t <= 0) { e.state = 'chase'; e.cd = def.cooldown; } return; }
   e.state = 'chase';
   if (pd < def.range && e.cd <= 0 && free && clearLine(f, e.x, e.y, p.x, p.y)) {
-    e.state = 'windup'; e.t = def.windup; e.aimX = p.x; e.aimY = p.y;
+    M.start(e); e.aimX = p.x; e.aimY = p.y;
     e.path = houndPath(f, e);
     return;
   }

@@ -55,7 +55,7 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/paint.js` | The painted style (docs/PAINTED.md): stroke ramps and strokes, the ground's tones, the rock rising as a heightfield from a steep three-quarter camera, occlusion, lazy painting in chunks within a window of the floor that moves with the view (`PWIN`), and the painted sprite builder |
 | `js/paintrock.js`, `js/painthole.js`, `js/pflora.js` | The rock's growth and tint, pools and the wading cut, the painted plants |
 | `js/flora.js`, `js/undergrowth.js` | Each biome's flora, and how it grows into a place |
-| `js/climes.js`, `js/hazards.js` | Climes: each one's palette, flora, critters and weather; each clime's hazard at play |
+| `js/climes.js`, `js/hazards.js` | Climes: each one's palette, flora, critters and weather; each clime's hazard at play (the vents and spore pods triggers on Tycho's harm part) |
 | `js/regions.js` | The climes laid as regions over each layer of the world, melding at their borders; the clime, look and light read by place |
 | `js/deep.js` | The Deep: the floor under the world, the shafts down to it, the Kindler's way between the two layers |
 | `js/story.js` | The story: the opening's captions, Wick's lines, the star's words, the echoes, the endings |
@@ -68,12 +68,12 @@ Every file is a classic script sharing one global scope, loaded in order by `ind
 | `js/hubart.js` | The star and its halo, painted; the older outpost's pieces, kept for the opening |
 | `js/intro.js` | The opening: five painted scenes that play on their own, their captions, SKIP and tap to hurry, and the last shot drawn by the game itself |
 | `js/diver.js` | The Kindler's sprite, painted: a figure rig posed and rendered in five facings, and the looks it can be drawn as (`KD_LOOKS`; the game's is the Shards, a body of lodestone pieces held apart by light with a crystal head for a lamp); Wick |
-| `js/circuits.js` | Spells: the Forms, Elements and Mods in words, the two spells, casting each Form; what's in flight and what lingers |
+| `js/circuits.js` | Spells: the Forms, Elements and Mods in words, the Forms as Tycho's means (their cooldowns and charges), the two spells, casting each Form; what's in flight and what lingers |
 | `js/art2.js`, `js/art3.js` | Art for the story and the sunlit surface; icons |
 | `js/foesart.js`, `js/foespaint.js` | Each clime's own creature: its frames drawn by hand, and its colours; the creatures painted |
 | `js/game.js` | Game state, the world's play: the Kindler's numbers and two spells, the world built from the seed, walking, the bar, channels, a fall |
-| `js/enemies.js`, `js/foes.js`, `js/affixes.js`, `js/natures.js`, `js/reactions.js`, `js/resonance.js` | Spawning, the flow field, each creature's behaviour and tells; elite affixes; what each is weak to; the elements' statuses; the resonances (the fight as it was, to be rethought) |
-| `js/combat.js` | The hands' buttons, the dash, damage, kills, pickups |
+| `js/enemies.js`, `js/foes.js`, `js/affixes.js`, `js/natures.js`, `js/reactions.js`, `js/resonance.js` | Spawning, the flow field, each creature's behaviour and tells, its attacks as moves on Tycho's harm part (`Tycho.harm`); elite affixes; what each is weak to; the elements' statuses and reactions, on Tycho's; the resonances (the fight as it was, to be rethought) |
+| `js/combat.js` | The hands' buttons, the dash, damage (a blow on the Kindler or a creature through a pipeline of stages, Tycho's and the game's: `Tycho.harm`), the world's hold still, kills, pickups |
 | `js/storm.js` | The Lodestorm's strikes on the surface |
 | `js/life.js` | Ambient life and weather (cosmetic): critters, cloud shadows, dust, drips |
 | `js/shadow.js`, `js/pshadow.js` | Shadows from the light: the rock stops the lamp; cast shadows of what stands on the ground |

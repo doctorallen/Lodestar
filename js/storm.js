@@ -19,6 +19,10 @@ function updateWorld(d, dt) {
 // (No storm while Wick walks a new Kindler through the first landing.)
 function stormHere(d) { return d.storm && d.zone === 'surface' && !d.hub && !(typeof Guide !== 'undefined' && Guide.on()); }
 
+// A strike: its spot marked for `warn` s (d.strike.t), then it bites
+// what's within its radius (Tycho's trigger, a mark).
+const STRIKE = new Tycho.harm.Trigger({ tell: () => T.storm.warn, zone: { get r() { return T.storm.radius; } }, once: true });
+
 function updateStorm(d, dt) {
   if (!stormHere(d)) return;
   const S = T.storm, f = d.floor;
@@ -39,14 +43,14 @@ function updateStorm(d, dt) {
     if (at) d.strike = Object.assign(at, { t: S.warn });
   }
   const s = d.strike;
-  if (s && (s.t -= dt) <= 0) {
+  if (s && STRIKE.down(s, dt)) {
     d.strike = null;
     d.fx.push({ kind: 'strike', x: s.x, y: s.y, t: 0.35, max: 0.35 });
     spawnSparks(s.x, s.y - 4, ['#ffffff', '#fff2a0', '#9fd8ff'], 24);
     snd('thunder', { x: s.x, y: s.y, g: 1 });
     buzz(20);
-    if (dist(s.x, s.y, d.p.x, d.p.y) < S.radius) hurtPlayer(S.dmg * Math.pow(T.enemies.dmgGrowth, floorLevel(d) - 1), { storm: true });
-    for (const e of d.enemies) if (!e.dead && dist(e.x, e.y, s.x, s.y) < S.radius + e.r) hurtEnemy(e, S.dmg * 2, { spell: true, element: 'shock', noProc: true });
+    if (STRIKE.inside(s, d.p.x, d.p.y, 0)) hurtPlayer(S.dmg * Math.pow(T.enemies.dmgGrowth, floorLevel(d) - 1), { storm: true });
+    for (const e of d.enemies) if (!e.dead && STRIKE.inside(s, e.x, e.y, e.r)) hurtEnemy(e, S.dmg * 2, { spell: true, element: 'shock', noProc: true });
     // a vein struck is charged into the better ore
     if (s.vein && floorTile(f, s.vein.x, s.vein.y) === TILE_ORE) {
       // into the best of the biome's ores the cutter can break, if that's better

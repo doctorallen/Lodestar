@@ -8,7 +8,11 @@
 //   vent    a vent glows, then bursts with fire or steam;
 //   spores  a pod swells, then lets go a cloud that drifts and stings.
 // All of them are mild and shown before they bite, and a dash crosses any
-// of them unharmed. Also here: how a clime paints its ground (its hazard
+// of them unharmed. A vent and a pod are Tycho's triggers (Tycho.harm), each
+// on a cycle that shows before it bites: a vent's throat glows (its tell),
+// then it bursts on what's round it (once a cycle); a pod swells, then lets
+// a cloud go as its cycle begins again; a cloud is a zone that drifts and
+// stings what's in it. Also here: how a clime paints its ground (its hazard
 // and its decor), and the hazards' lights and moving parts.
 // ---------------------------------------------------------------------------
 
@@ -68,11 +72,17 @@ const HAZARD_TIPS = {
   spores: 'Spore clouds sting: step out of them, or dash through',
 };
 
+// The vents' and the pods' cycles (Tycho's triggers): a vent rests, its
+// throat glows for `tell` s, then it bursts for `burst` s at the end of
+// each `every`, from its own offset (v.ph); a pod's cycle is its clime's.
+const VENT = new Tycho.harm.Trigger({ cycle: { every: () => T.hazards.vent.every, tell: () => T.hazards.vent.tell, bite: () => T.hazards.vent.burst }, zone: { get r() { return T.hazards.vent.r; } } });
+const POD = new Tycho.harm.Trigger({ cycle: { every: () => T.hazards.spores.every } });
+
 // Hurt that eats at the diver without the flinch of a blow (as spores do),
 // with a number now and then.
 function hazardDrain(d, n) {
   const p = d.p;
-  p.hp -= n * T.items.armorK / (T.items.armorK + d.stats.armor);
+  p.hp -= Tycho.harm.armored(n, T.items.armorK, d.stats.armor);
   p.restT = 0;
   d.hazHurt = (d.hazHurt || 0) + n;
   if ((d.hazNumT = (d.hazNumT || 0) - 1 / 60) <= 0 && d.hazHurt >= 1) { d.hazNumT = 0.5; d.nums.push({ x: p.x, y: p.y - 22, v: Math.round(d.hazHurt), t: 0.6, hurt: true }); d.hazHurt = 0; }
@@ -88,36 +98,31 @@ function updateHazards(d, dt) {
   if (here && HAZARD_TIPS[here]) UI.tip('haz_' + here, HAZARD_TIPS[here]);
   if (kinds.includes('burn')) {
     if (open && here === 'burn') { hazardDrain(d, H.burn.dps * dt); if (Math.random() < dt * 10) spawnSparks(p.x, p.y - 2, ['#ff8a20', '#ffd060'], 1); }
-    for (const e of d.enemies) if (!e.dead && hazardWalker(e) && !T.enemies[e.type].lavaProof && hazardAt(f, e.x, e.y) === HAZ_CODES.burn && !(e.burn && e.burn.t > 0.3)) e.burn = { t: 0.6, dps: H.burn.dps };
+    for (const e of d.enemies) if (!e.dead && hazardWalker(e) && !T.enemies[e.type].lavaProof && hazardAt(f, e.x, e.y) === HAZ_CODES.burn && !(e.burn && e.burn.t > 0.3)) FOE_STATUS.put(e, 'burn', { t: 0.6, dps: H.burn.dps });
   }
   if (kinds.includes('vent')) {
     const V = H.vent;
     for (const v of f.hazPts) {
-      if ((v.kind || f.hazKind) !== 'vent') continue;
-      const s = ventPhase(d, v), bursting = s >= V.every - V.burst;
-      if (bursting && !v.fired) {
-        v.fired = true;
-        const x = (v.x + 0.5) * TILE, y = (v.y + 0.5) * TILE;
-        snd('vent', { x, y });
-        if (open && dist(x, y, p.x, p.y) < V.r + T.player.radius) hurtPlayer(V.dmg, v);
-        for (const e of d.enemies) if (!e.dead && hazardWalker(e) && dist(x, y, e.x, e.y) < V.r + e.r) e.burn = { t: 1, dps: V.dmg };
-      } else if (!bursting) v.fired = false;
+      if ((v.kind || f.hazKind) !== 'vent' || !VENT.fires(v, d.hazT)) continue;
+      const x = (v.x + 0.5) * TILE, y = (v.y + 0.5) * TILE, z = VENT.def.zone;
+      snd('vent', { x, y });
+      if (open && Tycho.harm.inZone(z, x, y, p.x, p.y, T.player.radius)) hurtPlayer(V.dmg, v);
+      for (const e of d.enemies) if (!e.dead && hazardWalker(e) && Tycho.harm.inZone(z, x, y, e.x, e.y, e.r)) FOE_STATUS.put(e, 'burn', { t: 1, dps: V.dmg });
     }
   }
   if (kinds.includes('spores')) {
     const clouds = (d.clouds = d.clouds || []), wind = (d.life && d.life.wind) || { x: 0.8, y: 0.3 };
     for (const v of f.hazPts) {
       if ((v.kind || f.hazKind) !== 'spores') continue;
-      const S = Object.assign({}, H.spores, hazClimeOf(f, v).haz), s = (d.hazT / S.every + v.ph) % 1;
-      if (v.last !== undefined && s < v.last && dist((v.x + 0.5) * TILE, (v.y + 0.5) * TILE, p.x, p.y) < 14 * TILE)
+      const S = Object.assign({}, H.spores, hazClimeOf(f, v).haz);
+      if (POD.wraps(v, d.hazT, S.every) && dist((v.x + 0.5) * TILE, (v.y + 0.5) * TILE, p.x, p.y) < 14 * TILE)
         clouds.push({ x: (v.x + 0.5) * TILE, y: (v.y + 0.5) * TILE - 5, t: 0, life: S.life, r: S.r, dps: S.dps, drift: S.drift, seed: Math.random() * 99 });
-      v.last = s;
     }
     let inside = 0;
     for (const c of clouds) {
       c.t += dt;
       c.x += (wind.x * c.drift + Math.sin(c.t * 0.7 + c.seed) * 3) * dt; c.y += (wind.y * c.drift + Math.cos(c.t * 0.5 + c.seed) * 2) * dt;
-      if (dist(c.x, c.y, p.x, p.y - 4) < sporeR(c)) inside = Math.max(inside, c.dps);
+      if (Tycho.harm.inZone({ r: sporeR(c) }, c.x, c.y, p.x, p.y - 4, 0)) inside = Math.max(inside, c.dps);
     }
     d.clouds = clouds.filter((c) => c.t < c.life);
     if (inside) { UI.tip('haz_spores', HAZARD_TIPS.spores); if (open) hazardDrain(d, inside * dt); }
@@ -125,7 +130,7 @@ function updateHazards(d, dt) {
 }
 
 // Seconds into a vent's cycle.
-function ventPhase(d, v) { const V = T.hazards.vent; return ((d.hazT || 0) / V.every + v.ph) % 1 * V.every; }
+function ventPhase(d, v) { return VENT.at(d.hazT || 0, v.ph); }
 // A spore cloud's reach as it swells and thins.
 function sporeR(c) { return c.r * Math.min(1, 0.4 + c.t * 0.8) * Math.min(1, (c.life - c.t) * 0.6 + 0.3); }
 
@@ -451,8 +456,8 @@ function drawHazardsStanding(d, ox, oy, tick, lights) {
 function drawHazardPoint(d, v, cx, cy, kind, b, V, steam, vc, tick, lights) {
   const f = d.floor;
   if (kind === 'vent') {
-    const s = ventPhase(d, v), tellAt = V.every - V.burst - V.tell;
-    if (s >= V.every - V.burst) {
+    const s = ventPhase(d, v), tellAt = V.every - V.burst - V.tell, phase = VENT.phase(s);
+    if (phase === 'bite') {
       // the burst: a column of fire or steam
       const k = (s - (V.every - V.burst)) / V.burst;
       for (let n = 0, N = Math.round(26 * AP); n < N; n++) {
@@ -461,7 +466,7 @@ function drawHazardPoint(d, v, cx, cy, kind, b, V, steam, vc, tick, lights) {
       }
       ringDots(cx, cy, V.r * AP, vc[1], 0.5 * (1 - k), true);
       lights.push({ x: cx, y: cy - ap(8), r: TILE * 2.2, i: steam ? 0.7 : 1.1, c: steam ? [0.9, 0.95, 1] : [1, 0.5, 0.2] });
-    } else if (s >= tellAt) {
+    } else if (phase === 'tell') {
       // the tell: the throat glows brighter, the reach shows, smoke rises
       const k = (s - tellAt) / V.tell;
       for (const [i, j] of [[0, 0], [-1, 0], [0, 1], [1, 0], [0, -1], [-1, 1], [1, 1], [-2, 0], [2, 0], [0, 2]]) dot(cx + i, cy + j, vc[k > 0.6 ? 0 : 1], true, 0.4 + 0.6 * k);
@@ -471,7 +476,7 @@ function drawHazardPoint(d, v, cx, cy, kind, b, V, steam, vc, tick, lights) {
     } else if (!steam && tick % 4 === 0) dot(cx, cy, vc[2], true, 0.6);
   } else if (kind === 'spores') {
     // a pod on a stalk, swelling and glowing as it gets ready to let go
-    const S = Object.assign({}, T.hazards.spores, hazClimeOf(f, v).haz), s = (d.hazT / S.every + v.ph) % 1;
+    const S = Object.assign({}, T.hazards.spores, hazClimeOf(f, v).haz), s = POD.share(d.hazT, v.ph, S.every);
     const col = SPORE_COLS[f.regions ? climeAt(f, v.x, v.y) : f.clime] || SPORE_COLS.bloomfen, sw = s > 0.7 ? (s - 0.7) / 0.3 : 0, rr = (3.6 + sw * 1.6) * AP, x = cx, y = cy - ap(7);
     for (let j = ap(2); j <= ap(6); j++) { dot(x, y + j, '#3a3020'); dot(x + 1, y + j, '#1e1810'); }
     const n = Math.ceil(rr) + 1, E = (i, j) => (i * i + j * j * 1.15) / (rr * rr);

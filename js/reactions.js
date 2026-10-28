@@ -21,8 +21,11 @@
 //   Plague    poison spreads on a hit, not only when its host falls
 //   Stun      a second heavy Force hit stuns
 // Each reaction's name flashes once over its target in the pixel hand, and
-// Wick says what it was the first time. hurtEnemy (combat.js) calls
-// circuitReact before the damage lands and circuitStatuses after.
+// Wick says what it was the first time. The statuses are Tycho's
+// (FOE_STATUS), and so is the reacting (FOE_REACT, Tycho.harm.react, with
+// this file's REACT_DO): both are stages of hurtEnemy's pipeline
+// (combat.js), the reactions before the damage lands and the statuses
+// after (foeStatusesLeft).
 // ---------------------------------------------------------------------------
 
 // Each reaction's name and colour (a function, as the colours are drawn
@@ -42,14 +45,37 @@ const REACTIONS = {
   plague: { name: 'Plague', col: () => ELEMENT_COLS.blight },
   stun: { name: 'Stun', col: () => ELEMENT_COLS.force },
 };
-// (which pair makes which: REACT_PAIRS, in circuits.js)
+// Which pair makes which (REACT_PAIRS, in circuits.js), as Tycho's table.
+const REACT_TABLE = new Tycho.harm.Reactions(REACT_PAIRS);
+
+// What a hit leaves on a foe, on Tycho's statuses (Tycho.harm.Statuses),
+// each where the foe keeps it: the mark of each element (e.st[el], which
+// the next element reacts with; as it wears off, that element's stacks go
+// too), the chill (e.slowT), a burn and a poison (e.burn and e.blight, each
+// eating at it, a number every half second; burns stack to the Inferno's
+// most, a poison takes the stronger), the brittle, the frozen and the heavy
+// blow ringing, a stun and a loss (worn by the foe's own step, enemies.js),
+// and the stacks of shock and chill that overload and freeze.
+const FOE_STATUS = new Tycho.harm.Statuses([
+  ...CORE_ELEMENTS.map((el) => ({ id: el, at: ['st', el], time: () => T.circuits.react.status, wear: 'clear', ends: (e) => { if (e.stk) e.stk[el] = 0; } })),
+  { id: 'chill', at: 'slowT', time: () => T.onHit.chillTime, wear: 'clamp' },
+  { id: 'burn', dose: 'dps', time: () => T.elements.burnTime, every: 0.5, stack: 'add', most: () => T.circuits.react.inferno.most, spread: { r: () => T.circuits.react.inferno.r } },
+  { id: 'poison', at: 'blight', dose: 'dps', time: () => T.elements.blightTime, every: 0.5, stack: 'refresh', spread: { r: () => T.circuits.react.plague.r } },
+  { id: 'brittle', at: 'brittleT', time: () => T.circuits.react.status, stack: 'set', wear: 'down' },
+  { id: 'frozen', at: 'frozenT', stack: 'set', wear: 'down' },
+  { id: 'heavy', at: 'heavyT', time: () => T.circuits.react.status, stack: 'set', wear: 'down' },
+  { id: 'stun', at: 'stunT' },
+  { id: 'lost', at: 'lostT' },
+  { id: 'shockStack', at: ['stk', 'shock'], stack: 'count', most: () => T.circuits.react.overload.stacks },
+  { id: 'frostStack', at: ['stk', 'frost'], stack: 'count', most: () => T.circuits.react.freeze.stacks },
+]);
 
 // Whether a foe still carries an element's status.
 function carries(e, el) {
-  if (e.st && e.st[el] > 0) return true;
-  if (el === 'frost') return e.slowT > 0 || e.frozenT > 0;
-  if (el === 'ember') return !!e.burn;
-  if (el === 'blight') return !!e.blight;
+  if (FOE_STATUS.has(e, el)) return true;
+  if (el === 'frost') return FOE_STATUS.has(e, 'chill') || FOE_STATUS.has(e, 'frozen');
+  if (el === 'ember') return FOE_STATUS.has(e, 'burn');
+  if (el === 'blight') return FOE_STATUS.has(e, 'poison');
   return false;
 }
 const reactReady = (e, id) => !(e.rcd && e.rcd[id] > Game.t);
@@ -73,189 +99,167 @@ function reactFired(e, id) {
   Story.say('react_' + id);
 }
 
-// A hit of `els` is about to land on e: the reactions it sets off.
-// o: { dmg (after its nature), heavy, knock, att (attuned elements) }; it
-// may add flat damage to o.extra. Returns the hit's multiplier.
-function circuitReact(e, els, o) {
-  const fired = [];
-  const add = (id) => { if (id && !fired.includes(id)) fired.push(id); };
-  if (els.length > 1) add(reactPair(els[0], els[1]));
-  for (const el of els) for (const c of CORE_ELEMENTS) if (c !== el && carries(e, c)) add(reactPair(el, c));
-  let mult = 1;
-  for (const id of fired) {
-    if (!reactReady(e, id)) continue;
-    const m = REACT_DO[id](e, els, o);
-    if (m === null) continue;
-    mult *= m;
-    reactFired(e, id);
-  }
-  return mult;
-}
-
-// What each pair does. Each returns the hit's multiplier, or null when
-// there was nothing for it to do.
+// What each pair does, given the hit (h.to the foe, h.kinds its elements,
+// h.amount the damage after its nature, h.blow the rest); it may add flat
+// damage to h.extra, and sends what it does to the foes about as blows of
+// its own (h.send). Each returns the hit's multiplier, or null when there
+// was nothing for it to do.
 const REACT_DO = {
-  shatter(e, els, o) {
-    const d = Game.dive, R = T.circuits.react.shatter;
+  shatter(h) {
+    const d = Game.dive, R = T.circuits.react.shatter, e = h.to, S = FOE_STATUS;
     d.fx.push({ kind: 'shatter', x: e.x, y: e.y - 6, t: 0.3, max: 0.3 });
-    if (e.frozenT > 0) {
+    if (S.has(e, 'frozen')) {
       // the frozen burst, and the shards hurt what's round them
-      e.frozenT = 0; e.stunT = Math.min(e.stunT, 0.05);
+      S.clear(e, 'frozen'); e.stunT = Math.min(e.stunT, 0.05);
       d.fx.push({ kind: 'iceBurst', x: e.x, y: e.y - 6, r: R.burst, t: 0.35, max: 0.35 });
-      for (const q of d.enemies) if (!q.dead && q !== e && dist(q.x, q.y, e.x, e.y) < R.burst + q.r) hurtEnemy(q, o.dmg * R.burstMult, { els: ['frost'], noProc: true, spell: true });
+      for (const q of d.enemies) if (!q.dead && q !== e && dist(q.x, q.y, e.x, e.y) < R.burst + q.r) h.send(q, { amount: h.amount * R.burstMult, kinds: ['frost'], noProc: true, spell: true });
     }
     // the chill is spent (a frost hit lays its own again)
-    e.slowT = 0;
-    if (e.st) e.st.frost = 0;
-    if (e.stk) e.stk.frost = 0;
-    if (!els.includes('force') && e.st) e.st.force = 0;
+    S.clear(e, 'chill');
+    S.clear(e, 'frost');
+    S.clear(e, 'frostStack');
+    if (!h.kinds.includes('force')) S.clear(e, 'force');
     return R.mult;
   },
-  conduct(e, els, o) {
-    const d = Game.dive, R = T.circuits.react.conduct, share = o.dmg / els.length;
+  conduct(h) {
+    const d = Game.dive, R = T.circuits.react.conduct, e = h.to, share = h.amount / h.kinds.length;
     let n = 0;
     for (const q of d.enemies) {
       if (q.dead || q === e || !carries(q, 'frost') || dist(q.x, q.y, e.x, e.y) > R.range) continue;
       d.fx.push({ kind: 'arc', x: e.x, y: e.y - 5, x2: q.x, y2: q.y - 5, t: 0.2, max: 0.2, col: ELEMENT_COLS.shock });
-      hurtEnemy(q, share * R.mult, { els: ['shock'], noProc: true, spell: true });
+      h.send(q, { amount: share * R.mult, kinds: ['shock'], noProc: true, spell: true });
       n++;
     }
     return n ? 1 : null;
   },
-  steam(e) {
-    const d = Game.dive, R = T.circuits.react.steam;
+  steam(h) {
+    const d = Game.dive, R = T.circuits.react.steam, e = h.to, S = FOE_STATUS;
     d.fx.push({ kind: 'steam', x: e.x, y: e.y - 4, r: R.r, t: R.cloud, max: R.cloud });
     for (const q of d.enemies) if (!q.dead && dist(q.x, q.y, e.x, e.y) < R.r + q.r) reactLose(q, R.lost);
     // the chill and the burn cancel out
-    e.slowT = 0; e.burn = null;
-    if (e.st) e.st.frost = e.st.ember = 0;
+    S.clear(e, 'chill'); S.clear(e, 'burn');
+    S.clear(e, 'frost'); S.clear(e, 'ember');
     return 1;
   },
-  brittle(e) {
-    e.brittleT = T.circuits.react.status;
+  brittle(h) {
+    FOE_STATUS.give(h.to, 'brittle');
     return 1;
   },
-  pyre(e, els, o) {
-    const b = e.blight;
+  pyre(h) {
+    const e = h.to, b = FOE_STATUS.get(e, 'poison');
     if (!b) return null;
     // the poison left, all at once, as fire
-    o.extra = (o.extra || 0) + b.dps * b.t * T.circuits.react.pyre.mult * elementMultFor(e, 'ember');
-    e.blight = null;
-    if (e.st) e.st.blight = 0;
+    h.extra = (h.extra || 0) + b.dps * b.t * T.circuits.react.pyre.mult * elementMultFor(e, 'ember');
+    FOE_STATUS.clear(e, 'poison');
+    FOE_STATUS.clear(e, 'blight');
     castFxSpot(e.x, e.y - 4, 'ember', 1.5);
     return 1;
   },
-  flare(e) {
-    const d = Game.dive, R = T.circuits.react.flare;
+  flare(h) {
+    const d = Game.dive, R = T.circuits.react.flare, e = h.to;
     d.fx.push({ kind: 'flare', x: e.x, y: e.y - 8, r: R.r, t: 0.3, max: 0.3 });
     for (const q of d.enemies) if (!q.dead && dist(q.x, q.y, e.x, e.y) < R.r + q.r) reactLose(q, R.blind);
     return 1;
   },
-  scatter(e, els, o) {
-    const d = Game.dive, R = T.circuits.react.scatter, p = d.p;
-    const k = o.knock && Math.hypot(o.knock.x, o.knock.y) > 1 ? norm(o.knock.x, o.knock.y) : norm(e.x - p.x, e.y - p.y);
+  scatter(h) {
+    const d = Game.dive, R = T.circuits.react.scatter, p = d.p, e = h.to, kn = h.blow.knock;
+    const k = kn && Math.hypot(kn.x, kn.y) > 1 ? norm(kn.x, kn.y) : norm(e.x - p.x, e.y - p.y);
     let n = 0;
     for (let i = 1; i <= R.n; i++) {
       const x = e.x + k.x * R.step * i, y = e.y + k.y * R.step * i;
       if (TILE_SOLID[floorTile(d.floor, Math.floor(x / TILE), Math.floor(y / TILE))]) break;
-      d.puddles.push({ x, y, r: R.r, t: R.time, max: R.time, dps: o.dmg * R.dps, mine: true, els: ['ember'], col: ELEMENT_COLS.ember, every: 0.5, fire: true });
+      d.puddles.push({ x, y, r: R.r, t: R.time, max: R.time, dps: h.amount * R.dps, mine: true, els: ['ember'], col: ELEMENT_COLS.ember, every: 0.5, fire: true });
       n++;
     }
     return n ? 1 : null;
   },
-  jolt(e) {
-    reactStack(e, 'shock', T.circuits.react.jolt.stacks);
+  jolt(h) {
+    reactStack(h.to, 'shock', T.circuits.react.jolt.stacks);
     return 1;
   },
 };
+// The hit's reactions, a stage of hurtEnemy's (combat.js): Tycho's react
+// stage asks REACT_TABLE which pairs a hit of its elements makes with
+// itself and with what the foe carries, and runs each ready one's own.
+const FOE_REACT = Tycho.harm.react({ table: REACT_TABLE, kinds: CORE_ELEMENTS, carries, do: REACT_DO, ready: reactReady, fired: reactFired, when: (h) => !h.blow.noProc });
 
 // A foe loses the diver (steam) or is blinded (flare): it breaks off any
 // wind-up and wanders a moment.
 function reactLose(q, t) {
   const k = reactControl(q, t);
   if (k <= 0) return;
-  q.lostT = Math.max(q.lostT || 0, k);
+  FOE_STATUS.give(q, 'lost', { time: k });
   if (q.state === 'windup') { q.state = q.type === 'snapjaw' || q.type === 'spitter' ? 'rest' : 'chase'; q.cd = Math.max(q.cd, 0.6); }
 }
 // Held still a moment (overload, a second heavy blow); a wind-up is broken.
 function reactStun(e, t) {
   const k = reactControl(e, t);
   if (k <= 0) return;
-  e.stunT = Math.max(e.stunT, k); e.kx = e.ky = 0;
+  FOE_STATUS.give(e, 'stun', { time: k }); e.kx = e.ky = 0;
   if (e.state === 'windup') { e.state = e.type === 'snapjaw' || e.type === 'spitter' ? 'rest' : 'chase'; e.cd = Math.max(e.cd, 0.4); }
 }
 
 // Stacks of shock or chill; enough of them overload or freeze.
 function reactStack(e, el, n) {
-  const R = T.circuits.react, stk = e.stk || (e.stk = {});
-  stk[el] = (stk[el] || 0) + n;
-  if (el === 'shock' && stk.shock >= R.overload.stacks) {
-    stk.shock = 0;
+  const R = T.circuits.react;
+  if (FOE_STATUS.give(e, el + 'Stack', { n }) !== 'full') return;
+  if (el === 'shock') {
     reactStun(e, R.overload.stun);
     Game.dive.fx.push({ kind: 'overload', x: e.x, y: e.y - 6, t: 0.35, max: 0.35 });
     reactFired(e, 'overload');
-  } else if (el === 'frost' && stk.frost >= R.freeze.stacks) {
-    stk.frost = 0;
+  } else {
     const k = reactControl(e, R.freeze.time);
-    if (k > 0) { e.frozenT = k; e.stunT = Math.max(e.stunT, k); e.kx = e.ky = 0; if (e.state === 'windup') e.state = e.type === 'snapjaw' || e.type === 'spitter' ? 'rest' : 'chase'; }
+    if (k > 0) { FOE_STATUS.give(e, 'frozen', { time: k }); FOE_STATUS.give(e, 'stun', { time: k }); e.kx = e.ky = 0; if (e.state === 'windup') e.state = e.type === 'snapjaw' || e.type === 'spitter' ? 'rest' : 'chase'; }
     reactFired(e, 'freeze');
   }
 }
 
-// A hit of `els` has landed for dmg: each element's status, and what an
-// element does stacked on itself. o: { heavy, att }.
-function circuitStatuses(e, els, dmg, o) {
-  const d = Game.dive, R = T.circuits.react, El = T.elements, O = T.onHit, share = dmg / els.length;
-  const st = e.st || (e.st = {});
+// A hit of its elements has landed (a stage of hurtEnemy's, after the
+// reactions, for h.amount): each element's status, and what an element does
+// stacked on itself.
+function foeStatusesLeft(h) {
+  const e = h.to;
+  if (!h.kinds || h.blow.noProc) return;
+  if (e.dead) { h.stop(); return; }
+  const d = Game.dive, R = T.circuits.react, El = T.elements, O = T.onHit, S = FOE_STATUS, b = h.blow, els = h.kinds, share = h.amount / els.length;
   for (const el of els) {
-    const k = (o.att && o.att.includes(el) ? T.circuits.attuned.status : 1) * (o.statusK || 1), had = carries(e, el);
-    st[el] = Math.max(st[el] || 0, R.status * k);
+    const k = (b.att && b.att.includes(el) ? T.circuits.attuned.status : 1) * (b.statusK || 1);
+    S.give(e, el, { scale: k });
     if (el === 'shock') {
-      if (d.rng.chance(El.shockChance)) {
+      if (h.rng.chance(El.shockChance)) {
         const q = nearestEnemy(d, O.shockRange, e, e);
-        if (q) { d.fx.push({ kind: 'arc', x: e.x, y: e.y - 5, x2: q.x, y2: q.y - 5, t: 0.15, max: 0.15, col: ELEMENT_COLS.shock }); hurtEnemy(q, share * O.shockMult, { els: ['shock'], noProc: true, spell: true }); }
+        if (q) { d.fx.push({ kind: 'arc', x: e.x, y: e.y - 5, x2: q.x, y2: q.y - 5, t: 0.15, max: 0.15, col: ELEMENT_COLS.shock }); h.send(q, { amount: share * O.shockMult, kinds: ['shock'], noProc: true, spell: true }); }
       }
       reactStack(e, 'shock', 1);
     } else if (el === 'frost') {
-      e.slowT = Math.max(e.slowT, O.chillTime * k);
-      if (!(e.frozenT > 0)) reactStack(e, 'frost', 1);
+      S.give(e, 'chill', { scale: k });
+      if (!S.has(e, 'frozen')) reactStack(e, 'frost', 1);
     } else if (el === 'ember') {
-      const add = share * El.burn, b = e.burn;
-      if (b && had) {
-        // Inferno: burns stack; at the most, they spread
-        b.n = Math.min(R.inferno.most, (b.n || 1) + 1);
-        b.dps = Math.min(b.dps + add, add * R.inferno.most);
-        b.t = Math.max(b.t, El.burnTime * k);
-        if (b.n >= R.inferno.most && reactReady(e, 'inferno')) {
-          for (const q of d.enemies) if (!q.dead && q !== e && dist(q.x, q.y, e.x, e.y) < R.inferno.r + q.r && (!q.burn || q.burn.dps < add)) q.burn = { t: El.burnTime, dps: add, n: 1 };
-          castFxSpot(e.x, e.y - 4, 'ember', 1);
-          reactFired(e, 'inferno');
-        }
-      } else e.burn = { t: El.burnTime * k, dps: add, n: 1 };
+      // Inferno: burns stack; at the most, they spread
+      const add = share * El.burn;
+      if (S.give(e, 'burn', { amount: add, scale: k }) === 'most' && reactReady(e, 'inferno')) {
+        S.spread(e, 'burn', d.enemies, { who: (q) => !q.dead, take: (q) => !q.burn || q.burn.dps < add, as: () => ({ t: El.burnTime, dps: add, n: 1 }) });
+        castFxSpot(e.x, e.y - 4, 'ember', 1);
+        reactFired(e, 'inferno');
+      }
     } else if (el === 'blight') {
-      const was = e.blight, dps = share * El.blight;
-      e.blight = { t: El.blightTime * k, dps: Math.max(dps, was ? was.dps : 0) };
       // Plague: poison on the poisoned spreads at once
-      if (was && reactReady(e, 'plague')) {
-        let n = 0;
-        for (const q of d.enemies) if (!q.dead && q !== e && dist(q.x, q.y, e.x, e.y) < R.plague.r + q.r && (!q.blight || q.blight.dps < e.blight.dps)) { q.blight = { t: El.blightTime, dps: e.blight.dps }; n++; }
+      if (S.give(e, 'poison', { amount: share * El.blight, scale: k }) === 'again' && reactReady(e, 'plague')) {
+        const n = S.spread(e, 'poison', d.enemies, { who: (q) => !q.dead, take: (q, s) => !q.blight || q.blight.dps < s.dps, as: (s) => ({ t: El.blightTime, dps: s.dps }) });
         if (n) reactFired(e, 'plague');
       }
-    } else if (el === 'force' && o.heavy) {
+    } else if (el === 'force' && b.heavy) {
       // a second heavy blow while the first still rings
-      if (e.heavyT > 0 && reactReady(e, 'stun')) { e.heavyT = 0; reactStun(e, R.stun.time); reactFired(e, 'stun'); }
-      else e.heavyT = R.status * k;
+      if (S.has(e, 'heavy') && reactReady(e, 'stun')) { S.clear(e, 'heavy'); reactStun(e, R.stun.time); reactFired(e, 'stun'); }
+      else S.give(e, 'heavy', { scale: k });
     }
   }
 }
 
-// Each step (world time): statuses and stacks wear off.
+// Each step (world time): statuses and stacks wear off (and a warded
+// shell's flash fades).
 function reactTick(e, dt) {
-  const st = e.st;
-  if (st) for (const el in st) if (st[el] > 0 && (st[el] -= dt) <= 0) { st[el] = 0; if (e.stk) e.stk[el] = 0; }
-  if (e.heavyT > 0) e.heavyT -= dt;
-  if (e.brittleT > 0) e.brittleT -= dt;
-  if (e.frozenT > 0) e.frozenT -= dt;
+  FOE_STATUS.wear(e, dt);
   if (e.wardHit > 0) e.wardHit -= dt;
 }
 

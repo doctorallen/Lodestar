@@ -55,9 +55,8 @@ const CIRCUIT_GLYPHS = {
 };
 // What each kind of core is called.
 const STONE_KIND_NAMES = { form: 'Form', element: 'Element', glyph: 'Mod' };
-// Which two elements react, and as what (reactions.js does it).
+// Which two elements react, and as what (reactions.js does it: REACT_TABLE).
 const REACT_PAIRS = { 'force|frost': 'shatter', 'frost|shock': 'conduct', 'ember|frost': 'steam', 'blight|frost': 'brittle', 'blight|ember': 'pyre', 'ember|shock': 'flare', 'ember|force': 'scatter', 'force|shock': 'jolt' };
-const reactPair = (a, b) => REACT_PAIRS[a < b ? a + '|' + b : b + '|' + a] || null;
 
 // Resonances: named spells (resonance.js). A spell wakes one when its cores
 // hold all of the resonance's parts (a Form, an Element and one or two
@@ -206,23 +205,32 @@ function rigOreLine(it) {
   return bits.join(' · ');
 }
 
+// The Forms as means (Tycho's: Tycho.harm.means), what a spell is cast
+// with, the Kindler's and the creatures' alike: each a cast, its cooldown
+// (an Arc's one a step of its combo) and its charge; its move, the Form's
+// own numbers (T.circuits.forms); and the spark a spell with no Form casts.
+const SPELL_MEANS = Tycho.harm.means(Object.keys(T.circuits.forms).map((id) => {
+  const F = T.circuits.forms[id];
+  return { id, use: 'cast', kinds: [], move: F, cost: { cooldown: F.combo ? F.combo.map((c) => c[1]) : F.cd, charge: F.cost } };
+}).concat([{ id: 'spark', use: 'cast', kinds: ['force'], move: T.circuits.spark, cost: { cooldown: T.circuits.spark.cd, charge: T.circuits.spark.cost } }]));
+
 // A spell's charge: its Form's cost times each of its Mods', at least 1.
 function groupCost(g) {
-  let c = T.circuits.forms[g.form].cost;
+  let c = Tycho.harm.costOf(SPELL_MEANS.get(g.form));
   for (const id in g.glyphs) c *= Math.pow(T.circuits.glyphs[id].cost, g.glyphs[id]);
   return Math.max(1, c);
 }
 // What a press of a spell costs, in charge, to a tenth.
 function spellCost(sp) {
   const g = spellGroup(sp);
-  return g ? Math.round(groupCost(g) * 10) / 10 : T.circuits.spark.cost;
+  return g ? Math.round(groupCost(g) * 10) / 10 : Tycho.harm.costOf(SPELL_MEANS.get('spark'));
 }
 // How long a spell waits after a press (an Arc's by its place in the
 // combo), by Quicken and the frame.
 function spellWait(g, step) {
   const C = T.circuits, R = rigBase();
-  if (!g) return C.spark.cd * R.cd * motesPassive('wrist');
-  const F = C.forms[g.form], cd = g.form === 'arc' ? F.combo[step % F.combo.length][1] : F.cd;
+  if (!g) return Tycho.harm.cooldown(SPELL_MEANS.get('spark')) * R.cd * motesPassive('wrist');
+  const cd = Tycho.harm.cooldown(SPELL_MEANS.get(g.form), step);
   return cd * Math.pow(C.glyphs.quicken.cd, g.glyphs.quicken || 0) * R.cd * motesPassive('wrist');
 }
 // How much harder a spell hits for its cores' tiers.

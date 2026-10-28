@@ -8,6 +8,15 @@
 // enemies back (the view never shakes); heavy ones stagger them. Kills drop
 // creature parts, exotics, modules (their pattern caught, modules.js),
 // sealed relics and healing motes onto the floor.
+//
+// The damage is on Tycho's harm part (Tycho.harm, vendor/tycho/docs/
+// harm.md): a blow on the Kindler (hurtPlayer) or on a foe (hurtEnemy)
+// lands through a pipeline of stages, Tycho's own (a gate, a multiplier,
+// the nature's resistance, armor, a ward's soak, the reactions, knockback
+// by weight, stagger and flinch, the target held still) and this game's
+// (its affixes, a Keeper's phase, the statuses an element leaves, the
+// number, the wake and the procs); the world's hold still is Tycho's
+// Hitstop, and the statuses and reactions are reactions.js's on Tycho's.
 // ---------------------------------------------------------------------------
 
 // The nearest living enemy within range that the diver can see.
@@ -48,12 +57,10 @@ function chargeLevel(h) {
 }
 
 // A hit lands: the world holds still a moment. Only a heavy hit can freeze
-// it again straight after another, so a flurry doesn't stutter.
-function freezeFrame(t, heavy) {
-  if (!heavy && Game.realT - (Game.frozeAt || -1) < T.impact.stopGap) return;
-  Game.hitstop = Math.max(Game.hitstop, t);
-  Game.frozeAt = Game.realT;
-}
+// it again straight after another, so a flurry doesn't stutter. (Tycho's:
+// Game.hitstop and Game.frozeAt, held in main.js step.)
+const HITSTOP = new Tycho.harm.Hitstop({ state: Game, gap: () => T.impact.stopGap, clock: () => Game.realT });
+function freezeFrame(t, heavy) { HITSTOP.freeze(t, heavy); }
 
 // The dash: when asked for and ready, a burst along the stick (or the way
 // the diver faces).
@@ -82,25 +89,29 @@ function updateDash(dt) {
   return false;
 }
 
-function shakeView(n) { View.shake = Math.max(View.shake || 0, n); }
+// (the view's shake, Tycho's: VIEW_SHAKE, in main.js)
+function shakeView(n) { VIEW_SHAKE.kick(n); }
 
 // ---------------------------------------------------------------------------
 // Damage
 // ---------------------------------------------------------------------------
-function hurtPlayer(dmg, from) {
-  const d = Game.dive, p = d.p, st = d.stats;
-  if (p.invuln > 0 || d.dying) return;
-  dmg *= motesPassive('thickskin');
-  // (the lattice is the armour, and it's only as hard as the light in it:
-  // game.js latticeK)
-  const armor = st.armor * latticeK(d) + (st.litArmor && restingLight(d) ? st.litArmor : 0);
-  dmg *= T.items.armorK / (T.items.armorK + armor);
-  if (p.ward > 0) {
-    // what strikes a ward is struck back, with its element
-    if (from && from.hp !== undefined && !from.dead && p.wardS) circuitHit(p.wardS, from, p.wardHit, { noChain: true });
-    const soak = Math.min(p.ward, dmg); p.ward -= soak; dmg -= soak;
-    if (p.ward <= 0) wardGone(p);
-  }
+// A blow on the Kindler: not while he can't be touched or is falling; his
+// thick skin; the lattice is the armour, and it's only as hard as the light
+// in it (game.js latticeK); a ward takes it first, and what strikes a ward
+// is struck back, with its element; then the light it knocks out of him.
+const KINDLER_HIT = new Tycho.harm.Pipeline([
+  Tycho.harm.gate((h) => !(h.to.invuln > 0 || Game.dive.dying)),
+  Tycho.harm.scale(() => motesPassive('thickskin'), 'thick skin'),
+  Tycho.harm.armor({ k: () => T.items.armorK, of: () => { const d = Game.dive, st = d.stats; return st.armor * latticeK(d) + (st.litArmor && restingLight(d) ? st.litArmor : 0); } }),
+  Tycho.harm.soak('ward', { first: wardStrikesBack, gone: wardGone }),
+  kindlerStruck,
+]);
+function wardStrikesBack(h) {
+  const p = h.to, from = h.blow.by;
+  if (from && from.hp !== undefined && !from.dead && p.wardS) circuitHit(p.wardS, from, p.wardHit, { noChain: true });
+}
+function kindlerStruck(h) {
+  const d = Game.dive, p = h.to, dmg = h.amount, from = h.blow.by;
   p.hp -= dmg;
   shakeView(T.impact.hurtShake);
   d.nums.push({ x: p.x, y: p.y - 22, v: Math.max(1, Math.round(dmg)), t: 0.8, hurt: true });
@@ -113,84 +124,101 @@ function hurtPlayer(dmg, from) {
   buzz(30);
   if (p.hp <= 0) { p.hp = 0; startDying(); }
 }
+function hurtPlayer(dmg, from) { KINDLER_HIT.land(Game.dive.p, { amount: dmg, by: from }, { rng: Game.dive.rng }); }
 
 function healPlayer(n) {
   const p = Game.dive.p;
   p.hp = Math.min(Game.dive.stats.maxHp, p.hp + n);
 }
 
-// opts: { crit, spell, noProc (an arc of lightning doesn't arc again, and
-// sets off no reaction), knock: { x, y } px/s, heavy (staggers), els (its
-// elements, one or two: each brings its status, on its share of the
-// damage), or element (one); att: the elements its caster's ore is attuned
-// to (their statuses last longer) }
+// A blow on a foe, in order: a foe under the sand, the water or on the
+// roof can't be struck; open to a counter (dazed, or exposed) it takes
+// more; its nature (natures.js elementMult), and a Slag Crab's shell, which
+// while it's shut stands in for what the crab resists rather than adding
+// to it (what it fears still tells: foes.js crabShell); Wick notes it;
+// brittle, more; its affixes (a shell that turns bolts, a chain that shares
+// the hit, thorns that cut back: affixes.js); Ember melts a frosted elite's
+// ground; a Keeper's phase (enemies.js); the reactions its elements set off
+// with the statuses it carries, then the statuses they leave (reactions.js);
+// Force cracks a warded shell; a ward it cast (foecast.js) soaks the blow;
+// then it lands: its health, its rim flashing the hit's element, the number;
+// the knock, by its weight; a heavy blow staggers it, a solid one breaks
+// off its wind-up; it holds still a moment; it wakes; the Kindler's traits.
+// opts (the blow's fields): { crit, spell, noProc (an arc of lightning
+// doesn't arc again, and sets off no reaction), knock: { x, y } px/s,
+// heavy (staggers), els (its elements, one or two: each brings its status,
+// on its share of the damage), or element (one); att: the elements its
+// caster's ore is attuned to (their statuses last longer) }
+const FOE_HIT = new Tycho.harm.Pipeline([
+  Tycho.harm.gate((h) => !(h.to.dead || h.to.hid)),
+  Tycho.harm.scale((h) => (h.to.state === 'dazed' || FOE_EXPOSED.has(h.to.state) ? T.enemies.exposed : 1), 'exposed'),
+  Tycho.harm.resist({ of: (e, els) => elementMult(e, els), shape: (h, m) => { if (h.to.type !== 'crab') return m; const sh = crabShell(h.to, h.blow); return sh < 1 ? sh * Math.max(1, m) : m; } }),
+  foeNatureSeen,
+  Tycho.harm.scale((h) => (h.to.brittleT > 0 ? T.circuits.react.brittle.mult : 1), 'brittle'),
+  foeAffixesHit,
+  foePhaseHit,
+  // (reactions.js, loaded after this file)
+  (h) => FOE_REACT.land(h),
+  (h) => foeStatusesLeft(h),
+  foeWardCracked,
+  Tycho.harm.soak('ward', { when: (h) => !!h.to.wardS && h.to.ward > 0, gone: wardGone }),
+  foeStruck,
+  Tycho.harm.knock({ weight: (e) => { const kd = T.enemies[e.type].knock; return (e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : kd !== undefined ? kd : 1) * affixKnock(e); } }),
+  Tycho.harm.stagger({
+    can: (e) => !e.boss && e.type !== 'hollow', steady: affixSteady, open: (e) => e.state !== 'dazed', heavy: () => T.enemies.staggerTime, scale: 'staggerK',
+    flinch: { share: () => T.impact.flinch, time: () => T.impact.flinchTime, gap: () => T.impact.flinchGap, clock: () => Game.t },
+  }),
+  Tycho.harm.hold({ field: 'hitT', time: () => T.impact.targetStop, heavy: () => T.impact.heavyTargetStop, can: (e) => !e.boss && e.type !== 'hollow' }),
+  foeAfterHit,
+]);
 function hurtEnemy(e, dmg, opts = {}) {
-  const d = Game.dive, st = d.stats, O = T.onHit, I = T.impact;
-  // (a foe under the sand, the water or on the roof can't be struck)
-  if (e.dead || e.hid) return;
-  const els = opts.els || (opts.element ? [opts.element] : null);
-  if (e.state === 'dazed' || FOE_EXPOSED.has(e.state)) dmg *= T.enemies.exposed;
-  // its nature: weak, resistant, or neither (natures.js)
-  let verdict = null, m = 1;
-  if (els) {
-    m = elementMult(e, els);
-    verdict = m > 1.01 ? 'W' : m < 0.99 ? 'R' : null;
-    if (opts.spell) learnNature(e, els, verdict);
-    // (the hit's sound and its ring say it too: circuits.js circuitHit,
-    // render.js 'verdict')
-    if (opts.spell && verdict && Game.realT - (e.verdictFxAt || -9) > 0.12) { e.verdictFxAt = Game.realT; d.fx.push({ kind: 'verdict', v: verdict, el: els[0], x: e.x, y: e.y - 5, t: 0.28, max: 0.28 }); }
+  return FOE_HIT.land(e, Object.assign({}, opts, { amount: dmg, kinds: opts.els || (opts.element ? [opts.element] : null) }), { rng: Game.dive.rng });
+}
+// (the hit's sound and its ring say the verdict too: circuits.js
+// circuitHit, render.js 'verdict')
+function foeNatureSeen(h) {
+  const e = h.to, d = Game.dive, verdict = h.verdict;
+  if (h.kinds && h.blow.spell) {
+    learnNature(e, h.kinds, verdict);
+    if (verdict && Game.realT - (e.verdictFxAt || -9) > 0.12) { e.verdictFxAt = Game.realT; d.fx.push({ kind: 'verdict', v: verdict, el: h.kinds[0], x: e.x, y: e.y - 5, t: 0.28, max: 0.28 }); }
   }
   e.lastVerdict = verdict;
-  // a Slag Crab's shell (foes.js): while it's shut it stands in for what
-  // the crab resists, rather than adding to it; what it fears still tells
-  if (e.type === 'crab') { const sh = crabShell(e, opts); if (sh < 1) m = sh * Math.max(1, m); }
-  dmg *= m;
-  if (e.brittleT > 0) dmg *= T.circuits.react.brittle.mult;
-  // its affixes: a shell that turns bolts, a chain that shares the hit,
-  // thorns that cut back (affixes.js)
-  if (e.affixes && e.affixes.length) { dmg = affixOnHit(e, dmg, opts); if (dmg <= 0) { e.flash = T.enemies.hurtFlash; e.flashCol = null; return; } }
-  if (els && els.includes('ember')) affixMelt(d, e);
-  // a Keeper's phase: a gear check (enemies.js)
-  if (e.type === 'keeper') dmg = keeperPhaseHit(e, dmg, els, opts);
-  // what it sets off with the statuses it carries (reactions.js), then its own
-  if (els && !opts.noProc) {
-    const o = { dmg, heavy: !!opts.heavy, knock: opts.knock, att: opts.att, statusK: opts.statusK || 1, extra: 0 };
-    dmg = dmg * circuitReact(e, els, o) + o.extra;
-    if (e.dead) return;
-    circuitStatuses(e, els, dmg, o);
-  }
-  // Force cracks a warded shell
-  if (els && els.includes('force') && e.ward > 0) crackWard(e, opts.heavy);
-  // a ward it cast (foecast.js) soaks the blow
-  if (e.wardS && e.ward > 0) { const soak = Math.min(e.ward, dmg); e.ward -= soak; dmg -= soak; if (e.ward <= 0) wardGone(e); }
+}
+function foeAffixesHit(h) {
+  const e = h.to;
+  if (!e.affixes || !e.affixes.length) return;
+  h.amount = affixOnHit(e, h.amount, h);
+  if (h.amount <= 0) { Tycho.harm.flash(e, T.enemies.hurtFlash, { col: null }); h.stop(); }
+}
+function foePhaseHit(h) {
+  const e = h.to;
+  if (h.kinds && h.kinds.includes('ember')) affixMelt(Game.dive, e);
+  if (e.type === 'keeper') h.amount = keeperPhaseHit(e, h.amount, h.kinds, h.blow);
+}
+function foeWardCracked(h) { if (h.kinds && h.kinds.includes('force') && h.to.ward > 0) crackWard(h.to, h.blow.heavy); }
+function foeStruck(h) {
+  const e = h.to, d = Game.dive, dmg = h.amount, els = h.kinds, verdict = h.verdict;
   e.hp -= dmg;
-  e.flash = T.enemies.hurtFlash;
   // the struck enemy's rim takes the hit's element (Force's is white)
-  e.flashCol = els && els[0] !== 'force' ? ELEMENT_COLS[els[0]] : null;
+  Tycho.harm.flash(e, T.enemies.hurtFlash, { col: els && els[0] !== 'force' ? ELEMENT_COLS[els[0]] : null });
   // WEAK or RESIST under a number at most once every verdictEvery s over a
   // foe, and not when a reaction's name shows for the hit: the number's
   // colour still says it
   const quiet = !verdict || e.reactWordAt === Game.realT || Game.realT - (e.verdictAt || -9) < T.circuits.react.verdictEvery;
   if (!quiet) e.verdictAt = Game.realT;
-  d.nums.push({ x: e.x + d.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: opts.crit, verdict, foe: e, quiet });
-  const steady = affixSteady(e);
-  if (opts.knock) { const kd = T.enemies[e.type].knock, k = (e.boss || e.type === 'hollow' ? 0.2 : e.type === 'construct' ? 0.5 : kd !== undefined ? kd : 1) * affixKnock(e); e.kvx += opts.knock.x * k; e.kvy += opts.knock.y * k; }
-  if (opts.heavy && !e.boss && e.type !== 'hollow' && !steady && e.state !== 'dazed') { e.state = 'stagger'; e.t = T.enemies.staggerTime * (opts.staggerK || 1); }
-  else if (e.state === 'windup' && !e.boss && e.type !== 'hollow' && !steady && dmg >= e.maxHp * I.flinch && Game.t - (e.flinchAt || -9) > I.flinchGap) {
-    // a solid hit breaks off its wind-up
-    e.state = 'stagger'; e.t = I.flinchTime; e.flinchAt = Game.t;
-  }
-  // it holds still a moment as the hit lands (the knock still takes it)
-  if (!e.boss && e.type !== 'hollow') e.hitT = Math.max(e.hitT || 0, opts.heavy ? I.heavyTargetStop : I.targetStop);
+  d.nums.push({ x: e.x + h.rng.f(-3, 3), y: e.y - 16, v: Math.max(1, Math.round(dmg)), t: 0.7, crit: h.blow.crit, verdict, foe: e, quiet });
+}
+function foeAfterHit(h) {
+  const e = h.to, d = Game.dive, st = d.stats, O = T.onHit, dmg = h.amount;
   if (e.type === 'dummy') { if (e.hp <= 0) e.hp = e.maxHp; e.kvx = e.kvy = 0; return; }
   e.wakeT = 0;
   wake(d, e);
   if (st.leech) healPlayer((dmg * st.leech) / 100);
-  if (!opts.noProc) {
-    if (st.chill && d.rng.f(100) < st.chill) e.slowT = O.chillTime;
-    if (st.shock && d.rng.f(100) < st.shock) {
+  if (!h.blow.noProc) {
+    if (st.chill && h.rng.f(100) < st.chill) FOE_STATUS.put(e, 'chill', O.chillTime);
+    if (st.shock && h.rng.f(100) < st.shock) {
       const o = nearestEnemy(d, O.shockRange, e, e);
-      if (o) { d.fx.push({ kind: 'arc', x: e.x, y: e.y - 5, x2: o.x, y2: o.y - 5, t: 0.15, max: 0.15, col: ELEMENT_COLS.shock }); hurtEnemy(o, dmg * O.shockMult, { els: ['shock'], noProc: true }); }
+      if (o) { d.fx.push({ kind: 'arc', x: e.x, y: e.y - 5, x2: o.x, y2: o.y - 5, t: 0.15, max: 0.15, col: ELEMENT_COLS.shock }); h.send(o, { amount: dmg * O.shockMult, kinds: ['shock'], noProc: true }); }
     }
   }
   if (e.hp <= 0) killEnemy(e);
@@ -203,7 +231,8 @@ function killEnemy(e) {
   // (counted by kind, for the shapes the star reads from the dark: the
   // third step)
   if (e.type !== 'dummy') { Save.data.kills++; const k = Save.data.killsOf || (Save.data.killsOf = {}); k[e.type] = (k[e.type] || 0) + (e.elite ? 2 : 1); motesKill(d, e); }
-  if (e.blight) for (const o of d.enemies) if (!o.dead && o !== e && dist(o.x, o.y, e.x, e.y) < T.elements.blightSpread) o.blight = { t: T.elements.blightTime, dps: e.blight.dps };
+  // its poison spreads to those about it as it falls
+  if (FOE_STATUS.has(e, 'poison')) FOE_STATUS.spread(e, 'poison', d.enemies, { r: T.elements.blightSpread, reach: 'middle', who: (o) => !o.dead, as: (s) => ({ t: T.elements.blightTime, dps: s.dps }) });
   castFxAbsorb(d, e);
   snd('kill', { x: e.x, y: e.y, big: !!e.boss });
   if (hasAffix(e, 'volatile')) d.fx.push({ kind: 'volatile', x: e.x, y: e.y, t: T.enemies.volatileFuse, max: T.enemies.volatileFuse, dmg: e.dmg * T.enemies.volatileDmg });
@@ -223,13 +252,15 @@ function killEnemy(e) {
 // Effects that do something after a moment (a volatile elite's blast), and
 // picking things up
 // ---------------------------------------------------------------------------
+// A volatile elite's blast: a mark (Tycho's trigger) that goes off once
+// its fuse has burnt down, round where it fell.
+const VOLATILE = new Tycho.harm.Trigger({ zone: { get r() { return T.enemies.volatileRadius; } }, once: true });
 function updateCombatFx(dt) {
   const d = Game.dive, p = d.p;
   for (const fx of d.fx) {
     fx.t -= dt;
-    if (fx.kind === 'volatile' && fx.t <= 0 && !fx.done) {
-      fx.done = true;
-      if (dist(fx.x, fx.y, p.x, p.y) < T.enemies.volatileRadius) hurtPlayer(fx.dmg, fx);
+    if (fx.kind === 'volatile' && VOLATILE.goes(fx)) {
+      if (VOLATILE.inside(fx, p.x, p.y, 0)) hurtPlayer(fx.dmg, fx);
       d.fx.push({ kind: 'blast', x: fx.x, y: fx.y - 4, r: T.enemies.volatileRadius, t: 0.3, max: 0.3 });
     }
   }
